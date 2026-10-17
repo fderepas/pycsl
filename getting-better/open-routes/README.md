@@ -2,7 +2,12 @@
 
 
 ## gen #36 (2026-10-17): #258 (`Optional[Any]`/`Any | None` lowered with only the None arm) OPENED (residual of
-##   #254/#255, driver-reproduced).
+##   #254/#255, driver-reproduced). REPAIRED 2026-10-17: a Union with an arm `_union_arm_tag` cannot type (`Any`,
+##   `object`, unknown/lowercase name, nested `Optional`, unmodelled generic) lowers WHOLE to the erased `Any` value
+##   (#249/#251/#252's treatment) instead of a variant with the arm dropped (inline in `_normalize_union_annotation`,
+##   mirror `\trusted`). Witnesses 2580-2587 PROVED -> FAIL, coverage 2588-2589, controls 2590-2592 keep verdicts;
+##   root/pyref 0 MOVED/GONE; mirror 3 MOVED (dead None-only types; one abstract `val` formal -> int), type-only
+##   clean, `ir_schema`/`sertop` re-proved, `module6_whyml/expressions` OWED.
 
 ## gen #36 (2026-10-17): #257 (bare `with <cm>:` drops __enter__/__exit__ for an imported CM or a @contextmanager
 ##   method) OPENED (found by the ch18 census, driver-reproduced).

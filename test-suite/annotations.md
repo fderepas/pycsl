@@ -1920,8 +1920,10 @@ def f(x: Union[int, str]) -> int: ...   # synthesizes:
 ```
 
 The variant name is `_union_<func>_<idx>` (per-site, deterministic). `None` arms
-become a nullary `Arm_<idx>_None` constructor. `Any` arms are dropped (GT1 —
-the static plane refuses gradual consistency; reported in `--soundness-report`).
+become a nullary `Arm_<idx>_None` constructor. A Union with an `Any`
+arm (or `object`, an unknown name, a nested `Optional`/`Union`, an unmodelled generic) is
+not a variant at all: the whole annotation lowers to the erased `Any` value (route #258 —
+dropping the arm made `Optional[Any]` a None-only type and `x is not None` dead).
 Arms are de-duplicated (C1a) and ordered by source with `None` last (C1b).
 
 **Static plane (Interpreted):** the variant type reuses the existing `#@ datatype`

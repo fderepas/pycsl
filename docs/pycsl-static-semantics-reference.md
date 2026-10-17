@@ -273,8 +273,12 @@ specification logic's type universe:
                                    IS Union[X, None]; synthesizes a per-site
                                    variant with arm τ(T) + nullary Arm_None *)
 τ(Union[T, None]) = _union_<scope>_<idx>   (* C1b: equivalent to Optional[T] *)
-τ(Union[T1, T2,…])= _union_<scope>_<idx>   (* one arm per T_i; Any dropped (GT1);
-                                   de-duplicated (C1a); None → nullary ctor *)
+τ(Union[T1, T2,…])= _union_<scope>_<idx>   (* one arm per T_i; de-duplicated (C1a);
+                                   None → nullary ctor. If ANY T_i is untypable
+                                   (Any/object/unknown/nested union/unmodelled
+                                   generic) the whole annotation is "Any"
+                                   (erased), never a variant with T_i dropped
+                                   (route #258) *)
 τ(A | B)          = _union_<scope>_<idx>   (* PEP 604: same as Union[A, B] (C1) *)
 τ(Literal[v1,…,vn]) = base(v_i)            (* typing-engagement ty1: Literal lowers to a
                                    ground `requires { x = v1 \/ … \/ x = vn }`

@@ -4289,9 +4289,12 @@ algebraic types in a program `if`).
 **Return-value auto-injection:** a function returning `Optional[int]` whose
 body returns `expr` (an int) emits `Arm_<i>_0 (expr)`.
 
-**`Any` arm (GT1):** dropped from the synthesized variant; reported in
-`--soundness-report`. The static plane discharges C2/C3 against non-`Any`
-arms only.
+**`Any` arm (route #258):** a Union with an arm the model cannot type (`Any`,
+`object`, an unknown/lowercase name, a nested `Optional`/`Union`, an unmodelled
+generic such as `Sequence[int]`) is NOT a variant: the whole annotation lowers to
+the erased `Any` value (an `int` term with route #249/#251/#252's erased
+treatment). Dropping the arm (the former GT1 lowering) made `Optional[Any]` a
+None-only type, so `x is not None` was dead and false claims proved.
 
 **Runtime shim** (`src/pycsl_lib/typ/__init__.py`): `Union(*args)` is
 `#@ ensures \result == val` (identity, no validation — R1–R8, D4 no-blend).

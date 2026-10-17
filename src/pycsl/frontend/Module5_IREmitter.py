@@ -4878,6 +4878,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             lowered.append((tag, elt))
         if none_present and "None" not in seen_tags:
             seen_tags.add("None")
+        # (#49) ROUTE #258 — AN ARM THE MODEL CANNOT TYPE IS NEVER DROPPED. An arm
+        #   `_union_arm_tag` answers `Any` for (`Any`, `object`, a lowercase/unknown
+        #   class, a nested `Optional[...]`, an unmodelled generic such as
+        #   `Sequence[int]`/`Callable[...]`) used to be DROPPED (GT1), so
+        #   `Optional[Any]` became the single-inhabitant `Arm_i_None` type: every
+        #   `x is not None` was dead and `ensures \result == 5` PROVED for a body that
+        #   returns 6 on any non-None argument. The arm's value is an arbitrary
+        #   Python object, so the WHOLE annotation is that object: it lowers to the
+        #   erased `Any` tag, and route #249/#251/#252's erased treatment (an
+        #   `Any`/`object` formal, field or `-> Any` result) applies to it unchanged.
+        #   The per-site index is still consumed, so every OTHER synthesized union keeps
+        #   its `_union_<scope>_<idx>` name (no renumbering cascade in the emission).
+        if any_dropped:
+            self._fresh_var_counter += 1
+            return "Any"
         # Degenerate single-arm Union with no None (C1c): `Union[X]` is `X`.
         if len(lowered) == 1 and not none_present and not any_dropped:
             return self._m5_get_type_name_legacy(arms_ast[0])
