@@ -17,6 +17,12 @@ Exercises: the `kind_of` discriminant on `.get("pattern")`, the list projection
 (`args_of`), `len` over it, the element subscript (an `emit_ir`), and the
 terminating recursion on the projected element. If this test regresses,
 `alternatives` has fallen back to the opaque getter.
+
+ROUTE #263 (gen #36): the recursion goes through `self.pattern_has_constructor(...)`, a
+METHOD call that Module 6 lowers to a contract stub, so its "termination" was never checked
+— the plain `let` assumed the stub terminates. No measure on an `ExprIR` dict is expressible
+here, so the method is now honestly `#@ \diverges` (partial correctness); the projection
+capability this test locks is unchanged.
 """
 from typing import Any, Dict, Set
 from dataclasses import dataclass
@@ -35,6 +41,7 @@ class PatternWalker:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def pattern_has_constructor(self, pat: ExprIR) -> bool:
         """True if `pat` is a constructor pattern, or an `Or` with one among
         its alternatives (the emitter-shaped `Or`-pattern walker)."""

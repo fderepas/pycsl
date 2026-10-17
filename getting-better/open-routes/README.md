@@ -22,6 +22,13 @@
 ##   FAIL, controls 2820/2823/2824 keep; root/pyref/mirror 0 MOVED; `pycsl_lib_test/formal_happy_world.py` lists its
 ##   subsystem methods as owners (relied on 2818's shape); gate cost one goal per audited call site (538 root,
 ##   36 pyref; 0 false positives among non-failing files); big-mirror call-site measurement OWED.
+##   #263 REPAIRED 2026-10-17: the unit's call graph now includes method/constructor calls (receivers resolved by
+##   class hierarchy, unknown -> every same-named method), and a cycle with an edge the EMISSION shows as a stub (or a
+##   vanished call) is refused unless every member is `#@ \diverges` (`_run_pipeline`, mirror `\trusted`); the stub of
+##   a `\diverges` method carries `diverges` (`_handle_dotted_call`). Witnesses 2770-2779 PROVED -> FAIL, 2780 FAIL ->
+##   PASS (honest marking now writable), control 2781 keeps; root 1 MOVED (0893 +`\diverges`), 0 GONE, pyref 0; mirror 3
+##   MOVED (pure_ast 52 / Module3_Weaver 1 `\diverges` markers + pycsl import stub), type-only clean; planes 61/61 + slow 17 green (3 red at base).
+##   Residuals R1-R5 in the route doc (receiver-form and bespoke-dispatch stubs to a `\diverges` callee, vanished calls).
 
 ## gen #36 (2026-10-17): #214 CLOSED (found by the slow `check-open-route-carriers` plane going red: its carrier no
 ##   longer proves). Driver bisect: closed by route #255 (323e857b; getattr over an erased receiver is erased, and #249's

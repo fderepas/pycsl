@@ -4452,6 +4452,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def traverse(self, node):
         if isinstance(node, list):
             for item in node:
@@ -4462,6 +4463,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._source
+    #@ \diverges
     def visit(self, node):
         self._source = []
         self.traverse(node)
@@ -4497,6 +4499,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_FunctionType(self, node):
         with self.delimit("(", ")"):
             self.interleave(lambda: self.write(", "), self.traverse, node.argtypes)
@@ -4506,6 +4509,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_Expr(self, node):
         self.fill()
         self.set_precedence(_Precedence.YIELD, node.value)
@@ -4514,6 +4518,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_NamedExpr(self, node):
         with self.require_parens(_Precedence.NAMED_EXPR, node):
             self.set_precedence(_Precedence.ATOM, node.target, node.value)
@@ -4542,6 +4547,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_Assign(self, node):
         self.fill()
         for target in node.targets:
@@ -4556,6 +4562,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_AugAssign(self, node):
         self.fill()
         self.traverse(node.target)
@@ -4565,6 +4572,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_AnnAssign(self, node):
         self.fill()
         with self.delimit_if(
@@ -4580,6 +4588,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_Return(self, node):
         self.fill("return")
         if node.value:
@@ -4614,6 +4623,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_Assert(self, node):
         self.fill("assert ")
         self.traverse(node.test)
@@ -4638,6 +4648,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_Await(self, node):
         with self.require_parens(_Precedence.AWAIT, node):
             self.write("await")
@@ -4649,6 +4660,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_Yield(self, node):
         with self.require_parens(_Precedence.YIELD, node):
             self.write("yield")
@@ -4660,6 +4672,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_YieldFrom(self, node):
         with self.require_parens(_Precedence.YIELD, node):
             self.write("yield from ")
@@ -4671,6 +4684,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_Raise(self, node):
         self.fill("raise")
         if not node.exc:
@@ -4687,6 +4701,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._indent
+    #@ \diverges
     def do_visit_try(self, node):
         self.fill("try")
         with self.block():
@@ -4705,6 +4720,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._in_try_star
+    #@ \diverges
     def visit_Try(self, node):
         prev_in_try_star = self._in_try_star
         try:
@@ -4716,6 +4732,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._in_try_star
+    #@ \diverges
     def visit_TryStar(self, node):
         prev_in_try_star = self._in_try_star
         try:
@@ -4727,6 +4744,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_ExceptHandler(self, node):
         self.fill("except*" if self._in_try_star else "except")
         if node.type:
@@ -4741,6 +4759,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._indent
+    #@ \diverges
     def visit_ClassDef(self, node):
         self.maybe_newline()
         for deco in node.decorator_list:
@@ -4768,12 +4787,14 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._indent, self._source
+    #@ \diverges
     def visit_FunctionDef(self, node):
         self._function_helper(node, "def")
 
     #@ requires True
     #@ ensures True
     #@ assigns self._indent, self._source
+    #@ \diverges
     def visit_AsyncFunctionDef(self, node):
         self._function_helper(node, "async def")
 
@@ -4781,6 +4802,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._indent
+    #@ \diverges
     def _function_helper(self, node, fill_suffix):
         self.maybe_newline()
         for deco in node.decorator_list:
@@ -4809,6 +4831,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_TypeVar(self, node):
         self.write(node.name)
         if node.bound:
@@ -4830,6 +4853,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_TypeAlias(self, node):
         self.fill("type ")
         self.traverse(node.name)
@@ -4840,12 +4864,14 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._indent, self._precedences, self._source
+    #@ \diverges
     def visit_For(self, node):
         self._for_helper("for ", node)
 
     #@ requires True
     #@ ensures True
     #@ assigns self._indent, self._precedences, self._source
+    #@ \diverges
     def visit_AsyncFor(self, node):
         self._for_helper("async for ", node)
 
@@ -4853,6 +4879,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._indent, self._precedences, self._source
+    #@ \diverges
     def _for_helper(self, fill, node):
         self.fill(fill)
         self.set_precedence(_Precedence.TUPLE, node.target)
@@ -4876,6 +4903,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_While(self, node):
         self.fill("while ")
         self.traverse(node.test)
@@ -4889,6 +4917,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._indent
+    #@ \diverges
     def visit_With(self, node):
         self.fill("with ")
         self.interleave(lambda: self.write(", "), self.traverse, node.items)
@@ -4898,6 +4927,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._indent
+    #@ \diverges
     def visit_AsyncWith(self, node):
         self.fill("async with ")
         self.interleave(lambda: self.write(", "), self.traverse, node.items)
@@ -4956,6 +4986,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_ListComp(self, node):
         with self.delimit("[", "]"):
             self.traverse(node.elt)
@@ -4965,6 +4996,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_GeneratorExp(self, node):
         with self.delimit("(", ")"):
             self.traverse(node.elt)
@@ -4974,6 +5006,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_SetComp(self, node):
         with self.delimit("{", "}"):
             self.traverse(node.elt)
@@ -4983,6 +5016,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_DictComp(self, node):
         with self.delimit("{", "}"):
             self.traverse(node.key)
@@ -4994,6 +5028,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_comprehension(self, node):
         if node.is_async:
             self.write(" async for ")
@@ -5011,6 +5046,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_IfExp(self, node):
         with self.require_parens(_Precedence.TEST, node):
             self.set_precedence(_Precedence.TEST.next(), node.body, node.test)
@@ -5056,6 +5092,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_UnaryOp(self, node):
         operator = self.unop[node.op.__class__.__name__]
         operator_precedence = self.unop_precedence[operator]
@@ -5074,6 +5111,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_BinOp(self, node):
         operator = self.binop[node.op.__class__.__name__]
         operator_precedence = self.binop_precedence[operator]
@@ -5095,6 +5133,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_Compare(self, node):
         with self.require_parens(_Precedence.CMP, node):
             self.set_precedence(_Precedence.CMP.next(), node.left, *node.comparators)
@@ -5115,6 +5154,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_Attribute(self, node):
         self.set_precedence(_Precedence.ATOM, node.value)
         self.traverse(node.value)
@@ -5129,6 +5169,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_Call(self, node):
         self.set_precedence(_Precedence.ATOM, node.func)
         self.traverse(node.func)
@@ -5150,6 +5191,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_Subscript(self, node):
         def is_non_empty_tuple(slice_value):
             return isinstance(slice_value, Tuple) and slice_value.elts
@@ -5166,6 +5208,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_Starred(self, node):
         self.write("*")
         self.set_precedence(_Precedence.EXPR, node.value)
@@ -5180,6 +5223,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_Slice(self, node):
         if node.lower:
             self.traverse(node.lower)
@@ -5199,6 +5243,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_arg(self, node):
         self.write(node.arg)
         if node.annotation:
@@ -5215,6 +5260,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_keyword(self, node):
         if node.arg is None:
             self.write("**")
@@ -5301,6 +5347,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_withitem(self, node):
         self.traverse(node.context_expr)
         if node.optional_vars:
@@ -5362,6 +5409,7 @@ class _Unparser(NodeVisitor):
     #@ ensures True
     #@ assigns \nothing
     def visit_FormattedValue(self, node):
+        #@ \diverges
         def unparse_inner(inner):
             unparser = type(self)(_avoid_backslashes=True)
             unparser.set_precedence(_Precedence.TEST.next(), inner)
@@ -5382,6 +5430,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._indent
+    #@ \diverges
     def visit_Match(self, node):
         self.fill("match ")
         self.traverse(node.subject)
@@ -5392,6 +5441,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_match_case(self, node):
         self.fill("case ")
         self.traverse(node.pattern)
@@ -5404,6 +5454,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     def visit_MatchValue(self, node):
         self.traverse(node.value)
 
@@ -5446,6 +5497,7 @@ class _Unparser(NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ assigns self._precedences, self._source
+    #@ \diverges
     def visit_MatchAs(self, node):
         name = node.name
         pattern = node.pattern

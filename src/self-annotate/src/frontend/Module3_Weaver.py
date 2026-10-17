@@ -408,6 +408,7 @@ class Module3_Weaver:
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
+    #@ \diverges
     @staticmethod
     def _target_dotted_path(target: ast.AST):
         """07-1143 R2: the dotted base path of a write target, stripping a trailing

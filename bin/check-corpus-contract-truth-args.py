@@ -232,7 +232,7 @@ NEVER_RETURNS = {
         "argument, it is a placeholder for a type the modeller does not have. "
         "`finding-a-verified-program-that-is-not-the-executed-program.md`",
 }
-MAX_RAISED = 14                  # FUNCTIONS with at least one call that RAISES on an
+MAX_RAISED = 15                  # FUNCTIONS with at least one call that RAISES on an
                                  # argument their own precondition admits. (#49) gen #31:
                                  # the ratchet counts FUNCTIONS, not raise EVENTS. Once the
                                  # tuple loop stopped breaking on the first raise (so that
@@ -249,6 +249,13 @@ MAX_RAISED = 14                  # FUNCTIONS with at least one call that RAISES 
                                  # Fourteen today: the seven in NEVER_RETURNS, the three
                                  # declared `#@ \diverges` (0051, 0158, 0159), and the
                                  # four input-dependent ones — 0420, 1302, 0199 and 0605.
+                                 # (#49) gen #36 route #263: 14 -> 15 for a FOURTH declared
+                                 # `#@ \diverges` driver, 2780 (`C.m` recurses on itself
+                                 # forever — RecursionError on every argument — and the
+                                 # driver exists to show that the HONEST marking of a
+                                 # method-call cycle is now writable). Its `\result == 0`
+                                 # is partial correctness over a function with no normal
+                                 # exit, exactly like 0158/0159; nothing false is claimed.
                                  #
                                  # 0199: `sum_first_two(d: dict)` under
                                  # `#@ ensures \result == d[0] + d[1]` and no `#@ requires`.

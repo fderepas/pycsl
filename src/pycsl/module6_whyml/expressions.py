@@ -8245,6 +8245,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             in getattr(self, "_module_method_noreturn", set()))
         if _nr_callee:
             ensures_suffix = ensures_suffix + "\n    ensures { false }"
+        # (#49) ROUTE #263 — A STUB FOR A `#@ \diverges` METHOD MUST ITSELF DIVERGE. The stub
+        # is a bodyless `val`, which Why3 takes to TERMINATE, so (a) a non-`\diverges` caller
+        # of a diverging method claimed termination for free — `def m(self): self.spin();
+        # return 7` with `spin` declared `#@ \diverges` — and (b) a `\diverges` method whose
+        # only recursion is through such a stub was rejected by Why3 ("this expression does
+        # not diverge"), so the honest marking of a method-call cycle (pycsl.py, route #263:
+        # every member `\diverges`) could not be written. A stub whose METHOD NAME names any
+        # `\diverges` method of the file now carries `diverges` — matched by name, as route
+        # #167 matches preconditions, so an ambiguous match makes MORE callers owe
+        # `\diverges`, never fewer (fail-closed). No `\diverges` method -> byte-identical.
+        _m263 = func_name.rsplit(".", 1)[-1]
+        _dv263 = False
+        for _f263 in (self.ir.get("functions", []) or []):
+            if (isinstance(_f263, dict) and _f263.get("diverges")
+                    and _f263.get("kind") == "method"
+                    and str(_f263.get("name", "")).endswith("__" + _m263)):
+                _dv263 = True
+        if _dv263:
+            ensures_suffix = "\n    diverges" + ensures_suffix
         # (#43) ROUTE #13 — A MUTATING METHOD CALL ON A `self.<field>` COLLECTION IS
         # ERASED, AND THE ERASURE DEFEATS THE #34 FRAME-PRESERVATION FIX. Reaching this
         # point means no recognizer modelled the call, so it becomes an abstract `val`.

@@ -2033,6 +2033,293 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # inside Module 6 instead of with a located ir-validate error at the boundary.
     validate_ir(_json.loads(json_ir), stage="ir-validate-boundary")
 
+    # (#49) ROUTE #263 — RECURSION THROUGH A METHOD CALL WAS NEVER CHECKED FOR TERMINATION.
+    # Module 6 lowers a `self.m(...)` / `obj.m(...)` / `C().m(...)` call to a bodyless
+    # abstract `val` carrying the callee's propagated `ensures`, so Why3 sees no edge from
+    # the caller to the callee's BODY: a top-level `def f(): return f()` is a `let rec`
+    # whose missing variant fails, but the same body as a METHOD is a plain `let` that
+    # claims termination for free and assumes its own postcondition circularly.
+    # MEASURED at 283d1033 (witnesses `getting-better/open-routes/witnesses-r263/`, corpus
+    # 2770-2779): `def m(self, k): return self.m(k)` PROVED `\result == 0`; the mutual
+    # pair a<->b PROVED `\result == 5`; `g -> c.m -> g` PROVED; under `#@ no_exception
+    # \all` it PROVED; and `#@ happy availability: targets parse total` PROVED for a
+    # `parse` that is its own only callee (route #206 closes only cycles through bodyless
+    # stubs). CPython: RecursionError in every one.
+    # THE RULE: build the module's call graph INCLUDING method calls — a receiver is
+    # resolved by class (`self` -> the enclosing class's hierarchy, `super()` -> what
+    # follows the class in an MRO, a typed or constructor-bound local/parameter -> its
+    # class's hierarchy, a typed field -> its type, an imported module or a builtin -> no
+    # method of this module, anything else -> EVERY method of that name: over-approximation
+    # is the sound direction) plus constructor edges (`C(...)` -> the calls in
+    # `C.__init__`, which Module 5 drops) — and refuse every strongly connected component
+    # holding an edge Why3 does not see. Which method calls Why3 DOES see is decided on the
+    # EMITTED WhyML just before `return _mlw` below (a concrete `(<callee> …)` application
+    # inside the same `let rec … with …` group, e.g. corpus 0966), because Module 6 owns
+    # that decision and re-deriving it here would be a second producer of it.
+    # The one admissible form is the honest one: every function of the cycle marked
+    # `#@ \diverges` (partial correctness; assuming a recursive callee's postcondition is
+    # then the standard, sound recursion rule). `\trusted`/`\abstract` functions have no
+    # body, so they contribute no edges. INLINE (no nested defs: check-mirror-coverage);
+    # CHOKE POINT: `_run_pipeline`'s mirror twin is `\trusted` (routes #206-#215).
+    _ir263 = _json.loads(json_ir)
+    _fn263 = [f for f in (_ir263.get("functions") or []) if isinstance(f, dict)
+              and isinstance(f.get("name"), str)]
+    _names263 = {f["name"] for f in _fn263}
+    _byname263 = {f["name"]: f for f in _fn263}
+    _bases263 = {}
+    _fields263 = {}
+    for _td263 in (_ir263.get("type_decls") or []):
+        if isinstance(_td263, dict) and isinstance(_td263.get("name"), str):
+            _bases263[_td263["name"]] = [b for b in (_td263.get("bases") or [])
+                                         if isinstance(b, str)]
+            _fields263[_td263["name"]] = {
+                _fd.get("name"): _fd.get("type") for _fd in (_td263.get("fields") or [])
+                if isinstance(_fd, dict)}
+    _anc263 = {}
+    for _c263 in _bases263:
+        _sn263 = set()
+        _td263 = [_c263]
+        while _td263:
+            _x263 = _td263.pop()
+            if _x263 in _sn263:
+                continue
+            _sn263.add(_x263)
+            _td263.extend(_bases263.get(_x263, ()))
+        _anc263[_c263] = _sn263
+    # A receiver statically of class C may run C's method, an ancestor's (inherited) or a
+    # descendant's (override): `_rel263[C]`.
+    _desc263 = {_c263: {_d for _d in _bases263 if _c263 in _anc263[_d]} for _c263 in _bases263}
+    _rel263 = {_c263: _anc263[_c263] | _desc263[_c263] for _c263 in _bases263}
+    _meths263 = {}
+    for _f263 in _fn263:
+        _st263 = _f263.get("self_type")
+        if _f263.get("kind") == "method" and isinstance(_st263, str) and _st263:
+            _pre263 = _st263.lower() + "__"
+            if _f263["name"].startswith(_pre263):
+                _meths263.setdefault(_f263["name"][len(_pre263):], []).append(
+                    (_st263, _f263["name"]))
+    _modnames263 = set()
+    for _im263 in (_ir263.get("imports") or []):
+        if isinstance(_im263, list) and _im263 and isinstance(_im263[0], str):
+            _modnames263.add(_im263[0].split(".")[0])
+    import builtins as _bi263
+    _builtins263 = set(dir(_bi263)) - set(_bases263)
+    # Classes a value of declared type T may be an instance of; `None` = unknown (any).
+    _tstr263 = set()
+    for _f263 in _fn263:
+        _tstr263 |= {v for v in (_f263.get("symbol_table") or {}).values() if isinstance(v, str)}
+        _tstr263 |= {v for v in (_f263.get("param_annotations") or {}).values()
+                     if isinstance(v, str)}
+    for _fm263 in _fields263.values():
+        _tstr263 |= {v for v in _fm263.values() if isinstance(v, str)}
+    _tcls263 = {}
+    for _t263 in _tstr263:
+        if not _t263 or _t263 in ("Any", "object"):
+            _tcls263[_t263] = None
+        elif _t263 in _bases263:
+            _tcls263[_t263] = {_t263}
+        else:
+            # a builtin/collection type names no class (no method of this module); a
+            # container or Optional of a class may hold that class.
+            _tcls263[_t263] = {c for c in _bases263 if _re.search(
+                r"(?<![\w])" + _re.escape(c) + r"(?![\w])", _t263)}
+    _graph263 = {}
+    _unchk263 = set()
+    for _f263 in _fn263:
+        _src263 = _f263["name"]
+        _graph263.setdefault(_src263, set())
+        if _f263.get("trusted") or _f263.get("abstract") or _f263.get("lemma"):
+            continue
+        _calls263 = []
+        _ctorloc263 = {}
+        _otherloc263 = set()
+        _stk263 = [_f263.get("body")]
+        while _stk263:
+            _n263 = _stk263.pop()
+            if isinstance(_n263, dict):
+                if _n263.get("type") == "Call" and isinstance(_n263.get("func"), str):
+                    _calls263.append(_n263)
+                if _n263.get("stmt") in ("Assign", "AnnAssign") and isinstance(
+                        _n263.get("target"), str):
+                    # A local bound ONLY to constructor calls is of those classes (the
+                    # symbol table records `c = C()` as `Any`).
+                    _v263 = _n263.get("value")
+                    if (isinstance(_v263, dict) and _v263.get("type") == "Call"
+                            and _v263.get("func") in _bases263 and "receiver" not in _v263):
+                        _ctorloc263.setdefault(_n263["target"], set()).add(_v263["func"])
+                    else:
+                        _otherloc263.add(_n263["target"])
+                _stk263.extend(_n263.values())
+            elif isinstance(_n263, list):
+                _stk263.extend(_n263)
+        _symt263 = dict(_f263.get("symbol_table") or {})
+        _symt263.update(_f263.get("param_annotations") or {})
+        _selft263 = _f263.get("self_type") if _f263.get("kind") == "method" else None
+        for _c263 in _calls263:
+            _fs263 = _c263["func"]
+            _m263 = _fs263.split(".")[-1]
+            _exact263 = False
+            if "receiver" in _c263:
+                _rv263 = _c263.get("receiver")
+                if (isinstance(_rv263, dict) and _rv263.get("type") == "Call"
+                        and _rv263.get("func") == "super" and _selft263):
+                    # `super().m()` in class A runs the first `m` AFTER A in the MRO of
+                    # `type(self)`: an ancestor of a subclass of A, never A or a subclass.
+                    _dn263 = _desc263.get(_selft263, {_selft263})
+                    _cls263 = set()
+                    for _d263 in _dn263:
+                        _cls263 |= _anc263.get(_d263, {_d263})
+                    _cls263 -= _dn263
+                    _exact263 = True
+                elif (isinstance(_rv263, dict) and _rv263.get("type") == "Call"
+                        and _rv263.get("func") in _bases263 and "receiver" not in _rv263):
+                    _cls263 = {_rv263["func"]}
+                elif (isinstance(_rv263, dict) and _rv263.get("type") == "Var"
+                        and isinstance(_rv263.get("name"), str)
+                        and isinstance(_symt263.get(_rv263["name"]), str)):
+                    _cls263 = _tcls263.get(_symt263[_rv263["name"]])
+                else:
+                    _cls263 = None
+            elif "." not in _fs263:
+                if _fs263 in _names263:
+                    # A direct call: Module 6 puts both ends in one `let rec` group.
+                    _graph263[_src263].add(_fs263)
+                elif _fs263 in _bases263:
+                    _graph263[_src263].add("__init__@" + _fs263)
+                    _unchk263.add((_src263, "__init__@" + _fs263))
+                continue
+            else:
+                _pt263 = _fs263.split(".")
+                _b263 = _pt263[0]
+                if _b263 == "self" and _selft263:
+                    _cls263 = {_selft263}
+                elif (_b263 in _ctorloc263 and _b263 not in _otherloc263
+                      and _tcls263.get(_symt263.get(_b263)) is None):
+                    _cls263 = set(_ctorloc263[_b263])
+                elif _b263 in _symt263:
+                    _cls263 = (_tcls263.get(_symt263[_b263])
+                               if isinstance(_symt263[_b263], str) else None)
+                elif _b263 in _bases263:
+                    _cls263 = {_b263}
+                elif _b263 in _modnames263 or _b263 in _builtins263:
+                    # an imported module (cross-unit recursion is outside this rule) or a
+                    # builtin (`type.__instancecheck__`, `str.join`): no method of THIS unit
+                    _cls263 = set()
+                else:
+                    _cls263 = None
+                for _fld263 in _pt263[1:-1]:
+                    if _cls263 is None or not _cls263:
+                        break
+                    _nx263 = set()
+                    for _k263 in _cls263:
+                        _ft263 = None
+                        _hit263 = False
+                        for _a263 in sorted(_anc263.get(_k263, {_k263})):
+                            if _fld263 in _fields263.get(_a263, {}):
+                                _ft263 = _tcls263.get(_fields263[_a263][_fld263])
+                                _hit263 = True
+                                break
+                        if not _hit263 or _ft263 is None:
+                            _nx263 = None
+                            break
+                        _nx263 |= _ft263
+                    _cls263 = _nx263
+            _wide263 = None
+            if _cls263 is not None and not _exact263:
+                _wide263 = set()
+                for _k263 in _cls263:
+                    _wide263 |= _rel263.get(_k263, {_k263})
+            elif _cls263 is not None:
+                _wide263 = set(_cls263)
+            for _cl263, _nm263 in _meths263.get(_m263, ()):
+                if _wide263 is None or _cl263 in _wide263:
+                    _graph263[_src263].add(_nm263)
+                    _unchk263.add((_src263, _nm263))
+    # Constructors: Module 5 keeps only `self.f = <param>` of `__init__`, so its calls are
+    # read from the woven AST, resolved by method name (coarse — the sound direction).
+    from frontend import pure_ast as _ast263
+    for _cd263 in _ast263.walk(unified_ast):
+        if not isinstance(_cd263, _ast263.ClassDef) or _cd263.name not in _bases263:
+            continue
+        _ini263 = "__init__@" + _cd263.name
+        _graph263.setdefault(_ini263, set())
+        for _md263 in _cd263.body:
+            if not (isinstance(_md263, _ast263.FunctionDef)
+                    and _md263.name in ("__init__", "__post_init__", "__new__")):
+                continue
+            for _n263 in _ast263.walk(_md263):
+                if not isinstance(_n263, _ast263.Call):
+                    continue
+                _fx263 = _n263.func
+                _to263 = set()
+                if isinstance(_fx263, _ast263.Name):
+                    if _fx263.id in _names263:
+                        _to263.add(_fx263.id)
+                    elif _fx263.id in _bases263:
+                        _to263.add("__init__@" + _fx263.id)
+                elif isinstance(_fx263, _ast263.Attribute):
+                    _wide263 = None
+                    if isinstance(_fx263.value, _ast263.Name) and _fx263.value.id == "self":
+                        _wide263 = _rel263.get(_cd263.name, {_cd263.name})
+                    elif (isinstance(_fx263.value, _ast263.Name)
+                          and (_fx263.value.id in _modnames263
+                               or _fx263.value.id in _builtins263)):
+                        _wide263 = set()
+                    for _cl263, _nm263 in _meths263.get(_fx263.attr, ()):
+                        if _wide263 is None or _cl263 in _wide263:
+                            _to263.add(_nm263)
+                for _t263 in _to263:
+                    _graph263[_ini263].add(_t263)
+                    _unchk263.add((_ini263, _t263))
+    # Tarjan's SCCs, iterative and deterministic.
+    _idx263 = {}
+    _low263 = {}
+    _onst263 = set()
+    _stack263 = []
+    _sccs263 = []
+    _ctr263 = 0
+    for _root263 in sorted(_graph263):
+        if _root263 in _idx263:
+            continue
+        _idx263[_root263] = _low263[_root263] = _ctr263
+        _ctr263 += 1
+        _stack263.append(_root263)
+        _onst263.add(_root263)
+        _work263 = [(_root263, sorted(_graph263.get(_root263, ())), 0)]
+        while _work263:
+            _v263, _succ263, _i263 = _work263[-1]
+            if _i263 < len(_succ263):
+                _work263[-1] = (_v263, _succ263, _i263 + 1)
+                _w263 = _succ263[_i263]
+                if _w263 not in _idx263:
+                    _idx263[_w263] = _low263[_w263] = _ctr263
+                    _ctr263 += 1
+                    _stack263.append(_w263)
+                    _onst263.add(_w263)
+                    _work263.append((_w263, sorted(_graph263.get(_w263, ())), 0))
+                elif _w263 in _onst263:
+                    _low263[_v263] = min(_low263[_v263], _idx263[_w263])
+                continue
+            _work263.pop()
+            if _work263:
+                _p263 = _work263[-1][0]
+                _low263[_p263] = min(_low263[_p263], _low263[_v263])
+            if _low263[_v263] == _idx263[_v263]:
+                _comp263 = []
+                while True:
+                    _x263 = _stack263.pop()
+                    _onst263.discard(_x263)
+                    _comp263.append(_x263)
+                    if _x263 == _v263:
+                        break
+                _sccs263.append(sorted(_comp263))
+    _pending263 = []
+    for _comp263 in _sccs263:
+        _cs263 = set(_comp263)
+        _cand263 = sorted((a, b) for (a, b) in _unchk263 if a in _cs263 and b in _cs263)
+        if _cand263:
+            _pending263.append((_comp263, _cand263))
+
     # (#49) ROUTE #243 — A CONSTRUCTOR THAT GIVES ONE DICT/SET TWO FIELD NAMES.
     # A dict/set field is a PURE map, so two fields bound to ONE Python object are two
     # independent copies in the model. Module 6 refuses that shape in every EMITTED body,
@@ -4326,6 +4613,127 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _hdr_EL = _hdr_EL.replace("(Array.length result)", "(0)")
             _out_EL.append(_hdr_EL + _body_EL)
         _mlw = "".join(_out_EL)
+    # (#49) ROUTE #263, second half — decided on the EMISSION (see the first half, after
+    # the `ir-validate-boundary` check). A method-call edge is SEEN by Why3 only when the
+    # caller's emitted body carries no stub for it AND (ii) applies the callee concretely
+    # (directly or through helpers of its own `let rec` group), (iii) is one delegation
+    # into a variant-carrying `let rec` catamorphism, or (iv) was re-expressed by a bespoke
+    # lowering as the function's own variant-carrying `<name>__*` walkers: then the
+    # recursion's termination is Why3's to check. Any other candidate edge of a cycle is
+    # invisible to Why3, and the cycle is refused unless every function on it is
+    # `#@ \diverges`. A declaration this scan cannot read is treated as unseen — the
+    # fail-closed direction.
+    if _pending263:
+        from module6_whyml.identifiers import whyml_ident as _wid263
+        _cuts263 = [_m.start() for _m in _re.finditer(r"\n  (?:let|val|with)\b", _mlw)]
+        _cuts263.append(len(_mlw))
+        _grp263 = {}
+        _bod263 = {}
+        _gid263 = 0
+        _cur263 = 0
+        _var263 = set()
+        for _k263 in range(len(_cuts263) - 1):
+            _blk263 = _mlw[_cuts263[_k263]:_cuts263[_k263 + 1]]
+            _hm263 = _re.match(r"\n  (let|val|with)\s+((?:rec|function|ghost|lemma|predicate)"
+                               r"\s+)*([A-Za-z_][A-Za-z0-9_']*)", _blk263)
+            if not _hm263:
+                _cur263 = 0
+                continue
+            if _hm263.group(1) == "let" and "rec" in (_hm263.group(2) or "").split():
+                _gid263 += 1
+                _cur263 = _gid263
+            elif _hm263.group(1) != "with":
+                _cur263 = 0
+            if _cur263:
+                _grp263[_hm263.group(3)] = _cur263
+            _eq263 = _blk263.find("\n  =")
+            _bod263[_hm263.group(3)] = _blk263[_eq263:] if _eq263 >= 0 else ""
+            if _cur263 and "variant" in _blk263[:_eq263 if _eq263 >= 0 else len(_blk263)]:
+                _var263.add(_cur263)
+        _vals263 = set(_re.findall(r"\n  val\s+(?:(?:ghost|function|predicate)\s+)*"
+                                   r"([A-Za-z_][A-Za-z0-9_']*)", _mlw))
+        for _comp263, _cand263 in _pending263:
+            _left263 = []
+            for _a263, _b263 in _cand263:
+                _wa263 = _wid263(_a263) if not _a263.startswith("__init__@") else ""
+                _wb263 = _wid263(_b263) if not _b263.startswith("__init__@") else ""
+                _ba263 = _bod263.get(_wa263, "") if _wa263 else ""
+                _mt263 = _byname263[_b263]["name"][
+                    len(str(_byname263[_b263].get("self_type") or "")) + 2:] if (
+                    _b263 in _byname263) else ""
+                # (i) an abstract STUB for this call in the caller's body: unseen. The
+                # stub is `<receiver path>_<m>_<arity>`, possibly disambiguated by
+                # `_c<hash>` / `_<k>` (`_handle_dotted_call`, routes #166/#188), so any
+                # referenced `val` of that shape counts — over-matching only refuses more.
+                _stub263 = bool(_mt263) and any(
+                    _re.search(r"(?:^|_)" + _re.escape(_mt263) + r"_\d+(?:_c\d+)?(?:_\d+)?$", _v)
+                    and _re.search(r"(?<![\w'])" + _re.escape(_v) + r"(?![\w'])", _ba263)
+                    for _v in _vals263)
+                if _wa263 and _wb263 and not _stub263:
+                    # (ii) a CONCRETE application of the callee — directly, or through
+                    # helpers of the SAME `let rec` group (the bespoke pyval walkers:
+                    # `irscanner__uses_sum -> irscanner__uses_sum__d -> irscanner__uses_sum`,
+                    # each with its own `variant`): Why3 sees the call (corpus 0966).
+                    if _re.search(r"(?<![\w'.])" + _re.escape(_wb263) + r"(?![\w'])",
+                                  _ba263):
+                        continue
+                    _g263 = _grp263.get(_wa263)
+                    if _g263 and _grp263.get(_wb263) == _g263:
+                        _mem263 = [x for x, y in _grp263.items() if y == _g263]
+                        _seen263 = set()
+                        _todo263 = [x for x in _mem263 if _re.search(
+                            r"(?<![\w'.])" + _re.escape(x) + r"(?![\w'])", _ba263)]
+                        while _todo263:
+                            _x263 = _todo263.pop()
+                            if _x263 in _seen263:
+                                continue
+                            _seen263.add(_x263)
+                            _todo263.extend(x for x in _mem263 if _re.search(
+                                r"(?<![\w'.])" + _re.escape(x) + r"(?![\w'])",
+                                _bod263.get(_x263, "")))
+                        if _wb263 in _seen263:
+                            continue
+                    # (iii) the body is ONE delegation into a `let rec` group carrying a
+                    # `variant` — the synthesized catamorphism of corpus 0960 (`app__pp
+                    # = pp_term (App …)`): the recursion lives there and Why3 checks it.
+                    _dg263 = _re.match(r"\s*=\s*([A-Za-z_][A-Za-z0-9_']*)\s", _ba263)
+                    if (_dg263 and _grp263.get(_dg263.group(1)) in _var263
+                            and _dg263.group(1) not in _vals263):
+                        continue
+                    # (iv) a BESPOKE lowering that replaced the body with the function's
+                    # own `<name>__<helper>` `let rec` walkers carrying a `variant`
+                    # (`irscanner__find_assigned_vars = … irscanner__find_assigned_vars__f
+                    # stmts acc …`): the Python recursion is re-expressed there and Why3
+                    # checks its termination.
+                    if any(x.startswith(_wa263 + "__") and _grp263.get(x) in _var263
+                           and _re.search(r"(?<![\w'.])" + _re.escape(x) + r"(?![\w'])",
+                                          _ba263)
+                           for x in _grp263):
+                        continue
+                # Anything else — a stub, a call that VANISHED from the emission, a
+                # constructor — is treated as unseen: the fail-closed direction.
+                _left263.append((_a263, _b263))
+            if not _left263:
+                continue
+            _nondiv263 = [n for n in _comp263 if n in _byname263
+                          and not _byname263[n].get("diverges")]
+            if not _nondiv263:
+                continue
+            from errors import PyCSLSemanticError as _PyCSLSemErr263
+            raise _PyCSLSemErr263(
+                f"the functions {_comp263} call one another in a cycle that passes "
+                f"through a METHOD or CONSTRUCTOR call ('{_left263[0][0]}' -> "
+                f"'{_left263[0][1]}'). PyCSL lowers that call to a bodyless contract stub, "
+                f"so Why3 never sees the cycle: it would ASSUME the callee terminates and "
+                f"satisfies its postcondition — circularly — and no termination measure "
+                f"(`#@ \\variant`) is checked across that edge. Without a termination "
+                f"argument this recursion can run forever (CPython: RecursionError). Mark "
+                f"EVERY function of the cycle `#@ \\diverges` (partial correctness: the "
+                f"contracts then hold IF it returns; not yet so marked: {_nondiv263}), or "
+                f"restructure the recursion as module-level functions carrying a "
+                f"`#@ \\variant`, whose `let rec` termination Why3 checks.",
+                filename=args.file, stage="ir-semantic",
+                code="PYCSL-SEM-METHOD-RECURSION-UNCHECKED")
     return _mlw
 
 
