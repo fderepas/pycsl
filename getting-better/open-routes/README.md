@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-17): #270 (#264 analysis misses exception edges from calls; generators treated as no-return) and
+##   #271 (calling a generator function runs its body eagerly) OPENED (red team 4, driver-reproduced).
+
 ## gen #36 (2026-10-17): #269 (residual divergence leaks after #263: C().m() stub drops diverges, comprehension-hidden
 ##   calls, diverges+no_exception RecursionError, Module5 bespoke dispatch stubs, cross-module cycles) OPENED.
 
