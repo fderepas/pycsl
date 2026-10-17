@@ -811,8 +811,21 @@ neither checked nor rejected re-opens both routes.* If every body-verified metho
 `#@ check φ(ℓ)` at each write site of `self.f` (universal coverage, clause 1) and every other
 mutator is exempt or carries the `\preserves` region-preservation `ensures` (clause 2), then
 no execution writes the protected region. No alias analysis is needed (the obligation is at
-the location written; value-semantic arrays bar local-alias escape) and no caller reasoning
-(an indirect write is caught at the callee's own site).
+the location written) and no caller reasoning (an indirect write is caught at the callee's own
+site) — **provided the location is only ever written under the spelling the collector checks**.
+Route #266 measured that it was not: a list is passed BY REFERENCE, so a helper writing its own
+parameter `a[i] = 9`, a getter returning `self.f`, `poke(self)` writing `s.f[i]`, `o.f[i]` on
+another instance, a module function writing `s.f[i]`, and (for `protects d.f`) a method of the
+owning class writing `self.f[i]` all reached the region unchecked (witnesses `2810`–`2819`). So
+the collector's premise is now ENFORCED by rejection, keyed on the protected FIELD NAME, in
+every non-exempt body-verified function: **(E)** a non-scalar protected field may appear only as
+a subscript base `X.f[...]` or as `len(X.f)` (passing, aliasing, returning, containing or
+calling a method on it is refused; an exempt owner may still pass it as a call argument);
+**(W)** a write/`del`/destructuring store reaching `.f` through any spelling other than the
+canonical checked one is refused (`__init__` may still create `self.f`); **(R)** for the read
+form, a read `X.f[i]` with `X` ≠ `self` is refused. A field is scalar (exempt from (E)) iff some
+store types it `int`/`bool`/`float`/`str` (annotation or constant initialiser) and none gives
+it a container/object.
 
 The field-subscript atom `self.f[i]` is well-formed where `self.f` is an instance array field
 in scope (Γ_f), with `i : int`; it is the term used in `\preserves` postconditions.
@@ -916,6 +929,19 @@ AND `#@ \diverges` (the IR `diverges` flag — a diverging function satisfies an
 postcondition). The exempt-set is computed where the IR is in scope
 (`_run_pipeline`) and passed on `args._vacuity_exempt` to the gate in
 `_run_proofs`.
+
+**Call-site probe for body-less callees (route #267).** The ALL-exits criterion
+cannot see a branch killed by an `\abstract`/`\trusted` callee whose `ensures`
+is unsatisfiable at one point (witness `2821`: `ensures x != 5` called under
+`if x == 5:`). A body-less callee with no `raises`/`diverges` and no
+`ensures false` must return, so its `ensures` must be satisfiable wherever it is
+called. For each call to such a `val` in a probed body, the gate wraps the call
+as `(check {false}; let r = CALL in check {false}; r)` (`check` adds no
+hypothesis) and flags the function iff the AFTER check proves while the BEFORE
+check does not — i.e. the callee's contract, not the program's own guards,
+made the continuation unreachable. A branch already dead before the call (the
+dead-by-design consequence-test case, control `2824`) is not flagged. Cost:
+one extra goal per such call site, plus one per site whose AFTER check proves.
 
 #### §2.5c `TypedDict` literal-key access (typing-engagement ty2 / PEP 589)
 

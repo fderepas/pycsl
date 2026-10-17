@@ -1089,6 +1089,190 @@ class Module3_Weaver:
                                                 f"self.{hp.target} L{line}"))
                         stmt.csl_checkpoints = getattr(stmt, "csl_checkpoints", []) + [cp]
                 continue
+            # (#49) ROUTE #266 — THE PROTECTED FIELD LEFT THE FUNCTION AND WAS WRITTEN WHERE
+            # NO CHECK LOOKS. Every per-site check below keys on ONE SPELLING of the protected
+            # location — `self.<field>[i]` (region forms) or the protected dotted path
+            # (`protects` / parametric) — and the doc's soundness argument ("an indirect write
+            # through a callee is caught at the callee's own site") holds only if the callee
+            # writes that same spelling. A list is passed BY REFERENCE, so a callee writes it
+            # through its own PARAMETER name. MEASURED at 283d1033 (CPython 9 every time, every
+            # one "Verification SUCCESS"): non-exempt `evil` calling a module helper
+            # `poke(self.disk, 600)` that does `a[i] = 9` (witness h05); the same through a
+            # method of another class `h.poke(self.disk, 600)`; `return self.disk` from a
+            # getter and `d[600] = 9` at the caller; `poke2(self)` with `s.disk[600] = 9` in
+            # the helper; `o.disk[600] = 9` on another instance; a module function writing
+            # `s.disk[600]` directly; and the `protects d.disk` / parametric forms through
+            # `poke(d.disk, 600)` or a `Disk` method writing `self.disk[600]` under the
+            # global's protection. Fail-closed by REJECTION, keyed on the protected FIELD NAME
+            # (the last path component), in every non-exempt body-verified function:
+            #   (E) the protected field (a non-scalar one — an `int` field cannot be passed by
+            #       reference) may appear only as a subscript base `X.<f>[...]` or as the
+            #       argument of `len(...)`. Passing it, aliasing it, returning it, putting it
+            #       in a container or calling a method on it hands out a reference the
+            #       per-site check cannot follow. An EXEMPT owner may additionally pass it
+            #       as a call argument (the helper writes under the owner's authority), but
+            #       may not return or alias it out of its body.
+            #   (W) a write (assign / augmented / annotated / `del`, incl. tuple targets) that
+            #       reaches the field through any spelling OTHER than the canonical one the
+            #       sites below stamp is refused (`__init__` may still create `self.<f>`).
+            #   (R) for the READ form, a read `X.<f>[...]` through a base other than `self`.
+            # The existing refusals (whole-field rebinding, slice/whole parametric stores,
+            # read-form local alias, the trust boundaries) keep their own spellings: a
+            # canonical-path target and a read-form `x = self.<f>` are left to them, and
+            # `\trusted`/`\abstract` bodies are governed by the trust-boundary rules.
+            if hp.context in ("writing", "reading"):
+                if hp.protects:
+                    _f266 = {p.split(".")[-1] for p in hp.protects}
+                    _canon266 = set(hp.protects)
+                else:
+                    _f266 = {hp.field}
+                    _canon266 = {"self." + hp.field}
+                _scal266 = set()
+                _ref266 = set()
+                # A field is SCALAR (cannot be handed out by reference) iff some store gives
+                # it a scalar type — an `int`/`bool`/`float`/`str` annotation or an
+                # unannotated constant initialiser — and none gives it a container/object.
+                for _n266 in ast.walk(python_ast):
+                    if not isinstance(_n266, (ast.AnnAssign, ast.Assign)):
+                        continue
+                    _t266 = (_n266.target if isinstance(_n266, ast.AnnAssign)
+                             else (_n266.targets[0] if len(_n266.targets) == 1 else None))
+                    if not (isinstance(_t266, ast.Attribute) and _t266.attr in _f266):
+                        continue
+                    _an266 = getattr(_n266, "annotation", None)
+                    if _an266 is not None:
+                        if (isinstance(_an266, ast.Name)
+                                and _an266.id in ("int", "bool", "float", "str")):
+                            _scal266.add(_t266.attr)
+                        else:
+                            _ref266.add(_t266.attr)
+                    elif isinstance(_n266.value, ast.Constant):
+                        _scal266.add(_t266.attr)
+                    elif any(isinstance(_v266, (ast.List, ast.ListComp, ast.Dict, ast.Set,
+                                                ast.Tuple, ast.DictComp, ast.SetComp))
+                             or (isinstance(_v266, ast.Call)
+                                 and not (isinstance(_v266.func, ast.Name)
+                                          and _v266.func.id in ("int", "bool", "float",
+                                                                "str", "len", "abs",
+                                                                "min", "max")))
+                             for _v266 in ast.walk(_n266.value)):
+                        _ref266.add(_t266.attr)
+                _scal266 -= _ref266
+                for _fn266 in funcs:
+                    if (getattr(_fn266, "csl_trusted", False)
+                            or getattr(_fn266, "csl_abstract", False)):
+                        continue
+                    _ex266 = _fn266.name in except_set
+                    _st266 = [(c, _fn266) for c in ast.iter_child_nodes(_fn266)]
+                    while _st266:
+                        _nd266, _par266 = _st266.pop()
+                        if isinstance(_nd266, ast.FunctionDef):
+                            continue          # its own entry in `funcs`
+                        _st266.extend((c, _nd266) for c in ast.iter_child_nodes(_nd266))
+                        _line266 = getattr(_nd266, "lineno", 0) or getattr(_par266, "lineno", 0)
+                        # (W) writes through a non-canonical spelling.
+                        if (not _ex266 and hp.context == "writing"
+                                and isinstance(_nd266, (ast.Assign, ast.AnnAssign,
+                                                        ast.AugAssign, ast.Delete))):
+                            _tg266 = (list(_nd266.targets)
+                                      if isinstance(_nd266, (ast.Assign, ast.Delete))
+                                      else [_nd266.target])
+                            _flat266 = []
+                            while _tg266:
+                                _t266 = _tg266.pop()
+                                if isinstance(_t266, (ast.Tuple, ast.List)):
+                                    _tg266.extend(_t266.elts)
+                                    _flat266.append(None)   # marks a destructuring target
+                                    continue
+                                if isinstance(_t266, ast.Starred):
+                                    _tg266.append(_t266.value)
+                                    continue
+                                _flat266.append(_t266)
+                            _destr266 = None in _flat266
+                            for _t266 in _flat266:
+                                if _t266 is None:
+                                    continue
+                                _c266 = _t266
+                                _hit266 = False
+                                _depth266 = 0
+                                while isinstance(_c266, (ast.Subscript, ast.Attribute)):
+                                    if (isinstance(_c266, ast.Attribute)
+                                            and _c266.attr in _f266):
+                                        _hit266 = True
+                                        break
+                                    if isinstance(_c266, ast.Subscript):
+                                        _depth266 += 1
+                                    _c266 = _c266.value
+                                if not _hit266:
+                                    continue
+                                _p266 = self._target_dotted_path(_c266)
+                                _pt266 = self._target_dotted_path(_t266)
+                                if (not _destr266 and not isinstance(_nd266, ast.Delete)
+                                        and _pt266 in _canon266
+                                        and (_depth266 <= 1 or (hp.protects
+                                                                and hp.param is None))):
+                                    continue  # stamped / refused by the canonical sites below
+                                if (_t266 is _c266 and _fn266.name == "__init__"
+                                        and _p266 == "self." + _c266.attr
+                                        and not _destr266
+                                        and not isinstance(_nd266, ast.Delete)):
+                                    continue  # `__init__` creates the field
+                                raise PyCSLSemanticError(
+                                    f"`happy {hp.name}`: non-exempt '{_fn266.name}' writes the "
+                                    f"protected field '{_c266.attr}' through "
+                                    f"'{ast.unparse(_t266)}' (line {_line266}), a spelling "
+                                    f"the per-site check does not cover (another receiver, an "
+                                    f"alias, a nested subscript, a `del` or a destructuring "
+                                    f"target) — the write could reach the protected location "
+                                    f"unchecked. Write through "
+                                    f"{sorted(_canon266)[0]}[i] = ... directly, or add "
+                                    f"'{_fn266.name}' to the `except` set if it is a "
+                                    f"legitimate writer.")
+                        # (R) read form: reads through a base other than `self`.
+                        if (not _ex266 and hp.context == "reading"
+                                and isinstance(_nd266, ast.Subscript)
+                                and isinstance(getattr(_nd266, "ctx", None), ast.Load)
+                                and isinstance(_nd266.value, ast.Attribute)
+                                and _nd266.value.attr in _f266
+                                and not (isinstance(_nd266.value.value, ast.Name)
+                                         and _nd266.value.value.id == "self")):
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}`: non-exempt '{_fn266.name}' reads the "
+                                f"protected field through '{ast.unparse(_nd266)}' (line "
+                                f"{_line266}), a receiver other than `self`, which the "
+                                f"per-read-site check does not cover. Read through "
+                                f"self.{hp.field}[i], or add '{_fn266.name}' to `except`.")
+                        # (E) the field escaping as a reference.
+                        if not (isinstance(_nd266, ast.Attribute) and _nd266.attr in _f266
+                                and _nd266.attr not in _scal266
+                                and isinstance(getattr(_nd266, "ctx", None), ast.Load)):
+                            continue
+                        if isinstance(_par266, ast.Subscript) and _par266.value is _nd266:
+                            continue
+                        if (isinstance(_par266, ast.Call)
+                                and isinstance(_par266.func, ast.Name)
+                                and _par266.func.id == "len"
+                                and len(_par266.args) == 1 and _par266.args[0] is _nd266):
+                            continue
+                        if (_ex266 and isinstance(_par266, (ast.Call, ast.keyword))
+                                and _nd266 is not getattr(_par266, "func", None)):
+                            continue
+                        if (hp.context == "reading" and isinstance(_par266, ast.Assign)
+                                and _par266.value is _nd266
+                                and isinstance(_nd266.value, ast.Name)
+                                and _nd266.value.id == "self"):
+                            continue      # the read form's own alias refusal names this
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}`: {'exempt' if _ex266 else 'non-exempt'} "
+                            f"'{_fn266.name}' lets the protected field "
+                            f"'{ast.unparse(_nd266)}' escape as a reference (line "
+                            f"{_line266}, in '{ast.unparse(_par266) if isinstance(_par266, ast.expr) else 'a ' + type(_par266).__name__ + ' statement'}') — "
+                            f"a list is passed by reference, so a callee or caller could "
+                            f"then {'read' if hp.context == 'reading' else 'write'} the "
+                            f"protected location through ITS OWN NAME, where no per-site "
+                            f"check looks. Access it only as {ast.unparse(_nd266)}[i] or "
+                            f"len({ast.unparse(_nd266)}) here, or "
+                            f"{'move the escape into an exempt owner' if not _ex266 else 'pass it to a helper instead of returning or aliasing it'}.")
             # 07-1143 R3: PARAMETRIC (per-object) form. A method binds the region via
             # `#@ footprint NAME(arg)`; at each point write `path[i]=v` it must prove the
             # index lies in the substituted region `[lo[param:=arg], hi[param:=arg])`. A

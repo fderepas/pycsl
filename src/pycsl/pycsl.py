@@ -274,6 +274,10 @@ def _parse_args() -> argparse.Namespace:
                              "design — this is why the criterion is ALL exits, not ANY). "
                              "`-> NoReturn` and `#@ \\diverges` functions are EXEMPT (their "
                              "sound green is expected-vacuous on the unreachable normal exit). "
+                             "Route #267: each call to a body-less (\\abstract/\\trusted) callee "
+                             "is also probed with `check false` after and before it; the "
+                             "function is VACUOUS if the point after is unreachable while the "
+                             "point before is not (the callee's contract killed the branch). "
                              "The probe filters to the injected goal only and uses a short "
                              "per-goal timelimit; a missing why3 skips it (skip-not-fail).")
     g_proof.add_argument("--no-check-vacuity", dest="check_vacuity",
@@ -4638,6 +4642,26 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
     if "\n  inductive " in mlw_code:
         base_cmd += ["-a", "induction_pr"]
     tl = str(getattr(args, "vacuity_timelimit", "5"))
+    # (#49) route #267: the body-less callees whose `ensures` the call-site probe audits —
+    # a `val` with an `ensures`, and none of `raises` / `diverges` / `ensures { false }`
+    # (those may legitimately not return normally, so a dead continuation is their spec).
+    _vals267: "Set[str]" = set()
+    for _vi267, _vl267 in enumerate(lines):
+        _vm267 = _re.match(r"^\s+val (?:function |predicate )?(?:ghost )?(\w+)", _vl267)
+        if not _vm267:
+            continue
+        _vc267 = []
+        _vj267 = _vi267 + 1
+        while (_vj267 < len(lines) and lines[_vj267].strip()
+               and not _re.match(r"^\s*(let|val|end|predicate|function|lemma|goal|axiom|"
+                                 r"type|use|clone|scope)\b", lines[_vj267])):
+            _vc267.append(lines[_vj267])
+            _vj267 += 1
+        _vt267 = "\n".join(_vc267)
+        if (_re.search(r"\bensures\b", _vt267)
+                and not _re.search(r"\b(raises|diverges)\b", _vt267)
+                and not _re.search(r"\bensures\s*\{\s*(\[@[^\]]*\]\s*)*false\s*\}", _vt267)):
+            _vals267.add(_vm267.group(1))
     def _probe_one(fname_idx: "Tuple[str, int]") -> "Tuple[str, Optional[bool]]":
         """Probe one function. Returns (fname, vacuous?) — vacuous? is None if why3 is
         absent (so the caller can degrade the whole gate to skip-not-fail).
@@ -4664,6 +4688,112 @@ def _run_vacuity_gate(mlw_code: str, provers: List[str],
         # comes from the `-> NoReturn` annotation), NOT on the inferred postcondition.
         if fname in skip:
             return fname, False
+        # (#49) ROUTE #267 — AN ABSTRACT CONTRACT THAT IS FALSE AT ONE POINT KILLS ONE
+        # BRANCH, AND "ALL EXITS" CANNOT SEE ONE BRANCH. The all-exits criterion below is
+        # deliberate (a consequence test's provably-dead branch is dead BY DESIGN), so a
+        # path made dead by an `\abstract`/`\trusted` callee's `ensures` was indistinguishable
+        # from one made dead by the user's own guards. MEASURED at 283d1033 (witness a04):
+        # `\abstract oracle(x)` with `ensures x != 5`, called only under `if x == 5:`, and a
+        # caller claiming `\result == 1` while that branch returns 2 — "Verification
+        # SUCCESS", CPython 2. A callee with no body, no `raises` and no `diverges` MUST
+        # return, so its `ensures` must be satisfiable wherever it is called; if the point
+        # just AFTER the call is unreachable while the point just BEFORE it is not, the
+        # callee's contract is what made it so, and the green on that branch is vacuous.
+        # Per call site of such a `val` in this body, probe `check { false }` after the call
+        # (all sites, one run per prover); for each that proves, probe the same before the
+        # call, and flag the function iff after proves and before does not. `check` adds no
+        # hypothesis, so the probes cannot feed each other. A deadness the program already
+        # had before the call (defensive code under a `requires`) is NOT flagged — the gate's
+        # dead-by-design philosophy is kept; only callee-INDUCED deadness fails.
+        if _vals267:
+            _end267 = idx + 1
+            while _end267 < len(lines) and not _re.match(
+                    r"^  (let|val|predicate|function|lemma|goal|axiom|type|use|clone|"
+                    r"scope|exception|constant|inductive|meta)\b|^end\b", lines[_end267]):
+                _end267 += 1
+            _body267 = "\n".join(lines[idx:_end267])
+            _sites267: "List[Tuple[int, int, str]]" = []
+            _depth267 = 0
+            _i267 = 0
+            while _i267 < len(_body267):
+                _ch267 = _body267[_i267]
+                if _ch267 == "{":
+                    _depth267 += 1
+                elif _ch267 == "}":
+                    _depth267 -= 1
+                elif _ch267 == "(" and _depth267 == 0:
+                    _m267 = _re.match(r"\((\w+)\b", _body267[_i267:])
+                    if _m267 and _m267.group(1) in _vals267:
+                        _lvl267 = 0
+                        _j267 = _i267
+                        while _j267 < len(_body267):
+                            if _body267[_j267] == "(":
+                                _lvl267 += 1
+                            elif _body267[_j267] == ")":
+                                _lvl267 -= 1
+                                if _lvl267 == 0:
+                                    break
+                            _j267 += 1
+                        if _j267 < len(_body267) and "{" not in _body267[_i267:_j267]:
+                            _sites267.append((_i267, _j267 + 1, _m267.group(1)))
+                            _i267 = _j267 + 1   # outermost site only (nested: residual)
+                            continue
+                _i267 += 1
+            if _sites267:
+                _txt267 = _body267
+                for _k267 in range(len(_sites267) - 1, -1, -1):
+                    _s267, _e267, _nm267 = _sites267[_k267]
+                    _txt267 = (_txt267[:_s267]
+                               + f"(\n check {{ [@expl:vacpre {_k267}] false }};\n"
+                               + f" let __vac_r{_k267} = " + _txt267[_s267:_e267] + " in\n"
+                               + f" check {{ [@expl:vacpost {_k267}] false }};\n"
+                               + f" __vac_r{_k267})" + _txt267[_e267:])
+                _plines267 = lines[:idx] + _txt267.split("\n") + lines[_end267:]
+                _pre267: "Dict[int, int]" = {}
+                _post267: "Dict[int, int]" = {}
+                for _ln267, _l267 in enumerate(_plines267):
+                    _mm267 = _re.search(r"\[@expl:vac(pre|post) (\d+)\]", _l267)
+                    if _mm267:
+                        (_pre267 if _mm267.group(1) == "pre" else _post267)[
+                            _ln267 + 1] = int(_mm267.group(2))
+                fd267, _pp267 = tempfile.mkstemp(suffix=".mlw", prefix=".pycsl_vac_")
+                try:
+                    _fh267 = os.fdopen(fd267, "w")
+                    _fh267.write("\n".join(_plines267) + "\n")
+                    _fh267.close()
+                    _hit267: "Dict[str, Set[int]]" = {"pre": set(), "post": set()}
+                    for _kind267, _map267 in (("post", _post267), ("pre", _pre267)):
+                        for p in provers:
+                            _want267 = [ln for ln, k in _map267.items()
+                                        if k not in _hit267[_kind267]
+                                        and (_kind267 == "post" or k in _hit267["post"])]
+                            if not _want267:
+                                break
+                            try:
+                                r = _run_why3_prove(base_cmd, p, tl, _pp267,
+                                                    [f"{_pp267}:{ln}" for ln in _want267])
+                            except FileNotFoundError:
+                                return fname, None
+                            _recs267 = _json_goal_records(r.stdout)
+                            if not any(((rec.get("term") or {}).get("loc") or {}).get(
+                                    "start-line") in _map267 for rec in _recs267):
+                                # why3 surfaced none of the probe goals (it rejected the
+                                # rewritten body): say so rather than pass silently.
+                                print(f"[!] vacuity call-site probe for '{fname}' could not "
+                                      f"be checked (no probe goal surfaced; prover {p}).")
+                                break
+                            for rec in _recs267:
+                                _sl267 = ((rec.get("term") or {}).get("loc") or {}).get(
+                                    "start-line")
+                                if _sl267 in _map267 and _record_is_valid(rec):
+                                    _hit267[_kind267].add(_map267[_sl267])
+                    for _k267 in sorted(_hit267["post"] - _hit267["pre"]):
+                        return (f"{fname} [the call to `{_sites267[_k267][2]}` makes its "
+                                f"continuation unreachable: that callee's assumed "
+                                f"`ensures` is unsatisfiable there]"), True
+                finally:
+                    if os.path.exists(_pp267):
+                        os.remove(_pp267)
         probe_lines = lines[:idx] + ["    ensures { [@expl:vacprobe] false }"] + lines[idx:]
         probe_line_no = idx + 1   # 1-based line of the inserted `ensures false`
         fd, probe_path = tempfile.mkstemp(suffix=".mlw", prefix=".pycsl_vac_")
@@ -4980,7 +5110,8 @@ def _run_proofs(mlw_code: str, mlw_filename: str, provers: List[str], args: argp
                           "VACUOUSLY — their assumed context is logically inconsistent, so "
                           "every postcondition is discharged for free (the 'green' is meaningless):")
                     for name in vac:
-                        print(f"    {name}  (proves `ensures false`)")
+                        print(f"    {name}" + ("" if " [" in name
+                                                    else "  (proves `ensures false`)"))
                     print("    Root cause is usually several nonlinear integer-division facts "
                           "coexisting in one context (helper `result == …//…` ensures, "
                           "division-bound inequalities, disjunctive value-equalities). See "

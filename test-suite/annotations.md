@@ -523,9 +523,16 @@ Written as a Python-style block (like `act`, §2.1.15): `#@ happy <name>:` follo
 oninterference)`). The meta-pass SYNTHESIZES a self-composition twin `<method>__selfcomp` that calls `<method>` twice — public params shared, the listed `secret` params split `_a`/`_b` — and asserts the two results are equal. Discharged modularly from `<method>`'s result-`ensures`: a result that depends on a secret makes `ra == rb` unprovable (a leak). Not a new relational WP mechanism — a synthesized 1-safety driver, exactly macsl's `emit_selfcomp`. Powers **H-I2**. Drivers `0729` (positive) / `0730` (negative). |
 
 **Expansion & soundness.** The obligation is injected at the *actual location written*, so it
-needs no alias analysis (value-semantic arrays bar a local alias from mutating the shared
-field) and no caller reasoning (an indirect write through a callee is caught at the callee's
-own site — *universal coverage*, not the call graph, is load-bearing). A `\writing` HAPPY
+needs no caller reasoning (an indirect write through a callee is caught at the callee's own
+site — *universal coverage*, not the call graph, is load-bearing) — PROVIDED every write uses
+the checked spelling. A list is passed by reference, so (route #266, witnesses `2810`–`2819`)
+in every non-exempt body-verified function a non-scalar protected field may appear only as a
+subscript base `X.<f>[...]` or `len(X.<f>)` (passing it to a call, aliasing, returning or
+calling a method on it is refused; an exempt owner may still pass it to a helper), a write or
+`del` reaching `.<f>` through any other receiver/alias/nested-subscript/destructuring spelling
+is refused (`__init__` may create `self.<f>`), and a read-form read `X.<f>[i]` with `X` other
+than `self` is refused. For `protects d.<f>` this includes the owning class's own methods
+writing `self.<f>`: list them in `except`. A `\writing` HAPPY
 emits `#@ check` (a single write's legality is not a reusable downstream fact). Each injected
 check carries an `origin` comment naming the HAPPY and the offending site, so a failure points
 to both. Per-method `requires`/`ensures` are unaffected.

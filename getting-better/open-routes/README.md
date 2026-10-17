@@ -13,6 +13,15 @@
 ##   whitelist), else refused (`PYCSL-SEM-MATCH-BOOL-SINGLETON`). Inline in `_run_pipeline`. Witnesses 2790-2796,
 ##   2799-2802 PROVED -> REFUSED, controls 2797/2798/2803 keep PASS; 24 concurrency drivers gain their missing
 ##   `global` (byte-identical); root 0 MOVED/0 GONE, pyref 0, mirror 0.
+##   #266/#267 REPAIRED 2026-10-17: in every non-exempt body-verified function a non-scalar HAPPY-protected field
+##   may appear only as `X.f[...]` / `len(X.f)` (no passing/aliasing/returning: a list goes by reference), and a
+##   write/`del` reaching `.f` through any non-canonical spelling (other receiver, `poke(self)`, nested, tuple) or a
+##   read-form read through a receiver other than `self` is refused — all region/protects/parametric/read forms.
+##   The vacuity gate probes `check false` after/before each call to a body-less `val` (no raises/diverges) and
+##   flags the function when only the AFTER point is unreachable. Witnesses 2810-2819/2825 and 2821/2822 PROVED ->
+##   FAIL, controls 2820/2823/2824 keep; root/pyref/mirror 0 MOVED; `pycsl_lib_test/formal_happy_world.py` lists its
+##   subsystem methods as owners (relied on 2818's shape); gate cost one goal per audited call site (538 root,
+##   36 pyref; 0 false positives among non-failing files); big-mirror call-site measurement OWED.
 
 ## gen #36 (2026-10-17): #214 CLOSED (found by the slow `check-open-route-carriers` plane going red: its carrier no
 ##   longer proves). Driver bisect: closed by route #255 (323e857b; getattr over an erased receiver is erased, and #249's
