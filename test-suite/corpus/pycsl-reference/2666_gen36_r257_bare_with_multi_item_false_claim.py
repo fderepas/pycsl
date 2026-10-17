@@ -1,4 +1,4 @@
-r"""Test 2566 — route #257 (expected FAIL): a MULTI-ITEM bare `with c, d:` over two imported
+r"""Test 2666 — route #257 (expected FAIL): a MULTI-ITEM bare `with c, d:` over two imported
 context-manager instances; both `__enter__` calls were erased. CPython: f() == 2.
 Now REFUSED fail-closed.
 """

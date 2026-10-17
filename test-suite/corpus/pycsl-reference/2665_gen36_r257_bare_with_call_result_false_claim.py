@@ -1,4 +1,4 @@
-r"""Test 2565 — route #257 (expected FAIL): a bare `with same(c):` whose context expression
+r"""Test 2665 — route #257 (expected FAIL): a bare `with same(c):` whose context expression
 is the RESULT OF A PLAIN CALL returning an imported context-manager instance. CPython:
 `Counter.__enter__` runs on the returned object, f() == 1. Now REFUSED fail-closed.
 """

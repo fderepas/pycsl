@@ -1,4 +1,4 @@
-r"""Test 2562 — route #257 (expected FAIL): a bare `with b.bump():` over an IMPORTED class's
+r"""Test 2662 — route #257 (expected FAIL): a bare `with b.bump():` over an IMPORTED class's
 `@contextmanager` method that writes `self.n`. CPython: f() == 1. Now REFUSED fail-closed.
 """
 # pycsl-expected: FAIL

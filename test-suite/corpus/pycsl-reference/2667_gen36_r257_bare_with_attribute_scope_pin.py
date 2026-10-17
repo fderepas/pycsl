@@ -1,4 +1,4 @@
-r"""Test 2567 — route #257 SCOPE PIN (expected FAIL): a bare `with h.c:` whose context
+r"""Test 2667 — route #257 SCOPE PIN (expected FAIL): a bare `with h.c:` whose context
 expression is an ATTRIBUTE holding an imported context-manager instance. The claim is FALSE
 (CPython: `__enter__` bumps `h.c.n`, f() == 1); at 49f6a35d it already FAILED (the
 un-contracted `Holder.__init__` leaves `h.c` opaque), so this is not a proved-false witness —

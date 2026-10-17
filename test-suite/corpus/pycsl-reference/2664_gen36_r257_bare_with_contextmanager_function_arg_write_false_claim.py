@@ -1,4 +1,4 @@
-r"""Test 2564 — route #257 (expected FAIL): a bare `with bump(b):` over an IN-FILE
+r"""Test 2664 — route #257 (expected FAIL): a bare `with bump(b):` over an IN-FILE
 module-level `@contextmanager` function that writes its ARGUMENT's field (the class itself
 defines no `__enter__`, so the route #38/#39 guard never ran). CPython: f() == 1.
 Now REFUSED fail-closed.

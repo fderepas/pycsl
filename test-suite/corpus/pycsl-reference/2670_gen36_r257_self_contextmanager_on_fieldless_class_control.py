@@ -1,4 +1,4 @@
-r"""Test 2570 — route #257 CONTROL (expected PASS): the shape the self-annotation mirror's
+r"""Test 2670 — route #257 CONTROL (expected PASS): the shape the self-annotation mirror's
 `_Unparser` uses 41 times — `with self.delimit():` inside a method, where `delimit` is an
 in-file `@contextmanager` method that only calls `self` methods, on a class whose model
 record has NO FIELDS. Every effect the generator can have lands in a record the model does

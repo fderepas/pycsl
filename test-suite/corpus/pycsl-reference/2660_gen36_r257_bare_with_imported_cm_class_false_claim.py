@@ -1,4 +1,4 @@
-r"""Test 2560 — route #257 (expected FAIL): a bare `with c:` over an IMPORTED context-manager
+r"""Test 2660 — route #257 (expected FAIL): a bare `with c:` over an IMPORTED context-manager
 class whose `__enter__` writes `self.n`. The route #38/#39 guard only looked for a CM class
 DEFINED IN THE SAME FILE, so the statement was lowered to its body alone
 (`let c = { n = 0 } in (); c.n`) and `\result == 0` PROVED at 49f6a35d.

@@ -1,4 +1,4 @@
-r"""Test 2563 — route #257 (expected FAIL): a bare `with bump(b):` over an IMPORTED
+r"""Test 2663 — route #257 (expected FAIL): a bare `with bump(b):` over an IMPORTED
 module-level `@contextmanager` function that writes its argument's field. CPython: f() == 1.
 Now REFUSED fail-closed.
 """

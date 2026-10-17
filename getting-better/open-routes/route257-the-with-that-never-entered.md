@@ -45,14 +45,14 @@ rule. `as` items stay with #20; `async with` is refused outright. Also closes §
 keyed on a simple method name) for bare items.
 
 ### Step 3: gates
-- Witnesses 2560-2566 (false claims; helpers `multi_file_lib/r257_{cmlib,boxlib,bumplib}.py`): each PROVED at
-  49f6a35d (2560/2561/2562/2563/2564/2565/2566 rc=0, "All contracts formally proven"), each REFUSED after;
-  CPython asserts the true value (1, or 2 for 2566). Scope pins 2567 (attribute; FAILED at base, refused after)
-  and 2568 (`async with`; refused after). Control 2570 (the mirror `_Unparser` shape) and 1031 PROVE before and
+- Witnesses 2660-2666 (false claims; helpers `multi_file_lib/r257_{cmlib,boxlib,bumplib}.py`): each PROVED at
+  49f6a35d (2660/2661/2662/2663/2664/2665/2666 rc=0, "All contracts formally proven"), each REFUSED after;
+  CPython asserts the true value (1, or 2 for 2666). Scope pins 2667 (attribute; FAILED at base, refused after)
+  and 2668 (`async with`; refused after). Control 2670 (the mirror `_Unparser` shape) and 1031 PROVE before and
   after; 0268 + a `#@ critical` lock file unchanged. Repro: w2524/w2526 refused, twins w2525/w2527 refused,
   controls w2520/w2521 still R38.
 - Corpus byte-diff vs a fresh 49f6a35d worktree: root 1697/1698, 0 MOVED, 0 GONE, 0 APPEARED (1 new source:
-  2570); pyref 2197/2197, 0/0/0. Mirror sweep 53/53, 0 MOVED/GONE/APPEARED (no mirror proof owed).
+  2670); pyref 2197/2197, 0/0/0. Mirror sweep 53/53, 0 MOVED/GONE/APPEARED (no mirror proof owed).
 - `run-soundness-planes.sh` 61/61; `check-self-annotate-sync.sh` rc=0; `self-annotate-mirror-check.sh` rc=0.
   Ledgers: 9 own census rows appended (re-measured via the plane's own `_census_row`); advice audit +1
   FOLLOWABLE (repair: ordinary `enter()`/`leave()` methods around the block VERIFIES).

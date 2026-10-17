@@ -1,4 +1,4 @@
-r"""Test 2568 — route #257 SCOPE PIN (expected FAIL): an `async with` is REFUSED wherever it
+r"""Test 2668 — route #257 SCOPE PIN (expected FAIL): an `async with` is REFUSED wherever it
 appears outside a `\trusted`/`\abstract` function. Coroutines do not reach the IR today
 (see 0974), so no false claim rides on it YET; the refusal keeps the erased
 `__aenter__`/`__aexit__` from becoming live the day coroutines are modelled.

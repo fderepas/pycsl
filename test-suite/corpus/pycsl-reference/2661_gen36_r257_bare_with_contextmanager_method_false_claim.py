@@ -1,4 +1,4 @@
-r"""Test 2561 — route #257 (expected FAIL): a bare `with b.bump():` over an IN-FILE
+r"""Test 2661 — route #257 (expected FAIL): a bare `with b.bump():` over an IN-FILE
 `@contextmanager` METHOD that writes `self.n` before it yields. The file defines no
 `__enter__`, so the route #38/#39 guard never ran and the `with` header was erased;
 `\result == 0` PROVED at 49f6a35d. CPython: the generator body runs on entry, f() == 1.
