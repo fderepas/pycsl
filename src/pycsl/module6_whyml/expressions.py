@@ -11106,6 +11106,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # permutation always exists) → no vacuity; adding ensures is
             # monotone → cannot regress a prior opaque proof.
             self._add_abstract_op("predicate permut (a: array int) (b: array int)")
+            # (#49) ROUTE #275 — the KEYWORDS used to be dropped here, so `sorted(xs,
+            # reverse=True)` and `sorted(xs, key=f)` became `sorted_1 xs`, whose `ensures`
+            # says ASCENDING: `ys[0] <= ys[1]` PROVED for `sorted([1, 2], reverse=True)`
+            # (CPython False). `reverse=True` (a bool literal) is DESCENDING; a `key` other
+            # than `None` orders by an unmodelled key, so only what holds for EVERY order is
+            # kept — same length, a permutation. (`_reset_function_state` refuses every other
+            # keyword spelling before this arm is reached.)
+            _r275_kw = {k.get("arg"): k.get("value") for k in (expr.get("keywords") or [])
+                        if isinstance(k, dict)}
+            _r275_rev = _r275_kw.get("reverse")
+            _r275_key = _r275_kw.get("key")
+            _r275_open = (bool(set(_r275_kw) - {"reverse", "key"})
+                          or ("reverse" in _r275_kw
+                              and not (isinstance(_r275_rev, dict)
+                                       and _r275_rev.get("type") == "Bool"))
+                          or ("key" in _r275_kw
+                              and not (isinstance(_r275_key, dict)
+                                       and _r275_key.get("type") == "None")))
+            if _r275_open:
+                self._add_abstract_op(
+                    "val sorted_perm_1 (a: array int) : array int\n"
+                    "    ensures { Array.length result = Array.length a }\n"
+                    "    ensures { permut result a }")
+                return f"(sorted_perm_1 {self._array_coerce_arg(args[0])})"
+            if isinstance(_r275_rev, dict) and _r275_rev.get("value") is True:
+                self._add_abstract_op(
+                    "val sorted_desc_1 (a: array int) : array int\n"
+                    "    ensures { Array.length result = Array.length a }\n"
+                    "    ensures { forall _si : int. 0 <= _si < Array.length result - 1 ->\n"
+                    "                result[_si] >= result[_si + 1] }\n"
+                    "    ensures { permut result a }")
+                return f"(sorted_desc_1 {self._array_coerce_arg(args[0])})"
             self._add_abstract_op(
                 "val sorted_1 (a: array int) : array int\n"
                 "    ensures { Array.length result = Array.length a }\n"

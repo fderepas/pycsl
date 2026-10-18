@@ -11,6 +11,15 @@
 ##   unless the function's own emission applies it as often as the IR calls it (PYCSL-SEM-VANISHED-CALL-EFFECT).
 ##   Witnesses 2960-2966/2970-2977 PROVED -> refused, controls 2967/2978 keep; root/pyref 0 MOVED / 0 GONE; mirror 1
 ##   MOVED (functions: `_build_param_list` genexp -> explicit loop, live+mirror, a genuine vanished stub write).
+##   #275 REPAIRED 2026-10-18: `sorted(reverse=True)` -> descending `sorted_desc_1`, `sorted(key=<not None>)` -> length +
+##   permutation only (`sorted_perm_1`); every other builtin keyword (the generic path DISCARDS them: `sum(start=)`,
+##   `min/max(key=)`, `int(base=)`, `round(ndigits=)`, `enumerate(start=)`, `zip(strict=)`, `print(end=<non-literal>)`,
+##   a calling `key` lambda) is REFUSED in `_reset_function_state` unless a lowering reads it (pow #259, max/min
+##   default #160, print sep/end/flush/file=sys.std*). Witnesses 2980-2984 PROVED -> FAIL/refused, coverage 2985
+##   FAIL -> PASS, controls 2986-2988 keep PASS; root/pyref/mirror 0 MOVED / 0 GONE / 0 APPEARED.
+##   #276 stays OPEN with measurements: the `< 256` law is Why3 `Char.code`'s axiom on EVERY str value; the axiom-free
+##   hidden-high-part ord model breaks the Char.code-keyed codec lemmas (0708/0712/0702, os stub dirent writes) and a
+##   literal name cannot discharge a Latin-1 hypothesis; a `chr` obligation alone lands on mirror pure_ast.
 
 ## gen #36 (2026-10-18): #272 (a callee's undeclared raise is dropped at the call; no_exception \all proves) OPENED.
 ##   #272 REPAIRED 2026-10-18: a `no_exception` function may not call a method whose undeclared raise (or a declared one

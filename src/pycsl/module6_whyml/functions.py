@@ -1441,6 +1441,76 @@ class FunctionEmissionMixin:
                                  if isinstance(v, (dict, list)))
             elif isinstance(_r69_n, (list, tuple)):
                 _r69_work.extend(_r69_n)
+        # (#49) ROUTE #275 — A BUILTIN'S KEYWORD ARGUMENTS WERE DROPPED, AND THE MODEL STAYED.
+        # The generic call path lowers a builtin from its POSITIONAL arguments only, so a
+        # keyword the lowering does not read simply vanished while the builtin's model
+        # still applied. Measured at 5a307a33: `sorted(xs, reverse=True)` and
+        # `sorted(xs, key=lambda v: -v)` became `sorted_1 xs`, whose `ensures` says
+        # ASCENDING, and `ys[0] <= ys[1]` PROVED (CPython False); `sum(xs, start=10)`
+        # PROVED `== 3` (CPython 13). Fail closed on the CLASS: a builtin called with a keyword is
+        # refused unless that keyword is one a lowering demonstrably reads — `pow` (route
+        # #259 owes `false`), `max`/`min` `default` (route #160; the 1-arg form is opaque),
+        # `sorted` `reverse=<bool literal>` / `key=None` / a call-free `lambda` (the sorted
+        # arm below models them), and `print`'s `sep`/`end` (str literal or None), `flush`
+        # (bool literal) and `file=sys.stdout|sys.stderr` (print's output is not modelled;
+        # these spellings neither raise nor reach user code). A user definition that
+        # shadows the builtin is the user's function (route #75) and is not touched.
+        import builtins as _r275_bi
+        _r275_user = set(getattr(self, "_module_method_return_types", {}) or {})
+        _r275_work = list(func.get("body", []) or [])
+        while _r275_work:
+            _r275_n = _r275_work.pop()
+            if isinstance(_r275_n, dict):
+                _r275_f = _r275_n.get("func")
+                _r275_kws = _r275_n.get("keywords")
+                if (_r275_n.get("type") == "Call" and _r275_kws
+                        and isinstance(_r275_f, str) and "." not in _r275_f
+                        and _r275_n.get("receiver") is None
+                        and _r275_f not in _r275_user
+                        and callable(getattr(_r275_bi, _r275_f, None))
+                        and _r275_f[:1].islower() and _r275_f != "pow"):
+                    for _r275_k in _r275_kws:
+                        _r275_a = _r275_k.get("arg") if isinstance(_r275_k, dict) else None
+                        _r275_v = _r275_k.get("value") if isinstance(_r275_k, dict) else None
+                        _r275_vt = _r275_v.get("type") if isinstance(_r275_v, dict) else None
+                        _r275_ok = False
+                        if _r275_f in ("max", "min") and _r275_a == "default":
+                            _r275_ok = True
+                        elif _r275_f == "sorted" and _r275_a == "reverse":
+                            _r275_ok = _r275_vt == "Bool"
+                        elif _r275_f == "sorted" and _r275_a == "key":
+                            if _r275_vt == "None":
+                                _r275_ok = True
+                            elif _r275_vt == "Lambda":
+                                _r275_ok = "'Call'" not in repr(_r275_v.get("body"))
+                        elif _r275_f == "print" and _r275_a in ("sep", "end"):
+                            _r275_ok = _r275_vt in ("String", "None")
+                        elif _r275_f == "print" and _r275_a == "flush":
+                            _r275_ok = _r275_vt == "Bool"
+                        elif _r275_f == "print" and _r275_a == "file":
+                            _r275_ok = ((_r275_vt == "Attribute"
+                                         and isinstance(_r275_v.get("object"), dict)
+                                         and _r275_v["object"].get("name") == "sys"
+                                         and _r275_v.get("attr") in ("stdout", "stderr"))
+                                        or (_r275_vt == "Var" and _r275_v.get("name")
+                                            in ("sys.stdout", "sys.stderr")))
+                        if not _r275_ok:
+                            raise PyCSLIRError(
+                                f"`{_r275_f}(..., {_r275_a}=...)` is not modelled: a builtin's "
+                                "keyword arguments are DISCARDED by its lowering, so the "
+                                "builtin would be modelled as if the keyword were absent while "
+                                "the run still reported 'All contracts formally proven'. "
+                                "Measured: `sorted(xs, reverse=True)` proved ASCENDING order "
+                                "and `sum(xs, start=10)` proved `== 3` (CPython: descending; "
+                                "13) (route #275). The keyword spellings that ARE modelled: "
+                                "`sorted` with `reverse=<bool literal>` and `key=None` or a "
+                                "lambda whose body invokes nothing; `max`/`min` with "
+                                "`default`; `print` with `sep`/`end` (str literal or None), "
+                                "`flush` (bool literal) and `file=sys.stdout`/`sys.stderr`.")
+                _r275_work.extend(v for v in _r275_n.values()
+                                  if isinstance(v, (dict, list)))
+            elif isinstance(_r275_n, (list, tuple)):
+                _r275_work.extend(_r275_n)
         self._bounded_int = func.get("bounded_int")
         # `no_exception` context for VC injection. `_current_no_exception`
         # is the set of exception names whose triggers must produce an
