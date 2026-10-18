@@ -668,6 +668,13 @@ AUDITED = {
         "Route #264. 'Bind `y` on every path before this point (initialise it before the branch, loop or `try`)' - control 2797 (every branch binds) VERIFIES; 'declare `global n`' when the function only READS the module variable VERIFIES (`global n; return n * 0 + 1`, `\\result >= 1`), and the message says a WRITE through `global` is refused separately - measured: `global n; n = 6; n += 1` is refused by the global-write guard, so the advice does not promise it."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr265(f"{args.file} (line {getattr(_r265_m, \'lineno\', 0)}): `case {_r265_m.value}:` is an IDENTITY test (PEP 634 matches the singl'): (FOLLOWABLE,
         "Route #265. 'Write `case 1:` / `case 0:` for VALUE equality' - control 2803 (`case 0:`/`case 1:` on `n: int`, `n == 0 ==> \\result == 7`) VERIFIES."),
+    # (#49) gen #36 — route #271, audited the day it landed.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr271("a call to (or a use as a value of) the generator function `%s` (line %d, in %s) is not modelled (ROUTE #271): calling a fun'): (FOLLOWABLE,
+        "Route #271. 'Make the function an ordinary one that RETURNS its values (e.g. a `list`) and iterate that' - control 2912 (`vals() -> List[int]: return [1, 2]`, iterated by index, `\\result == 3`) VERIFIES and control 2909 (2905's `bump` as an ordinary method, `\\result == 1`) VERIFIES; 'use the generator only as a `with` item of an inert `@contextmanager` producer' - controls 2911, 2670 and 1031 VERIFY."),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr271('generator function `%s` (line %d) carries %s (ROUTE #271): a function containing `yield` is a GENERATOR — calling it only b"): (FOLLOWABLE,
+        "Route #271. 'Drop the clause (a generator may keep `requires` and `assigns`)' - control 2910 (an uncalled generator with only `requires n >= 0` / `assigns \\nothing`) VERIFIES; 'or make the function an ordinary one that RETURNS its values' - controls 2909 and 2912 VERIFY."),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr271('generator function `%s` (line %d) has %s (ROUTE #271): Python invokes it IMPLICITLY, so no call site can be checked, and Py"): (FOLLOWABLE,
+        "Route #271. 'Make it an ordinary method that RETURNS its values' - 2908 without its `yield` is the ordinary `__init__` of control 2909's class shape (`self.n = 5`; `C().n == 5` VERIFIES as 2909 does for `bump`)."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -928,6 +935,9 @@ AUDITED_HASH = {
     # (#49) gen #36
     ('src/pycsl/pycsl.py', '_PyCSLSemErr264(f"{args.file} (line {_r264_line}): function `{_r264_fname}` {(\'reads\' if _r264_kind == \'use\' else \'deletes\')} the local `{_r'): '7163eacdc4ae',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr265(f"{args.file} (line {getattr(_r265_m, \'lineno\', 0)}): `case {_r265_m.value}:` is an IDENTITY test (PEP 634 matches the singl'): '1d20cc56b487',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr271("a call to (or a use as a value of) the generator function `%s` (line %d, in %s) is not modelled (ROUTE #271): calling a fun'): '0846c5b7ec5c',
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr271('generator function `%s` (line %d) carries %s (ROUTE #271): a function containing `yield` is a GENERATOR — calling it only b"): 'ebec5b5a8505',
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr271('generator function `%s` (line %d) has %s (ROUTE #271): Python invokes it IMPLICITLY, so no call site can be checked, and Py"): '838550ec869e',
 }
 
 

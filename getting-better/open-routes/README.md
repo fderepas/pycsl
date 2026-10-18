@@ -5,6 +5,12 @@
 
 ## gen #36 (2026-10-17): #270 (#264 analysis misses exception edges from calls; generators treated as no-return) and
 ##   #271 (calling a generator function runs its body eagerly) OPENED (red team 4, driver-reproduced).
+##   #270/#271 REPAIRED 2026-10-18: inside a `try`/`with` region EVERY potentially-raising expression (call,
+##   arithmetic, subscript, attribute, pattern, store target) adds a must-assign exception edge, and a generator /
+##   coroutine is never no-return; a COUNTED generator (own `yield`, lowered, not the R-W2b `_walk_dicts` model) may
+##   not carry `ensures` (other than True) / `raises` / NoReturn (G1), be a special method or non-CM-decorated (G3),
+##   or be called / used as a value except as a `with` item (G2) — fail-closed. Witnesses 2900-2902/2905-2908 PROVED
+##   -> REFUSED, controls 2904/2909-2912 PROVED both; root 0 MOVED/0 GONE (+5), pyref 0/0, mirror 53/53 0 MOVED.
 
 ## gen #36 (2026-10-17): #269 (residual divergence leaks after #263: C().m() stub drops diverges, comprehension-hidden
 ##   calls, diverges+no_exception RecursionError, Module5 bespoke dispatch stubs, cross-module cycles) OPENED.

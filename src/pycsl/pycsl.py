@@ -2597,11 +2597,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     _r264_range_ok = True
     for _r264_n in _A264.walk(_r264_tree):
         if isinstance(_r264_n, _R264_FNS):
-            _r264_ret = False
-            _r264_stk = list(_r264_n.body)
+            # (#270) a GENERATOR (any own `yield`/`yield from`) or a coroutine is never
+            # no-return: calling it only BUILDS the generator/coroutine, its body does
+            # not run at the call — so it counts here exactly like a `return`.
+            _r264_ret = isinstance(_r264_n, _A264.AsyncFunctionDef)
+            _r264_stk = [] if _r264_ret else list(_r264_n.body)
             while _r264_stk:
                 _r264_m = _r264_stk.pop()
-                if isinstance(_r264_m, _A264.Return):
+                if isinstance(_r264_m, (_A264.Return, _A264.Yield, _A264.YieldFrom)):
                     _r264_ret = True
                     break
                 if not isinstance(_r264_m, (_R264_FNS, _A264.ClassDef, _A264.Lambda)):
@@ -2746,6 +2749,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 elif isinstance(_r264_e, _A264.Subscript):
                     _r264_seq = [("E", _r264_e.value, False, frozenset()),
                                  ("E", _r264_e.slice, False, frozenset())]
+                if _r264_exc and isinstance(_r264_e, (_A264.Attribute, _A264.Subscript)):
+                    # (#270) the attribute/item STORE or DELETE itself may raise
+                    _r264_seq.append(("op", ("nop",)))
             elif _r264_k == "P":
                 _r264_e = _r264_t[1]
                 _r264_seq = []
@@ -2768,6 +2774,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                  + ([("op", ("def", _r264_e.name))] if _r264_e.name else []))
                 elif isinstance(_r264_e, _A264.MatchOr):
                     _r264_seq = [("P", _r264_x) for _r264_x in _r264_e.patterns]
+                if _r264_exc:
+                    # (#270) matching a pattern may raise (`__eq__`, `__getitem__`,
+                    # `isinstance` on a non-class, a missing attribute)
+                    _r264_seq.append(("op", ("nop",)))
             elif _r264_k == "E":
                 _r264_e, _r264_c, _r264_sh = _r264_t[1], _r264_t[2], _r264_t[3]
                 if isinstance(_r264_e, list):
@@ -2814,6 +2824,23 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 else:
                     _r264_seq = [("E", _r264_x, _r264_c, _r264_sh)
                                  for _r264_x in _A264.iter_child_nodes(_r264_e)]
+                # (#270) EVERY potentially-raising expression inside a protected region
+                # (a `try` body/else/handler under a `finally`, a `with` body) adds an
+                # exception edge carrying the state at that point — not only the
+                # operations that read or write a local. A call, `1 // 0`, a subscript,
+                # an attribute access, ... reading no local used to create NO edge, so
+                # a `try` whose body was only `C.g(1)` left its handler unreachable
+                # (TOP) and the `else`-path binding looked definite. Measured at
+                # c9d7f157: `if c: y = 2` / `try: C.g(1) except ValueError: pass else:
+                # y = 1` / `return y` PROVED; CPython `f(False)`: UnboundLocalError.
+                # Only a literal, a lambda (creating one cannot raise), a walrus (its
+                # value gets its own edge) and a local read (its `use` op already has
+                # the edge) add none.
+                if (_r264_exc and isinstance(_r264_e, _A264.AST)
+                        and not isinstance(_r264_e, (_A264.Constant, _A264.Lambda,
+                                                     _A264.NamedExpr))
+                        and not (isinstance(_r264_e, _A264.Name) and _r264_seq)):
+                    _r264_seq = list(_r264_seq or []) + [("op", ("nop",))]
             elif _r264_k == "S":
                 _r264_s = _r264_t[1]
                 _r264_z = frozenset()
@@ -3849,6 +3876,300 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         stage="whyml-emit", code="PYCSL-R257-CONTEXT-MANAGER-NOT-INERT")
 
 
+
+    # (#49) ROUTE #271 — CALLING A GENERATOR FUNCTION RAN ITS BODY EAGERLY IN THE MODEL.
+    #
+    #   Module 5 has no generator node: `yield <e>` becomes an `UnknownPyExpr` statement
+    #   (Module 6: `let _ = (any int) in ()`), so a function containing `yield` is emitted
+    #   as an ORDINARY procedure whose body — and contract — run AT THE CALL. Python's
+    #   call only BUILDS the generator; nothing in the body runs until it is iterated.
+    #   MEASURED at c9d7f157, default hoare model, no flags, each "All contracts formally
+    #   proven" and each false of CPython:
+    #     - `def bump(self) -> Iterator[int]: self.n = self.n + 1; yield 0` with
+    #       `ensures self.n == \old(self.n) + 1`; `c = C(); c.bump(); return c.n` proved
+    #       `\result == 1` (CPython 0) — witnesses-r271/h05;
+    #     - `def gen() -> int: yield 1; return 3` with `ensures \result == 3`, and
+    #       `return gen()` proved `\result == 3` (CPython: a generator object).
+    #   THE RULE, fail-closed, for every generator function (a `def` with its OWN
+    #   `yield`/`yield from`) whose body is LOWERED (not `\trusted`/`\abstract`, not
+    #   nested in one) and that no dedicated generator model recognizes (Module 6's
+    #   R-W2b `_walk_dicts` `.values()` walker, which lowers onto a `list pyval`):
+    #     (G1) its OWN contract may not carry an `ensures` other than `True`, a
+    #          `raises`, an interface `ensures`, or a `NoReturn`/`Never` return — each
+    #          is a claim about the body run eagerly, which the call never does
+    #          (`requires` and `assigns` stay: a precondition only burdens the caller,
+    #          and any frame over-approximates a call that writes nothing);
+    #     (G3) it may not be invoked IMPLICITLY — a special method (`__init__`,
+    #          `__iter__`, ...) or one behind a decorator other than `staticmethod`/
+    #          `classmethod`/a `contextmanager` (`@property`);
+    #     (G2) it may not be CALLED, nor used as a VALUE (`h = gen`, `map(gen, xs)`, a
+    #          bound method `h = c.bump`), from lowered code, except as the context
+    #          expression of a `with` item — Module 5 lowers a bare `with` to its BODY ALONE (the
+    #          call is never emitted) and route #257 already vets that the producer is
+    #          inert. A call `self.m(...)` inside class K resolves through K's in-file
+    #          bases (a non-generator `m` found first is not a generator call unless an
+    #          in-file subclass of K overrides it with one); any other `x.m(...)` is
+    #          matched by NAME against every in-file generator method (fail-closed).
+    #   `async def` never reaches the IR (route-0974's refusal owns it). An IMPORTED
+    #   generator is a `trusted` dependency like every import: its own run refuses it
+    #   under (G1)/(G2).
+    #
+    #   CENSUS before the change (Modules 1-3 over corpus + mirror + `pycsl_lib`): 11
+    #   generator defs. Corpus: 1031 `blk`, 2670 `delimit` — called only as `with`
+    #   items, no claim (PASS kept); 2661/2664 `bump` — `ensures` (G1), already refused
+    #   by #257 (which runs first, so their message is unchanged); python-reference
+    #   0061/0141/0175 nested `gen()` called by name (G2), all already `FAIL`;
+    #   `multi_file_lib/r257_*lib.py` (G1, imported by #257 witnesses, already refused).
+    #   Mirror: `ir_inline._walk_dicts` (recognized, exempt), `pure_ast.iter_fields`
+    #   (called only from the `\trusted` `iter_child_nodes`), `iter_child_nodes`
+    #   (`\trusted`), `_Unparser.block`/`delimit` (`ensures True`, called only as `with`
+    #   items; the `_Parser.block` calls are a DIFFERENT, non-generator method, told
+    #   apart by the class resolution). `pycsl_lib/json/encoder.py`: already refused.
+    #   CHOKE POINT: `_run_pipeline`'s mirror twin is `\trusted`; inline, no new `def`.
+    if unified_ast is not None:
+        from frontend import pure_ast as _pa271
+        from module6_whyml.generic_fold import (
+            recognize_walk_dicts_generator as _rwdg271)
+        _modelled271 = {_f["name"] for _f in (ir_data.get("functions") or [])
+                        if isinstance(_f, dict) and isinstance(_f.get("name"), str)
+                        and _rwdg271(_f)}
+        _FN271 = ("FunctionDef", "AsyncFunctionDef")
+        # every def with its owner class (direct class-body member) and whether its body
+        # is lowered (not `\trusted`/`\abstract`, not nested inside such a def)
+        _defs271 = []          # (def, owner class name or None, lowered)
+        _bases271 = {}         # class -> in-file base names
+        _meth271 = {}          # class -> {method name: is_generator}
+        _st271 = [(unified_ast, None, True)]
+        while _st271:
+            _n271, _o271, _lw271 = _st271.pop()
+            _nk271 = _n271.__class__.__name__
+            if _nk271 == "ClassDef":
+                _bases271.setdefault(_n271.name, set()).update(
+                    _b.id for _b in (_n271.bases or []) if _b.__class__.__name__ == "Name")
+                for _c271 in _pa271.iter_child_nodes(_n271):
+                    _st271.append((_c271, _n271.name if _c271.__class__.__name__ in _FN271
+                                   else None, _lw271))
+                continue
+            if _nk271 in _FN271:
+                _lw271 = (_lw271 and not getattr(_n271, "csl_trusted", False)
+                          and not getattr(_n271, "csl_abstract", False))
+                _defs271.append((_n271, _o271, _lw271))
+            for _c271 in _pa271.iter_child_nodes(_n271):
+                _st271.append((_c271, None, _lw271))
+        _isgen271 = {}
+        for _d271, _o271, _lw271 in _defs271:
+            _g271 = False
+            _st271 = list(_d271.body)
+            while _st271:
+                _m271 = _st271.pop()
+                _mk271 = _m271.__class__.__name__
+                if _mk271 in ("Yield", "YieldFrom"):
+                    _g271 = True
+                    break
+                if _mk271 not in _FN271 + ("Lambda", "ClassDef"):
+                    _st271.extend(_pa271.iter_child_nodes(_m271))
+            # a COUNTED generator: own `yield`, body lowered, no dedicated model
+            _isgen271[id(_d271)] = (
+                _g271 and _d271.__class__.__name__ == "FunctionDef" and _lw271
+                and (_d271.name if _o271 is None
+                     else "%s__%s" % (_o271.lower(), _d271.name)) not in _modelled271)
+            if _o271 is not None:
+                _mm271 = _meth271.setdefault(_o271, {})
+                _mm271[_d271.name] = _mm271.get(_d271.name, False) or _isgen271[id(_d271)]
+        _genfn271 = set()      # module-level / nested generator function names
+        _genm271 = {}          # method name -> classes defining it as a generator
+        _bad271 = None
+        for _d271, _o271, _lw271 in _defs271:
+            if not _isgen271[id(_d271)]:
+                continue
+            if _o271 is None:
+                _genfn271.add(_d271.name)
+            else:
+                _genm271.setdefault(_d271.name, set()).add(_o271)
+            if _bad271 is not None:
+                continue
+            _why271 = None
+            for _e271 in (getattr(_d271, "csl_ensures", None) or []):
+                _x271 = getattr(_e271, "expr", None)
+                if not (_x271.__class__.__name__ == "CSLBool"
+                        and getattr(_x271, "value", None) is True):
+                    _why271 = "an `ensures` clause"
+            if getattr(_d271, "csl_iface_ensures", None):
+                _why271 = "an interface `ensures` clause"
+            if getattr(_d271, "csl_raises", None):
+                _why271 = "a `raises` clause"
+            _rt271 = _d271.returns
+            if ((_rt271.__class__.__name__ == "Name" and _rt271.id in ("NoReturn", "Never"))
+                    or (_rt271.__class__.__name__ == "Attribute"
+                        and _rt271.attr in ("NoReturn", "Never"))):
+                _why271 = "a `NoReturn`/`Never` return annotation"
+            if _why271 is not None:
+                _bad271 = ("G1", _d271.name, getattr(_d271, "lineno", 0) or 0, _why271)
+                continue
+            # (G3) a generator Python invokes IMPLICITLY has no call site (G2) could
+            # check: a special method (`C()` runs a generator `__init__`, measured
+            # PROVED where CPython raises TypeError) or one behind a decorator other than
+            # `staticmethod`/`classmethod`/a `contextmanager` (`@property`: attribute
+            # access calls it)
+            _dk271 = None
+            if _d271.name.startswith("__") and _d271.name.endswith("__"):
+                _dk271 = "the special-method name `%s`" % _d271.name
+            for _dc271 in (_d271.decorator_list or []):
+                _dn271 = (_dc271.id if _dc271.__class__.__name__ == "Name" else
+                          _dc271.attr if _dc271.__class__.__name__ == "Attribute" else None)
+                if not (isinstance(_dn271, str) and (
+                        _dn271 in ("staticmethod", "classmethod")
+                        or _dn271.endswith("contextmanager"))):
+                    _dk271 = "a decorator other than `staticmethod`/`classmethod`/`contextmanager`"
+            if _dk271 is not None:
+                _bad271 = ("G3", _d271.name, getattr(_d271, "lineno", 0) or 0, _dk271)
+        if _bad271 is None and (_genfn271 or _genm271):
+            # (G2) calls from lowered code; a `with` item's own call is not emitted
+            _st271 = [(unified_ast, None, True, None)]
+            _callee271 = set()
+            while _st271 and _bad271 is None:
+                _n271, _k271, _lw271, _fn271 = _st271.pop()
+                _nk271 = _n271.__class__.__name__
+                if _nk271 == "ClassDef":
+                    for _c271 in _pa271.iter_child_nodes(_n271):
+                        _st271.append((_c271, _n271.name, _lw271, _fn271))
+                    continue
+                if _nk271 in _FN271:
+                    _lw271 = (_lw271 and not getattr(_n271, "csl_trusted", False)
+                              and not getattr(_n271, "csl_abstract", False))
+                    _fn271 = _n271
+                if (_nk271 == "If" and _fn271 is None
+                        and _n271.test.__class__.__name__ == "Compare"
+                        and _n271.test.left.__class__.__name__ == "Name"
+                        and _n271.test.left.id == "__name__"):
+                    continue   # the `__main__` block is never lowered
+                if _nk271 in ("With", "AsyncWith"):
+                    for _it271 in _n271.items:
+                        _ce271 = _it271.context_expr
+                        if _ce271.__class__.__name__ == "Call":
+                            # the item's own call is never emitted; its arguments are
+                            _ch271 = (list(_ce271.args or [])
+                                      + [_kw.value for _kw in (_ce271.keywords or [])]
+                                      + ([_ce271.func.value]
+                                         if _ce271.func.__class__.__name__ == "Attribute"
+                                         else []))
+                        else:
+                            _ch271 = [_ce271]
+                        for _c271 in _ch271:
+                            _st271.append((_c271, _k271, _lw271, _fn271))
+                        if _it271.optional_vars is not None:
+                            _st271.append((_it271.optional_vars, _k271, _lw271, _fn271))
+                    for _c271 in _n271.body:
+                        _st271.append((_c271, _k271, _lw271, _fn271))
+                    continue
+                if (_nk271 == "Name" and _lw271 and _n271.id in _genfn271
+                        and _n271.ctx.__class__.__name__ == "Load"):
+                    # the generator function used as a VALUE (`h = gen; h()`, `map(gen,
+                    # xs)`) would be called where no check sees it
+                    _bad271 = ("G2", _n271.id, getattr(_n271, "lineno", 0) or 0,
+                               ("'%s'" % _fn271.name) if _fn271 is not None
+                               else "module scope")
+                    break
+                if (_nk271 == "Attribute" and _lw271 and _n271.attr in _genm271
+                        and id(_n271) not in _callee271
+                        and _n271.ctx.__class__.__name__ == "Load"):
+                    # a generator METHOD taken as a bound-method VALUE (`h = c.bump`)
+                    _bad271 = ("G2", _pa271.unparse(_n271), getattr(_n271, "lineno", 0) or 0,
+                               ("'%s'" % _fn271.name) if _fn271 is not None
+                               else "module scope")
+                    break
+                if _nk271 == "Call":
+                    _callee271.add(id(_n271.func))
+                if _nk271 == "Call" and _lw271:
+                    _f271 = _n271.func
+                    _hit271 = False
+                    if _f271.__class__.__name__ == "Name":
+                        _hit271 = _f271.id in _genfn271
+                    elif (_f271.__class__.__name__ == "Attribute"
+                          and _f271.attr in _genm271):
+                        _hit271 = True
+                        _cls271 = _k271 if _fn271 is not None and _k271 is not None else None
+                        if (_cls271 is not None and _f271.value.__class__.__name__ == "Name"
+                                and _f271.value.id in ("self", "cls")):
+                            # first in-file class along K's bases that defines the method
+                            _seen271 = set()
+                            _q271 = [_cls271]
+                            _found271 = None
+                            while _q271 and _found271 is None:
+                                _c271 = _q271.pop(0)
+                                if _c271 in _seen271:
+                                    continue
+                                _seen271.add(_c271)
+                                if _f271.attr in _meth271.get(_c271, {}):
+                                    _found271 = _meth271[_c271][_f271.attr]
+                                else:
+                                    _q271.extend(sorted(_bases271.get(_c271, ())))
+                            if _found271 is False:
+                                # ...unless an in-file SUBCLASS of K overrides it with one
+                                _hit271 = False
+                                for _g271 in _genm271[_f271.attr]:
+                                    _seen271 = set()
+                                    _q271 = [_g271]
+                                    while _q271:
+                                        _c271 = _q271.pop(0)
+                                        if _c271 in _seen271:
+                                            continue
+                                        _seen271.add(_c271)
+                                        if _c271 == _cls271 and _g271 != _cls271:
+                                            _hit271 = True
+                                        _q271.extend(sorted(_bases271.get(_c271, ())))
+                    if _hit271:
+                        _bad271 = ("G2", _pa271.unparse(_f271) if hasattr(_pa271, "unparse")
+                                   else getattr(_f271, "attr", getattr(_f271, "id", "?")),
+                                   getattr(_n271, "lineno", 0) or 0,
+                                   ("'%s'" % _fn271.name) if _fn271 is not None
+                                   else "module scope")
+                        break
+                for _c271 in _pa271.iter_child_nodes(_n271):
+                    _st271.append((_c271, _k271, _lw271, _fn271))
+        if _bad271 is not None:
+            from errors import PyCSLSemanticError as _PyCSLSemErr271
+            if _bad271[0] == "G1":
+                raise _PyCSLSemErr271(
+                    "generator function `%s` (line %d) carries %s (ROUTE #271): a function "
+                    "containing `yield` is a GENERATOR — calling it only builds the generator "
+                    "and runs NONE of its body — but PyCSL has no generator model and lowers "
+                    "the body as an ordinary procedure run at the call, so a postcondition, a "
+                    "`raises` or a no-return claim is proven of an execution Python never "
+                    "performs. Measured: `bump(self)` doing `self.n += 1; yield 0` proved "
+                    "`ensures self.n == \\old(self.n) + 1`, and a caller then proved "
+                    "`c.bump(); return c.n` == 1 where CPython returns 0. Drop the clause "
+                    "(a generator may keep `requires` and `assigns`), or make the function an "
+                    "ordinary one that RETURNS its values (e.g. a `list`)."
+                    % (_bad271[1], _bad271[2], _bad271[3]),
+                    filename=args.file, line=_bad271[2],
+                    stage="ir-semantic", code="PYCSL-SEM-GENERATOR-CONTRACT")
+            if _bad271[0] == "G3":
+                raise _PyCSLSemErr271(
+                    "generator function `%s` (line %d) has %s (ROUTE #271): Python invokes it "
+                    "IMPLICITLY, so no call site can be checked, and PyCSL has no generator "
+                    "model — it lowers the body as an ordinary procedure run at the "
+                    "invocation, while Python only builds a generator there (a generator "
+                    "`__init__` makes `C()` raise TypeError; measured, `C()` then "
+                    "`return c.n` PROVED the field the body set). Make it an ordinary "
+                    "method that RETURNS its values (e.g. a `list`)."
+                    % (_bad271[1], _bad271[2], _bad271[3]),
+                    filename=args.file, line=_bad271[2],
+                    stage="ir-semantic", code="PYCSL-SEM-GENERATOR-IMPLICIT")
+            raise _PyCSLSemErr271(
+                "a call to (or a use as a value of) the generator function `%s` (line %d, "
+                "in %s) is not modelled "
+                "(ROUTE #271): calling a function that contains `yield` only BUILDS a "
+                "generator — none of its body runs until it is iterated — but PyCSL has no "
+                "generator model and lowers the body as an ordinary procedure, so the call "
+                "would apply the body's effects and contract AT THE CALL. Measured: "
+                "`c.bump()` on a generator method doing `self.n += 1; yield 0` proved "
+                "`c.n == 1` where CPython leaves it 0. Make the function an ordinary one "
+                "that RETURNS its values (e.g. a `list`) and iterate that, or use the "
+                "generator only as a `with` item of an inert `@contextmanager` producer."
+                % (_bad271[1], _bad271[2], _bad271[3]),
+                filename=args.file, line=_bad271[2],
+                stage="ir-semantic", code="PYCSL-SEM-GENERATOR-CALL")
 
     # ROUTE #37 (relaunch #45) — REFUSE a `try ... else:` whose ELSE BLOCK JUMPS OUT.
     #
