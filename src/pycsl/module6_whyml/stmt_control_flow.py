@@ -724,6 +724,22 @@ class ControlFlowStmtMixin:
             if ret_type == "array int":
                 iter_expr = self._expr_to_whyml(iter_ir, local_refs)
                 return f"Array.length {iter_expr}", f"{iter_expr}[!{idx}]", False
+            # gen #36 ch21 (LISTSTR): a callee DECLARED `-> List[str]` returns `array
+            # string`. It fell to the opaque `iter_length`/`iter_get : int -> int` below,
+            # an L3-tc clash (fail-closed) — measured as the blocker on
+            # `preamble._emit_preamble_no_exception_predicates` (`for line in
+            # predicate_definitions():`). The call is evaluated ONCE (Python evaluates the
+            # iterable once; a `val` callee re-evaluated for the bound and again for the
+            # element would give two unrelated arrays), bound to an immutable `let`, so the
+            # bound `Array.length`, the element read and the arithmetic termination variant
+            # all reference the same array. The loop target is a `string` (registered for
+            # the body in `_handle_for_stmt`). Byte-inert: the shape did not type-check.
+            if ret_type == "array string":
+                iter_expr = self._expr_to_whyml(iter_ir, local_refs)
+                _cv = f"_callit{idx}"
+                self._for_iter_materialize = (_cv, iter_expr)
+                self._pyast_loop_variant_len = f"(Array.length {_cv})"
+                return f"(Array.length {_cv})", f"{_cv}[!{idx}]", False
         # self-tcb-reduction T1.a: a slice/subscript of a `seq` local (`for _p in _parts[1:]`,
         # `_parts = s.split(".")`) iterates via `Seq.length`/`Seq.get` (the slice is a seq).
         # @mutable_state-gated → byte-identical for the corpus.
@@ -1010,6 +1026,23 @@ class ControlFlowStmtMixin:
         # via the faithful `str_startswith_op`, not the opaque int path. Restored after body.
         _is_strseqlit = (self._value_semantic and not tuple_targets
                          and self._str_lit_seq_elts(iter_ir) is not None)
+        # gen #36 ch21: `for line in <call declared -> List[str]>` binds `line` to a real
+        # `string` (`_callit[!idx]`) per iteration -> symbol-type "str" for the body's
+        # duration (so `f"  {line}"` lowers through `str_concat_op`). Restored after.
+        # Same declared-return lookup as `_classify_iterable`'s call-iterable arm.
+        _is_strcallbody = False
+        if (self._value_semantic and not tuple_targets
+                and iter_ir.get("type") == "Call"
+                and isinstance(iter_ir.get("func"), str)):
+            _scf = iter_ir.get("func")
+            if _scf.startswith("self."):
+                _scc = self._current_self_type
+                _sck = (f"{_scc}__{_scf[len('self.'):]}" if _scc
+                        else _scf[len("self."):])
+            else:
+                _sck = _scf
+            _is_strcallbody = (self._module_method_return_types.get(_sck, "int")
+                               == "array string")
         # hval-retype (self-tcb-reduction Tier-5): `for info in <pyval-field>.values()`
         # binds `info` to a real `hval` per iteration — register it in `_pyval_locals`
         # for the body's duration so `info.get("whyml_name")` /
@@ -1166,6 +1199,11 @@ class ControlFlowStmtMixin:
             if _st is not None:
                 _saved_symtype = _st.get(target, _MISSING)
                 _st[target] = "str"
+        elif _is_strcallbody:
+            _st = getattr(self, "_current_symbol_table", None)
+            if _st is not None:
+                _saved_symtype = _st.get(target, _MISSING)
+                _st[target] = "str"
         # S-C4: register the loop target as a record-ELEMENT local for the body only, and
         # restore the entry after it, so the method's NET effect on the map is nil (the same
         # save/restore discipline as the `_current_symbol_table` entries above). The map is
@@ -1186,6 +1224,7 @@ class ControlFlowStmtMixin:
                 _rafl_map[target] = _rafl_saved
         if (_saved_symtype is not _MISSING or _is_classbody or _is_kwbody
                 or _is_tparambody or _is_splitbody or _is_pyval_keys or _is_strseqlit
+                or _is_strcallbody
                 or self._mktuple_elts_recv_ir(iter_ir) is not None
                 or self._tparam_bases_recv(iter_ir) is not None):
             _st = getattr(self, "_current_symbol_table", None)

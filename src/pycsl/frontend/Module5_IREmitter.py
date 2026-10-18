@@ -7284,7 +7284,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 if not isinstance(elem, dict):
                     return False
                 t = elem.get("type")
-                if t == "String":
+                # gen #36 ch21 (LISTSTR): an f-string IS a `str` in Python, whatever its
+                # interpolations are, so a seq grown only by f-strings (`out.append(
+                # f"  {line}")`) carries STRING elements. Before this it stayed `seq int`
+                # and the method's `-> List[str]` return then failed L3-tc against
+                # `materialize_str` (fail-closed). An f-string whose parts the emitter
+                # cannot type as strings still lowers to the int-hash joiner, which now
+                # meets a `seq string` and is an L3-tc error — fail-closed, never a value.
+                if t in ("String", "FString"):
                     return True
                 if t == "Var":
                     nm = elem.get("name")

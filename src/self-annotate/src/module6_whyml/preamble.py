@@ -246,12 +246,17 @@ class PreambleEmissionMixin:
     def _emit_preamble_axioms(self, ir: int) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _emit_preamble_no_exception_predicates(self, needs: int) -> List[str]:
-        return []
+    def _emit_preamble_no_exception_predicates(self, needs: Dict[str, Any]) -> List[str]:
+        if not needs.get("needs_no_exception"):
+            return []
+        from exception_model import predicate_definitions
+        out: List[str] = [""]
+        for line in predicate_definitions():
+            out.append(f"  {line}")
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

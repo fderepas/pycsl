@@ -388,6 +388,58 @@ The receiver-dropping helpers are `val`s (not `val function`), so each call is a
 unconstrained value: input-blind, NOT unsound. No independently-correct seam was found for
 steps 2/4/8, so none was landed. Logs/emits: session scratchpad `ch20/m-*.log`, `m-*.mlw`.
 
+## Re-measurement at HEAD — step 6 LISTSTR (ch21, 2026-10-18, at `76dec778`)
+
+Each marker ported verbatim (live body; live signature where the mirror's differed) in a
+scratch copy and type-checked `--no-proof --keep-mlw`. **1 of 7 honest** — converted on a
+two-part seam; the other six are not LISTSTR once re-ported (the census's LISTSTR event was
+the FIRST type error, not the only blocker).
+
+```
+    marker                                        first blocker at HEAD -> verdict
+    _Harvester._assign                            REFUSED: `self._module_header.append(..)` (self-field append,
+                                                  no certified lowering); also `_dec_owner.leading.append`
+                                                  (element-alias store), local `import bisect`, `next(genexp)`. MUTRECV. SKIP
+    _Harvester._emit_suite                        REFUSED by route #263 (self-recursion through a method call ->
+                                                  `#@ \diverges` required); with it: `List[_Target]` is `array int`
+                                                  (record element erased), `tgt.child_suites` = opaque
+                                                  `get_child_suites (x: int)`; a faithful model needs a recursive
+                                                  MUTABLE record (`_target` containing arrays of `_target`) -- not
+                                                  expressible as a Why3 record. RECORD/L. SKIP
+    _ContractParser._parse_expr_list              `exprs` is `seq emit_ir`, the (unannotated) return `int`;
+                                                  `-> "List[ExprIR]"` is `array emit_ir` ONLY under
+                                                  `_uses_pyast_parser()` (pure_ast), and the loop needs the
+                                                  `self.i` invariants of its siblings. A file-gate lift, not
+                                                  LISTSTR. SKIP (candidate for a pyast-gate generalisation)
+    PyCSLToJSONEmitter._collect_union_arms        REFUSED: `stack.pop()` (MUTRECV); `arms.reverse()`, AST ctor
+                                                  comprehensions. SKIP
+    _Unparser.set_precedence                      `*nodes` is `seq int` against `iter_length (x: int)`; the store
+                                                  `self._precedences[node] = p` lowers to `subscript_set
+                                                  (getattr__unparser self <h>) ..` (no `writes`): the frame
+                                                  `assigns self._precedences` would be VACUOUS. FACADE. SKIP
+    walk                                          generator (`yield`, route #271 eagerness) over `deque` +
+                                                  `.popleft()`/`.extend()` (MUTRECV). SKIP
+    _emit_preamble_no_exception_predicates        CONVERTED (455 -> 454). Blockers were exactly two LISTSTR
+                                                  lowerings + the mirror's int-erased `needs: int` param:
+                                                  (1) `for line in predicate_definitions():` -- a call declared
+                                                  `-> List[str]` fell to `iter_length/iter_get : int -> int`;
+                                                  (2) `out: List[str] = [""]` grown by `f"  {line}"` stayed
+                                                  `seq int` (the `""` hashed) against the `-> List[str]` return.
+```
+
+Seam (both halves fail-closed before, byte-inert after): `stmt_control_flow._classify_iterable`
+— a call whose declared return is `array string` is evaluated ONCE into an immutable `let`
+(`_callit<idx>`), bound `Array.length`, element `_callit[!idx]`, arithmetic variant; the loop
+target is symbol-type `str` for the body (`_handle_for_stmt`). `Module5._detect_seq_promotion`
+— an `FString` element counts as a string element (an f-string IS a `str`). The mirror
+signature takes the live `needs: Dict[str, Any]` (body reads `Map.get needs "..."`, not the
+input-blind `needs_get_1 <hash>` of the int param). Gates: preamble whole-file proof rc=0 (222
+Valid); corpus byte-diff 0/0/0 root (1755 -> 1758, 3 new witnesses) and pyref (2186); mirror
+sweep 1 MOVED (preamble, declared) / 53; witnesses 2920 (PASS; L3-tc fails at base), 2921/2922
+(FAIL twins). The ch11 `snapshot_str` note concerns `_emit_preamble` (the caller,
+still trusted: `out += self._emit_preamble_no_exception_predicates(needs)` + DICT/SET seams),
+not this marker.
+
 ## Appendix — per-marker chains
 
 `cat | file::qual | status | families in order | PH (chain hit a placeholder conflict) / risk | last diagnostic`

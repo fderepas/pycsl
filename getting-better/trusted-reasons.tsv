@@ -320,7 +320,6 @@ module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble_exceptions	unclas
 module6_whyml/preamble.py	PreambleEmissionMixin._precompute_axiom_logic_funcs	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_class_inv_axioms	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble_axioms	unclassified	-
-module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble_no_exception_predicates	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_preamble	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_shared_state	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._mutex_inv_application	unclassified	-

@@ -154,7 +154,11 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 263   # (#49) gen #36 ch19, 2026-10-17 — 265 -> 263: the two unclassified
+MAX_UNCLASSIFIED = 262   # (#49) gen #36 ch21, 2026-10-17 — 263 -> 262: the unclassified
+                         # `preamble.py::PreambleEmissionMixin._emit_preamble_no_exception_predicates`
+                         # CONVERTED on the LISTSTR seam (f-string seq element = string; a
+                         # `for` over a call declared `-> List[str]` iterates `array string`).
+                         # (#49) gen #36 ch19, 2026-10-17 — 265 -> 263: the two unclassified
                          # nested-closure markers `statements.py::_collect_string_elem_read_locals.rec`
                          # and `::_collect_field_decode_str_locals.rec` RETIRED: both enclosers are
                          # verified group emits that suppress the lifted `rec` (.mlw byte-identical
