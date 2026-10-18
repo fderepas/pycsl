@@ -1871,6 +1871,26 @@ And a function whose every normal exit is dead while its spec carries an ADDED, 
 **Self-calls and the class invariant (route #261):** a `self.<m>(...)` call in a class with a
 `#@ class invariant` passes `self` to the abstract operation, as `<local>.<m>(...)` does, so Why3
 checks the invariant at the call instead of assuming the callee's invariant-dependent result.
+**A callee's undeclared raise behind a method stub (route #272):** a METHOD call lowers to an
+abstract `val` that carries the callee's `ensures` and none of its exceptions — only a DECLARED
+`#@ raises`, and only through the route #100/#105/#186 wrap, which resolves `self.…` and variable
+receivers bound to a class of this unit (typed, constructor-bound, module-global), not `C.m(...)`
+or `C().m(...)`. An escaping `raise` the callee does not declare is read partially for the callee
+itself (an added `raises { E }` on its own `let`), so a caller's `no_exception` was discharged by
+nobody (`self.chk(k)`, `c.chk(k)`, `C.chk(k)`, `C().chk(k)`, `self.d.chk(k)`, chains through a
+method or a module function, all PROVED `no_exception \all`; CPython raises). A module-function call
+is applied concretely and Why3's effect typing already sees the callee's own `raise`. RULE
+(`PYCSL-SEM-UNDECLARED-CALLEE-RAISE`, ir-semantic, refused): a function claiming `no_exception`
+(`\all`: any exception; a named list: a listed class, a subclass of one, or a name outside the
+modelled hierarchy) may not make a call whose HIDDEN set it covers outside a handler catching it.
+HIDDEN of a method callee = its escaping undeclared raises (a bare or computed `raise` is unknown),
+its declared ones when the receiver form is not one the wrap resolves, and the HIDDEN of its own
+calls not caught there (transitively, over route #263's call graph; a declared `raises` on an
+intermediate does not excuse them — the hidden path never checks its condition); of a
+module-function callee, the HIDDEN of its calls only. `\trusted`/`\abstract`/imported callees speak
+by their contract only (route #207 refuses a bodyless method under `no_exception`; an imported
+function's stub carries the `raises` its body shows); `super().m()` is refused by route #161;
+constructors are route #179's.
 
 **Inlined global-instance methods (routes #168, #169).** `_g.m()` is spliced into the caller. A
 discarded tail `return <e>` dropped `<e>` — its division check, its nested mutating call — so it is

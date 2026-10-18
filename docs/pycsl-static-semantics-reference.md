@@ -1563,6 +1563,19 @@ known set.
 The CLI flag is off by default and treated as opt-in; ambient mode is
 the default per workplan §11.3.
 
+"Unannotated" means IMPLICIT exceptions only. An EXPLICIT escaping
+`raise` in an in-unit callee is not ambient (route #272): a function
+claiming `no_exception` over `E` is rejected
+(`PYCSL-SEM-UNDECLARED-CALLEE-RAISE`) when a call it makes, outside a
+handler catching `E`, may raise `E` where the call site cannot see it —
+an undeclared raise of a METHOD callee (whose call lowers to a stub
+carrying declared `raises` only), a declared one when the receiver form
+(`C.m(...)`, `C().m(...)`) does not resolve the callee's `raises`, or
+either reaching the callee through such a call further down (`self.`,
+typed/constructor-bound/global receivers and module functions,
+transitively). A module function's own `raise` is seen by Why3's effect
+typing at a concrete call.
+
 _Corresponds to `annotations.md` §2.1.13._
 
 ### 2.2 Loop Contracts

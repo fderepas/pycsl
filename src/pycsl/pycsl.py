@@ -2535,6 +2535,179 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             filename=args.file, line=getattr(_n243, "lineno", 0) or 0,
                             stage="ir-semantic", code="PYCSL-SEM-COLLECTION-ALIAS")
 
+    # (#49) ROUTE #272 — THE RAISE THE STUB DROPPED.
+    # A METHOD call (`self.m()`, `obj.m()`, `C.m()`, `C().m()`, `super().m()`, `self.f.m()`)
+    # lowers to an abstract `val` stub carrying the callee's `ensures` and nothing of its
+    # exceptions: an UNDECLARED escaping `raise` in the callee is read partially (an added
+    # `raises { E }` on the callee's own `let`) and never reaches the stub, so a caller's
+    # `#@ no_exception` is discharged by NOBODY. MEASURED at 5fe6cbdd (CPython raises
+    # ValueError in each): `self.chk(k)`, `c.chk(k)`, `C.chk(k)`, `C().chk(k)`,
+    # `super().chk(k)`, `self.d.chk(k)` with `chk` raising undeclared, all PROVED
+    # `no_exception \all`; so did a chain `m -> mid -> chk` through a method or a module
+    # function (`mid` itself has nothing to declare: its exception arrives through a stub),
+    # and a `C.chk(k)` (static) whose `#@ raises ValueError when k > 0` IS declared — the
+    # route #100/#105/#186 wrap is keyed on `self.`/typed-variable receivers only. A MODULE
+    # function call is applied concretely, so Why3's effect typing already sees its own
+    # `raise` ("raises unlisted exception") — but not one hidden behind a stub inside it.
+    # RULE (fail-closed): HIDDEN(call) = what the callee may raise that the call site cannot
+    # see — for a method callee, its escaping undeclared raises (a bare/computed `raise`
+    # counts as unknown), plus its DECLARED ones when the receiver form is not one the wrap
+    # resolves (`self.…` or a variable typed with a class of this unit), plus HIDDEN-OUT of
+    # the callee; for a module-function callee, HIDDEN-OUT only. HIDDEN-OUT(g) = the union
+    # of HIDDEN over g's calls not caught by an enclosing handler of g (a declared `raises`
+    # on g does NOT excuse it: the hidden path never checks g's condition). A function
+    # claiming `no_exception` (`\all`: any exception; a named list: a listed class or a
+    # subclass, or a name outside the modelled hierarchy) with a call whose HIDDEN set it
+    # covers, outside a handler catching it, is refused. Callees are resolved on route
+    # #263's call graph (over-approximating: an unresolved receiver names every method of
+    # that name). `\trusted`/`\abstract`/imported callees speak by their contract only
+    # (route #207 refuses a bodyless METHOD under `no_exception`; an imported function's
+    # stub carries the `raises` its body shows). Constructors are route #179's.
+    # No `no_exception` function in the unit -> nothing is computed. INLINE
+    # (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+    if any((_f.get("contracts") or {}).get("no_exception")
+           or (_f.get("contracts") or {}).get("no_exception_all") for _f in _fn263):
+        from exception_model import (handler_catches as _hc272,
+                                     EXCEPTION_BASES as _eb272,
+                                     KNOWN_EXCEPTIONS as _ke272)
+        _dir272 = {}
+        _calls272 = {}
+        _decl272 = {}
+        for _f272 in _fn263:
+            _n272 = _f272["name"]
+            _decl272[_n272] = {_r.get("exc_type") for _r in
+                               ((_f272.get("contracts") or {}).get("raises") or [])
+                               if isinstance(_r, dict) and _r.get("exc_type")}
+            _dir272[_n272] = set()
+            _calls272[_n272] = []
+            if (_f272.get("trusted") or _f272.get("abstract") or _f272.get("lemma")
+                    or _n272 in (imported_names or set())):
+                continue
+            _w272 = [(_f272.get("body"), frozenset())]
+            while _w272:
+                _x272, _cg272 = _w272.pop()
+                if isinstance(_x272, list):
+                    _w272.extend((_v, _cg272) for _v in _x272)
+                    continue
+                if not isinstance(_x272, dict):
+                    continue
+                if _x272.get("stmt") == "Try":
+                    _hs272 = set()
+                    for _h272 in (_x272.get("handlers") or []):
+                        if isinstance(_h272, dict) and isinstance(_h272.get("exc_type"), str):
+                            _hs272 |= {_p.strip() for _p in _h272["exc_type"].split("|")
+                                       if _p.strip()}
+                    _w272.append((_x272.get("body"), _cg272 | _hs272))
+                    _w272.extend((_v, _cg272) for _k, _v in _x272.items() if _k != "body")
+                    continue
+                if _x272.get("stmt") == "Raise":
+                    _e272 = _x272.get("exc_type") or "*"
+                    if not any(_hc272(_c, _e272) for _c in _cg272):
+                        _dir272[_n272].add(_e272)
+                if _x272.get("type") == "Call" and isinstance(_x272.get("func"), str):
+                    _calls272[_n272].append((_x272, _cg272))
+                _w272.extend((_v, _cg272) for _v in _x272.values())
+        # Per call: [(callee, is_method, receiver form resolved by the wrap)].
+        _res272 = {}
+        _gl272 = {_g.get("name") for _g in (_ir263.get("module_globals") or [])
+                  if isinstance(_g, dict) and _g.get("class")}
+        for _f272 in _fn263:
+            _n272 = _f272["name"]
+            _sy272 = dict(_f272.get("symbol_table") or {})
+            _sy272.update(_f272.get("param_annotations") or {})
+            # receivers the wrap resolves (`find_record_var_classes`, `_record_param_classes`,
+            # `_module_global_classes`): a constructor-bound local, a class-typed
+            # variable, a module-global instance
+            _rv272 = set(_gl272)
+            _w272 = [_f272.get("body")]
+            while _w272:
+                _x272 = _w272.pop()
+                if isinstance(_x272, list):
+                    _w272.extend(_x272)
+                elif isinstance(_x272, dict):
+                    _v272 = _x272.get("value")
+                    if (_x272.get("stmt") == "Assign" and isinstance(_x272.get("target"), str)
+                            and isinstance(_v272, dict) and _v272.get("type") == "Call"
+                            and _v272.get("func") in _bases263 and "receiver" not in _v272):
+                        _rv272.add(_x272["target"])
+                    _w272.extend(_x272.values())
+            _rv272 |= {_k for _k, _t in _sy272.items()
+                       if isinstance(_t, str) and _tcls263.get(_t)}
+            for _i272, (_c272, _cg272) in enumerate(_calls272[_n272]):
+                _fs272 = _c272["func"]
+                _out272 = []
+                if "." not in _fs272 and "receiver" not in _c272:
+                    if (_fs272 in _byname263
+                            and _byname263[_fs272].get("kind") != "method"):
+                        _out272.append((_fs272, False, True))
+                else:
+                    _pt272 = _fs272.split(".")
+                    _good272 = "receiver" not in _c272 and (
+                        (_pt272[0] == "self" and len(_pt272) >= 2)
+                        or (len(_pt272) == 2 and _pt272[0] not in _bases263
+                            and _pt272[0] in _rv272))
+                    for _cl272, _nm272 in _meths263.get(_pt272[-1], ()):
+                        if _nm272 in _graph263.get(_n272, ()):
+                            _out272.append((_nm272, True, _good272))
+                _res272[(_n272, _i272)] = _out272
+        _ho272 = {_n: set() for _n in _dir272}
+        _chg272 = True
+        while _chg272:
+            _chg272 = False
+            for _n272 in _ho272:
+                _new272 = set()
+                for _i272, (_c272, _cg272) in enumerate(_calls272[_n272]):
+                    for _g272, _ism272, _good272 in _res272[(_n272, _i272)]:
+                        _hid272 = set(_ho272.get(_g272, ()))
+                        if _ism272:
+                            _hid272 |= _dir272.get(_g272, set()) - _decl272.get(_g272, set())
+                            if not _good272:
+                                _hid272 |= _decl272.get(_g272, set())
+                        _new272 |= {_e for _e in _hid272
+                                    if not any(_hc272(_c, _e) for _c in _cg272)}
+                if not _new272 <= _ho272[_n272]:
+                    _ho272[_n272] |= _new272
+                    _chg272 = True
+        _viol272 = []
+        for _f272 in _fn263:
+            _n272 = _f272["name"]
+            _ct272 = _f272.get("contracts") or {}
+            _all272 = bool(_ct272.get("no_exception_all"))
+            _act272 = [a for a in (_ct272.get("no_exception") or []) if isinstance(a, str)]
+            if not (_all272 or _act272) or not _calls272.get(_n272):
+                continue
+            for _i272, (_c272, _cg272) in enumerate(_calls272[_n272]):
+                for _g272, _ism272, _good272 in _res272[(_n272, _i272)]:
+                    _hid272 = set(_ho272.get(_g272, ()))
+                    if _ism272:
+                        _hid272 |= _dir272.get(_g272, set()) - _decl272.get(_g272, set())
+                        if not _good272:
+                            _hid272 |= _decl272.get(_g272, set())
+                    for _e272 in sorted(_hid272):
+                        if any(_hc272(_c, _e272) for _c in _cg272):
+                            continue
+                        if (_all272 or any(_hc272(_a, _e272) for _a in _act272)
+                                or (_e272 not in _eb272 and _e272 not in _ke272)):
+                            _viol272.append((_n272, _c272["func"], _g272, _e272))
+        if _viol272:
+            from errors import PyCSLSemanticError as _PyCSLSemErr272
+            _v272 = _viol272[0]
+            raise _PyCSLSemErr272(
+                f"'{_v272[0]}' claims `#@ no_exception` and calls `{_v272[1]}(...)` (resolved "
+                f"to '{_v272[2]}'), which may raise "
+                f"{'an exception PyCSL cannot name' if _v272[3] == '*' else '`' + _v272[3] + '`'}"
+                f" where this call site cannot see it: a METHOD call lowers to an abstract "
+                f"`val` that carries only the callee's DECLARED `#@ raises` (and only for a "
+                f"`self.`/typed-variable receiver), so an undeclared `raise` in the callee — or "
+                f"one reaching it through such a stub further down — is assumed not to happen "
+                f"and the claim would be proved while CPython raises (route #272). Declare the "
+                f"exception on EVERY function of the chain with `#@ raises E when <cond>` and "
+                f"call it through `self.` or a typed variable, catch it around the call, or "
+                f"drop it from the `#@ no_exception` context"
+                f"{'' if len(_viol272) == 1 else f' (also: {_viol272[1:4]})'}.",
+                filename=args.file, stage="ir-semantic",
+                code="PYCSL-SEM-UNDECLARED-CALLEE-RAISE")
+
     # (#49) ROUTE #264 — A READ OF A LOCAL THAT IS NOT DEFINITELY ASSIGNED.
     #
     # Module 6 hoists every local as `let y = ref 0 in` and `del y` lowers to `()`, so a

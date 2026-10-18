@@ -119,6 +119,14 @@ callees flow as follows:
 The strict flag is **off by default** — preserving backward
 compatibility for unannotated corpora.
 
+"Ambient" covers IMPLICIT exceptions only. An EXPLICIT `raise` the
+callee does not declare is refused at a `no_exception` caller when the
+call cannot see it (route #272, `PYCSL-SEM-UNDECLARED-CALLEE-RAISE`,
+inline in `pycsl._run_pipeline`): method calls lower to a stub carrying
+declared `raises` only (and only for `self.`/class-bound variable
+receivers — not `C.m()` / `C().m()`), and the hidden set propagates
+transitively through methods and module functions.
+
 ## Test-corpus cross-references
 
 Numbering blocks under `test-suite/corpus/pycsl-reference/` (reserved in

@@ -2,6 +2,11 @@
 
 
 ## gen #36 (2026-10-18): #272 (a callee's undeclared raise is dropped at the call; no_exception \all proves) OPENED.
+##   #272 REPAIRED 2026-10-18: a `no_exception` function may not call a method whose undeclared raise (or a declared one
+##   through `C.m()`/`C().m()`, which the raises wrap does not resolve) is hidden behind the stub, directly or
+##   transitively through methods/module functions (PYCSL-SEM-UNDECLARED-CALLEE-RAISE, inline in _run_pipeline).
+##   Witnesses 2940-2950 PROVED -> refused, controls 2951-2953 keep; root/pyref/mirror 0 MOVED / 0 GONE.
+##   Residual: an imported function whose raise arrives through a stub inside the dependency (documented, OPEN).
 
 ## gen #36 (2026-10-17): #270 (#264 analysis misses exception edges from calls; generators treated as no-return) and
 ##   #271 (calling a generator function runs its body eagerly) OPENED (red team 4, driver-reproduced).
