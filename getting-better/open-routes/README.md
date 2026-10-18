@@ -1,6 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-18): #272 (a callee's undeclared raise is dropped at the call; no_exception \all proves) OPENED.
+
 ## gen #36 (2026-10-17): #270 (#264 analysis misses exception edges from calls; generators treated as no-return) and
 ##   #271 (calling a generator function runs its body eagerly) OPENED (red team 4, driver-reproduced).
 
