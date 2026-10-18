@@ -1,6 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 
+## gen #36 (2026-10-18): #273 (nested def/lambda defaults + nested class bodies not evaluated), #274 (effectful calls in
+##   comprehensions vanish), #275 (sorted key/reverse dropped), #276 (ord < 256 / chr round-trip beyond 255) OPENED (red team 5).
+
 ## gen #36 (2026-10-18): #272 (a callee's undeclared raise is dropped at the call; no_exception \all proves) OPENED.
 ##   #272 REPAIRED 2026-10-18: a `no_exception` function may not call a method whose undeclared raise (or a declared one
 ##   through `C.m()`/`C().m()`, which the raises wrap does not resolve) is hidden behind the stub, directly or
