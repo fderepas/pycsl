@@ -8,6 +8,15 @@
 
 ## gen #36 (2026-10-17): #269 (residual divergence leaks after #263: C().m() stub drops diverges, comprehension-hidden
 ##   calls, diverges+no_exception RecursionError, Module5 bespoke dispatch stubs, cross-module cycles) OPENED.
+##   #269 REPAIRED 2026-10-17 (inline in `_run_pipeline`, mirror `\trusted`): on the emission every plain `val` stub
+##   spelling of a `\diverges` callee carries `diverges` (any producer: `C().m()`, `super().m()`, the Module 5
+##   `self__py_expr_to_ir_1`) and every emitted `let`/`with` of a `\diverges` function does; a call VANISHED in an
+##   opaque comprehension/generator/lambda applies an opaque diverging `val` (diverging callee) or is refused
+##   (raising or precondition-carrying callee, `PYCSL-SEM-VANISHED-CALL-EFFECT`); `\diverges` + `no_exception \all`
+##   reaching a call cycle is refused (`PYCSL-SEM-DIVERGES-NO-EXCEPTION-RECURSION`; RecursionError scope documented);
+##   imported bodies' calls back into the unit join the #263 graph (`PYCSL-SEM-CROSS-MODULE-RECURSION`). Witnesses
+##   2880-2887/2891/2892 PROVED -> FAIL, 2888/2889 FAIL -> PASS, control 2890 keeps; root/pyref 0 MOVED/0 GONE;
+##   mirror 3 MOVED (Module5_IREmitter 14 + pure_ast 2 `\diverges` markers, pycsl import stubs), type-only clean.
 
 ## gen #36 (2026-10-17): #268 (cross-mixin `_stmts_to_whyml` stub under-declared its frame; 5 verified callers proved
 ##   false field-unchanged claims) OPENED + REPAIRED 487c4789 (found while fixing the slow survival plane).

@@ -644,6 +644,41 @@ clause is emitted, and WhyML does not require a termination proof:
   = ...
 ```
 
+**Divergence is carried to every call site (route #269).** A call that Module 6 lowers to
+a bodyless `val` stub would otherwise TERMINATE for Why3 and give a caller its termination
+for free. `pycsl.py::_run_pipeline` therefore post-processes the emission: (1) every plain
+program `val` whose name is a stub spelling `<...>_<m>_<arity>[_c<h>][_<k>]` of a
+`\diverges` function or method `m` of the unit carries `diverges`, whichever producer minted
+it (`self.m()`, `obj.m()`, `C().m()`, `super().m()`, `C.m()`, the fixed Module 5 dispatcher
+stub `self__py_expr_to_ir_1`); matching is by name, so an ambiguous match makes more callers
+owe `\diverges`, never fewer. Logic `val function`/`predicate`/`ghost`/`constant` symbols are
+model operations, not call stubs, and are untouched. (2) An emitted `let`/`with` of a
+`\diverges` function always carries `diverges`, even when a bespoke scaffold wrote its header.
+(3) A call to a `\diverges` callee that VANISHES from the emission (an opaque comprehension,
+generator or lambda lowering) is represented by an application of the opaque
+`val pycsl_opaque_call_diverges (_u: unit) : unit diverges` at the head of the caller's body,
+so a caller not declared `\diverges` fails its termination VC and an honestly declared one
+type-checks. A vanished call to a callee that may RAISE (declared `raises`, or an escaping
+`raise`, transitively) or that carries a non-trivial `requires` (never checked at a vanished
+call) is refused (`PYCSL-SEM-VANISHED-CALL-EFFECT`).
+
+**Recursion and `no_exception \all` (scope).** `\all` is the Phase-1 set
+`exception_model.KNOWN_EXCEPTIONS`; RecursionError is not in it and the interpreter's
+recursion limit is not modelled. A TERMINATING recursion (`\variant`) under `no_exception \all`
+is therefore proved without regard to the recursion depth — a deep enough call still raises
+RecursionError in CPython; that is outside the claim. A `\diverges` function declaring
+`no_exception \all` that REACHES a call-graph cycle (itself included) is refused
+(`PYCSL-SEM-DIVERGES-NO-EXCEPTION-RECURSION`): an unbounded Python recursion does not run
+forever, it raises RecursionError, so the claim would hold of the model only.
+
+**Cross-module cycles.** An imported function is a trusted stub in the importer, and the
+importer is a stub in the dependency's verification, so a cycle through the module boundary
+would be assumed circularly on both sides. The route #263 call graph reads an imported
+function's body (kept by `ir_resolve`) for calls back into module-level functions of the
+importing unit; a cycle through an imported stub is refused (`PYCSL-SEM-CROSS-MODULE-RECURSION`)
+unless every member is `\diverges`. Residual: a cycle that leaves through an imported CLASS's
+method (a receiver of an imported type) is not tracked.
+
 ### §T.2.7n  No-inline Methods (`no_inline`)
 
 A method marked `#@ no_inline` (no-inline.md) is a **modular-verification

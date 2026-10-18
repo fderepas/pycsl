@@ -232,7 +232,7 @@ NEVER_RETURNS = {
         "argument, it is a placeholder for a type the modeller does not have. "
         "`finding-a-verified-program-that-is-not-the-executed-program.md`",
 }
-MAX_RAISED = 15                  # FUNCTIONS with at least one call that RAISES on an
+MAX_RAISED = 18                  # FUNCTIONS with at least one call that RAISES on an
                                  # argument their own precondition admits. (#49) gen #31:
                                  # the ratchet counts FUNCTIONS, not raise EVENTS. Once the
                                  # tuple loop stopped breaking on the first raise (so that
@@ -256,6 +256,14 @@ MAX_RAISED = 15                  # FUNCTIONS with at least one call that RAISES 
                                  # method-call cycle is now writable). Its `\result == 0`
                                  # is partial correctness over a function with no normal
                                  # exit, exactly like 0158/0159; nothing false is claimed.
+                                 # (#49) gen #36 route #269: 15 -> 18 for 2889's `m` and
+                                 # `spin` and 2888's `spin` — each `spin` is a declared
+                                 # `#@ \diverges` loop that never ends for k > 0, and 2889's
+                                 # `m` is HONESTLY `\diverges` because it reaches `spin`
+                                 # through an opaque comprehension (the drivers show those
+                                 # markings are now writable). Partial correctness again;
+                                 # 2888's `m` and 2890's `spin` carry a `requires k <= 0` so
+                                 # they add nothing here.
                                  #
                                  # 0199: `sum_first_two(d: dict)` under
                                  # `#@ ensures \result == d[0] + d[1]` and no `#@ requires`.

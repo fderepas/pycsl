@@ -2128,7 +2128,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     for _f263 in _fn263:
         _src263 = _f263["name"]
         _graph263.setdefault(_src263, set())
-        if _f263.get("trusted") or _f263.get("abstract") or _f263.get("lemma"):
+        # (#49) ROUTE #269 (R5) — an IMPORTED function is a trusted stub HERE, but its body
+        # (kept by `ir_resolve._process_dependency`) is evidence of a CROSS-MODULE cycle:
+        # `a.g -> b.f -> a.g` PROVED in BOTH units at 8b0bfbbd (each assumes the other's
+        # stub; CPython: RecursionError). Its calls back INTO this unit become edges.
+        _imp269 = (_src263 in (imported_names or set())
+                   and not _f263.get("abstract") and not _f263.get("lemma"))
+        if (_f263.get("trusted") or _f263.get("abstract") or _f263.get("lemma")) and not _imp269:
             continue
         _calls263 = []
         _ctorloc263 = {}
@@ -2159,6 +2165,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _fs263 = _c263["func"]
             _m263 = _fs263.split(".")[-1]
             _exact263 = False
+            if _imp269:
+                # Only an edge BACK into a module-level function of THIS unit (by its
+                # last name segment, whatever the qualifier — the over-approximation);
+                # the dependency's own recursion was checked when it was verified.
+                if ("receiver" not in _c263 and _m263 in _names263
+                        and _m263 not in (imported_names or set())
+                        and _byname263[_m263].get("kind") != "method"):
+                    _graph263[_src263].add(_m263)
+                    _unchk263.add((_src263, _m263))
+                continue
             if "receiver" in _c263:
                 _rv263 = _c263.get("receiver")
                 if (isinstance(_rv263, dict) and _rv263.get("type") == "Call"
@@ -2184,6 +2200,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _fs263 in _names263:
                     # A direct call: Module 6 puts both ends in one `let rec` group.
                     _graph263[_src263].add(_fs263)
+                    if _fs263 in (imported_names or set()):
+                        # (#269 R5) ... unless the callee is an IMPORTED stub.
+                        _unchk263.add((_src263, _fs263))
                 elif _fs263 in _bases263:
                     _graph263[_src263].add("__init__@" + _fs263)
                     _unchk263.add((_src263, "__init__@" + _fs263))
@@ -2202,9 +2221,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 elif _b263 in _bases263:
                     _cls263 = {_b263}
                 elif _b263 in _modnames263 or _b263 in _builtins263:
-                    # an imported module (cross-unit recursion is outside this rule) or a
-                    # builtin (`type.__instancecheck__`, `str.join`): no method of THIS unit
+                    # an imported module or a builtin (`type.__instancecheck__`,
+                    # `str.join`): no method of THIS unit. (#269 R5) `mod.f(...)` naming
+                    # an IMPORTED function is an edge to its stub.
                     _cls263 = set()
+                    if (len(_pt263) == 2 and _b263 in _modnames263
+                            and _pt263[1] in (imported_names or set())
+                            and _pt263[1] in _names263):
+                        _graph263[_src263].add(_pt263[1])
+                        _unchk263.add((_src263, _pt263[1]))
                 else:
                     _cls263 = None
                 for _fld263 in _pt263[1:-1]:
@@ -2319,6 +2344,48 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _cand263 = sorted((a, b) for (a, b) in _unchk263 if a in _cs263 and b in _cs263)
         if _cand263:
             _pending263.append((_comp263, _cand263))
+    # (#49) ROUTE #269 (R4) — `#@ \diverges` + `#@ no_exception \all` ON A RECURSION.
+    # `\all` is the Phase-1 set (`exception_model.KNOWN_EXCEPTIONS`); RecursionError is not
+    # in it, and PyCSL does not model the interpreter's recursion limit. For a TERMINATING
+    # recursion that is a documented scope statement; for a recursion that is DECLARED
+    # possibly non-terminating it is the claim's whole content: the only way an unbounded
+    # Python recursion fails to return is RecursionError. MEASURED at 8b0bfbbd:
+    # `def f(k): return f(k)` and `def m(self, k): return self.m(k)` under both clauses
+    # PROVED `\result == 0`; CPython raises RecursionError. RULE: a `\diverges` function
+    # declaring `no_exception \all` may not reach a call-graph cycle (this unit's graph
+    # above, method and constructor edges included; itself on a cycle counts).
+    _cyc269 = set()
+    for _comp263 in _sccs263:
+        if len(_comp263) > 1 or _comp263[0] in _graph263.get(_comp263[0], ()):
+            _cyc269 |= set(_comp263)
+    for _f263 in _fn263:
+        if (not _f263.get("diverges") or _f263.get("trusted") or _f263.get("abstract")
+                or not (_f263.get("contracts") or {}).get("no_exception_all")):
+            continue
+        _sn269 = set()
+        _td269 = [_f263["name"]]
+        _hit269 = ""
+        while _td269 and not _hit269:
+            _x269 = _td269.pop()
+            if _x269 in _sn269:
+                continue
+            _sn269.add(_x269)
+            if _x269 in _cyc269:
+                _hit269 = _x269
+            _td269.extend(sorted(_graph263.get(_x269, ())))
+        if _hit269:
+            from errors import PyCSLSemanticError as _PyCSLSemErr269
+            raise _PyCSLSemErr269(
+                f"'{_f263['name']}' is `#@ \\diverges` and declares `#@ no_exception "
+                f"\\all`, but it reaches the recursive call cycle through '{_hit269}'. A "
+                f"Python recursion that does not terminate does not run forever: it raises "
+                f"RecursionError, which is NOT among the exceptions `\\all` covers "
+                f"(exception_model.KNOWN_EXCEPTIONS — PyCSL does not model the recursion "
+                f"limit), so the claim would hold of the model and not of CPython. Drop "
+                f"`no_exception \\all` (or name the exceptions you mean), or give the "
+                f"recursion a `#@ \\variant` instead of `#@ \\diverges`.",
+                filename=args.file, stage="ir-semantic",
+                code="PYCSL-SEM-DIVERGES-NO-EXCEPTION-RECURSION")
 
     # (#49) ROUTE #243 — A CONSTRUCTOR THAT GIVES ONE DICT/SET TWO FIELD NAMES.
     # A dict/set field is a PURE map, so two fields bound to ONE Python object are two
@@ -4613,6 +4680,212 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _hdr_EL = _hdr_EL.replace("(Array.length result)", "(0)")
             _out_EL.append(_hdr_EL + _body_EL)
         _mlw = "".join(_out_EL)
+    # (#49) ROUTE #269 — THE DIVERGENCE A STUB FORGOT (R1/R2 + R3), decided on the EMISSION.
+    # Route #263 made `_handle_dotted_call`'s stub of a `#@ \diverges` method carry
+    # `diverges`, but that is ONE of many stub producers: `C().spin(k)` reaches the generic
+    # arm as a receiver-less `val spin_1`, and the Module 5 mirror's bespoke handlers call
+    # the `\diverges` dispatcher through the fixed `val self__py_expr_to_ir_1`
+    # (`abstract_ops._SELF_DISPATCH_VAL_DECLS`). A bodyless `val` TERMINATES for Why3, so
+    # a caller claiming termination got it for free. MEASURED at 8b0bfbbd: `C().spin(k);
+    # return 7` PROVED `\result == 7` (CPython: never returns).
+    # (1) EVERY plain program `val` whose name is a stub spelling `<...>_<m>_<arity>
+    # [_c<h>][_<k>]` of a `\diverges` function or method `m` of this unit carries
+    # `diverges` — whichever producer minted it. Matched by NAME (as #263/#167 do): an
+    # ambiguous match makes MORE callers owe `\diverges`, never fewer. Logic `val
+    # function`/`predicate`/`ghost`/`constant` symbols are model operations, not call
+    # stubs, and are left alone.
+    # (2) An emitted `let`/`with` of a `\diverges` function carries `diverges` even when a
+    # second producer wrote its header (the bespoke mirror scaffolds hard-code it) — the
+    # declaration only REMOVES a termination goal the source asked to remove.
+    # (3) R3: a call that VANISHES from the emission (an opaque comprehension, generator or
+    # lambda lowering: `[self.spin(x) for x in xs]` -> `list_comp 0`, `sum(self.spin(x)
+    # for x in xs)` -> `sum_1 (any int)`) carries no obligation at all — PROVED `\result
+    # == 7` at 8b0bfbbd; with a RAISING callee it PROVED under `no_exception \all`. Such a
+    # call to a `\diverges` callee from a function that is not, or to a callee that may
+    # raise, must be visible in what the function's emission reaches; otherwise refused.
+    # No `\diverges` function and no comprehension call to a raising one -> byte-identical.
+    # INLINE (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+    from module6_whyml.identifiers import whyml_ident as _wid269
+    _mn269 = {}
+    for _f269 in _fn263:
+        _st269 = _f269.get("self_type")
+        _mn269[_f269["name"]] = (
+            _f269["name"][len(_st269) + 2:]
+            if (_f269.get("kind") == "method" and isinstance(_st269, str) and _st269
+                and _f269["name"].startswith(_st269.lower() + "__"))
+            else _f269["name"])
+    _dvm269 = {_mn269[f["name"]] for f in _fn263 if f.get("diverges")}
+    _pat269 = [_re.compile(r"(?:^|_)" + _re.escape(_m) + r"_\d+(?:_c\d+)?(?:_\d+)?$")
+               for _m in sorted(_dvm269)]
+    if _pat269:
+        _o269 = []
+        _p269 = 0
+        for _mv269 in _re.finditer(r"\n  val\s+([A-Za-z_][A-Za-z0-9_']*)", _mlw):
+            _v269 = _mv269.group(1)
+            if _v269 in ("ghost", "function", "predicate", "constant") or not any(
+                    _q.search(_v269) for _q in _pat269):
+                continue
+            _e269 = _re.compile(r"\n(?!    )").search(_mlw, _mv269.end())
+            _end269 = _e269.start() if _e269 else len(_mlw)
+            if _end269 < _p269 or _re.search(r"\bdiverges\b", _mlw[_mv269.start():_end269]):
+                continue
+            _o269.append(_mlw[_p269:_end269])
+            _o269.append("\n    diverges")
+            _p269 = _end269
+        _o269.append(_mlw[_p269:])
+        _mlw = "".join(_o269)
+        _ins269 = []
+        for _f269 in _fn263:
+            # (an imported, hence trusted, method a bespoke lowering still emits WITH a body
+            # — the Module 5 handlers inside `pycsl.mlw` — is covered too: only an emitted
+            # `let`/`with` is touched, never a bodyless `val`)
+            if not _f269.get("diverges"):
+                continue
+            for _mh269 in _re.finditer(r"\n  (?:let|with)\s+((?:(?:rec|function|ghost|lemma)\s+)*)"
+                                       + _re.escape(_wid269(_f269["name"])) + r"(?![\w'])", _mlw):
+                if _mh269.group(1).strip() not in ("", "rec"):
+                    continue
+                _eq269 = _mlw.find("\n  =", _mh269.end())
+                _nb269 = _re.compile(r"\n  (?:let|val|with)\b").search(_mlw, _mh269.end())
+                if _eq269 < 0 or (_nb269 and _nb269.start() < _eq269):
+                    continue
+                if not _re.search(r"\b(?:diverges|variant)\b", _mlw[_mh269.start():_eq269]):
+                    _ins269.append(_eq269)
+        for _i269 in sorted(set(_ins269), reverse=True):
+            _mlw = _mlw[:_i269] + "\n    diverges" + _mlw[_i269:]
+    # (3) R3 — the callees that may RAISE: a declared `raises`, or (with a body) an
+    # escaping `raise`, closed transitively over call names (an over-approximation).
+    from module6_whyml.ir_scanner import IRScanner as _IRS269
+    _rf269 = set()
+    _cn269 = {}
+    for _f269 in _fn263:
+        if any(isinstance(_r, dict) and _r.get("exc_type")
+               for _r in ((_f269.get("contracts") or {}).get("raises") or [])):
+            _rf269.add(_f269["name"])
+        if _f269.get("trusted") or _f269.get("abstract"):
+            continue
+        if _IRS269.collect_escaping_exceptions(_f269.get("body") or []):
+            _rf269.add(_f269["name"])
+        _cs269 = set()
+        _w269 = [_f269.get("body")]
+        while _w269:
+            _x269 = _w269.pop()
+            if isinstance(_x269, dict):
+                if _x269.get("type") == "Call" and isinstance(_x269.get("func"), str):
+                    _cs269.add(_x269["func"].split(".")[-1])
+                _w269.extend(_x269.values())
+            elif isinstance(_x269, list):
+                _w269.extend(_x269)
+        _cn269[_f269["name"]] = _cs269
+    _chg269 = True
+    while _chg269:
+        _chg269 = False
+        _rm269 = {_mn269[_n] for _n in _rf269}
+        for _n269, _cs269 in _cn269.items():
+            if _n269 not in _rf269 and _cs269 & _rm269:
+                _rf269.add(_n269)
+                _chg269 = True
+    _rm269 = {_mn269[_n] for _n in _rf269}
+    # ... and a callee with a PRECONDITION: a vanished call is never checked against it, and
+    # a violated one is where an implicit exception lives (`[self.inv(x) for x in xs]` with
+    # `inv` requiring `k > 0` over `10 // k` PROVED `no_exception \all` at 8b0bfbbd; CPython:
+    # ZeroDivisionError). Not transitive: a caller that applies it visibly proves it.
+    _rm269 |= {_mn269[f["name"]] for f in _fn263
+               if any(_r != {"type": "Bool", "value": True}
+                      for _r in ((f.get("contracts") or {}).get("requires") or []))}
+    _viol269 = []
+    _dvh269 = set()
+    _blk269 = None
+    for _f269 in _fn263:
+        if _f269.get("abstract") or _f269.get("lemma"):
+            continue
+        _hid269 = set()
+        _w269 = [(_f269.get("body"), False)]
+        while _w269:
+            _x269, _in269 = _w269.pop()
+            if isinstance(_x269, dict):
+                _in2 = _in269 or _x269.get("type") in (
+                    "ListComp", "SetComp", "DictComp", "GenExp", "Lambda")
+                if (_in269 and _x269.get("type") == "Call"
+                        and isinstance(_x269.get("func"), str)):
+                    _m269 = _x269["func"].split(".")[-1]
+                    if _m269 in _dvm269 or _m269 in _rm269:
+                        _hid269.add(_m269)
+                _w269.extend((_v, _in2) for _v in _x269.values())
+            elif isinstance(_x269, list):
+                _w269.extend((_v, _in269) for _v in _x269)
+        if not _hid269:
+            continue
+        if _blk269 is None:
+            # name -> identifiers its emitted BODY mentions; `val`s have no body.
+            _blk269 = {}
+            _vl269 = set()
+            _ct269 = [_m.start() for _m in _re.finditer(r"\n  (?:let|val|with)\b", _mlw)]
+            _ct269.append(len(_mlw))
+            for _k269 in range(len(_ct269) - 1):
+                _b269 = _mlw[_ct269[_k269]:_ct269[_k269 + 1]]
+                _hm269 = _re.match(r"\n  (let|val|with)\s+(?:(?:rec|function|ghost|lemma|"
+                                   r"predicate|constant)\s+)*([A-Za-z_][A-Za-z0-9_']*)", _b269)
+                if not _hm269:
+                    continue
+                if _hm269.group(1) == "val":
+                    _vl269.add(_hm269.group(2))
+                    continue
+                _q269 = _b269.find("\n  =")
+                _blk269.setdefault(_hm269.group(2), set()).update(_re.findall(
+                    r"[A-Za-z_][A-Za-z0-9_']*", _b269[_q269:] if _q269 >= 0 else ""))
+        _wf269 = _wid269(_f269["name"])
+        if _f269.get("trusted") and _wf269 not in _blk269:
+            # a trusted function is a bodyless `val` — unless a bespoke lowering still
+            # emits its body (the imported Module 5 handlers inside `pycsl.mlw`)
+            continue
+        _todo269 = [x for x in _blk269 if x == _wf269 or x.startswith(_wf269 + "__")]
+        _seen269 = set()
+        _ids269 = set()
+        while _todo269:
+            _x269 = _todo269.pop()
+            if _x269 in _seen269:
+                continue
+            _seen269.add(_x269)
+            _ids269 |= _blk269.get(_x269, set())
+            _todo269.extend(x for x in _blk269.get(_x269, ()) if x in _blk269)
+        for _m269 in sorted(_hid269):
+            _cc269 = {_wid269(_n) for _n, _mm in _mn269.items() if _mm == _m269}
+            _sp269 = _re.compile(r"(?:^|_)" + _re.escape(_m269) + r"_\d+(?:_c\d+)?(?:_\d+)?$")
+            if not (_cc269 & _ids269 or any(_sp269.search(_i) for _i in _ids269 & _vl269)):
+                if _m269 in _rm269:
+                    _viol269.append((_f269["name"], _m269))
+                if _m269 in _dvm269:
+                    _dvh269.add(_wf269)
+    if _viol269:
+        from errors import PyCSLSemanticError as _PyCSLSemErr269
+        raise _PyCSLSemErr269(
+            f"'{_viol269[0][0]}' calls '{_viol269[0][1]}', which may RAISE or has a "
+            f"precondition, inside a comprehension, generator or lambda that PyCSL lowers "
+            f"OPAQUELY: the call does not appear in the emitted WhyML at all, so its "
+            f"exception and its precondition vanish from the model. Rewrite it as an "
+            f"explicit loop so the call is modelled"
+            f"{'' if len(_viol269) == 1 else f' (also: {_viol269[1:]})'}.",
+            filename=args.file, stage="ir-semantic",
+            code="PYCSL-SEM-VANISHED-CALL-EFFECT")
+    # A vanished call to a `\diverges` callee: the function's emitted body first applies
+    # an opaque DIVERGING `val`, so Why3 owes it exactly what the call owed — a function
+    # not declared `#@ \diverges` fails its termination VC, and an honestly declared one
+    # type-checks (Why3 rejects `diverges` on a body it can see terminate).
+    _at269 = []
+    for _wf269 in sorted(_dvh269):
+        _mh269 = _re.search(r"\n  (let|with)\s+(?:(?:rec|function|ghost|lemma)\s+)*"
+                            + _re.escape(_wf269) + r"(?![\w'])", _mlw)
+        _eq269 = _mlw.find("\n  =", _mh269.end()) if _mh269 else -1
+        if _eq269 >= 0:
+            _at269.append(((_mlw.rfind("\n  let ", 0, _mh269.start() + 1)
+                            if _mh269.group(1) == "with" else _mh269.start()), _eq269 + 4))
+    if _at269:
+        for _q269 in sorted({_a[1] for _a in _at269}, reverse=True):
+            _mlw = _mlw[:_q269] + "\n    pycsl_opaque_call_diverges ();" + _mlw[_q269:]
+        _g269 = max(min(_a[0] for _a in _at269), 0)
+        _mlw = (_mlw[:_g269] + "\n  val pycsl_opaque_call_diverges (_u: unit) : unit"
+                "\n    diverges" + _mlw[_g269:])
     # (#49) ROUTE #263, second half — decided on the EMISSION (see the first half, after
     # the `ir-validate-boundary` check). A method-call edge is SEEN by Why3 only when the
     # caller's emitted body carries no stub for it AND (ii) applies the callee concretely
@@ -4660,7 +4933,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _ba263 = _bod263.get(_wa263, "") if _wa263 else ""
                 _mt263 = _byname263[_b263]["name"][
                     len(str(_byname263[_b263].get("self_type") or "")) + 2:] if (
-                    _b263 in _byname263) else ""
+                    _b263 in _byname263 and _byname263[_b263].get("self_type")) else ""
                 # (i) an abstract STUB for this call in the caller's body: unseen. The
                 # stub is `<receiver path>_<m>_<arity>`, possibly disambiguated by
                 # `_c<hash>` / `_<k>` (`_handle_dotted_call`, routes #166/#188), so any
@@ -4669,7 +4942,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _re.search(r"(?:^|_)" + _re.escape(_mt263) + r"_\d+(?:_c\d+)?(?:_\d+)?$", _v)
                     and _re.search(r"(?<![\w'])" + _re.escape(_v) + r"(?![\w'])", _ba263)
                     for _v in _vals263)
-                if _wa263 and _wb263 and not _stub263:
+                # (#269 R5) a callee emitted as a bodyless `val` (an IMPORTED stub) is never
+                # applied concretely, whatever the text says.
+                if _wa263 and _wb263 and not _stub263 and _wb263 not in _vals263:
                     # (ii) a CONCRETE application of the callee — directly, or through
                     # helpers of the SAME `let rec` group (the bespoke pyval walkers:
                     # `irscanner__uses_sum -> irscanner__uses_sum__d -> irscanner__uses_sum`,
@@ -4720,6 +4995,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if not _nondiv263:
                 continue
             from errors import PyCSLSemanticError as _PyCSLSemErr263
+            _x269 = [e for e in _left263 if set(e) & (imported_names or set())]
+            if _x269:
+                # (#49) ROUTE #269 (R5) — the cycle leaves this unit through an IMPORTED
+                # function (its body is read from the dependency; see the first half).
+                raise _PyCSLSemErr263(
+                    f"the functions {_comp263} call one another in a cycle that crosses a "
+                    f"MODULE boundary ('{_x269[0][0]}' -> '{_x269[0][1]}'): an imported "
+                    f"function is a bodyless stub here, and this unit is a stub in the "
+                    f"dependency's own verification, so each side ASSUMES the other "
+                    f"terminates and satisfies its postcondition — circularly — and Why3 "
+                    f"never sees the recursion (CPython: RecursionError). Mark every function "
+                    f"of the cycle `#@ \\diverges` in both modules (not yet so marked: "
+                    f"{_nondiv263}), or break the import cycle.",
+                    filename=args.file, stage="ir-semantic",
+                    code="PYCSL-SEM-CROSS-MODULE-RECURSION")
             raise _PyCSLSemErr263(
                 f"the functions {_comp263} call one another in a cycle that passes "
                 f"through a METHOD or CONSTRUCTOR call ('{_left263[0][0]}' -> "

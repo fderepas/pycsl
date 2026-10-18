@@ -223,6 +223,13 @@ in `exception_model.KNOWN_EXCEPTIONS`. Adding a new exception requires
 extending both that set and the trigger table in the same module, plus
 adding corpus tests under `test-suite/corpus/pycsl-reference/`.
 
+**RecursionError is out of scope (route #269).** It is not in the Phase 1 set and the
+interpreter's recursion limit is not modelled, so a terminating (`\variant`) recursion under
+`no_exception \all` is proved regardless of its depth. A `#@ \diverges` function declaring
+`no_exception \all` that reaches a recursive call cycle is REFUSED
+(`PYCSL-SEM-DIVERGES-NO-EXCEPTION-RECURSION`): an unbounded Python recursion ends in
+RecursionError, never in silence (corpus 2885–2887; control 2890).
+
 **Test-corpus cross-reference:** parser tests are `0353`–`0357`; VC
 injection tests are `0359`–`0395` (broken out by exception category in
 the corpus numbering reservation under `traceability-pycsl.md`).

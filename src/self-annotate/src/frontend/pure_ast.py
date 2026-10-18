@@ -5398,12 +5398,14 @@ class _Unparser(NodeVisitor):
     def _fstring_Constant(self, node):
         self._write_fstring_inner(node)
 
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _fstring_FormattedValue(self, node):
         self.visit_FormattedValue(node)
 
+    #@ \diverges
     #@ sibling_concrete
     #@ requires True
     #@ ensures True

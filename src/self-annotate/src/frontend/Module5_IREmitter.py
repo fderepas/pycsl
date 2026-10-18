@@ -973,6 +973,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     def _csl_list_to_ir(self, csl_list: List[CSLNode]) -> List[int]:
         return []
 
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1172,6 +1173,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (compare_op0_ast expr)` (`_py_op_to_str` stays \trusted), left/right ->
     # `_py_expr_to_ir`. No new ctor (reuses the certified IrBinOp). isinstance_op = 0.
     # Verbatim body port of the LIVE `_py_expr_compare`.
+    #@ \diverges
     #@ requires True
     #@ ensures \result["type"] == "BinOp"
     #@ assigns \nothing
@@ -1231,6 +1233,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # be pushed through a recursive application the flat constructors never build.
     # Left as `ensures True` DELIBERATELY: a postcondition nobody can discharge is not
     # a stronger contract, it is a red gate. See backlog #60a.
+    #@ \diverges
     #@ ensures True
     #@ assigns \nothing
     def _py_expr_tuple(self, expr: ast.Tuple) -> Dict[str, Any]:
@@ -1273,6 +1276,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `emit_ir_disp__py_expr_to_ir` `val function`. The return builds the new `IrListN
     # irlist` ctor (expressions.py `_IRNODE_CTORS["ArrayLit"]`). Verbatim body port of the
     # LIVE `_py_expr_list` (Module5_IREmitter.py:1112).
+    #@ \diverges
     #@ requires True
     #@ ensures \result["type"] == "ArrayLit"
     #@ assigns \nothing
@@ -1308,6 +1312,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # for v in expr.values]` -> `dict_values_prog` (plain map). Returns the new gated
     # `IrDictLit <keys irlist> <values irlist>` emit_ir ctor. isinstance_op = 0. Verbatim
     # body port of the LIVE `_py_expr_dict`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1326,6 +1331,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `emit_ir_disp__py_expr_to_ir` `val function`. The return builds the new `IrSetN irlist`
     # ctor (expressions.py `_IRNODE_CTORS["SetLit"]`). Verbatim body port of the LIVE
     # `_py_expr_set` (Module5_IREmitter.py:1126).
+    #@ \diverges
     #@ requires True
     #@ ensures \result["type"] == "SetLit"
     #@ assigns \nothing
@@ -1340,6 +1346,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # genexp-erasure-wall R2a: `ast.GeneratorExp` had NO live handler, so a genexp became
     # `{"type": "UnknownPyExpr"}` at IR construction and the predicate + bound variable were
     # destroyed before Module 6 saw them. Verbatim body port of the LIVE `_py_expr_genexp`.
+    #@ \diverges
     #@ requires True
     #@ ensures \result["type"] == "GenExp"
     #@ assigns \nothing
@@ -1347,6 +1354,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return {"type": "GenExp", "elt": self._py_expr_to_ir(expr.elt),
                 "generators": self._comprehension_generators_to_ir(expr.generators)}
 
+    #@ \diverges
     #@ requires True
     #@ ensures \result["type"] == "ListComp"
     #@ assigns \nothing
@@ -1357,6 +1365,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # _py_expr_setcomp increment (self-tcb-reduction M5, C-bucket): sibling of listcomp
     # -> the new gated IrSetComp ctor. isinstance_op = 0. Verbatim body port of the LIVE
     # `_py_expr_setcomp`.
+    #@ \diverges
     #@ requires True
     #@ ensures \result["type"] == "SetComp"
     #@ assigns \nothing
@@ -1368,6 +1377,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # value + generators) -> the new gated IrDictComp ctor. key/value via `_py_expr_to_ir`,
     # generators via the trusted `_comprehension_generators_to_ir`. isinstance_op = 0.
     # Verbatim body port of the LIVE `_py_expr_dictcomp`.
+    #@ \diverges
     #@ requires True
     #@ ensures \result["type"] == "DictComp"
     #@ assigns \nothing
@@ -1451,6 +1461,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # gated `IrLambda <params irlist> <body>` emit_ir ctor (gated on `_uses_stmt_ir` so the
     # corpus emit_ir theory stays byte-identical). isinstance_op = 0. Verbatim body port of
     # the LIVE `_py_expr_lambda`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1545,6 +1556,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #     CONCRETE `[elt.id for elt in target.elts if isinstance(elt, ast.Name)]` compaction
     #     (`var_names_of` filter+project), NOT the abstract length-only law (the fable vacuity
     #     trap). isinstance_op = 0. Verbatim body port of the LIVE `_py_stmt_assign`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
@@ -2086,6 +2098,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # (#49) ROUTE #77: the SLICE arm `is_sub tgt && is_slice (sindex_of tgt)` is the
     # err-divergence arm — `raise PyCSLSemanticError` (message DROPPED, a raise takes the
     # exc NAME only; the raise path never reaches `ensures`), the `_csl_proj` pattern.
+    #@ \diverges
     #@ raises PyCSLSemanticError when True
     #@ requires True
     #@ ensures True
@@ -2154,6 +2167,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #     cases)` ctor with a REAL `match_case_list` (NOT MCNil-erased). isinstance_op = 0.
     # `_match_pattern_to_ir` stays \trusted (an opaque pattern dispatcher). Verbatim body
     # port of the LIVE `_py_stmt_match`.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns ir_stmts
