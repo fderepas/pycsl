@@ -3580,12 +3580,17 @@ class FunctionEmissionMixin:
             # (which Module4 also fills with for-loop targets and
             # AnnAssign locals — those must NOT appear in the
             # function signature).
-            args = [v for v in self._formal_params if v not in ghost_vars]
-            args_str = " ".join(
-                self._param_type_str(arg, ref_params, array2d_params, array1d_params,
-                                     symbol_table, int_type)
-                for arg in args
-            )
+            # (#49) route #274: an explicit loop, not a generator inside `" ".join(...)`
+            # — a call in an opaquely lowered generator is not applied in the model,
+            # so its effect would vanish (PYCSL-SEM-VANISHED-CALL-EFFECT).
+            arg_parts: List[str] = []
+            for arg in self._formal_params:
+                if arg in ghost_vars:
+                    continue
+                arg_parts.append(
+                    self._param_type_str(arg, ref_params, array2d_params, array1d_params,
+                                         symbol_table, int_type))
+            args_str = " ".join(arg_parts)
             return ref_params, args_str
 
     def _emit_contracts(self, contracts: Dict[str, Any], spec_refs: Set[str],

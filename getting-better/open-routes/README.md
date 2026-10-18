@@ -3,6 +3,14 @@
 
 ## gen #36 (2026-10-18): #273 (nested def/lambda defaults + nested class bodies not evaluated), #274 (effectful calls in
 ##   comprehensions vanish), #275 (sorted key/reverse dropped), #276 (ord < 256 / chr round-trip beyond 255) OPENED (red team 5).
+##   #273/#274 REPAIRED 2026-10-18 (inline in `_run_pipeline`, mirror `\trusted`): inside a lowered function a nested
+##   def/lambda/class whose defaults are not literals/names, whose decorators are calls, whose annotations/bases are not
+##   type-shaped, or whose class body holds anything but defs/docstrings/literal bindings is refused
+##   (PYCSL-SEM-DEF-TIME-EVALUATION); a call to a frame-carrying callee (declared `assigns`, or a body writing a
+##   non-fresh base, transitively) or a receiver mutator inside an opaque comprehension/generator/lambda is refused
+##   unless the function's own emission applies it as often as the IR calls it (PYCSL-SEM-VANISHED-CALL-EFFECT).
+##   Witnesses 2960-2966/2970-2977 PROVED -> refused, controls 2967/2978 keep; root/pyref 0 MOVED / 0 GONE; mirror 1
+##   MOVED (functions: `_build_param_list` genexp -> explicit loop, live+mirror, a genuine vanished stub write).
 
 ## gen #36 (2026-10-18): #272 (a callee's undeclared raise is dropped at the call; no_exception \all proves) OPENED.
 ##   #272 REPAIRED 2026-10-18: a `no_exception` function may not call a method whose undeclared raise (or a declared one

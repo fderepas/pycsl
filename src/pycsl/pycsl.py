@@ -5247,6 +5247,141 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _ins269.append(_eq269)
         for _i269 in sorted(set(_ins269), reverse=True):
             _mlw = _mlw[:_i269] + "\n    diverges" + _mlw[_i269:]
+    # (#49) ROUTE #273 — THE DEFAULT THAT NEVER RAN. A nested `def`/`lambda`/`class` is a
+    # STATEMENT (an expression, for `lambda`) of the enclosing function, and CPython runs
+    # part of it right there: every default-argument expression, every decorator
+    # expression, every (non-postponed) annotation, every base/keyword of a class and
+    # every statement of a class body. PyCSL lifts the nested def into its own function
+    # (Module 5) and lowers a lambda to `{Lambda, params, body}`, and both DROP those
+    # expressions, so their raise, effect and divergence vanish. MEASURED at 5a307a33
+    # (witnesses-r273/): `def inner(y: int = 10 // x)` under `no_exception \all` with
+    # `x == 0` PROVED (CPython: ZeroDivisionError); `def inner(y: int = push(xs))` with
+    # `push` writing `xs[0] = 5` PROVED `\result == 0` (CPython 5); `class K: v = 10 // x`
+    # and `class K: v = push(xs)` PROVED likewise; `def inner(x: int = spin())` and
+    # `lambda x=spin(): x` with a `\diverges` `spin` PROVED termination (CPython: hangs).
+    # RULE (fail-closed, AST-level): inside a LOWERED function (not `\trusted`/
+    # `\abstract`, together with everything nested in it), every nested def/lambda
+    # default must be a literal, a bare name, a signed numeric literal or a display of
+    # those; every decorator of a nested def/class a (dotted) name; every annotation and
+    # class base a type-shaped expression (names, attributes, subscripts, tuples/lists,
+    # string literals, `|`); and a nested class body may hold only defs, nested classes,
+    # `pass`, docstrings and name bindings of such literal values. None of those can
+    # call, raise (beyond the NameError of an unbound name, route #264's ground) or loop,
+    # so nothing the model drops was ever evaluated with effect — which is also why
+    # route #269's vanished-call scan has nothing left to walk in these positions.
+    # Module-level defs/classes (import time) are not a function's evaluation and are
+    # outside this rule. BLAST RADIUS, measured before landing (CPython-`ast` prototype of
+    # THIS predicate): pycsl-reference 0, self-annotate mirror 0, pycsl_lib 1
+    # (`json/encoder.py::iterencode`, `self.allow_nan`, already refused), python-reference
+    # 1 (0078, a class body `x = Desc()`).
+    # INLINE (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+    from frontend import pure_ast as _A273
+    _FN273 = (_A273.FunctionDef, _A273.AsyncFunctionDef)
+    _TY273 = (_A273.Name, _A273.Attribute, _A273.Subscript, _A273.Tuple, _A273.List,
+              _A273.Constant, _A273.BinOp, _A273.BitOr, _A273.Load)
+    _bad273 = []
+    _st273 = [unified_ast]
+    _low273 = []
+    while _st273:
+        _n273 = _st273.pop()
+        if isinstance(_n273, _FN273):
+            if not (getattr(_n273, "csl_trusted", False)
+                    or getattr(_n273, "csl_abstract", False)):
+                _low273.append(_n273)
+            continue
+        _st273.extend(_A273.iter_child_nodes(_n273))
+    for _F273 in _low273:
+        for _N273 in _A273.walk(_F273):
+            if _N273 is _F273:
+                continue
+            _vals273 = []   # (expression, must-be-literal?) pairs evaluated at definition
+            _why273 = ""
+            if isinstance(_N273, _FN273 + (_A273.Lambda,)):
+                _a273 = _N273.args
+                _vals273 += [(_d, True) for _d in list(_a273.defaults or [])
+                             + [_k for _k in (_a273.kw_defaults or []) if _k is not None]]
+                if not isinstance(_N273, _A273.Lambda):
+                    _vals273 += [(_x.annotation, False) for _x in (
+                        list(getattr(_a273, "posonlyargs", None) or []) + list(_a273.args or [])
+                        + list(_a273.kwonlyargs or []) + [_v for _v in (_a273.vararg, _a273.kwarg)
+                                                          if _v is not None])]
+                    _vals273.append((_N273.returns, False))
+            elif isinstance(_N273, _A273.ClassDef):
+                _vals273 += [(_b, False) for _b in list(_N273.bases or [])
+                             + [_k.value for _k in (_N273.keywords or [])]]
+                for _s273 in _N273.body:
+                    if isinstance(_s273, _FN273 + (_A273.ClassDef, _A273.Pass)):
+                        continue
+                    if (isinstance(_s273, _A273.Expr)
+                            and isinstance(_s273.value, _A273.Constant)):
+                        continue
+                    if (isinstance(_s273, _A273.Assign)
+                            and all(isinstance(_t, _A273.Name) for _t in _s273.targets)):
+                        _vals273.append((_s273.value, True))
+                        continue
+                    if (isinstance(_s273, _A273.AnnAssign)
+                            and isinstance(_s273.target, _A273.Name)):
+                        _vals273 += [(_s273.value, True), (_s273.annotation, False)]
+                        continue
+                    _why273 = "class body statement `" + _A273.unparse(_s273)[:60] + "`"
+                    break
+            else:
+                continue
+            for _d273 in getattr(_N273, "decorator_list", None) or []:
+                _q273 = _d273
+                while isinstance(_q273, _A273.Attribute):
+                    _q273 = _q273.value
+                if not _why273 and not isinstance(_q273, _A273.Name):
+                    _why273 = "decorator `@" + _A273.unparse(_d273) + "`"
+            for _e273, _lit273 in _vals273:
+                if _why273 or _e273 is None:
+                    continue
+                _ok273 = True
+                _wk273 = [_e273]
+                while _wk273 and _ok273:
+                    _x273 = _wk273.pop()
+                    if _lit273:
+                        if isinstance(_x273, (_A273.Constant, _A273.Name)):
+                            continue
+                        if (isinstance(_x273, _A273.UnaryOp)
+                                and isinstance(_x273.op, (_A273.USub, _A273.UAdd))
+                                and isinstance(_x273.operand, _A273.Constant)):
+                            continue
+                        if isinstance(_x273, (_A273.Tuple, _A273.List, _A273.Set)):
+                            _wk273.extend(_x273.elts)
+                            continue
+                        if (isinstance(_x273, _A273.Dict)
+                                and all(_k is not None for _k in _x273.keys)):
+                            _wk273.extend(list(_x273.keys) + list(_x273.values))
+                            continue
+                        _ok273 = False
+                    else:
+                        if not isinstance(_x273, _TY273 + (_A273.expr_context,)) or (
+                                isinstance(_x273, _A273.BinOp)
+                                and not isinstance(_x273.op, _A273.BitOr)):
+                            _ok273 = False
+                        else:
+                            _wk273.extend(_A273.iter_child_nodes(_x273))
+                if not _ok273:
+                    _why273 = ("default value `" if _lit273 else "annotation/base `") \
+                        + _A273.unparse(_e273)[:60] + "`"
+            if _why273:
+                _bad273.append((_F273.name, getattr(_N273, "lineno", 0),
+                                getattr(_N273, "name", "lambda"), _why273))
+    if _bad273:
+        from errors import PyCSLSemanticError as _PyCSLSemErr273
+        raise _PyCSLSemErr273(
+            f"'{_bad273[0][0]}' defines the nested '{_bad273[0][2]}' (line {_bad273[0][1]}) "
+            f"with the {_bad273[0][3]}, which Python EVALUATES when the def/class/lambda "
+            f"is executed inside '{_bad273[0][0]}'. PyCSL lifts a nested def/class (and "
+            f"lowers a lambda) WITHOUT that evaluation, so its exception, its effect and "
+            f"its divergence would vanish from the model. Use a literal default (e.g. "
+            f"`None`, then compute the value inside the body), a plain-name decorator, a "
+            f"type-shaped annotation, a class body of literal attributes, or move the "
+            f"def/class to module level"
+            f"{'' if len(_bad273) == 1 else f' (also: {_bad273[1:]})'}.",
+            filename=args.file, stage="ir-semantic",
+            code="PYCSL-SEM-DEF-TIME-EVALUATION")
     # (3) R3 — the callees that may RAISE: a declared `raises`, or (with a body) an
     # escaping `raise`, closed transitively over call names (an over-approximation).
     from module6_whyml.ir_scanner import IRScanner as _IRS269
@@ -5287,33 +5422,126 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     _rm269 |= {_mn269[f["name"]] for f in _fn263
                if any(_r != {"type": "Bool", "value": True}
                       for _r in ((f.get("contracts") or {}).get("requires") or []))}
+    # (#49) ROUTE #274 — THE COMPREHENSION THAT SWALLOWED A WRITE. ... and a callee with a
+    # non-empty FRAME: a declared `assigns` other than `\nothing`, or (frame undeclared,
+    # body lowered) a body that writes a field/element/slice, deletes an element, or calls
+    # a collection mutator on a receiver — closed transitively over undeclared-frame
+    # callers. MEASURED at 5a307a33 (witnesses-r274/): `ys = [push(c) for y in xs]`,
+    # `{y: push(c) ...}`, `{push(c) ...}`, `sum(push(c) for y in xs)` and the EAGER first
+    # iterable `(y for y in range(push(c)))`, with `push` declaring `assigns c.v` and
+    # writing `c.v = 5`, all PROVED `\result == c.v == 0` (CPython 5). A visible call to
+    # the same callee elsewhere does NOT excuse it here (unlike a raise or a precondition,
+    # whose obligation one visible application does discharge for the name): each
+    # application is one more write, and `push(c); [push(c) for y in [1, 2]]` PROVED
+    # `c.v == 1` (CPython 3). Likewise a receiver mutator (`[out.append(y) for y in xs]`
+    # PROVED `len(out) == 0`; CPython 1) in such a position is refused.
+    _fx269 = set()
+    _fxb269 = {}
+    _FR274 = ("DictLit", "ArrayLit", "ListLit", "SetLit", "ListComp", "DictComp", "SetComp")
+    for _f269 in _fn263:
+        _as269 = (_f269.get("contracts") or {}).get("assigns") or []
+        if any(not (isinstance(_a, dict) and _a.get("type") == "Nothing") for _a in _as269):
+            _fx269.add(_f269["name"])
+            continue
+        if _as269 or _f269.get("trusted") or _f269.get("abstract"):
+            continue
+        # A write into a FRESH LOCAL container (a non-parameter name bound only by
+        # `Assign`s of a literal display or comprehension, and by nothing else) stays
+        # inside the call: `new: Dict = {}; new[k] = v` is not a frame. Every other
+        # write base (a parameter, `self`, a field path, any name bound otherwise) is.
+        _fv274 = {}
+        _w269 = [_f269.get("body")]
+        while _w269:
+            _x269 = _w269.pop()
+            if isinstance(_x269, dict):
+                if _x269.get("stmt") == "Assign" and isinstance(_x269.get("target"), str):
+                    _fv274[_x269["target"]] = _fv274.get(_x269["target"], True) and (
+                        isinstance(_x269.get("value"), dict)
+                        and _x269["value"].get("type") in _FR274)
+                else:
+                    for _k274 in ("target", "targets"):
+                        _tv274 = _x269.get(_k274)
+                        for _t274 in (_tv274 if isinstance(_tv274, list) else [_tv274]):
+                            if isinstance(_t274, str):
+                                _fv274[_t274] = False
+                _w269.extend(_x269.values())
+            elif isinstance(_x269, list):
+                _w269.extend(_x269)
+        for _p274 in list(_f269.get("formal_params") or []) + ["self"]:
+            _fv274[_p274] = False
+        _w269 = [_f269.get("body")]
+        while _w269:
+            _x269 = _w269.pop()
+            if isinstance(_x269, dict):
+                _b274 = 0
+                if _x269.get("stmt") in ("FieldAssign", "FieldAugAssign", "ArraySet",
+                                          "ArraySliceSet", "DelSubscript"):
+                    _b274 = _x269.get("object") if _x269.get("stmt") in (
+                        "FieldAssign", "FieldAugAssign") else _x269.get(
+                            "array", _x269.get("value", _x269.get("target")))
+                elif (_x269.get("type") == "Call" and isinstance(_x269.get("func"), str)
+                        and "." in _x269["func"]
+                        and _x269["func"].rsplit(".", 1)[1] in _IRS269._MUTATING_METHODS):
+                    _b274 = _x269["func"].split(".")[0]
+                if _b274 != 0:
+                    while isinstance(_b274, dict):
+                        _b274 = (_b274.get("name") if _b274.get("type") == "Var"
+                                 else _b274.get("value", _b274.get("object")))
+                    if not (isinstance(_b274, str) and _fv274.get(_b274) is True):
+                        _fx269.add(_f269["name"])
+                        break
+                _w269.extend(_x269.values())
+            elif isinstance(_x269, list):
+                _w269.extend(_x269)
+        if _f269["name"] not in _fx269:
+            _fxb269[_f269["name"]] = _cn269.get(_f269["name"], set())
+    _chg269 = True
+    while _chg269:
+        _chg269 = False
+        _fm269 = {_mn269[_n] for _n in _fx269}
+        for _n269, _cs269 in _fxb269.items():
+            if _n269 not in _fx269 and _cs269 & _fm269:
+                _fx269.add(_n269)
+                _chg269 = True
+    _fm269 = {_mn269[_n] for _n in _fx269}
     _viol269 = []
+    _vfx269 = []
     _dvh269 = set()
     _blk269 = None
     for _f269 in _fn263:
         if _f269.get("abstract") or _f269.get("lemma"):
             continue
         _hid269 = set()
+        _hfx269 = set()
+        _irc274 = {}
         _w269 = [(_f269.get("body"), False)]
         while _w269:
             _x269, _in269 = _w269.pop()
             if isinstance(_x269, dict):
                 _in2 = _in269 or _x269.get("type") in (
                     "ListComp", "SetComp", "DictComp", "GenExp", "Lambda")
+                if _x269.get("type") == "Call" and isinstance(_x269.get("func"), str):
+                    _m274 = _x269["func"].split(".")[-1]
+                    _irc274[_m274] = _irc274.get(_m274, 0) + 1
                 if (_in269 and _x269.get("type") == "Call"
                         and isinstance(_x269.get("func"), str)):
                     _m269 = _x269["func"].split(".")[-1]
                     if _m269 in _dvm269 or _m269 in _rm269:
                         _hid269.add(_m269)
+                    if _m269 in _fm269 or ("." in _x269["func"]
+                                           and _m269 in _IRS269._MUTATING_METHODS):
+                        _hfx269.add(_x269["func"])
                 _w269.extend((_v, _in2) for _v in _x269.values())
             elif isinstance(_x269, list):
                 _w269.extend((_v, _in269) for _v in _x269)
-        if not _hid269:
+        if not _hid269 and not _hfx269:
             continue
         if _blk269 is None:
             # name -> identifiers its emitted BODY mentions; `val`s have no body.
             _blk269 = {}
             _vl269 = set()
+            _btx274 = {}   # (#274) let/with name -> its emitted body TEXT
+            _vtx274 = {}   # (#274) val name -> its whole declaration text
             _ct269 = [_m.start() for _m in _re.finditer(r"\n  (?:let|val|with)\b", _mlw)]
             _ct269.append(len(_mlw))
             for _k269 in range(len(_ct269) - 1):
@@ -5324,8 +5552,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     continue
                 if _hm269.group(1) == "val":
                     _vl269.add(_hm269.group(2))
+                    _vtx274[_hm269.group(2)] = _vtx274.get(_hm269.group(2), "") + _b269
                     continue
                 _q269 = _b269.find("\n  =")
+                _btx274[_hm269.group(2)] = (_btx274.get(_hm269.group(2), "")
+                                            + (_b269[_q269:] if _q269 >= 0 else ""))
                 _blk269.setdefault(_hm269.group(2), set()).update(_re.findall(
                     r"[A-Za-z_][A-Za-z0-9_']*", _b269[_q269:] if _q269 >= 0 else ""))
         _wf269 = _wid269(_f269["name"])
@@ -5333,6 +5564,35 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             # a trusted function is a bodyless `val` — unless a bespoke lowering still
             # emits its body (the imported Module 5 handlers inside `pycsl.mlw`)
             continue
+        # (#274) A hidden write is MODELLED only if the function's OWN emitted blocks
+        # (itself and its bespoke `<name>__*` walkers — e.g. the Module 5 mirror's
+        # concrete `_cc_<k>` comprehension loops) apply the callee at least as many
+        # times as its IR calls it: one visible `push(c)` must not cover a second,
+        # vanished one. A callee whose every emitted spelling is a `val` WITHOUT a
+        # `writes` clause has no modelled effect to lose (its visible application is
+        # pure for Why3 too — that is the stub's own frame, not this lowering's).
+        # A receiver mutator (`out.append(y)`) has no countable spelling: refused.
+        _own274 = "".join(_t for _x, _t in _btx274.items()
+                          if _x == _wf269 or _x.startswith(_wf269 + "__"))
+        for _c274 in sorted(_hfx269):
+            _m274 = _c274.split(".")[-1]
+            if _m274 not in _fm269:
+                _vfx269.append((_f269["name"], _c274))
+                continue
+            _cc274 = {_wid269(_n) for _n, _mm in _mn269.items() if _mm == _m274}
+            _sp274 = _re.compile(r"(?:^|_)" + _re.escape(_m274) + r"_\d+(?:_c\d+)?(?:_\d+)?$")
+            _sv274 = {_v for _v in _vtx274 if _v in _cc274 or _sp274.search(_v)}
+            _eff274 = (any(_n in _fx269 and _wid269(_n) in _btx274
+                           for _n, _mm in _mn269.items() if _mm == _m274)
+                       or any(_re.search(r"\bwrites\b", _vtx274[_v]) for _v in _sv274)
+                       or not (_sv274 or any(_x in _btx274 for _x in _cc274)))
+            if not _eff274:
+                continue
+            _n274 = sum(len(_re.findall(r"(?<![\w'.])" + _re.escape(_i) + r"(?![\w'])",
+                                        _own274))
+                        for _i in (_cc274 | _sv274))
+            if _n274 < _irc274.get(_m274, 0):
+                _vfx269.append((_f269["name"], _c274))
         _todo269 = [x for x in _blk269 if x == _wf269 or x.startswith(_wf269 + "__")]
         _seen269 = set()
         _ids269 = set()
@@ -5351,6 +5611,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _viol269.append((_f269["name"], _m269))
                 if _m269 in _dvm269:
                     _dvh269.add(_wf269)
+    if _vfx269:
+        from errors import PyCSLSemanticError as _PyCSLSemErr274
+        raise _PyCSLSemErr274(
+            f"'{_vfx269[0][0]}' calls '{_vfx269[0][1]}', which WRITES (a declared `assigns`, "
+            f"a body that mutates, or a collection mutator), inside a comprehension, "
+            f"generator or lambda that PyCSL lowers OPAQUELY: the call is not applied at "
+            f"that point of the emitted WhyML, so its write vanishes from the model and "
+            f"what the function claims about the written state is proved of a state that "
+            f"never changed. Rewrite it as an explicit loop so each call is modelled"
+            f"{'' if len(_vfx269) == 1 else f' (also: {_vfx269[1:]})'}.",
+            filename=args.file, stage="ir-semantic",
+            code="PYCSL-SEM-VANISHED-CALL-EFFECT")
     if _viol269:
         from errors import PyCSLSemanticError as _PyCSLSemErr269
         raise _PyCSLSemErr269(

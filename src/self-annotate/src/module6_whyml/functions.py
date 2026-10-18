@@ -150,12 +150,14 @@ class FunctionEmissionMixin:
         else:
             self._current_self_type = None
             ref_params = {v for v in symbol_table if v in local_refs and v.startswith("obj_")}
-            args = [v for v in self._formal_params if v not in ghost_vars]
-            args_str = " ".join(
-                self._param_type_str(arg, ref_params, array2d_params, array1d_params,
-                                     symbol_table, int_type)
-                for arg in args
-            )
+            arg_parts: List[str] = []
+            for arg in self._formal_params:
+                if arg in ghost_vars:
+                    continue
+                arg_parts.append(
+                    self._param_type_str(arg, ref_params, array2d_params, array1d_params,
+                                         symbol_table, int_type))
+            args_str = " ".join(arg_parts)
             return ref_params, args_str
 
     #@ \trusted reviewer: pycsl-self-annotate

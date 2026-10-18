@@ -662,6 +662,25 @@ type-checks. A vanished call to a callee that may RAISE (declared `raises`, or a
 `raise`, transitively) or that carries a non-trivial `requires` (never checked at a vanished
 call) is refused (`PYCSL-SEM-VANISHED-CALL-EFFECT`).
 
+**Vanished writes (route #274).** The same refusal covers a call, in such a position (the
+eager first iterable of a generator included), to a callee with a FRAME — a declared `assigns`
+other than `\nothing`, or, frame undeclared, a body that writes a field/element/slice, deletes
+an element or calls a collection mutator on anything but a fresh local container (closed
+transitively) — and any receiver mutator (`out.append(y)`). It is excused only when the
+function's own emitted blocks apply the callee at least as many times as its IR calls it (a
+bespoke concrete comprehension lowering such as the Module 5 mirror's `_cc_<k>` loops): one
+visible application does not cover a second, vanished write. A callee emitted only as `val`s
+without `writes` has no modelled effect to lose.
+
+**Definition-time evaluation (route #273).** A nested `def`/`lambda`/`class` inside a lowered
+function is lifted (or lowered to a `Lambda` node) WITHOUT the expressions CPython evaluates
+when the statement runs: defaults, decorators, annotations, class bases and class-body
+statements. They are therefore restricted (`PYCSL-SEM-DEF-TIME-EVALUATION`): defaults must be
+literals, bare names, signed numeric literals or displays of those; decorators (dotted) names;
+annotations and bases type-shaped; a nested class body only defs, nested classes, `pass`,
+docstrings and name bindings of literals. Module-level definitions (import time) are outside
+the rule.
+
 **Recursion and `no_exception \all` (scope).** `\all` is the Phase-1 set
 `exception_model.KNOWN_EXCEPTIONS`; RecursionError is not in it and the interpreter's
 recursion limit is not modelled. A TERMINATING recursion (`\variant`) under `no_exception \all`
