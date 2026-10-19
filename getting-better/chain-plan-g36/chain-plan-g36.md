@@ -1328,3 +1328,167 @@ currently read the write in the model. It becomes a false premise the day AST no
 modelled. (b) The spec lowering of `\length(s)` on a `str` parameter in a loop variant is
 `Array.length s` (L3-tc rejects it, so fail-closed). `len(s)` lowers correctly to
 `String.length s`. Logs/emits: session scratchpad `ch25/`.
+
+## Re-measurement at HEAD — ch26 (gen #37)
+
+At `b9dc767e` (count 451). Plan steps 7 DICT (15), 24 CALLABLE (4), 25 REBIND (4), 26 MUTPARAM
+(3) and 27 FLOAT (1): 27 markers, all still `\trusted`. Each one was ported verbatim
+(`bin/port-one-mirror-body.py --convert`, with `--replace` for the SAME/DIFFERS rows) into a
+private scratch copy of the tree. Each copy was emitted `--no-proof --keep-mlw` through
+`heavy.sh`, and its WhyML was read. Where the first blocker was one statement, the live body was
+read for the next one. For three markers, the mirror ANNOTATION was retyped as a probe (the
+annotation is the modelling layer). **1 of 27 honest after one seam, and it was NOT landed.**
+`_record_answer` is TC-clean and faithful on one gated seam. Its battery could not run: the
+shared heavy queue was saturated for over an hour by other agents' `run-soundness-planes --slow`
+jobs. The seam and its witnesses are saved as `getting-better/dict-value-wall/ch26-record-
+answer-seam.patch`, and the working tree was reverted. Count unchanged at 451.
+
+```
+    marker                                        first blocker at HEAD -> verdict
+  step 7 DICT
+    Module3_Weaver._parse_extracted_contracts     REFUSED: `trailing_contracts_map.setdefault(..).extend(..)`. Under it:
+      (DIFFERS)                                   `Dict[int, List[CSLNode]]` values (record lists), and
+                                                  `self.parser_module.parse_node_contracts` (opaque module attr).
+                                                  MUTRECV+M. SKIP
+    PyCSLWeaver.visit_Module                      REFUSED: `self._csl_bound_names.add(..)`. Under it: an AST-node
+                                                  visitor (`node.body`, setattr `csl_*`, generic_visit). AST model.
+                                                  SKIP
+    desugar._try_reaches_assert                   L3-tc: `for .. in _funcs` iterates a local dict `{}` that is typed
+                                                  `int -> option int`. The body is an `ast` walker (`node.handlers`,
+                                                  `_h.type.elts`, `ast.walk`) over erased AST nodes. DICT+AST. SKIP
+    ExpressionEmissionMixin._emit_bitwise_or_     L3-tc: `self._BITWISE_FN_NAMES[op_char]` (class-constant dict,
+      power                                       element `int`) is used as a string. RETYPE PROBE `expr: "ExprIR"`:
+                                                  `right_ir["value"] < 0` is `svalue_of` (sub-node) vs int, and
+                                                  `isinstance(left_ir.get("value"), int)` is `any bool`. The
+                                                  per-kind `value` payload is not modelled. DICT(N). SKIP
+    ExpressionEmissionMixin._tag_of_value         L3-tc: `x_ir.get("name")` (`Dict[str, Any]` element `int`) is used as
+                                                  a string. RETYPE PROBE `x_ir: "ExprIR"`: **L3-tc clean, no emitter
+                                                  change.** The body reads `kind_of x_ir = "Var"`, `name_of x_ir`, and
+                                                  `Map.get self._current_symbol_table`, and the `_add_abstract_op`
+                                                  write is inside its declared frame. NEXT CANDIDATE: the whole-file
+                                                  proof of expressions.py is OWED (not run: heavy queue). NOT
+                                                  CONVERTED
+    FunctionEmissionMixin._emit_subtyping_goals   L3-tc: the comprehension `[o for o in overrides if
+      (DIFFERS)                                   o.get("from_conforms_to")]` (`list_content_comp_0`) is `int` against
+                                                  `array int`. Under it: `{f["name"]: f for f in functions}`, a
+                                                  PyCSLIRError message built from `str(ov.get(..))`. DICT(P)+GENEXP.
+                                                  SKIP
+    _Inliner.inline_stmts (DIFFERS)               REFUSED: `out.extend(..)`. Generic IR-tree walker
+                                                  (`isinstance(.., dict)`, `.items()`). DICT(G), leave-trusted. SKIP
+    monomorphize._rewrite_annotation_str          L3-tc: `(gname, ct) in rename_map`: the tuple key is checked against
+                                                  `rename_map: int`. Under it: `re.match` / `m.group` (EXT, receiver-
+                                                  dropped). TUPLE-keyed map + EXT. SKIP
+    monomorphize._rewrite_annotations             L3-tc: `subscript_set !func <h> !new_st` (a nested write into an
+                                                  element of `ir_data["functions"]`). RETYPE PROBE `ir_data: Dict[str,
+                                                  PyVal]`: `for func in ir_data.get("functions", [])` is `iter_length`
+                                                  over an `HArr`. There is no hval list iteration, and no store into a
+                                                  nested hval. DICT(P). SKIP
+    monomorphize._rewrite_subscript_calls_in_stmt L3-tc: `return new` (a fresh dict) into the erased `Any` slot. A
+                                                  generic `{k: rec(v)}` rebuild walker. DICT(G), leave-trusted. SKIP
+    pycsl._merge_records_best_of_n (DIFFERS)      L3-tc: `_record_key(rec)`: `rec` (from `List[List[dict]]`) is `int`,
+                                                  and the callee wants `map string (option int)`. Under it:
+                                                  `Dict[Tuple, dict]` keyed by `(hval-tuple, int)`: no hashable-hval
+                                                  key model. DICT(J)+TUPLE. SKIP
+    pycsl._print_soundness_report (DIFFERS)       L3-tc: `_json.dumps(report, ..)`: the json stub takes `int`, and the
+                                                  `Dict[str, Any]` report is a `map`.
+                                                  Under it: print, `.values()`, f-strings of values read from
+                                                  Dict[str,Any]. EXT+DICT. SKIP
+    pycsl._record_answer (SAME)                   HONEST AFTER ONE SEAM, NOT LANDED (battery OWED). The mirror is
+                                                  already `Dict[str, PyVal]`. The read `(rec.get("prover-result") or
+                                                  {}).get("answer", "") or ""` was the receiver-dropped `get_2 <hash>
+                                                  <hash>` (int vs string, L3-tc). See the seam below.
+    pycsl._residual_selectors_from_records        L3-tc: `_record_is_valid(rec)` takes the int-typed `rec`
+      (DIFFERS)                                   (`List[dict]` param). Under it: an f-string of two hvals, a
+                                                  `Set[str]`. Retype `List[Dict[str, PyVal]]` + hval f-string. SKIP
+    StatementEmissionMixin._handle_augassign_stmt L3-tc: `getattr(self, "_string_set_locals", set())` (getattr default
+                                                  `Array.make 1024`) is fed to `contains_check` as an int. 128 lines of
+                                                  IR reads. GETATTR+DICT(N). SKIP
+  step 24 CALLABLE
+    _ContractParser._try                          L3-tc: `fn()`, an unannotated first-class function parameter
+                                                  applied ("int, it cannot be applied"). Under it: the try/except
+                                                  restore of `self.i`. No callable-value model. SKIP
+    NodeVisitor.visit                             L3-tc: `visitor(node)`, a bound method looked up by
+                                                  `getattr(self, 'visit_' + cls_name, self.generic_visit)`: dynamic
+                                                  dispatch. SKIP
+    _Unparser.interleave                          L3-tc: `f(next(seq))`. Two callable params (`inter`, `f`) and the
+                                                  iterator protocol with `StopIteration` / try-else. SKIP
+    _Unparser.items_view                          L3-tc: `traverser(items[0])`. It also passes a `lambda` to
+                                                  `interleave`. SKIP
+  step 25 REBIND
+    desugar.normalize_stores                      REFUSED (rebinding guard): `setattr` of a function name. The body
+                                                  rewrites the AST in place (`ast.iter_fields` + setattr/list
+                                                  splice). SKIP
+    ir_resolve.resolve (DIFFERS)                  REFUSED: `global _EXTRA_IMPORT_PATHS` write (no certified lowering;
+                                                  the fix is a `#@ shared` declaration). Under it: 5 in-place IR
+                                                  passes over the caller's `ir_data` (MUTPARAM) and a local import.
+                                                  SKIP
+    NodeTransformer.generic_visit                 REFUSED (rebinding guard): `setattr`/`delattr` on AST nodes. A
+                                                  generic AST rewriter. SKIP
+    pure_ast.copy_location (DIFFERS)              REFUSED (rebinding guard): `setattr(new_node, attr, value)`. Under
+                                                  it: `hasattr` / `getattr` / `_attributes` on AST nodes. SKIP
+  step 26 MUTPARAM
+    Module3_Weaver._collect_field_read_sites      REFUSED: `out.append(..)` to a list PARAMETER (out of scope: by-ref
+                                                  write without a `writes {out}` frame). SKIP
+    Module3_Weaver._collect_self_call_sites       REFUSED: the same, `out.append(..)` to a list parameter. SKIP
+    PreambleEmissionMixin._emit_opaque_class_     REFUSED: `declared_types.add(..)` (a Set parameter). Then
+      aliases                                     `out.append(..)` (a list parameter). `func["self_type"]` is a
+                                                  Dict[str,Any] read. MUTPARAM+DICT(P). SKIP
+  step 27 FLOAT
+    PyCSLWeaver._subst_var                        L3-tc: `Number(int(m))`. The mirror `Number.value` field is `real`,
+                                                  and the int `m` is rejected. Under it: `_is_dc` / `_dc_fields` /
+                                                  `getattr(node, f.name)` / `_dc_replace(node, **repl)` (dataclass
+                                                  reflection, kwargs splat), and a recursive list comprehension.
+                                                  FLOAT+GETATTR+CALLABLE(kwargs). SKIP
+```
+
+**Recurring blockers (27 measured markers, counted wherever they occur in the chain):**
+(1) Dict[str,Any] / int-erased value reads: 13 (eop, tov, rax, rta, rss, ras, mrb, psr, rec, rsr,
+hag, ilst, esg). (2) Fail-closed refusals of an in-place mutation: 9. Of these, local/self
+receiver: pec, cvm, ilst, eoca; list/set PARAMETER: cfr, csc, eoca; `global`: res. (3) The
+name-rebinding guard on `setattr` of AST nodes: 3 (nst, ntg, cpl). (4) A first-class callable
+applied: 4 (try, nvv, uil, uiv), plus kwargs splat in `_subst_var`. (5) AST-node reflection
+(`ast.walk`, `_attributes`, getattr/setattr): 6 (vmo, rta, nst, ntg, cpl, sbv). (6) EXT (`re`,
+json, print): 3 (ras, psr, res). As in ch20-ch25, the census family was only the FIRST error.
+No step-24..27 marker has a single-seam path.
+
+**Seam (built, TC-clean, NOT landed).** Three touch points in `expressions.py`, all gated on an
+hval (`Dict[str, PyVal]`) operand, so they are corpus-inert by construction (unmeasured):
+1. `_expr_is_pyval` also accepts `<hval> or {}` / `<hval> or []` and the 2-argument
+   receiver-form `(<hval-expr>).get(k, D)`.
+2. `_lower_dict_get_call` lowers that receiver form to the K7 `pairs_get` match over the LOWERED
+   receiver. A missing key or a non-map receiver answers `_pyval_wrap(D)`.
+3. `_recognize_pyval_or_default` lowers `<hval> or "<lit>"` to `let v_or = .. in if hval_truthy
+   v_or then hstr_of v_or else "<lit>"`.
+
+The emitted `_record_answer` reads `Map.get py_rec "prover-result"` and `pairs_get .. "answer"`.
+Witnesses 3140 (PASS) / 3141, 3142 (FAIL twins) are in the patch. Twins 3141/3142 FAIL as
+required. **3140 did NOT prove**: `ensures \result == ""` on an empty `Dict[str, PyVal]` literal
+timed out in z3 and alt-ergo (30 s), although every path yields `""`. The cause was not isolated
+(a narrowing probe was lost to the queue). A replacement PASS witness is owed.
+
+**OWED for the next window (in order):**
+1. Apply the patch.
+2. Isolate the 3140 timeout, or pick a provable faithful claim.
+3. Run the full battery: fidelity, `pycsl.py` whole-file proof (HEAVY_LOW), corpus+pyref and
+   mirror sweeps vs a base, fast planes, trusted-reasons (the row is already removed in the
+   patch), blast radius.
+
+**`no_cheap_remaining` for steps 7/24-27, apart from `_record_answer`.** The next cheapest by
+measurement is `ExpressionEmissionMixin._tag_of_value`: TC-clean with a mirror-ANNOTATION retype
+only (`x_ir: "ExprIR"`) and no emitter change. The whole-file proof of `expressions.py` is OWED.
+The Dict-wall census (`getting-better/dict-value-wall/census-g37.md`) ranks the remaining DICT
+markers by shape cluster.
+
+**Suspicions (not chased).**
+* (a) Lesson 13, latent. `Module3_Weaver._collect_field_read_sites` /
+  `_collect_self_call_sites` and `PreambleEmissionMixin._emit_opaque_class_aliases` are
+  `\trusted` with `#@ assigns \nothing`, but their live bodies `out.append(..)` into a list
+  PARAMETER (and `declared_types.add(..)`). Their only mirror callers (`Module6.transpile`,
+  `_emit_prefunctions_infra`) are themselves trusted, so no verified proof rests on the false
+  frame TODAY.
+* (b) A `.get` whose receiver is an expression (not a Name) falls, outside the emit_ir/hval
+  recognizers, to the receiver-dropped `get_2 <hash k> <hash D>`. Here it is fail-closed only
+  because the consumer wanted a string. An int consumer would type-check as an input-blind
+  facade, which `check-emitted-vacuity` should flag.
+
+Logs/emits: session scratchpad `ch26/`.
