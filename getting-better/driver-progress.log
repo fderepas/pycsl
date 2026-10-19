@@ -12981,3 +12981,4 @@ measurement instead of re-running two hours of it.
 2026-10-19T15:27Z ch24 BROKEN — _find_abstract_val_insert_idx 453->452
 2026-10-19T18:20Z ch25 BROKEN — _split_rocq_print_assumptions 452->451
 2026-10-19T18:45Z routes #279/#280 REPAIRED
+2026-10-19T19:07Z routes #277/#278/#281 REPAIRED (owed proofs queued)
