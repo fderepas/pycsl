@@ -858,6 +858,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # so `subtag` must not reference `tag_object` by name (it would sort before it).
         # The `tag_*` functions are used only in goals (after all decls), so they are fine.
         self._add_abstract_op("predicate subtag (a b: int) = a = b \\/ b = 99")
+    # (#49) gen #37 ch27 — `#@ sibling_concrete` BECAUSE the converted `_tag_of_value` CALLS
+    # THIS: the default receiver-less `val self__tag_of_type_1` made its result unconstrained
+    # (check-shadowed-selfcalls 14 -> 15). A same-file verified leaf; the ratchet is NOT raised.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -873,11 +877,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if t_name in getattr(self, "_variant_types", {}):
             return "tag_variant"
         return ""
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._obj_state_written
-    def _tag_of_value(self, x_ir: Dict[str, Any]) -> str:
+    def _tag_of_value(self, x_ir: "ExprIR") -> str:
+        name = x_ir.get("name") if isinstance(x_ir, dict) and x_ir.get("type") == "Var" else None
+        tag = self._tag_of_type(getattr(self, "_current_symbol_table", {}).get(name)) if name else ""
+        if tag:
+            return tag
+        # (#49) ROUTE #239 — THE TAG IS A FUNCTION OF THE VALUE, NEVER OF THE NAME. This
+        # returned `(typeof_op <sum of the NAME's code points>)`, and `typeof_op` is a pure
+        # `val function`, so every test on one NAME was ONE TERM: `isinstance(x, int); x = y;
+        # isinstance(x, int)` were forced equal and `\result == 1` PROVED where CPython
+        # answers 0 (corpus 2200; the loop-variable form 2204). A non-`Var` subject was
+        # `typeof_op 0` for ALL of them (2203). In a CONTRACT the term did not mention the
+        # argument at all, so a caller's own `requires isinstance(x, int)` discharged a
+        # callee's precondition about a DIFFERENT value (2201) and one postcondition held of
+        # every actual (2202). The symbol is now POLYMORPHIC and applied by
+        # `_handle_isinstance` to the LOWERED SUBJECT (it has the `local_refs` this method
+        # does not): two reads of one unchanged value agree, a rebinding / another argument /
+        # another iteration is a different term. Returns "" so the caller does the application.
+        self._add_abstract_op("val function typeof_op (x: 'a) : int")
         return ""
 
     #@ requires True
