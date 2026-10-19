@@ -93,7 +93,8 @@ under the flag here (by construction they cannot fire on `pycsl_cp`).
 **Gates** (default emission): root corpus 1782/1792 .mlw, 0 MOVED / 0 GONE / 0 APPEARED (10 new
 sources); pyref 2186/2186, 0 MOVED / 0 GONE / 0 APPEARED; mirror 53/53, 0 MOVED; fidelity rc=0
 (920 un-trusted mirror functions verbatim; 53 mirrors in sync); `\trusted` count 454 (unchanged);
-no axiom added (ledger unchanged). No refusal message added or edited.
+no axiom added (ledger unchanged). No refusal message added or edited. Planes: fast 61/61 green;
+`--slow` 84/84 green (rc=0).
 
 **Not covered (residuals).** (1) Even under the flag the str SORT is the 8-bit Why3 string:
 `==`/`len`/slicing/concat are those of 8-bit chars, so a pigeonhole argument over more than 256
