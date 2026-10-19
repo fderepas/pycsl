@@ -19,6 +19,17 @@
 ##   3098/3099 PROVED (3087 ill-typed) -> refused; controls 3088/3097 PASS; all 9 route witnesses rc=0 -> rc=1.
 ##   root/pyref/mirror 0 MOVED / 0 GONE / 0 APPEARED; census +18 rows. Residuals: dict/set re-bound alias, `x = d[0];
 ##   x.append` (fail-closed, ill-typed); parameter-aliasing p111/p112/p114 still prove (separation premise).
+## gen #37 (2026-10-19): #277/#278/#281 REPAIRED (r277 executor, off 72ab1c57). #277 by MEASUREMENT option (A): the
+##   override-refinement check is the DEFAULT (cost: 11 of 1791+2186 corpus files gain goals, 3 PASS -> FAIL — 0445, 1348,
+##   pyref 0206, each a genuine Liskov violation; mirror 25 `true` goals); `--assume-class-exact` is the opt-out and is
+##   then the declared assumption CLASS-EXACT (`--soundness-report`: every override pair + every method call). #278:
+##   override pairs over the C3 MRO (mixin / fieldless-chain providers; a class-body binding is refused), raise
+##   conditions in the goal, PYCSL-SEM-OVERRIDE-REFINEMENT for raises / no_exception / assigns / parameter position
+##   (also caught: the mirror's `statements.py::_expr_to_whyml` stub under-declared its provider's frame, so two
+##   verified mirror callers carried false frame claims — widened). #281: faithful `("call","int_str")` ValueError
+##   trigger `|x| < 10**4300` at str/repr/format/print/f-string/% (cost 0). Witnesses 3100-3119 (base PROVED -> FAIL /
+##   refused; controls 3103/3113/3119 PASS; 3107/3112 coverage). Root 9 MOVED (= base `--check-behavioral-subtyping`
+##   emission) + 2 GONE (1343/1344, expected FAIL); pyref 0 MOVED; mirror 3 MOVED (type-check OK; proofs: see #278).
 
 ## gen #37 (2026-10-19): #276 RESOLVED as the DECLARED MODEL ASSUMPTION LATIN1-STR (#250/#253 precedent): every str
 ##   value consists of code points 0..255 (str = Why3 string of 8-bit `string.Char`); listed by `--soundness-report`
