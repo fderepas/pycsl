@@ -1069,3 +1069,121 @@ ffb). `\diverges` (route #263) shows up twice (pef, sxp) and is never the wall b
 No seam was landed. The only small seam in sight, a hashed string literal into an int-hoisted
 local (visit_MatchStar), would emit `int_to_string (hash "_")`, which is unfaithful. Emits/logs:
 session scratchpad `ch23/meas-*.{log,mlw}`, `ch23/screen-fci.log`.
+
+## Re-measurement at HEAD — ch24 (gen #37)
+
+At `333194e7` (count 453). Plan steps 5 MUTRECV (4), 12 UNBOUND (1), 13 GENEXP (6), 14 SET (3),
+15 SYNTAX (2): 16 markers, of which 15 are still `\trusted` (`_Unparser.visit_Module` was
+already converted in gen #36 ch17, `b4dccfbe`). Each one was ported verbatim
+(`bin/port-one-mirror-body.py`, `--replace` for the DIFFERS/SAME rows), emitted `--no-proof
+--keep-mlw` through `heavy.sh`, and its WhyML read. Where the first blocker was a refusal or a
+single statement, that statement was neutralised in the scratch copy (or the live signature was
+tried) to see the next blocker. **1 of 15 honest.** It was converted on two small gated seams
+(`1880170f`, 453 -> 452).
+
+```
+    marker                                        first blocker at HEAD -> verdict
+  step 5 MUTRECV
+    Module6._wrap_call_with_callee_raises_assert  REFUSED: `active.update(..)` (local set). With that neutralised:
+      (DIFFERS)                                   L3-tc, `writes { self._abstract_ops, .. }` on the receiver-dropped
+                                                  self-call stub `self__render_callee_condition_3` uses UNMANGLED field
+                                                  names (emitter bug, fail-closed). Below that, DICT facade:
+                                                  `self._module_func_raises.get(..)` is `int`, `r.get("exc_type")` ->
+                                                  `r_get_1 <h>`, `self.ir.get(..)` + getattr. SKIP
+    _inject_functions (DIFFERS)                   REFUSED: `existing.add(..)`. Then `ir_data["functions"].insert(0, ..)`
+                                                  is a write into the caller's dict (MUTPARAM). With all three neutralised
+                                                  and the live signature it is TC-clean but a FACADE: `existing =
+                                                  set_comp 0`, `ir_data` never read. SKIP
+    _Unparser.visit_Module                        not `\trusted` at HEAD (converted gen #36 ch17). n/a
+    struct_format.parse_format                    REFUSED: `slots.extend(..)`. Then L3-tc: the Optional[StructFormat]
+                                                  union is raised in an exception, and its record arm is mutable.
+                                                  Underneath, `_TOKEN_RE.match` / `m.group(1)` are receiver-dropped (re,
+                                                  EXT) and `int(count_str)` is `!count_str`. OPTREC+EXT. SKIP
+  step 12 UNBOUND
+    pycsl._run_audit_mode (SAME)                  REFUSED route #252: `getattr(args,"reverify_proofs",False)` flows into
+                                                  the `bool` slot. With it neutralised: L3-tc on an f-string hash.
+                                                  Underneath, `argparse.Namespace`/`Path` are `int`, `report.extend`
+                                                  drops its write (EXT/GETATTR facade). SKIP
+  step 13 GENEXP
+    _Harvester._build (DIFFERS)                   REFUSED: `self._flat.append(..)` (self-field append). It also
+                                                  self-recurses into `tgt.child_suites`, a recursive MUTABLE record (as
+                                                  `_emit_suite`, ch21). RECORD/L. SKIP
+    PyCSLWeaver.visit_For                         L3-tc: `setattr_3 node ..` takes an `int`, but `node` is now the typed
+                                                  `py_for` record. `contracts` is `int` (`iter_length`/`iter_get`). The
+                                                  `node.csl_*` stores are `any int`, and the trusted callee
+                                                  `_attach_loop_contracts` carries `assigns \nothing` over an in-place
+                                                  mutator (ch22 suspicion). AST-node model. SKIP
+    PyCSLWeaver.visit_While                       same as visit_For (`py_while`). SKIP
+    AbstractOpsMixin._find_abstract_val_insert_idx CONVERTED (453 -> 452, `1880170f`). L3-tc: `enumerate(out)` over the
+                                                  `List[str]` param became the opaque `enumerate_1 out : int` (`i = any
+                                                  int`, `line.strip()` -> 0-ary `line_strip_0 ()`). Two gated seams fix it.
+                                                  (1) `_enumerate_seq_recv`: a FORMAL flat `List[str]` param iterates as
+                                                  `Array.length p` / `p[!idx]`. (2) `_content_string_method`:
+                                                  `s.startswith((p1,..,pn))` becomes a `let`-bound disjunction of the
+                                                  faithful `str_startswith_op`. It was the opaque polymorphic
+                                                  `startswith_2`. Added `#@ loop invariant 0 <= insert_idx` + `#@ loop
+                                                  variant \length(out) - insert_idx` on the inner while. Whole-file proof
+                                                  rc=0, 20 Valid.
+    PreambleEmissionMixin._emit_module_globals    REFUSED: `self._module_global_classes.pop(..)`. Then L3-tc:
+      (DIFFERS)                                   `g["name"]` (Dict[str,Any] element `int`) into `whyml_ident : string`.
+                                                  DICT. SKIP
+    get_source_segment                            REFUSED route #252 (unannotated `source` into `_splitlines_no_ff`). With
+                                                  `source: str`: REFUSED `lines.insert(0, ..)`. Underneath are the AST
+                                                  attributes (`node.end_lineno`, ...) and `.encode()[a:b].decode()`. SKIP
+  step 14 SET
+    ConcurrencyChecker.check (DIFFERS)            REFUSED: `self._thread_entries.add(..)`. Then L3-tc: `self.warnings = []`
+                                                  is `array int` against `array concurrencywarning`. Underneath:
+                                                  `getattr(module, 'csl_*')`, `ast.walk`. LISTSTR/RECORD + AST. SKIP
+    Module6._build_callee_no_exception_summary    L3-tc: `set((f.get("contracts") or {}).get(..) or [])` ->
+      (SAME)                                      `contracts_get_2 <h> (any int)` (receiver-dropped) `or Array.make`.
+                                                  DICT facade. SKIP
+    FunctionEmissionMixin._mixin_dep_pseudo_      L3-tc: `func.get(..) or []` -> `func_get_1 <h>` vs `Array.make`.
+      functions (DIFFERS)                         DICT facade. SKIP
+  step 15 SYNTAX
+    monomorphize._collect_instantiations          SYNTAX: `any int` inside a `variant` term (a program expression in a
+      (DIFFERS)                                   logic position) built from `func_get_2 <h> (any int)`. That is the
+                                                  receiver-dropped DICT facade underneath. SKIP
+    pure_ast.unparse                              SYNTAX: `_Unparser()` emits the empty record literal `{  }` (the class
+                                                  state is the opaque `_pyobj_state`). `unparser.visit(..)` then resolves
+                                                  to a fresh stub `unparser_visit_1_c24883`, not the `diverges`
+                                                  `_unparser__visit`. See the suspicion below. SKIP
+```
+
+**Recurring blockers (15 measured markers, counted wherever they occur in the chain):**
+(1) in-place mutator refusals (local / self-field / param `.add/.update/.extend/.append/.pop/
+.insert`): 7 (wrc, ijf, psf, hbd, emg, gss, cck). In every case another blocker sits underneath.
+(2) Dict[str,Any] value model (receiver-dropped `.get`, element `int`): 6 (wrc, ijf, emg, bcn, mdp,
+cin). (3) AST-node / undeclared-attribute model: 5 (wvf, wvw, gss, cck, ram). (4) record/Optional
+record (mutable union arm, recursive mutable record, `List[record]` init): 3 (psf, hbd, cck).
+(5) ill-formed WhyML from the emitter: 3 (wrc unmangled `writes`, cin `any` in a variant, unp empty
+record ctor). (6) EXT (`re`, argparse/pathlib): 2 (psf, ram). (7) route #252: 2 (ram, gss).
+(8) enumerate / tuple-startswith erasure: 1 (fav, fixed). As in ch20-ch23, the census family
+was only the FIRST error. The MUTRECV refusals are fail-closed and never the last wall.
+
+**Seams landed (`1880170f`).** Both are corpus-inert (root 1792/1792 and pyref 2186/2186 0 MOVED/
+GONE/APPEARED). The mirror sweep moved 1/53 (abstract_ops, declared, re-proved). Witness 3060
+PASS (L3-tc fails at base). Twins 3061/3062 FAIL on the false postcondition. Fast planes 61/61.
+`check-trust-blast-radius` MAX_TRUST_DEPENDENT 401 -> 402 is the NAMED relabel of the converted
+function (it calls the still-trusted `_advance_past_referenced_axiom_decls`). The aggregate is
+invariant at 805, so MAX_TRUSTED_OR_DEPENDENT was tightened 828 -> 805.
+
+**Next cheap candidate (outside steps 5/12-15):** `audit_proof_reverify._split_rocq_print_assumptions`
+is TC-clean at HEAD with the enumerate seam. Its core read, however, is a facade: the 2-arg
+`stdout.find(marker, pos)` lowers to the receiver-dropped `stdout_find_2 (str_hash_op marker)
+pos`. The outer `while` also has no variant. It needs a faithful `find(sub, start)` op (result
+-1 or >= start) and a `#@ loop variant \length(stdout) - pos`. That is an M seam, not built here.
+`proof_axiom_allowlist.parse_rocq_assumptions_block` (TUPLE return slot) and
+`Module6._sig_val_from_let` (NESTED) stay blocked.
+
+**Suspicions / emitter defects (not chased).** (a) `pure_ast.unparse`: the method call on a
+locally constructed `_Unparser()` resolves to a fresh `val unparser_visit_1_c24883` with no
+`diverges` and no `writes`. The real `_unparser__visit` is `diverges` + `writes {_pyobj_state}`.
+If the empty-record SYNTAX error were ever fixed, termination of a diverging method would be
+assumed. Emit: session scratchpad `ch24/meas-unp.mlw`. (b) A self-call stub `writes` clause with
+unmangled record field names (`self._abstract_ops` for
+`module6_whymltranspiler__abstract_ops`): ill-typed, so fail-closed. `ch24/meas-wrc2.mlw`.
+(c) The late `use string.String` pull in `abstract_ops` scans only lines starting with
+`ensures`. `str_startswith_op`'s `String.` dependency sits on a continuation line, so a file whose
+only string use is a `startswith` on a non-param string fails L3-tc with "unbound
+String.length" (fail-closed). Repro: `ch24/wt/3060_gen37_ch24_enumerate_str_param_tuple_startswith.py`
+(the pre-edit witness, which has no `str` param). Logs/emits: session scratchpad `ch24/`.
