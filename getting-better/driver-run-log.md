@@ -199,3 +199,5 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-10-18T15:10Z | 82 | final --slow sweep at 5a628ba9 (post #273-#275) | launched | -
 2026-10-18T16:33Z | 82 | final --slow sweep at 5a628ba9 | 84/84 GREEN; no owed mirror proofs at HEAD. worktree removed (pfinal) | -
 2026-10-18T16:47Z | END | DEADLINE REACHED (2026-10-18T16:46Z). Resume #4 window: \trusted count 468 -> 454 (14 conversions/retirements); routes #214 closed, #235-#275 opened+repaired (#276 OPEN measured; #250/#253/#256 resolved as declared model assumptions FLOAT-FINITE/BUILTIN-EXACT/FIELD-DISJOINT; #268 frame bug repaired); --slow 84/84 at HEAD; no owed mirror proofs; nothing pushed | -
+2026-10-19T09:34Z | START | RUN START (new 96h window), deadline 2026-10-23T09:34Z; HEAD 8ece69c0; resume from: \trusted 454, #276 OPEN measured, --slow 84/84 | -
+2026-10-19T09:36Z | 83 | Phase 1 drain ch22 (TCOK0 re-measure + plan step 3 GETATTR, worktree pycsl-g37ch22, IDs 3000-3019) + red-team round 6 (residuals of #263/#269/#272/#273 + new areas, read-only) | launched | -
