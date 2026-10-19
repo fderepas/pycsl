@@ -440,6 +440,89 @@ sweep 1 MOVED (preamble, declared) / 53; witnesses 2920 (PASS; L3-tc fails at ba
 still trusted: `out += self._emit_preamble_no_exception_predicates(needs)` + DICT/SET seams),
 not this marker.
 
+## Re-measurement at HEAD — ch22 (gen #37)
+
+At `8ece69c0` (count 454). Each marker ported verbatim (live body; live signature where the
+mirror's differed; `bin/port-one-mirror-body.py`, `--replace` for the DIFFERS rows) into a
+scratch copy, emitted `--no-proof --keep-mlw` through `heavy.sh`, and the emitted WhyML read.
+**1 of 16 honest** (TCOK0 remainder + plan step 3 GETATTR). The TCOK0 label held only for
+`visit_If`, and even there it hid a termination obligation: the census emits never asked Why3
+whether the body TERMINATES.
+
+```
+    marker                                        first blocker at HEAD -> verdict
+  TCOK0
+    PyCSLWeaver._attach_loop_contracts            TC-clean but FACADE: `node.csl_invariants.append(c)` on the
+                                                  int-erased param `node` lowers to FRESH LOCAL arrays
+                                                  (`Array.make 1024 0` + len refs) -- the caller-visible
+                                                  write (the method's whole job) vanishes, and `assigns
+                                                  \nothing` would be certified over an in-place mutator.
+                                                  screen: check-emitted-vacuity RED. SKIP (see suspicion)
+    _Unparser.visit_If                            CONVERTED (454 -> 453). Census "TCOK0" hid one real
+                                                  obligation: the body calls `self.traverse` (`#@ \diverges`
+                                                  since route #263) and loops `while node.orelse ...` with no
+                                                  expressible variant (`get_orelse : int -> int`); without a
+                                                  marker its VC is Timeout (unprovable termination). Landed
+                                                  with the honest `#@ \diverges`, exactly as its verified
+                                                  siblings visit_While / visit_With / _for_helper. Screen 4/4
+                                                  green; goal Valid; pure_ast whole-file
+                                                  proof rc=0, 0 non-Valid (105 min). Commit ae771d38.
+    _Parser._max_end                              REFUSED route #263 (self-recursion through a method call);
+                                                  with `\diverges`: L3-tc "depends on _pyobj_state, left out of
+                                                  the specification" (getattr/setattr effect). SKIP
+    _parse_number                                 L3-tc: body `int` vs return `PyConstVal` (INTSTR/RECORD). SKIP
+    iter_child_nodes (DIFFERS)                    TC-clean, FACADE: both `yield`s -> `any int`, the tuple
+                                                  target `field = any int`. Generator model. SKIP
+    NodeVisitor.generic_visit                     TC-clean; already refused by the gen #31 screen (vacuity).
+                                                  SKIP (recorded, not re-landed)
+    validate_ir (DIFFERS)                         TC-clean, FACADE: `ir.keys()` -> 0-ary `ir_keys_0 ()`,
+                                                  `ir.get(..)` -> receiver-dropped `ir_get_1 <hash>`, the
+                                                  isinstance checks `any bool`. SKIP
+    _sexp_tokens                                  TC-clean, FACADE: generator, every `yield` -> `any int`,
+                                                  return `unit`; scanning loops carry no variant. SKIP
+    _parse_args                                   refused by check 1 (ten new abstract ops, argparse). SKIP
+    _rewrite_call_sites / stable_hash             do-not-convert (soundness suspicion / FACADE). not touched
+  step 3 GETATTR
+    ConcurrencyChecker._check_function            REFUSED route #252: `func.name` (AST field, erased Any) into
+                                                  the `str` param `func_name` of `_walk_body`; also `held=set()`
+                                                  into the mirror's int `held`. AST-node value model (L). SKIP
+    Module3_Weaver._region_bound_str              L3-tc: `getattr(node,"name","<expr>")` is
+                                                  `pycsl_getattr_unknown_<h> node : int` returned as `str`;
+                                                  `getattr(node,"value",None)` + `float(v).is_integer()` over a
+                                                  CSLNode union. Needs a CSLNode ADT with optional fields. SKIP
+    Module3_Weaver._subst_csl_param               REFUSED route #263 (self-recursion); with `\diverges`: L3-tc
+                                                  `setattr_3 .. (str_hash_op (get_name !f))` -- dataclass
+                                                  reflection (`_dc_fields`, dynamic setattr, deepcopy). L. SKIP
+    PyCSLWeaver._validate_function_contracts      L3-tc array vs int; `getattr(node,"csl_acts",[]) or []` is the
+                                                  0-ary input-blind `pycsl_getattr_default_<h>` (FACADE). SKIP
+    PyCSLWeaver.visit_FunctionDef                 L3-tc (1) `self.contracts_map[k]` (record field `map int
+                                                  (option (seq int))`) gets the int missing-key default `0`.
+                                                  A 2-line seam (self-field ν `seq ...` -> `_dv_missing_default`,
+                                                  fail-closed before) was built IN SCRATCH and clears it, then
+                                                  (2) the dict value `seq int` meets the receiver-dropped stub
+                                                  `self__dispatch_function_contracts_2 (x1: array int)` -- the
+                                                  List seq/array split (M); and the body is 4 receiver-dropped
+                                                  opaque `self__*_1` calls. Seam NOT landed (unlocks nothing). SKIP
+    PyCSLWeaver.visit_With                        same (1); after the scratch seam, `for c in
+                                                  self.contracts_map[k]` iterates the `seq int` through
+                                                  `iter_length : int` (iterable classification, M); then
+                                                  `getattr(self,"_csl_bound_names",None)` is a 0-ary default
+                                                  facade on the raise guard, and the `node.csl_*` stores hit
+                                                  the int-erased param. SKIP
+    _Unparser._write_docstring_and_traverse_body  L3-tc: `node.body[1:]` -> `array_slice (get_body node) ..`
+                                                  over the int-erased AST field (AST-list value model, M); then
+                                                  the `self.traverse` calls need `\diverges` (as visit_If). SKIP
+```
+
+**Soundness suspicion (not chased, same family as the `_rewrite_call_sites` one above).** An
+attribute-append on an UNANNOTATED (int-erased) parameter, `node.xs.append(c)`, lowers to a
+fresh function-local `Array.make 1024 0` + length ref: the caller-visible mutation is dropped
+and `#@ assigns \nothing` holds vacuously. Live instance: `_attach_loop_contracts` (left
+`\trusted`). Emit: session scratchpad `ch22/attach.mlw`.
+
+No GETATTR seam was landed: the only small, fail-closed one found (the `seq` missing-key
+default) unlocks no honest conversion on its own. Logs/emits: session scratchpad `ch22/`.
+
 ## Appendix — per-marker chains
 
 `cat | file::qual | status | families in order | PH (chain hit a placeholder conflict) / risk | last diagnostic`
