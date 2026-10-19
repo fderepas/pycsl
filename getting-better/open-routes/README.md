@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-19): #282 (distinct parameters / list elements assumed non-aliasing, undeclared; R1 residue like FIELD-DISJOINT)
+##   OPENED; witnesses p111/p112/p114 rc=0, CPython violates.
+
 ## gen #37 (2026-10-19): #277 (user-class value assumed exact; override refinement opt-in only, undeclared), #278
 ##   (--check-behavioral-subtyping ignores raises and MRO-inherited overrides), #279 (list alias lost by += / chained
 ##   assignment), #280 (mutator on subscripted / call-result receiver dropped), #281 (int->str > 4300 digits ValueError
