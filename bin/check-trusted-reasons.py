@@ -81,9 +81,9 @@ classify the new assumption at the moment it is spent (typically `spent-rc0`, or
 makes a rise like 451 -> 459 legible. A converted stub leaves an ORPHAN row; delete it (the
 unclassified count falls, lower the constant).
 
-NOT WIRED INTO `bin/run-soundness-planes.sh` (yet): that would move the battery from 34 to 35
-planes, which many status notes cite. Recorded as a named follow-up in
-`getting-better/convergence-metric-implement.md` §Phase 3 amendment.
+WIRED INTO `bin/run-soundness-planes.sh` since gen #30 (the follow-up once recorded in
+`getting-better/convergence-metric-implement.md` §Phase 3 amendment is DISCHARGED; noted gen #37
+per lesson (a5) rider (ii) so this paragraph no longer reads as an open deferral).
 
 NEGATIVE TESTS. `--self-test` plants each defect in a TEMP copy (never the real TSV) and checks
 the exit code and message: deleted row -> 1, orphan -> 1, duplicate -> 1, bad reason -> 1,
