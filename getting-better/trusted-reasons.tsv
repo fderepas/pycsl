@@ -238,7 +238,6 @@ frontend/pure_ast.py	_Unparser.delimit_if	unclassified	-
 frontend/pure_ast.py	_Unparser.set_precedence	unclassified	-
 frontend/pure_ast.py	_Unparser.get_type_comment	unclassified	-
 frontend/pure_ast.py	_Unparser._write_docstring_and_traverse_body	unclassified	-
-frontend/pure_ast.py	_Unparser.visit_If	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_Dict	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_BoolOp	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_arguments	unclassified	-

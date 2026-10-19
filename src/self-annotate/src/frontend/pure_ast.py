@@ -4893,12 +4893,25 @@ class _Unparser(NodeVisitor):
             with self.block():
                 self.traverse(node.orelse)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._indent, self._source
+    #@ \diverges
     def visit_If(self, node):
-        pass
+        self.fill("if ")
+        self.traverse(node.test)
+        with self.block():
+            self.traverse(node.body)
+        while node.orelse and len(node.orelse) == 1 and isinstance(node.orelse[0], If):
+            node = node.orelse[0]
+            self.fill("elif ")
+            self.traverse(node.test)
+            with self.block():
+                self.traverse(node.body)
+        if node.orelse:
+            self.fill("else")
+            with self.block():
+                self.traverse(node.orelse)
 
     #@ requires True
     #@ ensures True

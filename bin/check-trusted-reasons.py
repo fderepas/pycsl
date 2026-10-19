@@ -154,7 +154,11 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 262   # (#49) gen #36 ch21, 2026-10-17 — 263 -> 262: the unclassified
+MAX_UNCLASSIFIED = 261   # (#49) gen #37 ch22, 2026-10-19 — 262 -> 261: the unclassified
+                         # `pure_ast.py::_Unparser.visit_If` CONVERTED, live body verbatim
+                         # (+ the honest `#@ \diverges` its `self.traverse` calls require,
+                         # as on its verified siblings visit_While/visit_With/_for_helper).
+                         # (#49) gen #36 ch21, 2026-10-17 — 263 -> 262: the unclassified
                          # `preamble.py::PreambleEmissionMixin._emit_preamble_no_exception_predicates`
                          # CONVERTED on the LISTSTR seam (f-string seq element = string; a
                          # `for` over a call declared `-> List[str]` iterates `array string`).
