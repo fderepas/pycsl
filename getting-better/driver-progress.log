@@ -12980,3 +12980,4 @@ measurement instead of re-running two hours of it.
 2026-10-14T00:36Z gen#36 route #232 REPAIRED (1362a212): keyword-only/positional-only params were dropped and read as one shared opaque constant. Route #233 OPENED: match capture names hit the same opaque-constant fallback.
 2026-10-19T15:27Z ch24 BROKEN — _find_abstract_val_insert_idx 453->452
 2026-10-19T18:20Z ch25 BROKEN — _split_rocq_print_assumptions 452->451
+2026-10-19T18:45Z routes #279/#280 REPAIRED
