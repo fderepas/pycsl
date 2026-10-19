@@ -12978,3 +12978,4 @@ measurement instead of re-running two hours of it.
 2026-10-13T13:31Z gen#36 W-IPM S-C BROKEN (4521611e): list self-field append/extend lowered (Array.append + writes); AuditReport.extend converted; count 477 -> 476. P1+P2 prerequisites 51233263.
 2026-10-13T19:04Z gen#36 int-erasure chain probes: 474 -> 471 (5 seam increments + 3 conversions today since 476; all corpus-inert).
 2026-10-14T00:36Z gen#36 route #232 REPAIRED (1362a212): keyword-only/positional-only params were dropped and read as one shared opaque constant. Route #233 OPENED: match capture names hit the same opaque-constant fallback.
+2026-10-19T15:27Z ch24 BROKEN — _find_abstract_val_insert_idx 453->452
