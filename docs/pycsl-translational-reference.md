@@ -4018,6 +4018,7 @@ of the translation:
 | Python's `//`/`%` are floored (rounds toward −∞; remainder sign = divisor) | Language semantics | Low — realized faithfully: `pycsl_div`/`pycsl_mod` correct Euclidean `div`/`mod` by a sign-of-divisor adjustment (WL-01 FIXED); positive-divisor case is byte-identical to Euclidean |
 | **FLOAT-FINITE** — every `float` value is finite and non-NaN | $\tau(\texttt{float}) = \texttt{real}$ (no NaN/±inf) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-float-finite`; counterexample corpus 2500-2502 |
 | **BUILTIN-EXACT** — a builtin-typed value is an exact instance (no dunder-overriding subclass) | $\tau$ of every builtin | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2506 |
+| **LATIN1-STR** — every `str` value consists of code points 0..255 (`ord(c) < 256`; `chr(n)` modelled only for `0 <= n < 256`) | $\tau(\texttt{str}) = \texttt{string}$ of Why3 `string.Char` (`axiom code`: every code < 256) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-latin1`; counterexample corpus 3020-3023 |
 | **FIELD-DISJOINT** — two distinct mutable fields hold distinct objects | one Why3 region per mutable field (frames such as `ensures { self.ys = old self.ys }`) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2570 |
 
 ### §T.10.2  Preservation Lemmas
@@ -4118,9 +4119,9 @@ core.  Constructs outside the core (exceptions, classes, arrays) are
 modeled using Why3's built-in theories, whose soundness is established
 by the Why3 project itself.
 
-### §T.10.5  Declared Model Assumptions (routes #250, #253, #256)
+### §T.10.5  Declared Model Assumptions (routes #250, #253, #256, #276)
 
-Three rows of the §T.10.1 trust base are properties of $\tau$ rather than of any emitted
+Four rows of the §T.10.1 trust base are properties of $\tau$ rather than of any emitted
 text: no `assume`, `axiom` or `val` carries them, so `bin/check-assumed-facts.py` (which
 classifies emitted assumed facts) cannot see them. They are DECLARED instead — the same
 treatment as the reviewed HASH-EQ-CONSISTENCY axiom (UB-7.2, `--strict-hash-eq-consistency`,
@@ -4167,6 +4168,35 @@ binding form — a walrus target, a tuple-unpack target, a `match` capture, a la
 from an erased call argument — and to call RESULTS: a unit function or method whose return annotation
 is missing, `Any`, `object` or a TypeVar, a `Class.method`/`obj.method` resolved to one, and a
 builtin handing back (part of) an erased argument (`abs`, `max`, `getattr`, `next`, `sorted`, ...).)
+
+**LATIN1-STR** — every str value consists of code points 0..255. $\tau(\texttt{str})$ is the
+Why3 `string`, whose characters are `string.Char`s, and Why3's `axiom code: forall c. 0 <= code c
+< 256` holds for every one of them; `ord` lowers to `Char.code (Char.get s i)` (contract) /
+`char_code_at`, `ord_op` (body, `ensures { 0 <= result < 256 }`) and `chr(n)` to `(Char.chr
+n).contents`, which round-trips only below 256 (`axiom code_chr`). So `requires len(s) == 1
+ensures \result < 256` over `return ord(s)` (3020), `ensures \result != 300` over `return
+ord(chr(300))` (3021), `ensures ord(s) < 256` (3022) and `ord(s[0]) < 256` (3023) PROVE, and CPython
+refutes them with `"€"` (8364) and 300. Every `ord`/`chr` site relies on it directly, and so do the
+cited codec lemmas stated over `Char.code` (`field_to_str_round_trip`, the os `dir_blit_marker*`
+facts); str VALUES in general rely on it, because the str sort is the 8-bit string. Reported for
+every `ord`/`chr` call and every function reading a str value.
+*Strict mode* `--strict-latin1` (opt-in) lowers, in both paths,
+
+    ord(s[i])  ⟶  pycsl_cp s i              (body: val pycsl_vord_at, ensures result = pycsl_cp s i)
+    ord(x)     ⟶  pycsl_cp x 0              (body: val pycsl_vord_op)
+    ord("c")   ⟶  the code point of c       (a one-character ASCII literal)
+    chr(n)     ⟶  pycsl_chr n               (body: val pycsl_vchr_op — length 1,
+                                             result = pycsl_chr n, 0 <= n < 0x110000 -> pycsl_cp result 0 = n)
+    function pycsl_cp (s: string) (i: int) : int =
+      let r = pycsl_cp_raw s i in if 0 <= r <= 1114111 then r else 0   (a definition, no axiom)
+
+Under the flag 3024-3027 FAIL and the controls 3029 PROVE (including `ord(chr(n)) == n` over the
+whole range, which the default model cannot prove). Cost: the proofs that pass `ord(name[i])` to a
+lemma over `Char.code` (route #276 resolution lists the measured files). Not covered: the str sort
+stays 8-bit (pigeonhole over > 256 distinct one-character values is derivable in principle), and a
+non-ASCII literal is emitted as UTF-8 bytes in both modes. `ord` of a string whose length is not 1
+raises `TypeError`, which lies outside the `no_exception` universe (`KNOWN_EXCEPTIONS`), so no
+`len(s) == 1` obligation is owed under `no_exception` — a declared scope limit, not a repair.
 
 **FIELD-DISJOINT** — two distinct mutable fields (a `list`/`dict`/`set` or a record value; of one
 record, or the same field of two record values) hold distinct objects. Each mutable field is its own

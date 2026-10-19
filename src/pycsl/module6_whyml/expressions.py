@@ -11383,6 +11383,68 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # generic unannotated-callee path (which would declare `val ord_1 (x: int) : int`
         # and mis-type the 1-char STRING arg of `ord(name[i])`). `ord_op`/`chr_op` are
         # total abstract vals pinned by `string.Char`'s `code`/`chr`/`get` (no axiom).
+        # ROUTE #276 — `--strict-latin1` DROPS the LATIN1-STR model assumption. By default
+        # a Python `str` is a Why3 `string` of `string.Char`s, whose `axiom code` bounds every
+        # code by 256, so `ord(s) < 256` and `ord(chr(300)) != 300` PROVE (CPython: 8364 for
+        # "€", 300); that is the DECLARED assumption LATIN1-STR, reported by
+        # `--soundness-report`. Under the opt-in flag `ord` reads an UNINTERPRETED code point
+        # `pycsl_cp s i`, clamped to [0, 0x10FFFF] by a DEFINITIONAL `if` (no axiom) and NOT
+        # linked to `Char.code`; `chr(n)` yields a 1-char string whose code point is `n` (in
+        # range) and which is NOT `Char.chr n`. A 1-char ASCII LITERAL folds to its code point
+        # (exact in CPython). Contract and body agree atom-for-atom (`pycsl_cp` /
+        # `pycsl_chr`). COST (measured, route #276): every proof that feeds `ord(..)` into a
+        # cited lemma stated over `Char.code` (the codec/os round trips) stops proving, which
+        # is why it is opt-in.
+        if (getattr(self, "strict_latin1", False) and func_name in ("ord", "chr")
+                and len(args) == 1):
+            arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
+            if (func_name == "ord" and isinstance(arg_ir, dict)
+                    and arg_ir.get("type") == "String"
+                    and isinstance(arg_ir.get("value"), str)
+                    and len(arg_ir["value"]) == 1 and ord(arg_ir["value"]) < 128):
+                return str(ord(arg_ir["value"]))
+        if (getattr(self, "strict_latin1", False) and len(args) == 1
+                and (func_name == "chr" or (func_name == "ord" and self._is_string_expr(
+                    (expr.get("args") or [{}])[0])))):
+            arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
+            # ONE registration for the three logic symbols, keyed `pycsl_cp_raw` so the
+            # (name-sorted) abstract-op block declares them BEFORE the `pycsl_v*` vals.
+            self._add_abstract_op(
+                "function pycsl_cp_raw (s: string) (i: int) : int\n"
+                "  function pycsl_cp (s: string) (i: int) : int =\n"
+                "    let r = pycsl_cp_raw s i in if 0 <= r <= 1114111 then r else 0\n"
+                "  function pycsl_chr (n: int) : string")
+            if func_name == "ord":
+                if (arg_ir.get("type") == "Subscript"
+                        and self._is_string_expr(arg_ir.get("value", {}))):
+                    base = self._expr_to_whyml(
+                        arg_ir["value"], local_refs or set(), invariant_ctx, subst)
+                    idx = self._expr_to_whyml(
+                        arg_ir["index"], local_refs or set(), invariant_ctx, subst)
+                    if self._in_spec:
+                        return f"(pycsl_cp {base} {idx})"
+                    self._add_abstract_op(
+                        "val pycsl_vord_at (s: string) (i: int) : int\n"
+                        "    ensures { result = pycsl_cp s i }")
+                    return self._wrap_with_no_exception_assert(
+                        ("subscript", "read_str"), [base, idx],
+                        f"(pycsl_vord_at {base} {idx})")
+                if self._in_spec:
+                    return f"(pycsl_cp {args[0]} 0)"
+                self._add_abstract_op(
+                    "val pycsl_vord_op (c: string) : int\n"
+                    "    ensures { result = pycsl_cp c 0 }")
+                return f"(pycsl_vord_op {args[0]})"
+            else:
+                if self._in_spec:
+                    return f"(pycsl_chr {args[0]})"
+                self._add_abstract_op(
+                    "val pycsl_vchr_op (n: int) : string\n"
+                    "    ensures { String.length result = 1 }\n"
+                    "    ensures { result = pycsl_chr n }\n"
+                    "    ensures { 0 <= n < 1114112 -> pycsl_cp result 0 = n }")
+                return self._wrap_with_no_exception_assert(
+                    ("call", "chr"), [args[0]], f"(pycsl_vchr_op {args[0]})")
         if func_name == "ord" and len(args) == 1:
             arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}
             if self._is_string_expr(arg_ir):

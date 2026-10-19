@@ -189,7 +189,11 @@ specification logic's type universe:
                                  Unifies the old dual model: the \str_length / \str_sub / ^
                                  operators now apply to runtime str, not only ghost strings.
                                  NB no char type: s[i] is a length-1 string, so no ord / code
-                                 points / lexicographic char ordering — see the limitations *)
+                                 points / lexicographic char ordering — see the limitations.
+                                 `ord`/`chr` bridge through Why3 `string.Char`, whose codes
+                                 are 0..255: that every str value consists of code points
+                                 0..255 is the DECLARED MODEL ASSUMPTION LATIN1-STR
+                                 (Appendix C.1), dropped by `--strict-latin1` *)
 τ(float)          = real      (* Why3 real — was the unsound τ(float)=int. Float literals
                                  are real constants and </<=/>/>= lower to RealInfix `<.`… BUT
                                  ARITHMETIC IS UNINTERPRETED (route #53): +/-/*// go through ONE
@@ -2968,9 +2972,9 @@ the dependency standalone" is not always well-defined: measured over the corpus'
 local dependencies, two fail for CONTEXT reasons while their importers pass, one of them
 because a contract names a constant that only resolves inside the importing compilation.
 
-### C.1 Declared model assumptions (routes #250, #253, #256)
+### C.1 Declared model assumptions (routes #250, #253, #256, #276)
 
-Three facts the proofs over builtin-typed values and mutable fields rest on are **assumed, not proved**, and no
+Four facts the proofs over builtin-typed values, strings and mutable fields rest on are **assumed, not proved**, and no
 VC states them and no emitted `assume`/`axiom` carries them — they are properties of the type
 mapping $\tau$ itself. They are the same class as the reviewed HASH-EQ-CONSISTENCY assumption
 (`bin/check-assumed-facts.py`), but with no emitted text a plane could classify, so they are
@@ -2982,6 +2986,7 @@ values involved. The listing is conservative (over-, never under-reported).
 |---|---|---|---|---|
 | **FLOAT-FINITE** | every `float` value is finite and non-NaN | a comparison (`< <= > >= == !=`) or `min`/`max` whose operand mentions a float literal or a float-typed variable, field or `\result` | `x: float` with `ensures x == x` / `x <= x` / (`requires x != y`, `ensures x < y or y < x`) PROVE (2500-2502); CPython refutes all three for `x = float("nan")` | `--strict-float-finite` (2503-2505 FAIL; controls 2507 PASS) |
 | **BUILTIN-EXACT** | a value whose static type is a builtin (`int`/`float`/`str`/`bool`/`bytes`/`tuple`/`list`/`dict`/`set`/`frozenset`) is an EXACT instance of it — not a subclass overriding a dunder | any operator (an IR node with an `op`: arithmetic, comparison, unary, augmented assignment) reading a builtin-typed variable, field or `\result` | `def f(x: int): return x - x` PROVES `\result == 0` (2506); CPython returns 7 for `f(I(5))`, `class I(int): __sub__ -> 7` | none — dropping it would leave no builtin arithmetic at all |
+| **LATIN1-STR** | every `str` value consists of code points 0..255: `ord(c) < 256`, and `chr(n)` is modelled only for `0 <= n < 256` (τ(str) is the Why3 `string` of `string.Char`, whose `axiom code` bounds every code by 256) | every `ord`/`chr` call, body or contract (they rely on it DIRECTLY: the `< 256` bound, the `chr` round trip below 256, every cited codec lemma over `Char.code`), and every function reading a str value at all (a str-typed variable, field or `\result`, or a string literal), since the str sort itself is the 8-bit string | `requires len(s) == 1 ensures \result < 256` over `return ord(s)` (3020), `ensures \result != 300` over `return ord(chr(300))` (3021), the contract form `ensures ord(s) < 256` (3022) and `ord(s[0]) < 256` (3023) PROVE; CPython gives 8364 for `"€"` and 300 | `--strict-latin1` (3024-3027 FAIL; controls 3028 default / 3029 strict PASS) |
 | **FIELD-DISJOINT** | two distinct mutable fields (`list`/`dict`/`set`/record-valued — of one record, or the same field of two record values) hold distinct objects, so a mutation through one is invisible through the other: the ownership discipline's rule R1 (`docs/pycsl-ownership-discipline.md` §2), stated for the residue no check sees | a function that mutates a mutable field in place (subscript store/`del`, a mutator method call, an augmented assignment, a nested field store) and also reads or mutates ANOTHER mutable field (field types matched by name) | `T.poke` (`assigns self.xs`) writes `self.xs[0] = 7` and returns `self.ys[0]` under `requires self.ys[0] == 0`; `ensures \result == 0` PROVES (2570); CPython returns 7 for `L = [0]; T(L, L).poke()`. A VERIFIED caller that builds the alias is refused (R167, routes #243/#244/#254); the residue is an alias built in unverified code | none — every list/dict/set field frame rests on it |
 
 **What `--strict-float-finite` covers.** A NaN SENTINEL is modelled as the non-dyadic real
@@ -3003,6 +3008,29 @@ through the binary-operator lowering (a future float `min`/`max` lowering must b
 `max(nan, 1.0)` is `nan`; today `max(x, y)` on floats lowers to the INT `MinMax.max` and fails
 closed with a type error in both modes); there is no spec-level `math.isnan`/`math.isfinite`, so the only non-NaN
 precondition a user can write is a comparison such as `x == x` or `x >= 0.0`.
+
+**What `--strict-latin1` covers.** `ord` reads an UNINTERPRETED code point instead of
+`Char.code`: `function pycsl_cp (s: string) (i: int) : int = let r = pycsl_cp_raw s i in if 0 <=
+r <= 1114111 then r else 0` (`pycsl_cp_raw` uninterpreted; a definition, no axiom), so its range is
+exactly [0, 0x10FFFF] and nothing ties it to the 8-bit `Char.code`. `ord(s[i])` is `pycsl_cp s i`,
+`ord(x)` is `pycsl_cp x 0`, in the contract path (the logic function) and the body path (vals
+`pycsl_vord_at`/`pycsl_vord_op` whose `ensures` is the same atom) alike; `chr(n)` is the
+uninterpreted `pycsl_chr n` in a contract and, in a body, a val `pycsl_vchr_op` ensuring length 1,
+`result = pycsl_chr n` and `0 <= n < 0x110000 -> pycsl_cp result 0 = n` (its ValueError row is
+unchanged). A one-character ASCII string LITERAL's `ord` folds to its code point. Under the flag
+3024-3027 FAIL and the controls 3029 (range, congruence, body/contract agreement, `len(chr(65)) ==
+1`, `ord("a") == 97`, and the full-range round trip `ord(chr(n)) == n`, which the default model
+cannot prove) PROVE. **Cost** (measured over the 22 pre-existing root corpus files mentioning
+`ord`/`chr`): see route #276's resolution — the codec proofs that feed `ord(name[i])` into a cited
+lemma stated over `Char.code` (0708, 0712, ...) stop proving. Hence opt-in. **Not covered**
+(residuals of the strict mode): the str SORT stays the 8-bit Why3 string, so string `==`, `len`,
+slicing and concatenation are still those of a string of 8-bit chars — a pigeonhole argument over
+more than 256 distinct one-character values (each with a distinct code point) is derivable in
+principle (not by the provers in practice); a non-ASCII string LITERAL is emitted as its UTF-8
+bytes in both modes (its `ord` is refused by route #69); only a sequence-of-code-points str sort
+closes these. Under `no_exception`, `ord(s)` with `len(s) != 1` raises `TypeError`, which is
+OUTSIDE the `no_exception` universe (`KNOWN_EXCEPTIONS`: ZeroDivisionError, IndexError, KeyError,
+ValueError, StopIteration) — by scope, in both modes, no `len(s) == 1` obligation is owed.
 
 ---
 

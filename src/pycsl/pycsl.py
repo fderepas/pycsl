@@ -339,6 +339,16 @@ def _parse_args() -> argparse.Namespace:
                              "non-NaN, a declared assumption listed by "
                              "--soundness-report. Costs TRUE claims of the shape "
                              "`\\result == <float arithmetic>`.")
+    g_strict.add_argument("--strict-latin1", action="store_true",
+                        help="Drop the LATIN1-STR model assumption (route #276): "
+                             "`ord` reads an uninterpreted code point in "
+                             "[0, 0x10FFFF] (not Why3's 8-bit `Char.code`), and "
+                             "`chr(n)` is not `Char.chr n`, so `ord(s) < 256` and "
+                             "`ord(chr(300)) != 300` no longer prove. Off by "
+                             "default — every str value is assumed to consist of "
+                             "code points 0..255, a declared assumption listed by "
+                             "--soundness-report. Costs every proof that feeds "
+                             "`ord(..)` into a cited lemma over `Char.code`.")
     g_strict.add_argument("--check-behavioral-subtyping", action="store_true",
                         help="Layer D: emit Liskov refinement goals for "
                              "overriding methods (pre_base ⇒ pre_sub, "
@@ -575,6 +585,52 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
             if _fd_o:
                 _fd_uses.append("%s: mutates %s, also accesses %s" % (
                     f["name"], _fd_x, ", ".join(_fd_o)))
+    # ROUTE #276 — LATIN1-STR. A `str` is a Why3 `string` of `string.Char`s, and Why3's
+    # `axiom code` bounds every Char code by 256: `ord(s) < 256` and `ord(chr(300)) != 300`
+    # PROVE (CPython: 8364 for "€", 300). Reported for every `ord`/`chr` call (body or
+    # contract: they rely on it DIRECTLY — the bound, the `chr` round trip below 256, and
+    # every cited codec lemma over `Char.code`), and, because the str SORT itself is the
+    # 8-bit string, for every function that reads a str value at all (a str-typed
+    # variable, field or `\result`, or a string literal). Conservative (over-, never
+    # under-reported).
+    _l1_uses: List[str] = []
+    for f in funcs:
+        _l1_types: Set[str] = set()
+        for _l1_src in (f.get("symbol_table") or {}, f.get("param_annotations") or {}):
+            for _l1_n, _l1_t in _l1_src.items():
+                if isinstance(_l1_t, str) and _l1_t.split("[")[0].strip().lower() == "str":
+                    _l1_types.add(_l1_n)
+        _l1_ret = str(f.get("return_annotation") or "").split("[")[0].strip().lower()
+        _l1_calls: List[str] = []
+        _l1_vals: Set[str] = set()
+        for _l1_part, _l1_root in (("body", f.get("body", [])),
+                                   ("contract", f.get("contracts", {}))):
+            _l1_stack: List[Any] = [_l1_root]
+            while _l1_stack:
+                _l1_n = _l1_stack.pop()
+                if isinstance(_l1_n, list):
+                    _l1_stack.extend(_l1_n)
+                    continue
+                if not isinstance(_l1_n, dict):
+                    continue
+                _l1_stack.extend(_l1_n.values())
+                _l1_k = _l1_n.get("type")
+                if _l1_k == "Call" and _l1_n.get("func") in ("ord", "chr"):
+                    _l1_calls.append("%s: %s(...) in %s" % (
+                        f["name"], _l1_n["func"], _l1_part))
+                elif _l1_k == "Var" and _l1_n.get("name") in _l1_types:
+                    _l1_vals.add(str(_l1_n["name"]))
+                elif (_l1_k == "FieldGet"
+                      and _ma_fields.get(_l1_n.get("field")) == "str"):
+                    _l1_vals.add("%s.%s" % (_l1_n.get("object"), _l1_n.get("field")))
+                elif _l1_k == "Result" and _l1_ret == "str":
+                    _l1_vals.add("\\result")
+                elif _l1_k == "String":
+                    _l1_vals.add("a string literal")
+        _l1_uses.extend(_l1_calls)
+        if _l1_vals:
+            _l1_uses.append("%s: str values (8-bit string model) %s" % (
+                f["name"], ", ".join(sorted(_l1_vals))))
     assumptions: List[Dict[str, Any]] = []
     if _ma_float_uses:
         assumptions.append({
@@ -607,6 +663,19 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
                               "self.ys (corpus 2570)",
             "strict_mode": None,
             "relied_on_by": sorted(set(_fd_uses)),
+        })
+    if _l1_uses:
+        assumptions.append({
+            "name": "LATIN1-STR",
+            "statement": "every str value consists of code points 0..255 (str is modelled "
+                         "as the Why3 string of string.Char, whose codes are < 256): "
+                         "ord(c) < 256, and chr(n) is modelled only for 0 <= n < 256; "
+                         "str values in general rely on it (the str sort is the 8-bit "
+                         "string), ord/chr sites directly",
+            "counterexample": "s = '\u20ac': ord(s) == 8364, yet ord(s) < 256 proves; "
+                              "ord(chr(300)) != 300 proves (corpus 3020-3021)",
+            "strict_mode": "--strict-latin1",
+            "relied_on_by": sorted(set(_l1_uses)),
         })
     return {"file": filename, "summary": counts, "vcs": vcs,
             "model_assumptions": assumptions}
@@ -3331,6 +3400,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # ROUTE #250 — opt-in drop of the FLOAT-FINITE assumption (read by the float
     # comparison lowering in `module6_whyml/expressions.py::_handle_binop`).
     transpiler.strict_float_finite = bool(getattr(args, "strict_float_finite", False))
+    # ROUTE #276 — opt-in drop of the LATIN1-STR assumption (read by the `ord`/`chr`
+    # lowering in `module6_whyml/expressions.py::_call_named_builtins`).
+    transpiler.strict_latin1 = bool(getattr(args, "strict_latin1", False))
     _mlw = transpiler.transpile()
 
     # ROUTE #30 (relaunch #45) — REFUSE an UNINTERPRETED `match` pattern.

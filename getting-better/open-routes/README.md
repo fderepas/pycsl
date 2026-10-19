@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-19): #276 RESOLVED as the DECLARED MODEL ASSUMPTION LATIN1-STR (#250/#253 precedent): every str
+##   value consists of code points 0..255 (str = Why3 string of 8-bit `string.Char`); listed by `--soundness-report`
+##   (`model_assumptions`, relied_on_by = every ord/chr site + per-function str values), stated in static-semantics
+##   App. C.1 / translational §T.10.5 / README. Opt-in `--strict-latin1` (uninterpreted code point `pycsl_cp` clamped
+##   to [0,0x10FFFF] by a definition, no axiom; `chr` not `Char.chr`): witnesses 3020-3023 PASS default, 3024-3027
+##   FAIL strict, controls 3028 (default) / 3029 (strict) PASS. Strict cost (22 ord/chr root files) 3 of 12 PASS -> FAIL: 0702/0708/0712 (Char.code-keyed codec
+##   lemmas; 0702 ord_range is FALSE). TypeError for ord(len != 1) is outside the no_exception universe (scope).
+##   Default emission byte-inert (root/pyref/mirror 0 MOVED); ledger unchanged. Residual: 8-bit str sort (pigeonhole).
+
 
 ## gen #36 (2026-10-18): #273 (nested def/lambda defaults + nested class bodies not evaluated), #274 (effectful calls in
 ##   comprehensions vanish), #275 (sorted key/reverse dropped), #276 (ord < 256 / chr round-trip beyond 255) OPENED (red team 5).
