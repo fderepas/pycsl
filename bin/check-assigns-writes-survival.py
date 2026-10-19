@@ -124,7 +124,19 @@ MAX_TRAP = 3070
 #   verified callers (+ `_handle_for_stmt`) now carry the real frame's declared fields. 1541 -> **1445**,
 #   1507 -> **1501**; HOLE 0, HOLE-NOWRITES 8, underdeclaration HOLE/HOLE-T/HOLE-D 0, type-only clean,
 #   stmt_control_flow whole-file proof rc=0. The visit_Module row stays counted.
-MAX_TRAP = 1445
+#   (#49) slow-plane repair #2: TRAP **1447 > 1445**, bisected to 00c86d15 (`_Unparser.visit_If`
+#   converted; its honest `#@ assigns self._indent, self._source` admitted 2 rows — rider (ii)).
+#   The preferred repair, DECLARING `_indent`/`_source` on `_Unparser` (in the `\trusted`
+#   `__init__` stub — its record is built from `__init__` AnnAssigns), is INFEASIBLE, measured:
+#   route #257 accepts a bare `with` on an in-file `@contextmanager` (`self.block()`,
+#   `self.delimit()`, ...) only while the class record has NO FIELDS, and 36 CONVERTED
+#   `_Unparser` methods use one, so the first declared field makes pure_ast refuse to emit
+#   (PIPELINE ERROR at visit_NamedExpr). `_Unparser`'s 62 rows are unreachable until #257's
+#   lowering models a producer's effects. NOT re-baselined: paid elsewhere by the same kind of
+#   repair — `PyCSLToJSONEmitter._cur_func_name: str` (live type, Module5 line 80) declared in
+#   ITS `\trusted` `__init__` stub, so the four clauses naming it emit it. 1447 -> **1443**;
+#   HOLE 0, underdeclaration HOLE/HOLE-T/HOLE-D 0, mover set {Module5_IREmitter}, type-only clean.
+MAX_TRAP = 1443
 MAX_TRAP_NMS = 1501
 #   (#49) gen #35, backlog #75 — THE ARM THAT LOOKS AT THE SKIPPED SET. A symbol with NO `writes`
 #   clause whose source `#@ assigns` names a field its class's record emits as MUTABLE is a

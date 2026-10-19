@@ -47,6 +47,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # (measured: survival TRAP 2989 -> 2990 with the class-level spelling).
         # Field TYPE only; the stub body stays unverified, like the four above.
         self._m5_dc_unknown: List[str] = []
+        # (#49) survival-plane repair (visit_If admission, +2 TRAP on `_Unparser`, whose
+        # record CANNOT carry a field: route #257 accepts its 36 concrete `with self.block()`
+        # sites only while the record is fieldless). The live `__init__` types this field
+        # `str` (live Module5_IREmitter.py:80); declared HERE, not at class level, for the
+        # reason given above. Field TYPE only; the stub body stays unverified.
+        self._cur_func_name: str = ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
