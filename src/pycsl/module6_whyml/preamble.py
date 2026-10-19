@@ -8042,8 +8042,13 @@ class PreambleEmissionMixin:
             " occur); `variant { p }` gives structural termination over the assoc-list"
             " cons. The key test is the opaque program primitive `hpairs_key_eq` (Why3"
             " has no native program string `=`; disjoint from the str-set `pystr_eq`);"
-            " the DECIDABLE key equality + non-vacuity is certified in Phase2f_PyVal. *)",
-            "  val hpairs_key_eq (a b: string) : bool",
+            " the DECIDABLE key equality + non-vacuity is certified in Phase2f_PyVal."
+            " ch27: a `val FUNCTION` (pure, total, deterministic, uninterpreted, NO"
+            " axiom), not a program `val`: a `let function` whose body calls a program"
+            " `val` gets NO logic definition, so `pairs_get` / `hval_truthy` /"
+            " `hval_list_str_mem` were logic-OPAQUE and `pairs_get PNil k = None` was"
+            " unprovable (witness 3140 timed out). *)",
+            "  val function hpairs_key_eq (a b: string) : bool",
             "  let rec function pairs_get (p: hpairs) (k: string) : option hval",
             "    variant { p }",
             "    = match p with",

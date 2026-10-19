@@ -429,7 +429,6 @@ pycsl.py	_why3_typecheck	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE
 pycsl.py	_parse_goal_blocks	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_parse_why3_json	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 pycsl.py	_json_goal_records	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-pycsl.py	_record_answer	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_record_key	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_merge_records_best_of_n	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_synthesize_block	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL

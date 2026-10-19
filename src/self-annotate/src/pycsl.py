@@ -753,7 +753,6 @@ def _json_goal_records(stdout: str) -> "List[dict]":
     return [r for r in _parse_why3_json(stdout) if "prover-result" in r]
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

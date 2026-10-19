@@ -12908,6 +12908,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # (`_dict_value_types` codomain "hval") unwraps to an `hval`.
                 if getattr(self, "_dict_value_types", {}).get(recv) == "hval":
                     return True
+            # ch26 (_record_answer): the RECEIVER-form defaulted read
+            # `(<hval-expr>).get(k, D)` (`func == "get"`, receiver carried in the Call)
+            # lowers to the K7 `pairs_get` match below and yields a raw `hval`. TWO args
+            # only: the one-arg receiver form is the doubled read, which projects a STRING.
+            # The receiver may be `<hval-expr> or {}` / `or []` (lowered by
+            # `_recognize_pyval_or_default` to the per-constructor truthiness select, an
+            # `hval`). ch27: that `or` is unwrapped HERE, in the receiver position only. As
+            # a general `_expr_is_pyval` answer (ch26) it re-typed `for _k, _ty in
+            # (func.get(..) or {}).items()` in the functions.py mirror (`_st[_k] = _ty` lost
+            # its `!` deref: L3-tc red).
+            _rv = e.get("receiver")
+            _rvr = _rv.get("right") if isinstance(_rv, dict) else None
+            if (isinstance(_rv, dict) and _rv.get("type") == "BinOp"
+                    and _rv.get("op") == "or" and isinstance(_rvr, dict)
+                    and _rvr.get("type") in ("DictLit", "ArrayLit")
+                    and not _rvr.get("keys") and not _rvr.get("elts")):
+                _rv = _rv.get("left")
+            if (fn == "get" and len(e.get("args") or []) == 2
+                    and self._expr_is_pyval(_rv)):
+                return True
         # self-tcb-reduction _field_type_of: a subscript `self.<field>[k]` on a
         # `map string (option hval)` self-field produces an `hval` (unwrapped by the
         # `_handle_subscript` hval-map path), so a chained `.get(...)` on it is the
@@ -13001,6 +13021,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _empty_default = (isinstance(right, dict)
                           and right.get("type") in ("DictLit", "ArrayLit")
                           and not right.get("keys") and not right.get("elts"))
+        if (not _empty_default and isinstance(right, dict)
+                and right.get("type") == "String"):
+            # ch26 (_record_answer): `<hval-expr> or "<lit>"` — a STRING-consumed hval
+            # with a string fallback. Python keeps the operand when it is truthy, else the
+            # literal; the kept operand is projected to its `HStr` carrier (`hstr_of`, the
+            # banked string projection of a string-consumed hval read). The result is
+            # `string`-typed: an hval/int consumer fails closed at L3-tc. Gated on a pyval
+            # left -> corpus byte-inert.
+            _lws = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
+            _rws = self._expr_to_whyml(right, local_refs or set(), invariant_ctx, subst)
+            return (f"(let v_or = {_lws} in "
+                    f"if hval_truthy v_or then hstr_of v_or else {_rws})")
         if not _empty_default:
             return None
         _lw = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
@@ -13136,6 +13168,36 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if func_name == "get":
             _rcv2 = expr.get("receiver")
             _a2 = expr.get("args") or []
+            # ch26 (_record_answer): the RECEIVER-form DEFAULTED read `(<hval-expr>).get(k,
+            # D)` (e.g. `(rec.get("prover-result") or {}).get("answer", "")`) — the K7
+            # two-arg `pairs_get` match over the LOWERED receiver, the missing key / non-map
+            # receiver answering D itself (`_pyval_wrap`-tagged). It was the receiver-dropped
+            # `get_2 <hash k> <hash D>`, an input-blind facade. Yields a raw `hval`; a string
+            # consumer projects it (`or "<lit>"` below). Gated on a pyval receiver (only
+            # `Dict[str, PyVal]` files) -> corpus byte-inert. ANY key expression (ch27): a
+            # non-literal key was the receiver-dropped `get_2 (str_hash_op k) D`; it is now
+            # the same `pairs_get` read of the lowered key, and a key that does not lower
+            # to a `string` fails closed at L3-tc (`pairs_get` takes a `string`).
+            # (ch27) the gate unwraps a `<hval-expr> or {}` / `or []` receiver, exactly as
+            # `_expr_is_pyval`'s receiver-form branch does; the LOWERING below still takes
+            # the whole receiver (its `or` is the `_recognize_pyval_or_default` select).
+            _rg2 = _rcv2
+            _rg2r = _rg2.get("right") if isinstance(_rg2, dict) else None
+            if (isinstance(_rg2, dict) and _rg2.get("type") == "BinOp"
+                    and _rg2.get("op") == "or" and isinstance(_rg2r, dict)
+                    and _rg2r.get("type") in ("DictLit", "ArrayLit")
+                    and not _rg2r.get("keys") and not _rg2r.get("elts")):
+                _rg2 = _rg2.get("left")
+            if (isinstance(_rcv2, dict) and self._expr_is_pyval(_rg2)
+                    and len(_a2) == 2 and isinstance(_a2[0], dict)):
+                _rvw2 = self._expr_to_whyml(_rcv2, local_refs or set(),
+                                            invariant_ctx, subst)
+                _kw2 = self._expr_to_whyml(_a2[0], local_refs or set(),
+                                           invariant_ctx, subst)
+                _dw2 = self._pyval_wrap(_a2[1], local_refs or set())
+                return (f"(match {_rvw2} with HMap m_k9 -> "
+                        f"(match pairs_get m_k9 {_kw2} with Some v_ -> v_ "
+                        f"| None -> {_dw2} end) | _ -> {_dw2} end)")
             if (isinstance(_rcv2, dict) and self._expr_is_pyval(_rcv2)
                     and len(_a2) == 1):
                 _rvw = self._expr_to_whyml(_rcv2, local_refs or set(),
