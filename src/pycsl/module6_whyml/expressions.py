@@ -10582,6 +10582,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(match {_recv} with {_octor} _s -> {_sop} | _ -> 0 end)"
         if recv_ir is None or not self._is_string_expr(recv_ir):
             return None
+        # gen #37 ch24: `s.startswith((p1, ..., pn))` -- a TUPLE of string prefixes is the
+        # disjunction of the single-prefix tests (Python: true iff s starts with ANY of
+        # them). The receiver is evaluated ONCE (`let`), each `pi` through the same
+        # faithful `str_startswith_op` as the 1-prefix arm below. Was the opaque
+        # polymorphic `startswith_2 s (p1, ..., pn)` (result unconstrained). Body context
+        # only; a non-empty tuple of string expressions only; else declines (byte-inert).
+        _tu = (expr.get("args") or [None])[0] if len(args) == 1 else None
+        if (method == "startswith" and not self._in_spec and isinstance(_tu, dict)
+                and _tu.get("type") == "Tuple" and _tu.get("elts")
+                and all(isinstance(_e, dict) and self._is_string_expr(_e)
+                        for _e in _tu["elts"])):
+            self._add_abstract_op(
+                "val str_startswith_op (s: string) (prefix: string) : int\n"
+                "    ensures { (result = 0) || (result = 1) }\n"
+                "    ensures { (result = 1) <->\n"
+                "      (String.length prefix <= String.length s /\\\n"
+                "       String.substring s 0 (String.length prefix) = prefix) }")
+            _r = self._expr_to_whyml(recv_ir, local_refs, invariant_ctx, subst)
+            _ps = [self._expr_to_whyml(_e, local_refs, invariant_ctx, subst)
+                   for _e in _tu["elts"]]
+            _dis = " || ".join(f"(str_startswith_op _swr {_p} = 1)" for _p in _ps)
+            return f"(let _swr = {_r} in if {_dis} then 1 else 0)"
         if len(args) != 1 or not self._is_string_expr(expr["args"][0]):
             return None
         r = self._expr_to_whyml(recv_ir, local_refs, invariant_ctx, subst)

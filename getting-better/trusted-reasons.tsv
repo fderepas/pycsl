@@ -253,7 +253,6 @@ frontend/pure_ast.py	_self_test	cost-scale:in-place-mutator	THE IN-PLACE COLLECT
 frontend/pure_ast.py	main	cost-scale:context-manager-model	A `with ... as` BINDING
 ir_schema.py	validate_ir	unclassified	-
 module6_whyml/abstract_ops.py	AbstractOpsMixin._add_abstract_op	unclassified	-
-module6_whyml/abstract_ops.py	AbstractOpsMixin._find_abstract_val_insert_idx	unclassified	-
 module6_whyml/abstract_ops.py	AbstractOpsMixin._advance_past_referenced_axiom_decls	unclassified	-
 module6_whyml/abstract_ops.py	AbstractOpsMixin._insert_abstract_val_block	unclassified	-
 module6_whyml/auto_trust.py	AutoTrustMixin._build_witness_str	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL

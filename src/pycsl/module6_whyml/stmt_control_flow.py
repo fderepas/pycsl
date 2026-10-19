@@ -890,9 +890,22 @@ class ControlFlowStmtMixin:
             return None
         _nm = _a[0].get("name", "")
         if _nm not in getattr(self, "_seq_locals", set()):
+            # gen #37 ch24 (GENEXP step 13): `for i, x in enumerate(<p>)` over a FORMAL flat
+            # `List[str]` param `p`, which WL-04 emits as `array string`
+            # (`_param_list_flat_elem`). Same loop as the seq arm, over the array: bound
+            # `Array.length p`, index `i = !idx`, element `x = p[!idx]` (a real `string`;
+            # read at iteration start, as Python's enumerate reads the live list). Was the
+            # opaque `enumerate_1 p : int` -> `iter_length`/`iter_get`, an L3-tc clash.
+            # A seq-promoted param (in `_seq_locals`) keeps the seq arm above; anything else
+            # (a local, a dict, a non-string or nested element) declines -> byte-inert.
+            if (_nm in set(getattr(self, "_formal_params", []) or [])
+                    and (getattr(self, "_param_list_flat_elem", {}) or {}).get(_nm) == "string"
+                    and _nm not in getattr(self, "_dict_locals", set())
+                    and _nm not in (getattr(self, "_list_nested_elem", {}) or {})):
+                return (_a[0], True, True)
             return None
         _elem_str = getattr(self, "_seq_value_types", {}).get(_nm) == "string"
-        return (_a[0], _elem_str)
+        return (_a[0], _elem_str, False)
 
     def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
@@ -1304,7 +1317,9 @@ class ControlFlowStmtMixin:
             # stale `hval_values_len` term.
             self._pyast_loop_variant_len = None
             _enw = self._expr_to_whyml(enum_seq[0], local_refs)
-            len_expr, elem_expr, is_range = f"(Seq.length {_enw})", None, False
+            # gen #37 ch24: the formal `List[str]` param arm iterates the `array string`.
+            _enlen = "Array.length" if enum_seq[2] else "Seq.length"
+            len_expr, elem_expr, is_range = f"({_enlen} {_enw})", None, False
         elif _rafl is not None:
             # (#49) W-IPM S-C4 (see the recogniser above): snapshot the record array ONCE,
             # so the bound and the element read reference the same value; the arithmetic
@@ -1528,7 +1543,8 @@ class ControlFlowStmtMixin:
                     _elines.append(f"{bind_indent}let {whyml_ident(_it)} = ref !{idx} in")
                 if _et and _et != "_":
                     _elines.append(f"{bind_indent}let {whyml_ident(_et)} = "
-                                   f"ref (Seq.get {_enw} !{idx}) in")
+                                   + (f"ref ({_enw}[!{idx}]) in" if enum_seq[2]
+                                      else f"ref (Seq.get {_enw} !{idx}) in"))
                 return _elines
             # self-tcb-reduction _namedtuple_positional_access: an hval `.items()` loop
             # binds BOTH tuple components — the KEY (an arbitrary `string`, `hval_keys_get`,

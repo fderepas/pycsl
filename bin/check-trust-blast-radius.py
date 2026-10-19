@@ -50,7 +50,18 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 MIN_DEFS = 1200               # 1373 at the first measurement
-MAX_TRUST_DEPENDENT = 401     # UPPER bound at the first measurement was 400; may only shrink
+MAX_TRUST_DEPENDENT = 402     # UPPER bound at the first measurement was 400; may only shrink
+                              # EXCEPT for the relabel moves recorded here (gen #31 and gen #37).
+                              #
+                              # (#49) gen #37 ch24: 401 -> 402, NAMED: retiring
+                              # `module6_whyml/abstract_ops.py::AbstractOpsMixin.
+                              # _find_abstract_val_insert_idx` relabels it from TRUSTED to
+                              # trust-DEPENDENT, because its body calls
+                              # `AbstractOpsMixin._advance_past_referenced_axiom_decls`, which
+                              # stays `\trusted` (ch23: STRM+GETATTR+GENEXP facade). trusted
+                              # 404 -> 403, dep_hi 401 -> 402, the aggregate 805 -> 805 — so
+                              # MAX_TRUSTED_OR_DEPENDENT is TIGHTENED to the measured 805 in the
+                              # same commit (net: the meaningful ratchet got stricter).
                               # EXCEPT for the one move recorded here, which is the whole
                               # reason MAX_TRUSTED_OR_DEPENDENT below now exists.
                               #
@@ -73,7 +84,10 @@ MAX_TRUST_DEPENDENT = 401     # UPPER bound at the first measurement was 400; ma
                               # number silently every time a conversion landed in a trusted
                               # call path. So the invariant that actually means "the trusted
                               # surface did not grow" is ratcheted separately, below.
-MAX_TRUSTED_OR_DEPENDENT = 828   # (#49) gen #31, 2026-09-25T23:40Z — 830 -> 828, TIGHTENED
+MAX_TRUSTED_OR_DEPENDENT = 805   # (#49) gen #37 ch24, 2026-10-19 — 828 -> 805, TIGHTENED to
+                              # the measured aggregate (403 trusted + 402 dep_hi), which the
+                              # `_find_abstract_val_insert_idx` relabel leaves invariant.
+                              # PRIOR: (#49) gen #31, 2026-09-25T23:40Z — 830 -> 828, TIGHTENED
                               # by increment O's one conversion (`errors.py::__str__`, which
                               # converts FOUR emitted symbols because three subclasses
                               # inherit it). PRIOR ENTRY: 2026-09-25T23:20Z — RAISED 798 -> 830,
