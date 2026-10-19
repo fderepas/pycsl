@@ -1132,3 +1132,10 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 3117_gen37_r281_str_of_huge_int_named_false_claim.py	VERIFY-FAIL	
 3115_gen37_r281_fstring_of_huge_int_false_claim.py	VERIFY-FAIL	
 3116_gen37_r281_print_of_huge_int_false_claim.py	VERIFY-FAIL	
+3190_gen37_r282_verified_caller_same_list_twice.py	VERIFY-FAIL	
+3191_gen37_r282_verified_caller_same_record_twice.py	VERIFY-FAIL	
+3192_gen37_r282_verified_caller_one_list_twice_in_list.py	VERIFY-FAIL	
+3193_gen37_r282_verified_caller_same_dict_twice.py	REFUSAL	[module6-whyml]: function 'g': a dict/set value reaches a mutating parameter of `f(...)` while it can still be observed through another name — `d` is also passed in another argument of the same call. In Python both names are ONE object, so an in-place mutation through either is visible through the other; PyCSL models a dict/set as a pure map, so the second name holds a COPY and the mutation would be invisible (routes #243/#244). Refusing instead of answering incorrectly. Pass a fresh value (a literal, `set(x)`/`dict(x)`, `x.copy()`), or restructure so the object has a single name.
+3194_gen37_r282_verified_caller_receiver_as_argument.py	VERIFY-FAIL	
+3195_gen37_r282_verified_caller_param_is_receiver_field.py	VERIFY-FAIL	
+3196_gen37_r282_verified_caller_param_and_list_of_it.py	VERIFY-FAIL	

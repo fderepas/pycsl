@@ -4022,6 +4022,7 @@ of the translation:
 | **LATIN1-STR** — every `str` value consists of code points 0..255 (`ord(c) < 256`; `chr(n)` modelled only for `0 <= n < 256`) | $\tau(\texttt{str}) = \texttt{string}$ of Why3 `string.Char` (`axiom code`: every code < 256) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-latin1`; counterexample corpus 3020-3023 |
 | **CLASS-EXACT** — a user-class-typed value is an exact instance (no override is seen) | a method call through an `A`-typed receiver lowers against `A.m`'s contract | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5) ONLY under `--assume-class-exact`; the default emits the refinement goals and refusals of route #277/#278 instead; counterexample corpus 3100-3101 |
 | **FIELD-DISJOINT** — two distinct mutable fields hold distinct objects | one Why3 region per mutable field (frames such as `ensures { self.ys = old self.ys }`) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2570 |
+| **PARAM-DISJOINT** — two distinct mutable parameters (or a parameter and `self` / a module-level name), and two distinct elements of a container parameter, hold distinct objects | one Why3 region per `ref`/record parameter (frames such as `ensures { ys = old ys }`), an `array` of independent `array`/`seq` values for `List[List[_]]` | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 3180-3188 |
 
 ### §T.10.2  Preservation Lemmas
 
@@ -4231,6 +4232,32 @@ strict mode: refusing such a method instead (route #256's option (b)) was measur
 files (e.g. the `Bank.transfer` drivers 0723-0725) and 7 mirror files (41 methods, among them
 `_emit_body_code`), and PyCSL has no separation precondition in which to state the disjointness.
 
+
+**PARAM-DISJOINT** — FIELD-DISJOINT's twin for parameters and elements (route #282). A `List`/`dict`/
+`set` parameter is its own `ref` (or by-value array) region, a record parameter its own record value,
+the receiver `self` its own record, and a `List[List[int]]` an array of independent element values, so
+the WP frame of a write through one of them says nothing changes behind another: `f(xs, ys)` with
+`assigns xs[0]`, `xs[0] = ys[0] + 1` PROVES `ensures ys[0] == \old(ys[0])` (3180) and CPython
+violates it for `a = [1]; f(a, a)`; the same holds for two record parameters (3181), for
+`xss[0][0] = 9` against `xss[1][0]` with `xss = [r, r]` (3182), two dicts (3183), `self` and a
+parameter of its class (3184, `x.bump(x)`), a parameter and a list field of `self` (3185,
+`T(L).m(L)`), a parameter and an element of a `List[List[int]]` (3186, `f(r, [r])`), and a caller
+forwarding two of its own parameters (3188, `h(p, q)` -> `f(p, q)`). A module-level list a function
+reads is counted as a handle too (`f(G)`), although no proving witness of that shape exists: such a
+global is emitted as an opaque `val constant` (no corpus file; the probe times out). A VERIFIED program cannot build these aliases: Why3 rejects
+one list ref in two arguments ("illegal alias"), a dict/set in a mutating slot and another slot is
+refused (route #254, PYCSL-WHYML-COLLECTION-ALIAS), a non-fresh mutable stored into a field or escaping
+slot is refused (R167, routes #243/#244), `[r, r]` / `m.append(r)` give an `array (array int)` that
+the `matrix` parameter rejects, and `x.bump(x)` is ill-typed (all fail closed, controls 3189-3196). The
+residue is an alias built in UNVERIFIED code — rule R1 of the ownership discipline
+(`docs/pycsl-ownership-discipline.md` §2). Reported for every function that writes through one
+mutable handle (a parameter, `self`, or a module-level name it reads: subscript store/`del`, field
+store, augmented assignment, any method call on it, passing it to a non-builtin call, an `assigns`
+location rooted at it) and also reads or writes another handle, and for every function that writes an
+element of a container handle; handle types are not matched (over-, never under-reported). No strict
+mode: the measured population is 112 of the root corpus files (180 functions) and 33 of the 53 mirror
+files (2731 entries, e.g. every `self`-mutating method that reads an IR node parameter), and PyCSL has
+no separation precondition in which to state the disjointness.
 ---
 
 ## §T.11  Gap Analysis

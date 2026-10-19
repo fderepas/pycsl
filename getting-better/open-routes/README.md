@@ -2,6 +2,16 @@
 
 ## gen #37 (2026-10-19): #282 (distinct parameters / list elements assumed non-aliasing, undeclared; R1 residue like FIELD-DISJOINT)
 ##   OPENED; witnesses p111/p112/p114 rc=0, CPython violates.
+## gen #37 (2026-10-19): #282 RESOLVED as the DECLARED MODEL ASSUMPTION PARAM-DISJOINT (#256 FIELD-DISJOINT precedent):
+##   two distinct mutable parameters (or a parameter and `self` / a module-level name it reads) and two distinct elements
+##   of a container parameter hold distinct objects. Listed by `--soundness-report` (`model_assumptions`; relied_on_by =
+##   every function writing through one handle while accessing another, or writing an element of a container handle;
+##   types not matched, over-reported): root 112 files / 180 entries, mirror 33/53 files / 2731 entries (a refusal was
+##   measured disproportionate). Probes: callee shapes (two lists/records/dicts/sets, self+param, param+self field,
+##   param+nested element, forwarded) PROVE = assumed; every VERIFIED caller building the alias fails closed already
+##   (illegal alias / ill-typed / route #254 refusal / R167) — no new false proof. Docs README, static-semantics
+##   App. C.1, translational §T.10.1/§T.10.5, ownership discipline §5, check-assumed-facts. Corpus 3180-3186/3188
+##   (assumed, PASS), 3189 control PASS, 3190-3196 verified-caller controls FAIL. Emission byte-inert; ledger 3.
 
 ## gen #37 (2026-10-19): #277 (user-class value assumed exact; override refinement opt-in only, undeclared), #278
 ##   (--check-behavioral-subtyping ignores raises and MRO-inherited overrides), #279 (list alias lost by += / chained

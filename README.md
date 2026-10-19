@@ -263,7 +263,7 @@ By default the consistency relationship is emitted as a WhyML axiom
 `pycsl --strict-hash-eq-consistency` it becomes a goal that must be
 discharged externally via `#@ proof rocq <q>` / `#@ proof lean <q>`.
 
-**Declared model assumptions.** Like HASH-EQ-CONSISTENCY, four facts are
+**Declared model assumptions.** Like HASH-EQ-CONSISTENCY, five facts are
 assumed rather than proved and are listed by `pycsl --soundness-report`
 whenever a program relies on them: **FLOAT-FINITE** (every `float` is
 finite and non-NaN — `float` is the Why3 `real`, so `x == x` proves for
@@ -274,7 +274,12 @@ strict mode, corpus 2506) and **FIELD-DISJOINT** (two distinct mutable
 fields hold distinct objects — a write through `self.xs` is invisible
 through `self.ys`; an alias built by verified code is refused, one built
 in unverified code is the ownership rule R1; no strict mode, corpus
-2570) and **LATIN1-STR** (every `str` value consists of code points
+2570) and **PARAM-DISJOINT** (its twin for parameters and elements: two
+distinct mutable parameters — or a parameter and `self`, or a parameter and
+a module-level name — hold distinct objects, and so do distinct elements of a
+`List[List[int]]`; `f(a, a)` and `[r, r]` built by verified code are refused
+or fail closed, built in unverified code they are rule R1; no strict mode,
+corpus 3180-3196) and **LATIN1-STR** (every `str` value consists of code points
 0..255 — `str` is a Why3 string of 8-bit `string.Char`s, so
 `ord(s) < 256` and `ord(chr(300)) != 300` prove; drop it with
 `--strict-latin1`, corpus 3020-3029). See translational reference §T.10.5.

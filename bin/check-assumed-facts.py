@@ -53,8 +53,8 @@ families has appeared. Nor does it see `val` declarations: a bodyless `val` with
 `count-trusted-directives.py` and `check-untrusted-emitted.py`.
 
 NOR DOES IT SEE MODEL-LEVEL ASSUMPTIONS, which have no emitted text at all: they are
-properties of the type mapping, not `assume`/`axiom` lines. Four are DECLARED (routes #250,
-#253, #256, #276; translational reference §T.10.5) and surfaced by `pycsl --soundness-report` under
+properties of the type mapping, not `assume`/`axiom` lines. Five are DECLARED (routes #250,
+#253, #256, #276, #282; translational reference §T.10.5) and surfaced by `pycsl --soundness-report` under
 "declared model assumptions" instead of here:
 
   FLOAT-FINITE    every `float` value is finite and non-NaN (`float` is Why3 `real`):
@@ -66,6 +66,10 @@ properties of the type mapping, not `assume`/`axiom` lines. Four are DECLARED (r
   FIELD-DISJOINT  two distinct mutable fields hold distinct objects (one Why3 region per
                   field): a write through `self.xs` is invisible through `self.ys`, corpus
                   2570. No strict mode.
+  PARAM-DISJOINT  two distinct mutable parameters (or a parameter and `self` / a module
+                  name), and two distinct elements of a container parameter, hold
+                  distinct objects: `f(a, a)` / `[r, r]` from unverified code, corpus
+                  3180-3188. No strict mode.
   LATIN1-STR      every `str` value consists of code points 0..255 (`str` is a Why3 string
                   of 8-bit `string.Char`s): `ord(s) < 256` proves, corpus 3020-3023.
                   `--strict-latin1` drops it (3024-3027 FAIL); its code point

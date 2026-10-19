@@ -595,6 +595,152 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
             if _fd_o:
                 _fd_uses.append("%s: mutates %s, also accesses %s" % (
                     f["name"], _fd_x, ", ".join(_fd_o)))
+    # ROUTE #282 — PARAM-DISJOINT. FIELD-DISJOINT's twin for PARAMETERS and ELEMENTS: each
+    # mutable parameter (a list/dict/set ref, a record value, the receiver `self`) is its own
+    # Why3 region, and a `List[List[int]]` / `List[<record>]` is an array of independent
+    # values, so a write through `xs` leaves `ys` unchanged and a write to `xss[0][0]` leaves
+    # `xss[1][0]` unchanged (the emitted frame says so). Python promises neither: `f(a, a)`,
+    # `x.bump(x)`, `t.m(L)` with `L` held by `t.ys`, and `[r, r]` put ONE object behind two
+    # names. A VERIFIED caller that builds the alias is refused or fails closed (Why3's
+    # illegal-alias check, route #254, R167 #243/#244, the matrix/array type split); the
+    # residue is an alias built in UNVERIFIED code — the ownership rule R1 again. Reported
+    # for every function that WRITES through one mutable handle (a parameter or `self`:
+    # subscript store/`del`, field store, augmented assignment, any method call on it, or
+    # passing it to a non-builtin call, or an `assigns` location rooted at it) while it also
+    # reads or writes ANOTHER mutable handle, and for every function that writes an ELEMENT
+    # of a container handle (`xss[i][j] = ...`, `xss[i].append(...)`, an element-rooted
+    # `assigns`). Conservative (over-, never under-reported): a parameter is a mutable
+    # handle unless its annotation names only immutable builtins (int/float/str/bool/bytes/
+    # complex/None, tuple/frozenset/Optional of those); handle types are not matched.
+    _pd_immut = {"int", "float", "str", "bool", "bytes", "complex", "none", "tuple",
+                 "frozenset", "optional", "literal", "final", "typing"}
+    _pd_pure = {"len", "abs", "min", "max", "sorted", "sum", "list", "dict", "set", "tuple",
+                "str", "int", "float", "bool", "isinstance", "range", "enumerate", "zip",
+                "any", "all", "print", "repr", "hash", "id", "iter", "reversed", "ord",
+                "chr", "map", "filter", "frozenset", "bytes", "type", "round", "divmod",
+                "pow", "format", "callable", "issubclass", "hasattr", "getattr"}
+    import re as _re_pd
+    _pd_glob_ok: Set[str] = set(_pd_pure) | {"True", "False", "None", "self", "cls"}
+    for _pd_f in funcs:
+        _pd_glob_ok.add(str(_pd_f.get("name")))
+        _pd_glob_ok.add(str(_pd_f.get("name")).split("__")[-1])
+    for _pd_td in ir_data.get("type_decls") or []:
+        if isinstance(_pd_td, dict):
+            _pd_glob_ok.add(str(_pd_td.get("name")))
+    for _pd_im in ir_data.get("imports") or []:
+        if isinstance(_pd_im, (list, tuple)) and _pd_im:
+            _pd_glob_ok.add(str(_pd_im[0]))
+    _pd_uses: List[str] = []
+    for f in funcs:
+        _pd_h: Set[str] = set()
+        for _pd_n, _pd_t in (f.get("param_annotations") or {}).items():
+            _pd_toks = _re_pd.findall(r"[A-Za-z_][A-Za-z_0-9]*", str(_pd_t or ""))
+            if not _pd_toks or any(_pd_k.lower() not in _pd_immut for _pd_k in _pd_toks):
+                _pd_h.add(str(_pd_n))
+        for _pd_n in f.get("formal_params") or []:
+            if (isinstance(_pd_n, str)
+                    and _pd_n not in (f.get("param_annotations") or {})):
+                _pd_h.add(_pd_n)  # unannotated: may be anything
+        if f.get("kind") == "method" or f.get("self_type"):
+            _pd_h.add("self")
+        # a module-level name the function reads (not a local, parameter, function, type,
+        # import or builtin) may be a mutable global: a handle too (`f(G)` aliases it)
+        _pd_loc = set(f.get("symbol_table") or {}) | set(f.get("formal_params") or [])
+        _pd_gstack: List[Any] = [f.get("body", [])]
+        while _pd_gstack:
+            _pd_n = _pd_gstack.pop()
+            if isinstance(_pd_n, list):
+                _pd_gstack.extend(_pd_n)
+                continue
+            if not isinstance(_pd_n, dict):
+                continue
+            _pd_gstack.extend(_pd_n.values())
+            if isinstance(_pd_n.get("target"), str):
+                _pd_loc.add(_pd_n["target"])
+            for _pd_k in ("targets", "vars"):
+                for _pd_t in _pd_n.get(_pd_k) or [] if isinstance(
+                        _pd_n.get(_pd_k), list) else []:
+                    if isinstance(_pd_t, str):
+                        _pd_loc.add(_pd_t)
+            if (_pd_n.get("type") == "Var" and isinstance(_pd_n.get("name"), str)
+                    and _pd_n["name"] not in _pd_loc and _pd_n["name"] not in _pd_glob_ok):
+                _pd_h.add(_pd_n["name"])
+        if not _pd_h:
+            continue
+        _pd_w: Set[str] = set()
+        _pd_ew: Set[str] = set()
+        _pd_a: Set[str] = set()
+
+        _pd_stack: List[Any] = [f.get("body", []), f.get("contracts", {})]
+        while _pd_stack:
+            _pd_n = _pd_stack.pop()
+            if isinstance(_pd_n, list):
+                _pd_stack.extend(_pd_n)
+                continue
+            if not isinstance(_pd_n, dict):
+                continue
+            _pd_stack.extend(_pd_n.values())
+            if _pd_n.get("type") == "Var":
+                _pd_a.add(str(_pd_n.get("name")))
+            elif _pd_n.get("type") == "FieldGet" and isinstance(_pd_n.get("object"), str):
+                _pd_a.add(_pd_n["object"].split(".")[0])
+            _pd_s = _pd_n.get("stmt")
+            # (location node, written-at-an-element) candidates; a str location is a
+            # dotted IR object path such as "self.ys"
+            _pd_c: List[Tuple[Any, bool]] = []
+            if _pd_s in ("ArraySet", "ArraySliceSet", "DelSubscript"):
+                _pd_c.append((_pd_n.get("array"), isinstance(_pd_n.get("array"), dict)
+                              and _pd_n["array"].get("type") == "Subscript"))
+            elif _pd_s in ("FieldAssign", "FieldAugAssign"):
+                _pd_c.append((_pd_n.get("object"), False))
+            elif _pd_s == "AugAssign" and isinstance(_pd_n.get("target"), str):
+                _pd_c.append((_pd_n["target"], False))
+            if _pd_n.get("type") == "Call":
+                _pd_fn = _pd_n.get("func")
+                if isinstance(_pd_fn, str) and "." in _pd_fn:
+                    _pd_c.append((_pd_fn.rsplit(".", 1)[0], False))
+                elif isinstance(_pd_n.get("receiver"), dict):
+                    _pd_c.append((_pd_n["receiver"],
+                                  _pd_n["receiver"].get("type") == "Subscript"))
+                if not (isinstance(_pd_fn, str) and _pd_fn in _pd_pure):
+                    for _pd_g in list(_pd_n.get("args") or []) + [
+                            _pd_kw.get("value") if isinstance(_pd_kw, dict) else _pd_kw
+                            for _pd_kw in (_pd_n.get("keywords") or [])]:
+                        _pd_c.append((_pd_g, False))
+            if _pd_n is f.get("contracts"):
+                _pd_c.extend((_pd_l, False) for _pd_l in (_pd_n.get("assigns") or []))
+            for _pd_x, _pd_e in _pd_c:
+                # the root name of the location, and whether it passes through an element
+                while isinstance(_pd_x, dict):
+                    _pd_k = _pd_x.get("type")
+                    if _pd_k == "Var":
+                        _pd_x = str(_pd_x.get("name"))
+                    elif _pd_k == "FieldGet":
+                        _pd_x = str(_pd_x.get("object"))
+                    elif _pd_k == "Attribute":
+                        _pd_x = _pd_x.get("object")
+                    elif _pd_k == "Subscript":
+                        _pd_e = _pd_e or (isinstance(_pd_x.get("value"), dict)
+                                          and _pd_x["value"].get("type") == "Subscript")
+                        _pd_x = _pd_x.get("value")
+                    else:
+                        _pd_x = None
+                if not isinstance(_pd_x, str):
+                    continue
+                _pd_e = _pd_e or "[" in _pd_x
+                _pd_x = _pd_x.split(".")[0].split("[")[0]
+                if _pd_x in _pd_h:
+                    _pd_w.add(_pd_x)
+                    if _pd_e:
+                        _pd_ew.add(_pd_x)
+        for _pd_x in sorted(_pd_w):
+            _pd_o = sorted(((_pd_a | _pd_w) & _pd_h) - {_pd_x})
+            if _pd_o:
+                _pd_uses.append("%s: writes through %s, also accesses %s" % (
+                    f["name"], _pd_x, ", ".join(_pd_o)))
+        for _pd_x in sorted(_pd_ew):
+            _pd_uses.append("%s: writes an element of %s (its elements may be one object)"
+                            % (f["name"], _pd_x))
     # ROUTE #276 — LATIN1-STR. A `str` is a Why3 `string` of `string.Char`s, and Why3's
     # `axiom code` bounds every Char code by 256: `ord(s) < 256` and `ord(chr(300)) != 300`
     # PROVE (CPython: 8364 for "€", 300). Reported for every `ord`/`chr` call (body or
@@ -721,6 +867,21 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
                               "self.ys (corpus 2570)",
             "strict_mode": None,
             "relied_on_by": sorted(set(_fd_uses)),
+        })
+    if _pd_uses:
+        assumptions.append({
+            "name": "PARAM-DISJOINT",
+            "statement": "two distinct mutable parameters (list/dict/set/record-valued, "
+                         "or a parameter and the receiver self or one of its fields) hold "
+                         "distinct objects, and distinct elements of a list/dict parameter "
+                         "hold distinct objects, so a mutation through one is invisible "
+                         "through the other (ownership discipline rule R1; FIELD-DISJOINT "
+                         "for parameters and elements)",
+            "counterexample": "a = [1]; f(a, a): f writes xs[0] and claims ys[0] unchanged; "
+                              "r = [0]; f([r, r]): a write to xss[0][0] is seen at "
+                              "xss[1][0] (corpus 3180-3188)",
+            "strict_mode": None,
+            "relied_on_by": sorted(set(_pd_uses)),
         })
     if _l1_uses:
         assumptions.append({
