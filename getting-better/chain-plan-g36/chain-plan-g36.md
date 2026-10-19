@@ -960,3 +960,112 @@ default) unlocks no honest conversion on its own. Logs/emits: session scratchpad
     UNMEASURED(port crash) | frontend/pure_ast.py::_decode_escapes | CRASH |  | PH | This expression has type string, but is expected to have type int
     UNMEASURED(port crash) | module6_whyml/expressions.py::ExpressionEmissionMixin._expr_to_whyml | CRASH | MUTRECV |  | `_symtab.pop(...)` MUTATES its receiver in place, and no certified lowering models it: the call becomes an abs
 ```
+
+## Re-measurement at HEAD — ch23 (gen #37)
+
+At `e7fa92f3` (count 453). Plan steps 9 INTSTR (8), 10 RECORD (5), 11 TUPLE (4): all 17 still
+`\trusted`. Each ported verbatim (`bin/port-one-mirror-body.py`, `--replace` for the DIFFERS rows
+`_specialize_decl`, `_py_expr_fstring`, `_fold_blocks`; live signature tried where the mirror's
+differed) into a scratch copy, emitted `--no-proof --keep-mlw` through `heavy.sh`, and the emitted
+WhyML read. **0 of 17 honest; no seam built.** As in ch20-ch22 the census family was the FIRST
+type error. Once re-ported, every chain hits a value-model gap (AST-node / Dict[str,Any] /
+Optional-tuple), and the one TC-clean body is a facade.
+
+```
+    marker                                        first blocker at HEAD -> verdict
+  step 9 INTSTR
+    _ContractParser._parse_happy_targets          REFUSED route #252 (unannotated `name` into the `str` slot of
+                                                  `HappyProperty`). With `name: str`: L3-tc `region_lo = pycsl_none`
+                                                  -- live passes None into the non-Optional `ExprIR` field (the
+                                                  live dataclass is lying), and target/formula/secret are
+                                                  Optional[...] fields erased to int. OPTREC. SKIP
+    AbstractOpsMixin._advance_past_referenced_    L3-tc `Array.length (!p)` on int: `d.split()` -> 0-ary
+      axiom_decls                                 `d_split_0 ()`; the loop iterates `pycsl_getattr_default_<h>`
+                                                  (mixin `self` is `int`, no fields); `" ".join(genexp)` ->
+                                                  `join_1 (any int)`; `s.startswith(..)` -> `s_startswith_1 (any
+                                                  int)`. STRM+GETATTR+GENEXP, FACADE underneath. SKIP
+    CrossCheckResult.diagnostic                   L3-tc `int_to_string ("PASS"/"FAIL")` (str ternary in an
+                                                  f-string). Below it: `self.pairwise.items()` (a property) is the
+                                                  0-ary `self_pairwise_items_0 ()`, `label, ok` are `any int`.
+                                                  Iterating a Map has no key domain. DICT. SKIP (the 7 field
+                                                  lines ARE honest)
+    ExpressionEmissionMixin._call_bytes_methods   L3-tc: `st.lstrip("!")` -> receiver-dropped `st_lstrip_1 <h>`
+                                                  : int where a string is wanted; `any(st.startswith(p) for p in
+                                                  _ARR)` -> `any_1 (any (array int))`. STRM+GENEXP. SKIP
+    ExpressionEmissionMixin._emit_contract_       L3-tc `subscript_get !imported_sigs func_name`:
+      logic_symbol                                `getattr(self,"_imported_inductive_sigs",{})` is NOT a mirror
+                                                  field -> 0-ary default; local import. GETATTR (undeclared
+                                                  self-field). SKIP
+    _specialize_decl (DIFFERS)                    REFUSED: `spec.pop(..)` (MUTRECV, dict local); also
+                                                  `copy.deepcopy`, nested Dict[str,Any] walk. SKIP
+    _Unparser.visit_MatchStar                     L3-tc `name := "_"`: `node.name` is `get_name node : int`
+                                                  (int-erased AST param), so the rebinding to "_" is a str. A
+                                                  hash seam would emit `int_to_string (hash "_")`, which is
+                                                  unfaithful. AST-node value model. SKIP
+    _sexp_parse                                   REFUSED: `tokens.pop(0)` (MUTRECV on a PARAMETER, caller-
+                                                  visible = MUTPARAM); self-recursive. SKIP
+  step 10 RECORD
+    Module3_Weaver._subscript_read_site           L3-tc `base := sub.subscript_value` (emit_ir into the int-hoisted
+                                                  local); `base.value.id` getattr-erased; both returns are dict
+                                                  literals -> `any_map ()` (return FACADE). RECORD+DICT. SKIP
+    PyCSLToJSONEmitter._py_expr_fstring (DIFFERS) REFUSED route #263 (self-recursion through a method). With
+                                                  `#@ \diverges`: L3-tc `_py_expr_to_ir self (get_value !v)`, since
+                                                  `expr: ast.JoinedStr` is int-erased (no JoinedStr/FormattedValue
+                                                  node type, unlike the typed `py_dictcomp_node` siblings), and the
+                                                  return `{"type":"FString","parts":parts}` -> `IrOther "FString"`
+                                                  (parts DROPPED = FACADE). RECORD (AST node + IrFString ctor). SKIP
+    ExpressionEmissionMixin._handle_ifexpr_expr   L3-tc `_is_arr_var_1 node.ifexprexpr_body`: the nested
+                                                  `def _is_arr_var(_d: Any)` is lifted with an int param;
+                                                  getattr(self,"_option_record_param_classes",{}); `.to_dict()`
+                                                  Dict[str,Any] reads. NESTED+GETATTR+DICT. SKIP
+    _find_construct_idx                           TC-CLEAN, screen 4/4 GREEN, but FACADE by the decisive
+                                                  mutation test: the MutInd guard `any(isinstance(x,tuple) and
+                                                  x and x[0]=="MutInd" for x in _flatten_tuples(head))` -> `any_1
+                                                  (any (array int))` (the string "MutInd" occurs nowhere in the
+                                                  emission); `int(tail)` -> `!tail` (ValueError path erased);
+                                                  `payload` is int-erased while every sibling in from_sexp.py
+                                                  reads the certified `pyval`. With the live `-> Optional[int]`:
+                                                  L3-tc (union vs int at the self-call). Honest route = the pyval
+                                                  walker (`generic_fold.py`) plus an Optional[int] arm, `int(atom)`
+                                                  with ValueError, and `any(genexp)` over a `list pyval` sibling.
+                                                  PYVAL/GENEXP. SKIP
+    _find_coqc                                    (mirror body already = live) L3-tc: local `import shutil as
+                                                  _sh; _sh.which("coqc")` -> receiver-dropped `_sh_which_1 <h> :
+                                                  int` against the `Optional[str]` union (the shutl stub is an
+                                                  int model). EXT. SKIP
+  step 11 TUPLE
+    _Harvester._fold_blocks (DIFFERS)             L3-tc `hdr := _match_block_hdr ..`: the trusted callee is
+                                                  `: unit` (unannotated). With `-> Optional[Tuple[str,str]]` it
+                                                  stays `unit`, and the union arm erases the tuple to `int`;
+                                                  then `kw, name = hdr` (narrow + unpack) and `_WITH_HDR.match(..)
+                                                  .group(1)` (re, EXT). OPTREC/TUPLE. SKIP
+    _namedtuple_check_call                        L3-tc `subscript_get_t3 nt_arities !callee`: `nt_arities: dict`
+                                                  is `map`, and its values are (int, List[str], set) tuples. DICT/
+                                                  TUPLE value model. SKIP
+    _check_gt4_polymorphic_recursion (DIFFERS)    mirror and live signatures give the same L3-tc
+                                                  `info["type_params"][0]["name"]` (nested Dict[str,Any] -> int
+                                                  vs string); then `_ast.walk` generator and an Optional-tuple
+                                                  callee. DICT. SKIP
+    _Parser._slice                                L3-tc `let () = (start, py_end)`: the nested target `(r1, c1),
+                                                  (r2, c2) = start, end` over `pytuple_int_int` record params is
+                                                  mis-lowered. With it hand-split, three more blockers follow:
+                                                  `self._lines` is not a mirror `_parser` field (getattr-erased;
+                                                  adding it moves the `_parser` record = whole pure_ast re-proof);
+                                                  and `self._lines[r1-1][c1:c2]` / `[..][c1:]` (a str slice of a
+                                                  subscripted element) -> `any (array int)` / `any int`.
+                                                  TUPLE+GETATTR+STR-SLICE, 3 emitter seams + 1 model change =
+                                                  not small. SKIP
+```
+
+**Recurring blockers (17 markers, counted wherever they occur in the measured chain):**
+(1) the AST-node / undeclared-attribute value model (int-erased `node.x`, AST-typed params,
+`getattr(self, <undeclared>, d)`): 8 (vms, srs, pef, ecl, apr, hie, psl, fci-payload);
+(2) Dict[str,Any] value model (nested reads, `.items()` iteration, dict-literal returns -> `any_map`
+/ `IrOther`): 7 (gt4, ncc, ccd, srs, spd, pef, hie); (3) Optional[record/tuple] and tuple slots: 4
+(pht, ffb, psl, ncc); (4) `any()/join(genexp)` erasure: 3 (fci, cbm, apr); (5) receiver-dropped str
+methods: 2 (apr, cbm); (6) in-place `.pop`: 2 (spd, sxp); (7) EXT (`shutil.which`, `re`): 2 (fcq,
+ffb). `\diverges` (route #263) shows up twice (pef, sxp) and is never the wall by itself.
+
+No seam was landed. The only small seam in sight, a hashed string literal into an int-hoisted
+local (visit_MatchStar), would emit `int_to_string (hash "_")`, which is unfaithful. Emits/logs:
+session scratchpad `ch23/meas-*.{log,mlw}`, `ch23/screen-fci.log`.
