@@ -9492,7 +9492,7 @@ class FunctionEmissionMixin:
                     "the overridden method are defined in a module reaching WhyML "
                     "emission (a class-body binding such as `m = lambda self: 2` "
                     "overriding a method has no contract to check: define it with "
-                    "`def`, route #278), or pass `--assume-class-exact` (the declared "
+                    "`def`, route #278), or use `--assume-class-exact` (the declared "
                     "CLASS-EXACT assumption; the check is on by default since route "
                     "#277).")
             out += self._render_refinement_goal(ov, sub_fn, base_fn)
