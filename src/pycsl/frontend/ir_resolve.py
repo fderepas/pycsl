@@ -2640,6 +2640,59 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
 
     for td in list(records.values()):
         merge_one(td)
+    # (#49) ROUTE #278 — OVERRIDE PAIRS OVER THE MRO, NOT ONLY OVER `merge_one`'s CLONES.
+    # `merge_one` records a pair only when the overriding method is DEFINED (or cloned)
+    # in the subclass and the overridden one is a function under a DIRECT base's prefix.
+    # Three shapes escaped it, each PROVING under `--check-behavioral-subtyping` what
+    # CPython contradicts (witness p092, probes g1/g5/g6): `class B(M, A): pass` with `m`
+    # supplied by the fieldless mixin `M` (no record, so no clone `b__m`, so no pair
+    # against `A.m`); the same through `M(N)`; and a fieldless `A` under `B(A): pass`
+    # under `C(B)` overriding `m` (no `b__m` clone to pair `c__m` with). And a CLASS-BODY
+    # BINDING (`m = lambda self: 2`, route #123) that overrides an ancestor's method has
+    # no function at all, so it was never paired. THE RULE is Python's: for every class S
+    # with a C3 MRO, the provider P of a name t is the first class of the MRO that
+    # defines or binds t; every LATER class X of the MRO that DEFINES t (originally, not
+    # a clone) is overridden by P, so `p__t` must refine `x__t`. A pair already recorded
+    # is not duplicated. A binding provider records a pair whose sub method does not
+    # exist — `_emit_subtyping_goals` refuses it (PYCSL-SUBTYPING-PAIR): there is no
+    # contract to check, and calling it through an `X`-typed receiver would assume `X.t`.
+    # Monotone (adds pairs, removes none). An unresolvable MRO (None) keeps the merge's
+    # pairs only (C3 failure is a TypeError in CPython at class creation). Constructors
+    # (`__init__`/`__new__`/`__post_init__`) are excluded: a constructor runs on `C(...)`,
+    # whose class is exact, never through an ancestor-typed receiver.
+    _seen278 = {(o.get("sub_method"), o.get("base_method"))
+                for o in (ir_data.get("overrides") or []) if isinstance(o, dict)}
+    for _s278 in _in_classes:
+        _mro278 = _in_mro.get(_s278)
+        if not _mro278:
+            continue
+        _tails278: Set[str] = set()
+        for _k278 in _mro278:
+            _tails278 |= _in_own.get(_k278.lower(), set())
+        for _t278 in sorted(_tails278 - {"__init__", "__new__", "__post_init__"}):
+            _prov278 = None
+            for _k278 in _mro278:
+                if (_t278 in _in_own.get(_k278.lower(), set())
+                        or _t278 in _in_binds.get(_k278.lower(), set())):
+                    _prov278 = _k278
+                    break
+            if _prov278 is None:
+                continue
+            _after278 = _mro278[_mro278.index(_prov278) + 1:]
+            for _x278 in _after278:
+                if _t278 not in _in_own.get(_x278.lower(), set()):
+                    continue
+                _pair278 = (f"{_prov278.lower()}__{_t278}", f"{_x278.lower()}__{_t278}")
+                # Already judged: this pair, or S's own CLONE of the provider's method
+                # against the same base (`merge_one`'s pair, same contract).
+                if (_pair278 in _seen278
+                        or (f"{_s278.lower()}__{_t278}", _pair278[1]) in _seen278):
+                    continue
+                _seen278.add(_pair278)
+                ir_data.setdefault("overrides", []).append({
+                    "sub_method": _pair278[0], "base_method": _pair278[1],
+                    "sub_type": _prov278.lower(), "base_type": _x278.lower(),
+                })
     # (#49) ROUTE #147 — `init_inherits` is consumed above and is not part of the frozen
     # resolved IR (goldens 0444/0445 carry an inheriting class without it).
     # (#49) ROUTE #150 — a SYNTHESIZED `@dataclass` constructor runs the first

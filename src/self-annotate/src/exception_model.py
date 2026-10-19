@@ -296,6 +296,15 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
     ("attr_call", "pop"):     [("KeyError",          "Map.get {0} {1} <> None")],
     ("attr_call", "index"):   [("ValueError",        "true")],  # placeholder; \mem when proof needs it
     ("call", "next"):         [("StopIteration",     "true")],  # Phase 2 — left as a marker
+    # (#49) ROUTE #281 — int -> DECIMAL str raises `ValueError` past 4300 digits
+    # (CPython 3.11+ `sys.int_max_str_digits`, default 4300): `str(10**5000)`,
+    # `f"{x}"`, `print(x)`, `repr(x)`, `"%d" % x` all raise "Exceeds the limit (4300
+    # digits) for integer string conversion". 4300 digits is exactly |x| < 10**4300.
+    # {0} is the int operand. Wired at every int->decimal-string conversion site the
+    # emitter lowers (`str`/`repr` of an int, a non-string `print` argument, an int
+    # f-string part — plain, `!s`/`!r`/`!a`, or a decimal spec —, a `%` format operand).
+    ("call", "int_str"): [("ValueError",
+                           "(- 1" + "0" * 4300 + ") < {0} /\\ {0} < 1" + "0" * 4300)],
 }
 
 

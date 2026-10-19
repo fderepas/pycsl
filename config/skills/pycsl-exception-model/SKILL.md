@@ -43,6 +43,7 @@ to its own skill makes the contract auditable.
 | `1 << n`, `1 >> n` | `BinOp("<<"\|">>", a, n)` | `ValueError` | `non_neg_shift n` (i.e. `n >= 0`) |
 | `s.index(x)` | `AttrCall(s, "index", [x])` | `ValueError` | placeholder `true` (deferred: `mem x s`) |
 | `next(it)` | `Call("next", [it])` | `StopIteration` | placeholder `true` (deferred: iterator model) |
+| `str(x)` / `repr(x)` / `print(x)` / `f"{x}"` / `"%d" % x`, `x` an int | `("call", "int_str")` at each decimal conversion site | `ValueError` | `-10**4300 < x < 10**4300` (CPython 3.11+ 4300-digit limit, route #281; asserted on the operand) |
 
 The authoritative encoding lives in `src/pycsl/exception_model.py` —
 `KNOWN_EXCEPTIONS`, `TRIGGERS`, `PREDICATE_LIBRARY`. **Do not duplicate

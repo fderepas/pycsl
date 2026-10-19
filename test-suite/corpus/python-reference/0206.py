@@ -1,4 +1,8 @@
 """Test 0206 — Python Reference 8.8.1: Multiple inheritance"""
+# pycsl-flags: --assume-class-exact
+# (route #277: `C(A, B)` gives `C.who == A.who == 1`, which does not refine `B.who`
+#  (== 2), so the now-default override check rejects the hierarchy; the MRO-resolution
+#  claim is tested under the declared CLASS-EXACT assumption.)
 _ = 0  # anchor
 from dataclasses import dataclass
 

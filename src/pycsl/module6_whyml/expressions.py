@@ -6394,6 +6394,34 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(
                 "val str_mod_op (s: string) (x: 'a) : string\n"
                 "    ensures { String.length result >= 0 }")
+            # (#49) ROUTE #281 — `"%d" % x` (also `%i`/`%u`/`%s`/`%r`/`%a`) renders an int
+            # in decimal and raises `ValueError` past 4300 digits. Every int-typed operand
+            # (the right side, or each element of a tuple right side) owes `|x| <
+            # 10**4300` under `no_exception` — over-approximating a `%x` conversion, whose
+            # obligation is then merely unnecessary. An operand of another type keeps no
+            # obligation (`str` / float renderings do not hit the limit).
+            _r281 = expr.get("right")
+            _ops281 = ((_r281.get("elts") or _r281.get("elements") or [])
+                       if isinstance(_r281, dict) and _r281.get("type") == "Tuple"
+                       else [_r281])
+            _p281 = ""
+            for _o281 in _ops281:
+                if not isinstance(_o281, dict) or self._is_string_expr(_o281):
+                    continue
+                _k281 = _o281.get("type")
+                _st281 = str(getattr(self, "_current_symbol_table", {}).get(
+                    _o281.get("name")) or "").split("[")[0].strip().lower()
+                if ((_k281 == "Number" and type(_o281.get("value")) is int)
+                        or (_k281 == "Var" and _st281 in ("int", "bool"))
+                        or (_k281 == "Call" and _o281.get("func") in (
+                            "len", "int", "abs", "ord", "hash", "sum"))):
+                    _q281 = self._maybe_emit_no_exception_assert(
+                        ("call", "int_str"),
+                        [self._expr_to_whyml(_o281, local_refs, invariant_ctx, subst)])
+                    _p281 = (_p281 + " " + _q281).strip() if _q281 else _p281
+            # The obligations wrap the right OPERAND, so the term keeps its head.
+            if _p281:
+                return f"(str_mod_op {left} (begin {_p281} {right} end))"
             return f"(str_mod_op {left} {right})"
         # strings-plan Stage 2: `s + t` on strings is concatenation, not int addition. The
         # logic symbol `concat` is fine in a spec; in a program (body) context it is bridged
@@ -10406,6 +10434,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # treated pessimistically. Default mode preserves backward
             # compat — ambient.
             inner = f"({arity_fn} {' '.join(coerced_args) if coerced_args else '()'})"
+            # (#49) ROUTE #281 — `print(x)` renders an int argument as decimal text, which
+            # raises `ValueError` past 4300 digits: every argument that is not a string
+            # (the string ones were hashed into `str_hash_op` above) owes `|x| < 10**4300`
+            # under `no_exception`.
+            if func_name == "print" and _rcv is None:
+                for _ci281 in range(min(len(coerced_args), len(_arg_irs))):
+                    _a281 = _arg_irs[_ci281]
+                    _c281 = coerced_args[_ci281].strip()
+                    if (_c281.startswith("(str_hash_op ")
+                            or (isinstance(_a281, dict) and self._is_string_expr(_a281))):
+                        continue
+                    inner = self._wrap_with_no_exception_assert(
+                        ("call", "int_str"), [coerced_args[_ci281]], inner)
             # (#49) ROUTE #167 carrier — THE COMPUTED-RECEIVER SPELLING. `C(0).sget()` and
             # `super().sget()` arrive here with a bare method name and the receiver in the
             # `receiver` field, never reaching `_handle_dotted_call`'s precondition assert,
@@ -11747,7 +11788,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # fable-confirmed). `format/bool/int/abs` keep the generic `*_conv` int model.
             if func_name == "str":
                 self._add_abstract_op("val str_of_int (x: int) : string")
-                return f"(str_of_int {args[0]})"
+                # (#49) ROUTE #281 — `str(x)` of an int raises `ValueError` past 4300
+                # decimal digits (CPython 3.11+), so under `no_exception` it owes
+                # `|x| < 10**4300` (`exception_model` row ("call", "int_str")).
+                # The obligation wraps the OPERAND, so the term keeps its `(str_of_int`
+                # head (local typing reads it).
+                _p281 = self._maybe_emit_no_exception_assert(("call", "int_str"), [args[0]])
+                return (f"(str_of_int (begin {_p281} {args[0]} end))" if _p281
+                        else f"(str_of_int {args[0]})")
             # self-tcb-reduction (union/match cluster): `bool(<array-int local>)`
             # (`bool(true_branch_stmts)`, `true_branch_stmts = body if … else orelse`) is
             # Python list-truthiness = non-emptiness, `(if Array.length arr <> 0 then 1 else
@@ -11770,6 +11818,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f'(if str_eq_op {args[0]} "" then 0 else 1)'
             wf = whyml_ident(func_name)
             self._add_abstract_op(f"val {wf}_conv (x: int) : int")
+            if func_name in ("repr", "format"):
+                # (#49) ROUTE #281 — `repr(x)` / `format(x)` of an int is its decimal text.
+                _p281 = self._maybe_emit_no_exception_assert(("call", "int_str"), [args[0]])
+                return (f"({wf}_conv (begin {_p281} {args[0]} end))" if _p281
+                        else f"({wf}_conv {args[0]})")
             return f"({wf}_conv {args[0]})"
         if func_name == "sum" and len(args) == 1:
             result = self._handle_sum_call(expr)
@@ -17506,6 +17559,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { String.length result = String.length a + String.length b }")
 
             acc = self._fstring_str_part(parts[0], local_refs, invariant_ctx, subst)
+            # (#49) ROUTE #281 — every int segment is rendered in decimal: its bound is
+            # asserted ahead of the FIRST segment, so the term keeps its head.
+            _p281 = ""
+            for pp in parts:
+                if not (isinstance(pp, dict) and self._is_string_expr(pp)):
+                    _w281 = self._coerce_to_int(
+                        self._expr_to_whyml(pp, local_refs, invariant_ctx, subst))
+                    if not self._expr_is_pyval(pp):
+                        _q281 = self._maybe_emit_no_exception_assert(("call", "int_str"),
+                                                                     [_w281])
+                        _p281 = (_p281 + " " + _q281).strip() if _q281 else _p281
+            if _p281:
+                acc = f"(begin {_p281} {acc} end)"
             for pp in parts[1:]:
                 acc = f"(str_concat_op {acc} {self._fstring_str_part(pp, local_refs, invariant_ctx, subst)})"
             return acc
@@ -17563,6 +17629,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if len(parts) == 1 and not acc.strip().startswith("(str_hash_op "):
             self._add_abstract_op("val function str_of_int_hash (x: int) : int")
             acc = f"(str_of_int_hash {acc})"
+        # (#49) ROUTE #281 — a non-string part of this int-model joiner IS an int (the
+        # joiner's `str_concat` is int-typed), rendered in decimal: under `no_exception`
+        # it owes `|x| < 10**4300`. String parts (literal text, string-typed values,
+        # `FormattedValue`s — which carry their own obligation) are skipped.
+        for _p281 in parts:
+            if (isinstance(_p281, dict) and _p281.get("type") not in ("String", "Str")
+                    and not self._is_string_expr(_p281)):
+                _w281 = _part(_p281)
+                if not _w281.strip().startswith("(str_hash_op "):
+                    acc = self._wrap_with_no_exception_assert(
+                        ("call", "int_str"), [_w281], acc)
         return acc
 
     def _handle_unaryop_expr(
@@ -19366,6 +19443,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             f"{_r231_text.encode('utf-8').hex()}")
                 self._add_abstract_op(
                     f"val function {_r231_fn} (x: {_r231_ty}) : string")
+                # (#49) ROUTE #281 — an int rendered in DECIMAL (a `!s`/`!r`/`!a`
+                # conversion, or a spec whose presentation type is none/`d`/`n`) raises
+                # `ValueError` past 4300 digits; `b`/`c`/`o`/`x`/`X` do not, and the float
+                # types raise `OverflowError` (outside the tracked set).
+                _r281_ty = (_r231_text[-1:] if _r231_text[-1:].isalpha()
+                            or _r231_text[-1:] == "%" else "")
+                if _r231_t == "i" and (_r231_c != "n" or _r231_ty in ("", "d", "n")):
+                    _p281 = self._maybe_emit_no_exception_assert(("call", "int_str"),
+                                                                 [_r231_w])
+                    if _p281:
+                        return f"({_r231_fn} (begin {_p281} {_r231_w} end))"
                 return f"({_r231_fn} {_r231_w})"
             _r231_sw = self._expr_to_whyml(_r231_spec, local_refs, invariant_ctx, subst)
             _r231_st = "s" if self._is_string_expr(_r231_spec) else "i"
@@ -19373,6 +19461,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(
                 f"val function {_r231_fn} (spec: "
                 f"{'string' if _r231_st == 's' else 'int'}) (x: {_r231_ty}) : string")
+            if _r231_t == "i":
+                # (#49) ROUTE #281 — a computed spec may be decimal: owe the bound.
+                _p281 = self._maybe_emit_no_exception_assert(("call", "int_str"), [_r231_w])
+                if _p281:
+                    return f"({_r231_fn} {_r231_sw} (begin {_p281} {_r231_w} end))"
             return f"({_r231_fn} {_r231_sw} {_r231_w})"
         # ROUTE #42 (relaunch #48) — THE BOOL-SINGLETON WHITELIST. `pycsl.py` narrowed
         # the distinct `is`/`is not` IR operator back to `==`/`!=` and left the ADDITIVE

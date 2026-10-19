@@ -1065,7 +1065,8 @@ requires(P.m)` (weaker-or-equal pre), `ensures(P.m) ⟹ ensures(C.m)` (stronger-
 equal post), `assigns(C.m) ⊆ assigns(P.m)` (narrower frame). Conformance is
 declared via the class-level directive `#@ conforms_to P`; for each member `m` of
 `P` that `C` provides, `_populate_protocol_conformance` records an `(C__m, P__m)`
-override pair in the EXISTING `overrides` IR list. `--check-behavioral-subtyping`
+override pair in the EXISTING `overrides` IR list. The override check (on by default since
+route #277; formerly `--check-behavioral-subtyping`, which `#@ conforms_to` never needed)
 emits the per-method refinement goal `forall self: C, .... ((pre_P -> pre_C) /\\
 (post_C -> post_P))` — the per-method contract-refinement VC. This is a per-method
 VC (NOT a presence check): it is discharged by Why3/SMT from the two contracts.
@@ -1539,7 +1540,11 @@ dom(TRIGGERS)` must discharge each `trigger(op, E)` for which
 
 where `active(f) = no_exception_set(f) ∪ (no_exception_all(f) ?
 KNOWN_EXCEPTIONS : ∅)` and `TRIGGERS` is the table in
-`exception_model.py`.
+`exception_model.py`. (Route #281: the row `("call", "int_str")`
+gives every int -> decimal-string conversion — `str`/`repr`/`format`
+of an int, a non-string `print` argument, an int f-string part
+rendered in decimal, an int `%` operand — the `ValueError` trigger
+`-10**4300 < x < 10**4300`, CPython 3.11+'s 4300-digit limit.)
 
 **Rule (conflict rejection).** `no_exception(E) ∧ raises(E, _) ∈ Γ_f`
 is rejected by `Module4_SemanticAnalyzer._validate_no_exception` with a
@@ -2987,6 +2992,7 @@ values involved. The listing is conservative (over-, never under-reported).
 | **FLOAT-FINITE** | every `float` value is finite and non-NaN | a comparison (`< <= > >= == !=`) or `min`/`max` whose operand mentions a float literal or a float-typed variable, field or `\result` | `x: float` with `ensures x == x` / `x <= x` / (`requires x != y`, `ensures x < y or y < x`) PROVE (2500-2502); CPython refutes all three for `x = float("nan")` | `--strict-float-finite` (2503-2505 FAIL; controls 2507 PASS) |
 | **BUILTIN-EXACT** | a value whose static type is a builtin (`int`/`float`/`str`/`bool`/`bytes`/`tuple`/`list`/`dict`/`set`/`frozenset`) is an EXACT instance of it — not a subclass overriding a dunder | any operator (an IR node with an `op`: arithmetic, comparison, unary, augmented assignment) reading a builtin-typed variable, field or `\result` | `def f(x: int): return x - x` PROVES `\result == 0` (2506); CPython returns 7 for `f(I(5))`, `class I(int): __sub__ -> 7` | none — dropping it would leave no builtin arithmetic at all |
 | **LATIN1-STR** | every `str` value consists of code points 0..255: `ord(c) < 256`, and `chr(n)` is modelled only for `0 <= n < 256` (τ(str) is the Why3 `string` of `string.Char`, whose `axiom code` bounds every code by 256) | every `ord`/`chr` call, body or contract (they rely on it DIRECTLY: the `< 256` bound, the `chr` round trip below 256, every cited codec lemma over `Char.code`), and every function reading a str value at all (a str-typed variable, field or `\result`, or a string literal), since the str sort itself is the 8-bit string | `requires len(s) == 1 ensures \result < 256` over `return ord(s)` (3020), `ensures \result != 300` over `return ord(chr(300))` (3021), the contract form `ensures ord(s) < 256` (3022) and `ord(s[0]) < 256` (3023) PROVE; CPython gives 8364 for `"€"` and 300 | `--strict-latin1` (3024-3027 FAIL; controls 3028 default / 3029 strict PASS) |
+| **CLASS-EXACT** | a value whose static type is a USER class is an exact instance of it: a method call is verified against that class's method contract and no subclass override's refinement of it is checked | ONLY under `--assume-class-exact` (the default CHECKS the refinement, route #277): every override pair of the unit, and every method call whose method name is a method of a class of the unit | `use(a: A)` claims `\result == 1` over `a.m()` with `B(A).m` returning 2 (3100; across modules 3101): PROVED before route #277, FAILS by default now; 3102 PROVES under the flag | the DEFAULT (drop `--assume-class-exact`) |
 | **FIELD-DISJOINT** | two distinct mutable fields (`list`/`dict`/`set`/record-valued — of one record, or the same field of two record values) hold distinct objects, so a mutation through one is invisible through the other: the ownership discipline's rule R1 (`docs/pycsl-ownership-discipline.md` §2), stated for the residue no check sees | a function that mutates a mutable field in place (subscript store/`del`, a mutator method call, an augmented assignment, a nested field store) and also reads or mutates ANOTHER mutable field (field types matched by name) | `T.poke` (`assigns self.xs`) writes `self.xs[0] = 7` and returns `self.ys[0]` under `requires self.ys[0] == 0`; `ensures \result == 0` PROVES (2570); CPython returns 7 for `L = [0]; T(L, L).poke()`. A VERIFIED caller that builds the alias is refused (R167, routes #243/#244/#254); the residue is an alias built in unverified code | none — every list/dict/set field frame rests on it |
 
 **What `--strict-float-finite` covers.** A NaN SENTINEL is modelled as the non-dyadic real
@@ -3008,6 +3014,29 @@ through the binary-operator lowering (a future float `min`/`max` lowering must b
 `max(nan, 1.0)` is `nan`; today `max(x, y)` on floats lowers to the INT `MinMax.max` and fails
 closed with a type error in both modes); there is no spec-level `math.isnan`/`math.isfinite`, so the only non-NaN
 precondition a user can write is a comparison such as `x == x` or `x >= 0.0`.
+
+**What the default override check covers (routes #277/#278).** Override PAIRS are computed over
+the C3 MRO of every class S: the provider P of a method name t is the first class of S's MRO that
+defines or binds t, and every later class X of that MRO which defines t is overridden by P — so
+a mixin-supplied method (`class B(M, A): pass`), a provider two bases away, and a fieldless chain
+(`C(B(A))` with `B` empty) are paired like a method defined in S (constructors excluded). A
+CLASS-BODY binding provider (`m = lambda self: 2`) has no contract and is refused
+(`PYCSL-SUBTYPING-PAIR`). For each pair Module 6 emits `goal p__t_refines_x : forall … .
+((pre_X -> pre_P) /\ (post_P -> post_X)) /\ ⋀ ((pre_X /\ cond_P(E)) -> ⋁ cond_X(E'))` — the last
+conjunct over P's declared `raises E when cond_P(E)` and X's clauses for E or an ancestor E' —
+and `_run_pipeline` refuses (`PYCSL-SEM-OVERRIDE-REFINEMENT`) an override that: (R1) may let
+escape (an undeclared escaping `raise`, a declared one, or route #272's hidden set) an exception
+X does not declare, or X's `no_exception` excludes, or raises one undeclared where X declares it
+only under a condition; (R2) drops X's `no_exception` claim; (R3) assigns a location X's
+declared `assigns` does not name — except a location rooted at a `self` field class X does not
+have, which no X-typed receiver can observe; (R4) takes fewer positional parameters than X, or
+moves one X's contract mentions. `--assume-class-exact` turns all of this off (CLASS-EXACT);
+`#@ conforms_to` pairs are checked in both modes (route #224). Cost of the default (measured,
+gen #37): 11 of 1792 + 2186 corpus files gain goals; 0445 (the negative case, now expected FAIL),
+1348 and python-reference 0206 (each a genuine Liskov violation of its program, now run with
+`--assume-class-exact`) flip PASS -> FAIL; 1343/1344 (expected FAIL) are refused; in the 53
+mirror files 25 goals (all `true -> true`) and one cross-mixin stub frame
+(`statements.py::_expr_to_whyml`, missing four fields its provider writes) widened.
 
 **What `--strict-latin1` covers.** `ord` reads an UNINTERPRETED code point instead of
 `Char.code`: `function pycsl_cp (s: string) (i: int) : int = let r = pycsl_cp_raw s i in if 0 <=

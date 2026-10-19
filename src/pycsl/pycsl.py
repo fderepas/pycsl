@@ -350,11 +350,21 @@ def _parse_args() -> argparse.Namespace:
                              "--soundness-report. Costs every proof that feeds "
                              "`ord(..)` into a cited lemma over `Char.code`.")
     g_strict.add_argument("--check-behavioral-subtyping", action="store_true",
-                        help="Layer D: emit Liskov refinement goals for "
+                        help="Layer D (ON BY DEFAULT since route #277; kept for "
+                             "compatibility): emit Liskov refinement goals for "
                              "overriding methods (pre_base ⇒ pre_sub, "
-                             "post_sub ⇒ post_base). Fails if an override "
+                             "post_sub ⇒ post_base, raise conditions) and refuse "
+                             "an override that raises / assigns / renames "
+                             "parameters beyond the base. Fails if an override "
                              "strengthens a precondition or weakens a "
                              "postcondition.")
+    g_strict.add_argument("--assume-class-exact", action="store_true",
+                        help="Turn the default override-refinement check OFF "
+                             "(route #277): a value typed with a user class is "
+                             "then ASSUMED to be an exact instance of it (a "
+                             "subclass override is never seen by a caller). "
+                             "This is the declared model assumption CLASS-EXACT, "
+                             "listed by --soundness-report.")
     g_strict.add_argument("--strict-no-exception-propagation", action="store_true",
                         help="(Experimental, off by default.) Under `no_exception` "
                              "treat unannotated callees pessimistically: any call "
@@ -631,7 +641,55 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
         if _l1_vals:
             _l1_uses.append("%s: str values (8-bit string model) %s" % (
                 f["name"], ", ".join(sorted(_l1_vals))))
+    # ROUTE #277 — CLASS-EXACT, reported only when the default override-refinement check
+    # is turned off (`--assume-class-exact`; `_run_pipeline` marks the IR). A method call
+    # on a receiver typed with a user class `A` is verified against `A.m`'s contract; a
+    # subclass instance runs the override, which nothing then checks. Reported for every
+    # override pair of the unit (the refinement that is not checked) and every method
+    # call whose method name is a method of a class of the unit (over-, never
+    # under-reported: the receiver's class is not resolved here).
+    _ce_uses: List[str] = []
+    if ir_data.get("class_exact_assumed"):
+        _ce_meths: Set[str] = set()
+        for f in funcs:
+            _ce_st = f.get("self_type")
+            if f.get("kind") == "method" and isinstance(_ce_st, str) and _ce_st:
+                _ce_pre = _ce_st.lower() + "__"
+                if str(f.get("name", "")).startswith(_ce_pre):
+                    _ce_meths.add(f["name"][len(_ce_pre):])
+        for _ce_o in ir_data.get("overrides") or []:
+            if isinstance(_ce_o, dict) and not _ce_o.get("from_conforms_to"):
+                _ce_uses.append("override %s of %s: refinement not checked" % (
+                    _ce_o.get("sub_method"), _ce_o.get("base_method")))
+        for f in funcs:
+            _ce_stack: List[Any] = [f.get("body", []), f.get("contracts", {})]
+            while _ce_stack:
+                _ce_n = _ce_stack.pop()
+                if isinstance(_ce_n, list):
+                    _ce_stack.extend(_ce_n)
+                    continue
+                if not isinstance(_ce_n, dict):
+                    continue
+                _ce_stack.extend(_ce_n.values())
+                _ce_fn = _ce_n.get("func") if _ce_n.get("type") == "Call" else None
+                if (isinstance(_ce_fn, str) and ("." in _ce_fn or "receiver" in _ce_n)
+                        and _ce_fn.rsplit(".", 1)[-1] in _ce_meths):
+                    _ce_uses.append("%s: %s(...) on a user-class receiver" % (
+                        f["name"], _ce_fn))
     assumptions: List[Dict[str, Any]] = []
+    if _ce_uses:
+        assumptions.append({
+            "name": "CLASS-EXACT",
+            "statement": "a value whose static type is a user class is an exact instance "
+                         "of it: a method call is verified against that class's method "
+                         "contract, and no subclass override's refinement of it is "
+                         "checked (the default checks it; this run passed "
+                         "--assume-class-exact)",
+            "counterexample": "class B(A): m -> 2 against A.m ensures \\result == 1; "
+                              "use(a: A) -> a.m() == 1 for a = B() (corpus 3100-3101)",
+            "strict_mode": "the default (drop --assume-class-exact)",
+            "relied_on_by": sorted(set(_ce_uses)),
+        })
     if _ma_float_uses:
         assumptions.append({
             "name": "FLOAT-FINITE",
@@ -720,6 +778,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     """Run Modules 1–6 on *source_code*. Returns WhyML code string."""
     print(f"[*] Parsing and Semantic Analysis for '{args.file}'...")
     print(f"[*] Memory model: {memory_model}")
+    # (#49) ROUTE #277 — OVERRIDE REFINEMENT IS ON BY DEFAULT. A method call on a receiver
+    # typed with a user class `A` uses `A.m`'s contract, and a subclass `B(A)` whose `m`
+    # does not refine it made `use(a: A)` prove `\result == 1` while CPython returns 2
+    # (witnesses-r277: local and cross-module). The refinement goal existed only under the
+    # opt-in `--check-behavioral-subtyping`, and nothing declared the default's
+    # assumption. MEASURED (gen #37): default-on adds goals to 11 of 1792 + 2186 corpus
+    # files (3 PASS -> FAIL, each a real Liskov violation of the program: 0445, 1348,
+    # pyref 0206) and to 2 of 53 mirror files (25 goals, all `true -> true`). So the
+    # check is the default; `--assume-class-exact` turns it off and is then a DECLARED
+    # model assumption (CLASS-EXACT, listed by `--soundness-report`).
+    if not getattr(args, "assume_class_exact", False):
+        args.check_behavioral_subtyping = True
 
     # [Modules 1-3] Ingest, Parse, and Weave
     ingestor = Module1_Ingestor(source_code)
@@ -986,16 +1056,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 raise _PyCSLSemErr216(
                     f"{args.file} (line {_line216}): class `{_sub216}` overrides "
                     f"`{_base216}`'s " + ", ".join("`" + _d + "`" for _d in _shared216)
-                    + " and `--check-behavioral-subtyping` was requested, but a DUNDER is "
+                    + " and the override-refinement check is on (the default since route "
+                    "#277, or `--check-behavioral-subtyping`), but a DUNDER is "
                     "not emitted as a function, so no override pair is recorded and NO "
                     "refinement goal is built. The run would report `All contracts "
                     "formally proven` with the substitutability obligation silently "
                     "absent (route #216, the same shape as route #97). Refusing instead "
                     "of certifying. FIX: give the method a non-dunder name — the "
                     "identical program spelled `m` instead of `__len__` produces the goal "
-                    "`sub__m_refines_base` and is checked — or drop "
-                    "`--check-behavioral-subtyping`, which then claims nothing about this "
-                    "pair rather than claiming something false.",
+                    "`sub__m_refines_base` and is checked — or pass "
+                    "`--assume-class-exact`, which then declares the CLASS-EXACT "
+                    "assumption for this pair rather than claiming it was checked.",
                     filename=args.file, line=_line216,
                     stage="ir-semantic", code="PYCSL-SEM-DUNDER-OVERRIDE-UNCHECKED")
 
@@ -2046,6 +2117,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # (after imports/inheritance/composition), so it runs here and short-circuits before
     # WhyML emission / proving.
     if getattr(args, "soundness_report", False):
+        # ROUTE #277 — tell the report the override-refinement check is off.
+        if not getattr(args, "check_behavioral_subtyping", False):
+            ir_data["class_exact_assumed"] = True
         _print_soundness_report(_build_soundness_report(ir_data, args.file))
         sys.exit(0)
 
@@ -2634,7 +2708,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # stub carries the `raises` its body shows). Constructors are route #179's.
     # No `no_exception` function in the unit -> nothing is computed. INLINE
     # (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
-    if any((_f.get("contracts") or {}).get("no_exception")
+    # (#49) ROUTE #278 — the sets below (escaping undeclared raises, declared raises,
+    # HIDDEN-OUT) are also what an OVERRIDE may raise, so they are computed whenever the
+    # override-refinement check has a pair to judge (block after this one).
+    _ov278 = [_o for _o in (_ir263.get("overrides") or []) if isinstance(_o, dict)
+              and (getattr(args, "check_behavioral_subtyping", False)
+                   or _o.get("from_conforms_to"))]
+    _dir272 = {}
+    _decl272 = {}
+    _ho272 = {}
+    if _ov278 or any((_f.get("contracts") or {}).get("no_exception")
            or (_f.get("contracts") or {}).get("no_exception_all") for _f in _fn263):
         from exception_model import (handler_catches as _hc272,
                                      EXCEPTION_BASES as _eb272,
@@ -2776,6 +2859,147 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"{'' if len(_viol272) == 1 else f' (also: {_viol272[1:4]})'}.",
                 filename=args.file, stage="ir-semantic",
                 code="PYCSL-SEM-UNDECLARED-CALLEE-RAISE")
+
+    # (#49) ROUTE #278 — THE OVERRIDE THE CHECK MISSED. The refinement goal
+    # (`_render_refinement_goal`) compares requires/ensures only, and a caller of `a.m()`
+    # (`a: A`) is lowered against `A.m`'s WHOLE contract: its `raises`/`no_exception`
+    # (the route #100/#105/#186 wrap, route #272's hidden set) and its `assigns` (the
+    # caller's frame). MEASURED at 78162575 WITH the flag (CPython contradicts each): an
+    # override raising an undeclared ValueError under a `no_exception \all` caller (p091);
+    # an override writing `self.v` against `assigns \nothing` (probe g2); an override
+    # SWAPPING its parameter names (`m(self, y, x)` vs `m(self, x, y)`: the goal renders
+    # both contracts over the SUB's names, so it compared the wrong arguments — probe g3).
+    # RULE, per recorded pair (sub S.t refines base X.t), each a refusal:
+    #   R1 raises: every exception S.t may let escape — its escaping undeclared `raise`s,
+    #      its declared `raises`, and route #272's HIDDEN-OUT — must be one X.t DECLARES
+    #      (a declared class or subclass of it) and X.t's `no_exception` does not exclude
+    #      (`\all` excludes everything). An exception S.t raises WITHOUT a declaration
+    #      (no condition) is admitted only when X.t's covering clause has no condition
+    #      (`when True`); a declared one owes `(pre_X /\ cond_S) -> cond_X`, built by
+    #      `_render_refinement_goal`. An unnameable `raise` (`*`) never refines.
+    #   R2 no_exception: X.t's `no_exception` set must be covered by S.t's (a caller
+    #      under `--strict-no-exception-propagation` trusts X.t's claim for IMPLICIT
+    #      exceptions too).
+    #   R3 assigns: if X.t declares `assigns`, S.t must declare one whose every location
+    #      X.t's also names (`\nothing` names none) — except a location rooted at a
+    #      `self` field class X does not have (no X-typed receiver can observe it).
+    #   R4 parameters: S.t takes at least X.t's positional parameters, and every one the
+    #      base contract mentions sits at the same position under the same name (extra
+    #      trailing parameters are bound to every value by the goal, which
+    #      over-approximates their defaults).
+    # `\trusted`/`\abstract`/imported subs speak by their declarations only (no body).
+    # INLINE (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+    if _ov278:
+        from exception_model import handler_catches as _hc278
+        _viol278 = []
+        for _o278 in _ov278:
+            _sf278 = _byname263.get(_o278.get("sub_method"))
+            _bf278 = _byname263.get(_o278.get("base_method"))
+            if _sf278 is None or _bf278 is None:
+                continue  # Module 6 refuses an unresolvable pair (PYCSL-SUBTYPING-PAIR)
+            _sn278, _bn278 = _sf278["name"], _bf278["name"]
+            _sc278 = _sf278.get("contracts") or {}
+            _bc278 = _bf278.get("contracts") or {}
+            _bdecl278 = [(_r.get("exc_type"), _r.get("condition"))
+                         for _r in (_bc278.get("raises") or [])
+                         if isinstance(_r, dict) and _r.get("exc_type")]
+            _ball278 = bool(_bc278.get("no_exception_all"))
+            _bnamed278 = [a for a in (_bc278.get("no_exception") or []) if isinstance(a, str)]
+            # R1 — what the override may let escape: (exception, declared?)
+            _sexc278 = [(_e, True) for _e in sorted(_decl272.get(_sn278, set()))]
+            _sexc278 += [(_e, False) for _e in sorted(
+                (_dir272.get(_sn278, set()) | _ho272.get(_sn278, set()))
+                - _decl272.get(_sn278, set()))]
+            for _e278, _isdecl278 in _sexc278:
+                _cov278 = [_c for (_d, _c) in _bdecl278 if _e278 != "*" and _hc278(_d, _e278)]
+                _excl278 = _ball278 or any(_e278 == "*" or _hc278(_a, _e278)
+                                           for _a in _bnamed278)
+                if _excl278 or not _cov278:
+                    _viol278.append((_sn278, _bn278, "may raise `%s`, which `%s` %s" % (
+                        _e278, _bn278, "excludes by `no_exception`" if _excl278
+                        else "does not declare (`#@ raises`)")))
+                elif not _isdecl278 and not any(
+                        _c is None or (isinstance(_c, dict) and _c.get("type") == "Bool"
+                                       and _c.get("value") is True) for _c in _cov278):
+                    _viol278.append((_sn278, _bn278, "raises `%s` without a declared "
+                                     "condition, while `%s` declares it only under one"
+                                     % (_e278, _bn278)))
+            # R2 — the base's no_exception claim must be kept
+            _sall278 = bool(_sc278.get("no_exception_all"))
+            _snamed278 = [a for a in (_sc278.get("no_exception") or []) if isinstance(a, str)]
+            if _ball278 and not _sall278:
+                _viol278.append((_sn278, _bn278, "drops `%s`'s `no_exception \\all`" % _bn278))
+            for _a278 in ([] if _sall278 else _bnamed278):
+                if not any(_hc278(_x, _a278) for _x in _snamed278):
+                    _viol278.append((_sn278, _bn278, "drops `%s`'s `no_exception %s`"
+                                     % (_bn278, _a278)))
+            # R3 — frame: the override may only assign what the base declares
+            _bas278 = _bc278.get("assigns") or []
+            _sas278 = _sc278.get("assigns") or []
+            if _bas278:
+                _bset278 = {_json.dumps(_x, sort_keys=True) for _x in _bas278
+                            if not (isinstance(_x, dict) and _x.get("type") == "Nothing")}
+                if not _sas278:
+                    _viol278.append((_sn278, _bn278, "declares no `assigns` while `%s` "
+                                     "declares one" % _bn278))
+                # A location rooted at a `self` field the BASE class does not have is
+                # admitted: a base-typed receiver cannot name it, so no caller holding one
+                # can observe the write (aliasing through two differently-typed
+                # variables is not modelled at all — FIELD-DISJOINT's residue).
+                _bfl278 = set()
+                for _tn278, _tf278 in _fields263.items():
+                    if _tn278.lower() == str(_o278.get("base_type", "")).lower():
+                        _bfl278 |= set(_tf278)
+                for _x278 in _sas278:
+                    if isinstance(_x278, dict) and _x278.get("type") == "Nothing":
+                        continue
+                    _rt278 = None
+                    _st278 = [_x278]
+                    while _st278 and _rt278 is None:
+                        _y278 = _st278.pop(0)
+                        if isinstance(_y278, dict):
+                            if (_y278.get("type") == "FieldGet"
+                                    and _y278.get("object") == "self"):
+                                _rt278 = _y278.get("field")
+                            else:
+                                _st278.extend(_v for _v in _y278.values()
+                                              if isinstance(_v, (dict, list)))
+                        elif isinstance(_y278, list):
+                            _st278.extend(_y278)
+                    if _rt278 is not None and _rt278 not in _bfl278:
+                        continue
+                    if _json.dumps(_x278, sort_keys=True) not in _bset278:
+                        _viol278.append((_sn278, _bn278, "assigns a location `%s`'s "
+                                         "`assigns` does not name" % _bn278))
+                        break
+            # R4 — parameters, by position. The goal renders the base's contract over the
+            # SUB's binders, so a base parameter the base contract mentions must sit at
+            # the same position in the override (one it does not mention cannot be
+            # misread; one absent from the override is unbound -> Why3 rejects the goal).
+            _sp278 = list(_sf278.get("formal_params") or [])
+            _bp278 = list(_bf278.get("formal_params") or [])
+            _bdump278 = _json.dumps(_bc278, sort_keys=True)
+            if len(_sp278) < len(_bp278) or any(
+                    _bx != _sx and _bx in _sp278 and ('"%s"' % _bx) in _bdump278
+                    for _bx, _sx in zip(_bp278, _sp278)):
+                _viol278.append((_sn278, _bn278, "binds its parameters %s where `%s` binds "
+                                 "%s (by position)" % (_sp278, _bn278, _bp278)))
+        if _viol278:
+            from errors import PyCSLSemanticError as _PyCSLSemErr278
+            _v278 = _viol278[0]
+            raise _PyCSLSemErr278(
+                f"override '{_v278[0]}' of '{_v278[1]}' {_v278[2]}: a caller holding a "
+                f"value typed with the base class is verified against the BASE method's "
+                f"whole contract (its raises / no_exception / assigns, its parameters by "
+                f"position), and a subclass instance runs the override, so the claim would "
+                f"be proved while CPython does otherwise (route #278). Make the override "
+                f"refine the base (declare at most the base's exceptions and locations, "
+                f"keep its parameter names and order), widen the base's contract, or pass "
+                f"`--assume-class-exact` to declare the assumption that values are exact "
+                f"instances (CLASS-EXACT, listed by `--soundness-report`)"
+                f"{'' if len(_viol278) == 1 else f' (also: {_viol278[1:4]})'}.",
+                filename=args.file, stage="ir-semantic",
+                code="PYCSL-SEM-OVERRIDE-REFINEMENT")
 
     # (#49) ROUTE #264 — A READ OF A LOCAL THAT IS NOT DEFINITELY ASSIGNED.
     #

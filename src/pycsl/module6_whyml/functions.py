@@ -9490,7 +9490,11 @@ class FunctionEmissionMixin:
                     "proven with the substitutability obligation silently absent "
                     "(route #97), so this is a refusal. Ensure both the overriding and "
                     "the overridden method are defined in a module reaching WhyML "
-                    "emission, or drop `--check-behavioral-subtyping`.")
+                    "emission (a class-body binding such as `m = lambda self: 2` "
+                    "overriding a method has no contract to check: define it with "
+                    "`def`, route #278), or pass `--assume-class-exact` (the declared "
+                    "CLASS-EXACT assumption; the check is on by default since route "
+                    "#277).")
             out += self._render_refinement_goal(ov, sub_fn, base_fn)
         return out
 
@@ -9514,6 +9518,29 @@ class FunctionEmissionMixin:
         sub_pre = conj(sub_c.get("requires", []))
         sub_post = conj(sub_c.get("ensures", []))
         base_post = conj(base_c.get("ensures", []))
+        # (#49) ROUTE #278 — the RAISE CONDITIONS refine too. A caller of `x.m()` with a
+        # base-typed receiver is verified against the base's `raises { E -> cond_X }`
+        # (the call-site wrap asserts `not cond_X` under `no_exception`), so an override
+        # declaring `raises E when cond_S` owes `(pre_X /\ cond_S) -> cond_X` over the
+        # base clauses that cover `E` (same class or an ancestor). A raise the base does
+        # not declare at all is refused before emission (`pycsl._run_pipeline`,
+        # PYCSL-SEM-OVERRIDE-REFINEMENT); here only the conditions are compared.
+        from exception_model import handler_catches as _hc278
+        _rx278: List[str] = []
+        for _rs278 in (sub_c.get("raises") or []):
+            if not (isinstance(_rs278, dict) and _rs278.get("exc_type")):
+                continue
+            _cv278 = [self._expr_to_whyml(_rb278.get("condition"), set())
+                      if _rb278.get("condition") is not None else "true"
+                      for _rb278 in (base_c.get("raises") or [])
+                      if isinstance(_rb278, dict) and _rb278.get("exc_type")
+                      and _hc278(_rb278["exc_type"], _rs278["exc_type"])]
+            if not _cv278:
+                continue
+            _cs278 = (self._expr_to_whyml(_rs278.get("condition"), set())
+                      if _rs278.get("condition") is not None else "true")
+            _rx278.append(f"((({base_pre}) /\\ ({_cs278})) -> ("
+                          + " \\/ ".join(f"({_c})" for _c in _cv278) + "))")
         self._in_spec = False
 
         # Convert function-style binders "(self: sub) (x: int)" into Why3
@@ -9529,7 +9556,8 @@ class FunctionEmissionMixin:
         return [
             f"  goal {gname} :",
             f"    forall {binders}.",
-            f"    (({base_pre}) -> ({sub_pre})) /\\ (({sub_post}) -> ({base_post}))",
+            f"    (({base_pre}) -> ({sub_pre})) /\\ (({sub_post}) -> ({base_post}))"
+            + "".join(f" /\\ {_x}" for _x in _rx278),
             "",
         ]
 

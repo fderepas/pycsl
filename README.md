@@ -279,6 +279,26 @@ in unverified code is the ownership rule R1; no strict mode, corpus
 `ord(s) < 256` and `ord(chr(300)) != 300` prove; drop it with
 `--strict-latin1`, corpus 3020-3029). See translational reference §T.10.5.
 
+**Overrides are checked by default (route #277).** A method call on a value
+typed with a user class `A` is verified against `A.m`'s contract, so every
+override of `A.m` — defined in a subclass, supplied through the MRO by another
+base (`class B(M, A): pass`), or bound in a class body (refused: it has no
+contract) — must REFINE it: a goal `((pre_A -> pre_B) /\ (post_B -> post_A))`
+plus the raise conditions, and refusals (`PYCSL-SEM-OVERRIDE-REFINEMENT`,
+route #278) when the override may raise an exception the base does not declare
+or its `no_exception` excludes, drops the base's `no_exception`, assigns a
+location the base's `assigns` does not name (a field the base class lacks is
+exempt), or moves a parameter the base contract mentions. This used to need
+`--check-behavioral-subtyping` (kept, now a no-op). `--assume-class-exact`
+turns it off and is then the declared model assumption **CLASS-EXACT** (a
+user-class-typed value is an exact instance), listed by `--soundness-report`;
+corpus 3100-3113.
+
+Under `no_exception` covering `ValueError`, every int -> DECIMAL string
+conversion (`str(x)`, `repr(x)`, `print(x)`, an f-string part `f"{x}"` /
+`!r` / `:d`, a `%` operand) owes `|x| < 10**4300` (CPython 3.11+
+`sys.int_max_str_digits`, route #281; corpus 3114-3119).
+
 A class defining only `__eq__` (no `__hash__`) is detected as
 *unhashable*; using it as a dict/set key would raise `TypeError` at
 runtime.

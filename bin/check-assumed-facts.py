@@ -71,6 +71,10 @@ properties of the type mapping, not `assume`/`axiom` lines. Four are DECLARED (r
                   `--strict-latin1` drops it (3024-3027 FAIL); its code point
                   `pycsl_cp` is a DEFINITION over an uninterpreted function, so it adds no
                   fact to this plane's census.
+  CLASS-EXACT     a user-class-typed value is an exact instance (no override is seen by a
+                  caller): assumed ONLY under `--assume-class-exact`; the default emits the
+                  override refinement goals (routes #277/#278), corpus 3100-3113. A goal
+                  is not an axiom, so neither mode adds a fact to this plane's census.
 """
 import argparse
 import os

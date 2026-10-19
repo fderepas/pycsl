@@ -3925,6 +3925,7 @@ line. The translation rules are:
 | `arr[i] = v` (write) | `("subscript", "write")` | `assert { in_bounds (Array.length arr) (T_e[[i]]) };` |
 | `d[k]` | `("map_get", None)` | `assert { has_key (!d) (T_e[[k]]) };` |
 | `d.pop(k)` | `("attr_call", "pop")` | `assert { has_key (!d) (T_e[[k]]) };` |
+| `str(x)`, `repr(x)`, `format(x)`, `print(…, x, …)`, `f"{x}"` / `f"{x!r}"` / `f"{x:d}"`, `"%d" % x` with `x` an int (route #281) | `("call", "int_str")` | `(- 10^4300) < T_e[[x]] /\ T_e[[x]] < 10^4300` (literal constants), asserted on the OPERAND: `(str_of_int (begin assert { … }; x end))` |
 
 The injection is gated by the function's `no_exception` context: the
 unannotated case emits the operation without an assertion (preserves
@@ -4019,6 +4020,7 @@ of the translation:
 | **FLOAT-FINITE** — every `float` value is finite and non-NaN | $\tau(\texttt{float}) = \texttt{real}$ (no NaN/±inf) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-float-finite`; counterexample corpus 2500-2502 |
 | **BUILTIN-EXACT** — a builtin-typed value is an exact instance (no dunder-overriding subclass) | $\tau$ of every builtin | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2506 |
 | **LATIN1-STR** — every `str` value consists of code points 0..255 (`ord(c) < 256`; `chr(n)` modelled only for `0 <= n < 256`) | $\tau(\texttt{str}) = \texttt{string}$ of Why3 `string.Char` (`axiom code`: every code < 256) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-latin1`; counterexample corpus 3020-3023 |
+| **CLASS-EXACT** — a user-class-typed value is an exact instance (no override is seen) | a method call through an `A`-typed receiver lowers against `A.m`'s contract | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5) ONLY under `--assume-class-exact`; the default emits the refinement goals and refusals of route #277/#278 instead; counterexample corpus 3100-3101 |
 | **FIELD-DISJOINT** — two distinct mutable fields hold distinct objects | one Why3 region per mutable field (frames such as `ensures { self.ys = old self.ys }`) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2570 |
 
 ### §T.10.2  Preservation Lemmas
@@ -4168,6 +4170,22 @@ binding form — a walrus target, a tuple-unpack target, a `match` capture, a la
 from an erased call argument — and to call RESULTS: a unit function or method whose return annotation
 is missing, `Any`, `object` or a TypeVar, a `Class.method`/`obj.method` resolved to one, and a
 builtin handing back (part of) an erased argument (`abs`, `max`, `getattr`, `next`, `sorted`, ...).)
+
+**CLASS-EXACT** — a value typed with a user class is an exact instance of it. A call `a.m(…)`
+with `a: A` lowers to `A.m`'s stub (its `ensures`, its `raises` wrap, its frame), while CPython
+runs the override of `type(a)`. Since route #277 the DEFAULT discharges this instead of assuming
+it: `_emit_subtyping_goals` emits, for every override pair (computed over the C3 MRO in
+`ir_resolve.apply_inheritance`, route #278),
+
+    goal p__t_refines_x : forall self: p, <params>, result.
+      ((pre_X -> pre_P) /\ (post_P -> post_X))
+      /\ ((pre_X /\ cond_P(E)) -> (cond_X(E1) \/ …))     for each `raises E when cond_P(E)` of P
+
+and `_run_pipeline` refuses (PYCSL-SEM-OVERRIDE-REFINEMENT) an override whose escaping exceptions,
+`no_exception` claim, `assigns` locations or positional parameters do not refine the base's
+(static semantics App. C.1, "What the default override check covers"). Under
+`--assume-class-exact` only the `#@ conforms_to` pairs are emitted, and `--soundness-report` lists
+CLASS-EXACT with every override pair and every method call of the unit.
 
 **LATIN1-STR** — every str value consists of code points 0..255. $\tau(\texttt{str})$ is the
 Why3 `string`, whose characters are `string.Char`s, and Why3's `axiom code: forall c. 0 <= code c
