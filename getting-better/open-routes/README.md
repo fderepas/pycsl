@@ -8,6 +8,18 @@
 ##   assignment), #280 (mutator on subscripted / call-result receiver dropped), #281 (int->str > 4300 digits ValueError
 ##   unmodelled) OPENED (red team 6, 273 probes); 17 witnesses driver-reproduced rc=0 at 78162575, CPython violates each.
 
+## gen #37 (2026-10-19): #279 + #280 REPAIRED (inline, mirror `\trusted`; no new def/field; ledger 3).
+##   #279: `_handle_assign_stmt` refuses a list (array/seq local, list param) or chained-assignment temporary bound to
+##   a second name when the alias is MUTATED (mutator method, ANY augmented assignment, element store for a chained
+##   temp) while LIVE — in-order walk of the rest of the block with kill-on-rebind, and a whole-function check when 2+
+##   names escape the block (loop top, after an `if`) (PYCSL-M6-MUTATION-THROUGH-COLLECTION-ALIAS). #280:
+##   `_handle_call_expr`'s computed-receiver fallback refuses a collection mutator name (list/dict/set/deque/
+##   OrderedDict/in-place dunders) and any same-file method that may write its receiver (least fixpoint; `super()`
+##   excludes the current class's override) (PYCSL-M6-MUTATOR-ON-COMPUTED-RECEIVER). Witnesses 3080-3087/3089-3096/
+##   3098/3099 PROVED (3087 ill-typed) -> refused; controls 3088/3097 PASS; all 9 route witnesses rc=0 -> rc=1.
+##   root/pyref/mirror 0 MOVED / 0 GONE / 0 APPEARED; census +18 rows. Residuals: dict/set re-bound alias, `x = d[0];
+##   x.append` (fail-closed, ill-typed); parameter-aliasing p111/p112/p114 still prove (separation premise).
+
 ## gen #37 (2026-10-19): #276 RESOLVED as the DECLARED MODEL ASSUMPTION LATIN1-STR (#250/#253 precedent): every str
 ##   value consists of code points 0..255 (str = Why3 string of 8-bit `string.Char`); listed by `--soundness-report`
 ##   (`model_assumptions`, relied_on_by = every ord/chr site + per-function str values), stated in static-semantics
