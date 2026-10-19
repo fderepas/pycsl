@@ -75,3 +75,19 @@ edited) re-measured by running, plus 0445 and the 13 new expected-FAIL witnesses
 demonstrated / 4 undemonstrated (ceiling 5). Advice audit: PYCSL-SUBTYPING-PAIR and the #216
 dunder refusal re-audited (hash updated), the new refusal audited FOLLOWABLE (143/157). Frontend
 goldens: 38/38 (0445's line numbers kept).
+
+**Gates** (logs in the r277 scratchpad, every leg tee'd with its rc): witnesses 3100-3119 table above
+(base/after rc measured per file); byte-diff-sweep base rc=0 / after rc=0; byte-diff-compare root rc=0
+with the 9 movers + 2 refusals DECLARED, pyref rc=0 (0 MOVED); mirror-emit-sweep base/after rc=0,
+compare rc=0 with the 3 movers declared; the 3 moved mirror .mlw `why3 --type-only` rc=0;
+check-self-annotate-sync.sh rc=0 (921 verbatim); self-annotate-mirror-check.sh rc=0 (53);
+doc-coherency rc=0; run-soundness-planes.sh fast rc=0 (61/61 green after the ledger updates);
+`--slow` 83/84 green — the one RED, `check-assigns-writes-survival` (TRAP 1447 > 1445), is
+PRE-EXISTING: the same plane at 72ab1c57 on the base mirror emission gives TRAP 1447 (rc=1) with
+the identical 1447 TRAP rows, so this landing neither causes nor moves it.
+**OWED** (not proved here — the LOW heavy slot never freed in 70 min): whole-file proofs of the 3
+moved mirror files. `module6_whyml__statements` is the one with real content: two verified methods
+(`_emit_array_local_reassign`, `_seq_operand`) lose 6 FALSE frame `ensures` (weaker obligations) and
+their callers lose those facts (`check-assigns-underdeclaration` HOLE/HOLE-D 0); the Transpiler moves
+by the same stub frame plus 22 goals and `pure_ast` by 3 goals, every goal literally
+`((true) -> (true)) /\ ((true) -> (true))`.
