@@ -1492,3 +1492,147 @@ markers by shape cluster.
   facade, which `check-emitted-vacuity` should flag.
 
 Logs/emits: session scratchpad `ch26/`.
+
+## Re-measurement at HEAD — ch27 (gen #37)
+
+At `8b200e84` (count 451). Three tasks: land `_record_answer` (the ch26 patch), land
+`_tag_of_value`, and probe cluster N of the Dict-wall census (`census-g37.md`) with the mirror
+ANNOTATION retype only. **2 landed (451 -> 449). Cluster N: 0 more honest with the retype
+alone.**
+
+**`_record_answer` (cluster J): why witness 3140 timed out.** The key test of the hval model,
+`hpairs_key_eq`, was emitted as a program `val`. A Why3 `let function` whose body calls a
+program `val` gets NO logic definition. So `pairs_get`, `hval_truthy` and `hval_list_str_mem`
+were uninterpreted `function`s in every VC (read in the printed task: `function pairs_get
+hpairs string : option hval`, no axiom). `pairs_get PNil k = None` was unprovable, and the
+honest claim `\result == ""` timed out on both provers. It was not slow; it was unprovable.
+Isolation (each variant, z3 + alt-ergo, 10 s): replacing the `pycsl_none` default, the
+`hval_truthy` select, or the `ref` changed nothing; replacing the `pairs_get` call by `None`
+proved at once. **Fix:** `val function hpairs_key_eq` (pure, total, uninterpreted, no axiom).
+The three readers now have their definitional axioms. 3140 then proves in alt-ergo (116
+steps). The change moves the hval preamble line in 30 corpus witnesses and 21 mirror files
+(the line and its comment only). All 30 corpus verdicts were re-run and match their labels.
+This is a strengthening of the model, not a weakening: no FAIL twin flipped.
+
+**Receiver-form `.get` (ch26 suspicion b).** Inside the seam's domain (an hval receiver) the
+ch26 patch still required a string-literal key. `(rec.get("a") or {}).get(k, "")` with a
+variable `k` fell to the receiver-dropped `get_2 (str_hash_op k) <hash>`. The seam now takes
+ANY key expression: it reads `pairs_get m_k9 k`, and a key that does not lower to a `string`
+fails closed at L3-tc. Witnesses 3160 (PASS, fails at base) and 3161 (FAIL twin). OUTSIDE the
+hval/emit_ir recognizers (for example `(d or {}).get("x", 0)` on a `Dict[str, int]`), the
+receiver is still dropped: `get_2 <hash k> <hash D>`. That path is SOUND because `get_2` is a
+program `val`, so each call is a fresh unconstrained int: `(a or {}).get("x", 0) - (b or
+{}).get("x", 0) == 0` does NOT prove. It is input-blind (vacuous), not unsound. Witness 3162
+(FAIL) guards it: if `get_2` were ever made a `val function`, the two reads would become one
+term and 3162 would prove.
+
+**`_tag_of_value` (cluster N).** Ported verbatim, `x_ir: "ExprIR"`, no emitter change. The
+emitted body reads `kind_of x_ir = "Var"`, `name_of x_ir` and `Map.get
+self._current_symbol_table`. Mutation-sensitive: `"Var"` -> `"Vax"` moves the emission,
+`.get("name")` -> `.get("func")` gives `func_of`, and `_current_symbol_table` ->
+`_class_constants` fails L3-tc. `.get("attr")` still gives `name_of`: `name`/`attr`/`field`
+share one projector by design (`_EMIT_IR_PROJ`). `check-shadowed-selfcalls` went 14 -> 15
+because the new body calls the already-converted `_tag_of_type` through the receiver-less
+`val self__tag_of_type_1`. Fixed with `#@ sibling_concrete` on `_tag_of_type`, the call is
+concrete now, and the ratchet is not raised.
+
+**Cluster N retype probe.** For each of the 19 in-chain markers (13 DICT-first), the live body
+was ported verbatim into a scratch copy, with `--convert --replace`. ONLY the IR parameter
+annotation was retyped (`Dict[str,Any]`/`int`/`dict` -> `"ExprIR"`/`"StmtIR"`/`"IRNode"`; three
+already said `"ExprIR"`). Each copy was emitted `--no-proof --keep-mlw` through `heavy.sh`.
+
+```
+    marker (retype)                                   next blocker after the retype -> class
+  expressions.py
+    _tag_of_value (x_ir: ExprIR)                      HONEST. LANDED                                          -
+    _emit_bitwise_or_power (expr: ExprIR)             L3-tc: `right_ir["value"] < 0` is `svalue_of` (emit_ir)  VALUE-PAYLOAD
+                                                      vs int; `isinstance(left_ir.get("value"), int)` is `any bool`
+    _emit_contract_logic_symbol (expr: ExprIR)        L3-tc: `imported_sigs[func_name]` (an int-erased record   RIPPLE(P)
+                                                      dict) is passed to `_inductive_sig_whyml` as a string
+    _emit_membership (expr: ExprIR)                   L3-tc: the IR-node literal `{"type": "Var", "name": r}`   RIPPLE(params)
+                                                      DOES lower (`IrVar !_recv`). The call fails on the mirror's
+                                                      OTHER params: `local_refs: int` vs the callee's set
+    _expr_to_whyml_string_ctx (already ExprIR)        REFUSED: self-recursion through a method call (no         RECURSION
+                                                      measure)
+    _handle_join_call (expr: ExprIR)                  REFUSED: the writing `self._expr_to_whyml` inside a        EFFECT-IN-COMP
+                                                      comprehension
+    _handle_struct_call (expr: ExprIR)                REFUSED: `_STRUCT_FMT_FOLDS.setdefault(..)`               MUTRECV
+    _handle_sum_call (already ExprIR)                 L3-tc: `expr.get("args", [{}])[0] if .. else {}`: the     EMPTY-NODE
+                                                      `{}` node default is `any int`, not `IrOther ""`
+    _iter_len_expr (ir: ExprIR)                       REFUSED: nested def `_operand_len` captures `local_refs`  NESTED
+    _linear_form (ir: ExprIR)                         REFUSED: self-recursion through a method call             RECURSION
+    _match_pattern_cond (pat: IRNode)                 REFUSED: recursive self-call inside a comprehension       RECURSION+COMP
+  statements.py
+    _emit_first_assign (val_ir already ExprIR)        L3-tc: the trusted sibling `_build_dict_literal_map`       RIPPLE(callee)
+                                                      stub takes `str_hash_op` ints and returns int, used as a
+                                                      string
+    _emit_frame_condition (List["ExprIR"])            L3-tc: `[a for a in assigns_list if ..]` is              COMP-OVER-NODES
+                                                      `list_content_comp_1` (`array int`) over `array emit_ir`
+    _handle_array_set_stmt (rest: List["StmtIR"])     L3-tc: the `known_sizes` map is probed with               RIPPLE(M)
+                                                      `str_hash_op var_name` (int key vs string-keyed map)
+    _handle_augassign_stmt (rest: List["StmtIR"])     L3-tc: `getattr(self, "_string_set_locals", set())`      GETATTR
+                                                      default (as ch26)
+  stmt_control_flow.py
+    _classify_iterable (already ExprIR)               L3-tc: `iter_ir.get("slice") or {}`: `slice` has no       KEY+EMPTY-NODE
+                                                      `_EMIT_IR_PROJ` projector, so the read is the receiver-
+                                                      dropped `iter_ir_get_1 <hash>` (int), and `or {}`
+  frontend/Module3_Weaver.py
+    _happy_predicate (site: IRNode)                   REFUSED: nested def `_to_csl` captures `line`. `site` is   NESTED / NOT-IR
+                                                      a Weaver site record, not an IR node (misclustered)
+  proof2why3/from_lean_json.py
+    _linearize_app (ast: IRNode)                      REFUSED: `args.insert(..)`. Lean JSON AST, not PyCSL IR    MUTRECV / NOT-IR
+    project_to_ir (ast: IRNode)                       L3-tc: `str(ast)` / `type(ast)` of an emit_ir. Lean JSON   NOT-IR
+                                                      AST: emit_ir is the wrong model (cluster J/G)
+```
+
+**Ranked gap list: which emitter capability would unlock how many N markers as their NEXT
+blocker.** None of them would complete a marker on its own. Every chain re-measured after a
+first blocker so far has had a second one.
+
+| rank | capability | N markers whose next blocker it is | note |
+|---|---|---|---|
+| 1 | **Non-IR signature ripple**: the mirror's OTHER params/callees are still int-erased (`local_refs: int`, `subst: int`, trusted sibling stubs taking `str_hash_op` ints, record/map self-fields) | 4 (`_emit_contract_logic_symbol`, `_emit_membership`, `_emit_first_assign`, `_handle_array_set_stmt`) | Mostly ANNOTATION work (retype `Set[str]` / `Optional[Dict[str,str]]` params, the same legal layer as the IR retype), plus callee stubs. Cheapest next measurement: retype all params of `_emit_membership`. |
+| 2 | **Self-recursion through a method call with an emit_ir `size` measure** (`#@ variant` over the ADT's `size`, which already exists in `functions.py`) | 3 (`_expr_to_whyml_string_ctx`, `_linear_form`, `_match_pattern_cond`) | `_match_pattern_cond` also needs (4). The ADT has `size`; what is missing is a measure for a `self.<m>(sub-node)` call cycle. |
+| 3 | **Empty-node default literal** (`{}` / `[{}]` in an emit_ir position -> `IrOther ""` / an empty node list) + **`slice` projector** in `_EMIT_IR_PROJ` | 2 (`_handle_sum_call`, `_classify_iterable`) | Small and bounded. It is a construction literal of the ABSENT node only; general IR-node construction is still open. |
+| 4 | Effectful call inside a comprehension | 2 (`_handle_join_call`, `_match_pattern_cond`) | Live-source shape (a writing `_expr_to_whyml` in a genexp). |
+| 5 | Nested-def lifting with captured locals | 2 (`_iter_len_expr`, `_happy_predicate`) | Live-source shape (NESTED family). |
+| 6 | In-place mutation (`setdefault`, `insert`) | 2 (`_handle_struct_call`, `_linearize_app`) | MUTRECV family. |
+| 7 | Per-kind `value` payload (int vs sub-node, keyed on the dominating `type` test) | 1 (`_emit_bitwise_or_power`) | Genuine ADT model gap (census gap 2). |
+| 8 | Comprehension over a node list (`List[ExprIR]` -> `array emit_ir`) | 1 (`_emit_frame_condition`) | — |
+| 9 | getattr-with-default on a self set | 1 (`_handle_augassign_stmt`) | GETATTR family. |
+| — | NOT IR (misclustered by the census heuristic: Lean JSON, Weaver site record) | 3 (`_happy_predicate`, `_linearize_app`, `project_to_ir`) | Re-file under J/G. |
+
+**Reading for the driver.** The IR-ADT retype is NOT the wall for cluster N. After the retype,
+the next blockers are the families already known from ch20-ch26 (RECURSION, NESTED, MUTRECV,
+COMP, GETATTR) plus the non-IR signature ripple. Only rank 3 is a small, bounded emitter
+capability that is specific to emit_ir. Rank 1 is annotation work on the mirror, and it should
+be MEASURED next, one marker at a time (`_emit_membership` first). Rank 2 (recursion over
+emit_ir `size`) is the one emit_ir-specific Phase-2 capability that unlocks more than two
+markers.
+
+**Soundness notes.** (a) Before ch27, every hval "faithful read" (`pairs_get`, `hval_truthy`,
+`hval_list_str_mem`) was logic-opaque: sound, because it over-approximates, but the non-vacuity
+claimed in the preamble comments did not hold in the logic. Any earlier hval FAIL twin that
+failed "because the read is faithful" failed for a weaker reason. All 30 still carry their
+expected verdicts with the definitions visible. (b) The out-of-recognizer receiver-dropped
+`get_2`/`<name>_get_N` is input-blind but sound, because it is a program `val` (guarded by
+3162). `check-emitted-vacuity` is the plane that should flag it in any converted body.
+
+**Caught during the battery.** The ch26 seam answered `_expr_is_pyval` True for ANY
+`<hval> or {}`. That re-typed `for _k, _ty in (func.get("param_annotations") or {}).items()`
+in the functions.py mirror: `_st[_k] = _ty` lost its `!` deref, and the file went L3-tc red.
+The mirror sweep runs `--no-typecheck`, so it showed the file as MOVED, not as broken; the
+per-mover `--no-proof` type-check caught it. The `or` unwrap is now scoped to the receiver
+position of the 2-argument `.get`. All 21 movers are L3-tc clean. Lesson: after a
+`src/pycsl` change, TYPE-CHECK every mirror mover, not just byte-diff it.
+
+**Landed:** `dc58bc44` (`_record_answer`, 451 -> 450) and `4eca6459` (`_tag_of_value`, 450 ->
+449). **OWED** (the heavy queue was saturated by other agents for the whole window, and every
+whole-file proof is longer than the 10-min foreground cap): the whole-file proofs of the 21
+mirror movers (first `pycsl.py`, `module6_whyml/expressions.py` and
+`Module6_WhyMLTranspiler.py`), with `PYTHONHASHSEED=0 HEAVY_LOW=1 heavy.sh .venv/bin/python
+src/pycsl/pycsl.py <mirror> --import-path src/pycsl`; the fast planes 61/61; and a full
+corpus+pyref sweep after the receiver-scope fix (the 36 PyVal files were re-emitted one by
+one and are byte-identical). If any of these is red, revert the matching commit.
+
+Logs/emits: session scratchpad `ch27/` (`probeN/*.log`, `*.mlw`; VC isolation `v0..v7.mlw`).
