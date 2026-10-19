@@ -10223,6 +10223,107 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `is_integer_0 ()` and `replace_2` -> `replace_3`; corpus 1 of 814 (0425,
             # where `decode_1` becomes `decode_2` and a real `subscript_get` appears).
             _rcv = expr.get("receiver")
+            # (#49) ROUTE #280 — THE MUTATION ON A SUBSCRIPT. A method call on a COMPUTED
+            # receiver (a subscript `d[k]`, a tuple element `t[0]`, a call result
+            # `d.get(0, [])`, an attribute of one) reaches this generic arm, which mints an
+            # int-model `val <m>_<n>` with NO `writes` clause — and, for a collection-shaped
+            # receiver, drops the receiver altogether (`append_1 1`). An IN-PLACE mutator
+            # there is therefore DELETED from the model. MEASURED at 72ab1c57, each PROVED
+            # while CPython disagrees: `d[0].append(1)` under `assigns \nothing` with
+            # `len(d[0]) == \old(len(d[0]))`; `d[0].pop()` / `d[0].clear()` value claims;
+            # `d[0].append(1)`, `d.get(0, []).append(1)`, `t[0].append(1)` then `len(a)` of
+            # the list `a` they alias; and a USER method that writes its receiver,
+            # `t[0].bump()` / `c.me().bump()` with `bump` assigning `self.v`, then `c.v`.
+            # (Plain-name receivers take the dotted path, whose route #13/#14 refusal and
+            # certified lowerings already decide them; list-of-lists receivers only
+            # failed CLOSED by accident — an ill-typed or opaque emission.) THE RULE: on
+            # this arm, refuse every collection mutator name (list/dict/set, deque,
+            # OrderedDict, the in-place dunders), and every method name some same-file
+            # method of which may write its receiver (the fixpoint `W` below). A bespoke
+            # whole-function
+            # lowering (e.g. the mirror's `setdefault(..).append` walker) never reaches it.
+            if _rcv is not None and "." not in str(func_name):
+                _muts280 = (
+                    "append", "extend", "insert", "remove", "pop", "clear", "sort",
+                    "reverse", "update", "popitem", "setdefault", "add", "discard",
+                    "intersection_update", "difference_update",
+                    "symmetric_difference_update", "appendleft", "popleft", "extendleft",
+                    "rotate", "move_to_end", "__setitem__", "__delitem__", "__iadd__",
+                    "__isub__", "__imul__", "__ior__", "__iand__", "__ixor__")
+                # W = the method SHORT names some same-file method of which may write its
+                # receiver: a declared `assigns` other than `\nothing`; or, with NO declared
+                # frame, a body holding a field/element store, a `global`/`nonlocal`, a call
+                # handed `self`, or a call whose short name is a collection mutator or is
+                # already in W (a least fixpoint, so `super().sget()` inside an override of
+                # a pure `sget` stays pure). Name-keyed across classes: a collision can only
+                # make MORE calls refused, never fewer.
+                _w280 = set()      # short names with a writing method
+                _wf280 = set()     # the writing methods themselves
+                _grow280 = True
+                while _grow280:
+                    _grow280 = False
+                    for _f280 in (self.ir.get("functions", []) or []):
+                        if not isinstance(_f280, dict) or "__" not in str(_f280.get("name", "")):
+                            continue
+                        _sn280 = str(_f280.get("name", "")).rsplit("__", 1)[1]
+                        if str(_f280.get("name", "")) in _wf280:
+                            continue
+                        _as280 = ((_f280.get("contracts") or {}).get("assigns") or [])
+                        _wr280 = any(not (isinstance(_a, dict) and _a.get("type") == "Nothing")
+                                     for _a in _as280)
+                        _st280 = [] if _as280 else [_f280.get("body") or []]
+                        while _st280 and not _wr280:
+                            _x280 = _st280.pop()
+                            if isinstance(_x280, list):
+                                _st280.extend(_x280)
+                            elif isinstance(_x280, dict):
+                                if _x280.get("stmt") in (
+                                        "FieldAssign", "FieldAugAssign", "ArraySet",
+                                        "ArraySliceSet", "DelSubscript", "GhostArraySet",
+                                        "Global", "Nonlocal"):
+                                    _wr280 = True
+                                elif _x280.get("type") == "Call" and (
+                                        str(_x280.get("func", "")).rsplit(".", 1)[-1]
+                                        in _w280
+                                        or str(_x280.get("func", "")).rsplit(".", 1)[-1]
+                                        in _muts280
+                                        or any(isinstance(_y, dict)
+                                               and _y.get("type") == "Var"
+                                               and _y.get("name") == "self"
+                                               for _y in (_x280.get("args") or []))):
+                                    _wr280 = True
+                                _st280.extend(_x280.values())
+                        if _wr280:
+                            _w280.add(_sn280)
+                            _wf280.add(str(_f280.get("name", "")))
+                            _grow280 = True
+                # `super().<m>(...)` runs a BASE class's `<m>`, never the current class's
+                # own override: leave the current class's methods out of the candidates
+                # (the mirror's `_Unparser.traverse` calls `super().visit` — `NodeVisitor.
+                # visit`, `assigns \nothing` — while `_Unparser.visit` writes `_source`).
+                _sup280 = (isinstance(_rcv, dict) and _rcv.get("type") == "Call"
+                           and _rcv.get("func") == "super")
+                _cur280 = str(getattr(self, "_current_self_type", "") or "").lower()
+                _mut280 = str(func_name) in _muts280 or any(
+                    _wn.endswith("__" + str(func_name))
+                    and not (_sup280 and _cur280
+                             and _wn.rsplit("__", 1)[0].lower() == _cur280)
+                    for _wn in _wf280)
+                if _mut280:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"`.{func_name}(...)` on a COMPUTED receiver (a subscript, a tuple "
+                        f"element, a call result, or an attribute of one) may MUTATE that "
+                        f"receiver in place, and no certified lowering models it: the call "
+                        f"becomes an abstract operation that takes no `writes` clause (and, "
+                        f"for a collection receiver, not even the receiver), so the "
+                        f"mutation would be SILENTLY ABSENT from the model (route #280; "
+                        f"measured: `d[0].append(1)` under `#@ assigns \\nothing` proved "
+                        f"`len(d[0]) == \\old(len(d[0]))`). Rewrite the mutation as an explicit "
+                        f"store into the container, or mark the enclosing function "
+                        f"`#@ \\trusted`.",
+                        stage="module6-call",
+                        code="PYCSL-M6-MUTATOR-ON-COMPUTED-RECEIVER")
             if _rcv is not None and "." not in str(func_name):
                 # Lowering the receiver REGISTERS abstract ops as a side effect, so
                 # snapshot and restore them when the receiver is then discarded —

@@ -568,6 +568,131 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     f"appends, or finish building the list before aliasing it.",
                     stage="module6-assign",
                     code="PYCSL-M6-APPEND-THROUGH-LIST-ALIAS")
+        # (#49) ROUTE #279 — THE ALIAS THE COPY BROKE. Route #81's fence above sees only an
+        # `append` in the STATEMENTS AFTER a FIRST binding, and three spellings of the same
+        # copy-instead-of-alias lowering walked around it. MEASURED at 72ab1c57, each PROVED
+        # (CPython disagrees): `b = a; b += [1]; return len(a)` (`b := !b ++ ...` grows a
+        # copy; `+=` on a list is an IN-PLACE extend); `a = b = []; b.append(1); return
+        # len(a)` (desugared to `_pycsl_multi_1 = []; a = _pycsl_multi_1; b =
+        # _pycsl_multi_1`, and the targets were DECLARED refs, which #81 skips); a REBIND
+        # `b = a` of an already-declared `b` (`b := !a`, the same copy); a two-step alias
+        # `b = a; c = b; c += [2]`; and a binding at the END of a loop body whose mutation
+        # sits at the TOP (`for ..: b.append(i); b = a` — no statement after the binding).
+        # THE RULE (flow-sensitive along the binding's own block, coarse after it): walk the
+        # statements after the binding IN ORDER with the set of names that are LIVE aliases
+        # of the object — a top-level `x = <alias>` adds `x`, a top-level rebind of an alias
+        # to anything else KILLS it (`posonly = args; args = []`, the mirror's pure_ast
+        # parser, is no alias at all once `args` is rebound), and inside a nested statement
+        # every name-to-name assignment touching a live name may add one (never kill). A
+        # MUTATION through a live name refuses: a collection mutator method, an augmented
+        # assignment (any operator — on a list `+=`/`*=` are in place, every other one
+        # raises) and, for a chained assignment's temporary (which may hold a dict/set), an
+        # element store. If two or more names are STILL live when the block ends, the
+        # alias escapes it (a loop's next iteration, the statements after an enclosing
+        # `if`), so their class is closed over every name-to-name assignment of the whole
+        # function and a mutation ANYWHERE in it refuses — coarse, it can refuse a dead
+        # alias, never accept a live one. Element stores through a plain LIST alias stay
+        # supported (the array model shares the array; route #59's control 1131 relies on
+        # it). Walked inline over the raw IR (lesson a4: no new helper).
+        _src279 = val_ir.get("name") if vt == "Var" else None
+        if (isinstance(_src279, str)
+                and (_src279 in (getattr(self, "_array_locals", set())
+                                 | getattr(self, "_seq_locals", set())
+                                 | getattr(self, "_current_array1d_params", set()))
+                     or (_src279 in getattr(self, "_formal_params", [])
+                         and getattr(self, "_current_symbol_table", {}).get(_src279)
+                         == "list")
+                     or (_src279.startswith("_pycsl_multi_")
+                         and _src279 in getattr(self, "_dict_locals", set())))):
+            _live279 = {target, _src279}
+            _jobs279 = []
+            _whole279 = []
+            for _f279 in (self.ir.get("functions", []) or []):
+                if (isinstance(_f279, dict) and _f279.get("name")
+                        == getattr(self, "_current_sig_func_name", None)):
+                    _whole279.append(_f279.get("body") or [])
+            for _seg279 in ([("seq", _s) for _s in rest] + [("all", _whole279)]):
+                if _seg279[0] == "all" and len(_live279) < 2:
+                    break
+                _pairs279 = []
+                _stack279 = [_seg279[1]]
+                while _stack279:
+                    _n279 = _stack279.pop()
+                    if isinstance(_n279, list):
+                        _stack279.extend(_n279)
+                    elif isinstance(_n279, dict):
+                        _v279 = _n279.get("value")
+                        if (_n279.get("stmt") == "Assign"
+                                and isinstance(_n279.get("target"), str)
+                                and isinstance(_v279, dict) and _v279.get("type") == "Var"):
+                            _pairs279.append((_n279["target"], _v279.get("name")))
+                        _stack279.extend(_n279.values())
+                _cls279 = set(_live279)
+                _grow279 = True
+                while _grow279:
+                    _grow279 = False
+                    for _t279, _s279 in _pairs279:
+                        if (_t279 in _cls279) != (_s279 in _cls279):
+                            _cls279 |= {_t279, _s279}
+                            _grow279 = True
+                _jobs279.append((_seg279[1], _cls279))
+                _top279 = _seg279[1]
+                if (_seg279[0] == "seq" and isinstance(_top279, dict)
+                        and _top279.get("stmt") == "Assign"
+                        and isinstance(_top279.get("target"), str)):
+                    _tv279 = _top279.get("value")
+                    if (isinstance(_tv279, dict) and _tv279.get("type") == "Var"
+                            and _tv279.get("name") in _live279):
+                        _live279.add(_top279["target"])
+                    else:
+                        _live279.discard(_top279["target"])
+                elif _seg279[0] == "seq":
+                    _live279 |= _cls279
+            _mut279 = None
+            for _job279, _cls279 in _jobs279:
+                _chain279 = any(str(_x).startswith("_pycsl_multi_") for _x in _cls279)
+                _stack279 = [_job279]
+                while _stack279 and _mut279 is None:
+                    _n279 = _stack279.pop()
+                    if isinstance(_n279, list):
+                        _stack279.extend(_n279)
+                    elif isinstance(_n279, dict):
+                        _mf279 = _n279.get("func")
+                        if (_n279.get("type") == "Call" and isinstance(_mf279, str)
+                                and "." in _mf279
+                                and _mf279.rsplit(".", 1)[0] in _cls279
+                                and _mf279.rsplit(".", 1)[1] in (
+                                    "append", "extend", "insert", "remove", "pop", "clear",
+                                    "sort", "reverse", "update", "popitem", "setdefault",
+                                    "add", "discard", "intersection_update",
+                                    "difference_update", "symmetric_difference_update")):
+                            _mut279 = f"`{_mf279}(...)`"
+                        elif (_n279.get("stmt") == "AugAssign"
+                                and _n279.get("target") in _cls279):
+                            _mut279 = f"`{_n279.get('target')} {_n279.get('op', '')}= ...`"
+                        elif _chain279 and _n279.get("stmt") in (
+                                "ArraySet", "ArraySliceSet", "DelSubscript", "GhostArraySet"):
+                            _a279 = _n279.get("array")
+                            if ((isinstance(_a279, dict) and _a279.get("type") == "Var"
+                                    and _a279.get("name") in _cls279)
+                                    or _n279.get("target") in _cls279):
+                                _mut279 = "an element store"
+                        _stack279.extend(_n279.values())
+            if _mut279 is not None:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"mutating a collection through an alias is out of scope: "
+                    f"`{target} = {_src279}` binds a SECOND NAME TO THE SAME object in "
+                    f"Python (names {sorted(str(_x) for _x in _cls279)}), and {_mut279} "
+                    f"mutates it IN PLACE, which is visible through every other name. "
+                    f"PyCSL lowers the binding to a COPY, so the mutation would be "
+                    f"invisible through the other names (route #279; measured: "
+                    f"`b = a; b += [1]; return len(a)` and `a = b = []; b.append(1); "
+                    f"return len(a)` both proved the UNCHANGED length). Refusing instead "
+                    f"of answering incorrectly; restructure so the object is mutated under "
+                    f"one name only.",
+                    stage="module6-assign",
+                    code="PYCSL-M6-MUTATION-THROUGH-COLLECTION-ALIAS")
         # (#44) ROUTES #25/#26/#27 — RECORD AN ERASED-TRUTHY BINDING. These three RHS kinds
         # lower to the literal `0`, which is harmless to READ and unsound to TEST (see the
         # note on `_erased_truthy_locals` in functions.py). Recorded here and refused in
