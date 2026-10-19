@@ -1187,3 +1187,144 @@ unmangled record field names (`self._abstract_ops` for
 only string use is a `startswith` on a non-param string fails L3-tc with "unbound
 String.length" (fail-closed). Repro: `ch24/wt/3060_gen37_ch24_enumerate_str_param_tuple_startswith.py`
 (the pre-edit witness, which has no `str` param). Logs/emits: session scratchpad `ch24/`.
+
+## Re-measurement at HEAD — ch25 (gen #37)
+
+At `a2b83fd2` (count 452). Plan steps 16 EXT (4), 17 PYVAL (3), 18 NESTED (3), 19 REF (3), 20
+MEMB (3), 21 OPTREC (2), 22 EXC (2), 23 WITH-AS (2): 22 markers, all still `\trusted`. Plus
+ch24's next cheap candidate `audit_proof_reverify._split_rocq_print_assumptions`. Each one was
+ported verbatim (`bin/port-one-mirror-body.py --convert`, `--replace` for the SAME/DIFFERS rows)
+into a scratch copy of the mirror, emitted `--no-proof --keep-mlw` through `heavy.sh`, and its
+WhyML read. Where the first blocker was a single statement, the live body was read for the next
+one. **0 of 22 honest. The extra candidate was honest after one seam.** It was converted
+(452 -> 451).
+
+```
+    marker                                        first blocker at HEAD -> verdict
+  step 16 EXT
+    audit_proof._parse_lean_file (SAME)           REFUSED: `ns_stack.extend(..)` (local list). Underneath:
+                                                  `path.read_text()` (pathlib, EXT), `push_depths.pop()`,
+                                                  `qualnames.add(..)`, a nested split chain. MUTRECV+EXT. SKIP
+    audit_proof._parse_rocq_file (SAME)           REFUSED: `frame_stack.pop()`. Same shape as _parse_lean_file
+                                                  (read_text, set add, stack of frames). MUTRECV+EXT. SKIP
+    audit_proof_reverify._sha256_file (SAME)      REFUSED: `h.update(..)` on a `hashlib.sha256()` object.
+                                                  With it neutralised, `h.hexdigest()` is a 0-ary opaque val
+                                                  (input-blind). No hashlib model. EXT floor. SKIP
+    normalize.normalize_prover_output             L3-tc: `out.replace(u, a)` with `u, a` from
+                                                  `_UNICODE_OPS.items()` (module dict, element `int`). Under it:
+                                                  ~12 `re.sub` calls (one with a lambda replacement). DICT+EXT
+                                                  (re)+CALLABLE. SKIP
+  step 17 PYVAL
+    from_sexp._construct_indices                  L3-tc: `return None` into the `(int, int)` tuple slot
+                                                  (Optional[Tuple] return). The payload is an `Any` s-expression
+                                                  tuple read by isinstance/len. OPTREC/TUPLE + generic Any. SKIP
+    _Inliner._hoist_calls_in_expr                 REFUSED: `pre.extend(..)`, a write into a caller's list PARAM
+                                                  (MUTPARAM). It is also a generic `Any`-tree walker
+                                                  (`{k: rec(v) for k, v in node.items()}`). V1 leave-trusted. SKIP
+    monomorphize._rewrite_subscript_to_name       L3-tc: `_type_str(slice_node)` takes `pyval`, `slice_node` is
+                                                  the erased `int` of `node.get("slice")`. Generic Any-tree
+                                                  walker over `node.items()`. V1 leave-trusted. SKIP
+  step 18 NESTED
+    Module3_Weaver._happy_predicate               REFUSED: the lifted nested `to_csl` captures `line`. Also two
+                                                  lambdas (`copy.deepcopy`), `ast.unparse`, a parser call on
+                                                  `self.parser_module`. NESTED+CALLABLE+EXT. SKIP
+    AutoTrustMixin._should_auto_trust_tuple_      REFUSED: the lifted `_tuple_return_has_array_slot` captures
+      return                                      `array_vars`. It is a recursive Dict[str,Any] stmt walker. DICT.
+                                                  SKIP
+    PreambleEmissionMixin._emit_inductive_decls   REFUSED: the lifted `_emit_member` captures `out` and appends to
+      (DIFFERS)                                   it (closure write). Under it: `m["rules"]` tuple unpack over
+                                                  Dict[str,Any], `self._expr_to_whyml`. NESTED+DICT. SKIP
+  step 19 REF
+    Module3_Weaver._attach_labels_and_ghost_      L3-tc: `[n.name for n in nodes ..]`: `nodes` is the erased
+      assigns                                     `int` value of `Dict[int, List[CSLNode]]`. Under it:
+                                                  `ast.walk`, `hasattr`, setattr of `csl_*` on AST nodes (a write
+                                                  into the caller's AST under `assigns \nothing`, see below).
+                                                  DICT+AST. SKIP
+    _Unparser.buffered                            L3-tc: `buffer is None` on the by-ref `buffer` (int vs
+                                                  `ref 'mu`). It is a GENERATOR (`yield buffer`) that swaps
+                                                  `self._source`. Context-manager model. SKIP
+    pure_ast.increment_lineno                     L3-tc: `setattr_3 child ..` takes `int`, `child` is a `ref int`.
+                                                  `walk(node)`, `child._attributes`, `getattr/setattr` on AST
+                                                  nodes. AST-node model. SKIP
+  step 20 MEMB
+    Module6._maybe_emit_no_exception_assert       REFUSED: `active.update(..)` (local set). Under it: a local
+      (SAME)                                      `from exception_model import ..`, `(exc_name, template)` tuples
+                                                  from `triggers_for`, and `template.format(*[..])` (star-args
+                                                  str.format). MUTRECV+SET+EXT. SKIP
+    exception_model.bases_closure (SAME)          REFUSED: `frontier.pop()`. Under it: `seen.add`,
+                                                  `frontier.extend(EXCEPTION_BASES.get(b, ()))` (module dict of
+                                                  tuples), `frozenset(seen)`. Termination is a worklist over a
+                                                  finite but unmodelled universe. MUTRECV+SET. SKIP
+    FunctionEmissionMixin._param_type_str         REFUSED: `self._record_locals.add(..)` (self-field set). 240
+                                                  live lines of Dict[str,Any] IR reads underneath. SET+DICT. SKIP
+  step 21 OPTREC
+    _ContractParser._parse_happy                  L3-tc: `protects=[path]`: the `HappyProperty.protects` record
+                                                  field (List[str]) is declared `int` in the mirror class decl,
+                                                  so the `Array.make 1 !path` actual is rejected. Fixing it
+                                                  re-types a field every reader of HappyProperty sees (RIPPLE).
+                                                  The fall-through `self._err(..)` returns None. LISTSTR(field)+
+                                                  OPTREC. SKIP
+    IRCrossCheckResult.diagnostic                 L3-tc: `self.rocq_canon is not None` compares an `option term`
+                                                  field with the int `pycsl_none`. Under it: `.pp()` on that
+                                                  Optional field (narrowing), `self.pairwise.items()` (a property
+                                                  returning Dict[str, Optional[bool]]). OPTREC+DICT. SKIP
+  step 22 EXC
+    Module2_Parser.parse_contract                 REFUSED route #233: reads the `except .. as e` object (f-string
+                                                  + `raise .. from e`). Exception-object model. SKIP
+    _ExecSplicer.visit_Expr                       REFUSED route #233 (`exc` in the f-string). Under it:
+                                                  `ast.parse`, `ast.copy_location`, isinstance over a tuple of AST
+                                                  classes. EXC+AST. SKIP
+  step 23 WITH-AS
+    _Unparser.visit_Lambda (SAME)                 REFUSED: `with self.buffered() as buffer` (no with-as model).
+                                                  `buffered` is itself a generator (step 19). SKIP
+    pure_ast.main                                 REFUSED (ir-semantic, route #264): `source` is not definitely
+                                                  assigned on every path (assigned in `with open(..) as infile`
+                                                  / else branches). Under it: argparse, file IO,
+                                                  `sys.stdin`. EXT+WITH-AS. SKIP
+  extra (ch24 next cheap candidate)
+    audit_proof_reverify._split_rocq_print_        CONVERTED (452 -> 451). TC-clean at HEAD, but the core read was
+      assumptions (SAME)                          a facade: `stdout.find(marker, pos)` -> receiver-dropped
+                                                  `stdout_find_2 (str_hash_op marker) pos`, and the outer `while`
+                                                  had no variant. Seam (`_content_string_method`): the 2-argument
+                                                  `s.find(sub, start)` is the faithful `str_find_from_op s sub
+                                                  start` (result -1, or >= start with the occurrence witness).
+                                                  Gated on a string `sub` and an int-model `start` (int literal,
+                                                  non-string `int`/`Any` name, or `+`/`-` of those). Mirror: `#@
+                                                  loop invariant 0 <= pos` + `#@ loop variant len(stdout) - pos`
+                                                  on the outer while, `#@ loop invariant next_start == -1 or
+                                                  next_start >= pos` on the marker loop. Whole-file proof rc=0, 51
+                                                  Valid, 0 non-Valid.
+```
+
+**Recurring blockers (22 measured markers, counted wherever they occur in the chain):**
+(1) in-place mutator refusals (local / self-field / param `.extend/.pop/.add/.update`): 8 (plf,
+prf, sha, hce, mne, bcl, pts, and the closure append in eid). In every case another blocker sits
+underneath. (2) Dict[str,Any] / generic-Any value model (element `int`, `.items()` walkers): 9
+(npo, cix, hce, rsn, satr, eid, alg, pts, cid). (3) AST-node / generator / context-manager
+model (`ast.walk`, setattr on nodes, `yield`, `with .. as`): 7 (alg, ubf, inl, eve, uvl, pam,
+hpp). (4) EXT (pathlib, hashlib, re, argparse, `str.format(*args)`): 6 (plf, prf, sha, npo, mne,
+pam). (5) nested-function lift captures: 3 (hpp, satr, eid). (6) Optional record/tuple and
+record-field typing: 3 (cix, pha, cid). (7) exception object (route #233): 2 (mpc, eve).
+(8) CALLABLE (lambda): 2 (hpp, npo). As in ch20-ch24, the census family was only the FIRST
+error. No marker in steps 16-23 has a single-seam path to an honest body.
+
+**Seam landed.** `str_find_from_op` is corpus-inert: root 1795/1795 and pyref 2186/2186 0
+MOVED/GONE/APPEARED (+3 new witnesses). The mirror sweep moved 1/53 (`audit_proof_reverify`,
+declared, re-proved). Witness 3120 PASS; at base it fails 3 goals (find_from postcondition,
+count_occ variant decrease and invariant preservation). Twins 3121/3122 FAIL on the false
+postcondition. `check-trust-blast-radius`: the converted function calls no trusted function, so
+the aggregate drops to 804, and MAX_TRUSTED_OR_DEPENDENT is tightened 805 -> 804.
+
+**`no_cheap_remaining` for steps 16-23.** None of the 22 markers is honest after one small
+seam. The next cheapest by measurement are `IRCrossCheckResult.diagnostic` (Optional-field
+`is not None` + narrowing + a dict-valued property: M), and `_parse_happy` (the HappyProperty
+`protects` field re-type: an M RIPPLE through every reader).
+
+**Suspicions (not chased).** (a) `Module3_Weaver._attach_labels_and_ghost_assigns` and
+`pure_ast.increment_lineno` are `\trusted` with `assigns \nothing`, but their live bodies setattr
+on AST nodes reachable from a parameter (`csl_labels`, `lineno`, ...). This is the ch22
+`_attach_loop_contracts` class (lesson 13). The AST is erased to `int`, so no caller can
+currently read the write in the model. It becomes a false premise the day AST nodes are
+modelled. (b) The spec lowering of `\length(s)` on a `str` parameter in a loop variant is
+`Array.length s` (L3-tc rejects it, so fail-closed). `len(s)` lowers correctly to
+`String.length s`. Logs/emits: session scratchpad `ch25/`.
