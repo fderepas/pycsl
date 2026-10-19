@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-19): #277 (user-class value assumed exact; override refinement opt-in only, undeclared), #278
+##   (--check-behavioral-subtyping ignores raises and MRO-inherited overrides), #279 (list alias lost by += / chained
+##   assignment), #280 (mutator on subscripted / call-result receiver dropped), #281 (int->str > 4300 digits ValueError
+##   unmodelled) OPENED (red team 6, 273 probes); 17 witnesses driver-reproduced rc=0 at 78162575, CPython violates each.
+
 ## gen #37 (2026-10-19): #276 RESOLVED as the DECLARED MODEL ASSUMPTION LATIN1-STR (#250/#253 precedent): every str
 ##   value consists of code points 0..255 (str = Why3 string of 8-bit `string.Char`); listed by `--soundness-report`
 ##   (`model_assumptions`, relied_on_by = every ord/chr site + per-function str values), stated in static-semantics
