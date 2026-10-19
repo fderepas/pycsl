@@ -10604,6 +10604,46 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                    for _e in _tu["elts"]]
             _dis = " || ".join(f"(str_startswith_op _swr {_p} = 1)" for _p in _ps)
             return f"(let _swr = {_r} in if {_dis} then 1 else 0)"
+        # gen #37 ch25: `s.find(sub, start)` -- the 2-argument form. Was the opaque
+        # receiver-dropped `<recv>_find_2 (str_hash_op sub) start` (receiver erased, `sub`
+        # int-hashed, result unconstrained). Python returns -1 or the index of an
+        # occurrence of `sub` in `s` at or after `start` (a negative `start` counts from
+        # the end, clamped at 0, so `result >= start` still holds). The faithful op states
+        # exactly that, with the same occurrence witness as the 1-argument `str_find_op`.
+        # Body context only, `sub` a string expression; else declines (byte-inert).
+        # `start` is modelled only when it is a plain int-model operand: an int literal, a
+        # NON-string name typed `int`/`Any` (read through the same int model as every other
+        # int operation on it; a str/option/seq name lowers to a non-`int` WhyML type and
+        # L3-tc rejects it), or a `+`/`-` of those. A direct call / subscript / attribute
+        # (an erasure site: an opaque receiver-dropped `val`, a hashed dict read) declines,
+        # as do `None` and `bool`, so the op never takes a start fabricated at the argument
+        # position itself.
+        _fs_work = list((expr.get("args") or [])[1:2]) if len(args) == 2 else []
+        _fs_ok = (method == "find" and not self._in_spec and len(_fs_work) == 1)
+        while _fs_ok and _fs_work:
+            _s = _fs_work.pop()
+            if not isinstance(_s, dict):
+                _fs_ok = False
+            elif _s.get("type") == "Number":
+                _fs_ok = isinstance(_s.get("value"), int) and not isinstance(_s.get("value"), bool)
+            elif _s.get("type") == "Var":
+                _fs_ok = (bool(_s.get("name"))
+                          and (getattr(self, "_current_symbol_table", {}) or {}).get(
+                              _s.get("name")) in ("int", "Any")
+                          and not self._is_string_expr(_s))
+            elif _s.get("type") == "BinOp" and _s.get("op") in ("+", "-"):
+                _fs_work.extend([_s.get("left"), _s.get("right")])
+            else:
+                _fs_ok = False
+        if (_fs_ok and len(expr.get("args") or []) == 2
+                and self._is_string_expr(expr["args"][0])):
+            self._add_abstract_op(
+                "val str_find_from_op (s: string) (sub: string) (start: int) : int\n"
+                "    ensures { result >= -1 }\n"
+                "    ensures { (result >= 0) -> (result >= start /\\ result + String.length sub\n"
+                "      <= String.length s /\\ String.substring s result (String.length sub) = sub) }")
+            r = self._expr_to_whyml(recv_ir, local_refs, invariant_ctx, subst)
+            return f"(str_find_from_op {r} {args[0]} {args[1]})"
         if len(args) != 1 or not self._is_string_expr(expr["args"][0]):
             return None
         r = self._expr_to_whyml(recv_ir, local_refs, invariant_ctx, subst)

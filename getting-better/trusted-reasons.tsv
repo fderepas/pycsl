@@ -51,7 +51,6 @@ audit_proof_reverify.py	_cache_store	cost-scale:int-erasure-seam	THE INT-ERASURE
 audit_proof_reverify.py	_coqc_version	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof_reverify.py	_lean_version	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof_reverify.py	verify_rocq_file	cost-scale:context-manager-model	A `with ... as` BINDING
-audit_proof_reverify.py	_split_rocq_print_assumptions	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 audit_proof_reverify.py	verify_lean_file	cost-scale:context-manager-model	A `with ... as` BINDING
 audit_proof_reverify.py	_to_cache_payload	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 core_ir_semantic.py	run_ir_semantic_checks	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL

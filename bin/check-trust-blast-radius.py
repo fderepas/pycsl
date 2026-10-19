@@ -84,7 +84,11 @@ MAX_TRUST_DEPENDENT = 402     # UPPER bound at the first measurement was 400; ma
                               # number silently every time a conversion landed in a trusted
                               # call path. So the invariant that actually means "the trusted
                               # surface did not grow" is ratcheted separately, below.
-MAX_TRUSTED_OR_DEPENDENT = 805   # (#49) gen #37 ch24, 2026-10-19 — 828 -> 805, TIGHTENED to
+MAX_TRUSTED_OR_DEPENDENT = 804   # (#49) gen #37 ch25, 2026-10-19 — 805 -> 804, TIGHTENED to
+                              # the measured aggregate (402 trusted + 402 dep_hi): the
+                              # `_split_rocq_print_assumptions` conversion calls no trusted
+                              # function, so it leaves the trusted set and joins trust-free.
+                              # PRIOR: (#49) gen #37 ch24 — 828 -> 805, TIGHTENED to
                               # the measured aggregate (403 trusted + 402 dep_hi), which the
                               # `_find_abstract_val_insert_idx` relabel leaves invariant.
                               # PRIOR: (#49) gen #31, 2026-09-25T23:40Z — 830 -> 828, TIGHTENED
