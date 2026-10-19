@@ -54,10 +54,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # reason given above. Field TYPE only; the stub body stays unverified.
         self._cur_func_name: str = ""
 
+    # (#49) FRAME CORRECTED FROM A LIE (survival-plane repair #2). Live `visit_Module` ends in
+    # `self.generic_visit(node)`, which dispatches `visit_FunctionDef` (-> `_build_function_ir`,
+    # writes `_cur_func_name`) and `visit_ClassDef` (-> `_collect_class_fields`, writes
+    # `_m5_dc_unknown`). Both fields are in this class's RECORD, so omitting them let a caller
+    # PROVE them unchanged across this call. No plane saw it: the underdeclaration arms resolve
+    # `self.<m>()` by name (a NodeVisitor dispatch is not one) and read class-level declarations
+    # only (this class declares in `__init__`). `visit_FunctionDef` below gains `_m5_dc_unknown`
+    # for the same reason (its `generic_visit` reaches a nested `visit_ClassDef`).
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._final_registry, self._fresh_var_counter, self._globals_lookup_funcs, self._m5_record_class_names, self._mutex_invariants_csl, self._shared_var_names, self._source, self._union_synth_cache, self.program_ir
+    #@ assigns self._cur_func_name, self._final_registry, self._fresh_var_counter, self._globals_lookup_funcs, self._m5_dc_unknown, self._m5_record_class_names, self._mutex_invariants_csl, self._shared_var_names, self._source, self._union_synth_cache, self.program_ir
     def visit_Module(self, node: ast.Module) -> None:
         pass
 
@@ -3398,7 +3406,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._enclosing_trusted_stack, self._fresh_var_counter, self._pending_overloads, self._source, self._union_synth_cache, self.program_ir
+    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._enclosing_trusted_stack, self._fresh_var_counter, self._m5_dc_unknown, self._pending_overloads, self._source, self._union_synth_cache, self.program_ir
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         pass
 
