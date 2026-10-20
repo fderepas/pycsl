@@ -486,6 +486,11 @@ START (standing), not as an interrupt. Rules:
   write a liveness line every 15 min. Driver side: treat >45 min of silence as death, never wait
   longer; recover the dead agent's worktree INLINE (read its progress log + `git diff`, review,
   commit, re-verify FRESH) rather than relaunching from scratch — r2b's work was recovered that way.
+  AMENDED same day: two of the four "dead" agents (rsurv, r2b) REVIVED — they were blocked for hours in
+  the congested heavy queue, not dead, and `ps` on the worktree path did not show the queued wrapper.
+  So silence is NOT proof of death: brief agents to log a liveness line WHILE QUEUED, and on a suspected
+  death SALVAGE FIRST (commit/cherry-pick the tree's work) and only then remove the worktree; expect the
+  agent may still report, and reconcile its report with what you salvaged.
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
