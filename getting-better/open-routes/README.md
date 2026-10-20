@@ -39,7 +39,7 @@
 ##   and `getattr`/`methodcaller` naming a mutator (PYCSL-SEM-MUTATION-BY-ANOTHER-NAME); #162's denylist gains every
 ##   `operator.i<op>`. Witnesses 3370-3381/3383-3387/3389-3398 PROVED -> refused; controls 3382/3388/3399 PASS; all 14
 ##   route witnesses rc=0 -> rc=1. Root 0 MOVED / 4 GONE (0849, 1314, 1315, 1317: expected-FAIL witnesses now refused,
-##   census rows re-measured), pyref RESULT_PYREF, mirror 0/0/0. Residuals: see the three route files.
+##   census rows re-measured), pyref 0/0/0, mirror 0/0/0; fast planes 61 green, --slow OWED. Residuals: see the three route files.
 
 ## gen #37 (2026-10-20): #286 (one-arg `.get` on a non-map hval receiver under no_exception drops AttributeError) OPEN on main,
 ##   REPAIRED in the land27 stack (3cbcc895); witness 3289 PROVES on main, FAILS on land27. Closes when land27 lands.
