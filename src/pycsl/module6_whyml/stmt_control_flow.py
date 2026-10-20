@@ -486,6 +486,26 @@ class ControlFlowStmtMixin:
             self._pyast_loop_variant_len = f"(hval_values_len {_mapw})"
             return (f"(hval_values_len {_mapw})",
                     f"(hval_values_get {_mapw} !{idx})", False)
+        # dict-value-wall R2b: `for x in <hval sequence expr>` (judged INLINE in
+        # `_handle_for_stmt`, which sees the body). SNAPSHOT the
+        # iterable once (`_for_iter_materialize`: Python evaluates it once), then an
+        # `HArr l` iterates the REAL list -- bound EXACTLY `hval_list_len l` (so the
+        # `HNil -> HInt 0` sentinel of `hval_list_nth` is unreachable), element
+        # `hval_list_nth l !idx` -- and any other carrier iterates the UNINTERPRETED
+        # `hval_iter_len_other` / `hval_iter_get_other` (`val function`s, no spec, no
+        # axiom: ledger unchanged; a str/dict is NOT given the false length 0).
+        if iter_ir.get("_r2b_hval_seq") is True:
+            _hv = f"_hv{idx}"
+            self._for_iter_materialize = (_hv, self._expr_to_whyml(iter_ir, local_refs))
+            self._add_abstract_op("val function hval_iter_len_other (h: hval) : int")
+            self._add_abstract_op("val function hval_iter_get_other (h: hval) (i: int) : hval")
+            _hlen = (f"(match {_hv} with HArr _hl -> hval_list_len _hl "
+                     f"| _ -> hval_iter_len_other {_hv} end)")
+            self._for_target_is_pyval = True
+            self._pyast_loop_variant_len = _hlen
+            return (_hlen,
+                    f"(match {_hv} with HArr _hl -> hval_list_nth _hl !{idx} "
+                    f"| _ -> hval_iter_get_other {_hv} !{idx} end)", False)
         # self-tcb-reduction Tier-5 (union/match cluster, `_maybe_inject_union_return`): a
         # bare `for ctor_name in <pyval-dict-local>` iterates the dict's KEYS (Python dict
         # iteration yields keys). View the hval-LOCAL as its `map string (option hval)`
@@ -1067,6 +1087,97 @@ class ControlFlowStmtMixin:
             and isinstance(iter_ir.get("func"), str)
             and iter_ir.get("func").endswith(".values")
             and self._self_field_dict_nu(iter_ir.get("func")[:-len(".values")]) == "hval")
+        # dict-value-wall R2b: `for x in <hval sequence expr>` binds `x` to a real `hval`
+        # per iteration -- same pyval-local registration as the
+        # `.values()` walk. The decision is recorded on the iterable dict so
+        # `_classify_iterable` (which has no body) lowers exactly the loops judged here.
+        # The iterable is a pyval `.get(...)` / subscript read (`ir_data.get("functions",
+        # [])`, `func.get("type_params")`, `rec["xs"]`), optionally `or []`. FAIL-CLOSED:
+        # no tuple target, not a bare Var (the dict-KEY arm owns that), not `.values()` /
+        # `.items()`, a resolvable root variable, and NO in-place mutator call / store in
+        # the body on that root, a pyval local or the loop target (Python would iterate
+        # the mutated list; the evaluate-once snapshot would not). Written INLINE with an
+        # explicit stack (lesson a4: no helper method / nested def in a mirrored file).
+        _r2b_c = iter_ir if (self._value_semantic and not tuple_targets
+                             and not _is_pyval_values) else None
+        if (isinstance(_r2b_c, dict) and _r2b_c.get("type") in ("BinOp", "BoolOp")
+                and _r2b_c.get("op") == "or"):
+            _r2b_r = _r2b_c.get("right")
+            _r2b_c = (_r2b_c.get("left") if (isinstance(_r2b_r, dict)
+                                             and _r2b_r.get("type") == "ArrayLit"
+                                             and not _r2b_r.get("elts")) else None)
+        _r2b_f = _r2b_c.get("func") if isinstance(_r2b_c, dict) else None
+        if not (isinstance(_r2b_c, dict)
+                and (_r2b_c.get("type") == "Subscript"
+                     or (_r2b_c.get("type") == "Call"
+                         and ((isinstance(_r2b_f, str) and _r2b_f.endswith(".get"))
+                              or _r2b_f == "get")))
+                and self._expr_is_pyval(_r2b_c)):
+            _r2b_c = None
+        # the iterable's root variable (unknown root -> no fire)
+        _r2b_root = None
+        _r2b_e: Any = _r2b_c
+        while isinstance(_r2b_e, dict):
+            if _r2b_e.get("type") == "Var":
+                _r2b_root = _r2b_e.get("name")
+                break
+            _r2b_ef = _r2b_e.get("func")
+            if (_r2b_e.get("type") == "Call" and isinstance(_r2b_ef, str)
+                    and "." in _r2b_ef):
+                _r2b_root = _r2b_ef.split(".", 1)[0]
+                break
+            _r2b_e = (_r2b_e.get("receiver") or _r2b_e.get("value")
+                      or _r2b_e.get("object") or _r2b_e.get("array"))
+        if _r2b_root is None and isinstance(_r2b_e, str):
+            _r2b_root = _r2b_e
+        if _r2b_c is not None and _r2b_root:
+            _r2b_guard = ({_r2b_root, target}
+                          | set(getattr(self, "_pyval_locals", set()) or set()))
+            _r2b_mut = {"append", "extend", "insert", "pop", "remove", "clear", "update",
+                        "setdefault", "sort", "reverse", "popitem", "discard", "add",
+                        "__setitem__", "__delitem__"}
+            _r2b_ok = True
+            _r2b_stack: List[Any] = [_body_d]
+            while _r2b_stack and _r2b_ok:
+                _r2b_n = _r2b_stack.pop()
+                if isinstance(_r2b_n, list):
+                    _r2b_stack.extend(_r2b_n)
+                    continue
+                if not isinstance(_r2b_n, dict):
+                    continue
+                _r2b_nf = _r2b_n.get("func")
+                _r2b_base = None
+                _r2b_hit = False
+                if (_r2b_n.get("type") == "Call" and isinstance(_r2b_nf, str)
+                        and _r2b_nf.rsplit(".", 1)[-1] in _r2b_mut):
+                    _r2b_hit = True
+                    _r2b_base = (_r2b_nf.split(".", 1)[0] if "." in _r2b_nf
+                                 else _r2b_n.get("receiver"))
+                elif "array" in _r2b_n or ("object" in _r2b_n and "field" in _r2b_n
+                                           and "value" in _r2b_n):
+                    _r2b_hit = True
+                    _r2b_base = _r2b_n.get("array") if "array" in _r2b_n else _r2b_n.get("object")
+                # resolve the mutated base to its root variable name
+                while isinstance(_r2b_base, dict):
+                    if _r2b_base.get("type") == "Var":
+                        _r2b_base = _r2b_base.get("name")
+                        break
+                    _r2b_bf = _r2b_base.get("func")
+                    if isinstance(_r2b_bf, str) and "." in _r2b_bf:
+                        _r2b_base = _r2b_bf.split(".", 1)[0]
+                        break
+                    _r2b_base = (_r2b_base.get("receiver") or _r2b_base.get("value")
+                                 or _r2b_base.get("object") or _r2b_base.get("array"))
+                if _r2b_hit and (not isinstance(_r2b_base, str) or _r2b_base in _r2b_guard):
+                    _r2b_ok = False
+                    break
+                _r2b_stack.extend(_r2b_n.values())
+            if _r2b_ok:
+                # Recorded ON the loop-local iterable dict (a fresh `to_dict()` copy that
+                # `_classify_iterable` receives), NOT in a new self field: a new written
+                # field would be an under-declared `#@ assigns` on this method's mirror.
+                iter_ir["_r2b_hval_seq"] = True
+                _is_pyval_values = True
         # self-tcb-reduction _namedtuple_positional_access: the `.items()` twin — `for k, v
         # in <hval-field>.items()` binds `k` to an arbitrary `string` (`hval_keys_get`) and
         # `v` to a real `hval` (`hval_values_get`). Register the VALUE target `v`

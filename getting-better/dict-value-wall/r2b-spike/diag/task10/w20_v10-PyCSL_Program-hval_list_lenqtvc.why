@@ -1,0 +1,805 @@
+theory Task
+
+type int
+
+type real
+
+type string
+
+predicate infix_eq 'a 'a
+
+(* use why3.BuiltIn.BuiltIn *)
+
+type bool =
+  | True
+  | False
+
+(* use why3.Bool.Bool *)
+
+type tuple0 =
+  | Tuple0 [@builtin]
+
+(* use why3.Tuple0.Tuple01 *)
+
+type unit [@builtin] = unit
+
+(* use why3.Unit.Unit *)
+
+constant zero : int = 0
+
+constant one : int = 1
+
+function prefix_mn int : int
+
+function infix_pl int int : int
+
+function infix_as int int : int
+
+predicate infix_ls int int
+
+function infix_mn (x:int) (y:int) : int = infix_pl x (prefix_mn y)
+
+predicate infix_gt (x:int) (y:int) = infix_ls y x
+
+predicate infix_lseq (x:int) (y:int) = infix_ls x y \/ x = y
+
+predicate infix_gteq (x:int) (y:int) = infix_lseq y x
+
+axiom Assoc :
+  forall x:int, y:int, z:int.
+   infix_pl (infix_pl x y) z = infix_pl x (infix_pl y z)
+
+(* clone algebra.Assoc with type t = int, function op = infix_pl,
+  prop Assoc1 = Assoc,  *)
+
+axiom Unit_def_l : forall x:int. infix_pl zero x = x
+
+axiom Unit_def_r : forall x:int. infix_pl x zero = x
+
+(* clone algebra.Monoid with type t1 = int, constant unit = zero,
+  function op1 = infix_pl, prop Unit_def_r1 = Unit_def_r,
+  prop Unit_def_l1 = Unit_def_l, prop Assoc2 = Assoc,  *)
+
+axiom Inv_def_l : forall x:int. infix_pl (prefix_mn x) x = zero
+
+axiom Inv_def_r : forall x:int. infix_pl x (prefix_mn x) = zero
+
+(* clone algebra.Group with type t2 = int, function inv = prefix_mn,
+  constant unit1 = zero, function op2 = infix_pl,
+  prop Inv_def_r1 = Inv_def_r, prop Inv_def_l1 = Inv_def_l,
+  prop Unit_def_r2 = Unit_def_r, prop Unit_def_l2 = Unit_def_l,
+  prop Assoc3 = Assoc,  *)
+
+axiom Comm : forall x:int, y:int. infix_pl x y = infix_pl y x
+
+(* clone algebra.Comm with type t3 = int, function op3 = infix_pl,
+  prop Comm1 = Comm,  *)
+
+(* meta AC function infix_pl *)
+
+(* clone algebra.CommutativeGroup with type t4 = int,
+  function inv1 = prefix_mn, constant unit2 = zero, function op4 = infix_pl,
+  prop Comm2 = Comm, prop Inv_def_r2 = Inv_def_r,
+  prop Inv_def_l2 = Inv_def_l, prop Unit_def_r3 = Unit_def_r,
+  prop Unit_def_l3 = Unit_def_l, prop Assoc4 = Assoc,  *)
+
+axiom Assoc5 :
+  forall x:int, y:int, z:int.
+   infix_as (infix_as x y) z = infix_as x (infix_as y z)
+
+(* clone algebra.Assoc with type t = int, function op = infix_as,
+  prop Assoc1 = Assoc5,  *)
+
+axiom Mul_distr_l :
+  forall x:int, y:int, z:int.
+   infix_as x (infix_pl y z) = infix_pl (infix_as x y) (infix_as x z)
+
+axiom Mul_distr_r :
+  forall x:int, y:int, z:int.
+   infix_as (infix_pl y z) x = infix_pl (infix_as y x) (infix_as z x)
+
+(* clone algebra.Ring with type t5 = int, function infix_as1 = infix_as,
+  function prefix_mn1 = prefix_mn, function infix_pl1 = infix_pl,
+  constant zero1 = zero, prop Mul_distr_r1 = Mul_distr_r,
+  prop Mul_distr_l1 = Mul_distr_l, prop Assoc6 = Assoc5, prop Comm3 = Comm,
+  prop Inv_def_r3 = Inv_def_r, prop Inv_def_l3 = Inv_def_l,
+  prop Unit_def_r4 = Unit_def_r, prop Unit_def_l4 = Unit_def_l,
+  prop Assoc7 = Assoc,  *)
+
+axiom Comm4 : forall x:int, y:int. infix_as x y = infix_as y x
+
+(* clone algebra.Comm with type t3 = int, function op3 = infix_as,
+  prop Comm1 = Comm4,  *)
+
+(* meta AC function infix_as *)
+
+(* clone algebra.CommutativeRing with type t6 = int,
+  function infix_as2 = infix_as, function prefix_mn2 = prefix_mn,
+  function infix_pl2 = infix_pl, constant zero2 = zero, prop Comm5 = Comm4,
+  prop Mul_distr_r2 = Mul_distr_r, prop Mul_distr_l2 = Mul_distr_l,
+  prop Assoc8 = Assoc5, prop Comm6 = Comm, prop Inv_def_r4 = Inv_def_r,
+  prop Inv_def_l4 = Inv_def_l, prop Unit_def_r5 = Unit_def_r,
+  prop Unit_def_l5 = Unit_def_l, prop Assoc9 = Assoc,  *)
+
+axiom Unitary : forall x:int. infix_as one x = x
+
+axiom NonTrivialRing : not zero = one
+
+(* clone algebra.UnitaryCommutativeRing with type t7 = int,
+  constant one1 = one, function infix_as3 = infix_as,
+  function prefix_mn3 = prefix_mn, function infix_pl3 = infix_pl,
+  constant zero3 = zero, prop NonTrivialRing1 = NonTrivialRing,
+  prop Unitary1 = Unitary, prop Comm7 = Comm4,
+  prop Mul_distr_r3 = Mul_distr_r, prop Mul_distr_l3 = Mul_distr_l,
+  prop Assoc10 = Assoc5, prop Comm8 = Comm, prop Inv_def_r5 = Inv_def_r,
+  prop Inv_def_l5 = Inv_def_l, prop Unit_def_r6 = Unit_def_r,
+  prop Unit_def_l6 = Unit_def_l, prop Assoc11 = Assoc,  *)
+
+(* clone relations.EndoRelation with type t8 = int,
+  predicate rel = infix_lseq,  *)
+
+axiom Refl : forall x:int. infix_lseq x x
+
+(* clone relations.Reflexive with type t9 = int, predicate rel1 = infix_lseq,
+  prop Refl1 = Refl,  *)
+
+(* clone relations.EndoRelation with type t8 = int,
+  predicate rel = infix_lseq,  *)
+
+axiom Trans :
+  forall x:int, y:int, z:int.
+   infix_lseq x y -> infix_lseq y z -> infix_lseq x z
+
+(* clone relations.Transitive with type t10 = int,
+  predicate rel2 = infix_lseq, prop Trans1 = Trans,  *)
+
+(* clone relations.PreOrder with type t11 = int, predicate rel3 = infix_lseq,
+  prop Trans2 = Trans, prop Refl2 = Refl,  *)
+
+(* clone relations.EndoRelation with type t8 = int,
+  predicate rel = infix_lseq,  *)
+
+axiom Antisymm :
+  forall x:int, y:int. infix_lseq x y -> infix_lseq y x -> x = y
+
+(* clone relations.Antisymmetric with type t12 = int,
+  predicate rel4 = infix_lseq, prop Antisymm1 = Antisymm,  *)
+
+(* clone relations.PartialOrder with type t13 = int,
+  predicate rel5 = infix_lseq, prop Antisymm2 = Antisymm,
+  prop Trans3 = Trans, prop Refl3 = Refl,  *)
+
+(* clone relations.EndoRelation with type t8 = int,
+  predicate rel = infix_lseq,  *)
+
+axiom Total : forall x:int, y:int. infix_lseq x y \/ infix_lseq y x
+
+(* clone relations.Total with type t14 = int, predicate rel6 = infix_lseq,
+  prop Total1 = Total,  *)
+
+(* clone relations.TotalOrder with type t15 = int,
+  predicate rel7 = infix_lseq, prop Total2 = Total,
+  prop Antisymm3 = Antisymm, prop Trans4 = Trans, prop Refl4 = Refl,  *)
+
+axiom ZeroLessOne : infix_lseq zero one
+
+axiom CompatOrderAdd :
+  forall x:int, y:int, z:int.
+   infix_lseq x y -> infix_lseq (infix_pl x z) (infix_pl y z)
+
+axiom CompatOrderMult :
+  forall x:int, y:int, z:int.
+   infix_lseq x y ->
+   infix_lseq zero z -> infix_lseq (infix_as x z) (infix_as y z)
+
+(* meta remove_unused:dependency prop CompatOrderMult, function infix_as *)
+
+(* clone algebra.OrderedUnitaryCommutativeRing with type t16 = int,
+  predicate infix_lseq1 = infix_lseq, constant one2 = one,
+  function infix_as4 = infix_as, function prefix_mn4 = prefix_mn,
+  function infix_pl4 = infix_pl, constant zero4 = zero,
+  prop CompatOrderMult1 = CompatOrderMult,
+  prop CompatOrderAdd1 = CompatOrderAdd, prop ZeroLessOne1 = ZeroLessOne,
+  prop Total3 = Total, prop Antisymm4 = Antisymm, prop Trans5 = Trans,
+  prop Refl5 = Refl, prop NonTrivialRing2 = NonTrivialRing,
+  prop Unitary2 = Unitary, prop Comm9 = Comm4,
+  prop Mul_distr_r4 = Mul_distr_r, prop Mul_distr_l4 = Mul_distr_l,
+  prop Assoc12 = Assoc5, prop Comm10 = Comm, prop Inv_def_r6 = Inv_def_r,
+  prop Inv_def_l6 = Inv_def_l, prop Unit_def_r7 = Unit_def_r,
+  prop Unit_def_l7 = Unit_def_l, prop Assoc13 = Assoc,  *)
+
+(* meta remove_unused:keep function infix_pl *)
+
+(* meta remove_unused:keep function infix_mn *)
+
+(* meta remove_unused:keep function prefix_mn *)
+
+(* meta remove_unused:keep predicate infix_ls *)
+
+(* meta remove_unused:keep predicate infix_lseq *)
+
+(* meta remove_unused:keep predicate infix_gt *)
+
+(* meta remove_unused:keep predicate infix_gteq *)
+
+(* use int.Int *)
+
+function abs (x:int) : int = if infix_gteq x 0 then x else prefix_mn x
+
+axiom Abs_le :
+  forall x:int, y:int.
+   infix_lseq (abs x) y <-> infix_lseq (prefix_mn y) x /\ infix_lseq x y
+
+(* meta remove_unused:dependency prop Abs_le, function abs *)
+
+axiom Abs_pos : forall x:int. infix_gteq (abs x) 0
+
+(* meta remove_unused:dependency prop Abs_pos, function abs *)
+
+(* use int.Abs *)
+
+function div int int : int
+
+function mod int int : int
+
+axiom Div_mod [@useraxiom] :
+  forall x:int, y:int.
+   not y = 0 -> x = infix_pl (infix_as y (div x y)) (mod x y)
+
+(* meta remove_unused:dependency prop Div_mod, function div *)
+
+(* meta remove_unused:dependency prop Div_mod, function mod *)
+
+axiom Mod_bound [@useraxiom] :
+  forall x:int, y:int.
+   not y = 0 -> infix_lseq 0 (mod x y) /\ infix_ls (mod x y) (abs y)
+
+(* meta remove_unused:dependency prop Mod_bound, function mod *)
+
+axiom Div_unique :
+  forall x:int, y:int, q:int.
+   infix_gt y 0 ->
+   infix_lseq (infix_as q y) x /\ infix_ls x (infix_pl (infix_as q y) y) ->
+   div x y = q
+
+(* meta remove_unused:dependency prop Div_unique, function div *)
+
+axiom Div_bound :
+  forall x:int, y:int.
+   infix_gteq x 0 /\ infix_gt y 0 ->
+   infix_lseq 0 (div x y) /\ infix_lseq (div x y) x
+
+(* meta remove_unused:dependency prop Div_bound, function div *)
+
+axiom Mod_1 : forall x:int. mod x 1 = 0
+
+(* meta remove_unused:dependency prop Mod_1, function mod *)
+
+axiom Div_1 : forall x:int. div x 1 = x
+
+(* meta remove_unused:dependency prop Div_1, function div *)
+
+axiom Div_inf :
+  forall x:int, y:int. infix_lseq 0 x /\ infix_ls x y -> div x y = 0
+
+(* meta remove_unused:dependency prop Div_inf, function div *)
+
+axiom Div_inf_neg :
+  forall x:int, y:int.
+   infix_ls 0 x /\ infix_lseq x y -> div (prefix_mn x) y = (- 1)
+
+(* meta remove_unused:dependency prop Div_inf_neg, function div *)
+
+axiom Mod_0 : forall y:int. not y = 0 -> mod 0 y = 0
+
+(* meta remove_unused:dependency prop Mod_0, function mod *)
+
+axiom Div_1_left : forall y:int. infix_gt y 1 -> div 1 y = 0
+
+(* meta remove_unused:dependency prop Div_1_left, function div *)
+
+axiom Div_minus1_left : forall y:int. infix_gt y 1 -> div (- 1) y = (- 1)
+
+(* meta remove_unused:dependency prop Div_minus1_left, function div *)
+
+axiom Mod_1_left : forall y:int. infix_gt y 1 -> mod 1 y = 1
+
+(* meta remove_unused:dependency prop Mod_1_left, function mod *)
+
+axiom Mod_minus1_left :
+  forall y:int. infix_gt y 1 -> mod (- 1) y = infix_mn y 1
+
+(* meta remove_unused:dependency prop Mod_minus1_left, function mod *)
+
+axiom Div_mult :
+  forall x:int, y:int, z:int [div (infix_pl (infix_as x y) z) x].
+   infix_gt x 0 -> div (infix_pl (infix_as x y) z) x = infix_pl y (div z x)
+
+(* meta remove_unused:dependency prop Div_mult, function div *)
+
+axiom Mod_mult :
+  forall x:int, y:int, z:int [mod (infix_pl (infix_as x y) z) x].
+   infix_gt x 0 -> mod (infix_pl (infix_as x y) z) x = mod z x
+
+(* meta remove_unused:dependency prop Mod_mult, function mod *)
+
+(* use int.EuclideanDivision *)
+
+type ref 'a =
+  | Refqtmk [@builtin] (contents:'a)
+
+(* use why3.Ref.Ref *)
+
+function prefix_ex (r:ref 'a) : 'a = r.contents
+
+(* use ref.Ref1 *)
+
+constant empty : string = ("":string)
+
+function concat string string : string
+
+axiom concat_assoc [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   concat (concat s1 s2) s3 = concat s1 (concat s2 s3)
+
+axiom concat_empty [@useraxiom] :
+  forall s:string. concat s empty = concat empty s /\ concat empty s = s
+
+function length string : int
+
+axiom length_empty [@useraxiom] : length ("":string) = 0
+
+axiom length_concat [@useraxiom] :
+  forall s1:string, s2:string.
+   length (concat s1 s2) = infix_pl (length s1) (length s2)
+
+predicate lt string string
+
+axiom lt_empty [@useraxiom] : forall s:string. not s = empty -> lt empty s
+
+axiom lt_not_com [@useraxiom] :
+  forall s1:string, s2:string. lt s1 s2 -> not lt s2 s1
+
+axiom lt_ref [@useraxiom] : forall s1:string. not lt s1 s1
+
+axiom lt_trans [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   ([@asym_split] lt s1 s2) && lt s2 s3 -> lt s1 s3
+
+predicate le string string
+
+axiom le_empty [@useraxiom] : forall s:string. le empty s
+
+axiom le_ref [@useraxiom] : forall s1:string. le s1 s1
+
+axiom lt_le [@useraxiom] : forall s1:string, s2:string. lt s1 s2 -> le s1 s2
+
+axiom lt_le_eq [@useraxiom] :
+  forall s1:string, s2:string.
+   le s1 s2 -> ([@asym_split] lt s1 s2) || s1 = s2
+
+axiom le_trans [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   ([@asym_split] le s1 s2) && le s2 s3 -> le s1 s3
+
+function s_at string int : string
+
+axiom at_out_of_range [@useraxiom] :
+  forall s:string, i:int.
+   ([@asym_split] infix_ls i 0) || infix_gteq i (length s) ->
+   s_at s i = empty
+
+axiom at_empty [@useraxiom] : forall i:int. s_at empty i = empty
+
+axiom at_length [@useraxiom] :
+  forall s:string, i:int.
+   let j = s_at s i in
+   if infix_lseq 0 i /\ infix_ls i (length s) then length j = 1
+   else length j = 0
+
+axiom concat_at [@useraxiom] :
+  forall s1:string, s2:string.
+   let s = concat s1 s2 in
+   forall i:int.
+    ([@asym_split]
+     infix_lseq 0 i /\ infix_ls i (length s1) -> s_at s i = s_at s1 i) &&
+    (infix_lseq (length s1) i /\ infix_ls i (length s) ->
+     s_at s i = s_at s2 (infix_mn i (length s1)))
+
+function substring string int int : string
+
+axiom substring_out_of_range [@useraxiom] :
+  forall s:string, i:int, x:int.
+   ([@asym_split] infix_ls i 0) || infix_gteq i (length s) ->
+   substring s i x = empty
+
+axiom substring_of_length_zero_or_less [@useraxiom] :
+  forall s:string, i:int, x:int.
+   infix_lseq x 0 -> substring s i x = ("":string)
+
+axiom substring_of_empty [@useraxiom] :
+  forall i:int, x:int. substring ("":string) i x = ("":string)
+
+axiom substring_smaller [@useraxiom] :
+  forall s:string, i:int, x:int.
+   infix_lseq (length (substring s i x)) (length s)
+
+axiom substring_smaller_x [@useraxiom] :
+  forall s:string, i:int, x:int.
+   infix_gteq x 0 -> infix_lseq (length (substring s i x)) x
+
+axiom substring_length [@useraxiom] :
+  forall s:string, i:int, x:int.
+   ([@asym_split] infix_gteq x 0) && infix_lseq 0 i /\ infix_ls i (length s) ->
+   (if infix_gt (infix_pl i x) (length s)
+    then length (substring s i x) = infix_mn (length s) i
+    else length (substring s i x) = x)
+
+axiom substring_at [@useraxiom] :
+  forall s:string, i:int. s_at s i = substring s i 1
+
+axiom substring_substring [@useraxiom] :
+  forall s:string, ofs:int, len:int, ofsqt:int, lenqt:int.
+   infix_lseq 0 ofs /\ infix_lseq ofs (length s) ->
+   infix_lseq 0 len ->
+   infix_lseq (infix_pl ofs len) (length s) ->
+   infix_lseq 0 ofsqt /\ infix_lseq ofsqt len ->
+   infix_lseq 0 lenqt ->
+   infix_lseq (infix_pl ofsqt lenqt) len ->
+   substring (substring s ofs len) ofsqt lenqt =
+   substring s (infix_pl ofs ofsqt) lenqt
+
+axiom concat_substring [@useraxiom] :
+  forall s:string, ofs:int, len:int, lenqt:int.
+   infix_lseq 0 ofs /\ infix_lseq ofs (length s) ->
+   infix_lseq 0 len ->
+   infix_lseq (infix_pl ofs len) (length s) ->
+   infix_lseq 0 lenqt ->
+   infix_lseq 0 (infix_pl (infix_pl ofs len) lenqt) /\
+   infix_lseq (infix_pl (infix_pl ofs len) lenqt) (length s) ->
+   concat (substring s ofs len) (substring s (infix_pl ofs len) lenqt) =
+   substring s ofs (infix_pl len lenqt)
+
+predicate prefixof string string
+
+axiom prefixof_substring [@useraxiom] :
+  forall s1:string, s2:string.
+   prefixof s1 s2 <-> s1 = substring s2 0 (length s1)
+
+axiom prefixof_concat [@useraxiom] :
+  forall s1:string, s2:string. prefixof s1 (concat s1 s2)
+
+axiom prefixof_empty [@useraxiom] : forall s2:string. prefixof ("":string) s2
+
+axiom prefixof_empty2 [@useraxiom] :
+  forall s1:string. not s1 = empty -> not prefixof s1 ("":string)
+
+predicate suffixof string string
+
+axiom suffixof_substring [@useraxiom] :
+  forall s1:string, s2:string.
+   suffixof s1 s2 <->
+   s1 = substring s2 (infix_mn (length s2) (length s1)) (length s1)
+
+axiom suffixof_concat [@useraxiom] :
+  forall s1:string, s2:string. suffixof s2 (concat s1 s2)
+
+axiom suffixof_empty [@useraxiom] : forall s2:string. suffixof ("":string) s2
+
+axiom suffixof_empty2 [@useraxiom] :
+  forall s1:string. not s1 = empty -> not suffixof s1 ("":string)
+
+predicate contains string string
+
+axiom contains_prefixof [@useraxiom] :
+  forall s1:string, s2:string. prefixof s1 s2 -> contains s2 s1
+
+axiom contains_suffixof [@useraxiom] :
+  forall s1:string, s2:string. suffixof s1 s2 -> contains s2 s1
+
+axiom contains_empty [@useraxiom] :
+  forall s2:string. contains ("":string) s2 <-> s2 = empty
+
+axiom contains_empty2 [@useraxiom] :
+  forall s1:string. contains s1 ("":string)
+
+axiom contains_substring [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   substring s1 i (length s2) = s2 -> contains s1 s2
+
+axiom contains_concat [@useraxiom] :
+  forall s1:string, s2:string.
+   ([@asym_split] contains (concat s1 s2) s1) && contains (concat s1 s2) s2
+
+axiom contains_at [@useraxiom] :
+  forall s1:string, s2:string, i:int. s_at s1 i = s2 -> contains s1 s2
+
+function indexof string string int : int
+
+axiom indexof_empty [@useraxiom] :
+  forall s:string, i:int.
+   infix_lseq 0 i /\ infix_lseq i (length s) -> indexof s ("":string) i = i
+
+axiom indexof_empty1 [@useraxiom] :
+  forall s:string, i:int.
+   let j = indexof ("":string) s i in
+   ([@asym_split] j = (- 1)) ||
+   ([@asym_split] s = ("":string)) && i = j /\ j = 0
+
+axiom indexof_contains [@useraxiom] :
+  forall s1:string, s2:string.
+   let j = indexof s1 s2 0 in
+   contains s1 s2 ->
+   ([@asym_split] infix_lseq 0 j /\ infix_lseq j (length s1)) &&
+   substring s1 j (length s2) = s2
+
+axiom contains_indexof [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   infix_gteq (indexof s1 s2 i) 0 -> contains s1 s2
+
+axiom not_contains_indexof [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   not contains s1 s2 -> indexof s1 s2 i = (- 1)
+
+axiom substring_indexof [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   let j = indexof s1 s2 i in
+   infix_gteq j 0 -> substring s1 j (length s2) = s2
+
+axiom indexof_out_of_range [@useraxiom] :
+  forall i:int, s1:string, s2:string.
+   not (infix_lseq 0 i /\ infix_lseq i (length s1)) ->
+   indexof s1 s2 i = (- 1)
+
+axiom indexof_in_range [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   let j = indexof s1 s2 i in
+   infix_lseq 0 i /\ infix_lseq i (length s1) ->
+   ([@asym_split] j = (- 1)) || infix_lseq i j /\ infix_lseq j (length s1)
+
+axiom indexof_contains_substring [@useraxiom] :
+  forall s1:string, s2:string, i:int.
+   ([@asym_split] infix_lseq 0 i /\ infix_lseq i (length s1)) &&
+   contains (substring s1 i (infix_mn (length s1) i)) s2 ->
+   infix_lseq i (indexof s1 s2 i) /\ infix_lseq (indexof s1 s2 i) (length s1)
+
+function replace string string string : string
+
+axiom replace_empty [@useraxiom] :
+  forall s1:string, s3:string. replace s1 ("":string) s3 = concat s3 s1
+
+axiom replace_not_contains [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   not contains s1 s2 -> replace s1 s2 s3 = s1
+
+axiom replace_empty2 [@useraxiom] :
+  forall s2:string, s3:string.
+   let s4 = replace empty s2 s3 in if s2 = empty then s4 = s3 else s4 = empty
+
+axiom replace_substring_indexof [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   let j = indexof s1 s2 0 in
+   replace s1 s2 s3 =
+   (if infix_ls j 0 then s1
+    else concat (concat (substring s1 0 j) s3)
+         (substring s1 (infix_pl j (length s2))
+          (infix_mn (infix_mn (length s1) j) (length s2))))
+
+function replaceall string string string : string
+
+axiom replaceall_empty1 [@useraxiom] :
+  forall s1:string, s3:string. replaceall s1 ("":string) s3 = s1
+
+axiom not_contains_replaceall [@useraxiom] :
+  forall s1:string, s2:string, s3:string.
+   not contains s1 s2 -> replaceall s1 s2 s3 = s1
+
+function to_int string : int
+
+axiom to_int_gt_minus_1 [@useraxiom] :
+  forall s:string. infix_gteq (to_int s) (- 1)
+
+axiom to_int_empty [@useraxiom] : to_int ("":string) = (- 1)
+
+predicate is_digit (s:string) =
+  ([@asym_split] infix_lseq 0 (to_int s) /\ infix_lseq (to_int s) 9) &&
+  length s = 1
+
+function from_int int : string
+
+axiom from_int_negative [@useraxiom] :
+  forall i:int. infix_ls i 0 <-> from_int i = empty
+
+axiom from_int_to_int [@useraxiom] :
+  forall i:int.
+   if infix_gteq i 0 then to_int (from_int i) = i
+   else to_int (from_int i) = (- 1)
+
+(* use string.String *)
+
+type (->) 'a 'b
+
+function infix_at ('a -> 'b) 'a : 'b
+
+(* use why3.HighOrd.HighOrd *)
+
+type map 'a 'b = 'a -> 'b
+
+function get (f:'a -> 'b) (x:'a) : 'b = infix_at f x
+
+function set (f:'a -> 'b) (x:'a) (v:'b) : 'a -> 'b =
+  fun (y:'a) -> if y = x then v else infix_at f y
+
+function mixfix_lbrb (f:'a -> 'b) (x:'a) : 'b = infix_at f x
+
+function mixfix_lblsmnrb (f:'a -> 'b) (x:'a) (v:'b) : 'a -> 'b = set f x v
+
+(* use map.Map *)
+
+function const (v:'b) : 'a -> 'b = fun (us [@__dummy__]:'a) -> v
+
+(* use map.Const *)
+
+type option 'a =
+  | None
+  | Some 'a
+
+predicate is_none (o:option 'a) =
+  match o with
+  | None -> true
+  | Some _ -> false
+  end
+
+axiom is_noneqtspec [@W:non_conservative_extension:N] :
+  forall o:option 'a. [@hyp_name:Ensures] is_none o <-> o = (None: option 'a)
+
+(* meta remove_unused:dependency prop is_noneqtspec, predicate is_none *)
+
+(* use option.Option *)
+
+type array [@extraction:array] 'a
+
+function elts [@is_field_id] [@builtin] (array 'a) : int -> 'a
+
+function length1 [@is_field_id] [@builtin] (array 'a) : int
+
+axiom arrayqtinvariant [@extraction:array] :
+  forall self:array 'a [self.length1].
+   [@hyp_name:TypeInvariant] infix_lseq 0 (self.length1)
+
+(* meta model_record function length1 *)
+
+(* meta model_record function elts *)
+
+function mixfix_lbrb1 (a:array 'a) (i:int) : 'a = infix_at (a.elts) i
+
+function mixfix_lblsmnrb1 (array 'a) int 'a : array 'a
+
+axiom mixfix_lblsmnrbqtspecqt0 [@W:non_conservative_extension:N] :
+  forall a:array 'a, i:int, v:'a.
+   [@hyp_name:Ensures] (mixfix_lblsmnrb1 a i v).length1 = a.length1
+
+axiom mixfix_lblsmnrbqtspec [@W:non_conservative_extension:N] :
+  forall a:array 'a, i:int, v:'a.
+   [@hyp_name:Ensures] (mixfix_lblsmnrb1 a i v).elts = set (a.elts) i v
+
+(* meta remove_unused:dependency prop mixfix_lblsmnrbqtspecqt0,
+  function mixfix_lblsmnrb1 *)
+
+(* meta remove_unused:dependency prop mixfix_lblsmnrbqtspec,
+  function mixfix_lblsmnrb1 *)
+
+function make int 'a : array 'a
+
+axiom make_spec [@useraxiom] :
+  forall n:int, v:'a.
+   infix_gteq n 0 ->
+   (forall i:int.
+     infix_lseq 0 i /\ infix_ls i n -> mixfix_lbrb1 (make n v) i = v) /\
+   (make n v).length1 = n
+
+(* use array.Array *)
+
+type hval =
+  | HStr string
+  | HInt int
+  | HArr hval_list
+  | HMap hpairs
+  | HNode hval
+  with hval_list =
+    | HNil
+    | HCons hval hval_list
+  with hpairs =
+    | PNil
+    | PCons string hval hpairs
+
+function hval_iter_get_other hval int : hval
+
+function hval_iter_len_other hval : int
+
+constant pycsl_none : int
+
+function hpairs_key_eq string string : bool
+
+axiom hpairs_key_eqqtspec [@W:non_conservative_extension:N] :
+  forall a:string, b:string.
+   [@hyp_name:Ensures] hpairs_key_eq a b = True <-> a = b
+
+(* meta remove_unused:dependency prop hpairs_key_eqqtspec,
+  function hpairs_key_eq *)
+
+function pairs_get (p1:hpairs) (k1:string) : option hval =
+  match p1 with
+  | PNil -> None: option hval
+  | PCons kqt v t ->
+      if hpairs_key_eq k1 kqt = True then Some v else pairs_get t k1
+  end
+
+function hval_opaque_str hval : string
+
+function hstr_of (h:hval) : string =
+  match h with
+  | HStr s -> s
+  | _ -> hval_opaque_str h
+  end
+
+function hint_of (h:hval) : int = match h with
+  | HInt i -> i
+  | _ -> 0
+  end
+
+function hval_truthy (h:hval) : bool =
+  match h with
+  | HStr s -> if not hpairs_key_eq s ("":string) = True then True else False
+  | HInt i -> if not i = 0 then True else False
+  | HArr l -> match l with
+      | HNil -> False
+      | _ -> True
+      end
+  | HMap p1 -> match p1 with
+      | PNil -> False
+      | _ -> True
+      end
+  | HNode _ -> True
+  end
+
+function hval_list_str_mem (l1:hval_list) (x6:string) : bool =
+  match l1 with
+  | HNil -> False
+  | HCons h t ->
+      if match h with
+      | HStr s -> hpairs_key_eq s x6 = True
+      | _ -> false
+      end then True else hval_list_str_mem t x6
+  end
+
+function hval_str_mem (h:hval) (x6:string) : bool =
+  match h with
+  | HArr l1 -> hval_list_str_mem l1 x6
+  | _ -> False
+  end
+
+constant l1 [@introduced] : hval_list
+
+constant x6 [@introduced] : hval
+
+constant x7 [@introduced] : hval_list
+
+axiom H5 [@introduced] : l1 = HCons x6 x7
+
+(* meta syntax_type type int, "int", 0 *)
+
+(* meta syntax_type type real, "real", 0 *)
+
+(* meta syntax_logic predicate infix_eq, "(%1 = %2)", 0 *)
+
+(* meta encoding:ignore_polymorphism_ls predicate infix_eq *)
+
+goal hval_list_lenqtvc [@expl:VC for hval_list_len] :
+  [@vc:annotation] [@expl:variant decrease] [@hyp_name:Variant]
+  match [@hyp_name:Variant] l1 with
+  | HNil -> false
+  | HCons _ f -> f = ([@hyp_name:Variant] x7)
+  end
+
+end

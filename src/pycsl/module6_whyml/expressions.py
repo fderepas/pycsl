@@ -1468,6 +1468,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                          f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
                 _mem = f"(hval_str_mem {_rawh} {left})"
                 return f"(not {_mem})" if negate else _mem
+        # dict-value-wall R2b: `"k" in <hval expr>` (a pyval local / `.get` / subscript read)
+        # with a STRING needle. Python's `in` depends on the carrier: a dict (`HMap p`) tests
+        # KEY presence -- `pairs_get p k <> None` over the R2a-specified key equality; a
+        # list (`HArr l`) tests element equality, and only an `HStr` element can equal a
+        # str (`hval_list_str_mem`); a str (substring), an int (TypeError) or a node is the
+        # UNINTERPRETED `hval_in_other` (`val function`, no spec, no axiom), never a
+        # constant. The hval is bound once (pure). Body context only; fail-closed otherwise.
+        _lir_m = expr.get("left")
+        if (not self._in_spec and self._value_semantic and isinstance(rhs, dict)
+                and isinstance(_lir_m, dict)
+                and (_lir_m.get("type") == "String" or self._is_string_expr(_lir_m))
+                and not (rhs.get("type") == "Var"
+                         and rhs.get("name") in getattr(self, "_dict_value_types", {}))
+                and self._expr_is_pyval(rhs)):
+            self._add_abstract_op("val function hval_in_other (k: string) (h: hval) : bool")
+            _mem = (f"(let _hin = {right} in let _kin = {left} in match _hin with "
+                    f"HMap _pin -> (match pairs_get _pin _kin with None -> false "
+                    f"| Some _ -> true end) "
+                    f"| HArr _lin -> hval_list_str_mem _lin _kin "
+                    f"| _ -> hval_in_other _kin _hin end)")
+            return f"(not {_mem})" if negate else _mem
         # self-tcb-reduction `_compute_return_type` PATH(b): DIRECT-self map membership
         # `K in self._record_types` / `K in getattr(self, "_variant_types", {})` -> the
         # membership reader `<base>_mem <K> : bool` (the direct-access twin of the
@@ -6628,6 +6649,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _pvw = f"(hstr_of {left if _lpv else right})"
                     _otw = right if _lpv else left
                     eq = f"(str_eq_op {_pvw} {_otw})"
+                    return eq if raw_op == "==" else f"(not {eq})"
+                # dict-value-wall R2b (element field read): a pyval read that is NOT already
+                # classified string (`decl.get("kind")` on a loop-element hval) compared to a
+                # STRING LITERAL. Only an `HStr` carrier can equal a str in CPython (a list /
+                # dict / int / None / IR node never does), so the faithful compare is the
+                # `HStr` match over the specified key equality, never the int-hash `= <hash>`
+                # facade (which mistypes `hval` against `int`: L3-tc red today, so this arm
+                # moves no green emission). Fail-closed: literal other side only.
+                elif (isinstance(_other, dict) and _other.get("type") == "String"
+                        and not self._is_string_expr(
+                            (expr.get("left") if _lpv else expr.get("right")) or {})):
+                    _pvw = left if _lpv else right
+                    _otw = right if _lpv else left
+                    # `hpairs_key_eq` (the hval theory's R2a-specified `val function`,
+                    # `result <-> a = b`) keeps the compare a LOGIC term: measured, the
+                    # program `str_eq_op` call made the loop witness VC time out.
+                    eq = (f"(match {_pvw} with HStr _s_eq -> (hpairs_key_eq _s_eq {_otw}) "
+                          f"| _ -> false end)")
                     return eq if raw_op == "==" else f"(not {eq})"
             ls = self._is_string_expr(expr["left"])
             rs = self._is_string_expr(expr["right"])
