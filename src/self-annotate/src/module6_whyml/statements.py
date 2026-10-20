@@ -837,7 +837,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # The dict's value type ν drives the empty-map literal (string /
             # seq-int snapshot / nested-map / int-default). Consolidated in
             # `_dv_empty_default`; None ⇒ keep the caller's int-default `val`.
-            _empty = self._dv_empty_default(self._dict_value_types.get(target))
+            # (#49) ROUTE #294: the empty base replaces the RHS ONLY for an empty
+            # construction (a dict literal, or an RHS already lowered to the int-typed
+            # everywhere-None map); any other RHS is kept (live twin, inline).
+            _empty = None
+            if (val_ir.get("type") == "DictLit"
+                    or val.strip() == "(const (None: option int))"):
+                _empty = self._dv_empty_default(self._dict_value_types.get(target))
             if _empty is not None:
                 val = _empty
             return f"{indent}let {safe_target} = ref {val} in\n"

@@ -78,7 +78,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # seq-int snapshot / nested-map / int-default). Consolidated in
             # `_dv_empty_default`; None ⇒ keep the caller's int-default `val`.
             nu = self._dict_value_types.get(target)
-            _empty = self._dv_empty_default(nu)
+            # (#49) ROUTE #294 — THE EMPTY BASE IS FOR AN EMPTY CONSTRUCTION ONLY. This
+            # used to run for EVERY first assignment of a non-int-valued dict, so
+            # `e: Dict[str, str] = func` (a parameter, a call result, `dict(func)`, …)
+            # DISCARDED its RHS and declared `e` the everywhere-None map: `"name" in e`
+            # then PROVED `\result == False` where CPython answers True (witnesses
+            # 3430-3436). The ν-typed empty base now replaces the RHS only when the RHS
+            # IS an empty construction — a dict LITERAL (whose entries the fold below
+            # puts back on that base), or an RHS that already LOWERED to the int-typed
+            # everywhere-None map (`dict()`, the factory-form `defaultdict(...)` /
+            # `Counter()`), which the retype only re-annotates: the same empty value.
+            # Any other RHS is KEPT: it type-checks against ν, or it is an L3-tc type
+            # error (fail-closed, a refusal — never the empty map).
+            _empty = ""
+            if ((isinstance(val_ir, dict) and val_ir.get("type") == "DictLit")
+                    or val.strip() == "(const (None: option int))"):
+                _empty = self._dv_empty_default(nu)
             if _empty:
                 val = _empty
             elif isinstance(val_ir, dict) and val_ir.get("type") == "DictLit":
@@ -1182,6 +1197,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `_str_set_locals` -> corpus byte-inert.
         if target in getattr(self, "_str_set_locals", set()):
             safe = whyml_ident(target)
+            # (#49) ROUTE #294 (census sibling of the dict first-assign): EVERY assignment
+            # of such a local used to become `StrSet.empty ()`, its RHS discarded — the
+            # local qualifies once ANY of its assignments is `set()`, so `s = func` (and a
+            # first `s: Set[str] = func` beside a later `s = set()`) declared `s` EMPTY and
+            # `"name" in s` PROVED `\result == False` (CPython True; witnesses 3442/3443).
+            # Only `set()` itself is the empty set; any other RHS keeps its lowering (it
+            # type-checks as a `StrSet.set`, or it is an L3-tc error: fail-closed).
+            _r294_init = "(StrSet.empty ())"
+            if not (val_ir.get("type") == "Call" and val_ir.get("func") == "set"
+                    and not val_ir.get("args") and not val_ir.get("keywords")):
+                _r294_init = val
             if target not in declared_refs:
                 declared_refs.add(target)
                 local_refs.add(target)   # set locals are refs -> reads deref `!s`
@@ -1189,8 +1215,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     rest, local_refs, declared_refs, indent, in_loop)
                 if not rest_code:
                     rest_code = f"{indent}()"
-                return f"{indent}let {safe} = ref (StrSet.empty ()) in\n{rest_code}"
-            code = f"{indent}{safe} := StrSet.empty ()"
+                return f"{indent}let {safe} = ref {_r294_init} in\n{rest_code}"
+            code = (f"{indent}{safe} := StrSet.empty ()" if _r294_init == "(StrSet.empty ())"
+                    else f"{indent}{safe} := {_r294_init}")
             if rest:
                 code += ";\n" + self._stmts_to_whyml(
                     rest, local_refs, declared_refs, indent, in_loop)

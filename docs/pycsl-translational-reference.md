@@ -2776,6 +2776,18 @@ active `no_exception` context (declared, or widened by a handler, route #171) a 
 matches a `TRIGGER_EXPR_SHAPES` shape of an active exception is refused (3340-3344), exactly as route
 #285 does for comprehensions; a raise-free key (`v + 1`) keeps its claim (3345).
 
+**Route #294 (gen #37): the ν-typed empty base is for an EMPTY construction only.** The first
+assignment of a dict local whose value type ν is not `int` (`string`, `hval`, `emit_ir`, `seq int`,
+nested `map …`) replaced its lowered RHS with `(const (None: option ν))` WHATEVER the RHS was, so
+`e: Dict[str, str] = func` (a parameter, a local, a call, `dict(func)`, a conditional) declared `e`
+empty and `"name" in e` PROVED False (CPython True). `_emit_first_assign` now substitutes the empty
+base only when the RHS is a dict literal (the fold puts its entries back on that base) or already
+lowered to the int-typed everywhere-None map (`dict()`, the factory-form `defaultdict`/`Counter`, the
+same empty value re-annotated); any other RHS is KEPT — it type-checks against ν (`ref func`) or is an
+L3-tc error, a refusal (3430-3439). Census sibling: an emitter-local `Set[str]` (annotated, some
+assignment `= set()`) lowered EVERY assignment to `StrSet.empty ()`; only `set()` is the empty set now,
+any other RHS keeps its lowering (3442-3443 refused; 3441 controls PASS).
+
 **Residue, stated rather than implied.** The record is *linear* — rebinding clears it — so a
 `None` bound in one branch of an `if` and something else in the other walks past it. That is
 `getting-better/open-routes/route46-none-branch-join.md`, which also records the *sticky*
