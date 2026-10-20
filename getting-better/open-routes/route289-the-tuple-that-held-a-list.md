@@ -1,0 +1,3 @@
+# OPEN ROUTE #289 — A TUPLE HOLDING A LIST IS OPAQUE AND WRITES THROUGH ITS ELEMENT ARE NO-OPS
+**Status: OPEN (gen #37, 2026-10-20), Severity 1.** Red-team round 8; driver-reproduced at 8d906404 (rc=0; CPython violates).
+Witnesses `witnesses-r289/`. a028 `t: Tuple[List[int], int] = (xs, 0); b = t[0]; b[0] = 5; return xs[0]` proves `== \old(xs[0])` (CPython 5); a025 local variant (`return a[0]` folded to 1). The tuple lowers to `any int` and the store to a no-effect `val subscript_set (x:int)`. Repair: refuse stores/mutation through any value extracted from a tuple/container holding a mutable (or model it); census container-of-mutable shapes.

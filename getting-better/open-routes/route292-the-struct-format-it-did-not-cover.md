@@ -1,0 +1,3 @@
+# OPEN ROUTE #292 — CITED struct ROUND-TRIP AXIOM APPLIED TO '?' (bool) FORMATS
+**Status: OPEN (gen #37, 2026-10-20), Severity 1.** Red-team round 8; driver-reproduced at 8d906404 (rc=0; CPython violates).
+Witnesses `witnesses-r292/`. st001 `struct.pack(">??", x0, x1)` then unpack with `#@ proof rocq UnixFs.Struct.i2.round_trip` proves `\result == x0`; CPython roundtrip(5, 0) returns True. The slot id `i2` covers any two scalar slots incl. `?`, and the legacy axiom `unpack(pack x0 x1) = (x0, x1)` has no range/format guard; the soundness report does not list the cited axiom as a TCB entry. Repair: key the cited lemma on the exact format codes it was proved for (int widths/signedness, guards on ranges), refuse others; report cited axioms.

@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-20): #287 (sorted key-lambda body raises dropped), #288 (element store through a list returned by a call),
+##   #289 (tuple holding a list opaque; writes no-op), #290 (mutation via operator.i*/dunders/getattr/partial/methodcaller),
+##   #291 (bool f-string rendered as int), #292 (cited struct axiom applied to '?' formats), #293 (os.path.relpath pure but
+##   cwd-dependent) OPENED (red team 8, ~200 probes); 12 witnesses driver-reproduced rc=0, CPython violates each.
+
 ## gen #37 (2026-10-20): #286 (one-arg `.get` on a non-map hval receiver under no_exception drops AttributeError) OPEN on main,
 ##   REPAIRED in the land27 stack (3cbcc895); witness 3289 PROVES on main, FAILS on land27. Closes when land27 lands.
 

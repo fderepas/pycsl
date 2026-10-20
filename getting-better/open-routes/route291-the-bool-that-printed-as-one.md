@@ -1,0 +1,3 @@
+# OPEN ROUTE #291 — f-STRING OF A bool RENDERS LIKE THE int 0/1
+**Status: OPEN (gen #37, 2026-10-20), Severity 1.** Red-team round 8; driver-reproduced at 8d906404 (rc=0; CPython violates).
+Witnesses `witnesses-r291/`. fs009 `b = True; x = 1; return f"{b}" == f"{x}"` proves True (CPython "True" vs "1" -> False); fs026::f4 bool from a comparison. A bool is the int 0/1 in the model and a bare f-string field lowers to the uninterpreted int-keyed `str_of_int_hash`. Repair: bool-typed fields render as "True"/"False" (or a distinct opaque bool renderer), also for str()/format()/%s; census every int->str rendering site reachable by a bool.
