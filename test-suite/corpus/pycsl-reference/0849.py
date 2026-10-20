@@ -11,6 +11,7 @@ the transpiler REJECTS it — the generic subscript-set path coerces the inner `
 container to `int` and Why3 type-fails (fail-closed, TYPEERR). This lock documents the
 boundary; it MUST stay unproven. If it ever PROVES, a map-leaf inner mutation is being
 silently mis-modelled.
+Since route #289 (gen #37) the no-effect `subscript_set` store is REFUSED outright (PYCSL-SEM-STORE-THROUGH-OPAQUE-ELEMENT).
 """
 # pycsl-expected: FAIL
 _ = 0  # anchor

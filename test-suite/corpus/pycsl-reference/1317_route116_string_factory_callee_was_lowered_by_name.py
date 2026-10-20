@@ -5,6 +5,7 @@ class `Pick("inc")(3)` was emitted `(inc 3)` and `\result == 4` PROVED while CPy
 The recognizer now requires the outer callee to be a module-level function whose body is
 exactly `return G[<param>]` with `G` bound once to `globals()`; this file's `Pick` is not.
 Faithful twin: 1318.
+Since route #290 (gen #37) a computed callee is REFUSED (PYCSL-SEM-MUTATION-BY-ANOTHER-NAME): the erased call also dropped its EFFECT.
 """
 # pycsl-expected: FAIL
 #@ ensures \result == y + 1

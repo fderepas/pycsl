@@ -1,4 +1,5 @@
 r"""Test 1315 — ROUTE #116 second carrier: `name = "inc" if c else "dec"; Pick(name)(3)` on a callable class was a class-by-name construction whose DECLINE returned the literal 0, so `\result == 0` PROVED (CPython 2). A decline is now `(any int)`. NOTE the string-literal arm of #116 (`Pick("inc")(3)` lowered as `(inc 3)`) is still OPEN.
+Since route #290 (gen #37) a computed callee is REFUSED (PYCSL-SEM-MUTATION-BY-ANOTHER-NAME): the erased call also dropped its EFFECT.
 """
 # pycsl-expected: FAIL
 #@ ensures \result == y + 1
