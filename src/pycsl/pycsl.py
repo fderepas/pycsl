@@ -1682,6 +1682,31 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 for _a in [_f290] + list(_n290.args)
                                 for _y in _ast.walk(_a))):
                     _ok290 = True
+                # A same-file class constructed with NO arguments and called at once
+                # (`C()()`, pyref 0090): the erased value is a fresh `(any int)`, and nothing
+                # else is lost when neither `__init__` nor `__call__` stores, deletes or calls.
+                if (isinstance(_f290, _ast.Call) and isinstance(_f290.func, _ast.Name)
+                        and not _f290.args and not _f290.keywords
+                        and all(type(_y).__name__ in _PURE290
+                                for _a in list(_n290.args) + [_k.value for _k in
+                                                              _n290.keywords]
+                                for _y in _ast.walk(_a))):
+                    for _c290 in _ast.walk(unified_ast):
+                        if (isinstance(_c290, _ast.ClassDef)
+                                and _c290.name == _f290.func.id):
+                            _ok290 = True
+                            for _m290 in _c290.body:
+                                if (isinstance(_m290, _ast.FunctionDef)
+                                        and _m290.name in ("__init__", "__call__")):
+                                    for _y in _ast.walk(_m290):
+                                        if (isinstance(_y, (_ast.Call, _ast.AugAssign,
+                                                            _ast.Delete, _ast.Global,
+                                                            _ast.Nonlocal))
+                                                or (isinstance(_y, (_ast.Subscript,
+                                                                    _ast.Attribute))
+                                                    and type(getattr(_y, "ctx", None))
+                                                    .__name__ in ("Store", "Del"))):
+                                            _ok290 = False
                 if not _ok290:
                     _hit290 = ("a call whose CALLEE is a computed expression (`lambda`, "
                                "`getattr(..)`, `operator.methodcaller(..)`, "
