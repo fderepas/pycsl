@@ -2791,6 +2791,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and (self._is_emit_ir_expr(_lo) or self._is_emit_ir_expr(_ro))):
                 return True
             return False
+        # ch28 (#49) EMPTY-NODE arm: the typing twin of `_handle_ifexpr_expr`'s emit_ir
+        # ternary with an empty-dict `{}` arm (`<emit_ir> if c else {}`): it lowers to
+        # `(if c then <node> else (IrOther ""))`, so a local bound from it must be
+        # pre-declared `ref (IrOther "")`, not `ref 0`. Same condition as the lowering
+        # (@mutable_state, both arms emit_ir-or-empty, at least ONE a real emit_ir node, at
+        # least ONE the empty `{}`), so the typing and the lowering never disagree. A
+        # ternary without a `{}` arm is NOT claimed here (unchanged).
+        if t == "IfExpr" and (getattr(self, "_current_self_type", None)
+                              in getattr(self, "_mutable_state_classes", set())):
+            _ba = ir.get("body", {})
+            _oa = ir.get("orelse", {})
+            _ba_e = (isinstance(_ba, dict) and _ba.get("type") == "DictLit"
+                     and not _ba.get("keys"))
+            _oa_e = (isinstance(_oa, dict) and _oa.get("type") == "DictLit"
+                     and not _oa.get("keys"))
+            _ba_n = self._is_emit_ir_expr(_ba)
+            _oa_n = self._is_emit_ir_expr(_oa)
+            if ((_ba_e or _oa_e) and (_ba_n or _oa_n)
+                    and (_ba_e or _ba_n) and (_oa_e or _oa_n)):
+                return True
         if t in ("Attribute", "FieldGet"):
             obj = ir.get("object", {})
             if isinstance(obj, dict) and obj.get("type") == "Var":
@@ -6799,9 +6819,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # existing `kind_of` (a definitional `let function`, both program+logic) and
             # the `str_eq_op` bridge (decidable string `=` for the program `if`); no new
             # ADT, no new axiom.
-            if (not self._in_spec
-                    and self._is_emit_ir_expr(expr["left"])
-                    and self._is_emit_ir_expr(expr["right"])):
+            # ch28 (#49) EMPTY-NODE operand: an empty-dict `{}` operand beside a real
+            # emit_ir operand (`iter_ir.get("slice") or {}`) is the falsy kind-less node,
+            # lowered to the absent sentinel `(IrOther "")` (`kind_of` = ""), exactly the
+            # node `_is_emit_ir_expr`'s BinOp/BoolOp branch already types the whole `A or
+            # {}` as. Before ch28 the `{}` lowered to an int and the `or` fell to the int
+            # path (`__or_l <> 0`), an L3-tc failure, so this only turns a type error into
+            # an emission. At most one side may be the `{}` (`{} or {}` is not matched).
+            _l_empty = (isinstance(expr.get("left"), dict)
+                        and expr["left"].get("type") == "DictLit"
+                        and not expr["left"].get("keys"))
+            _r_empty = (isinstance(expr.get("right"), dict)
+                        and expr["right"].get("type") == "DictLit"
+                        and not expr["right"].get("keys"))
+            if (not self._in_spec and not (_l_empty and _r_empty)
+                    and (_l_empty or self._is_emit_ir_expr(expr["left"]))
+                    and (_r_empty or self._is_emit_ir_expr(expr["right"]))):
+                if _l_empty:
+                    left = '(IrOther "")'
+                if _r_empty:
+                    right = '(IrOther "")'
                 self._add_abstract_op(
                     "val str_eq_op (a b: string) : bool\n"
                     "    ensures { result <-> (a = b) }")
@@ -18013,11 +18050,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # item34.md CF1: the emit_ir analogue — `stmt.value.to_dict() if stmt.value is not
         # None else None` (an `Optional[ExprIR]` ternary) is an emit_ir expression; a `None`
         # arm → `(IrOther "")` (the emit_ir absent sentinel). @mutable_state.
+        # ch28 (#49) EMPTY-NODE arm: the defensive empty-dict `{}` arm of an emit_ir ternary
+        # (`expr.get("args", [{}])[0] if expr.get("args") else {}`, `_kir if isinstance(_kir,
+        # dict) else {}`) is the SAME absent sentinel `(IrOther "")` the `A or {}` idiom
+        # already lowers to (`_is_emit_ir_expr`'s BinOp/BoolOp branch): `kind_of` reads ""
+        # and every projector reads its own absent default, as `{}.get(k)` reads None/"".
+        # Only an EMPTY DictLit, and only beside a real emit_ir arm (`{} if c else {}` is
+        # not one); before ch28 the arm fell to the int-hash `(any int)` and the ternary
+        # failed L3-tc, so this only turns a type error into an emission (@mutable_state).
+        _b_empty = _bd.get("type") == "DictLit" and not _bd.get("keys")
+        _o_empty = _od.get("type") == "DictLit" and not _od.get("keys")
         _b_ir = self._is_emit_ir_expr(_bd)
         _o_ir = self._is_emit_ir_expr(_od)
-        if _ms and (_b_ir or _o_ir) and (_b_ir or _b_none) and (_o_ir or _o_none):
-            if _b_none: body = '(IrOther "")'
-            if _o_none: orelse = '(IrOther "")'
+        if (_ms and (_b_ir or _o_ir) and (_b_ir or _b_none or _b_empty)
+                and (_o_ir or _o_none or _o_empty)):
+            if _b_none or _b_empty: body = '(IrOther "")'
+            if _o_none or _o_empty: orelse = '(IrOther "")'
             return f"(if {test} then {body} else {orelse})"
         # item34.md CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|")
         # if "|" in exc else [exc]`) — emit each arm seq-ified (`_seq_operand`), no int

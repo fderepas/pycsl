@@ -1636,3 +1636,169 @@ corpus+pyref sweep after the receiver-scope fix (the 36 PyVal files were re-emit
 one and are byte-identical). If any of these is red, revert the matching commit.
 
 Logs/emits: session scratchpad `ch27/` (`probeN/*.log`, `*.mlw`; VC isolation `v0..v7.mlw`).
+
+## Re-measurement at HEAD — ch28 (gen #37)
+
+At `6227161c` (count 449, grep-substring; 421 markers). Task: drain ch27's two cheapest gap rows,
+(a) the SIGNATURE RIPPLE (4 markers) and (b) the EMPTY-NODE default + `slice` projector (2
+markers). **0 markers converted (449 -> 449).** One emitter seam landed (the empty-node `{}`
+operand/arm, rows (a)+(b) share it), with witnesses 3220-3224. Every one of the 6 markers has at
+least two MORE blockers after the ones this row names, so neither row is "cheap": both rows are
+the first link of chains of 4 to 6+ distinct capabilities.
+
+**Method.** Each live body was ported verbatim into a scratch copy of the tree
+(`bin/port-one-mirror-body.py --convert [--replace]`), the IR parameter retyped, and emitted
+`--no-proof --keep-mlw` through `heavy.sh`. After each L3-tc error the blocker was classified,
+then either FIXED in the live emitter (when a small faithful seam existed) or NEUTRALIZED in the
+scratch body only (to read the next blocker; never landed). "Ripple length" = the number of
+distinct blockers met before the measurement was stopped; `>=` means the body was not exhausted.
+
+```
+marker                          blocker chain (in order met)                                       ripple
+_emit_membership (486 lines)    1 retype local_refs: Set[str], subst: Optional[Dict[str,str]]       >= 6
+  expressions.py                  (annotation, honest; no error from it)
+                                2 COMP-OVER-NODES: `[e for e in _elts if e.get("type") == "String"]`
+                                  -> `list_content_comp_1` (array int) over `array emit_ir`, and the
+                                  `" || ".join(f"..." for e in _strs)` genexp (cap2 branch)
+                                3 EMPTY-NODE: `_kir if isinstance(_kir, dict) else {}` -> `(any int)`
+                                  FIXED by the ch28 seam (now `(IrOther "")`)
+                                4 CALLEE FORMAL: `self._expr_is_pyval(<that ternary>)`: the method is
+                                  NOT in the expressions mirror, so its abstract val is typed from the
+                                  call site, and only an IDENTIFIER emit_ir actual is typed `emit_ir`
+                                  (Lever 6). A compound actual gets `int`. A 6-line fix exists
+                                  (type a compound `_is_emit_ir_expr` actual `emit_ir`, mirror sweep
+                                  0 movers) but has no consumer yet: NOT landed (patch in scratch)
+                                5 UNION LOCAL: `_mname = (_mo.get("name") if isinstance(_mo, dict) ...
+                                  else _mo if isinstance(_mo, str) else None)` (`rhs["object"]` is a
+                                  node OR a dotted string): a str|dict local. VALUE-MODEL gap
+                                6 GETATTR self-map: `getattr(self, "_module_str_list_constants",
+                                  None)` (Dict[str, List[str]], not a mirror field) -> int
+                                stopped at live line ~1530 of 1411-1899 (25 % of the body)
+_emit_contract_logic_symbol     1 retype expr: "ExprIR" (honest)                                    >= 5
+  expressions.py                2 FIELD DECL: `_imported_inductive_sigs` is not a mirror field of
+                                  ExpressionEmissionMixin -> getattr default int. Declaring it
+                                  `Dict[str, str]` (live: Module6_WhyMLTranspiler.__init__) is honest
+                                  and moves the read to the real field
+                                3 MAP `or {}`: `getattr(self, F, {}) or {}` on a faithful map ->
+                                  `(let __or_l = (if map_nonempty F then 1 else 0) in ...)`, an int/map
+                                  clash. Fixable exactly (a map `or` empty-container IS the map, by
+                                  extensionality; `_to_bool` already says `map_nonempty`), but the
+                                  LOCAL `imported_sigs` is then still pre-declared `ref 0`, because
+                                  `_rhs_yields_map` does not see through `or {}`, and
+                                  `_rhs_yields_map` is a VERIFIED mirror method (types.py,
+                                  sibling_concrete): its body change is a re-proof of types.py.
+                                  NOT landed (patch in scratch)
+                                4 CROSS-MIXIN CALLEE: `self._inductive_sig_whyml(...)` lives in the
+                                  PREAMBLE mirror, not in expressions.py, so its val is call-site-typed
+                                  (formal int, return int) although the mirror declares it `str -> str`.
+                                  Capability: cross-file mixin signature resolution (or a sibling
+                                  stub, +1 marker = net 0)
+                                5 (next, read off the source) `self._symtype_to_whyml(...)`: same
+                                  cross-mixin shape (functions.py mirror)
+_emit_first_assign              (re-read, not re-emitted) the callee `_build_dict_literal_map` is   >= 3
+  statements.py                 NOT in the statements mirror: call-site-typed val (string actuals
+                                hashed to int formals, int return used as a string). Same
+                                CROSS-MIXIN/ABSENT-CALLEE capability as 4 above; then
+                                `_dv_empty_default` / `_dict_value_types.get` (Optional[str])
+_handle_array_set_stmt          (re-read) `known_sizes = getattr(self, "_known_collection_sizes",   >= 3
+  statements.py                 {})` then `known_sizes[v] = known_sizes[v] + 1`: a WRITE through a
+                                getattr ALIAS of a self map (Python mutates the field). That is
+                                MUTRECV-through-alias, not a retype: the value-semantic local would
+                                silently drop the write. Then `_list_nested_elem`/`_array2d_params`
+                                getattr self-maps, `_field_type_of` etc.
+_handle_sum_call (17 lines)     1 EMPTY-NODE: `expr.get("args", [{}])[0] if expr.get("args") else  4
+  expressions.py                  {}` -> FIXED by the seam (`arg0_of` already handles `[{}]`)
+                                2 GETATTR self-maps `_known_collection_elements/_sizes` (not
+                                  ExpressionEmissionMixin fields) -> `pycsl_getattr_default_<h>` int,
+                                  then `subscript_get` string/int clash
+                                3 VACUOUS genexps: `all(e.get("type") == "Number" and
+                                  isinstance(e.get("value"), (int, float)) for e in elts)` and
+                                  `sum(int(e["value"]) for e in elts)` lower to `all_1 (any (array
+                                  int))` / `sum_1 (any int)`: input-blind even once it type-checks
+                                4 VALUE-PAYLOAD: `int(e["value"])` of a Number node (svalue_of is a
+                                  sub-node, `num_of` is only scoped) — census gap 2
+_classify_iterable (467 lines)  1 SLICE PROJECTOR: `iter_ir.get("slice")` -> receiver-dropped          >= 5
+  stmt_control_flow.py            `iter_ir_get_1 <hash>`. `slice_of` ALREADY EXISTS in the emit_ir
+                                  theory (definitional `let function`, `IrSliceAccess _ s -> s`), but
+                                  is emitted only under `_uses_method_recv` (a `.get("receiver")` in
+                                  the file), and `slice` is only a SCOPED key
+                                  (`_EMIT_IR_GET_KEY_PROJ_BY_FUNC["_match_field_decode_idiom"]`)
+                                2 EMPTY-NODE `or {}` -> FIXED by the seam
+                                3 a SCOPED entry for `_classify_iterable` is wrong: inside a scoped
+                                  func `.get("value")` with no default is forced to `num_of` (the
+                                  `_namedtuple_positional_access` rule), but here it reads the
+                                  SliceAccess BASE node. The GLOBAL table instead gives `svalue_of`,
+                                  which is `IrOther ""` on an IrSliceAccess (only `IrSub v _ -> v`),
+                                  and `lower`/`upper` -> `svalue_of`, `IrOther ""` on an IrSliceN:
+                                  the slice branch would be DEAD in the model (vacuous)
+                                4 LOCAL RETYPE: `_bo = <node>; if isinstance(_bo, dict): _bo =
+                                  _bo.get("name")` (one local, emit_ir then string)
+                                5 None-arm ternary `_sl.get("lower") if isinstance(_sl, dict) else
+                                  None` outside @mutable_state (`ControlFlowStmtMixin` is not one):
+                                  CF1 does not fire, `pycsl_none` int vs emit_ir
+                                + a nested def `_absent` in the body (NESTED family), and 400 more
+                                  lines not reached
+```
+
+**Row (b) verdicts.** EMPTY-NODE default: built (below). `slice` projector: NOT a
+CERTIFIED-BOUNDARY. `slice_of`/`lower_of`/`upper_of`/`step_of` are definitional `let function`s
+bundled with the Layer-2 receiver extension; `Phase2j_MethodRecv.v` does not mention them, so
+adding a key touches no cited certificate. It is not landed because it does not make
+`_classify_iterable` honest: the global `value`/`lower`/`upper` routes read `IrOther ""` on the
+slice nodes, which kills the very branch the projector would open (blocker 3). Making it honest
+needs per-kind projections (`value` on IrSliceAccess = its base, `lower` on IrSliceN = `lower_of`),
+that is, census gap 2 (per-kind payload), not a table entry.
+
+**The seam (landed).** `module6_whyml/expressions.py`, three sites, no helper, no nested def:
+(1) `_handle_ifexpr_expr` CF1: an EMPTY `DictLit` arm beside a real emit_ir arm lowers to
+`(IrOther "")`, like the `None` arm already did (@mutable_state); (2) `_is_emit_ir_expr`: the
+typing twin, an `IfExpr` with one empty `{}` arm and emit_ir-or-empty arms is emit_ir (so its local
+is pre-declared `ref (IrOther "")`); (3) `_handle_binop` Lever 6: an empty `{}` operand beside an
+emit_ir operand of `or`/`and` lowers to `(IrOther "")` (`{} or {}` excluded). Faithful: `{}` is
+the kind-less falsy node, the same sentinel the `A or {}` typing (`_is_emit_ir_expr` BinOp branch)
+and every total projector (`arg0_of`, `left_of`, ...) already use; `kind_of (IrOther "") = ""` as
+`{}.get("type", "") == ""`. Fail-closed: each shape was an L3-tc error before.
+
+**Witnesses** (IDs 3220-3224, one `@mutable_state` class each). 3220 PASS (`node if c else {}`,
+`requires not c`, kind is ""); 3221 FAIL (no `requires`: the real-node arm is arbitrary); 3222
+FAIL (wrong kind "Var" for the absent node); 3223 PASS (`(node if c else {}) or {}` keeps the
+empty node); 3224 FAIL (`requires c`: `or` must select the real node, not collapse to `{}`). All
+five are L3-tc failures at `6227161c`; at the seam 3220/3223 prove, 3221/3222/3224 fail
+(Timeout, not L3-tc). All five run under CPython.
+
+**Gates.** Mirror sweep (`bin/mirror-emit-sweep.sh`, base worktree at `6227161c`): 53/53, 0
+MOVED / 0 GONE / 0 APPEARED, so no mirror whole-file proof is owed (every mirror emission is
+byte-identical). Corpus + pyref byte-diff: pycsl-reference 1818 vs 1823 (5 new witnesses), 0
+MOVED / 0 GONE / 0 APPEARED; pyref 2186/2186, 0 MOVED. `check-self-annotate-sync.sh` rc 0,
+`self-annotate-mirror-check.sh` rc 0, `check-trusted-reasons.py` rc 0, count 449 (421 markers).
+`run-soundness-planes.sh`: 56 planes ok, then the 9-min foreground cap (rc 124); 5 planes not
+reached. **OWED:** `. scratchpad/g29/env.sh && bin/run-soundness-planes.sh` (expect 61/61).
+
+**Measured but NOT landed** (patch: session scratchpad `ch28b/seams-1234.patch`, both 0 mirror
+movers when measured with the seam): (3) compound emit_ir actual -> `emit_ir` formal for an
+absent self-callee (unblocks `_emit_membership` blocker 4); (4) faithful map `X or {}` -> `X`
+(unblocks `_emit_contract_logic_symbol` blocker 3, but needs the VERIFIED `_rhs_yields_map`
+(types.py) to see through `or {}` too, a types.py re-proof). Neither has a consumer yet.
+
+**Re-ranked next capabilities** (by how many of these 6 chains each one advances):
+CROSS-MIXIN / ABSENT-CALLEE signature resolution (typing a `self.<m>` val from the mirror's own
+declaration of `<m>` in a sibling mixin file, instead of from the call site): 3
+(`_emit_contract_logic_symbol`, `_emit_first_assign`, `_emit_membership`). GETATTR self-map
+fields that are not declared on the calling mixin: 4 (`_handle_sum_call`, `_emit_membership`,
+`_handle_array_set_stmt`, `_emit_contract_logic_symbol`); mostly honest field declarations, but
+`_handle_array_set_stmt` WRITES through the alias (MUTRECV). Per-kind payload (census gap 2): 2
+(`_handle_sum_call`, `_classify_iterable`). COMP over node lists: 2 (`_emit_membership`,
+`_handle_sum_call`).
+
+**Soundness notes (not chased).** (a) The global `.get("value")`/`.get("lower")`/`.get("upper")`
+routes (`svalue_of`) read `IrOther ""` on IrSliceAccess / IrSliceN: a converted body that reads a
+SliceAccess base or a slice bound through them sees a constant. That is sound for a
+type-safety + frame contract, but a FALSE claim of the form "the slice branch is never taken"
+would prove. Any future `_classify_iterable` conversion must route those keys per kind, and must
+carry a twin that pins it. (b) Absent self-callees get one abstract val PER call-site type
+signature (`self__expr_is_pyval_1 (x0: int) : int` beside `..._c78145 (x0: emit_ir) : int`). Each
+is an unconstrained program `val`, so this is sound. But the same Python method has two
+unrelated models in one file.
+
+Logs/emits: session scratchpad `ch28b/` (`m*.log` membership, `s*.log` sum_call, `c*.log`
+classify_iterable, `l*.log` contract_logic_symbol, `w/` witness probe).
