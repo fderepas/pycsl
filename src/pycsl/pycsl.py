@@ -896,8 +896,25 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
             "strict_mode": "--strict-latin1",
             "relied_on_by": sorted(set(_l1_uses)),
         })
+    # (#49) ROUTE #292 — A CITED `#@ proof` LEMMA IS EMITTED AS A Why3 `axiom`: the
+    # proof's soundness rests on the Rocq/Lean statement AND on the restatement being
+    # applied only where it was proved (`UnixFs.Struct.i2.round_trip` was applied to a
+    # `>??` format it was never proved for). Every citation is listed as a TCB entry.
+    _cited: Dict[str, Dict[str, Any]] = {}
+    for f in funcs:
+        for _c292 in (f.get("proof") or []):
+            if not isinstance(_c292, dict) or not _c292.get("qualname"):
+                continue
+            _e292 = _cited.setdefault(str(_c292["qualname"]),
+                                      {"qualname": str(_c292["qualname"]),
+                                       "provers": [], "cited_by": []})
+            if _c292.get("prover") and _c292["prover"] not in _e292["provers"]:
+                _e292["provers"].append(str(_c292["prover"]))
+            if f["name"] not in _e292["cited_by"]:
+                _e292["cited_by"].append(f["name"])
     return {"file": filename, "summary": counts, "vcs": vcs,
-            "model_assumptions": assumptions}
+            "model_assumptions": assumptions,
+            "cited_lemmas": [_cited[_k] for _k in sorted(_cited)]}
 
 
 def _print_soundness_report(report: Dict[str, Any]) -> None:
@@ -917,6 +934,12 @@ def _print_soundness_report(report: Dict[str, Any]) -> None:
             why = ("\\preserves" if v["bucket"] == "Confinement"
                    else "axiomatic contract")
             print(f"    {v['function']}  [{v['bucket']}]  ({why})")
+    cl = report.get("cited_lemmas") or []
+    if cl:
+        print("  --- TCB entries: cited proof-assistant lemmas (emitted as Why3 axioms) ---")
+        for c in cl:
+            print(f"    {c['qualname']}  [{', '.join(c['provers']) or '?'}]  "
+                  f"cited by: {', '.join(c['cited_by'])}")
     dep = [v for v in report["vcs"] if v["bucket"] == "Modelled" and v["trusted_dependencies"]]
     if dep:
         print("  --- body proofs resting on trusted/abstract stubs ---")

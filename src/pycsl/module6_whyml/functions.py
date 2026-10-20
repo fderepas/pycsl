@@ -1248,9 +1248,18 @@ class FunctionEmissionMixin:
             while _w177:
                 _n177 = _w177.pop()
                 if isinstance(_n177, dict):
-                    if _n177.get("type") in ("ListComp", "SetComp", "DictComp", "GenExp"):
+                    # (#49) ROUTE #287 — A LAMBDA's body is evaluated once per element by the
+                    # builtin it is handed to (`sorted`/`min`/`max` `key=`, `map`, `filter`),
+                    # and the `sorted(xs, key=lambda v: ...)` arm (route #275) lowers to
+                    # `sorted_perm_1 xs`, DROPPING the body. MEASURED at 7313506b, each PROVED
+                    # while CPython raises: `sorted(xs, key=lambda v: 10 // v)` and key `d[v]`
+                    # / `xs[v]` under `no_exception \all`, and the same key inside `try: ...
+                    # except ZeroDivisionError: return []` PROVED `len(\result) == len(xs)`
+                    # (the handler widens the context, route #171). A lambda body is censused
+                    # by the same table as a comprehension element.
+                    if _n177.get("type") in ("ListComp", "SetComp", "DictComp", "GenExp", "Lambda"):
                         _why177 = ""
-                        _s177: List[Any] = [_n177.get(_k177) for _k177 in ("elt", "key", "value")]
+                        _s177: List[Any] = [_n177.get(_k177) for _k177 in ("elt", "key", "value", "body")]
                         for _g177 in (_n177.get("generators") or []):
                             if isinstance(_g177, dict):
                                 _s177.append(_g177.get("iter"))
@@ -1308,6 +1317,16 @@ class FunctionEmissionMixin:
                                 _s177.extend(v for v in _x177.values() if isinstance(v, (dict, list)))
                             elif isinstance(_x177, list):
                                 _s177.extend(_x177)
+                        if _why177 and _n177.get("type") == "Lambda":
+                            raise PyCSLIRError(
+                                "a lambda's body contains " + _why177 + ", and this function "
+                                "claims (or, through an exception handler, relies on) freedom "
+                                "from that exception; the builtin a lambda is handed to "
+                                "(`sorted`/`min`/`max` `key=`, `map`, `filter`) evaluates the "
+                                "body once per element, but the lowering drops the body, so "
+                                "the claim would be proved vacuously (route #287; measured: "
+                                "`sorted(xs, key=lambda v: 10 // v)` proved `no_exception "
+                                "\\all`). Compute the keys in an explicit loop.")
                         if _why177:
                             raise PyCSLIRError(
                                 "a comprehension contains " + _why177 + ", and this function "

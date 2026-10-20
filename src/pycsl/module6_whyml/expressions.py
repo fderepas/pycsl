@@ -3307,9 +3307,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         "basename": (1, "path_basename_op"),
         "dirname": (1, "path_dirname_op"),
         "normpath": (1, "path_normpath_op"),
-        "relpath": (2, "path_relpath_op"),
     }
+    # (#49) ROUTE #293 — `relpath` WAS LISTED PURE, but CPython's `posixpath.relpath`
+    # is `abspath(path)` / `abspath(start)` first, so a relative argument is resolved
+    # against the CWD: `r1 = relpath("a", "/"); os.chdir("/tmp"); r2 = relpath("a", "/")`
+    # PROVED `r1 == r2` (CPython "home/a" vs "tmp/a"). CENSUS of the pure list against
+    # CPython 3.14 `posixpath`: `basename`/`dirname`/`normpath`/`split`/`splitext`/
+    # `splitdrive`/`join` are lexical (no `os` call); `relpath` calls `abspath` -> `getcwd`.
     _OS_PATH_IMPURE_STR = {
+        "relpath": (2, "path_relpath_op"),
         "abspath": (1, "path_abspath_op"),
         "realpath": (1, "path_realpath_op"),
         "expanduser": (1, "path_expanduser_op"),
@@ -9251,6 +9257,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None   # Unsupported char in format
 
         slot_id = parsed.slot_id()
+        # (#49) ROUTE #292 — THE LEGACY CITED ROUND-TRIP LAWS NAME A SHAPE, NOT A FORMAT.
+        # `UnixFs.Struct.{i2,i18,i1a1}.round_trip` (`unpack(pack x) = x`, no guard) are
+        # stated over `struct_{pack,unpack}_<slot_id>`, and `slot_id` records only the
+        # WhyML slot types — so `struct.pack(">??", 5, 0)` shared `struct_pack_i2` with the
+        # `>HH` the law was written for, and `\result == x0` PROVED where CPython
+        # round-trips 5 to True (also `?`/`f`/`d`/`e`-free shapes: `>4s` padding, `>bb`).
+        # Each law is now keyed on the EXACT format its Rocq/Lean statement documents
+        # (`>HH`, `>IHHHHHII10Ixx`, `>H30s`); any other format with that slot shape gets
+        # a format-keyed symbol no cited law names (`struct_*_<id>_h<hex(fmt)>`), so the
+        # citation cannot reach it. The three proved formats emit byte-identically.
+        if ({"i2": ">HH", "i18": ">IHHHHHII10Ixx", "i1a1": ">H30s"}.get(slot_id, fmt)
+                != fmt):
+            slot_id = f"{slot_id}_h{fmt.encode('utf-8').hex()}"
         # cleared-pack: a WHITELISTED scalar-int shape (single OR multi-slot,
         # signed OR unsigned) lowers to the FAITHFUL, guarded `Pycsl.Struct.Std`
         # family (`struct_{pack,unpack}_f<tag-join>`) — byte-codec-anchored
@@ -17657,9 +17676,103 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         #   change the arguments `str_concat` receives and move every multi-part f-string
         #   in the mirror. Static census of the single-part shape: **0** in the 1630-file
         #   pycsl-reference corpus, **0** in the 53 mirror files, **0** in `pycsl_lib`.
+        # (#49) ROUTE #291 — A bool IS THE int 0/1 IN THIS MODEL, SO `str_of_int_hash`
+        #   RENDERED `True` EXACTLY LIKE `1`: `b = True; x = 1; f"{b}" == f"{x}"` PROVED
+        #   (CPython "True" vs "1"). The value-keyed renderer is sound only for an operand
+        #   SHOWN to be an exact `int` — an int literal, an int-only builtin result, an
+        #   arithmetic operator (`True - 0` is the int 1), or a local/parameter typed `int`
+        #   or a call declared `-> int` (an exact int by the declared BUILTIN-EXACT model
+        #   assumption: a bool passed where `int` is declared is its counterexample).
+        #   An operand SHOWN bool (bool literal, comparison, `not`, `bool(...)`, a `bool`
+        #   local or a call declared `-> bool`) renders through its own opaque
+        #   `str_of_bool_hash`, which no int rendering can equal; anything else (a field,
+        #   an element, an untyped value: an element of a `List[bool]` and one of a
+        #   `List[int]` would otherwise share a key) renders through a program `val` with
+        #   no `function` — a fresh, unrelated string per evaluation, so no equality about
+        #   it decides. An UNANNOTATED local (typed `Any`) is classified by its bindings:
+        #   every one a plain `name = <rhs>` with a shown-bool (resp. shown-int) `rhs`, so
+        #   1706's `n = 5; f"{n}" == f"{n}"` keeps proving.
         if len(parts) == 1 and not acc.strip().startswith("(str_hash_op "):
-            self._add_abstract_op("val function str_of_int_hash (x: int) : int")
-            acc = f"(str_of_int_hash {acc})"
+            _v291 = parts[0] if isinstance(parts[0], dict) else {}
+            _es291: List[Any] = [_v291]
+            _st291 = (str(getattr(self, "_current_symbol_table", {}).get(_v291.get("name"))
+                          or "").split("[")[0].strip().lower() if _v291.get("type") == "Var" else "")
+            if _v291.get("type") == "Var" and _st291 in ("", "any"):
+                # An UNANNOTATED local is typed `Any`: resolve it from its bindings in the
+                # function(s) owning this symbol table — all plain `name = <rhs>` and nothing
+                # else (no loop/unpack/augmented/walrus binding), else unresolved (`u`).
+                _cur291 = getattr(self, "_current_symbol_table", None)
+                _fs291 = ([_g291 for _g291 in (self.ir.get("functions") or [])
+                           if isinstance(_g291, dict) and _cur291 is not None
+                           and _g291.get("symbol_table") is _cur291]
+                          or [_g291 for _g291 in (self.ir.get("functions") or [])
+                              if isinstance(_g291, dict) and _cur291
+                              and _g291.get("symbol_table") == _cur291])
+                _es291 = []
+                _ok291 = bool(_fs291)
+                _wk291: List[Any] = [_g291.get("body") for _g291 in _fs291]
+                while _wk291 and _ok291:
+                    _n291 = _wk291.pop()
+                    if isinstance(_n291, dict):
+                        if (_n291.get("stmt") in ("Assign", "AnnAssign")
+                                and _n291.get("target") == _v291.get("name")
+                                and not _n291.get("targets") and not _n291.get("tuple_targets")):
+                            _es291.append(_n291.get("value"))
+                        elif (_n291.get("target") == _v291.get("name")
+                              or _v291.get("name") in (_n291.get("targets") or [])
+                              or _v291.get("name") in (_n291.get("tuple_targets") or [])):
+                            _ok291 = False
+                        _wk291.extend(_x291 for _x291 in _n291.values() if isinstance(_x291, (dict, list)))
+                    elif isinstance(_n291, list):
+                        _wk291.extend(_n291)
+                if not _ok291:
+                    _es291 = []
+            _bs291 = bool(_es291)
+            _is291 = bool(_es291)
+            _u291 = set(getattr(self, "_module_method_return_types", {}) or {})
+            for _e291 in _es291:
+                _e291 = _e291 if isinstance(_e291, dict) else {}
+                _k291 = _e291.get("type")
+                _f291 = _e291.get("func") if isinstance(_e291.get("func"), str) else ""
+                _sv291 = (str(getattr(self, "_current_symbol_table", {}).get(_e291.get("name"))
+                              or "").split("[")[0].strip().lower() if _k291 == "Var" else "")
+                _ra291 = (str((getattr(self, "_module_method_return_annotations", {}) or {}).get(
+                    _f291) or "").strip().lower() if _k291 == "Call" else "")
+                _sub291 = [_e291.get("left"), _e291.get("right"), _e291.get("body"),
+                           _e291.get("orelse")]
+                _bs291 = _bs291 and (
+                    _k291 == "Bool" or (_k291 == "Number" and isinstance(_e291.get("value"), bool))
+                    or (_k291 == "Var" and _sv291 == "bool")
+                    or (_k291 == "Call" and _ra291 == "bool")
+                    or (_k291 == "Call" and _f291 == "bool" and _f291 not in _u291
+                        and _e291.get("receiver") is None)
+                    or (_k291 == "UnaryOp" and _e291.get("op") == "not")
+                    or (_k291 == "BinOp" and _e291.get("op") in (
+                        "==", "!=", "<", "<=", ">", ">=", "in", "not in", "is", "is not"))
+                    or (_k291 == "IfExpr" and all(isinstance(_s291, dict) and _s291.get("type")
+                                                  == "Bool" for _s291 in _sub291[2:])))
+                _is291 = _is291 and (
+                    (_k291 == "Number" and type(_e291.get("value")) is int)
+                    or (_k291 == "Var" and _sv291 == "int")
+                    or (_k291 == "Call" and _ra291 == "int")
+                    or (_k291 == "Call" and _f291 in ("len", "int", "abs", "ord", "hash", "sum")
+                        and _f291 not in _u291 and _e291.get("receiver") is None)
+                    or (_k291 == "BinOp" and _e291.get("op") in ("-", "//", "div", "<<", ">>"))
+                    or (_k291 == "UnaryOp" and _e291.get("op") in ("-", "~"))
+                    or (_k291 in ("BinOp", "IfExpr") and _e291.get("op", "+") in ("+", "*")
+                        and all(isinstance(_s291, dict) and _s291.get("type") == "Number"
+                                and type(_s291.get("value")) is int
+                                for _s291 in (_sub291[:2] if _k291 == "BinOp" else _sub291[2:]))))
+            _kd291 = "b" if _bs291 else ("i" if _is291 else "u")
+            if _kd291 == "b":
+                self._add_abstract_op("val function str_of_bool_hash (x: int) : int")
+                acc = f"(str_of_bool_hash {acc})"
+            elif _kd291 == "i":
+                self._add_abstract_op("val function str_of_int_hash (x: int) : int")
+                acc = f"(str_of_int_hash {acc})"
+            else:
+                self._add_abstract_op("val str_of_value_op (x: int) : int")
+                acc = f"(str_of_value_op {acc})"
         # (#49) ROUTE #281 — a non-string part of this int-model joiner IS an int (the
         # joiner's `str_concat` is int-typed), rendered in decimal: under `no_exception`
         # it owes `|x| < 10**4300`. String parts (literal text, string-typed values,
@@ -19470,10 +19583,95 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     isinstance(_sp, dict) and _sp.get("type") == "String"
                     and isinstance(_sp.get("value"), str) for _sp in _r231_sparts):
                 _r231_text = "".join(_sp["value"] for _sp in _r231_sparts)
-                _r231_fn = (f"pycsl_format_{_r231_c}_{_r231_t}_h"
+                # (#49) ROUTE #291 — `format(v, "")` / `!s` / `!r` / `!a` of a bool is
+                # "True"/"False", but the `i` class is the int model, where `True` IS 1:
+                # `f"{b!r}" == f"{x!r}"` and `f"{b:}" == f"{x:}"` PROVED (b = True,
+                # x = 1; CPython False). A NON-EMPTY spec with no conversion formats a bool
+                # as its int (`format(True, ">5") == "    1"`), so that key is faithful and
+                # kept. Otherwise the operand is classified exactly as for the bare
+                # single-part f-string (`_handle_fstring_expr`): SHOWN bool -> its own `b`
+                # symbol; SHOWN exact int (incl. an `int`-typed local/parameter or `-> int`
+                # call, by BUILTIN-EXACT) -> unchanged; anything else -> a program `val`
+                # (no `function`): a fresh string per evaluation.
+                _r291_kd = _r231_t
+                if _r231_t == "i" and (_r231_c != "n" or _r231_text == ""):
+                    _v291 = _r231_v if isinstance(_r231_v, dict) else {}
+                    _es291: List[Any] = [_v291]
+                    _st291 = (str(getattr(self, "_current_symbol_table", {}).get(_v291.get("name"))
+                                  or "").split("[")[0].strip().lower() if _v291.get("type") == "Var" else "")
+                    if _v291.get("type") == "Var" and _st291 in ("", "any"):
+                        # An UNANNOTATED local is typed `Any`: resolve it from its bindings in the
+                        # function(s) owning this symbol table — all plain `name = <rhs>` and nothing
+                        # else (no loop/unpack/augmented/walrus binding), else unresolved (`u`).
+                        _cur291 = getattr(self, "_current_symbol_table", None)
+                        _fs291 = ([_g291 for _g291 in (self.ir.get("functions") or [])
+                                   if isinstance(_g291, dict) and _cur291 is not None
+                                   and _g291.get("symbol_table") is _cur291]
+                                  or [_g291 for _g291 in (self.ir.get("functions") or [])
+                                      if isinstance(_g291, dict) and _cur291
+                                      and _g291.get("symbol_table") == _cur291])
+                        _es291 = []
+                        _ok291 = bool(_fs291)
+                        _wk291: List[Any] = [_g291.get("body") for _g291 in _fs291]
+                        while _wk291 and _ok291:
+                            _n291 = _wk291.pop()
+                            if isinstance(_n291, dict):
+                                if (_n291.get("stmt") in ("Assign", "AnnAssign")
+                                        and _n291.get("target") == _v291.get("name")
+                                        and not _n291.get("targets") and not _n291.get("tuple_targets")):
+                                    _es291.append(_n291.get("value"))
+                                elif (_n291.get("target") == _v291.get("name")
+                                      or _v291.get("name") in (_n291.get("targets") or [])
+                                      or _v291.get("name") in (_n291.get("tuple_targets") or [])):
+                                    _ok291 = False
+                                _wk291.extend(_x291 for _x291 in _n291.values() if isinstance(_x291, (dict, list)))
+                            elif isinstance(_n291, list):
+                                _wk291.extend(_n291)
+                        if not _ok291:
+                            _es291 = []
+                    _bs291 = bool(_es291)
+                    _is291 = bool(_es291)
+                    _u291 = set(getattr(self, "_module_method_return_types", {}) or {})
+                    for _e291 in _es291:
+                        _e291 = _e291 if isinstance(_e291, dict) else {}
+                        _k291 = _e291.get("type")
+                        _f291 = _e291.get("func") if isinstance(_e291.get("func"), str) else ""
+                        _sv291 = (str(getattr(self, "_current_symbol_table", {}).get(_e291.get("name"))
+                                      or "").split("[")[0].strip().lower() if _k291 == "Var" else "")
+                        _ra291 = (str((getattr(self, "_module_method_return_annotations", {}) or {}).get(
+                            _f291) or "").strip().lower() if _k291 == "Call" else "")
+                        _sub291 = [_e291.get("left"), _e291.get("right"), _e291.get("body"),
+                                   _e291.get("orelse")]
+                        _bs291 = _bs291 and (
+                            _k291 == "Bool" or (_k291 == "Number" and isinstance(_e291.get("value"), bool))
+                            or (_k291 == "Var" and _sv291 == "bool")
+                            or (_k291 == "Call" and _ra291 == "bool")
+                            or (_k291 == "Call" and _f291 == "bool" and _f291 not in _u291
+                                and _e291.get("receiver") is None)
+                            or (_k291 == "UnaryOp" and _e291.get("op") == "not")
+                            or (_k291 == "BinOp" and _e291.get("op") in (
+                                "==", "!=", "<", "<=", ">", ">=", "in", "not in", "is", "is not"))
+                            or (_k291 == "IfExpr" and all(isinstance(_s291, dict) and _s291.get("type")
+                                                          == "Bool" for _s291 in _sub291[2:])))
+                        _is291 = _is291 and (
+                            (_k291 == "Number" and type(_e291.get("value")) is int)
+                            or (_k291 == "Var" and _sv291 == "int")
+                            or (_k291 == "Call" and _ra291 == "int")
+                            or (_k291 == "Call" and _f291 in ("len", "int", "abs", "ord", "hash", "sum")
+                                and _f291 not in _u291 and _e291.get("receiver") is None)
+                            or (_k291 == "BinOp" and _e291.get("op") in ("-", "//", "div", "<<", ">>"))
+                            or (_k291 == "UnaryOp" and _e291.get("op") in ("-", "~"))
+                            or (_k291 in ("BinOp", "IfExpr") and _e291.get("op", "+") in ("+", "*")
+                                and all(isinstance(_s291, dict) and _s291.get("type") == "Number"
+                                        and type(_s291.get("value")) is int
+                                        for _s291 in (_sub291[:2] if _k291 == "BinOp" else _sub291[2:]))))
+                    _kd291 = "b" if _bs291 else ("i" if _is291 else "u")
+                    _r291_kd = _kd291
+                _r231_fn = (f"pycsl_format_{_r231_c}_{_r291_kd}_h"
                             f"{_r231_text.encode('utf-8').hex()}")
                 self._add_abstract_op(
-                    f"val function {_r231_fn} (x: {_r231_ty}) : string")
+                    f"val {'' if _r291_kd == 'u' else 'function '}{_r231_fn} "
+                    f"(x: {_r231_ty}) : string")
                 # (#49) ROUTE #281 — an int rendered in DECIMAL (a `!s`/`!r`/`!a`
                 # conversion, or a spec whose presentation type is none/`d`/`n`) raises
                 # `ValueError` past 4300 digits; `b`/`c`/`o`/`x`/`X` do not, and the float
@@ -19534,9 +19732,88 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"({_r231_fn} {_r231_w})"
             _r231_sw = self._expr_to_whyml(_r231_spec, local_refs, invariant_ctx, subst)
             _r231_st = "s" if self._is_string_expr(_r231_spec) else "i"
-            _r231_fn = f"pycsl_format_dyn_{_r231_c}_{_r231_t}_{_r231_st}"
+            # (#49) ROUTE #291 — a computed spec may be EMPTY, where a bool renders
+            # "True" (and `!s`/`!r`/`!a` always do): only an operand SHOWN to be an exact
+            # int keeps the value-keyed `i` symbol; any other int-model operand renders
+            # through a program `val` (`u`, no `function`), fresh per evaluation.
+            _r291_kd = _r231_t
+            if _r231_t == "i":
+                _v291 = _r231_v if isinstance(_r231_v, dict) else {}
+                _es291: List[Any] = [_v291]
+                _st291 = (str(getattr(self, "_current_symbol_table", {}).get(_v291.get("name"))
+                              or "").split("[")[0].strip().lower() if _v291.get("type") == "Var" else "")
+                if _v291.get("type") == "Var" and _st291 in ("", "any"):
+                    # An UNANNOTATED local is typed `Any`: resolve it from its bindings in the
+                    # function(s) owning this symbol table — all plain `name = <rhs>` and nothing
+                    # else (no loop/unpack/augmented/walrus binding), else unresolved (`u`).
+                    _cur291 = getattr(self, "_current_symbol_table", None)
+                    _fs291 = ([_g291 for _g291 in (self.ir.get("functions") or [])
+                               if isinstance(_g291, dict) and _cur291 is not None
+                               and _g291.get("symbol_table") is _cur291]
+                              or [_g291 for _g291 in (self.ir.get("functions") or [])
+                                  if isinstance(_g291, dict) and _cur291
+                                  and _g291.get("symbol_table") == _cur291])
+                    _es291 = []
+                    _ok291 = bool(_fs291)
+                    _wk291: List[Any] = [_g291.get("body") for _g291 in _fs291]
+                    while _wk291 and _ok291:
+                        _n291 = _wk291.pop()
+                        if isinstance(_n291, dict):
+                            if (_n291.get("stmt") in ("Assign", "AnnAssign")
+                                    and _n291.get("target") == _v291.get("name")
+                                    and not _n291.get("targets") and not _n291.get("tuple_targets")):
+                                _es291.append(_n291.get("value"))
+                            elif (_n291.get("target") == _v291.get("name")
+                                  or _v291.get("name") in (_n291.get("targets") or [])
+                                  or _v291.get("name") in (_n291.get("tuple_targets") or [])):
+                                _ok291 = False
+                            _wk291.extend(_x291 for _x291 in _n291.values() if isinstance(_x291, (dict, list)))
+                        elif isinstance(_n291, list):
+                            _wk291.extend(_n291)
+                    if not _ok291:
+                        _es291 = []
+                _bs291 = bool(_es291)
+                _is291 = bool(_es291)
+                _u291 = set(getattr(self, "_module_method_return_types", {}) or {})
+                for _e291 in _es291:
+                    _e291 = _e291 if isinstance(_e291, dict) else {}
+                    _k291 = _e291.get("type")
+                    _f291 = _e291.get("func") if isinstance(_e291.get("func"), str) else ""
+                    _sv291 = (str(getattr(self, "_current_symbol_table", {}).get(_e291.get("name"))
+                                  or "").split("[")[0].strip().lower() if _k291 == "Var" else "")
+                    _ra291 = (str((getattr(self, "_module_method_return_annotations", {}) or {}).get(
+                        _f291) or "").strip().lower() if _k291 == "Call" else "")
+                    _sub291 = [_e291.get("left"), _e291.get("right"), _e291.get("body"),
+                               _e291.get("orelse")]
+                    _bs291 = _bs291 and (
+                        _k291 == "Bool" or (_k291 == "Number" and isinstance(_e291.get("value"), bool))
+                        or (_k291 == "Var" and _sv291 == "bool")
+                        or (_k291 == "Call" and _ra291 == "bool")
+                        or (_k291 == "Call" and _f291 == "bool" and _f291 not in _u291
+                            and _e291.get("receiver") is None)
+                        or (_k291 == "UnaryOp" and _e291.get("op") == "not")
+                        or (_k291 == "BinOp" and _e291.get("op") in (
+                            "==", "!=", "<", "<=", ">", ">=", "in", "not in", "is", "is not"))
+                        or (_k291 == "IfExpr" and all(isinstance(_s291, dict) and _s291.get("type")
+                                                      == "Bool" for _s291 in _sub291[2:])))
+                    _is291 = _is291 and (
+                        (_k291 == "Number" and type(_e291.get("value")) is int)
+                        or (_k291 == "Var" and _sv291 == "int")
+                        or (_k291 == "Call" and _ra291 == "int")
+                        or (_k291 == "Call" and _f291 in ("len", "int", "abs", "ord", "hash", "sum")
+                            and _f291 not in _u291 and _e291.get("receiver") is None)
+                        or (_k291 == "BinOp" and _e291.get("op") in ("-", "//", "div", "<<", ">>"))
+                        or (_k291 == "UnaryOp" and _e291.get("op") in ("-", "~"))
+                        or (_k291 in ("BinOp", "IfExpr") and _e291.get("op", "+") in ("+", "*")
+                            and all(isinstance(_s291, dict) and _s291.get("type") == "Number"
+                                    and type(_s291.get("value")) is int
+                                    for _s291 in (_sub291[:2] if _k291 == "BinOp" else _sub291[2:]))))
+                _kd291 = "b" if _bs291 else ("i" if _is291 else "u")
+                # a computed spec may be empty or not: only a SHOWN exact int keeps `i`.
+                _r291_kd = "i" if _kd291 == "i" else "u"
+            _r231_fn = f"pycsl_format_dyn_{_r231_c}_{_r291_kd}_{_r231_st}"
             self._add_abstract_op(
-                f"val function {_r231_fn} (spec: "
+                f"val {'' if _r291_kd == 'u' else 'function '}{_r231_fn} (spec: "
                 f"{'string' if _r231_st == 's' else 'int'}) (x: {_r231_ty}) : string")
             _p281 = ""
             if _r231_t == "i":
