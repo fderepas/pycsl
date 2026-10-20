@@ -808,7 +808,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    # (#49) FRAME CORRECTED FROM A LIE (plane-gap census, pgap 1cae8d72): the live body is
+    # `ControlFlowStmtMixin._handle_return_stmt` (another mixin), which writes `_abstract_ops`,
+    # `_dict_locals`, `_get_return_raw_option`, `_quant_record_binders`, `_quant_scalar_binders`;
+    # omitting them let a verified caller PROVE `_abstract_ops` unchanged (CPython adds `py_pow`).
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._get_return_raw_option, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_return_stmt(self, stmt: "ExprIR", rest: List[Dict[str, Any]],
                             local_refs: Set[str], declared_refs: Set[str],
                             indent: str, in_loop: bool) -> str:
