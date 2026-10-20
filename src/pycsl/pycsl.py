@@ -6310,8 +6310,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # site every such store produces (a gate, not a raise in the `\trusted`-stubbed
     # handler, which has no `#@ raises`: lesson d5). Measured population at 7313506b: 1
     # corpus file (0849, a map-leaf inner store, `# pycsl-expected: FAIL`, ill-typed),
-    # pyref 0, mirror 0.
-    if (len(_re.findall(r"(?<![\w'.])subscript_set(?![\w'])", _mlw))
+    # pyref 0, mirror 0 (the mirror's one textual hit is the STRING LITERAL `"subscript_set"`
+    # in `stmt_control_flow`, which the quote guard below excludes — measured).
+    if (len(_re.findall(r"(?<![\w'.\"])subscript_set(?![\w'\"])", _mlw))
             > len(_re.findall(r"\bval\s+subscript_set(?![\w'])", _mlw))):
         from errors import PyCSLSemanticError as _PyCSLSemErr289
         raise _PyCSLSemErr289(
