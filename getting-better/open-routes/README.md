@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-20): #283 (list from a user-function return: append writes slot 0, len frozen, alias/frame lost), #284 (f-string
+##   format specs: #281 digit-limit assert not emitted; invalid-spec ValueError unmodelled), #285 (comprehension raise check covers only
+##   division/subscript) OPENED (red team 7, 237 probes); driver-reproduced rc=0 at HEAD, CPython violates each.
+
 ## gen #37 (2026-10-19): #282 (distinct parameters / list elements assumed non-aliasing, undeclared; R1 residue like FIELD-DISJOINT)
 ##   OPENED; witnesses p111/p112/p114 rc=0, CPython violates.
 ## gen #37 (2026-10-19): #282 RESOLVED as the DECLARED MODEL ASSUMPTION PARAM-DISJOINT (#256 FIELD-DISJOINT precedent):
