@@ -8929,3 +8929,10 @@ and iterate the clause repairs against `why3 --type-only` of the ONE moved file 
 round, `scratchpad tcone.sh` shape), not against the full battery.** Also: a `writes` on a
 concrete `let` that the body does NOT perform is ALSO a type error ("this write effect does
 not happen in the expression", #74) — so the type-checker brackets the frame from both sides.
+
+## gen #37 (2026-10-20) — driver lesson: silent sub-agent deaths (defer-to-oracle, validity-tested)
+Evidence: ch28 (22:00-22:55 no activity), rsurv (23:46-00:41), r283 (01:19-02:12, nothing written), r2b
+(06:22-07:19, finished gates uncommitted) — each with no live process; survivors (ch28b, land27, pgap)
+reported Bash calls auto-moved to the background past the default 120 s tool timeout. Rule (carved into
+the driver skill §A.4): brief `timeout: 600000` + chunking + commit-per-gated-increment + 15-min liveness;
+driver declares death at >45 min silence and recovers the worktree inline (r2b recovered: fb60a780).

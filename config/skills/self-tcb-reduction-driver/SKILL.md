@@ -474,6 +474,18 @@ START (standing), not as an interrupt. Rules:
   against the ONE moved file's emit + type-check (~10 s a round), never against a battery. The
   opposite edge is checked too: a `writes` the body never performs is "this write effect does not
   happen" (#74) — so a declared frame on a concrete `let` must be exactly as honest as its body.
+- **CARVE-OUT (gen #37, 2026-10-20) — A SUB-AGENT DIES SILENTLY WHEN ITS COMMAND IS AUTO-BACKGROUNDED;
+  BRIEF THE TIMEOUT, NOT JUST THE DURATION.** Four sub-agents died mid-task in one window (ch28, rsurv,
+  r283, r2b): no process, no file write for >45 min, no report — r2b with finished, UNCOMMITTED gates.
+  Survivors reported the mechanism: a Bash call longer than the tool's DEFAULT 120 s timeout is moved
+  to the background, and an agent that then ends its turn waiting on it may never be resumed. "Keep
+  each command under ~9 minutes" did not prevent it, because the default is 2 minutes unless the call
+  passes `timeout` (max 600000). Every executor brief now says: pass `timeout: 600000` on any Bash call
+  that may exceed 2 min, split anything longer (sweeps in chunks), never end a turn with an
+  auto-backgrounded command pending, COMMIT each gated increment before starting the next gate, and
+  write a liveness line every 15 min. Driver side: treat >45 min of silence as death, never wait
+  longer; recover the dead agent's worktree INLINE (read its progress log + `git diff`, review,
+  commit, re-verify FRESH) rather than relaunching from scratch — r2b's work was recovered that way.
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
