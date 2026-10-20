@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-20): #286 (one-arg `.get` on a non-map hval receiver under no_exception drops AttributeError) OPEN on main,
+##   REPAIRED in the land27 stack (3cbcc895); witness 3289 PROVES on main, FAILS on land27. Closes when land27 lands.
+
 ## gen #37 (2026-10-20): #283 (list from a user-function return: append writes slot 0, len frozen, alias/frame lost), #284 (f-string
 ##   format specs: #281 digit-limit assert not emitted; invalid-spec ValueError unmodelled), #285 (comprehension raise check covers only
 ##   division/subscript) OPENED (red team 7, 237 probes); driver-reproduced rc=0 at HEAD, CPython violates each.
