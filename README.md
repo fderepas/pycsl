@@ -302,7 +302,16 @@ corpus 3100-3113.
 Under `no_exception` covering `ValueError`, every int -> DECIMAL string
 conversion (`str(x)`, `repr(x)`, `print(x)`, an f-string part `f"{x}"` /
 `!r` / `:d`, a `%` operand) owes `|x| < 10**4300` (CPython 3.11+
-`sys.int_max_str_digits`, route #281; corpus 3114-3119).
+`sys.int_max_str_digits`, route #281; corpus 3114-3119) — for an
+f-string spec whenever it renders in decimal (`:d`, `:5`, `:05d`, `:n`,
+`:,`, `:>10`; route #284). A format spec or `%` format INVALID for the
+operand's type (`f"{x:s}"`, `f"{x:.2}"`, `f"{s:d}"`, `"%q" % x`),
+computed (`f"{x:{w}}"`) or non-literal owes `false` (route #284; corpus
+3260-3271). A comprehension / generator expression whose element,
+condition or iterable contains an operation of ANY `exception_model`
+trigger row for an active exception (`[str(x) ...]`, `[chr(x) ...]`,
+`sum(1 << x ...)`) is refused (route #285; table-driven by
+`TRIGGER_EXPR_SHAPES`; corpus 3272-3279).
 
 A class defining only `__eq__` (no `__hash__`) is detected as
 *unhashable*; using it as a dict/set key would raise `TypeError` at

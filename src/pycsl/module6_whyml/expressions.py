@@ -6419,6 +6419,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         ("call", "int_str"),
                         [self._expr_to_whyml(_o281, local_refs, invariant_ctx, subst)])
                     _p281 = (_p281 + " " + _q281).strip() if _q281 else _p281
+            # (#49) ROUTE #284 — an INVALID `%` format raises `ValueError` whatever the
+            # operands: `"%q" % x` ("unsupported format character"), `"%" % x`
+            # ("incomplete format"); `"%q" % x` PROVED `no_exception \all`. A LITERAL format
+            # is decided at emit time by CPython's own `%` with one `0` per operand (every
+            # conversion accepts an int; `%(k)…` is retried with a mapping); a non-literal
+            # format, a width/precision of more than 6 digits, or a format neither sample
+            # decides owes the `("call", "format_spec")` row (`false`).
+            _l284 = expr.get("left")
+            _f284 = (_l284.get("value") if isinstance(_l284, dict)
+                     and _l284.get("type") in ("String", "Str") else None)
+            _ok284 = isinstance(_f284, str) and not any(
+                len(_d284) > 6 for _d284 in "".join(
+                    _c284 if _c284.isdigit() else " " for _c284 in _f284).split())
+            if _ok284:
+                _ok284 = False
+                for _smp284 in (tuple(0 for _o284 in _ops281), {}):
+                    try:
+                        if isinstance(_smp284, dict):
+                            import collections as _col284
+                            _f284 % _col284.defaultdict(int)
+                        else:
+                            _f284 % _smp284
+                        _ok284 = True
+                        break
+                    except ValueError:
+                        break
+                    except (TypeError, KeyError, OverflowError):
+                        continue
+            if not _ok284:
+                _q284 = self._maybe_emit_no_exception_assert(("call", "format_spec"), [])
+                _p281 = (_p281 + " " + _q284).strip() if _q284 else _p281
             # The obligations wrap the right OPERAND, so the term keeps its head.
             if _p281:
                 return f"(str_mod_op {left} (begin {_p281} {right} end))"
@@ -19449,11 +19480,57 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # types raise `OverflowError` (outside the tracked set).
                 _r281_ty = (_r231_text[-1:] if _r231_text[-1:].isalpha()
                             or _r231_text[-1:] == "%" else "")
-                if _r231_t == "i" and (_r231_c != "n" or _r231_ty in ("", "d", "n")):
-                    _p281 = self._maybe_emit_no_exception_assert(("call", "int_str"),
+                # (#49) ROUTE #284 — the test read `_r231_ty` (the operand's WhyML type,
+                # "int"/"string"), never `_r281_ty`, so it was False for every literal spec
+                # and `f"{x:d}"` / `:5` / `:05d` / `:n` / `:,` / `:>10` emitted no bound.
+                # (A conversion `!s`/`!r`/`!a` renders `str(x)`/`repr(x)` in decimal first,
+                # whatever the spec.)
+                _p284 = ""
+                if _r231_t == "i" and (_r231_c != "n" or _r281_ty in ("", "d", "n")):
+                    _p284 = self._maybe_emit_no_exception_assert(("call", "int_str"),
                                                                  [_r231_w])
-                    if _p281:
-                        return f"({_r231_fn} (begin {_p281} {_r231_w} end))"
+                # (#49) ROUTE #284 — a spec INVALID for the formatted value's type raises
+                # `ValueError` whatever the value (`f"{x:s}"`, `f"{x:.2}"` on an int,
+                # `f"{s:d}"` on a str). Decided at emit time by CPython's own `format()` on
+                # a sample of the type the spec is applied to (after a conversion that is
+                # always a str): validity is value-independent for int and str. A width /
+                # precision of more than 6 digits is not tried (allocation) and counts as
+                # undecided. Invalid or undecided -> the `("call", "format_spec")` row
+                # (`false`) under a `no_exception` covering `ValueError`. The "i" operand
+                # class is only "not shown to be a str" (an int-hash-modelled str element
+                # is an int in Why3), so unless the operand is SHOWN to be an int (int
+                # literal, `int`/`bool` local, `len`/`int`/`abs`/`ord`/`hash`/`sum` call, an
+                # int-only operator) the spec must be valid for BOTH int and str.
+                _v284 = _r231_v if isinstance(_r231_v, dict) else {}
+                _k284 = _v284.get("type")
+                _st284 = str(getattr(self, "_current_symbol_table", {}).get(
+                    _v284.get("name")) or "").split("[")[0].strip().lower()
+                _int284 = ((_k284 == "Number" and type(_v284.get("value")) is int)
+                           or (_k284 == "Var" and _st284 in ("int", "bool"))
+                           or (_k284 == "Call" and _v284.get("receiver") is None
+                               and _v284.get("func") in ("len", "int", "abs", "ord",
+                                                         "hash", "sum"))
+                           or (_k284 == "BinOp" and _v284.get("op") in (
+                               "-", "//", "div", "<<", ">>", "&", "|", "^")))
+                if _r231_c != "n" or _r231_t == "s":
+                    _smp284: List[Any] = [""]
+                elif _int284:
+                    _smp284 = [0]
+                else:
+                    _smp284 = [0, ""]
+                _r284_ok = not any(len(_d284) > 6 for _d284 in
+                                   "".join(_c284 if _c284.isdigit() else " "
+                                           for _c284 in _r231_text).split())
+                for _sv284 in (_smp284 if _r284_ok else []):
+                    try:
+                        format(_sv284, _r231_text)
+                    except (ValueError, TypeError, OverflowError):
+                        _r284_ok = False
+                if not _r284_ok:
+                    _q284 = self._maybe_emit_no_exception_assert(("call", "format_spec"), [])
+                    _p284 = (_p284 + " " + _q284).strip() if _q284 else _p284
+                if _p284:
+                    return f"({_r231_fn} (begin {_p284} {_r231_w} end))"
                 return f"({_r231_fn} {_r231_w})"
             _r231_sw = self._expr_to_whyml(_r231_spec, local_refs, invariant_ctx, subst)
             _r231_st = "s" if self._is_string_expr(_r231_spec) else "i"
@@ -19461,11 +19538,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(
                 f"val function {_r231_fn} (spec: "
                 f"{'string' if _r231_st == 's' else 'int'}) (x: {_r231_ty}) : string")
+            _p281 = ""
             if _r231_t == "i":
                 # (#49) ROUTE #281 — a computed spec may be decimal: owe the bound.
                 _p281 = self._maybe_emit_no_exception_assert(("call", "int_str"), [_r231_w])
-                if _p281:
-                    return f"({_r231_fn} {_r231_sw} (begin {_p281} {_r231_w} end))"
+            # (#49) ROUTE #284 — a computed spec may be invalid for the type (`ValueError`);
+            # its validity is not modelled, so it owes the `("call", "format_spec")` row.
+            _q284 = self._maybe_emit_no_exception_assert(("call", "format_spec"), [])
+            _p281 = (_p281 + " " + _q284).strip() if _q284 else _p281
+            if _p281:
+                return f"({_r231_fn} {_r231_sw} (begin {_p281} {_r231_w} end))"
             return f"({_r231_fn} {_r231_sw} {_r231_w})"
         # ROUTE #42 (relaunch #48) — THE BOOL-SINGLETON WHITELIST. `pycsl.py` narrowed
         # the distinct `is`/`is not` IR operator back to `==`/`!=` and left the ADDITIVE

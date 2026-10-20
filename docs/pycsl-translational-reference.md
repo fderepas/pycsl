@@ -3925,7 +3925,14 @@ line. The translation rules are:
 | `arr[i] = v` (write) | `("subscript", "write")` | `assert { in_bounds (Array.length arr) (T_e[[i]]) };` |
 | `d[k]` | `("map_get", None)` | `assert { has_key (!d) (T_e[[k]]) };` |
 | `d.pop(k)` | `("attr_call", "pop")` | `assert { has_key (!d) (T_e[[k]]) };` |
-| `str(x)`, `repr(x)`, `format(x)`, `print(…, x, …)`, `f"{x}"` / `f"{x!r}"` / `f"{x:d}"`, `"%d" % x` with `x` an int (route #281) | `("call", "int_str")` | `(- 10^4300) < T_e[[x]] /\ T_e[[x]] < 10^4300` (literal constants), asserted on the OPERAND: `(str_of_int (begin assert { … }; x end))` |
+| `str(x)`, `repr(x)`, `format(x)`, `print(…, x, …)`, `f"{x}"` / `f"{x!r}"` / `f"{x:d}"`, `"%d" % x` with `x` an int (route #281) | `("call", "int_str")` | `(- 10^4300) < T_e[[x]] /\ T_e[[x]] < 10^4300` (literal constants), asserted on the OPERAND: `(str_of_int (begin assert { … }; x end))`. For an f-string part with a literal spec: when the presentation type (last spec character, if a letter or `%`) is none/`d`/`n`, or a conversion is present (route #284: `:5`, `:05d`, `:,`, `:>10` included) |
+| `f"{v:spec}"` with a literal spec invalid for the formatted type, a computed spec `f"{x:{w}}"`, a `%` format that CPython's `%` rejects or that is not a literal (route #284) | `("call", "format_spec")` | `assert { false };` on the operand, `(pycsl_format_… (begin assert { false }; v end))`. Validity is decided at emit time by CPython `format(sample, spec)` / `fmt % samples` (sample `0` for an operand shown to be an int, `""` for a str or after a conversion, BOTH otherwise; a width/precision of more than 6 digits is undecided) |
+
+**Comprehensions (route #285).** A `ListComp` / `SetComp` / `DictComp` / `GenExp` is lowered
+WITHOUT these per-element assertions; instead `_reset_function_state` refuses it under an active
+context when its element / key / value / condition / iterable contains a shape that
+`exception_model.TRIGGER_EXPR_SHAPES` maps to a row whose exception is active (and refuses every
+comprehension when a `TRIGGERS` row lacks a census entry).
 
 The injection is gated by the function's `no_exception` context: the
 unannotated case emits the operation without an assertion (preserves

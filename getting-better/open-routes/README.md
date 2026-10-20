@@ -3,6 +3,17 @@
 ## gen #37 (2026-10-20): #283 (list from a user-function return: append writes slot 0, len frozen, alias/frame lost), #284 (f-string
 ##   format specs: #281 digit-limit assert not emitted; invalid-spec ValueError unmodelled), #285 (comprehension raise check covers only
 ##   division/subscript) OPENED (red team 7, 237 probes); driver-reproduced rc=0 at HEAD, CPython violates each.
+## gen #37 (2026-10-20): #284 + #285 REPAIRED (r284 executor, off 323066f9; inline, mirror `\trusted`; no new def/field;
+##   ledger 3). #284: the literal-spec `FormattedValue` test read `_r231_ty` (the operand's WhyML type) instead of the
+##   presentation type, so the #281 bound was never emitted for `:d`/`:5`/`:05d`/`:n`/`:,`/`:>10` — fixed; new row
+##   `("call", "format_spec")` (`ValueError`, `false`) for a spec INVALID for the operand's type (decided at emit time
+##   by CPython `format()` on a sample of the type; both int and str unless shown int), a COMPUTED spec, and an invalid
+##   or non-literal `%` format (`"%q" % x` PROVED too — same gap, found auditing the siblings; `format(x, spec)` /
+##   `str.format` verified refused by #161). #285: the #177 comprehension refusal is driven by the new
+##   `exception_model.TRIGGER_EXPR_SHAPES` census of EVERY `TRIGGERS` row (shift, chr, int_str, format_spec newly
+##   covered; an uncensused row refuses every comprehension — fail-closed for future rows). Corpus 3260-3270/3272-3278
+##   PROVED -> FAIL/refused, controls 3271/3279 PASS; 19 route witnesses rc 0 -> 1. Root 1 MOVED (3118, its `:d` line;
+##   docstring corrected), pyref 0, mirror 1 MOVED (`exception_model`, proved); fast planes 61 green; --slow OWED.
 
 ## gen #37 (2026-10-19): #282 (distinct parameters / list elements assumed non-aliasing, undeclared; R1 residue like FIELD-DISJOINT)
 ##   OPENED; witnesses p111/p112/p114 rc=0, CPython violates.

@@ -295,6 +295,56 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
     # f-string part — plain, `!s`/`!r`/`!a`, or a decimal spec —, a `%` format operand).
     ("call", "int_str"): [("ValueError",
                            "(- 1" + "0" * 4300 + ") < {0} /\\ {0} < 1" + "0" * 4300)],
+    # (#49) ROUTE #284 — a FORMAT SPEC not valid for the operand's type raises `ValueError`
+    # whatever the value: `f"{x:s}"` / `f"{x:.2}"` on an int ("Unknown format code 's'",
+    # "Precision not allowed in integer format specifier"), `f"{s:d}"` on a str. The
+    # emitter decides a LITERAL spec at emit time against CPython's own `format()` (spec
+    # validity is value-independent for int and str) and consults this row only for a spec
+    # that is INVALID, or whose validity it cannot decide (a computed `{x:{w}}` spec, a
+    # width/precision of more than 6 digits): the obligation is then `false`, so a
+    # reachable occurrence under a `no_exception` covering `ValueError` never proves.
+    ("call", "format_spec"): [("ValueError", "false")],
+}
+
+
+# (#49) ROUTE #285 — HOW EACH TRIGGERS ROW IS REACHED FROM AN EXPRESSION (the comprehension
+# census). A comprehension / generator expression is lowered as an opaque value, so NONE of
+# the obligations above is injected for its element, key, value, condition or iterable.
+# `module6_whyml/functions.py::_reset_function_state` therefore refuses, under an active
+# `no_exception` context, a comprehension containing an expression of one of the SHAPES
+# listed for a row whose exception is active. The refusal is driven by THIS table: a row of
+# TRIGGERS with no entry here makes EVERY comprehension refused under its exceptions
+# (fail-closed for a row added later), and a row with an EMPTY shape list is reachable from a
+# STATEMENT only (an element store / `del`), never from a comprehension's expressions.
+# Shapes: ("BinOp", op) an IR BinOp with that op; ("Subscript", "") any subscript read;
+# ("Call", name) a call of the bare builtin `name`; ("Method", name) a method call
+# `<recv>.name(...)`; ("FString", "") an f-string with a part that is not a literal
+# (an int part renders in decimal); ("FormattedValue", "") a `{v!c:spec}` part.
+TRIGGER_EXPR_SHAPES: Dict[Tuple[str, Optional[str]], List[Tuple[str, str]]] = {
+    ("binop", "div"): [("BinOp", "div")],
+    ("binop", "mod"): [("BinOp", "mod")],
+    ("binop", "/"): [("BinOp", "/")],
+    ("binop", "//"): [("BinOp", "//")],
+    ("binop", "%"): [("BinOp", "%")],
+    ("binop", "<<"): [("BinOp", "<<")],
+    ("binop", ">>"): [("BinOp", ">>")],
+    ("binop", "**"): [("BinOp", "**")],
+    ("subscript", "read"): [("Subscript", "")],
+    ("subscript", "write"): [],
+    ("subscript", "write_bytes"): [],
+    ("subscript", "del"): [],
+    ("call", "chr"): [("Call", "chr")],
+    ("subscript", "read_str"): [("Subscript", "")],
+    ("map_get", None): [("Subscript", "")],
+    ("call", "divmod"): [("Call", "divmod")],
+    ("attr_call", "pop"): [("Method", "pop")],
+    ("attr_call", "index"): [("Method", "index")],
+    ("call", "next"): [("Call", "next")],
+    ("call", "int_str"): [("Call", "str"), ("Call", "repr"), ("Call", "format"),
+                          ("Call", "print"), ("FString", ""), ("FormattedValue", ""),
+                          ("BinOp", "%"), ("BinOp", "mod")],
+    ("call", "format_spec"): [("FormattedValue", ""), ("Call", "format"),
+                              ("Method", "format")],
 }
 
 

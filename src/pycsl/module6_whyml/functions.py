@@ -1227,9 +1227,23 @@ class FunctionEmissionMixin:
         # iterable contains a raising operation for an active exception is refused:
         # subscripts for IndexError/KeyError, `/` `div` `%` `**` for ZeroDivisionError, and a
         # tuple generator target (an unpack) for ValueError.
+        #
+        # (#49) ROUTE #285 — THE LIST ABOVE WAS A HAND LIST, and every other row of
+        # `exception_model.TRIGGERS` escaped it: `[str(x) for x in xs]` / `f"{x}"` / `repr`
+        # / `",".join(str(x) for ...)` (int->str digit limit, #281), `[chr(x) ...]`, `{x:
+        # chr(x) ...}`, `[1 << x ...]`, `sum(1 << x ...)`, `[x >> n ...]` all PROVED
+        # `no_exception \all` while CPython raises `ValueError`. The check is now DRIVEN BY
+        # THE TABLE: an expression matching a shape of `exception_model.TRIGGER_EXPR_SHAPES`
+        # for a row whose exception is active is refused, and a TRIGGERS row with no census
+        # entry there refuses EVERY comprehension under its exceptions (fail-closed for a row
+        # added later). The division / subscript wording is kept for those rows.
         if _r65_all or _r65_named:
             from exception_model import all_phase1_exceptions as _ph177
+            from exception_model import TRIGGERS as _trg285, TRIGGER_EXPR_SHAPES as _shp285
             _act177 = set(_r65_named) | (set(_ph177()) if _r65_all else set())
+            _miss285 = sorted(str(_k285) for _k285, _rows285 in _trg285.items()
+                              if _k285 not in _shp285
+                              and any(_e285 in _act177 for _e285, _t285 in _rows285))
             _w177 = list(func.get("body", []) or [])
             while _w177:
                 _n177 = _w177.pop()
@@ -1244,16 +1258,53 @@ class FunctionEmissionMixin:
                                 if (_g177.get("target") == "_comp_var"
                                         and "ValueError" in _act177):
                                     _why177 = "a tuple target unpacks each element (ValueError)"
+                        if _miss285 and not _why177:
+                            _why177 = ("an expression, and `exception_model.TRIGGERS` has "
+                                       "rows " + ", ".join(_miss285) + " with no entry in "
+                                       "`TRIGGER_EXPR_SHAPES` (route #285: unclassified "
+                                       "rows refuse every comprehension)")
                         while _s177 and not _why177:
                             _x177 = _s177.pop()
                             if isinstance(_x177, dict):
-                                if (_x177.get("type") == "Subscript"
-                                        and ({"IndexError", "KeyError"} & _act177)):
-                                    _why177 = "a subscript (IndexError / KeyError)"
-                                elif (_x177.get("type") == "BinOp"
-                                      and _x177.get("op") in ("/", "div", "//", "%", "mod", "**")
-                                      and "ZeroDivisionError" in _act177):
-                                    _why177 = "a division (ZeroDivisionError)"
+                                _ty285 = _x177.get("type")
+                                _fn285 = _x177.get("func")
+                                _fn285 = _fn285 if isinstance(_fn285, str) else ""
+                                for _k285, _sh285 in _shp285.items():
+                                    if _why177:
+                                        break
+                                    _ex285 = sorted({_e285 for _e285, _t285 in _trg285.get(_k285, [])
+                                                     if _e285 in _act177})
+                                    if not _ex285:
+                                        continue
+                                    for _st285, _sa285 in _sh285:
+                                        _hit285 = (
+                                            (_st285 == "BinOp" and _ty285 == "BinOp"
+                                             and _x177.get("op") == _sa285)
+                                            or (_st285 == "Subscript" and _ty285 == "Subscript")
+                                            or (_st285 == "Call" and _ty285 == "Call"
+                                                and _x177.get("receiver") is None
+                                                and _fn285 == _sa285)
+                                            or (_st285 == "Method" and _ty285 == "Call"
+                                                and ((_x177.get("receiver") is not None
+                                                      and _fn285 == _sa285)
+                                                     or _fn285.endswith("." + _sa285)))
+                                            or (_st285 == "FString" and _ty285 == "FString"
+                                                and any(not (isinstance(_pp285, dict)
+                                                             and _pp285.get("type") in ("String", "Str"))
+                                                        for _pp285 in (_x177.get("parts") or [])))
+                                            or (_st285 == "FormattedValue"
+                                                and _ty285 == "FormattedValue"))
+                                        if not _hit285:
+                                            continue
+                                        if _k285[0] == "subscript" or _k285[0] == "map_get":
+                                            _why177 = "a subscript (IndexError / KeyError)"
+                                        elif (_k285[0] == "binop" and _ex285 == ["ZeroDivisionError"]):
+                                            _why177 = "a division (ZeroDivisionError)"
+                                        else:
+                                            _why177 = ("an operation that the trigger row "
+                                                       + str(_k285) + " can make raise "
+                                                       + " / ".join(_ex285))
+                                        break
                                 _s177.extend(v for v in _x177.values() if isinstance(v, (dict, list)))
                             elif isinstance(_x177, list):
                                 _s177.extend(_x177)

@@ -43,7 +43,18 @@ to its own skill makes the contract auditable.
 | `1 << n`, `1 >> n` | `BinOp("<<"\|">>", a, n)` | `ValueError` | `non_neg_shift n` (i.e. `n >= 0`) |
 | `s.index(x)` | `AttrCall(s, "index", [x])` | `ValueError` | placeholder `true` (deferred: `mem x s`) |
 | `next(it)` | `Call("next", [it])` | `StopIteration` | placeholder `true` (deferred: iterator model) |
-| `str(x)` / `repr(x)` / `print(x)` / `f"{x}"` / `"%d" % x`, `x` an int | `("call", "int_str")` at each decimal conversion site | `ValueError` | `-10**4300 < x < 10**4300` (CPython 3.11+ 4300-digit limit, route #281; asserted on the operand) |
+| `str(x)` / `repr(x)` / `print(x)` / `f"{x}"` / `"%d" % x`, `x` an int | `("call", "int_str")` at each decimal conversion site | `ValueError` | `-10**4300 < x < 10**4300` (CPython 3.11+ 4300-digit limit, route #281; asserted on the operand). An f-string part with a literal spec owes it when the spec's presentation type is none/`d`/`n` (`:d`, `:5`, `:05d`, `:n`, `:,`, `:>10`) or a `!s`/`!r`/`!a` conversion is present (route #284) |
+| `f"{v:spec}"` with a spec INVALID for `v`'s type (`f"{x:s}"`, `f"{x:.2}"` on an int, `f"{s:d}"` on a str), a COMPUTED spec `f"{x:{w}}"`, `"%q" % x` (any `%` format CPython's `%` rejects, or a non-literal format) | `("call", "format_spec")` | `ValueError` | `false` — validity of a literal spec/format is decided at emit time by CPython's own `format()` / `%` on a sample of the operand's type (value-independent for int and str; an operand not shown to be an int must satisfy both int and str); invalid or undecidable owes `false` (route #284) |
+
+**Comprehension census (route #285).** A comprehension / generator expression is lowered as an
+opaque value, so none of the rows above is injected for its element, key, value, condition or
+iterable. `exception_model.TRIGGER_EXPR_SHAPES` records, for EVERY `TRIGGERS` row, the expression
+shapes that reach it (`("BinOp", op)`, `("Subscript", "")`, `("Call", name)`, `("Method", name)`,
+`("FString", "")`, `("FormattedValue", "")`; an empty list = statement-only: element store,
+`del`). Under an active `no_exception`, `_reset_function_state` refuses a comprehension containing
+a shape of a row whose exception is active, and a `TRIGGERS` row with NO census entry refuses every
+comprehension under its exceptions — so a row added later is fail-closed until it is censused.
+**Adding a row therefore also means adding its `TRIGGER_EXPR_SHAPES` entry.**
 
 The authoritative encoding lives in `src/pycsl/exception_model.py` —
 `KNOWN_EXCEPTIONS`, `TRIGGERS`, `PREDICATE_LIBRARY`. **Do not duplicate

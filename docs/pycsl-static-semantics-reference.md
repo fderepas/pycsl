@@ -1544,7 +1544,19 @@ KNOWN_EXCEPTIONS : ∅)` and `TRIGGERS` is the table in
 gives every int -> decimal-string conversion — `str`/`repr`/`format`
 of an int, a non-string `print` argument, an int f-string part
 rendered in decimal, an int `%` operand — the `ValueError` trigger
-`-10**4300 < x < 10**4300`, CPython 3.11+'s 4300-digit limit.)
+`-10**4300 < x < 10**4300`, CPython 3.11+'s 4300-digit limit.
+Route #284: an f-string part with a literal spec owes it when the spec
+renders in decimal — presentation type none/`d`/`n`, e.g. `:5`, `:05d`,
+`:,`, `:>10` — or a conversion is present; and the row `("call",
+"format_spec")` gives a format spec / `%` format that is INVALID for the
+formatted type (decided at emit time by CPython's own `format()` / `%`),
+COMPUTED (`f"{x:{w}}"`) or non-literal the `ValueError` trigger `false`.
+Route #285: an operation inside a comprehension / generator expression
+carries no per-element obligation, so a comprehension containing an
+expression shape that `exception_model.TRIGGER_EXPR_SHAPES` maps to a
+`TRIGGERS` row whose exception is in `active(f)` is REJECTED; a row
+with no census entry rejects every comprehension under its
+exceptions.)
 
 **Rule (conflict rejection).** `no_exception(E) ∧ raises(E, _) ∈ Γ_f`
 is rejected by `Module4_SemanticAnalyzer._validate_no_exception` with a
