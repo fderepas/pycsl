@@ -19,7 +19,9 @@ def f(s: str) -> int:
     #@ check b == b2
     #@ check c == c2
     #@ check d == d2
-    return 1
+    if a == a2 and b == b2 and c == c2 and d == d2:
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
