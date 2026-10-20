@@ -14,6 +14,17 @@
 ##   covered; an uncensused row refuses every comprehension — fail-closed for future rows). Corpus 3260-3270/3272-3278
 ##   PROVED -> FAIL/refused, controls 3271/3279 PASS; 19 route witnesses rc 0 -> 1. Root 1 MOVED (3118, its `:d` line;
 ##   docstring corrected), pyref 0, mirror 1 MOVED (`exception_model`, proved); fast planes 61 green; --slow OWED.
+## gen #37 (2026-10-20): #283 REPAIRED (r283b executor, off 7be313fe; inline, mirror `\trusted`; no new def/field; ledger 3).
+##   Two carriers. (A) the array-counter `.append` arm (`t[!t_len] <- v` with `t_len = ref 0` whatever `t` is bound
+##   to) is REFUSED outright (PYCSL-WHYML-APPEND-UNTRACKED-LIST): measured population ZERO emissions in root/pyref/
+##   mirror at 7be313fe — every appended local that type-checks is seq-promoted; it also closed the census-found
+##   FRESH `b = [0] * 3; b.append(9); len(b) == 1`. (B) a SEQ-PROMOTED (annotated) local bound from a call/
+##   conditional/`or` is a `snapshot` COPY: the list names inside the RHS (outside fresh constructors: literal,
+##   comprehension, slice, `+`/`*`, list/sorted/bytes/bytearray, `.copy()`) join #279's live set, and a mutation
+##   through target or partner refuses (PYCSL-M6-MUTATION-THROUGH-RETURNED-ALIAS; #279's text untouched).
+##   Witnesses 3300-3309 PROVED -> refused; control 3310 PASS; route witnesses p003/p012/p017/p019/p130/p143 rc=0 ->
+##   rc=1. root/pyref/mirror 0 MOVED / 0 GONE / 0 APPEARED; census +10 rows. Residuals: fresh-returning callee
+##   refused under (B) (no freshness analysis; population 0); object-field partner (`c.get()` -> self.xs) ill-typed.
 
 ## gen #37 (2026-10-19): #282 (distinct parameters / list elements assumed non-aliasing, undeclared; R1 residue like FIELD-DISJOINT)
 ##   OPENED; witnesses p111/p112/p114 rc=0, CPython violates.

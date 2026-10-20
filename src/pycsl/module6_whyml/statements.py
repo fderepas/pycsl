@@ -595,7 +595,56 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # supported (the array model shares the array; route #59's control 1131 relies on
         # it). Walked inline over the raw IR (lesson a4: no new helper).
         _src279 = val_ir.get("name") if vt == "Var" else None
-        if (isinstance(_src279, str)
+        # (#49) ROUTE #283 — A RETURNED (OR SELECTED) LIST IS AN ALIAS SOURCE TOO. A
+        # seq-promoted local bound from anything but a name lowers to `let b = ref
+        # (snapshot <rhs>)`, the SAME copy, and #279's name-to-name trigger never saw it.
+        # MEASURED at 7be313fe, each PROVED (CPython disagrees): `b: List[int] = ident(a);
+        # b.append(1); return len(a)` -> 1 (also `b += [1]`, `ident(ident(a))`, and `a` a
+        # PARAMETER under `assigns \nothing`), and `b: List[int] = a if c > 0 else [9];
+        # b.append(1); return len(a)` -> 1. The PARTNERS are the list names the value may
+        # BE: every list name inside the right-hand side except under a constructor that
+        # builds a FRESH list (literal, comprehension, slice, `+`/`*`, `list`/`sorted`/
+        # `bytes`/`bytearray`/`.copy()`), which a callee could not hand back. They join the
+        # #279 live set, so the same flow-sensitive walk refuses a mutation through the
+        # target OR a partner. Only for a seq-promoted target (a list by construction);
+        # an unpromoted one that is appended to is the array-counter arm, refused in
+        # `_handle_expr_stmt`.
+        _ps283 = []
+        if (vt not in ("Var", "ArrayLit", "ListComp", "SliceAccess")
+                and target in getattr(self, "_seq_locals", set())):
+            _stk283 = [val_ir]
+            while _stk283:
+                _n283 = _stk283.pop()
+                if isinstance(_n283, list):
+                    _stk283.extend(_n283)
+                    continue
+                if not isinstance(_n283, dict):
+                    continue
+                _t283 = _n283.get("type")
+                _f283 = str(_n283.get("func", "") or "")
+                if (_t283 in ("ArrayLit", "ListComp", "SetComp", "DictComp", "GenExp",
+                              "GeneratorExp", "SliceAccess", "Lambda")
+                        or (_t283 == "BinOp" and _n283.get("op") in ("+", "*"))
+                        or (_t283 == "Call" and (_f283 in ("list", "sorted", "bytes",
+                                                           "bytearray", "len")
+                                                 or _f283.endswith(".copy")))):
+                    continue
+                if _t283 == "Var":
+                    _v283 = _n283.get("name")
+                    if (isinstance(_v283, str) and _v283 != target
+                            and (_v283 in (getattr(self, "_array_locals", set())
+                                           | getattr(self, "_seq_locals", set())
+                                           | getattr(self, "_current_array1d_params",
+                                                     set()))
+                                 or (_v283 in getattr(self, "_formal_params", [])
+                                     and getattr(self, "_current_symbol_table", {}).get(
+                                         _v283) == "list"))):
+                        _ps283.append(_v283)
+                    continue
+                if _t283 == "Call" and "." in _f283:
+                    _stk283.append({"type": "Var", "name": _f283.rsplit(".", 1)[0]})
+                _stk283.extend(_n283.values())
+        if (_ps283 or (isinstance(_src279, str)
                 and (_src279 in (getattr(self, "_array_locals", set())
                                  | getattr(self, "_seq_locals", set())
                                  | getattr(self, "_current_array1d_params", set()))
@@ -603,8 +652,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                          and getattr(self, "_current_symbol_table", {}).get(_src279)
                          == "list")
                      or (_src279.startswith("_pycsl_multi_")
-                         and _src279 in getattr(self, "_dict_locals", set())))):
-            _live279 = {target, _src279}
+                         and _src279 in getattr(self, "_dict_locals", set()))))):
+            _live279 = {target} | (set(_ps283) if _ps283 else {_src279})
             _jobs279 = []
             _whole279 = []
             for _f279 in (self.ir.get("functions", []) or []):
@@ -678,6 +727,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                     or _n279.get("target") in _cls279):
                                 _mut279 = "an element store"
                         _stack279.extend(_n279.values())
+            if _mut279 is not None and _ps283:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"mutating a list that may be an ALIAS of another is out of scope: "
+                    f"`{target}` is bound to a value that may BE the list "
+                    f"{sorted(set(_ps283))} (a call may return its argument, a "
+                    f"conditional or `or` may select it), and {_mut279} mutates it IN "
+                    f"PLACE, which in Python is visible through every name of that "
+                    f"object (names {sorted(str(_x) for _x in _cls279)}). PyCSL lowers "
+                    f"the binding to a COPY (`snapshot`), so the mutation would be "
+                    f"invisible through the other names (route #283; measured: "
+                    f"`b: List[int] = ident(a); b.append(1); return len(a)` proved the "
+                    f"UNCHANGED length). Refusing instead of answering incorrectly; build "
+                    f"the new list explicitly (`b = a[:]`, `list(...)`, a comprehension) "
+                    f"or mutate the original under its own name.",
+                    stage="module6-assign",
+                    code="PYCSL-M6-MUTATION-THROUGH-RETURNED-ALIAS")
             if _mut279 is not None:
                 from errors import PyCSLSemanticError
                 raise PyCSLSemanticError(
@@ -3514,8 +3580,39 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                 "`ensures`, and re-establish a `\\length` class "
                                 "invariant. Rewrite it as an indexed store, or mark the "
                                 "method `#@ \\trusted`.")
-                        len_ref = f"{safe_arr}_len"
-                        code = f"{indent}{safe_arr}[!{len_ref}] <- {arg};\n{indent}{len_ref} := !{len_ref} + 1"
+                        # (#49) ROUTE #283 — THE LIST A CALL GAVE BACK. This arm is the
+                        # `Array.make 1024 0` + `<arr>_len` counter model, and the counter
+                        # is declared `ref 0` in `_emit_body_code` whatever the local is
+                        # BOUND to. MEASURED at 7be313fe, each PROVED (CPython disagrees):
+                        # `b = ident([5]); b.append(9); return len(b)` -> 1 (counter frozen
+                        # at 0 + 1; Python 2), `... return b[0]` -> 9 (the append WROTE
+                        # SLOT 0 of the returned array), `b = ident(a); b.append(1);
+                        # return len(a)` -> 1 (alias of `a` lost; an `assigns \nothing`
+                        # caller mutated its own parameter through it), and the FRESH
+                        # `b = [0] * 3; b.append(9); return len(b)` -> 1 (Python 4). The
+                        # counter is right only for the 1024 shadow it was built for, and
+                        # census at 7be313fe found ZERO emissions of this arm in corpus
+                        # root (1828), pyref (2186) and the mirror (53): every local list
+                        # that is appended to and type-checks reaches the seq arm above
+                        # (Module5 seq-promotion). So the arm is REFUSED outright rather
+                        # than re-modelled — a counter initialised from `Array.length`
+                        # would only turn each append into an out-of-bounds store.
+                        from errors import PyCSLSemanticError as _R283
+                        raise _R283(
+                            "`" + func + "(...)` appends to a list whose length this "
+                            "lowering cannot track: the local is not a growable sequence "
+                            "(it was bound from a call result, a `*` repetition, a loop "
+                            "target, an object field, ...), so the append would be "
+                            "modelled as a store at a length counter that starts at 0 "
+                            "WHATEVER the list holds — overwriting element 0, freezing "
+                            "`len`, and losing the alias when the value is another "
+                            "list (route #283; measured: `b = ident([5]); b.append(9); "
+                            "return len(b)` proved `\\result == 1` while Python returns "
+                            "2). Annotate the local as a list built in this function "
+                            "(`b: List[int] = [...]`), or build the new list with a "
+                            "literal or a comprehension.",
+                            stage="module6-whyml",
+                            code="PYCSL-WHYML-APPEND-UNTRACKED-LIST")
             elif (func.endswith(".extend") and self._value_semantic
                   and func.rsplit(".", 1)[0].replace(".", "_")
                       in getattr(self, "_emit_ir_seq_locals", set())
