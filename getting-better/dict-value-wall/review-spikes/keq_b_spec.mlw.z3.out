@@ -1,0 +1,36 @@
+File keq_b_spec.mlw:
+Goal pairs_get'vc.
+Prover result is: Valid (0.00s, 105 steps).
+
+File keq_b_spec.mlw:
+Goal hval_truthy'vc.
+Prover result is: Valid (0.00s, 63 steps).
+
+File "keq_b_spec.mlw", line 23, characters 19-44:
+Goal empty_read.
+Prover result is: Valid (0.01s, 4869 steps).
+
+File "keq_b_spec.mlw", line 24, characters 17-72:
+Goal hit_read.
+Prover result is: Valid (0.01s, 5644 steps).
+
+File "keq_b_spec.mlw", line 25, characters 17-72:
+Goal hit_twin.
+Prover result is: Timeout (5.00s, 3624037 steps).
+
+File "keq_b_spec.mlw", line 26, characters 18-94:
+Goal miss_read.
+Prover result is: Valid (0.59s, 569787 steps).
+
+File "keq_b_spec.mlw", line 27, characters 18-94:
+Goal miss_twin.
+Prover result is: Timeout (5.00s, 5105836 steps).
+
+File "keq_b_spec.mlw", line 28, characters 19-45:
+Goal truthy_hit.
+Prover result is: Valid (0.00s, 836 steps).
+
+File "keq_b_spec.mlw", line 29, characters 20-41:
+Goal truthy_twin.
+Prover result is: Unknown (sat) (0.00s, 706 steps).
+
