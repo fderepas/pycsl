@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-20): #294 (annotated dict local whose first assignment is not a dict literal lowered to the EMPTY map;
+##   RHS discarded) OPENED (ch29); witnesses rc=0, CPython violates.
+
 ## gen #37 (2026-10-20): #287 (sorted key-lambda body raises dropped), #288 (element store through a list returned by a call),
 ##   #289 (tuple holding a list opaque; writes no-op), #290 (mutation via operator.i*/dunders/getattr/partial/methodcaller),
 ##   #291 (bool f-string rendered as int), #292 (cited struct axiom applied to '?' formats), #293 (os.path.relpath pure but
