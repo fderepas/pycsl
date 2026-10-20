@@ -1802,3 +1802,137 @@ unrelated models in one file.
 
 Logs/emits: session scratchpad `ch28b/` (`m*.log` membership, `s*.log` sum_call, `c*.log`
 classify_iterable, `l*.log` contract_logic_symbol, `w/` witness probe).
+
+## Re-measurement at HEAD — ch29 (gen #37)
+
+At `fb60a780` (= main + land27 + R2a + R2b; count 449, 421 markers). Task: with R2a (specified
+`hpairs_key_eq`) and R2b (`for x in <hval seq>`, `"k" in <hval>`, `<pyval> == "lit"`) available,
+re-measure every census cluster P (30) and J (3) marker. **0 markers converted (449 -> 449).**
+No src/pycsl change. One CONFIRMED false proof found (below), not fixed here.
+
+**Method.** Census regenerated at this tree (`census.py`/`cluster.py`, R = this worktree; same
+33 P+J rows as `census-g37.md`). For each marker, a private copy of `src/` was made; all mirror
+`.py` files were restored before each probe (rsync), the live body ported
+(`bin/port-one-mirror-body.py --convert --replace`), the mirror signature retyped where honest
+(`Dict[str, Any]`/`int` -> `Dict[str, PyVal]`, `List[Dict[str, Any]]` -> `List[Dict[str, PyVal]]`,
+`Set[str]`, `Dict[str, Dict[str, PyVal]]`, `Set[Tuple[str, str]]` as the live annotation says),
+then emitted `--no-proof --keep-mlw` via `heavy.sh` and the WhyML read at the first error. Three
+standalone probes (`getting-better/dict-value-wall/ch29/`) read past the first blocker.
+
+```
+marker (cluster)                         first blocker at HEAD (after retype)                     verdict
+monomorphize._collect_generic_decls (P)  REFUSED route #280: generics[st]["methods"].append(func)   SKIP
+                                         (nested append). Read past it (cgd2.py): the R2b loops and
+                                         `decl.get("kind") == "variant"` lower FAITHFULLY (HMap /
+                                         pairs_get / hpairs_key_eq); then (2) a local assigned from a
+                                         loop-element read (`tparams = decl.get(..)`) is pre-declared
+                                         `ref 0` (prescan does not seed R2b loop targets), (3) a dict
+                                         LITERAL stored into a Dict[str, PyVal] local -> `any_map ()`
+                                         (type error; not `_pyval_wrap`)                          >= 3
+monomorphize._rewrite_annotations (P)    R2b DECLINES (body stores func["symbol_table"]): old       SKIP
+                                         `iter_length <hval>` path, L3-tc. Store into a list element
+                                         of the caller's tree (R2c-caller)
+monomorphize._check_gt4_polymorphic_.. P `.items()` over Dict[str, Dict[str, PyVal]] -> opaque       SKIP
+                                         `generics_items_0`, `gname/info = any int`; then `_ast.walk`
+                                         (AST model), Set[Tuple] param
+monomorphize._collect_instantiations (P) `set(generics)` (set of a nested-hval map's keys) -> int   SKIP
+                                         `set_1`; then hval `.get("body", [])` into a callee,
+                                         `(.. or {}).items()`, Set[Tuple].add. R2b loop fires
+monomorphize._specialize_decl (P)        REFUSED: `spec.pop(..)`; under it copy.deepcopy, nested     SKIP
+                                         element stores `f["type"] = ..`
+monomorphize._specialize_function (P)    REFUSED: `spec.pop(..)` (same shape)                        SKIP
+monomorphize._emit_specializations (P)   REFUSED route #280: computed-receiver `.append`              SKIP
+ir_inline._recursive_methods (P)         REFUSED: nested def `reaches_self` captures `edges`          SKIP
+ir_inline._inline_calls (P)              REFUSED: `_cb.update(..)` (MUTRECV)                          SKIP
+ir_resolve._strip_dir_scan_proofs (P)    L3-tc: `func = dict(func)` REBINDS the parameter (`!func`   SKIP
+                                         on a non-ref); the comprehension over the hval list is opaque
+                                         `list_content_comp_0`; and `dict(func)` was lowered to the
+                                         EMPTY map (see soundness note)                           >= 3
+scc.sort_functions_by_scc (P)            REFUSED route #283: append to a call-result local            SKIP
+core_ir_semantic.run_ir_semantic_checks  L3-tc: `set(<hval> or [])` -> `set_1 hval`; also          SKIP
+  (P)                                    `set_comp 0`/`dict_comp 0` comprehensions (vacuous). R2b
+                                         loop over ir["functions"] fires
+Preamble._emit_preamble_axioms (P)       L3-tc: `bool(func.get("trusted"))` -> `bool_conv <hval>`    SKIP
+                                         (no hval truthiness for `bool(..)`). R2b loop + element reads
+                                         fire. Under it: getattr self-set defaults, class-constant
+                                         dict `.items()`, local `from errors import`, `_AXIOM_
+                                         REGISTRY[qn]`, new self field                           >= 5
+Preamble._emit_preamble_uses (P)         L3-tc: `sorted(needs.get("bounded_sizes", []))` ->          SKIP
+                                         `sorted_1 <hval>` (seq int vs seq string); 166 lines
+Preamble._fresh_globals_facts (P)        L3-tc: `self._ir` is NOT an hval field in the preamble       SKIP
+                                         mirror (`self_ir_get_2` receiver-dropped)
+Transpiler._build_callee_no_exception_.. `List[Dict[str, PyVal]]` PARAM -> `array int`; then        SKIP
+  (P)                                    receiver-dropped `func_get_1`
+Transpiler._emit_prefunctions_infra (P)  RIPPLE: an hval map fed to `_emit_preamble_axioms` whose    SKIP
+                                         mirror formal is still `int`
+Transpiler._shared_use_lines (P)         CROSS-MIXIN callee `_emit_preamble_uses` call-site-typed     SKIP
+FunctionEmission._emit_function (P)      REFUSED: `_nd.add(..)` (MUTRECV)                              SKIP
+FunctionEmission._emit_narrowing_vc (P)  REFUSED: nested def `_conj` captures `spec_refs`             SKIP
+FunctionEmission._emit_subtyping_goals P `self._ir.get("overrides", [])` receiver-dropped (`_ir`    SKIP
+                                         not hval) + List[Dict[str, PyVal]] PARAM -> array int
+FunctionEmission._mixin_dep_pseudo_.. P  List[Dict[str, PyVal]] PARAM -> array int                   SKIP
+FunctionEmission._param_type_str (P)     REFUSED: `self._record_locals.add(..)`                        SKIP
+FunctionEmission._render_refinement_.. P REFUSED: heterogeneous list literal                           SKIP
+GhostSpecOps._handle_ctor_payload_expr P L3-tc: `idx = node.value` -> `svalue_of` (emit_ir) vs int:   SKIP
+                                         per-kind `value` payload (census gap 2)
+Module5._csl_in (P)                      RIPPLE: `self._csl_to_ir(..)` returns int, slot is emit_ir   SKIP
+Module5._emit_protocol_interface (P)     REFUSED route #280 (computed-receiver append)                 SKIP
+Module5._emit_typeddict_record (P)       REFUSED route #252 (erased value into a `str` slot)           SKIP
+Module5._populate_protocol_conformance P REFUSED route #280                                            SKIP
+Module5._synthesize_typeddict_functional REFUSED route #252                                            SKIP
+pycsl._merge_records_best_of_n (J)       List[List[Dict[str, PyVal]]] PARAM -> `array int`; then    SKIP
+                                         `_record_key` (mirror formal `dict` -> int map), Tuple keys
+pycsl._print_soundness_report (J)        `print(_json.dumps(report))` EXT; `.values()` opaque          SKIP
+                                         `s_values_0`; str concat of an hval
+pycsl._residual_selectors_from_records J List[Dict[str, PyVal]] PARAM -> `array int`. Read past it  SKIP
+                                         (rsr_probe.py, loop over `holder.get("records", [])`): the
+                                         loop element (an `hval`) passed to `_record_is_valid(rec:
+                                         Dict[str, PyVal])` = `map string (option hval)`: no HMap ->
+                                         top-level-map coercion; then f-string of hvals             >= 3
+```
+
+**R2a/R2b effect.** Where they apply, they lower faithfully: the R2b loop fires in
+`_collect_generic_decls`, `_collect_instantiations`, `_emit_preamble_axioms` and
+`run_ir_semantic_checks`, and element reads / literal compares become `HMap`/`pairs_get`/
+`hpairs_key_eq`. They do not convert anything, because no P/J chain had the HArr loop as its ONLY
+blocker: 13 of 33 are refused BEFORE WhyML (mutation guards 9, nested-def lift 2, route #252 2).
+
+**Ranked next blockers** (count = P/J markers whose first or second blocker it is):
+1. **Mutation of the IR tree** (nested `.append` route #280 / `.pop` / `.update` / `.add` / element
+   store; R2c-caller): 11 (cgd, ra, sd, sf, es, ic, ef, pts, m5 x2, scc-append). Research-grade.
+2. **`List[Dict[str, PyVal]]` PARAMETER -> `seq hval`** (today `array int`; only self-fields and
+   returns are modelled): 6 (bce, mdp, esg, rsr, mrb (nested list), scc), and every caller ripples.
+   Companion gap: **hval element -> `Dict[str, PyVal]` parameter coercion** (HMap pairs vs the
+   top-level `map string (option hval)`), met by rsr right behind it.
+3. **hval value builtins**: `bool(<hval>)`, `set(<hval>)` / `set(<dict>)`, `sorted(<hval>)`,
+   `.items()` over a nested-hval map, `str`/f-string of an hval: 6 (epa, ris, ci, epu, gt4, psr/rsr).
+   Each is a small fail-closed seam, but no marker has only one.
+4. **`self._ir` as a `Dict[str, PyVal]` field in the mixin mirrors**: 2 (fgf, esg). A field
+   retype of a mirror class moves every verified method that reads `self._ir`: price with
+   mirror-emit-sweep before anything else.
+5. **Prescan seeding of R2b loop targets** (`_prescan_pyval_locals` seeds `.items()` targets but
+   not `for x in <hval seq>` targets, so `t = x.get(..)` is pre-declared `ref 0`) and **dict
+   literal -> `Dict[str, PyVal]` local value** (`any_map ()` instead of `_pyval_wrap`): both met in
+   cgd behind its mutation. Small, but neither has a consumer yet.
+6. Cross-mixin / ripple signatures (epi, sul, csl_in), nested-def lifts (rm, enw), per-kind
+   `value` payload (hcp), EXT (psr): unchanged from ch26-ch28.
+
+**SOUNDNESS — CONFIRMED false proof (not fixed; route needed).** An ANNOTATED dict local whose
+first assignment is NOT a dict literal is lowered to the EMPTY map, and its RHS is thrown away,
+whenever the value type ν has an empty default: `string`, `seq int`, nested `map ..`, `hval`,
+`emit_ir` (not `int`). Site: `src/pycsl/module6_whyml/statements.py` `_emit_first_assign`
+(trusted), lines 79-82: `_empty = self._dv_empty_default(nu); if _empty: val = _empty`, which
+runs before and regardless of the `DictLit` test. Repro
+(`getting-better/dict-value-wall/ch29/false_proof_str_alias.py`):
+`def g(func: Dict[str, str]) -> bool: e: Dict[str, str] = func; return "name" in e` with
+`#@ ensures \result == False` -> pycsl rc 0 "All contracts formally proven"; CPython prints `True`
+for `g({"name": "x"})`. Emission: `let e = ref (const (None: option string))`. The same holds for
+`Dict[str, List[int]]`, `Dict[str, Dict[str, int]]`, `Dict[str, PyVal]` (`false_proof_hval_alias.py`)
+and for `e: Dict[str, PyVal] = dict(func)` (`false_proof_hval_alias_dictcopy.py`). The fail-closed
+fix direction: apply `_empty` only when `val_ir` is a `DictLit` (or absent), and otherwise keep
+the lowered RHS, which then type-checks or fails L3-tc. That needs a corpus+pyref byte-diff
+(movers = every corpus file with such a local) and witnesses.
+
+**Gates (no src/pycsl change, so no corpus/mirror movers).** `check-self-annotate-sync.sh` rc 0,
+`self-annotate-mirror-check.sh` rc 0, `check-trusted-reasons.py` rc 0, count 449. Nothing OWED
+from ch29.
