@@ -1582,6 +1582,165 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     filename=args.file, line=getattr(_n_mi, "lineno", 0),
                     stage="ir-semantic", code="PYCSL-SEM-MIXIN-INSTANTIATED")
 
+    # (#49) ROUTE #290 — THE MUTATION BY ANOTHER NAME. Route #162's module-function
+    # denylist and route #280's computed-receiver guard key on a METHOD NAME at a CALL whose
+    # callee is a plain dotted name. Every other spelling of the same in-place mutation
+    # walked past both. MEASURED at 7313506b, each under a callee `#@ assigns \nothing`
+    # whose caller then PROVED the list unchanged (CPython mutates it):
+    #   `xs.__setitem__(0, 9)`, `xs.__delitem__(0)`, `xs.__imul__(2)`, `list.__setitem__(
+    #   xs, 0, 9)` (an explicit DUNDER / an UNBOUND type method: lowered to an abstract op
+    #   with no `writes`); `getattr(xs, 'reverse')()`, `operator.methodcaller('reverse')(
+    #   xs)`, `functools.partial(list.reverse, xs)()`, `(lambda: xs.reverse())()`,
+    #   `(xs.reverse if c else xs.sort)()`, `(xs.reverse,)[0]()`, `(h := xs.reverse)()`
+    #   (a COMPUTED CALLEE: Module 5's `_py_expr_call` catch-all erases the WHOLE call,
+    #   callee and arguments, to `UnknownPyExpr` — a fresh `(any int)` VALUE with NO
+    #   EFFECT, so an expression statement vanishes). 22 of 56 census probes PROVED.
+    # THE RULE (source AST, inline — `_run_pipeline` is the choke point: its mirror twin
+    # is `\trusted` and already raises, so no ledger moves; Module 5's `_py_expr_call`
+    # stub is `\trusted` WITHOUT `#@ raises`, lesson d5):
+    #   (1) a call whose callee is neither a name nor a dotted attribute is REFUSED, except
+    #       the shapes Module 5 resolves to a real node — the class-by-name factory
+    #       `F(<lit|name|subscript>)(...)` of a one-line `return G[p]` lookup function,
+    #       the `getattr(self, <name>)(...)` dispatch, `type(self)(<pure>)` — and an
+    #       immediately-applied `lambda` whose body and arguments are PURE (names,
+    #       constants, `+ - *`, comparisons, boolean ops, conditionals, tuples), whose
+    #       erasure to an unknown value loses nothing (route #115's 1313);
+    #   (2) an explicit call of an in-place DUNDER (`__setitem__ __delitem__ __i<op>__
+    #       __setattr__ __delattr__`) on any receiver but `super()`;
+    #   (3) an UNBOUND collection-type method that mutates (`list.reverse(xs)`,
+    #       `dict.update(d, ..)`, `set.add(s, x)`, `deque.append(q, x)`, ...);
+    #   (4) a mutator — collection method, in-place dunder, or `operator.<setitem|delitem|
+    #       i<op>>` — referenced as a VALUE rather than called (`h = xs.append`,
+    #       `map(xs.append, ys)`, `functools.partial(xs.reverse)`, `partial(
+    #       operator.setitem, xs)`): the bound method escapes the call-site recognizers;
+    #   (5) `getattr(o, '<mutator>')` (`o` not `self`) and `operator.methodcaller(<name>)`
+    #       whose name is a mutator, a dunder above, or not a string literal.
+    # The `operator.i<op>` FUNCTIONS called directly are route #162's denylist (Module 6,
+    # where the argument's collection type is known), extended with this route.
+    _MUT290 = frozenset((
+        "append", "extend", "insert", "remove", "pop", "clear", "sort", "reverse",
+        "update", "popitem", "setdefault", "add", "discard", "intersection_update",
+        "difference_update", "symmetric_difference_update", "appendleft", "popleft",
+        "extendleft", "rotate", "move_to_end"))
+    _DUN290 = frozenset((
+        "__setitem__", "__delitem__", "__iadd__", "__isub__", "__imul__", "__imatmul__",
+        "__itruediv__", "__ifloordiv__", "__imod__", "__ipow__", "__ilshift__",
+        "__irshift__", "__iand__", "__ixor__", "__ior__", "__setattr__", "__delattr__"))
+    _OPM290 = frozenset((
+        "setitem", "delitem", "iadd", "iand", "iconcat", "ifloordiv", "ilshift", "imod",
+        "imul", "imatmul", "ior", "ipow", "irshift", "isub", "itruediv", "ixor"))
+    _TYP290 = frozenset(("list", "dict", "set", "bytearray", "deque", "OrderedDict",
+                         "defaultdict", "Counter", "frozenset"))
+    _PURE290 = frozenset((
+        "Name", "Constant", "BinOp", "UnaryOp", "Compare", "BoolOp", "IfExp", "Tuple",
+        "Load", "Add", "Sub", "Mult", "USub", "UAdd", "Not", "And", "Or", "Eq", "NotEq",
+        "Lt", "LtE", "Gt", "GtE", "arguments", "arg", "Lambda"))
+    _lf290 = set()
+    for _st290 in getattr(unified_ast, "body", []) or []:
+        if (isinstance(_st290, _ast.FunctionDef) and len(_st290.args.args) == 1
+                and len(_st290.body) == 1 and isinstance(_st290.body[0], _ast.Return)
+                and isinstance(_st290.body[0].value, _ast.Subscript)
+                and isinstance(_st290.body[0].value.value, _ast.Name)
+                and isinstance(_st290.body[0].value.slice, _ast.Name)
+                and _st290.body[0].value.slice.id == _st290.args.args[0].arg):
+            _lf290.add(_st290.name)
+    _callee290 = set()
+    for _n290 in _ast.walk(unified_ast):
+        if isinstance(_n290, _ast.Call):
+            _callee290.add(id(_n290.func))
+    _hit290 = None
+    for _n290 in _ast.walk(unified_ast):
+        if _hit290 is not None:
+            break
+        _ln290 = getattr(_n290, "lineno", 0)
+        if isinstance(_n290, _ast.Call):
+            _f290 = _n290.func
+            if not isinstance(_f290, (_ast.Name, _ast.Attribute)):
+                _ok290 = False
+                if (isinstance(_f290, _ast.Call) and isinstance(_f290.func, _ast.Name)
+                        and len(_f290.args) == 1 and not _f290.keywords
+                        and ((_f290.func.id in _lf290
+                              and isinstance(_f290.args[0], (_ast.Constant, _ast.Name,
+                                                             _ast.Subscript)))
+                             or (_f290.func.id == "type"
+                                 and isinstance(_f290.args[0], _ast.Name)
+                                 and _f290.args[0].id == "self"
+                                 and all(type(_y).__name__ in _PURE290
+                                         or type(_y).__name__ == "keyword"
+                                         for _a in list(_n290.args)
+                                         + [_k.value for _k in _n290.keywords]
+                                         for _y in _ast.walk(_a))))):
+                    _ok290 = True
+                if (isinstance(_f290, _ast.Call) and isinstance(_f290.func, _ast.Name)
+                        and _f290.func.id == "getattr" and len(_f290.args) == 2
+                        and isinstance(_f290.args[0], _ast.Name)
+                        and _f290.args[0].id == "self"
+                        and isinstance(_f290.args[1], _ast.Name)):
+                    _ok290 = True
+                if (isinstance(_f290, _ast.Lambda) and not _n290.keywords
+                        and all(type(_y).__name__ in _PURE290
+                                for _a in [_f290] + list(_n290.args)
+                                for _y in _ast.walk(_a))):
+                    _ok290 = True
+                if not _ok290:
+                    _hit290 = ("a call whose CALLEE is a computed expression (`lambda`, "
+                               "`getattr(..)`, `operator.methodcaller(..)`, "
+                               "`functools.partial(..)`, a subscript, a conditional, a "
+                               "walrus, a call result): Module 5 erases the whole call to an "
+                               "unknown value with NO EFFECT")
+            elif isinstance(_f290, _ast.Attribute):
+                if (_f290.attr in _DUN290
+                        and not (isinstance(_f290.value, _ast.Call)
+                                 and isinstance(_f290.value.func, _ast.Name)
+                                 and _f290.value.func.id == "super")):
+                    _hit290 = ("an explicit call of the in-place dunder `%s`"
+                               % _f290.attr)
+                elif (isinstance(_f290.value, _ast.Name) and _f290.value.id in _TYP290
+                        and _f290.attr in _MUT290):
+                    _hit290 = ("the UNBOUND mutating method `%s.%s(...)`"
+                               % (_f290.value.id, _f290.attr))
+            if (_hit290 is None and isinstance(_f290, _ast.Name)
+                    and _f290.id == "getattr" and len(_n290.args) >= 2
+                    and not (isinstance(_n290.args[0], _ast.Name)
+                             and _n290.args[0].id == "self")
+                    and isinstance(_n290.args[1], _ast.Constant)
+                    and (_n290.args[1].value in _MUT290
+                         or _n290.args[1].value in _DUN290)):
+                _hit290 = "`getattr(.., %r)` of a mutator" % (_n290.args[1].value,)
+            if (_hit290 is None
+                    and ((isinstance(_f290, _ast.Attribute)
+                          and _f290.attr == "methodcaller")
+                         or (isinstance(_f290, _ast.Name)
+                             and _f290.id == "methodcaller"))
+                    and not (_n290.args and isinstance(_n290.args[0], _ast.Constant)
+                             and isinstance(_n290.args[0].value, str)
+                             and _n290.args[0].value not in _MUT290
+                             and _n290.args[0].value not in _DUN290)):
+                _hit290 = ("`operator.methodcaller(..)` naming a mutator (or a "
+                           "non-literal name)")
+        elif (isinstance(_n290, _ast.Attribute) and id(_n290) not in _callee290
+                and type(getattr(_n290, "ctx", None)).__name__ not in ("Store", "Del")
+                and (_n290.attr in _MUT290 or _n290.attr in _DUN290
+                     or (isinstance(_n290.value, _ast.Name)
+                         and _n290.value.id == "operator"
+                         and _n290.attr in _OPM290))):
+            _hit290 = ("the mutator `.%s` referenced as a VALUE (a bound or unbound "
+                       "method that escapes every call-site recognizer)" % _n290.attr)
+    if _hit290 is not None:
+        from errors import PyCSLSemanticError as _PyCSLSemErr290
+        raise _PyCSLSemErr290(
+            "an in-place mutation reached through another name is out of scope: line %d "
+            "has %s. PyCSL models a mutation only at a direct call of a recognized "
+            "mutator on a named receiver (`xs.reverse()`, `d[k] = v`); this spelling "
+            "reaches the SAME in-place effect, which the model would drop, so a frame or "
+            "unchanged-contents claim would be proved of a state that changed (route #290; "
+            "measured: `operator.methodcaller('reverse')(xs)`, `xs.__setitem__(0, 9)` and "
+            "`getattr(xs, 'reverse')()` under `#@ assigns \\nothing` each let the caller "
+            "prove the list unchanged). Call the mutator directly on the named receiver, "
+            "or use an explicit element store." % (_ln290, _hit290),
+            filename=args.file, line=_ln290,
+            stage="ir-semantic", code="PYCSL-SEM-MUTATION-BY-ANOTHER-NAME")
+
     # (#49) gen #31 — A `#@ lemma` WITH NO `#@ assigns` CLAUSE AT ALL. annotations.md
     # §2.1.16 states five hard-error rules for a lemma; four were enforced and the fifth
     # only half was. `core_ir_semantic._check_lemma` rejects a DECLARED frame that is not
@@ -6114,6 +6273,33 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"{'' if len(_viol269) == 1 else f' (also: {_viol269[1:]})'}.",
             filename=args.file, stage="ir-semantic",
             code="PYCSL-SEM-VANISHED-CALL-EFFECT")
+    # (#49) ROUTE #289 — THE TUPLE THAT HELD A LIST. A container the model does not
+    # represent (a tuple holding a list lowers to `any int`) hands out an element that is
+    # an int, and an element store through it reaches `_handle_array_set_stmt`'s last
+    # fallback, `subscript_set <int> <i> <v>` against `val subscript_set (x: int) (i: int)
+    # (v: int) : unit` — a store with NO `writes` and NO result: a NO-OP. MEASURED at
+    # 7313506b, each PROVED (CPython disagrees): `t: Tuple[List[int], int] = (xs, 0);
+    # b = t[0]; b[0] = 5; return xs[0]` == `\old(xs[0])`; the local twin; `t[0][0] = 5`;
+    # `b[0] += 4`; a nested tuple; an unannotated tuple. Every application of that op is
+    # a dropped mutation whatever reached it, so the gate keys on the EMISSION, at the one
+    # site every such store produces (a gate, not a raise in the `\trusted`-stubbed
+    # handler, which has no `#@ raises`: lesson d5). Measured population at 7313506b: 1
+    # corpus file (0849, a map-leaf inner store, `# pycsl-expected: FAIL`, ill-typed),
+    # pyref 0, mirror 0.
+    if (len(_re.findall(r"(?<![\w'.])subscript_set(?![\w'])", _mlw))
+            > len(_re.findall(r"\bval\s+subscript_set(?![\w'])", _mlw))):
+        from errors import PyCSLSemanticError as _PyCSLSemErr289
+        raise _PyCSLSemErr289(
+            "an element store through a value the model does not represent as a list is "
+            "out of scope: the store lowers to the abstract `subscript_set` with NO effect "
+            "(typically an element taken from a tuple, or another container, that holds a "
+            "list — the container is opaque and its element is an int), so the mutation of "
+            "the list it aliases would be SILENTLY ABSENT and a claim about that list "
+            "proved of a state that never changed (route #289; measured: `t: Tuple["
+            "List[int], int] = (xs, 0); b = t[0]; b[0] = 5; return xs[0]` proved "
+            "`\\result == \\old(xs[0])`). Store through the list's own name.",
+            filename=args.file, stage="ir-semantic",
+            code="PYCSL-SEM-STORE-THROUGH-OPAQUE-ELEMENT")
     # A vanished call to a `\diverges` callee: the function's emitted body first applies
     # an opaque DIVERGING `val`, so Why3 owes it exactly what the call owed — a function
     # not declared `#@ \diverges` fails its termination VC, and an honestly declared one

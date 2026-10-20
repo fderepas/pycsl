@@ -8377,7 +8377,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             "heapq.heapify", "heapq.heappush", "heapq.heappop", "heapq.heappushpop",
             "heapq.heapreplace", "random.shuffle", "bisect.insort", "bisect.insort_left",
             "bisect.insort_right", "struct.pack_into", "operator.setitem",
-            "operator.delitem", "operator.iadd", "operator.iconcat"))
+            "operator.delitem", "operator.iadd", "operator.iconcat",
+            # (#49) ROUTE #290: every other in-place `operator` function (measured:
+            # `operator.imul(xs, 2)` under `#@ assigns \nothing` let the caller prove
+            # the list unchanged; on a list `ior`/`isub`/... raise or mutate).
+            "operator.iand", "operator.ifloordiv", "operator.ilshift", "operator.imod",
+            "operator.imul", "operator.imatmul", "operator.ior", "operator.ipow",
+            "operator.irshift", "operator.isub", "operator.itruediv", "operator.ixor"))
         # Only when an argument IS a collection (a list/dict/set/bytes local or parameter, a
         # collection literal, or a collection-typed `self` field): the stub-resolution smoke
         # tests call these functions with an int (`heapq.heapify(x)`), where nothing is

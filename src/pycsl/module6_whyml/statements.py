@@ -609,9 +609,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # target OR a partner. Only for a seq-promoted target (a list by construction);
         # an unpromoted one that is appended to is the array-counter arm, refused in
         # `_handle_expr_stmt`.
+        # (#49) ROUTE #288 — THE STORE THROUGH A RETURNED LIST. The same partners exist for
+        # an UNPROMOTED list local (`b = ident(a)` lowers to `let b = (ident a) in`), and the
+        # callee's `val` result is FRESH for Why3 whenever the callee is imported, `\trusted`,
+        # or a verified body whose early `return` goes through `Return_seq (snapshot x)` —
+        # so an ELEMENT STORE through either name was invisible through the other. MEASURED
+        # at 7313506b, each PROVED (CPython disagrees): `b = ident2(a); b[0] = 5; return
+        # a[0]` == 1 (imported, also under --verify-imports; same-file `\trusted`; verified
+        # with an early return), `b[0] += 4`, and the reverse `a[0] = 5; return b[0]`. So
+        # the partner set is now collected for ANY list-valued target (seq-promoted, a
+        # declared `list`, or an RHS that yields an array), and below an element store,
+        # slice store or `del` through a live name refuses too. An index READ of a 1-D list
+        # (`make(a[0])`) is a scalar, not the list, and adds no partner.
         _ps283 = []
         if (vt not in ("Var", "ArrayLit", "ListComp", "SliceAccess")
-                and target in getattr(self, "_seq_locals", set())):
+                and (target in getattr(self, "_seq_locals", set())
+                     or getattr(self, "_current_symbol_table", {}).get(target) == "list"
+                     or self._rhs_yields_array(val_ir))):
             _stk283 = [val_ir]
             while _stk283:
                 _n283 = _stk283.pop()
@@ -640,6 +654,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                      and getattr(self, "_current_symbol_table", {}).get(
                                          _v283) == "list"))):
                         _ps283.append(_v283)
+                    continue
+                if (_t283 in ("Subscript", "ArrayAccess", "ArrayGet", "Index")
+                        and isinstance(_n283.get("array", _n283.get("value")), dict)
+                        and _n283.get("array", _n283.get("value")).get("type") == "Var"
+                        and _n283.get("array", _n283.get("value")).get("name") in (
+                            getattr(self, "_array_locals", set())
+                            | getattr(self, "_seq_locals", set())
+                            | getattr(self, "_current_array1d_params", set()))):
+                    _stk283.append(_n283.get("index", _n283.get("slice")))
                     continue
                 if _t283 == "Call" and "." in _f283:
                     _stk283.append({"type": "Var", "name": _f283.rsplit(".", 1)[0]})
@@ -719,13 +742,36 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         elif (_n279.get("stmt") == "AugAssign"
                                 and _n279.get("target") in _cls279):
                             _mut279 = f"`{_n279.get('target')} {_n279.get('op', '')}= ...`"
-                        elif _chain279 and _n279.get("stmt") in (
+                        elif (_chain279 or _ps283) and _n279.get("stmt") in (
                                 "ArraySet", "ArraySliceSet", "DelSubscript", "GhostArraySet"):
                             _a279 = _n279.get("array")
                             if ((isinstance(_a279, dict) and _a279.get("type") == "Var"
                                     and _a279.get("name") in _cls279)
                                     or _n279.get("target") in _cls279):
                                 _mut279 = "an element store"
+                        elif (_ps283 and _n279.get("type") == "Call"
+                                and isinstance(_mf279, str)
+                                and any(isinstance(_y279, dict)
+                                        and _y279.get("type") == "Var"
+                                        and _y279.get("name") in _cls279
+                                        for _y279 in (_n279.get("args") or []))):
+                            # (#288) a live name handed to a user / imported function that
+                            # may WRITE its arguments (declared `assigns` other than
+                            # `\nothing`, or none): the callee's write lands on the
+                            # COPY's region only (measured: `b = tid(a); setfirst(b);
+                            # return a[0]`). Name-keyed on the last component (a
+                            # collision only refuses more); library callees stay #162's.
+                            for _g279 in (self.ir.get("functions", []) or []):
+                                if (isinstance(_g279, dict) and str(_g279.get("name", ""))
+                                        .rsplit(".", 1)[-1] == _mf279.rsplit(".", 1)[-1]
+                                        and not ((_g279.get("contracts") or {}).get(
+                                            "assigns") and all(
+                                                isinstance(_z279, dict)
+                                                and _z279.get("type") == "Nothing"
+                                                for _z279 in (_g279.get("contracts")
+                                                              or {}).get("assigns")))):
+                                    _mut279 = f"passing it to `{_mf279}(...)`, which may write it,"
+                                    break
                         _stack279.extend(_n279.values())
             if _mut279 is not None and _ps283:
                 from errors import PyCSLSemanticError
