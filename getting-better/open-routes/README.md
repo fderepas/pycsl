@@ -28,6 +28,19 @@
 ##   assigns-writes-survival TRAP 1447 > 1445, is identical at 7313506b (pre-existing, mirror emission, not this change).
 ##   Residual (suspected, not reproduced): legacy laws unguarded for out-of-range ints / `>H30s` name length != 30.
 
+## gen #37 (2026-10-20): #288 + #289 + #290 REPAIRED (rB executor, off 7313506b; inline, mirror `\trusted`; no new def/field;
+##   ledger 3). #288: #283's partner rule now runs for ANY list-valued target (seq-promoted, declared `list`, or an RHS
+##   yielding an array) and its walk also refuses an element/slice store, `del`, or passing a live name to a user/
+##   imported callee that may write it (PYCSL-M6-MUTATION-THROUGH-RETURNED-ALIAS; imported/`\trusted`/early-return
+##   callees are "may alias"). #289: an emission GATE in `_run_pipeline` refuses every application of the no-effect
+##   `val subscript_set` (a store through an element of an opaque tuple/container) (PYCSL-SEM-STORE-THROUGH-OPAQUE-
+##   ELEMENT). #290: a source-AST rule in `_run_pipeline` refuses a computed callee (Module 5 erases the whole call,
+##   effect included), an explicit in-place dunder, an unbound collection mutator, a mutator referenced as a VALUE,
+##   and `getattr`/`methodcaller` naming a mutator (PYCSL-SEM-MUTATION-BY-ANOTHER-NAME); #162's denylist gains every
+##   `operator.i<op>`. Witnesses 3370-3381/3383-3387/3389-3398 PROVED -> refused; controls 3382/3388/3399 PASS; all 14
+##   route witnesses rc=0 -> rc=1. Root 0 MOVED / 4 GONE (0849, 1314, 1315, 1317: expected-FAIL witnesses now refused,
+##   census rows re-measured), pyref RESULT_PYREF, mirror 0/0/0. Residuals: see the three route files.
+
 ## gen #37 (2026-10-20): #286 (one-arg `.get` on a non-map hval receiver under no_exception drops AttributeError) OPEN on main,
 ##   REPAIRED in the land27 stack (3cbcc895); witness 3289 PROVES on main, FAILS on land27. Closes when land27 lands.
 
