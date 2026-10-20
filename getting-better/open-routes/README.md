@@ -7,6 +7,22 @@
 ##   #289 (tuple holding a list opaque; writes no-op), #290 (mutation via operator.i*/dunders/getattr/partial/methodcaller),
 ##   #291 (bool f-string rendered as int), #292 (cited struct axiom applied to '?' formats), #293 (os.path.relpath pure but
 ##   cwd-dependent) OPENED (red team 8, ~200 probes); 12 witnesses driver-reproduced rc=0, CPython violates each.
+## gen #37 (2026-10-20): #287 + #291 + #292 + #293 REPAIRED (rA executor, off 7313506b; inline, mirror `\trusted`; no new
+##   def/field; no axiom, no Rocq/Lean edit; ledger 3). #287: a `Lambda` body under an active no_exception context
+##   (declared or handler-widened, #171) is censused by #285's `TRIGGER_EXPR_SHAPES` like a comprehension element and
+##   refused on a hit (callable-taking builtins censused: only `sorted(key=lambda)` dropped a body; min/max key,
+##   map/filter, reduce, named keys already refused or ill-typed). #291: the value-keyed renderers (`str_of_int_hash`,
+##   `pycsl_format_<c>_i_*`) classify the int-model operand: shown bool -> `str_of_bool_hash` / `_b_` symbols; shown
+##   exact int (literal, int-only builtin/operator, `int`-typed name — BUILTIN-EXACT) unchanged; else a program `val`
+##   (fresh); a non-empty spec keeps `i` (CPython formats a bool as its int); unannotated locals classified from
+##   their bindings (1706 kept). #292: `UnixFs.Struct.{i2,i18,i1a1}.round_trip` keyed on the exact documented format
+##   (`>HH`/`>IHHHHHII10Ixx`/`>H30s`); other formats of that shape get `struct_*_<id>_h<hex>`; `--soundness-report`
+##   lists cited lemmas as TCB entries. #293: `os.path.relpath` moved to the impure table (CPython reads the cwd);
+##   the remaining pure list is lexical in posixpath. Witnesses 3340-3344/3346-3350/3352-3354/3356-3357 PROVED ->
+##   REFUSED/FAIL, controls 3345/3351/3355/3358 PASS; 12 route witnesses rc 0 -> 1. Root 1 MOVED (1915, declared,
+##   re-proved PASS), pyref 0; mirror 1 MOVED (`frontend__pure_ast` `Comment.__repr__` `!r` -> `_u_`, L3-tc ok,
+##   whole-file proof OWED); fidelity green; fast planes 61 green after making 3358 non-vacuous; --slow OWED.
+##   Residual (suspected, not reproduced): legacy laws unguarded for out-of-range ints / `>H30s` name length != 30.
 
 ## gen #37 (2026-10-20): #286 (one-arg `.get` on a non-map hval receiver under no_exception drops AttributeError) OPEN on main,
 ##   REPAIRED in the land27 stack (3cbcc895); witness 3289 PROVES on main, FAILS on land27. Closes when land27 lands.

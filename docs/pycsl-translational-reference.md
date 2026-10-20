@@ -2742,6 +2742,40 @@ because that is the only shape that escaped: censused at **0** occurrences acros
 corpus files, the 53 mirror files and `pycsl_lib`, against 575 f-strings in the mirror
 overall.
 
+**Route #291 (gen #37): the value-keyed renderer was keyed on the INT model, where `True` IS 1.**
+`b = True; x = 1; f"{b}" == f"{x}"` PROVED True (CPython `"True"` vs `"1"`), and so did `f"{b!r}"`,
+`f"{b:}"` (empty spec) and `f"{True}" == f"{1}"`. The two value-keyed families —
+`str_of_int_hash` (single-part f-string) and `pycsl_format_<c>_i_*` (a `FormattedValue` with a conversion,
+an empty spec, or a computed spec) — now classify the int-model operand: SHOWN bool (bool literal,
+comparison, `not`, `bool(...)`, a `bool`-typed name or `-> bool` call; an unannotated local whose every
+plain binding is one of these) renders through `str_of_bool_hash` / `pycsl_format_<c>_b_*`; SHOWN exact
+int (int literal, `len`/`int`/`abs`/`ord`/`hash`/`sum`, `-`/`//`/`<<`/`>>`/unary `-`/`~`, an `int`-typed
+name or `-> int` call — BUILTIN-EXACT) keeps the `i` key; anything else renders through a program `val`
+(`str_of_value_op`, `pycsl_format_<c>_u_*`), fresh per evaluation. A NON-EMPTY literal spec with no
+conversion keeps the `i` key for a bool too: `format(True, ">5") == "    1"`, CPython formats it as the
+int. Witnesses 3346-3350 (FAIL), controls 3351 and 1706 (PASS).
+
+**Route #292 (gen #37): legacy cited struct laws are keyed on the exact format.**
+`UnixFs.Struct.{i2,i18,i1a1}.round_trip` are stated over `struct_{pack,unpack}_<slot_id>`, and `slot_id`
+records only WhyML slot types, so `>??`, `<ff`, `<dd` shared `struct_pack_i2` with `>HH` and the
+unguarded round-trip PROVED `\result == x0` (CPython `roundtrip(5, 0)` is `True`). Each law now names
+only its documented format (`>HH`, `>IHHHHHII10Ixx`, `>H30s`); any other format of that shape lowers to
+`struct_{pack,unpack}_<id>_h<hex(fmt)>`, which no law names (3352-3354 FAIL, 3355 PASS). Every cited
+`#@ proof` lemma is listed by `--soundness-report` as a TCB entry (JSON `cited_lemmas`).
+
+**Route #293 (gen #37): `os.path.relpath` is impure.** CPython's `posixpath.relpath` calls `abspath`,
+which reads the cwd; it was a `val function`, so `relpath("a", "/")` before and after `os.chdir` PROVED
+equal. It is now a plain `val` like `abspath`/`realpath`/`expanduser`; the remaining `val function`
+set (`basename`, `dirname`, `normpath`, `join`, the `split*` slots) is lexical in CPython (3356-3357
+FAIL, 3358 PASS).
+
+**Route #287 (gen #37): a lambda's body is censused like a comprehension element.** `sorted(xs,
+key=lambda v: ...)` lowers to `sorted_perm_1 xs` and drops the key body, so `key=lambda v: 10 // v`
+PROVED `no_exception \all` and, inside `try ... except ZeroDivisionError`, a length claim. Under an
+active `no_exception` context (declared, or widened by a handler, route #171) a `Lambda` whose body
+matches a `TRIGGER_EXPR_SHAPES` shape of an active exception is refused (3340-3344), exactly as route
+#285 does for comprehensions; a raise-free key (`v + 1`) keeps its claim (3345).
+
 **Residue, stated rather than implied.** The record is *linear* — rebinding clears it — so a
 `None` bound in one branch of an `if` and something else in the other walks past it. That is
 `getting-better/open-routes/route46-none-branch-join.md`, which also records the *sticky*
@@ -4178,6 +4212,9 @@ binding form — a walrus target, a tuple-unpack target, a `match` capture, a la
 from an erased call argument — and to call RESULTS: a unit function or method whose return annotation
 is missing, `Any`, `object` or a TypeVar, a `Class.method`/`obj.method` resolved to one, and a
 builtin handing back (part of) an erased argument (`abs`, `max`, `getattr`, `next`, `sorted`, ...).)
+`bool` is such a subclass of `int` (it overrides `__repr__`/`__str__`/`__format__`'s empty-spec case):
+an `int`-typed parameter given `True` is rendered by the value-keyed int renderer (route #291), so
+`f"{n}"` for `n: int` is assumed to be the decimal text, not `"True"`.
 
 **CLASS-EXACT** — a value typed with a user class is an exact instance of it. A call `a.m(…)`
 with `a: A` lowers to `A.m`'s stub (its `ensures`, its `raises` wrap, its frame), while CPython
