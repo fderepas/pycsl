@@ -13068,8 +13068,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # left -> corpus byte-inert.
             _lws = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
             _rws = self._expr_to_whyml(right, local_refs or set(), invariant_ctx, subst)
-            return (f"(let v_or = {_lws} in "
-                    f"if hval_truthy v_or then hstr_of v_or else {_rws})")
+            # dict-value-wall Step 0 (red-team round 7 R6): the kept operand was projected
+            # by `hstr_of`, which maps EVERY non-`HStr` carrier to "" — so a truthy INT /
+            # LIST / MAP operand (CPython keeps it: `5 or ""` is 5) proved `\result == ""`
+            # (measured p083/p084, rc=0). Only an `HStr` operand is a string: it is kept
+            # when truthy. A truthy NON-string operand is NOT a Python string at all, so it
+            # becomes the uninterpreted `hval_opaque_str v` (a `val function`, NO spec, no
+            # axiom: a function of the value, so equal values stay equal and nothing else
+            # is decided); a falsy operand of any carrier selects the literal (Python).
+            self._add_abstract_op("val function hval_opaque_str (h: hval) : string")
+            return (f"(let v_or = {_lws} in match v_or with "
+                    f"| HStr s_or -> if hval_truthy v_or then s_or else {_rws} "
+                    f"| _ -> if hval_truthy v_or then hval_opaque_str v_or else {_rws} end)")
         if not _empty_default:
             return None
         _lw = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
@@ -13232,6 +13242,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _kw2 = self._expr_to_whyml(_a2[0], local_refs or set(),
                                            invariant_ctx, subst)
                 _dw2 = self._pyval_wrap(_a2[1], local_refs or set())
+                # dict-value-wall Step 0 (red-team round 7 R5): the `| _ -> D` arm below is
+                # NOT Python. `(x or {})` is `{}` only when `x` is falsy; a TRUTHY non-dict
+                # `x` (str / int / list) has no `.get` and CPython raises AttributeError.
+                # For a normal-return claim that arm is dead in Python (partial correctness),
+                # but under a `no_exception` context it PROVED `no_exception \all` while
+                # CPython raises (measured: p078/p080/p081, rc=0). AttributeError is not a
+                # modelled implicit exception, so -- as route #186 / #252 do for an
+                # operation that cannot be shown exception-free -- an active `no_exception`
+                # context carries the obligation that the lowered receiver IS a map
+                # (`HMap _`; the `or {}` select already yields `HMap PNil` for a falsy
+                # operand). Program body only (`_in_spec` is a logic read). Outside a
+                # `no_exception` context the emission is unchanged -> byte-inert there.
+                if (not getattr(self, "_in_spec", False)
+                        and (getattr(self, "_current_no_exception", set())
+                             or getattr(self, "_current_no_exception_all", False))):
+                    return (f"(let r_k9 = {_rvw2} in begin assert {{ [@expl:PyCSL-DVW-R5 "
+                            f"`.get` on a receiver that is not a dict raises AttributeError] "
+                            f"match r_k9 with HMap _ -> true | _ -> false end }}; "
+                            f"(match r_k9 with HMap m_k9 -> "
+                            f"(match pairs_get m_k9 {_kw2} with Some v_ -> v_ "
+                            f"| None -> {_dw2} end) | _ -> {_dw2} end) end)")
                 return (f"(match {_rvw2} with HMap m_k9 -> "
                         f"(match pairs_get m_k9 {_kw2} with Some v_ -> v_ "
                         f"| None -> {_dw2} end) | _ -> {_dw2} end)")
