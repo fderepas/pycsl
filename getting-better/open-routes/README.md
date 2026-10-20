@@ -1,5 +1,7 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-20): #295 (dict returned by a may-alias call is a copy; store through it misses the original) OPENED; rc=0, CPython 2.
+
 ## gen #37 (2026-10-20): #294 (annotated dict local whose first assignment is not a dict literal lowered to the EMPTY map;
 ##   RHS discarded) OPENED (ch29); witnesses rc=0, CPython violates.
 
