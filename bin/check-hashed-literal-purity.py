@@ -109,10 +109,21 @@ BASELINE = {
     # produces no `.mlw` and can never appear here — and that refusal is what now makes a pure
     # op on a folded literal safe, closing the second premise these rows were tolerated for the
     # absence of. Negative-tested by `bin/check-stable-hash-fold-injectivity.py`.
-    ("struct_pack_i2", 1322019588): "route #228: corpus 1915's `'<bb6x'`, whose colliding twin is refused at emission.",
-    ("struct_pack_i2", 1127449053): "route #228: corpus 1915's `'<hL'`, the non-colliding accept-side control.",
-    ("struct_unpack_i2", 1322019588): "route #228: corpus 1915's `'<bb6x'`, whose colliding twin is refused at emission.",
-    ("struct_unpack_i2", 1127449053): "route #228: corpus 1915's `'<hL'`, the non-colliding accept-side control.",
+    # (#49) gen #37 — ROUTE #292 RE-KEYED THE LEGACY SHAPES. A format with a legacy slot id
+    # (`i2`/`i18`/`i1a1`) other than the exact one its cited round-trip law documents now
+    # lowers to `struct_{pack,unpack}_<id>_h<hex(format)>`: the SYMBOL itself carries the
+    # format text, injectively, so two distinct formats can never share a term even if their
+    # folded constants collided — the fmt argument is redundant with the name. Corpus 1915's
+    # two formats moved to these symbols (its rows re-keyed, not added), and the route #292
+    # witnesses 3352-3354 (`>??`, `<ff`, `<dd`) are the only other users.
+    ("struct_pack_i2_h3c62623678", 1322019588): "route #228/#292: corpus 1915's `'<bb6x'` (format-keyed symbol).",
+    ("struct_pack_i2_h3c684c", 1127449053): "route #228/#292: corpus 1915's `'<hL'` (format-keyed symbol).",
+    ("struct_pack_i2_h3e3f3f", 1122516272): "route #292: corpus 3352's `'>??'` (format-keyed symbol).",
+    ("struct_unpack_i2_h3e3f3f", 1122516272): "route #292: corpus 3352's `'>??'` (format-keyed symbol).",
+    ("struct_pack_i2_h3c6666", 974782830): "route #292: corpus 3353's `'<ff'` (format-keyed symbol).",
+    ("struct_unpack_i2_h3c6666", 974782830): "route #292: corpus 3353's `'<ff'` (format-keyed symbol).",
+    ("struct_pack_i2_h3c6464", 538868130): "route #292: corpus 3354's `'<dd'` (format-keyed symbol).",
+    ("struct_unpack_i2_h3c6464", 538868130): "route #292: corpus 3354's `'<dd'` (format-keyed symbol).",
 }
 
 

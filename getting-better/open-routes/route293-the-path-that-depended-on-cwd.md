@@ -27,5 +27,7 @@ base/after rc=0, compare `--min-files 45`: 1 MOVED (`frontend__pure_ast`, route 
 0 APPEARED; check-self-annotate-sync.sh rc=0 (923 verbatim); self-annotate-mirror-check.sh rc=0 (53);
 refusal-witness census +15 rows (3340-3344 REFUSAL, 3346-3350/3352-3354/3356-3357 VERIFY-FAIL) via
 `--append-new` (that run also found 234 pre-existing FAIL witnesses with no row at 7313506b — not
-appended here, out of scope; reported to the driver); run-soundness-planes.sh (fast): see README gen #37.
+appended here, out of scope; reported to the driver); run-soundness-planes.sh --slow rc=1 -> 82/84 green; vacuous-drivers (3358) and hashed-literal-purity
+(re-keyed baseline rows for the format-keyed struct symbols) fixed and re-run rc=0; assigns-writes-survival
+TRAP 1447 > 1445 is identical at 7313506b (pre-existing).
 Residuals: none known.

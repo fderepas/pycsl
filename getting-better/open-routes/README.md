@@ -21,7 +21,9 @@
 ##   the remaining pure list is lexical in posixpath. Witnesses 3340-3344/3346-3350/3352-3354/3356-3357 PROVED ->
 ##   REFUSED/FAIL, controls 3345/3351/3355/3358 PASS; 12 route witnesses rc 0 -> 1. Root 1 MOVED (1915, declared,
 ##   re-proved PASS), pyref 0; mirror 1 MOVED (`frontend__pure_ast` `Comment.__repr__` `!r` -> `_u_`, L3-tc ok,
-##   whole-file proof OWED); fidelity green; fast planes 61 green after making 3358 non-vacuous; --slow OWED.
+##   whole-file proof OWED); fidelity green; planes --slow: 82/84 green, then 3358 made non-vacuous (vacuous-drivers
+##   rc 0) and the hashed-literal-purity baseline re-keyed for the format-keyed struct symbols (rc 0); the remaining RED,
+##   assigns-writes-survival TRAP 1447 > 1445, is identical at 7313506b (pre-existing, mirror emission, not this change).
 ##   Residual (suspected, not reproduced): legacy laws unguarded for out-of-range ints / `>H30s` name length != 30.
 
 ## gen #37 (2026-10-20): #286 (one-arg `.get` on a non-map hval receiver under no_exception drops AttributeError) OPEN on main,
