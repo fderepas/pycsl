@@ -7,7 +7,6 @@ answers True. Now only `set()` is the empty set; any other RHS is kept.
 from typing import Set
 
 
-#@ requires True
 #@ ensures \result == False
 #@ assigns \nothing
 def g(func: Set[str]) -> bool:

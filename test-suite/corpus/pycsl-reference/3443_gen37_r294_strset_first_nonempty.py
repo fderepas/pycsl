@@ -7,7 +7,6 @@ CPython answers True.
 from typing import Set
 
 
-#@ requires True
 #@ ensures \result == False
 #@ assigns \nothing
 def g(func: Set[str], c: bool) -> bool:

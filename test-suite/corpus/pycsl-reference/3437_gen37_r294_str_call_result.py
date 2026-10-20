@@ -6,13 +6,11 @@ The annotated dict local's first assignment discarded its RHS and declared the E
 from typing import Dict
 
 
-#@ requires True
 #@ assigns \nothing
 def mk() -> Dict[str, str]:
     return {"name": "x"}
 
 
-#@ requires True
 #@ ensures \result == False
 #@ assigns \nothing
 def g() -> bool:

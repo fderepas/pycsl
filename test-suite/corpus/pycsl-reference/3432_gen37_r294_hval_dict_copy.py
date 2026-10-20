@@ -7,7 +7,6 @@ from typing import Any, Dict, List
 PyVal = Any
 
 
-#@ requires True
 #@ ensures \result == False
 #@ assigns \nothing
 def g(func: Dict[str, PyVal]) -> bool:

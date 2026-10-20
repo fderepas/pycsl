@@ -7,7 +7,6 @@ from typing import Any, Dict, List, Set
 PyVal = Any
 
 
-#@ requires True
 #@ ensures \result == True
 #@ assigns \nothing
 def lit_str() -> bool:
@@ -15,7 +14,6 @@ def lit_str() -> bool:
     return "name" in e
 
 
-#@ requires True
 #@ ensures \result == False
 #@ assigns \nothing
 def empty_str() -> bool:
@@ -23,7 +21,6 @@ def empty_str() -> bool:
     return "name" in e
 
 
-#@ requires True
 #@ ensures \result == False
 #@ assigns \nothing
 def empty_ctor_str() -> bool:
@@ -31,7 +28,6 @@ def empty_ctor_str() -> bool:
     return "name" in e
 
 
-#@ requires True
 #@ ensures \result == True
 #@ assigns \nothing
 def store_str() -> bool:
@@ -40,7 +36,6 @@ def store_str() -> bool:
     return "name" in e
 
 
-#@ requires True
 #@ ensures \result == False
 #@ assigns \nothing
 def empty_hval() -> bool:
@@ -48,7 +43,6 @@ def empty_hval() -> bool:
     return "name" in e
 
 
-#@ requires True
 #@ ensures \result == False
 #@ assigns \nothing
 def empty_listint() -> bool:
@@ -56,7 +50,6 @@ def empty_listint() -> bool:
     return "name" in e
 
 
-#@ requires True
 #@ ensures \result == True
 #@ assigns \nothing
 def strset_add() -> bool:
@@ -65,7 +58,6 @@ def strset_add() -> bool:
     return "name" in s
 
 
-#@ requires True
 #@ ensures \result == True
 #@ assigns \nothing
 def strset_reset_add() -> bool:

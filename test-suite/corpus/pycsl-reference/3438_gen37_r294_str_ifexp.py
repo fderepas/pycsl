@@ -6,7 +6,6 @@ The annotated dict local's first assignment discarded its RHS and declared the E
 from typing import Dict
 
 
-#@ requires True
 #@ ensures \result == False
 #@ assigns \nothing
 def g(func: Dict[str, str], c: bool) -> bool:
