@@ -8040,15 +8040,18 @@ class PreambleEmissionMixin:
             " (the map carrier was non-iterable). Build PREPENDS a binding (PCons)."
             " A `let rec function` (usable in program `let` bindings — where the reads"
             " occur); `variant { p }` gives structural termination over the assoc-list"
-            " cons. The key test is the opaque program primitive `hpairs_key_eq` (Why3"
-            " has no native program string `=`; disjoint from the str-set `pystr_eq`);"
-            " the DECIDABLE key equality + non-vacuity is certified in Phase2f_PyVal."
-            " ch27: a `val FUNCTION` (pure, total, deterministic, uninterpreted, NO"
-            " axiom), not a program `val`: a `let function` whose body calls a program"
-            " `val` gets NO logic definition, so `pairs_get` / `hval_truthy` /"
-            " `hval_list_str_mem` were logic-OPAQUE and `pairs_get PNil k = None` was"
-            " unprovable (witness 3140 timed out). *)",
-            "  val function hpairs_key_eq (a b: string) : bool",
+            " cons. The key test is `hpairs_key_eq` (disjoint from the str-set"
+            " `pystr_eq`). ch27: a `val FUNCTION`, not a program `val`: a `let function`"
+            " whose body calls a program `val` gets NO logic definition, so `pairs_get` /"
+            " `hval_truthy` / `hval_list_str_mem` were logic-OPAQUE and `pairs_get PNil k"
+            " = None` was unprovable (witness 3140 timed out). dict-value-wall R2a: its"
+            " spec `result <-> a = b` is a realizable Why3 `val` specification (Why3"
+            " encodes it as a task axiom of this file, NOT a kernel axiom: ledger"
+            " unchanged), same form as `str_eq_op` / `str_replace_op` / `map_nonempty`"
+            " and the stdlib `String.(=)` (a program `val`, so not callable from a `let"
+            " function`); it is realized by `string_dec` in the cert's `pairs_get`"
+            " (Phase2f_PyVal.v). Without it a PRESENT key could never be read. *)",
+            "  val function hpairs_key_eq (a b: string) : bool ensures { result <-> a = b }",
             "  let rec function pairs_get (p: hpairs) (k: string) : option hval",
             "    variant { p }",
             "    = match p with",
@@ -8059,9 +8062,14 @@ class PreambleEmissionMixin:
             " of an `hval` — the `HStr s` payload, else the empty string. A `let function`"
             " (usable in program `let`/guard positions, where the record-registry scan's"
             " `info.get(\"whyml_name\") == cls` compare + the Optional[str] return occur)."
-            " Descends the REAL hval structure (non-vacuous), NOT an abstract reader. *)",
+            " Descends the REAL hval structure (non-vacuous), NOT an abstract reader."
+            " dict-value-wall (red-team round 7 R6): a NON-`HStr` carrier is NOT a Python"
+            " string, so it projects to the UNINTERPRETED `hval_opaque_str h` (a `val"
+            " function`, no spec, no axiom -- the `hval_len_other` precedent), never to"
+            " \"\" (`5 or \"\"` PROVED `\\result == \"\"`, CPython 5). *)",
+            "  val function hval_opaque_str (h: hval) : string",
             "  let function hstr_of (h: hval) : string"
-            " = match h with HStr s -> s | _ -> \"\" end",
+            " = match h with HStr s -> s | _ -> hval_opaque_str h end",
             "  (* self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): project"
             " the INT carrier out of an `hval` — the `HInt i` payload, else 0. The int twin"
             " of `hstr_of`, for the `ctor.get(\"arity\") == 0` read in `_union_none_ctor_for`"
@@ -8075,9 +8083,9 @@ class PreambleEmissionMixin:
             " `hval` projected from a DOUBLED `.get` read used in a bool/if context"
             " (`if self._record_types[sym].get(\"is_typeddict\"):`). Total definitional"
             " `let function` over the hval ADT — HStr non-empty / HInt non-zero / HArr,HMap"
-            " non-empty / HNode present. The string-emptiness test reuses the certified"
-            " decidable key equality `hpairs_key_eq` (Why3 has no native program string `=`,"
-            " same reason `pairs_get` uses it). Descends the REAL structure (non-vacuous),"
+            " non-empty / HNode present. The string-emptiness test reuses the specified"
+            " key equality `hpairs_key_eq` (a `let function` cannot call the stdlib program"
+            " `String.(=)`, same reason `pairs_get` uses it). Descends the REAL structure (non-vacuous),"
             " NO axiom -> ledger stays 3. *)",
             "  let function hval_truthy (h: hval) : bool =",
             "    match h with",

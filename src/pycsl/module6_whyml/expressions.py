@@ -13076,7 +13076,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # becomes the uninterpreted `hval_opaque_str v` (a `val function`, NO spec, no
             # axiom: a function of the value, so equal values stay equal and nothing else
             # is decided); a falsy operand of any carrier selects the literal (Python).
-            self._add_abstract_op("val function hval_opaque_str (h: hval) : string")
+            # (Step 1) `hval_opaque_str` is declared by the hval preamble (it is also the
+            # non-`HStr` arm of `hstr_of`). The explicit `HStr` match is kept rather than
+            # `hstr_of v_or`: measured, z3 times out on witness 3292 through `hstr_of`.
             return (f"(let v_or = {_lws} in match v_or with "
                     f"| HStr s_or -> if hval_truthy v_or then s_or else {_rws} "
                     f"| _ -> if hval_truthy v_or then hval_opaque_str v_or else {_rws} end)")
@@ -13282,13 +13284,31 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     f"(match {_rvw} with HMap m_k8 -> "
                     f"(match pairs_get m_k8 {_kw} with Some v_ -> v_ "
                     f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
+                # dict-value-wall Step 1 (found re-running the hval false twins): this
+                # DOUBLED read mapped a present NON-string value to `None` and then to "",
+                # and a MISSING key (Python `None`) to "" -- once ch27 made the hval readers
+                # logic-visible, `rec["a"].get("x")` PROVED `\result == ""` for
+                # `{"a": {"x": 5}}` (CPython 5) and for `{"a": {}}` (CPython None). A present
+                # value now projects through `hstr_of` (opaque for a non-string), and a
+                # missing key is route #238's `None` spelling `HInt pycsl_none`, projected.
+                self._add_abstract_op("val function pycsl_none : int")
                 _optstr = (f"(match {_rvw} with HMap m_k8 -> "
                            f"(match pairs_get m_k8 {_kw} with "
-                           f"Some (HStr s) -> Some s | _ -> None end) "
+                           f"Some v_ -> Some (hstr_of v_) | None -> None end) "
                            f"| _ -> None end)")
                 if getattr(self, "_get_return_raw_option", False):
                     return _optstr
-                _res_str = f"(match {_optstr} with Some s -> s | None -> \"\" end)"
+                _res_str = (f"(match {_optstr} with Some s -> s "
+                            f"| None -> hstr_of (HInt pycsl_none) end)")
+                # (R5 twin) a `.get` on a receiver that is not a dict raises AttributeError:
+                # under an active `no_exception` context the receiver must be a map.
+                if (not getattr(self, "_in_spec", False)
+                        and (getattr(self, "_current_no_exception", set())
+                             or getattr(self, "_current_no_exception_all", False))):
+                    _res_str = (f"(let r_k8 = {_rvw} in begin assert {{ [@expl:PyCSL-DVW-R5 "
+                                f"`.get` on a receiver that is not a dict raises "
+                                f"AttributeError] match r_k8 with HMap _ -> true "
+                                f"| _ -> false end }}; {_res_str} end)")
                 self._last_hval_get_str = _res_str
                 return _res_str
         # ghost-handler-wall Q3a (self-tcb-reduction, ghost-handler-wall-response.md
