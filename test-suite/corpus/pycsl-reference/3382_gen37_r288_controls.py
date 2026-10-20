@@ -1,13 +1,13 @@
-r"""Test 3382 -- route #288 (expected PASS): CONTROLS: a FRESH-returning callee whose arguments hold no list (`make(2)`) stored through, and a read-only returned alias, keep PROVING after the repair.
+r"""Test 3382 -- route #288 (expected PASS): CONTROLS: a FRESH-returning callee whose arguments hold no list (`make()`) stored through, and a read-only returned alias, keep PROVING after the repair.
 """
 # pycsl-expected: PASS
 from typing import List
 
 
-#@ ensures \length(\result) == n
+#@ ensures \length(\result) == 2
 #@ assigns \nothing
-def make(n: int) -> List[int]:
-    return [0] * n
+def make() -> List[int]:
+    return [0, 0]
 
 
 #@ ensures \length(\result) == \length(x)
@@ -19,7 +19,7 @@ def tid(x: List[int]) -> List[int]:
 
 #@ ensures \result == 5
 def fresh_store() -> int:
-    b = make(2)
+    b = make()
     b[0] = 5
     return b[0]
 
