@@ -636,11 +636,63 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # declared `list`, or an RHS that yields an array), and below an element store,
         # slice store or `del` through a live name refuses too. An index READ of a 1-D list
         # (`make(a[0])`) is a scalar, not the list, and adds no partner.
+        # (#49) ROUTE #295 — THE DICT A CALL GAVE BACK. The same copy exists for a DICT or
+        # SET (`map` model) bound from a call: `e = idd(d)` lowers to `let e = ref (idd !d)`
+        # and `e[1] = 2` to `e := map_update_some !e 1 2`, a store on the COPY. MEASURED at
+        # ea7f5bcb, each PROVED (CPython disagrees): `d = {1: 1}; e = idd(d); e[1] = 2;
+        # return d[1]` == 1 with `idd` `\trusted`, imported, or a VERIFIED `return x`
+        # (a dict parameter is a map VALUE, so even the straight return is a copy), annotated
+        # or not; `e[1] += 1`, `del e[1]`, a new key, a store in a loop, `idd(idd(d))`,
+        # `setk(e)` (a writing callee), the REVERSE `d[1] = 2; return e[1]`, a
+        # `Dict[str, int]`, a dict/set PARAMETER (`t = ids(s); t.add(5); 5 in s` is False),
+        # and the CONDITIONAL `e = d if c > 0 else {..}`. So the #283 partner set is now
+        # collected for a MAP-valued target too (symbol-table `dict`/`set`/`frozenset`, a
+        # `_dict_locals` name, an RHS `_rhs_yields_map`, or an unannotated target the rest
+        # of the body USES as a collection: subscripted, stored/deleted through, a method
+        # receiver, the right of `in`), whose partners are the dict/set names in the RHS
+        # (`_dict_locals` or a dict/set-typed name) outside a fresh constructor; a dict
+        # SUBSCRIPT read contributes only its key and a METHOD receiver (`d.get(k)`) none —
+        # neither yields the dict itself. The walk below then refuses every write (store,
+        # augmented store, `del`, mutator, augmented assignment, a writing callee) through
+        # any live name, exactly as for a list.
+        _st295 = getattr(self, "_current_symbol_table", {}).get(target)
+        _dk295 = False
+        if (vt not in ("Var", "DictLit", "SetLit", "DictComp", "SetComp", "ArrayLit",
+                       "ListComp", "SliceAccess")
+                and target not in getattr(self, "_seq_locals", set())
+                and _st295 != "list" and not self._rhs_yields_array(val_ir)):
+            _dk295 = (_st295 in ("dict", "set", "frozenset")
+                      or target in getattr(self, "_dict_locals", set())
+                      or self._rhs_yields_map(val_ir))
+            _stk295 = [rest]
+            while _stk295 and not _dk295:
+                _n295 = _stk295.pop()
+                if isinstance(_n295, list):
+                    _stk295.extend(_n295)
+                    continue
+                if not isinstance(_n295, dict):
+                    continue
+                _b295 = _n295.get("array", _n295.get("value"))
+                _r295 = _n295.get("right")
+                _f295 = str(_n295.get("func", "") or "")
+                if ((_n295.get("stmt") in ("ArraySet", "ArraySliceSet", "DelSubscript")
+                        or _n295.get("type") == "Subscript")
+                        and isinstance(_b295, dict) and _b295.get("type") == "Var"
+                        and _b295.get("name") == target):
+                    _dk295 = True
+                elif (_n295.get("type") == "Call" and "." in _f295
+                        and _f295.rsplit(".", 1)[0] == target):
+                    _dk295 = True
+                elif (_n295.get("type") == "BinOp" and _n295.get("op") in ("in", "not in")
+                        and isinstance(_r295, dict) and _r295.get("type") == "Var"
+                        and _r295.get("name") == target):
+                    _dk295 = True
+                _stk295.extend(_n295.values())
         _ps283 = []
         if (vt not in ("Var", "ArrayLit", "ListComp", "SliceAccess")
                 and (target in getattr(self, "_seq_locals", set())
-                     or getattr(self, "_current_symbol_table", {}).get(target) == "list"
-                     or self._rhs_yields_array(val_ir))):
+                     or _st295 == "list"
+                     or self._rhs_yields_array(val_ir) or _dk295)):
             _stk283 = [val_ir]
             while _stk283:
                 _n283 = _stk283.pop()
@@ -656,11 +708,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         or (_t283 == "BinOp" and _n283.get("op") in ("+", "*"))
                         or (_t283 == "Call" and (_f283 in ("list", "sorted", "bytes",
                                                            "bytearray", "len")
-                                                 or _f283.endswith(".copy")))):
+                                                 or _f283.endswith(".copy")
+                                                 or (_dk295 and _f283 in (
+                                                     "dict", "set", "frozenset",
+                                                     "defaultdict", "Counter",
+                                                     "OrderedDict", "deque"))))):
                     continue
                 if _t283 == "Var":
                     _v283 = _n283.get("name")
-                    if (isinstance(_v283, str) and _v283 != target
+                    if (_dk295 and isinstance(_v283, str) and _v283 != target
+                            and not _n283.get("_recv295")
+                            and (_v283 in getattr(self, "_dict_locals", set())
+                                 or getattr(self, "_current_symbol_table", {}).get(_v283)
+                                 in ("dict", "set", "frozenset"))):
+                        _ps283.append(_v283)
+                    elif (not _dk295 and isinstance(_v283, str) and _v283 != target
                             and (_v283 in (getattr(self, "_array_locals", set())
                                            | getattr(self, "_seq_locals", set())
                                            | getattr(self, "_current_array1d_params",
@@ -673,14 +735,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if (_t283 in ("Subscript", "ArrayAccess", "ArrayGet", "Index")
                         and isinstance(_n283.get("array", _n283.get("value")), dict)
                         and _n283.get("array", _n283.get("value")).get("type") == "Var"
-                        and _n283.get("array", _n283.get("value")).get("name") in (
+                        and (_n283.get("array", _n283.get("value")).get("name") in (
                             getattr(self, "_array_locals", set())
                             | getattr(self, "_seq_locals", set())
-                            | getattr(self, "_current_array1d_params", set()))):
+                            | getattr(self, "_current_array1d_params", set()))
+                             or (_dk295 and (_n283.get("array", _n283.get("value")).get(
+                                 "name") in getattr(self, "_dict_locals", set())
+                                 or getattr(self, "_current_symbol_table", {}).get(
+                                     _n283.get("array", _n283.get("value")).get("name"))
+                                 in ("dict", "set", "frozenset"))))):
                     _stk283.append(_n283.get("index", _n283.get("slice")))
                     continue
                 if _t283 == "Call" and "." in _f283:
-                    _stk283.append({"type": "Var", "name": _f283.rsplit(".", 1)[0]})
+                    _stk283.append({"type": "Var", "name": _f283.rsplit(".", 1)[0],
+                                    "_recv295": True})
                 _stk283.extend(_n283.values())
         if (_ps283 or (isinstance(_src279, str)
                 and (_src279 in (getattr(self, "_array_locals", set())
@@ -791,8 +859,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             if _mut279 is not None and _ps283:
                 from errors import PyCSLSemanticError
                 raise PyCSLSemanticError(
-                    f"mutating a list that may be an ALIAS of another is out of scope: "
-                    f"`{target}` is bound to a value that may BE the list "
+                    f"mutating a {'dict/set' if _dk295 else 'list'} that may be an ALIAS "
+                    f"of another is out of scope: "
+                    f"`{target}` is bound to a value that may BE the "
+                    f"{'dict/set' if _dk295 else 'list'} "
                     f"{sorted(set(_ps283))} (a call may return its argument, a "
                     f"conditional or `or` may select it), and {_mut279} mutates it IN "
                     f"PLACE, which in Python is visible through every name of that "
@@ -800,9 +870,10 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     f"the binding to a COPY (`snapshot`), so the mutation would be "
                     f"invisible through the other names (route #283; measured: "
                     f"`b: List[int] = ident(a); b.append(1); return len(a)` proved the "
-                    f"UNCHANGED length). Refusing instead of answering incorrectly; build "
-                    f"the new list explicitly (`b = a[:]`, `list(...)`, a comprehension) "
-                    f"or mutate the original under its own name.",
+                    f"UNCHANGED length; route #295: `e = idd(d); e[1] = 2; return d[1]` "
+                    f"proved the OLD value). Refusing instead of answering incorrectly; build "
+                    f"the new collection explicitly (`b = a[:]`, `list(...)`, `dict(d)`, "
+                    f"`d.copy()`, a comprehension) or mutate the original under its own name.",
                     stage="module6-assign",
                     code="PYCSL-M6-MUTATION-THROUGH-RETURNED-ALIAS")
             if _mut279 is not None:
