@@ -664,7 +664,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             _dk295 = (_st295 in ("dict", "set", "frozenset")
                       or target in getattr(self, "_dict_locals", set())
                       or self._rhs_yields_map(val_ir))
-            _stk295 = [rest]
+            # The USE-based arm is for a callee whose result type the module does not
+            # know (unannotated, imported): a known non-map result (`-> str`, `-> int`)
+            # is never the dict, however the body uses it (`s.strip()`, `x in s`).
+            _fn295 = str(val_ir.get("func", "") or "") if vt == "Call" else ""
+            _key295 = (f"{getattr(self, '_current_self_type', None)}__{_fn295[5:]}"
+                       if _fn295.startswith("self.") and getattr(self, "_current_self_type",
+                                                                 None)
+                       else (_fn295[5:] if _fn295.startswith("self.") else _fn295))
+            _rt295 = str((getattr(self, "_module_method_return_types", {}) or {}).get(
+                _key295, "map") or "map")
+            _stk295 = [rest] if _rt295.startswith("map") else []
             while _stk295 and not _dk295:
                 _n295 = _stk295.pop()
                 if isinstance(_n295, list):
