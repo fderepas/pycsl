@@ -56,3 +56,29 @@ and stays fail-closed. defaultdict/Counter/OrderedDict/deque/bytearray: no accep
 (annotated stores refused as non-list/dict, unannotated ones by #289's gate, deque by the seeded-deque/untracked-
 append gates, bytearray by #289); the fresh-constructor list names them so a later model does not inherit a
 coarse refusal.
+Blast radius (base = worktree at ea7f5bcb, after = final tree; full sweeps via heavy.sh): corpus root 0 MOVED / 0 GONE /
+0 APPEARED (1841 -> 1842 .mlw; the one extra is the new control 3466, `--new-source`; 3450-3465 are new sources that
+refuse), byte-diff-compare root rc=0; pyref 0/0/0 (2186/2186) rc=0; mirror 0/0/0 (53/53) rc=0. MEASURED COST OF A
+FIRST CUT: the use-based arm initially qualified any unannotated call-bound local the body subscripts or calls a
+method on, and GONE'd the mirror `module6_whyml/stmt_control_flow` (`_final_str = self._stmts_to_whyml(_final,
+local_refs, declared_refs, ...)`, a `-> str` result with set partners, then `declared_refs.add(...)`); the arm is
+now restricted to a callee whose result type the module does not know or knows to be a map, re-measured inert.
+No mover, so no whole-file re-proof is owed.
+Gates (logs under the session scratchpad `r295/`): route witness rc=0 -> rc=1 (refused); corpus witnesses
+3450-3465 rc=1 after (refused, all on this rule); control 3466 rc=0 at base and after; census probes 52 (table above).
+check-self-annotate-sync.sh rc=0 (923 verbatim); self-annotate-mirror-check.sh rc=0 (53);
+`run-soundness-planes.sh` (fast) rc=0, 61/61 green; refusal-witness census +16 rows (3450-3465, measured through
+`_census_row`), coverage rc=0 (244 demonstrated, 4 undemonstrated, ceiling 5). Ledger unchanged (3 axioms); no
+`\trusted` marker added; mirror twin of `_handle_assign_stmt` is `\trusted` and already raises (no raises ratchet
+move); no new def/field (mirror-coverage/field-parity unchanged).
+Residuals: (1) coarse by design, as #288 — a write through the ORIGINAL while the alias is still live refuses even
+if the alias is never read again; a FRESH-returning callee given a dict argument is "may alias" (`e = rebuild(d);
+e[1] = 2` refuses). Measured population in root/pyref/mirror: 0. (2) A dict reached through a FIELD argument
+(`e = idd(self.m); e[1] = 2; return self.m[1]`) has no name partner and is not fenced by this rule; measured FAIL
+(not proved) at the final tree — the field model does not equate the two, so no false proof was found, but the
+shape is not refused. (3) A call-bound local whose callee is known to return a non-map type is excluded from the
+use-based arm by design (a `-> str`/`-> int` result is never the dict). (4) defaultdict/Counter/OrderedDict/deque/
+bytearray aliases are closed only because every store/mutation on them is refused by other gates today; a future
+model of them must re-run this census. (5) The #288 census rows (3370-3398) carry the pre-#295 message wording
+(the list message now says "build the new collection explicitly ... `dict(d)`"); the coverage instrument matches
+them unchanged (244 demonstrated), a `--regenerate` would refresh the text.
