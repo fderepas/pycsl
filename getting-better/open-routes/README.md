@@ -41,6 +41,14 @@
 ##   route witnesses rc=0 -> rc=1. Root 0 MOVED / 4 GONE (0849, 1314, 1315, 1317: expected-FAIL witnesses now refused,
 ##   census rows re-measured), pyref 0/0/0, mirror 0/0/0; fast planes 61 green, --slow OWED. Residuals: see the three route files.
 
+## gen #37 (2026-10-21): #295 REPAIRED (r295 executor, off ea7f5bcb = rB 4b67e24d; inline, mirror `\trusted`; no new def/field;
+##   ledger 3). #283/#288's partner rule now also runs for a MAP-valued (dict/set) target bound from a may-alias RHS (call,
+##   conditional, `or`): partners are the dict/set names in the RHS (parameters included) outside a fresh constructor, and the
+##   same walk refuses stores/aug-stores/`del`/mutators/`|=`/writing callees through any live name
+##   (PYCSL-M6-MUTATION-THROUGH-RETURNED-ALIAS). Witnesses 3450-3465 PROVED -> refused; control 3466 PASS; route witness
+##   rc=0 -> rc=1. Root 0/0/0, pyref 0/0/0, mirror 0/0/0 (a first cut GONE'd mirror stmt_control_flow on a `-> str` target, fixed).
+##   Residuals: see route295.
+
 ## gen #37 (2026-10-20): #286 (one-arg `.get` on a non-map hval receiver under no_exception drops AttributeError) OPEN on main,
 ##   REPAIRED in the land27 stack (3cbcc895); witness 3289 PROVES on main, FAILS on land27. Closes when land27 lands.
 
