@@ -14,6 +14,14 @@
 ##   dict/set/tuple) OPENED (red team 9, ~262 probes; hval model + #286-#295 held); 7 witnesses rc=0, CPython violates.
 
 ## gen #37 (2026-10-22): #296 (hval local holding a list, iterated bare, is iterated as dict keys) OPENED (ch30); rc=0, CPython False.
+## gen #37 (2026-10-22): #296 REPAIRED (r296 executor, off 9b84ec85; inline, mirror twins `\trusted`; no new def/field; ledger 3).
+##   The bare `for x in <pyval local>` dict-KEY arm (and its "str" target typing) is removed; the R2b judgement admits a bare
+##   pyval `Var` (same mutation guards), and its match iterates PER CARRIER: `HArr` real elements (exact length), `HMap` keys
+##   as `HStr` (the `.items()` key over-approx), any other carrier the uninterpreted `hval_iter_*_other`; R2b declining ->
+##   int fallback -> L3-tc (fail-closed). `startswith`/`endswith` with an `hval` argument reads `hstr_of` (not under
+##   `no_exception`). Witnesses 3490-3494/3496 PROVED -> FAIL, 3499/3500 FAIL -> FAIL; controls 3495/3497 PASS, 3498 FAIL -> PASS.
+##   Root 0/0/0, pyref 0/0/0, mirror 1 MOVED (stmt_control_flow `_maybe_inject_union_return`, intended; L3-tc ok, --fun
+##   PROVED; whole-file proof OWED). Residual: nested-dict keys are modelled as strings (see route296).
 
 ## gen #37 (2026-10-20): #295 (dict returned by a may-alias call is a copy; store through it misses the original) OPENED; rc=0, CPython 2.
 
