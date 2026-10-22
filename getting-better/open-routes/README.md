@@ -1,5 +1,7 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #296 (hval local holding a list, iterated bare, is iterated as dict keys) OPENED (ch30); rc=0, CPython False.
+
 ## gen #37 (2026-10-20): #295 (dict returned by a may-alias call is a copy; store through it misses the original) OPENED; rc=0, CPython 2.
 
 ## gen #37 (2026-10-20): #294 (annotated dict local whose first assignment is not a dict literal lowered to the EMPTY map;
