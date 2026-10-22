@@ -2864,6 +2864,126 @@ class FunctionEmissionMixin:
                                 "answering incorrectly; copy the component into a fresh "
                                 "name inside the loop body (`last = u`) and read that "
                                 "afterwards.")
+        # (#302) ROUTE #302 — A PLAIN-NAME `for` TARGET READ *STALE* AFTER ITS LOOP, FOR
+        # EVERY ITERATION LOWERING. Route #36 writes the loop variable back to the outer
+        # ref only for the index-valued loop and the `array int` parameter/int-local case;
+        # every other lowering (list/seq of str, str chars, dict keys, set, hval, R2b
+        # element path, ...) binds the target with an INNER `let` and leaves the outer
+        # ref at its PRE-loop value: `x = ""; for x in e: pass; return x` PROVED
+        # `\result == ""` under `requires len(e) == 1` (CPython e[0]; witnesses
+        # 3630-3639). FLOW-AWARE (as #301): a read is STALE when, walking back along its
+        # statement path, a statement holding a plain loop on the name is met before a
+        # top-level re-binding (`Assign`/`TupleUnpack` of the name), or the read sits in a
+        # non-binding loop holding one (a previous iteration leaves it behind). A read in
+        # the body of a loop that itself binds the name sees that loop's binder (safe); a
+        # comprehension binding the name has its own scope; an `assert` is dropped.
+        # A read is a `Var`, an `AugAssign` of the name (`x += 1` reads it), a field store
+        # through it, or a call of it. For each stale name the per-function set gets the
+        # key `"#302:<name>"` (never an identifier, so no `in` test on a plain name sees
+        # it), and `_handle_for_stmt` WRITES THE ELEMENT BACK to the outer ref for every
+        # plain loop on that name — exactly Python's last-value semantics, including the
+        # never-ran case. Where the outer ref's type is not the element's, that write-back
+        # does not type-check and the function FAILS CLOSED (L3-tc) instead of proving
+        # the stale value. Body-lowering only: a `\trusted`/abstract body is never lowered.
+        if not (func.get("trusted") or func.get("abstract")):
+            _nm302s = set()
+            _fq302 = [func.get("body", [])]
+            while _fq302:
+                _fn302 = _fq302.pop()
+                if isinstance(_fn302, (list, tuple)):
+                    _fq302.extend(_fn302)
+                elif isinstance(_fn302, dict):
+                    _fq302.extend(_fn302.values())
+                    if (_fn302.get("stmt") == "For" and not _fn302.get("tuple_targets")
+                            and isinstance(_fn302.get("target"), str)
+                            and _fn302["target"] not in ("", "_", "_for_target")):
+                        _nm302s.add(_fn302["target"])
+            for _nm302 in sorted(_nm302s):
+                _stale302 = False
+                _so302 = [(func.get("body", []), ())]
+                while _so302 and not _stale302:
+                    _y302, _p302 = _so302.pop()
+                    if isinstance(_y302, list):
+                        _isl302 = bool(_y302) and all(
+                            isinstance(_z302, dict) and "stmt" in _z302 for _z302 in _y302)
+                        for _ix302, _z302 in enumerate(_y302):
+                            _so302.append((_z302, _p302 + ((_y302, _ix302),)
+                                           if _isl302 else _p302))
+                        continue
+                    if isinstance(_y302, tuple):
+                        _so302.extend((_z302, _p302) for _z302 in _y302)
+                        continue
+                    if not isinstance(_y302, dict):
+                        continue
+                    if _y302.get("stmt") == "Assert":
+                        continue
+                    _gs302 = _y302.get("generators")
+                    if isinstance(_gs302, list) and any(
+                            isinstance(_g302, dict) and _g302.get("target") == _nm302
+                            for _g302 in _gs302):
+                        if _gs302 and isinstance(_gs302[0], dict):
+                            _so302.append((_gs302[0].get("iter"), _p302))
+                        continue
+                    _rd302 = ((_y302.get("type") == "Var" and _y302.get("name") == _nm302)
+                              or (_y302.get("stmt") == "AugAssign"
+                                  and _y302.get("target") == _nm302)
+                              or (_y302.get("stmt") == "FieldAssign"
+                                  and _y302.get("object") == _nm302)
+                              or (_y302.get("type") == "Call"
+                                  and _y302.get("func") == _nm302))
+                    _so302.extend((_z302, _p302) for _z302 in _y302.values())
+                    if not _rd302:
+                        continue
+                    # A read of the name: walk its path back, innermost level first.
+                    for _lv302 in range(len(_p302) - 1, -1, -1):
+                        _ls302, _li302 = _p302[_lv302]
+                        _done302 = False
+                        for _kj302 in range(_li302 - 1, -1, -1):
+                            _k302 = _ls302[_kj302]
+                            if ((_k302.get("stmt") == "Assign"
+                                    and _k302.get("target") == _nm302)
+                                    or (_k302.get("stmt") == "TupleUnpack"
+                                        and _nm302 in (_k302.get("targets") or []))):
+                                _done302 = True      # re-bound: safe
+                                break
+                            _cs302 = [_k302]
+                            while _cs302 and not _stale302:
+                                _c302 = _cs302.pop()
+                                if isinstance(_c302, dict):
+                                    if (_c302.get("stmt") == "For"
+                                            and _c302.get("target") == _nm302):
+                                        _stale302 = True
+                                    _cs302.extend(_c302.values())
+                                elif isinstance(_c302, (list, tuple)):
+                                    _cs302.extend(_c302)
+                            if _stale302:
+                                break
+                        if _done302 or _stale302:
+                            break
+                        if _lv302 == 0:
+                            break
+                        _el302, _ei302 = _p302[_lv302 - 1]
+                        _enc302 = _el302[_ei302]
+                        if (_enc302.get("stmt") == "For"
+                                and (_enc302.get("target") == _nm302
+                                     or _nm302 in (_enc302.get("tuple_targets") or []))
+                                and _enc302.get("body") is _ls302):
+                            break                    # the binding loop's own body: safe
+                        if _enc302.get("stmt") in ("For", "While"):
+                            _cs302 = [_enc302.get("body", [])]
+                            while _cs302 and not _stale302:
+                                _c302 = _cs302.pop()
+                                if isinstance(_c302, dict):
+                                    if (_c302.get("stmt") == "For"
+                                            and _c302.get("target") == _nm302):
+                                        _stale302 = True
+                                    _cs302.extend(_c302.values())
+                                elif isinstance(_c302, (list, tuple)):
+                                    _cs302.extend(_c302)
+                            if _stale302:
+                                break
+                if _stale302:
+                    self._loop_targets_read_outside.add("#302:" + _nm302)
         self._fold_unsafe_elems: Set[str] = set()
         self._fold_unsafe_sizes: Set[str] = set()
         # Builtins that CANNOT mutate the list they are handed (`sorted`/`list` copy).

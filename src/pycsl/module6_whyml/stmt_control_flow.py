@@ -1831,14 +1831,47 @@ class ControlFlowStmtMixin:
                 and _r36_iname in getattr(self, "_current_params", set())
                 and getattr(self, "_current_symbol_table", {}).get(_r36_iname) == "list"
                 and _r36_iname not in getattr(self, "_array2d_params", set()))
+            # ROUTE #302: the name is read STALE after one of its plain loops (the
+            # flow-aware `"#302:<name>"` key computed in `_reset_function_state`), so the
+            # write-back is emitted for EVERY lowering; where the outer ref's type is not
+            # the element's it does not type-check and the function FAILS CLOSED.
+            _r302_stale = ("#302:" + target) in getattr(
+                self, "_loop_targets_read_outside", ())
             _r36_wb = ([f"{bind_indent}{safe_target} := {elem_expr};"]
-                       if target in getattr(self, "_loop_targets_read_outside", ())
-                       and not getattr(self, "_for_target_is_pyval", False)
-                       and (elem_expr.strip() == f"!{idx}"
-                            or (_r36_int_local and _r36_int_iter))
+                       if _r302_stale or (
+                           target in getattr(self, "_loop_targets_read_outside", ())
+                           and not getattr(self, "_for_target_is_pyval", False)
+                           and (elem_expr.strip() == f"!{idx}"
+                                or (_r36_int_local and _r36_int_iter)))
                        else [])
+            # ROUTE #302: a write-back BEFORE the inner `let` is the last value only while
+            # the body never re-binds the target. When it does (`for x in e: x = "z"`, an
+            # inner loop on the same name, a walrus), Python keeps ONE variable, so the
+            # stale-read loop binds the OUTER ref itself and opens no shadow: every body
+            # read and store then goes to the variable read after the loop. (A pyval
+            # target is read bare, so a ref there does not type-check: fail-closed.)
+            _r302_rebind = False
+            if _r302_stale:
+                _rb302 = list(_body_d)
+                while _rb302 and not _r302_rebind:
+                    _q302 = _rb302.pop()
+                    if isinstance(_q302, dict):
+                        if ((_q302.get("stmt") in ("Assign", "AugAssign", "For")
+                                and _q302.get("target") == target)
+                                or (_q302.get("type") == "NamedExpr"
+                                    and _q302.get("target") == target)
+                                or (_q302.get("stmt") == "TupleUnpack"
+                                    and target in (_q302.get("targets") or []))
+                                or (_q302.get("stmt") == "For"
+                                    and target in (_q302.get("tuple_targets") or []))):
+                            _r302_rebind = True
+                        _rb302.extend(_q302.values())
+                    elif isinstance(_q302, (list, tuple)):
+                        _rb302.extend(_q302)
+            if _r302_rebind:
+                return [f"{bind_indent}{safe_target} := {elem_expr};"]
             if getattr(self, "_for_target_is_pyval", False):
-                return [f"{bind_indent}let {safe_target} = ({elem_expr}) in"]
+                return _r36_wb + [f"{bind_indent}let {safe_target} = ({elem_expr}) in"]
             return _r36_wb + [f"{bind_indent}let {safe_target} = ref ({elem_expr}) in"]
 
         if has_cont:
