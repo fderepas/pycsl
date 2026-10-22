@@ -1092,7 +1092,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # the pyval `.get` leaf to project its `hval` to a `string` (`hstr_of`), so the
         # `var_name := <string>` typechecks. Scoped to a string-classified target.
         _prev_pgas = getattr(self, "_pyval_get_as_string", False)
-        if target in getattr(self, "_string_local_vars", set()):
+        # r2c (gen #37): NOT for `t = <hval> or "<lit>"` — `_recognize_pyval_or_default`
+        # projects that RAW hval itself (`match .. HStr s -> s`); a pre-projected `hstr_of`
+        # operand failed L3-tc (string vs hval) under a string-classified target.
+        _r2c_sv = stmt.value.to_dict() if hasattr(stmt.value, "to_dict") else None
+        if (target in getattr(self, "_string_local_vars", set())
+                and not (isinstance(_r2c_sv, dict) and _r2c_sv.get("type") == "BinOp"
+                         and _r2c_sv.get("op") == "or"
+                         and isinstance(_r2c_sv.get("right"), dict)
+                         and _r2c_sv["right"].get("type") == "String")):
             self._pyval_get_as_string = True
         # (#49) gen #31 — THE TYPEDDICT CONSTRUCTION CONTEXT, SUPPLIED FROM THE TARGET.
         # annotations.md §12.12 promises, with no position excepted, that "construction

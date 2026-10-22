@@ -29,3 +29,10 @@ base 3599_gen37_r2c_local_param_root_refused.py rc=1
 base 3600_gen37_r2c_local_cgd_min_typechecks.py rc=1
 base 3601_gen37_r2c_hval_mem_opaque_false_claim.py rc=1
 ALLDONE
+cand2 3596_gen37_r2c_local_store_below_param_elem_refused.py rc=1
+base2 3596_gen37_r2c_local_store_below_param_elem_refused.py rc=1
+cand2 3599_gen37_r2c_local_param_root_refused.py rc=1
+base2 3599_gen37_r2c_local_param_root_refused.py rc=1
+cand2 3600_gen37_r2c_local_cgd_min_typechecks.py rc=0
+base2 3600_gen37_r2c_local_cgd_min_typechecks.py rc=1
+ALLDONE2

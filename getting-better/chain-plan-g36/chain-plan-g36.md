@@ -2141,3 +2141,75 @@ seen` on a `Set[str] = set()` local; now `epa`'s first blocker), (3) `seq hval` 
 insertion-order dedup (spike PARTIAL: needs a lemma or a different definition). The self-map
 key/value typing in `bce` (an hval `name` key into `Dict[str, Set[str]]` fields) stays its
 first blocker.
+
+## Re-measurement at HEAD — r2c (gen #37)
+
+**Wall** `r2c-ir-tree-mutation`, plan `getting-better/r2c-wall/r2c-wall-impl.md` Step 1-2 (R2c-local),
+worktree `pycsl-r2c` off `245f85b0`. Commits: `72aaccac` (spike), `c6371724` (build + conversion),
+`b150defd` (witnesses + M1).
+
+**Gate S (spike, make-or-break): PASS on all three criteria, axiom-free.**
+(1) `local-spike/cgd_min.py` (`--no-proof --keep-mlw`): L3-tc clean; the append lowers to the
+functional write-back of the LOCAL root (`generics := match Map.get !generics k with Some h1 ->
+map_update_some !generics k (.. HMap (pairs_set p "methods" (HArr (hval_list_snoc l func))) ..)`),
+the literal `{"kind": "class", "methods": []}` is a real `HMap (PCons ..)` (was `any_map ()`).
+(2) `w_len1` (`len(generics[t]["methods"]) == 1` after one append): pycsl SUCCESS, `why3 -P z3`
+all Valid; twin `== 0`: postcondition Out of memory (non-Valid). Same shape for setdefault-append
+(`w_sd2` ==2 / twin) and nested store (`w_store` / twin). (3) `refuse_below_param.py`
+(`generics["G"]["methods"][0]["x"] = 1; return funcs[0]`): REFUSED at emit,
+`PYCSL-M6-R2C-LOCAL-REFUSED` (rule (iv)). New preamble ops `pairs_set`, `hval_list_snoc` are
+structural `let rec function`s (gated), no `val` spec, no axiom: ledger 3.
+
+**Build (Module 6).** `statements.py _handle_expr_stmt`: R2c-local lowering for
+`root[k]..["s"].append(e)`, `root.setdefault(k, []).append(e)`, and (delegated from
+`_handle_array_set_stmt`) nested `root[k]..["s"][f] = v`, behind a fail-closed escape/partner check:
+(R1) non-parameter local bound only to dict literals, no `try`, no `no_exception`; (R2) every root
+occurrence whitelisted (store/path target, `in` right operand, `==`/`!=` operand, `len(root[..])`,
+`return root`) — any alias / pass / method read / iteration refuses; (R3) keys after the first are
+string literals and every container on the path is literal-produced (a non-literal value stored on
+the path refuses; a computed-key store anywhere refuses: rule (iv)); (R4) the appended/stored value
+is a scalar / literal / an hval name never mutated nor passed in the function. Enablers: dict literal
+-> `_pyval_wrap` HMap for hval stores; `_expr_is_pyval` for deeper subscripts of an hval dict local;
+`<hval> or "lit"` is a string (prescan + `_is_string_expr`, lowering unchanged); prescan seeds the
+target of `for x in <hval-dict>.get(..)`; hval-needle membership -> uninterpreted
+`hval_mem_opaque` (no spec); `copy.deepcopy(<hval>)` fresh in the #283/#295 walk + identity.
+No new helper / nested def in src/pycsl (all inline in trusted handlers).
+
+**Per-marker table.**
+
+| marker | before | after | first remaining blocker (measured) |
+|---|---|---|---|
+| `_collect_generic_decls` | trusted | **CONVERTED** (`--fun` SUCCESS, 228 Valid) | — (whole-file proof OWED) |
+| `_specialize_decl` | trusted | trusted | `spec.pop(..)` on an hval-dict local (no lowering); then `for f in spec.get("fields"): f["type"] = ..` loop-element store (route (a) class) |
+| `_specialize_function` | trusted | trusted | same `spec.pop`; then `contracts = spec.get(..) or {}; contracts[c] = ..` (partner store, route (a)) |
+| `sort_functions_by_scc` | trusted | trusted | `sorted_names` (comprehension-bound `List[str]`) `.append` — list-length seam, not hval |
+
+Count **421 -> 420**. Ledger 3. No gate loosened.
+
+**Gates** (vs base worktree at `245f85b0`). Fidelity: `check-self-annotate-sync.sh` rc 0 (926
+un-trusted verbatim), `self-annotate-mirror-check.sh` rc 0 (53/53); `check-trusted-reasons.py`
+rc 0 (420 <-> 420, cgd row removed). Mirror sweep (per file, QUICK): 53/53, 1 MOVED =
+`frontend__monomorphize` (the conversion), L3-tc clean. Corpus+pyref byte-diff: TARGETED to the
+250 files that can reach any changed arm (`PyVal|Any]|deepcopy|: Any`, list in
+`r2c-wall/local-spike/gates/targeted-bytediff-list.txt`; every change is gated on an hval/pyval
+operand or a `deepcopy` call): 6 MOVED (3320, 3321, 3326, 3328, 3472, 3473: a dead `let x = ref 0`
+pre-declaration of a now-seeded hval loop target removed), 0 GONE / 0 APPEARED, refusal texts
+identical; all 6 re-proved to their labels (M1). Witnesses 3590-3601: 4 honest PASS (fail at base:
+refused #280), 4 false twins non-Valid, 4 emit refusals, 1 opaque-membership false claim
+non-Valid (`gates/m1-summary.txt`). Fast planes: see below.
+
+**OWED** (the heavy queue was held by another session's `--slow` + whole-file proof):
+```
+cd /home/fabrice/git/pycsl-r2c
+/home/fabrice/git/pycsl/scratchpad/heavy/heavy.sh .venv/bin/python src/pycsl/pycsl.py src/self-annotate/src/frontend/monomorphize.py --import-path src/pycsl
+/home/fabrice/git/pycsl/scratchpad/heavy/heavy.sh bash bin/byte-diff-sweep.sh <out>   # FULL corpus+pyref sweep, compare vs base 245f85b0
+/home/fabrice/git/pycsl/scratchpad/heavy/heavy.sh bin/run-soundness-planes.sh --slow
+```
+
+**Ranked next.** (1) `.pop(k[, d])` on an hval-dict local (`map_update_none`, statement form) — sd/sf
+first blocker, cheap. (2) Route (a) loop-element write-back for a LOCAL deepcopy root
+(`for f in spec["fields"]: f["type"] = ..`) — the partner is the loop element, sound only with the
+element write-back + no other partner (sd, sf). (3) dict-literal insertion order (builder prepends,
+review §1.5) before any `.items()` over `hpairs`. (4) Suspected (not reproduced): the hval key
+projection `match pairs_get m "name" with Some (HStr s) -> s | _ -> ""` maps a NON-string key to
+`""`, which could make a later `"" in generics` decidable-true where CPython is false.

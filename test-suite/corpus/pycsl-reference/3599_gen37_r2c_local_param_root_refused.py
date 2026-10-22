@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 PyVal = Any
 
 
-#@ ensures True
+#@ ensures \result == 0
 #@ assigns \nothing
 def refuse_param_root(generics: Dict[str, PyVal]) -> int:
     generics["G"]["methods"].append(1)

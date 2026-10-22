@@ -23,3 +23,5 @@
 2026-10-22T13:16:42Z heartbeat: M1 proof job (0 lines)
 2026-10-22T13:26:42Z heartbeat: M1 proof job (5 lines)
 2026-10-22T13:33:16Z M1: 6 movers re-proved to labels; 12 witnesses match labels at cand, all FAIL at base; committing; next fast planes
+2026-10-22T13:43:46Z chain-plan section written; fast planes queued
+2026-10-22T13:53:01Z planes RED 2 fixed (underdecl: flag moved to assign handler; vacuity: 3 witnesses given real claims); re-proving
