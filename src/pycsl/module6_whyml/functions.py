@@ -359,12 +359,18 @@ class FunctionEmissionMixin:
         # augmented assignment of a non-scalar, passing it to a user function that may write
         # it) refuses. A pure PERMUTATION (`a, b = b, a`: distinct plain names, the same set
         # on both sides) creates no new sharing and is exempt. Walked inline (lesson a4).
+        # A first cut taking EVERY name under a call as a partner refused the mirror's own
+        # `_refine_tuple_return_type` (`array_vars, dict_vars = IRScanner.find_array_and_
+        # dict_vars(body_stmts); array_vars |= ...`: a list argument cannot come back as a
+        # set) -- the second-population lesson again, so call arguments are kind-filtered.
         if not (func.get("trusted") or func.get("abstract")):
             _st303 = func.get("symbol_table") or {}
             _sc303 = ("int", "float", "bool", "str", "string", "bytes", "complex", "None",
                       "NoneType")
             _edges303 = []
             _seeds303 = set()
+            _tus303 = []
+            _uk303 = {}
             _stk303 = [func.get("body") or []]
             while _stk303:
                 _n303 = _stk303.pop()
@@ -378,8 +384,20 @@ class FunctionEmissionMixin:
                 if (_n303.get("stmt") == "Assign" and isinstance(_n303.get("target"), str)
                         and isinstance(_v303, dict) and _v303.get("type") == "Var"):
                     _edges303.append((_n303["target"], str(_v303.get("name"))))
-                if _n303.get("stmt") != "TupleUnpack" or not isinstance(_v303, dict):
-                    continue
+                _f303 = str(_n303.get("func", "") or "")
+                if _n303.get("type") == "Call" and "." in _f303:
+                    if _f303.rsplit(".", 1)[1] in ("add", "discard", "update",
+                                                   "intersection_update", "popitem",
+                                                   "setdefault", "difference_update"):
+                        _uk303.setdefault(_f303.rsplit(".", 1)[0], "M")
+                    elif _f303.rsplit(".", 1)[1] in ("append", "extend", "insert"):
+                        _uk303.setdefault(_f303.rsplit(".", 1)[0], "L")
+                if _n303.get("stmt") == "AugAssign" and _n303.get("op") in ("|", "&", "^"):
+                    _uk303.setdefault(str(_n303.get("target")), "M")
+                if _n303.get("stmt") == "TupleUnpack" and isinstance(_v303, dict):
+                    _tus303.append(_n303)
+            for _n303 in _tus303:
+                _v303 = _n303.get("value")
                 _tg303 = [str(_t) for _t in (_n303.get("targets") or [])]
                 _el303 = _v303.get("elts") if _v303.get("type") in ("Tuple", "List") else None
                 if (isinstance(_el303, list) and len(_el303) == len(_tg303)
@@ -395,28 +413,45 @@ class FunctionEmissionMixin:
                 for _t303, _e303 in _slots303:
                     if _t303 == "_" or _st303.get(_t303) in _sc303:
                         continue
+                    # A name reached as a CALL ARGUMENT is a partner only when its kind
+                    # (list vs dict/set) can be the target's (the #283/#295 precedent: a
+                    # callee hands back an object of the result's kind); the target's kind
+                    # is its declared type, else its use (`|=`/`.add` -> map, `.append` ->
+                    # list), else unknown (every kind). A method receiver is a partner when
+                    # it is a known collection or `self`.
+                    _tk303 = ("L" if _st303.get(_t303) in ("list", "bytearray")
+                              else "M" if _st303.get(_t303) in ("dict", "set", "frozenset")
+                              else _uk303.get(_t303))
                     _ps303 = set()
-                    _es303 = [_e303]
+                    _es303 = [(_e303, False)]
                     while _es303:
-                        _x303 = _es303.pop()
+                        _x303, _ua303 = _es303.pop()
                         if isinstance(_x303, list):
-                            _es303.extend(_x303)
+                            _es303.extend((_y, _ua303) for _y in _x303)
                             continue
                         if not isinstance(_x303, dict):
                             continue
                         _f303 = str(_x303.get("func", "") or "")
                         if _x303.get("type") == "Call" and _f303 == "len":
                             continue
-                        if (_x303.get("type") == "Var"
-                                and _st303.get(_x303.get("name")) not in _sc303):
+                        _pt303 = _st303.get(_x303.get("name"))
+                        _pk303 = ("L" if _pt303 in ("list", "bytearray")
+                                  else "M" if _pt303 in ("dict", "set", "frozenset") else None)
+                        if (_x303.get("type") == "Var" and _pt303 not in _sc303
+                                and not (_ua303 and _tk303 and _pk303
+                                         and _pk303 != _tk303)):
                             _ps303.add(str(_x303.get("name")))
-                        if _x303.get("type") == "Call" and "." in _f303:
+                        if (_x303.get("type") == "Call" and "." in _f303
+                                and (_f303.startswith("self.")
+                                     or _st303.get(_f303.split(".", 1)[0]) in (
+                                         "list", "bytearray", "dict", "set", "frozenset"))):
                             _ps303.add(_f303.split(".", 1)[0] + (
                                 "." if _f303.startswith("self.") else ""))
                         if (_x303.get("type") in ("FieldGet", "Attribute")
                                 and _x303.get("object", "self") == "self"):
                             _ps303.add("self.")
-                        _es303.extend(_y for _y in _x303.values()
+                        _es303.extend((_y, _ua303 or _x303.get("type") == "Call")
+                                      for _y in _x303.values()
                                       if isinstance(_y, (list, dict)))
                     _ps303.discard(_t303)
                     if _ps303:
