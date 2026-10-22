@@ -2567,6 +2567,62 @@ class FunctionEmissionMixin:
                 _r34_stack.extend(_n34.values())
             elif isinstance(_n34, (list, tuple)):
                 _r34_stack.extend(_n34)
+        # (#49) ROUTE #300 — THE FOLD IS ONLY VALID FOR A NAME WITH EXACTLY ONE STATIC BINDING.
+        # `_track_collection_metadata` blacklists a rebound name only when the FIRST binding it
+        # sees was a literal (it registered, or refused and blacklisted). A first binding that
+        # is NOT a literal registers nothing and leaves no trace, so a LATER literal binding in
+        # one arm looked like the first one and its size answered on EVERY path. MEASURED at
+        # 2cef1801: `d = e; if c == 1: d = {"a": 1}; return len(d)` and the loop twin
+        # (`for i in range(c): d = {"a": 1}`) PROVED `\result == 1` (CPython g(0, {}) == 0).
+        # So the binding count is taken HERE, statically, over EVERY binding form the IR
+        # carries: a formal parameter, `with ... as` (`with_bindings`), and in the body any
+        # string `target` (Assign, AugAssign, GhostAssign, For, NamedExpr, a comprehension
+        # generator), any `targets` / `tuple_targets` list (TupleUnpack, tuple For), an
+        # `except ... as` handler `name`, and a match `Capture` name. A name bound twice or
+        # more is fold-unsafe for size AND elements, whatever its first binding was. A
+        # comprehension variable is its own scope in Python 3 — counting it over-refuses
+        # (completeness only). No nested `def` (mirror-coverage ratchet, see route #60 below).
+        _r300_binds: Dict[str, int] = {}
+        for _r300_p in (func.get("formal_params") or []):
+            if isinstance(_r300_p, str):
+                _r300_binds[_r300_p] = _r300_binds.get(_r300_p, 0) + 1
+        for _r300_p in (func.get("with_bindings") or []):
+            if isinstance(_r300_p, str):
+                _r300_binds[_r300_p] = _r300_binds.get(_r300_p, 0) + 1
+        _r300_lits: Set[str] = set()
+        _r300_stack: List[Any] = [func.get("body", [])]
+        while _r300_stack:
+            _n300 = _r300_stack.pop()
+            if isinstance(_n300, dict):
+                _r300_names: List[Any] = []
+                if isinstance(_n300.get("target"), str):
+                    _r300_names.append(_n300["target"])
+                for _r300_k in ("targets", "tuple_targets"):
+                    if isinstance(_n300.get(_r300_k), (list, tuple)):
+                        _r300_names.extend(_n300[_r300_k])
+                if ("exc_type" in _n300 or _n300.get("pattern") == "Capture") and isinstance(
+                        _n300.get("name"), str):
+                    _r300_names.append(_n300["name"])
+                for _r300_t in _r300_names:
+                    if isinstance(_r300_t, str):
+                        _r300_binds[_r300_t] = _r300_binds.get(_r300_t, 0) + 1
+                if (_n300.get("stmt") == "Assign" and isinstance(_n300.get("target"), str)
+                        and isinstance(_n300.get("value"), dict)
+                        and _n300["value"].get("type") in (
+                            "ArrayLit", "ListLit", "Tuple", "SetLit", "DictLit", "String")):
+                    _r300_lits.add(_n300["target"])
+                _r300_stack.extend(_n300.values())
+            elif isinstance(_n300, (list, tuple)):
+                _r300_stack.extend(_n300)
+        for _r300_t, _r300_c in _r300_binds.items():
+            if _r300_c > 1:
+                self._fold_unsafe_elems.add(_r300_t)
+                self._fold_unsafe_sizes.add(_r300_t)
+                # A literal-bound name rebound anywhere is what `_rebound_collections`
+                # always meant (its consumers — the all/any oracle decline — key on it);
+                # before, only a literal FIRST binding put it there.
+                if _r300_t in _r300_lits:
+                    self._rebound_collections.add(_r300_t)
         # (#49) ROUTE #60 (relaunch #55) — `len()` ON A DICT COUNTED STORE SITES.
         # `_handle_array_set_stmt` used to INCREMENT the folded size on every dict
         # store. The fold is a SYNTACTIC count of store sites, so it was blind to key

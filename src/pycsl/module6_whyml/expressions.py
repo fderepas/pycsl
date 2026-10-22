@@ -1327,6 +1327,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         faithfully. Emitted only under the `_uses_pyval` gate (a `Dict[str, PyVal]`)."""
         if isinstance(v_ir, dict):
             t = v_ir.get("type")
+            # (#49) ROUTE #299 — A STARRED ELEMENT IS NOT ONE ELEMENT. The arm below wraps each
+            # SYNTACTIC element as one `HCons`, so `[*range(2), 3]` became a 2-cell list (an
+            # `HInt <opaque>` for the star) and `len`/`bool`/`in` and the ch30 `hval_to_seq`
+            # bridge read the wrong list: MEASURED at 2cef1801, `len(d.get("a")) == 2` (CPython
+            # 3), `bool([*range(0)])` true, `"q" in [*"q"]` false, a starred record list
+            # counted 2 (CPython 3) — all PROVED. A `**m` entry of a dict literal (key IR
+            # `None`) was likewise one PCons under the lowered `None` key. The splice is not
+            # modelled, so the value is an UNCONSTRAINED carrier of the right constructor:
+            # `(HArr (any hval_list))` / `(HMap (any hpairs))` — the list-ness / dict-ness is
+            # Python's (isinstance stays decided), the contents and length are unknown. A
+            # fresh `any` per evaluation; in a spec (no `any`) the literal is REFUSED.
+            # No new axiom (ledger stays 3).
+            _r299_star = (
+                (t == "ArrayLit" and any(
+                    not isinstance(_r299_e, dict) or _r299_e.get("type") == "Starred"
+                    for _r299_e in (v_ir.get("elts", []) or [])))
+                or (t == "DictLit" and any(
+                    not isinstance(_r299_k, dict) or _r299_k.get("type") == "None"
+                    for _r299_k in (v_ir.get("keys", []) or []))))
+            if _r299_star:
+                if self._in_spec:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        "a list/dict literal with a starred (`*x` / `**m`) element, stored "
+                        "as a heterogeneous (PyVal) value, is not modelled in a "
+                        "specification (route #299)")
+                return "(HArr (any hval_list))" if t == "ArrayLit" else "(HMap (any hpairs))"
             if t == "ArrayLit":
                 acc = "HNil"
                 for e in reversed(v_ir.get("elts", []) or []):
