@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #301 REPAIRED (r301 executor, off 25a03299; inline; no new def/field; ledger 3; mirror twins `\trusted`).
+##   Module 5 records `unpack_target_refused` for every Assign/for/comprehension target outside {Name, flat tuple of
+##   Names} (List, Starred, nested, attribute/subscript elements); Module 6 refuses it where the body is lowered
+##   (imported/trusted bodies exempt). Also: a tuple for-target COMPONENT read outside its loop without a covering
+##   re-binding is refused (never written back). Witnesses 3610, 3612-3617, 3622, 3623 PROVED -> REFUSED; 3611,
+##   3618-3620 FAIL -> REFUSED; control 3621 PASS both; route witness rc=0 -> rc=1. Root 0/0/0, pyref 0/0/0, mirror
+##   0/0/0 (nothing owed); fast 60/61 (the RED, refusal-witness UNWITNESSED 6 > 5, is RED at base). Residual: plain
+##   Name for-target read after a non-index loop still PROVES stale (route #36 residue; witnesses-r301/residual_*.py).
+
 ## gen #37 (2026-10-22): #301 (starred assignment target dropped by the front end; [*h, t] = e keeps t) OPENED (found by r299);
 ##   rc=0 on main, CPython 5.
 
