@@ -2024,3 +2024,120 @@ only (`. scratchpad/g29/env.sh && bin/run-soundness-planes.sh --slow`); no whole
 hval value builtins (`set`/`bool`/`list` of an hval) + a string projection of an hval key into a
 `Dict[str, ..]` self-field — together they leave `_build_callee_no_exception_summary` with only
 its self-field typing; nested `List[List[Dict[str, PyVal]]]` params for `_merge_records_best_of_n`.
+
+## Re-measurement at HEAD — ch31 (gen #37)
+
+Base `0f7cb454` (main, count 449). Lever: ch29 gap #3, builtins on an hval value (`bool`,
+`set`, `list`, `sorted`, `len` on non-list carriers, `.keys()/.items()` over a nested HMap,
+f-strings of hvals). **Spike PASS for 6 of 7, lever PARTLY BUILT (4 lowerings), 0 markers
+converted (449 -> 449).**
+
+**Spike** (`getting-better/dict-value-wall/ch31/spike_ch31.mlw`, z3 4.13.3, `split_vc`, 20 s;
+outputs `spike_ch31.z3*.out`). Over the ch30 hval theory, one definitional `let function` per
+builtin, dispatching on the carrier, with every carrier whose Python result is unknown sent to
+an UNINTERPRETED `val function` (never a constant), and two realizable `val function` specs
+(`hstr_len` = `String.length`, `hstr_lt` <-> `String.lt`, the `hpairs_key_eq` class; no kernel
+axiom):
+
+```
+builtin        lowering (by carrier)                                         TRUE claim   FALSE twin
+bool(h)        hval_truthy h (same fn as `if h:`)                            Valid        Timeout x2
+len(h)         HArr fold | HStr hstr_len | HMap distinct-key count | other   Valid x2     Timeout x3
+f"{h}"         HStr s -> s | other -> hval_fmt_other (see below)             Valid        Timeout x2
+x in set(h)    HArr list mem | HMap key presence | other uninterpreted       Valid x2     Timeout x2
+list(h)        = ch30 hval_to_seq (HArr -> seq; other uninterpreted)         Valid        Unknown
+sorted(h)      HArr of all-HStr -> insertion sort by hstr_lt; else uninterp. Valid (*)    Timeout x2
+h.keys()       HMap -> distinct keys in Python insertion order (deepest      PARTIAL:     Unknown/
+               binding first, `Seq.snoc`); other uninterpreted               1 sub-goal   Timeout
+                                                                             Timeout
+goal false                                                                   -            Timeout
+```
+(*) `sorted` needs `-a compute_in_goal` (plain z3: Out of memory); `keys` is not closed even
+with it, so `.keys()/.items()` over a nested HMap is NOT built (the insertion-order dedup
+definition is recorded in the spike; it assumes HMaps are only built by prepend, true today).
+
+**Soundness check of `hint_of` in f-strings (the task's question).** At `0f7cb454` an hval
+f-string segment (`-> str` functions / `@mutable_state` classes, `_fstring_str_part`) was
+`int_to_string (hint_of h)`, so an `HStr "x"` rendered from `hint_of = 0`. NOT a false proof:
+`int_to_string` is a non-deterministic program `val` (no `function`), so two calls on `0` are
+unrelated; the spike's `head_fstr_collapse` (`f"{'x'}" == f"{'y'}"` in the HEAD model) does not
+prove, and `probe/fs_bug3.py` / `fs_bug4.py` fail by Timeout. It was only incomplete (an HStr
+segment could never be read). Fixed anyway (below).
+
+**SOUNDNESS — CONFIRMED false proof at `0f7cb454`, FIXED.** The `_typeddict_field_access (d)`
+arm of `_emit_membership` (`x in <hval local>["k"]`) lowered through `hval_str_mem`, which reads
+FALSE on every non-`HArr` carrier. Repro `getting-better/dict-value-wall/ch31/probe/w_in2_twin.py`:
+`holder: Dict[str, PyVal] = {"r": {"fields": {"a": 1}}}; rec = holder.get("r"); if "a" in
+rec["fields"]: return 1; return 2` with `#@ ensures \result == 2` -> at `0f7cb454` pycsl rc 0 "All
+contracts formally proven" (`w_in2_twin.base.out`); CPython prints 1. The true claim `== 1` timed
+out at base (`w_in2.base.out`). (A top-level `Dict[str, PyVal]` local, `probe/sb_in.py`, does not
+reach this arm: it takes R2b.) Now the R2b carrier dispatch (`HArr` keeps the same fold, `HMap`
+key presence, other `hval_in_other`): `w_in2` PROVES, its twin fails by Timeout; witnesses
+3538/3539.
+
+**Build** (`73b71ed9`, `src/pycsl/module6_whyml/expressions.py`, body context only, gated on
+`_expr_is_pyval`, fail-closed): `bool(<hval>)` -> `(if hval_truthy h then 1 else 0)`;
+`len(<non-Var hval expr>)` -> `HArr hval_list_len | HStr hstr_len | _ hval_len_other`; the
+f-string hval segment -> `HStr s -> s | _ -> hval_fmt_other h` where `hval_fmt_other` is a
+program `val` on purpose (`HInt` conflates int / bool / None, so `f"{True}"` and `f"{1}"` share
+a carrier but not a text: a deterministic reader would equate them); the membership arm above.
+NOT built: `set(h)` (needs a set-valued carrier type for the local, e.g. a wrapper `hset` that
+only `in` accepts), `list(h)` into a local (needs `seq hval` LOCALS, not covered by ch30),
+`sorted(h)` (loop over `hval_sorted`), `.keys()/.items()` (spike PARTIAL). Each is spiked; none
+has a marker for which it is the last blocker.
+
+**Witnesses** 3530-3539 (all run under CPython): 3530 `bool(x)` and `not x` unreachable (base:
+L3-tc), 3532 `bool` on `HStr` (base: L3-tc), 3534 `len` of an `HStr` read = 3 (base: L3-tc),
+3536 f-string of an `HStr` segment = "ab!" (base: Timeout), 3538 `in` on an `HMap` subscript of
+an hval local (base: Timeout, and its twin 3539 PROVED at base); 3531/3533/3535/3537/3539 FAIL twins, each failing by proof
+(Timeout), 0 type errors.
+
+```
+marker (cluster)                         builtin blocker at 0f7cb454 -> after ch31          next blocker (measured)           verdict
+Preamble._emit_preamble_axioms (P)       bool(<hval>) bool_conv -> hval_truthy (FIRES)       `if not seen` truthiness of a      SKIP
+                                                                                             StrSet local (L3-tc, int vs
+                                                                                             StrSet.set); then ch29's >= 4
+Transpiler._build_callee_no_exc.. (P)    bool(<hval>) -> hval_truthy (FIRES)                 hval `name` as key of int-keyed    SKIP
+                                                                                             self maps; set(<hval> or []) /
+                                                                                             list(<hval> or []) into Set[str]/
+                                                                                             List[str] self-map values
+core_ir_semantic.run_ir_semantic_checks  set(<hval> or []) -> unchanged (not built)          unchanged (ch29)                   SKIP
+monomorphize._collect_instantiations     set(<nested map>) -> unchanged (not built)          unchanged (ch29)                   SKIP
+Preamble._emit_preamble_uses (P)         sorted(<hval>) -> unchanged (not built)             unchanged (ch29)                   SKIP
+monomorphize._check_gt4_polymorphic_..   .items() over Dict[str, Dict[str, PyVal]] PARAM    unchanged: a top-level map param,  SKIP
+                                         (not an HMap) -> unchanged                          not a nested hval (out of lever)
+pycsl._residual_selectors_from_records   f-string of hvals: HStr faithful in -> str fns      first blocker unchanged (ch30:     SKIP
+  (J)                                    (FIRES only there)                                  computed receiver `get_1`)
+```
+(`epa` and `bce` re-measured by porting the live body into a private `src/` copy, retyping the
+param `Dict[str, PyVal]` / `List[Dict[str, PyVal]]`, `--no-proof`; the other five are
+unchanged by construction: their builtin path is not touched by the build.)
+
+**Gates** (this worktree vs a base worktree at `0f7cb454`). Corpus byte-diff 1934 base / 1944
+cand `.mlw`, 0 MOVED / 0 GONE / 0 APPEARED (10 new witnesses); pyref 2186/2186, 0 MOVED. Mirror
+sweep 53/53: 2 MOVED, both the intended change: `module6_whyml__expressions` (the ported
+`_fstring_str_part` body, a VERIFIED method, + the `_typeddict_field_access` membership arm) and
+`module6_whyml__functions` (`_build_param_list` / `_compute_return_type`, `f"int{bounded_int}"`
+now `hval_fmt_other`); both L3-tc clean. `check-self-annotate-sync.sh` rc 0 (after porting
+`_fstring_str_part`), `self-annotate-mirror-check.sh` rc 0, `check-trusted-reasons.py` rc 0,
+count 449, ledger 3 (no certificate change; the new specs are realizable `val` specs).
+Mirror movers re-proved to labels with `--fun` (rc 0, "Verification SUCCESS ... ONLY"):
+`expressionemissionmixin___fstring_str_part`, `expressionemissionmixin___typeddict_field_access`,
+`functionemissionmixin___build_param_list`, `functionemissionmixin___compute_return_type`.
+`run-soundness-planes.sh` (fast + conversion tier) 61/61 rc 0.
+
+**OWED** (whole-file proofs of the two moved mirrors; `--fun` assumes callee contracts):
+```
+. scratchpad/g29/env.sh
+/home/fabrice/git/pycsl/scratchpad/heavy/heavy.sh .venv/bin/python src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/expressions.py --import-path src/pycsl
+/home/fabrice/git/pycsl/scratchpad/heavy/heavy.sh .venv/bin/python src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/functions.py --import-path src/pycsl
+bin/run-soundness-planes.sh --slow
+```
+
+**Ranked next** (for the builtin family): (1) a set-valued carrier for `set(<hval>)` locals
+(`hset` wrapper, `in` only; `run_ir_semantic_checks`, `bce`), (2) StrSet truthiness (`if not
+seen` on a `Set[str] = set()` local; now `epa`'s first blocker), (3) `seq hval` LOCALS for
+`list(<hval>)` / `for x in sorted(<hval>)` (the spike's `hval_sorted` is ready), (4) `.keys()`
+insertion-order dedup (spike PARTIAL: needs a lemma or a different definition). The self-map
+key/value typing in `bce` (an hval `name` key into `Dict[str, Set[str]]` fields) stays its
+first blocker.
