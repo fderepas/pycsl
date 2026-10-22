@@ -322,6 +322,14 @@ def _classify_assign(node: ast.Assign):
     if len(node.targets) > 1:
         return "NORMALIZED", "multi-target `a = b = v` -> one Assign per target"
     t = node.targets[0]
+    # (#301) ROUTE #301: a LIST target, a STARRED target, and a tuple target with any
+    # non-Name element (starred / nested / attribute / subscript) were DROPPED (wholly or
+    # element-wise) by `_py_stmt_assign`; Module 5 now records them and Module 6 refuses
+    # the lowered body (`unpack_target_refused`). Only a flat tuple of Names is handled.
+    if isinstance(t, ast.Tuple) and not all(isinstance(e, ast.Name) for e in t.elts):
+        return "REFUSED", "tuple target with a non-Name element (route #301)"
+    if isinstance(t, (ast.List, ast.Starred)):
+        return "REFUSED", "%s assignment target (route #301)" % type(t).__name__
     if isinstance(t, (ast.Name, ast.Tuple, ast.Subscript)):
         return "HANDLED", "Assign -> %s" % type(t).__name__
     if isinstance(t, ast.Attribute):

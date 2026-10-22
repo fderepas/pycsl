@@ -339,7 +339,9 @@ class FunctionEmissionMixin:
         # `unpack_target_refused`; it is refused here, where the body is LOWERED.
         if func.get("unpack_target_refused") and not (func.get("trusted") or func.get("abstract")):
             from errors import PyCSLSemanticError
-            raise PyCSLSemanticError(func["unpack_target_refused"])
+            raise PyCSLSemanticError(
+                "dropped unpacking / loop target refused (route #301) -- "
+                + str(func["unpack_target_refused"]))
         # (#49) ROUTE #171 — A HANDLER FOR AN IMPLICIT EXCEPTION OBSERVES AN OPERATION THE
         # MODEL SAYS CANNOT FAIL. Without `no_exception` the implicit raises of the modelled
         # operations are ambient: a placeholder array read, `int("1.5")`'s opaque
