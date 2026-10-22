@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #302 (plain-name for target over a non-index sequence read after the loop keeps its pre-loop value; route
+##   #36 residue) OPENED (r301 executor).
+
 ## gen #37 (2026-10-22): #301 REPAIRED (r301 executor, off 25a03299; inline; no new def/field; ledger 3; mirror twins `\trusted`).
 ##   Module 5 records `unpack_target_refused` for every Assign/for/comprehension target outside {Name, flat tuple of
 ##   Names} (List, Starred, nested, attribute/subscript elements); Module 6 refuses it where the body is lowered
