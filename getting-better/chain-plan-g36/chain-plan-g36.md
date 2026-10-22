@@ -2196,7 +2196,7 @@ operand or a `deepcopy` call): 6 MOVED (3320, 3321, 3326, 3328, 3472, 3473: a de
 pre-declaration of a now-seeded hval loop target removed), 0 GONE / 0 APPEARED, refusal texts
 identical; all 6 re-proved to their labels (M1). Witnesses 3590-3601: 4 honest PASS (fail at base:
 refused #280), 4 false twins non-Valid, 4 emit refusals, 1 opaque-membership false claim
-non-Valid (`gates/m1-summary.txt`). Fast planes: see below.
+non-Valid (`gates/m1-summary.txt`). Fast planes (`run-soundness-planes.sh`): run 1 had 2 RED (assigns-underdeclaration: a `self._pyval_get_as_string` write added to `_recognize_pyval_or_default`, moved into `_handle_assign_stmt` whose frame has it; claim-vacuity: new witnesses with `ensures True` / `requires True`, given real claims); run 2: 60/61 green + claim-vacuity RED on `requires True` only, fixed (2 lines removed) and re-run standalone: OK (1791 at ceiling). 3596/3599/3600 re-proved after the edit (refused / PASS; base: FAIL).
 
 **OWED** (the heavy queue was held by another session's `--slow` + whole-file proof):
 ```

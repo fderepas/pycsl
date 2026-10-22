@@ -8,7 +8,6 @@ from typing import Any, Dict, List
 PyVal = Any
 
 
-#@ requires True
 #@ ensures \result == len(funcs)
 #@ assigns \nothing
 def refuse_below_param(funcs: List[Dict[str, PyVal]]) -> int:

@@ -8,7 +8,6 @@ from typing import Any, Dict, List
 PyVal = Any
 
 
-#@ requires True
 #@ ensures \result == 1
 #@ assigns \nothing
 def cgd_min(funcs: List[Dict[str, PyVal]]) -> int:
