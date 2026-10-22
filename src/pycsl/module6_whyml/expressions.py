@@ -11062,7 +11062,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # as do `None` and `bool`, so the op never takes a start fabricated at the argument
         # position itself.
         _fs_work = list((expr.get("args") or [])[1:2]) if len(args) == 2 else []
-        _fs_ok = (method == "find" and not self._in_spec and len(_fs_work) == 1)
+        # gen #37 ch34: `s.startswith(prefix, start)` takes the SAME start gate (was the
+        # opaque receiver-dropped `<recv>_startswith_2 prefix start`, int-typed `prefix`).
+        _fs_ok = (method in ("find", "startswith") and not self._in_spec
+                  and len(_fs_work) == 1)
         while _fs_ok and _fs_work:
             _s = _fs_work.pop()
             if not isinstance(_s, dict):
@@ -11078,7 +11081,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _fs_work.extend([_s.get("left"), _s.get("right")])
             else:
                 _fs_ok = False
-        if (_fs_ok and len(expr.get("args") or []) == 2
+        if (_fs_ok and method == "startswith" and len(expr.get("args") or []) == 2
+                and self._is_string_expr(expr["args"][0])):
+            # Python: for 0 <= start, `s.startswith(p, start)` is True iff `p` occurs in
+            # `s` at index `start` (False when start > len(s); `p == ""` at start ==
+            # len(s) is True). A negative `start` counts from the end: left
+            # unconstrained beyond the 0/1 result (sound, never a fabricated value).
+            self._add_abstract_op(
+                "val str_startswith_from_op (s: string) (prefix: string) (start: int) : int\n"
+                "    ensures { (result = 0) || (result = 1) }\n"
+                "    ensures { 0 <= start -> ((result = 1) <->\n"
+                "      (start + String.length prefix <= String.length s /\\\n"
+                "       String.substring s start (String.length prefix) = prefix)) }")
+            r = self._expr_to_whyml(recv_ir, local_refs, invariant_ctx, subst)
+            return f"(str_startswith_from_op {r} {args[0]} {args[1]})"
+        if (_fs_ok and method == "find" and len(expr.get("args") or []) == 2
                 and self._is_string_expr(expr["args"][0])):
             self._add_abstract_op(
                 "val str_find_from_op (s: string) (sub: string) (start: int) : int\n"

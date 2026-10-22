@@ -698,3 +698,60 @@ chain has an M/L blocker behind), so the route #301 refusal is LEFT IN PLACE.
 OWED (exact commands, from the worktree root, why3 on PATH via `. scratchpad/g29/env.sh`):
 `scratchpad/heavy/heavy.sh env PYTHONHASHSEED=0 .venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/expressions.py --import-path src/pycsl`
 `scratchpad/heavy/heavy.sh env PYTHONHASHSEED=0 .venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/stmt_control_flow.py --import-path src/pycsl`
+
+## Re-measurement at HEAD — ch34 (gen #37)
+
+Measured 2026-10-22 on worktree `pycsl-g37ch34` (base `67edd2fc`). Two levers ch33 named, then a
+census re-measure (`census.py`, full chain, scratch tree) of the S markers the seams could touch:
+`ch34-chains.jsonl`. **Result: 0 conversions (420 -> 420); 3 fail-closed emitter seams landed.**
+
+Landed (completeness, fail-closed, witnesses 3750-3756):
+- (A) module-level LIST/TUPLE-of-str constant read ONLY as a `for` iterable
+  (`module_const_str_lists`, collected inline in `Module5.visit_Module`: bound exactly once by a
+  plain Name, all elements str constants, never `#@ shared`/`global`/param/def/class name, no other
+  Store/Del, EVERY Load is a `for` iter, >= 1 such read) -> Module 6 `_str_lit_seq_elts` iterates
+  the real `seq string` (same materialisation as a local str literal) instead of
+  `val constant NAME : int` + `iter_get`; `use seq.Seq` added when collected. (3750 PASS / 3751
+  false twin / 3754 shadowing fence.)
+- (A') `s.startswith(prefix, start)` (2-arg) -> `str_startswith_from_op s prefix start`
+  (0/1; for `0 <= start`: 1 iff `start+len(prefix) <= len(s)` and the substring at `start` is
+  `prefix`; negative start unconstrained). Was the receiver-DROPPED `s_startswith_2 prefix start`
+  with int-typed prefix. Same start gate as ch25's `find(sub, start)`. (3752 PASS / 3753 twin.)
+- (B) Module 5 drops a parameter named `self` for METHODS ONLY (`_selfdrop34 = 'self' if
+  self._current_class else None` in `_build_function_symbol_table` + `visit_FunctionDef`, 7 sites).
+  A module-level function's `self` is an ordinary parameter (was an unbound `self` symbol).
+  (3755 PASS: int `self` and record-typed `self` free functions; 3756 twin.) Not touched: the
+  VERIFIED `_build_overload_param_guard` (still skips a `self` arg; overload stubs only).
+
+Per-marker verdicts:
+
+| marker | after the ch34 seams | verdict |
+|---|---|---|
+| `proof2why3.parser.lex` | `_OP_TOKENS` now a real `seq string`, `s.startswith(op, i)` faithful: L3-tc CLEAN. Whole-file proof of the mirror: 3 TERMINATION goals unproven (the 3 `while` loops). The inner ones only need a variant; the OUTER `while i < n` cannot make progress in the model: `c.isdigit()` (`py_isdigit_op c`) and the inner `s[j].isdigit()` (`isdigit_1 (str_sub_op s j 1)`) are two unrelated uninterpreted ops, so at `j = i` the inner test may be false and `i := j` stalls; likewise `c.isalpha()` does not imply `s[j].isalnum()` in the model | CHARCLASS (M): needs a deterministic char-class model (`isalpha => isalnum`, one op for both receivers). ch33's "one blocker left" was an L3-tc artefact. NOT converted |
+| `_const_value_getter` / `_setter` | `self` kept: L3-tc clean, body = `getattr_2 self 1296187470` / `setattr_3 self 1296187470 value` over an int-erased untyped `self` | FACADE. NOT converted |
+| `_lex_contract` | unchanged: `m.lastgroup` int vs string, `m.group()` opaque | INTSTR (M) |
+| `_emit_preamble_uses` | unchanged: a LOCAL list literal with an f-string head hashes its str literals (`Seq.cons 165382557 ...`), then `sorted(needs[...])` | LISTSTR (M) |
+| `_split_rocq_check_output` | unchanged: `lines[i].strip() == qn` (erased `lines`), `qualnames.index` | LISTSTR (M) |
+| `normalize_surface` | unchanged: `out.replace(u, a)` over erased pairs | ERASED (M) |
+
+Census of module-level all-str List/Tuple constants read by a marker (live `src/pycsl`): only
+`parser._OP_TOKENS` (lex) is for-only; `_LOCATED` (`_build_nodes`), `_MULTI_QUOTES`
+(`_str_literal_helper`), `_MODULE_PREFIXES` (`Module1._assign`), `_EMIT_IR_NODE_KEYS`/
+`_EMIT_IR_STR_KEYS` (`_is_string_expr`), `_MKTUPLE_ELTS_HANDLERS` (`_handle_isinstance`) are read
+by membership / other uses (not collected; fail-closed, unchanged). The fix unlocks no marker.
+
+Gates (this increment): corpus 2006 -> 2013 + pyref 2186/2186: 0 MOVED / 0 GONE / 0 APPEARED (7 new
+witnesses). Mirror 53/53: 1 MOVED = `frontend/pure_ast` (exactly the two `\trusted` vals gain their
+`self` parameter: `val _const_value_getter (self: int)`, `val _const_value_setter (self: int)
+(value: int)`), L3-tc clean. sync rc0, mirror-check rc0, trusted-reasons rc0 (420), raises-honesty
+61 (ratchet 61), claim-vacuity OK, fast planes 61/61. No new refusal (no census row). Count 420 -> 420.
+Witnesses: 3750/3752/3755 PASS at HEAD and FAIL at base (3755 base: unbound `self`); twins
+3751/3753/3756 and fence 3754 FAIL (3751/3753/3756 by proof, L3-tc clean; 3754 at L3-tc: a
+`List[str]` PARAMETER iterated still int-types its element -- pre-existing, independent).
+
+OWED (exact command, from the worktree root, why3 on PATH via `. scratchpad/g29/env.sh`):
+`scratchpad/heavy/heavy.sh env PYTHONHASHSEED=0 .venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/frontend/pure_ast.py --import-path src/pycsl`
+
+Observed, not fixed: `--fun lex` on the `proof2why3/parser.py` mirror emits `variant` on a
+`val` (`_parser__parse_quant`) -> L3-tc error "unexpected 'variant' clause"; the whole-file
+proof is unaffected. `_build_overload_param_guard` (VERIFIED) still skips any arg named `self`.

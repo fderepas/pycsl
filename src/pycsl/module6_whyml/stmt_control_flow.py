@@ -348,7 +348,19 @@ class ControlFlowStmtMixin:
                 return elts
             return None
         if t == "Var":
-            return getattr(self, "_str_literal_seq_locals", {}).get(iter_ir.get("name"))
+            _loc = getattr(self, "_str_literal_seq_locals", {}).get(iter_ir.get("name"))
+            if _loc is not None:
+                return _loc
+            # gen #37 ch34: a module-level str-list constant read only as a `for` iterable
+            # (`module_const_str_lists`, collected fail-closed in Module 5) -- the SAME
+            # String-elt list a local str literal yields. Never when the name is a local /
+            # parameter of the current function (the collector already excludes any
+            # Store/param of the name; this is belt and braces).
+            _msl = ((getattr(self, "ir", {}) or {}).get("module_const_str_lists") or {})
+            _nm = iter_ir.get("name")
+            if (_nm in _msl
+                    and _nm not in (getattr(self, "_current_symbol_table", {}) or {})):
+                return [{"type": "String", "value": _v} for _v in _msl[_nm]]
         return None
 
     def _classify_iterable(self, iter_ir: Dict[str, Any],

@@ -2084,6 +2084,7 @@ class PreambleEmissionMixin:
           or any(_c30v == "hval" for f in functions
                  for _c30v in (f.get("param_list_elem_types", {}) or {}).values()) \
           or bool(getattr(self, "_module_str_list_constants", None)) \
+          or bool((getattr(self, "ir", {}) or {}).get("module_const_str_lists")) \
           or any(self._body_uses_str_literal_for(body) for body in all_bodies) \
           or self._uses_stmt_ir() \
           or _ext36 \

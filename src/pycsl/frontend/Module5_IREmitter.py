@@ -399,6 +399,66 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if module_const_str_sets:
             self.program_ir["module_const_str_sets"] = module_const_str_sets
 
+        # gen #37 ch34: module-level constant LIST/TUPLE-of-str literals
+        # (`proof2why3/parser._OP_TOKENS = ["->", ">=", ...]`), read ONLY as a `for`
+        # iterable. Recorded as `{NAME: [str, ...]}` (source order) so Module 6 iterates
+        # the REAL `seq string` (the same faithful for-over-literal materialisation a
+        # local str-literal gets), instead of the opaque `val constant NAME : int` +
+        # `iter_get` that int-typed every element. Fail-closed and inline (no helper):
+        # bound EXACTLY once at module top level by a plain Name target, every element a
+        # str constant, never `#@ shared`, never a `global`/parameter/def/class name, no
+        # other Store/Del of the name anywhere, and EVERY Load of it is the `iter` of a
+        # `for` statement (so no alias, method call or argument can mutate it), at least
+        # one such read existing. Absent
+        # (byte-identical emission) for every program without such a constant.
+        _msl_counts: Dict[str, int] = {}
+        _msl_cand: Dict[str, List[str]] = {}
+        for _msl_child in getattr(node, "body", []):
+            _msl_t = None
+            _msl_v = None
+            if (isinstance(_msl_child, ast.Assign) and len(_msl_child.targets) == 1
+                    and isinstance(_msl_child.targets[0], ast.Name)):
+                _msl_t, _msl_v = _msl_child.targets[0].id, _msl_child.value
+            elif (isinstance(_msl_child, ast.AnnAssign)
+                    and isinstance(_msl_child.target, ast.Name)):
+                _msl_t, _msl_v = _msl_child.target.id, _msl_child.value
+            if _msl_t is None:
+                continue
+            _msl_counts[_msl_t] = _msl_counts.get(_msl_t, 0) + 1
+            if (isinstance(_msl_v, (ast.List, ast.Tuple)) and _msl_v.elts
+                    and all(isinstance(_e, ast.Constant) and isinstance(_e.value, str)
+                            for _e in _msl_v.elts)):
+                _msl_cand[_msl_t] = [_e.value for _e in _msl_v.elts]
+        if _msl_cand:
+            _msl_bad: Set[str] = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+            _msl_iters: Set[int] = set()
+            _msl_stores: Dict[str, int] = {}
+            _msl_reads: Set[str] = set()
+            for _msl_n in ast.walk(node):
+                if isinstance(_msl_n, ast.For) and isinstance(_msl_n.iter, ast.Name):
+                    _msl_iters.add(id(_msl_n.iter))
+                elif isinstance(_msl_n, ast.Global):
+                    _msl_bad.update(_msl_n.names)
+                elif isinstance(_msl_n, ast.arg):
+                    _msl_bad.add(_msl_n.arg)
+                elif isinstance(_msl_n, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                         ast.ClassDef)):
+                    _msl_bad.add(_msl_n.name)
+            for _msl_n in ast.walk(node):
+                if isinstance(_msl_n, ast.Name) and _msl_n.id in _msl_cand:
+                    _msl_ctx = type(getattr(_msl_n, "ctx", None)).__name__
+                    if _msl_ctx == "Store":
+                        _msl_stores[_msl_n.id] = _msl_stores.get(_msl_n.id, 0) + 1
+                    elif _msl_ctx != "Load" or id(_msl_n) not in _msl_iters:
+                        _msl_bad.add(_msl_n.id)
+                    else:
+                        _msl_reads.add(_msl_n.id)
+            _msl_ok = {_k: _v for _k, _v in _msl_cand.items()
+                       if _msl_counts.get(_k, 0) == 1 and _msl_stores.get(_k, 0) == 1
+                       and _k not in _msl_bad and _k in _msl_reads}
+            if _msl_ok:
+                self.program_ir["module_const_str_lists"] = _msl_ok
+
         # inline.md Phase 1: module-level global object instances `g = C(...)`. Modeled
         # in Module 6 as a Why3 mutable-record global `let g : c = <ctor>`; the ctor
         # `value` reuses the record-construction lowering (`_call_record_constructor`).
@@ -5853,6 +5913,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         set_value_types: Dict[str, str] = {}
         shared = self._shared_var_names
         _scope_name = node.name
+        # gen #37 ch34: only a METHOD's receiver is dropped. A module-level function's
+        # parameter that happens to be NAMED `self` is an ordinary parameter (it was
+        # dropped from the scope and the signature, so every read became an unbound
+        # `self` symbol -- fail-closed, but the function was unverifiable).
+        _selfdrop34 = 'self' if self._current_class else None
 
         # Function arguments (skip 'self' for methods)
         param_annotations: Dict[str, str] = {}
@@ -5878,7 +5943,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # kwonly (route #82 already reads the same three fields for `__init__`).
         for arg in (list(node.args.posonlyargs) + list(node.args.args)
                     + list(node.args.kwonlyargs)):
-            if arg.arg == 'self':
+            if arg.arg == _selfdrop34:
                 continue
             # self-tcb-reduction T1.a: an `Optional[Dict[K,V]]` param is modeled as the `Dict[K,V]`
             # (None ≡ empty map), so `if subst and name in subst: subst[name]` types as string-map
@@ -6232,7 +6297,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # copying Module4's `node.csl_symbol_table` (etc.). Byte-identical by design.
         (_sym, _dvt, _dkt, _pann, _plet, _plne,
          _plfe, _svt) = self._build_function_symbol_table(node)
-        symbol_table = {k: v for k, v in _sym.items() if k != 'self'}
+        # gen #37 ch34: drop `self` for a METHOD only (see `_build_function_symbol_table`).
+        _selfdrop34 = 'self' if self._current_class else None
+        symbol_table = {k: v for k, v in _sym.items() if k != _selfdrop34}
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
         self._cur_func_symtab = symbol_table
@@ -6446,7 +6513,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # (#49) ROUTE #232: positional-only + positional-or-keyword, in Python's order
         # (the keyword-only ones are appended AFTER any vararg below).
         formal_params = [a.arg for a in (list(node.args.posonlyargs) + list(node.args.args))
-                         if a.arg != 'self']
+                         if a.arg != _selfdrop34]
         # W8 capability (ii) — varargs-membership. A `*vals: str` parameter (a
         # STRING-annotated vararg) is a real, faithfully-modelled parameter: the tuple
         # of extra positional arguments, lowered by Module6 to an immutable
@@ -6465,8 +6532,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # (`kwonly_params` below tells it which formals a positional actual may never
         # reach). A keyword-only parameter behind a modelled vararg would need the vararg
         # packing to stop before it — not built, so that combination is REFUSED.
-        _kwonly232 = [a.arg for a in node.args.kwonlyargs if a.arg != 'self']
-        _posonly232 = [a.arg for a in node.args.posonlyargs if a.arg != 'self']
+        _kwonly232 = [a.arg for a in node.args.kwonlyargs if a.arg != _selfdrop34]
+        _posonly232 = [a.arg for a in node.args.posonlyargs if a.arg != _selfdrop34]
         if _kwonly232 and _vararg_str:
             raise PyCSLIRError(
                 f"function '{node.name}': keyword-only parameter(s) "
@@ -6507,7 +6574,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         _defs = node.args.defaults
         if _defs:
             for _a, _d in zip(_pos_args[len(_pos_args) - len(_defs):], _defs):
-                if _a.arg != 'self':
+                if _a.arg != _selfdrop34:
                     param_defaults[_a.arg] = self._py_expr_to_ir(_d)
         # (#49) ROUTE #232: a keyword-only default fills an OMITTED keyword at the call
         # site through the SAME R7 machinery — which lowers the default expression in
@@ -6517,7 +6584,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # a call, ...) is left out, so a call omitting that keyword is REFUSED by the R7
         # arity check (fail-closed).
         for _a232, _d232 in zip(node.args.kwonlyargs, node.args.kw_defaults):
-            if _d232 is None or _a232.arg == 'self':
+            if _d232 is None or _a232.arg == _selfdrop34:
                 continue
             _lit232 = (_d232.operand if (isinstance(_d232, ast.UnaryOp)
                                          and isinstance(_d232.op, ast.USub))
