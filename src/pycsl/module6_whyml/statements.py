@@ -1329,9 +1329,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 rest_code = f"{indent}()"
             return code + rest_code
 
-        if target not in declared_refs:
-            declared_refs.add(target)
-            kind = self._first_assign_kind(val, val_ir)
+        # (#303) the #59 guard below runs for a REBIND of an already-declared dict/set local
+        # too: `h = g` of a declared `h` lowers to `h := !g`, the SAME copy, and was outside
+        # the first-binding-only guard (measured at 388cd100: `h: Dict[str, int] = {..};
+        # h = g; h["G"] = 5; return g["G"]` PROVED 0, also via the chained `h = k = g`).
+        _first59 = target not in declared_refs
+        if _first59 or (target in getattr(self, "_dict_locals", set())
+                        or getattr(self, "_current_symbol_table", {}).get(target)
+                        in ("dict", "set", "frozenset")):
+            if _first59:
+                declared_refs.add(target)
+            kind = self._first_assign_kind(val, val_ir) if _first59 else "dict"
             # ROUTE #59 — REFUSE A *MUTATED* DICT ALIAS.
             #
             # `b = a` (or `b = self.d`) on a dict binds a SECOND NAME TO THE SAME OBJECT in
@@ -1459,12 +1467,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             f"COPY — and the write would be invisible (route #59). Refusing "
                             f"instead of answering incorrectly. A read-only rebind is fine; "
                             f"restructure so only one name mutates the dict.")
-            code = self._emit_first_assign(kind, indent, safe_target, target, val,
-                                           val_ir, local_refs)
-            rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
-            if not rest_code:
-                rest_code = f"{indent}()"
-            return code + rest_code
+            if _first59:
+                code = self._emit_first_assign(kind, indent, safe_target, target, val,
+                                               val_ir, local_refs)
+                rest_code = self._stmts_to_whyml(rest, local_refs, declared_refs, indent,
+                                                 in_loop)
+                if not rest_code:
+                    rest_code = f"{indent}()"
+                return code + rest_code
 
         if target in self._array_locals:
             code = self._emit_array_local_reassign(
@@ -3384,6 +3394,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     else:
                         for _bvv in (_bv.get("values") or []):
                             _r2c_events.append(([], _bvv))
+                    continue
+                # (#303) R1 also covers the NON-`Assign` binding forms: a tuple/list unpacking
+                # target (`h, k = g, 1` binds `h` to `g`'s object), a tuple `for` target, and
+                # a walrus — none is a fresh dict literal.
+                if ((_sk == "TupleUnpack" and _r2c_root in (_x.get("targets") or []))
+                        or (_sk == "For" and _r2c_root in (_x.get("tuple_targets") or []))
+                        or (_x.get("type") == "NamedExpr" and _x.get("target") == _r2c_root)):
+                    _r2c_why = (f"`{_r2c_root}` is bound by an unpacking / loop / walrus "
+                                f"target (not fresh; route #303)")
                     continue
                 if _sk in ("AugAssign", "Delete", "DelSubscript", "ArraySliceSet",
                            "FieldAssign", "FieldAugAssign", "ArraySet"):

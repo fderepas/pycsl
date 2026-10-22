@@ -342,6 +342,165 @@ class FunctionEmissionMixin:
             raise PyCSLSemanticError(
                 "dropped unpacking / loop target refused (route #301) -- "
                 + str(func["unpack_target_refused"]))
+        # (#303) ROUTE #303 — A COLLECTION ALIASED THROUGH A TUPLE-UNPACKING TARGET. `h, k =
+        # g, 1` binds `h` to the SAME object as `g` in Python, but lowers to `let (_tu_h,
+        # _tu_k) = (!g, 1) in h := _tu_h` — a map/seq COPY — and routes #59/#279/#283/#295
+        # (and r2c-local's R1) look at plain `x = y` only. MEASURED at 388cd100, each PROVED
+        # (CPython disagrees): `h, k = g, 1; h["G"] = 5; return g["G"]` == 0, the reverse
+        # `g["G"] = 5; return h["G"]`, the swap `g, h = h, h`, and the r2c path write-back
+        # `h["G"]["m"].append(..)` through a tuple-bound alias of a local and of a PARAMETER
+        # under `assigns \nothing`. RULE (flow-insensitive, coarse; it can refuse a dead
+        # alias, never accept a live one): every slot of a TupleUnpack whose value element
+        # (or, for a non-literal right-hand side, the whole value) mentions a non-scalar
+        # name, a method receiver, or a `self.` call/field is an ALIAS BINDING of the target
+        # to those names; its class is closed over every name-to-name `Assign` and every
+        # other such slot of the function, and ANY in-place mutation through a class name
+        # (element store / slice store / `del`, a mutator method on it or below it, an
+        # augmented assignment of a non-scalar, passing it to a user function that may write
+        # it) refuses. A pure PERMUTATION (`a, b = b, a`: distinct plain names, the same set
+        # on both sides) creates no new sharing and is exempt. Walked inline (lesson a4).
+        if not (func.get("trusted") or func.get("abstract")):
+            _st303 = func.get("symbol_table") or {}
+            _sc303 = ("int", "float", "bool", "str", "string", "bytes", "complex", "None",
+                      "NoneType")
+            _edges303 = []
+            _seeds303 = set()
+            _stk303 = [func.get("body") or []]
+            while _stk303:
+                _n303 = _stk303.pop()
+                if isinstance(_n303, list):
+                    _stk303.extend(_n303)
+                    continue
+                if not isinstance(_n303, dict):
+                    continue
+                _stk303.extend(_v for _v in _n303.values() if isinstance(_v, (list, dict)))
+                _v303 = _n303.get("value")
+                if (_n303.get("stmt") == "Assign" and isinstance(_n303.get("target"), str)
+                        and isinstance(_v303, dict) and _v303.get("type") == "Var"):
+                    _edges303.append((_n303["target"], str(_v303.get("name"))))
+                if _n303.get("stmt") != "TupleUnpack" or not isinstance(_v303, dict):
+                    continue
+                _tg303 = [str(_t) for _t in (_n303.get("targets") or [])]
+                _el303 = _v303.get("elts") if _v303.get("type") in ("Tuple", "List") else None
+                if (isinstance(_el303, list) and len(_el303) == len(_tg303)
+                        and all(isinstance(_e, dict) and _e.get("type") == "Var"
+                                for _e in _el303)
+                        and len({_e.get("name") for _e in _el303}) == len(_el303)
+                        and {_e.get("name") for _e in _el303} == set(_tg303)):
+                    continue
+                if isinstance(_el303, list) and len(_el303) == len(_tg303):
+                    _slots303 = list(zip(_tg303, _el303))
+                else:
+                    _slots303 = [(_t, _v303) for _t in _tg303]
+                for _t303, _e303 in _slots303:
+                    if _t303 == "_" or _st303.get(_t303) in _sc303:
+                        continue
+                    _ps303 = set()
+                    _es303 = [_e303]
+                    while _es303:
+                        _x303 = _es303.pop()
+                        if isinstance(_x303, list):
+                            _es303.extend(_x303)
+                            continue
+                        if not isinstance(_x303, dict):
+                            continue
+                        _f303 = str(_x303.get("func", "") or "")
+                        if _x303.get("type") == "Call" and _f303 == "len":
+                            continue
+                        if (_x303.get("type") == "Var"
+                                and _st303.get(_x303.get("name")) not in _sc303):
+                            _ps303.add(str(_x303.get("name")))
+                        if _x303.get("type") == "Call" and "." in _f303:
+                            _ps303.add(_f303.split(".", 1)[0] + (
+                                "." if _f303.startswith("self.") else ""))
+                        if (_x303.get("type") in ("FieldGet", "Attribute")
+                                and _x303.get("object", "self") == "self"):
+                            _ps303.add("self.")
+                        _es303.extend(_y for _y in _x303.values()
+                                      if isinstance(_y, (list, dict)))
+                    _ps303.discard(_t303)
+                    if _ps303:
+                        _seeds303.add(_t303)
+                        for _p303 in _ps303:
+                            _edges303.append((_t303, _p303))
+            if _seeds303:
+                _cls303 = set(_seeds303)
+                _grow303 = True
+                while _grow303:
+                    _grow303 = False
+                    for _a303, _b303 in _edges303:
+                        if (_a303 in _cls303) != (_b303 in _cls303):
+                            _cls303 |= {_a303, _b303}
+                            _grow303 = True
+                _muts303 = ("append", "extend", "insert", "remove", "pop", "clear", "sort",
+                            "reverse", "update", "popitem", "setdefault", "add", "discard",
+                            "intersection_update", "difference_update",
+                            "symmetric_difference_update")
+                _why303 = None
+                _stk303 = [func.get("body") or []]
+                while _stk303 and _why303 is None:
+                    _n303 = _stk303.pop()
+                    if isinstance(_n303, list):
+                        _stk303.extend(_n303)
+                        continue
+                    if not isinstance(_n303, dict):
+                        continue
+                    _stk303.extend(_v for _v in _n303.values() if isinstance(_v, (list, dict)))
+                    _r303 = None
+                    _f303 = str(_n303.get("func", "") or "")
+                    if _n303.get("stmt") in ("ArraySet", "ArraySliceSet", "DelSubscript",
+                                             "GhostArraySet"):
+                        _r303 = _n303.get("array")
+                        if _n303.get("target") in _cls303:
+                            _why303 = "an element store"
+                    elif _n303.get("stmt") == "AugAssign":
+                        if (_n303.get("target") in _cls303
+                                and _st303.get(_n303.get("target")) not in _sc303):
+                            _why303 = f"`{_n303.get('target')} {_n303.get('op', '')}= ...`"
+                    elif _n303.get("type") == "Call" and _f303.rsplit(".", 1)[-1] in _muts303:
+                        _r303 = (_n303.get("receiver") if "." not in _f303
+                                 else {"type": "Var", "name": _f303.split(".", 1)[0]})
+                        while (isinstance(_r303, dict) and _r303.get("type") == "Call"
+                               and "." in str(_r303.get("func", "") or "")):
+                            _r303 = {"type": "Var",
+                                     "name": str(_r303.get("func")).split(".", 1)[0]}
+                    elif _n303.get("type") == "Call":
+                        for _a303 in (_n303.get("args") or []):
+                            if (isinstance(_a303, dict) and _a303.get("type") == "Var"
+                                    and _a303.get("name") in _cls303):
+                                for _g303 in (self.ir.get("functions", []) or []):
+                                    _as303 = ((_g303.get("contracts") or {}).get("assigns")
+                                              if isinstance(_g303, dict) else None)
+                                    if (isinstance(_g303, dict)
+                                            and str(_g303.get("name", "")).rsplit(".", 1)[-1]
+                                            == _f303.rsplit(".", 1)[-1]
+                                            and not (_as303 and all(
+                                                isinstance(_z, dict)
+                                                and _z.get("type") == "Nothing"
+                                                for _z in _as303))):
+                                        _why303 = f"passing it to `{_f303}(...)`, which may write it,"
+                    while isinstance(_r303, dict) and _r303.get("type") in (
+                            "Subscript", "ArrayAccess", "ArrayGet", "Index"):
+                        _r303 = _r303.get("value", _r303.get("array"))
+                    if (_why303 is None and isinstance(_r303, dict)
+                            and _r303.get("type") == "Var" and _r303.get("name") in _cls303):
+                        _why303 = (f"`{_f303}(...)`" if _f303 else "an element store")
+                if _why303 is not None:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"function '{func.get('name')}': mutating a collection that a "
+                        f"TUPLE-UNPACKING assignment aliases is out of scope: `{sorted(_seeds303)}` "
+                        f"is bound by a tuple/list unpacking to a value that may BE another "
+                        f"collection (names {sorted(_cls303)}), and {_why303} mutates it IN "
+                        f"PLACE, which in Python is visible through every name of that object. "
+                        f"PyCSL lowers the unpacking to a COPY (`let (_tu_h, ..) = (!g, ..) in "
+                        f"h := _tu_h`), so the mutation would be invisible through the other "
+                        f"names (route #303; measured: `h, k = g, 1; h[\"G\"] = 5; return "
+                        f"g[\"G\"]` proved 0). Refusing instead of answering incorrectly; bind "
+                        f"the collection with its own statement or copy it explicitly "
+                        f"(`dict(g)`, `g.copy()`, `g[:]`).",
+                        stage="module6-assign",
+                        code="PYCSL-M6-MUTATION-THROUGH-UNPACK-ALIAS")
         # (#49) ROUTE #171 — A HANDLER FOR AN IMPLICIT EXCEPTION OBSERVES AN OPERATION THE
         # MODEL SAYS CANNOT FAIL. Without `no_exception` the implicit raises of the modelled
         # operations are ambient: a placeholder array read, `int("1.5")`'s opaque
