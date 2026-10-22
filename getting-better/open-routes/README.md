@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #301 (starred assignment target dropped by the front end; [*h, t] = e keeps t) OPENED (found by r299);
+##   rc=0 on main, CPython 5.
+
 ## gen #37 (2026-10-22): #299 + #300 REPAIRED (r299 executor, off f11bba0e; inline; `_pyval_wrap` unmirrored, `_reset_function_state`
 ##   mirror `\trusted`; no new def/field; ledger 3). #299: a list literal with a Starred element / dict literal with a `**`
 ##   entry stored as an hval is the opaque `(HArr (any hval_list))` / `(HMap (any hpairs))` (refused in a spec). #300: the
