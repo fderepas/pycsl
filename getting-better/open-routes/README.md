@@ -21,7 +21,7 @@
 ##   int fallback -> L3-tc (fail-closed). `startswith`/`endswith` with an `hval` argument reads `hstr_of` (not under
 ##   `no_exception`). Witnesses 3490-3494/3496 PROVED -> FAIL, 3499/3500 FAIL -> FAIL; controls 3495/3497 PASS, 3498 FAIL -> PASS.
 ##   Root 0/0/0, pyref 0/0/0, mirror 1 MOVED (stmt_control_flow `_maybe_inject_union_return`, intended; L3-tc ok, --fun
-##   PROVED; whole-file proof OWED). Residual: nested-dict keys are modelled as strings (see route296).
+##   PROVED; whole-file proof OWED); fast 61 + --slow 84/84 green. Residual: nested-dict keys are modelled as strings (see route296).
 
 ## gen #37 (2026-10-20): #295 (dict returned by a may-alias call is a copy; store through it misses the original) OPENED; rc=0, CPython 2.
 

@@ -62,3 +62,19 @@ its `val.startswith(ctor_name)` reads `hstr_of ctor_name` — exactly the intend
 `--fun controlflowstmtmixin___maybe_inject_union_return` PROVES (rc=0, 535 goals). OWED to the driver, the
 whole-file proof: `cd <tree> && . scratchpad/g29/env.sh && HEAVY_LOW=1 /home/fabrice/git/pycsl/scratchpad/heavy/heavy.sh
 .venv/bin/python3 src/pycsl/pycsl.py --import-path src/pycsl src/self-annotate/src/module6_whyml/stmt_control_flow.py`.
+Gates (logs under the session scratchpad `r296/`): route witness rc=0 -> rc=1; witness table above (3490-3500, base
+rc 0 for 3490-3497, after rc 1 for every false claim, rc 0 for controls 3495/3497/3498);
+check-self-annotate-sync.sh rc=0 (925 verbatim); self-annotate-mirror-check.sh rc=0 (53);
+`run-soundness-planes.sh` fast rc=0 (61/61) and `--slow` rc=0 (84/84 green, every plane). Ledger unchanged (3
+axioms); no `\trusted` marker added; no new def/field; the witnesses are FAIL (not refusals), so the
+refusal-witness census does not move.
+Residuals: (1) MODEL ASSUMPTION, pre-existing and UNDECLARED: the `hval` model gives every nested dict STRING
+keys (`HMap` over `hpairs` keyed by `string`), so `for k, v in xs.items(): return isinstance(k, str)` PROVES for
+`d = {"xs": {1: 2}}` (CPython False) at base and after (repro: session scratchpad `r296/p/c08_items_local.py`).
+The new `HMap` key arm of a bare loop inherits the same assumption (probe `r296/p/c24_intkey_bare.py`: base
+PROVED via the old key arm, after FAIL because the carrier is unknown; a literal int-keyed holder is not
+representable). Suggested follow-up route: declare it (`--soundness-report`, docs) or refuse int-keyed reads.
+(2) A bare loop whose body mutates the root/target/a pyval local is no longer lowered (int fallback -> L3-tc):
+coarser, fail-closed; population in root/pyref/mirror: 0 (byte-diff inert). (3) The `hstr_of` projection for an
+`hval` startswith/endswith argument fires only where `_is_string_expr` already accepts the argument (the mirror's
+`ctor_name`, symbol-typed `str` by its later `.items()` loop); elsewhere the call stays on its previous lowering.
