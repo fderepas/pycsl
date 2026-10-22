@@ -12991,3 +12991,4 @@ measurement instead of re-running two hours of it.
 2026-10-22T00:51Z dict-value-wall stack LANDED: BROKEN 2 (451->449), R2a/R2b capabilities, #286 closed
 2026-10-22T01:43Z route #295 REPAIRED
 2026-10-22T02:42Z --slow 84/84 GREEN at HEAD
+2026-10-22T03:07Z ch30 lever LANDED (capability, 0 conversions)
