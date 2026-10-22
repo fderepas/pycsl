@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #299 (starred element in an hval list literal wrapped as one element) and #300 (literal rebinding after a
+##   non-literal first binding registers a fixed fold size; #297 residual) OPENED (red team 10); 6 witnesses rc=0, CPython violates.
+
 ## gen #37 (2026-10-22): #298 (hval model assumes nested dicts have str keys; isinstance(k, str) over .items() proves for {1: 2})
 ##   OPENED (found by r296); rc=0, CPython False.
 ## gen #37 (2026-10-22): #298 DECLARED (r298 executor, off 47f53c06; inline, mirror twins `\trusted`; no new def/field; ledger 3).
