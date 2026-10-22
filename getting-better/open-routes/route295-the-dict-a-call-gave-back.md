@@ -71,6 +71,8 @@ check-self-annotate-sync.sh rc=0 (923 verbatim); self-annotate-mirror-check.sh r
 `_census_row`), coverage rc=0 (244 demonstrated, 4 undemonstrated, ceiling 5). Ledger unchanged (3 axioms); no
 `\trusted` marker added; mirror twin of `_handle_assign_stmt` is `\trusted` and already raises (no raises ratchet
 move); no new def/field (mirror-coverage/field-parity unchanged).
+`--slow` battery PARTIAL/OWED: `run-soundness-planes.sh --slow` (via heavy.sh, 60-min cap) reached 74 of 84
+lower bounds, all ok, none red, before the cap (rc=124, a time cut, not a verdict); the remaining 10 are OWED.
 Residuals: (1) coarse by design, as #288 — a write through the ORIGINAL while the alias is still live refuses even
 if the alias is never read again; a FRESH-returning callee given a dict argument is "may alias" (`e = rebuild(d);
 e[1] = 2` refuses). Measured population in root/pyref/mirror: 0. (2) A dict reached through a FIELD argument

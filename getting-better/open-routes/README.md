@@ -46,7 +46,7 @@
 ##   conditional, `or`): partners are the dict/set names in the RHS (parameters included) outside a fresh constructor, and the
 ##   same walk refuses stores/aug-stores/`del`/mutators/`|=`/writing callees through any live name
 ##   (PYCSL-M6-MUTATION-THROUGH-RETURNED-ALIAS). Witnesses 3450-3465 PROVED -> refused; control 3466 PASS; route witness
-##   rc=0 -> rc=1. Root 0/0/0, pyref 0/0/0, mirror 0/0/0 (a first cut GONE'd mirror stmt_control_flow on a `-> str` target, fixed).
+##   rc=0 -> rc=1. Root 0/0/0, pyref 0/0/0, mirror 0/0/0 (a first cut GONE'd mirror stmt_control_flow on a `-> str` target, fixed); fast planes 61 green, --slow 74/84 ok then capped (10 OWED).
 ##   Residuals: see route295.
 
 ## gen #37 (2026-10-20): #286 (one-arg `.get` on a non-map hval receiver under no_exception drops AttributeError) OPEN on main,
