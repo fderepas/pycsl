@@ -1427,6 +1427,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                "GhostArraySet", "FieldAssign", "FieldAugAssign")
                     _mutated = False
                     _stack = [rest]
+                    # (#303) inside a LOOP the statements BEFORE the binding run again on
+                    # the next iteration (`while ..: h["G"] = 5; h = g` writes `g` on the
+                    # second pass; measured at 388cd100: PROVED `g["G"] == 0`, CPython 5),
+                    # so the whole function body is walked, as #279's escape arm does.
+                    if in_loop:
+                        for _f59 in (self.ir.get("functions", []) or []):
+                            if (isinstance(_f59, dict) and _f59.get("name")
+                                    == getattr(self, "_current_sig_func_name", None)):
+                                _stack.append(_f59.get("body") or [])
                     while _stack and not _mutated:
                         _n = _stack.pop()
                         if isinstance(_n, list):
