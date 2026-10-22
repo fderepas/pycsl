@@ -1936,3 +1936,91 @@ the lowered RHS, which then type-checks or fails L3-tc. That needs a corpus+pyre
 **Gates (no src/pycsl change, so no corpus/mirror movers).** `check-self-annotate-sync.sh` rc 0,
 `self-annotate-mirror-check.sh` rc 0, `check-trusted-reasons.py` rc 0, count 449. Nothing OWED
 from ch29.
+
+## Re-measurement at HEAD — ch30 (gen #37)
+
+Base `acde8476` (main, count 449). Lever: ch29 gap #2, a `List[Dict[str, PyVal]]` /
+`List[PyVal]` PARAMETER emitted as `array int`, plus its companion (an hval element passed to a
+`Dict[str, PyVal]` parameter). **Spike PASS, lever BUILT, 0 markers converted (449 -> 449).**
+
+**Spike** (`getting-better/dict-value-wall/ch30/spike_ch30.mlw`, z3 4.13.3, `split_vc`, 20 s):
+a `seq hval` parameter iterated by index with `pairs_get`/`hpairs_key_eq` field reads, the
+definitional bridge `hval_to_seq` (`HArr l` -> `hval_list_to_seq l`, a `let rec function` over
+`hval_list`; any other carrier -> the uninterpreted `hval_as_seq_other`) and the map view
+`hpairs_to_map` (a `let rec ghost function`, head binding wins = `pairs_get` order; non-HMap ->
+uninterpreted `hval_as_map_other`). The two true claims (`has_named_c`, `count_valid` through a
+`Dict[str, PyVal]` callee) are Valid; both false twins (Timeout / Unknown) and `goal false`
+(Timeout) are not. The program realization `hpairs_to_map_p` (a `let rec` over
+`map_update_some`) proves its `ensures { result = hpairs_to_map p }`. Why3's `Map.set` is
+ghost-only, so the emitted call-site bridge is `val hval_to_map ... ensures { result = <ghost
+view> }`, a realizable `val` spec (the spike's `hpairs_to_map_p` is its realization; same class as
+`map_update_some` / R2a's `hpairs_key_eq`), no kernel axiom; ledger untouched (no certificate
+change).
+
+**Build** (`576ca759`, `cf35870a`). `functions._reset_function_state`: a param with
+`param_list_elem_types[p] == "hval"` becomes `_hval_seq_params` (and `_seq_locals`) unless the
+body rebinds it, stores into it, aliases it, or calls an in-place mutator on it (fail-closed:
+declined params keep `array int`; the pre-existing route refusals for list-param append and alias
+mutation still fire first). `_param_type_str` emits `seq hval`; `_handle_for_stmt` registers the
+loop target as an immutable `hval` (the `_seq_locals` arm of `_classify_iterable` reads
+`Seq.get p !idx`, so the VERIFIED `_classify_iterable` is untouched); `_prescan_pyval_locals`
+seeds such loop targets so `t = x.get(..)` is an hval local; `len(p)` is `Seq.length p` in a
+contract too; `_handle_call_expr` (module-function calls) passes a `seq hval` actual raw, an
+hval actual through `hval_to_seq`, and an hval actual to a `Dict[str, PyVal]` formal through
+`hval_to_map`; `_uses_pyval` / the `use seq.Seq` scan fire on the new annotation. Locals typed
+`List[Dict[str, PyVal]]` other than the returned local (K4) are NOT covered (no consumer measured).
+
+**Witnesses** 3470-3475 (all run under CPython): 3470 PASS (element `.get` is deterministic;
+base: Timeout), 3471 FAIL twin; 3472 PASS (HMap element -> `Dict[str, PyVal]` callee via
+`hval_to_map`, callee `ensures "answer" in rec`; base: L3-tc), 3473 FAIL twin; 3474 PASS
+(`holder.get("records", [])` -> seq param via `hval_to_seq`, callee `len(fns) >= 1`; base: L3-tc),
+3475 FAIL twin. Every FAIL twin fails by proof (0 type errors).
+
+```
+marker (cluster)                       blockers at HEAD after the lever (ported verbatim, retyped)   verdict
+Transpiler._build_callee_no_exc.. (P)  param+loop+element reads now FAITHFUL; then (1) hval `name`  SKIP
+                                       as a key of int-keyed self maps (`Dict[str, Set[str]]` fields
+                                       erased), (2) `set(<hval> or [])` -> `set_1`, (3) `bool(<hval>)`
+                                       -> `bool_conv`, (4) `list(<hval> or [])` -> `list_new`        >= 4
+FunctionEmission._mixin_dep_pseudo_ P  param+loop FAITHFUL; then `for dep in deps` (deps = hval       SKIP
+                                       LIST local) takes the dict-KEY arm (SOUNDNESS, below), tuple
+                                       unpack of `_parse_mixin_sig`, `dict_comp`, `{.. for ..}` set
+                                       comp, nested dict literal with `or []` reads                   >= 5
+FunctionEmission._emit_subtyping_g. P  param FAITHFUL; then `self.ir.get` receiver-dropped           SKIP
+                                       (`self_ir_get_2`), list comp, dict comp `by_name`,
+                                       `_render_refinement_goal` int formals                         >= 4
+pycsl._residual_selectors_from_rec. J  param+loop+`_record_is_valid(hval_to_map rec)` FAITHFUL;      SKIP
+                                       then `(rec.get(..) or {}).get(..)` (computed receiver ->
+                                       `get_1`), tuple-unpack of two `.get`s, `Optional[List[str]]`
+                                       union arm is `int`, f-string of hvals, `Set[str]` local as
+                                       `map int`                                                      >= 5
+pycsl._merge_records_best_of_n (J)     NESTED `List[List[Dict[str, PyVal]]]` param -> still          SKIP
+                                       `array int` (lever is flat only); `_record_key(rec: dict)`,
+                                       Tuple keys                                                     >= 3
+scc.sort_functions_by_scc (P)          REFUSED route #283 before WhyML (unchanged)                    SKIP
+```
+
+**SOUNDNESS — CONFIRMED false proof (pre-existing at `acde8476`, not fixed).** A bare-Var hval
+LOCAL that holds a LIST is iterated by the dict-KEY arm of `_classify_iterable`
+(`stmt_control_flow.py`, "bare `for ctor_name in <pyval-dict-local>`"): `hval_values_len
+(hval_as_map xs)` / `hval_keys_get ..`, so each element is an arbitrary STRING. Repro
+`getting-better/dict-value-wall/ch30/sb/fp_list_as_keys.py`: `xs = d.get("xs") or []; for x in
+xs: return isinstance(x, str)` with `#@ ensures \result == True` -> pycsl rc 0 "All contracts
+formally proven"; CPython prints `False` for `{"xs": [{"k": 1}]}`. Fail-closed fix direction: the
+key arm must fire only when the local is provably an `HMap` (e.g. initialised from a dict literal or
+a `.items()`-style source), else decline (or route through the R2b element arm when the carrier
+is an `HArr`). Needs a corpus+mirror byte-diff (the arm serves `_maybe_inject_union_return`).
+
+**Gates** (fresh, this worktree vs base worktree at `acde8476`). Corpus byte-diff: 1908 base /
+1914 cand `.mlw`, 0 MOVED / 0 GONE / 0 APPEARED (6 new witnesses); pyref 2186/2186, 0 MOVED.
+Mirror sweep 53/53, 0 MOVED / 0 GONE / 0 APPEARED (so no mirror whole-file proof is owed).
+`check-self-annotate-sync.sh` rc 0, `self-annotate-mirror-check.sh` rc 0,
+`check-trusted-reasons.py` rc 0, `run-soundness-planes.sh` 61/61 rc 0 (first run caught a new
+`check-assigns-underdeclaration` TRAP — the new `_hval_seq_params` field — fixed by declaring it
+in the `_reset_function_state` mirror frame, `cf35870a`). Count 449. **OWED:** `--slow` planes
+only (`. scratchpad/g29/env.sh && bin/run-soundness-planes.sh --slow`); no whole-file proof.
+
+**Ranked next** (unchanged order otherwise): the new false proof above (route first); ch29 #3
+hval value builtins (`set`/`bool`/`list` of an hval) + a string projection of an hval key into a
+`Dict[str, ..]` self-field — together they leave `_build_callee_no_exception_summary` with only
+its self-field typing; nested `List[List[Dict[str, PyVal]]]` params for `_merge_records_best_of_n`.
