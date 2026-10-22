@@ -1269,3 +1269,13 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 3661_gen37_r303_dict_rebind_alias.py	REFUSAL	aliasing a mutated dict is out of scope: `h = g` binds a SECOND NAME TO THE SAME dict in Python, and a later store through one name is visible through the other. PyCSL models a dict as a pure map in a `ref`, so this lowers to `let h = ref !g` — a COPY — and the write would be invisible (route #59). Refusing instead of answering incorrectly. A read-only rebind is fine; restructure so only one name mutates the dict.
 3662_gen37_r303_chained_dict_alias.py	REFUSAL	aliasing a mutated dict is out of scope: `h = g` binds a SECOND NAME TO THE SAME dict in Python, and a later store through one name is visible through the other. PyCSL models a dict as a pure map in a `ref`, so this lowers to `let h = ref !g` — a COPY — and the write would be invisible (route #59). Refusing instead of answering incorrectly. A read-only rebind is fine; restructure so only one name mutates the dict.
 3664_gen37_r303_loop_rebind_alias.py	REFUSAL	aliasing a mutated dict is out of scope: `h = g` binds a SECOND NAME TO THE SAME dict in Python, and a later store through one name is visible through the other. PyCSL models a dict as a pure map in a `ref`, so this lowers to `let h = ref !g` — a COPY — and the write would be invisible (route #59). Refusing instead of answering incorrectly. A read-only rebind is fine; restructure so only one name mutates the dict.
+3630_gen37_r302_name_target_list_read_after.py	VERIFY-FAIL	
+3631_gen37_r302_str_char_target_read_after.py	VERIFY-FAIL	
+3632_gen37_r302_local_list_target_read_after.py	VERIFY-FAIL	
+3633_gen37_r302_break_target_read_after.py	VERIFY-FAIL	
+3634_gen37_r302_body_rebinds_target.py	VERIFY-FAIL	
+3635_gen37_r302_split_target_read_after.py	VERIFY-FAIL	
+3636_gen37_r302_range_step_target_read_after.py	VERIFY-FAIL	
+3637_gen37_r302_sorted_target_read_after.py	VERIFY-FAIL	
+3638_gen37_r302_conditional_loop_target_read_after.py	VERIFY-FAIL	
+3639_gen37_r302_try_loop_target_read_after.py	VERIFY-FAIL	
