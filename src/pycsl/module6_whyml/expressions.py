@@ -7304,12 +7304,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(Seq.length {args[0]})"
         if atype == "String" and isinstance(arg_ir.get("value"), str):
             return str(len(arg_ir["value"]))
-        if atype == "Tuple":
-            return str(len(arg_ir.get("elts", [])))
-        if atype in ("ArrayLit", "SetLit"):
-            return str(len(arg_ir.get("elts", [])))
-        if atype == "DictLit":
-            return str(len(arg_ir.get("keys", [])))
+        # (#49) ROUTE #297 — THE INLINE TWIN OF THE LOCAL FOLD (`_track_collection_metadata`)
+        # counted SOURCE ELEMENTS: `len((*ys, 5))` / `len([*ys, 5])` proved 2, `len({1, 1})`
+        # and `len({1: 2, 1: 3})` proved 2 (CPython 1; route #54 had fixed only the LOCAL),
+        # `len({a, b})` / `len({0: 1, k: 2})` proved 2 with a == b / k == 0 — all MEASURED.
+        # Fold only what the source text decides: a list/tuple with no Starred element, a
+        # set/dict whose elements/keys are ALL literals, counted DISTINCT under Python's
+        # equality (a Bool is the int 1/0, `1 == 1.0`). Anything else falls through.
+        if atype in ("Tuple", "ArrayLit"):
+            if not any(not isinstance(_r297_e, dict) or _r297_e.get("type") == "Starred"
+                       for _r297_e in arg_ir.get("elts", [])):
+                return str(len(arg_ir.get("elts", [])))
+        if atype in ("SetLit", "DictLit"):
+            _r297_vals = set()
+            for _r297_e in arg_ir.get("elts" if atype == "SetLit" else "keys", []) or []:
+                _r297_t = _r297_e.get("type") if isinstance(_r297_e, dict) else None
+                if _r297_t == "Number" and isinstance(_r297_e.get("value"), (int, float)):
+                    _r297_vals.add(("n", _r297_e["value"]))
+                elif _r297_t == "Bool":
+                    _r297_vals.add(("n", 1 if _r297_e.get("value") else 0))
+                elif _r297_t == "String" and isinstance(_r297_e.get("value"), str):
+                    _r297_vals.add(("s", _r297_e["value"]))
+                else:
+                    _r297_vals = None
+                    break
+            if _r297_vals is not None:
+                return str(len(_r297_vals))
         if atype == "Var":
             vname = arg_ir.get("name", "")
             known = getattr(self, "_known_collection_sizes", {})
@@ -16670,8 +16690,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return f"(let _nmap = {value_str} in {_wrapped})"
             var_name = value.get("name", "") if value.get("type") == "Var" else ""
             index_ir = expr.get("index", {})
+            # (#49) ROUTE #297 — an INT index only. `int()` truncated a float index onto
+            # an int slot: `a = [4, 5]; a[1.0]` folded 5 (CPython TypeError) and
+            # `{1: 4}[1.5]` folded 4 (CPython KeyError), both MEASURED proving.
             if (var_name and index_ir.get("type") == "Number" and
-                    isinstance(index_ir.get("value"), (int, float))):
+                    isinstance(index_ir.get("value"), int)
+                    and not isinstance(index_ir.get("value"), bool)):
                 idx_val = int(index_ir["value"])
                 known_elems = getattr(self, "_known_collection_elements", {})
                 if var_name in known_elems and idx_val in known_elems[var_name]:

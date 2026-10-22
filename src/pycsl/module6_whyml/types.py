@@ -106,6 +106,23 @@ class TypeInferenceMixin:
         _u_el = getattr(self, "_fold_unsafe_elems", ())
         _u_sz = getattr(self, "_fold_unsafe_sizes", ())
         vt = val_ir.get("type", "")
+        # (#49) ROUTE #297 — THE FOLD READS THE LITERAL'S SOURCE TEXT, SO IT MAY ONLY ANSWER
+        # WHEN THE SOURCE TEXT DETERMINES THE ANSWER. A `Starred` element (`(*ys, 5)`,
+        # `[*ys, 5]`, `{*ys}`) contributes len(ys) elements, not one, so the syntactic size is
+        # wrong and every index after it is shifted: MEASURED `t = (*ys, 5); t[1] == 5` and
+        # `len(t) == 2` PROVED with ys = [7, 8] (CPython 8 / 3). Refuse-not-guess (route #61's
+        # own principle): a literal with ANY Starred element registers NOTHING, and the reads
+        # fall through to the faithful model or fail closed. A plain non-literal element of a
+        # list/tuple stays foldable for SIZE and for the OTHER positions — one syntactic
+        # element is exactly one runtime element, at its own index.
+        if vt in ("ArrayLit", "Tuple", "SetLit") and any(
+                not isinstance(_r297_e, dict) or _r297_e.get("type") == "Starred"
+                for _r297_e in val_ir.get("elts", [])):
+            # Blacklist the NAME too (route #32/#33's rebinding rule): with nothing
+            # registered here, a later binding of the same name in another arm would
+            # look like a FIRST binding and register ITS literal for every path.
+            _rb.add(target)
+            return
         if vt in ("ArrayLit", "Tuple"):
             elts = val_ir.get("elts", [])
             if target not in _u_sz:
@@ -207,6 +224,20 @@ class TypeInferenceMixin:
             # third and last path to the same semantics.
             if target not in _u_sz and _r54_norm is not None:
                 self._known_collection_sizes[target] = len(set(_r54_norm))
+            # (#49) ROUTE #297 — ...AND THE ELEMENT FOLD DID HAVE IT. The note above claimed
+            # `elem_map` was safe because it only holds Number/Bool keys; but it SKIPS the
+            # non-literal keys, so a key that EQUALS a literal one at runtime and overwrites
+            # it was invisible: `{0: 1, k: 2}[0]` folded to 1 where CPython gives 2 when
+            # k == 0 (also `-0`, `2 - 1`, `+1`, `len("")`, `n - 1`, a local `k = 0` — all
+            # MEASURED proving). A non-integral float key (`1.5`) was truncated by `int()`
+            # onto the int key 1. Same refusal as the size: any key the fold cannot
+            # normalise to a Python value (or a non-integral float key) registers NO
+            # element map, and `d[0]` reads the faithful map.
+            if _r54_norm is None or any(
+                    _r297_k[0] == "n" and isinstance(_r297_k[1], float)
+                    and not _r297_k[1].is_integer() for _r297_k in _r54_norm):
+                _rb.add(target)
+                return
             elem_map = {}
             for k, v in zip(keys, val_ir.get("values", [])):
                 _r54_kv = None
@@ -240,7 +271,13 @@ class TypeInferenceMixin:
                 elif e.get("type") == "String" and isinstance(e.get("value"), str):
                     unique_vals.add(("s", e["value"]))
                 else:
-                    unique_vals.add(("id", id(e)))
+                    # (#49) ROUTE #297 — a non-literal element was counted DISTINCT
+                    # (`("id", id(e))`), so `len({"x", a}) == 2` and, under `requires
+                    # a == b`, `len({a, b}) == 2` PROVED (CPython 1). Two values the fold
+                    # cannot see may be equal: register no size (refuse, not guess), and
+                    # blacklist the name so a later binding cannot register for it.
+                    _rb.add(target)
+                    return
             if target not in _u_sz:
                 self._known_collection_sizes[target] = len(unique_vals)
 
