@@ -9668,14 +9668,14 @@ class FunctionEmissionMixin:
         _r304_tags: List[str] = []
         if (_r304_all or _r304_named) and not emit_as_val:
             from exception_model import bases_closure as _bc304
-            # the class bases snapshotted by `ir_resolve.apply_inheritance` BEFORE its
-            # merge clears `td["bases"]`; a class of this program absent from it has
-            # unknown ancestry and is covered (fail-closed) below.
+            # the class bases `pycsl._run_pipeline` snapshots BEFORE the inheritance merge
+            # clears `td["bases"]` (`class_bases_r304`, kept off the IR); a class of this
+            # program absent from it has unknown ancestry and is covered (fail-closed) below.
             _r304_bases: Dict[str, List[str]] = {}
             for _td304 in (self.ir.get("type_decls", []) or []):
                 if isinstance(_td304, dict) and _td304.get("name"):
                     _r304_bases[str(_td304["name"])] = [str(b) for b in (_td304.get("bases") or [])]
-            for _k304, _v304 in ((self.ir.get("class_bases") or {}).items()):
+            for _k304, _v304 in ((getattr(self, "class_bases_r304", None) or {}).items()):
                 if _v304:
                     _r304_bases[str(_k304)] = [str(b) for b in _v304]
             for _e304 in sorted(IRScanner.collect_escaping_exceptions(body_stmts)):

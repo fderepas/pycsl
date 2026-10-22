@@ -1168,6 +1168,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # inline-globals — via the front-end's single resolution entry, leaving ir_data the
     # fully RESOLVED IR (the wire Module 6 / the core consumes). Pure relocation: the
     # passes and their order are unchanged, so emission stays byte-identical.
+    # (#49) ROUTE #304 — snapshot the program's class bases BEFORE resolution: the
+    # inheritance merge clears `td["bases"]`, and Module 6 needs a raised class's ancestry
+    # to decide whether a `#@ no_exception <Named>` claim covers an own `raise` of it. Kept
+    # OFF the IR (the frozen front-end goldens); handed to the transpiler as an attribute.
+    _r304_class_bases = {str(_td304["name"]): [str(_b304) for _b304 in _td304["bases"]]
+                         for _td304 in (ir_data.get("type_decls", []) or [])
+                         if _td304.get("bases") and _td304.get("name")}
     imported_names = _ir_resolve(ir_data, unified_ast, args.file, deep=args.deep, import_paths=args.import_path)
 
     # ORDER MATTERS, AND THE FIRST PLACEMENT GOT IT WRONG. Landed before Module 5
@@ -4085,6 +4092,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # views in `module6_whyml/stmt_control_flow.py`: `.items()` keys and the bare-loop
     # `HMap` arm).
     transpiler.strict_hval_keys = bool(getattr(args, "strict_hval_keys", False))
+    # ROUTE #304 — the pre-resolution class bases (read by `_emit_function_block`'s
+    # own-raise coverage test; a class absent from it is covered, fail-closed).
+    transpiler.class_bases_r304 = _r304_class_bases
     _mlw = transpiler.transpile()
 
     # ROUTE #30 (relaunch #45) — REFUSE an UNINTERPRETED `match` pattern.
