@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'refuse_partner_store.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[module6-whyml]: r2c-local: the path mutation of `generics` (a heterogeneous `Dict[str, PyVal]` tree) is REFUSED — a NON-LITERAL container is stored on the written path (its object may be shared with another name). A value-model write-back is faithful only for a locally built, non-escaping, unshared tree (getting-better/r2c-wall/r2c-wall-impl.md). Rewrite the mutation, or mark the enclosing function `#@ \trusted`.

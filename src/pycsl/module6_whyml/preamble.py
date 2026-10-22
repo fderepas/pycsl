@@ -8024,6 +8024,43 @@ class PreambleEmissionMixin:
         `size`/`size_pos` are the cert-side measure ONLY (no frontier fold needs them);
         they are NOT emitted here (kept out of every VC's SMT context). Gated on
         `_uses_pyval` → corpus + every other mirror byte-identical."""
+        # r2c-wall R2c-local gate (see the `pairs_set` lines at the end): any NON-trusted
+        # function whose body has `<root>[..]...append(..)` / `<root>.setdefault(..).append(..)`
+        # / `<root>[..][..] = ..` with `<root>` an hval-valued dict (`dict_value_types`).
+        r2c_on = False
+        for _r2c_fn in (self.ir.get("functions", []) or []):
+            if r2c_on or not isinstance(_r2c_fn, dict) or _r2c_fn.get("trusted"):
+                continue
+            _r2c_hv = {k for k, v in (_r2c_fn.get("dict_value_types") or {}).items()
+                       if v == "hval"}
+            if not _r2c_hv:
+                continue
+            _r2c_st = [_r2c_fn.get("body") or []]
+            while _r2c_st and not r2c_on:
+                _r2c_x = _r2c_st.pop()
+                if isinstance(_r2c_x, list):
+                    _r2c_st.extend(_r2c_x)
+                    continue
+                if not isinstance(_r2c_x, dict):
+                    continue
+                _r2c_ch = None
+                _r2c_v = _r2c_x.get("value")
+                if (_r2c_x.get("stmt") == "Expr" and isinstance(_r2c_v, dict)
+                        and _r2c_v.get("type") == "Call" and _r2c_v.get("func") == "append"):
+                    _r2c_ch = _r2c_v.get("receiver")
+                    if (isinstance(_r2c_ch, dict) and _r2c_ch.get("type") == "Call"
+                            and str(_r2c_ch.get("func", "")).endswith(".setdefault")):
+                        _r2c_ch = {"type": "Var",
+                                   "name": str(_r2c_ch.get("func"))[:-len(".setdefault")]}
+                elif (_r2c_x.get("stmt") == "ArraySet" and isinstance(_r2c_x.get("array"), dict)
+                        and _r2c_x["array"].get("type") == "Subscript"):
+                    _r2c_ch = _r2c_x.get("array")
+                while isinstance(_r2c_ch, dict) and _r2c_ch.get("type") == "Subscript":
+                    _r2c_ch = _r2c_ch.get("value")
+                if (isinstance(_r2c_ch, dict) and _r2c_ch.get("type") == "Var"
+                        and _r2c_ch.get("name") in _r2c_hv):
+                    r2c_on = True
+                _r2c_st.extend(v for v in _r2c_x.values() if isinstance(v, (list, dict)))
         return [
             "  (* hval heterogeneous value model (self-tcb-reduction, Tier-5"
             " value-model wall): the faithful value carrier for a heterogeneous"
@@ -8177,6 +8214,29 @@ class PreambleEmissionMixin:
             # `_uses_dictlit` (the sole `_typeddict_record_literal` file) -> byte-inert.
             *(["  val typeddict_str_overapprox (h: hval) (m: map string (option emit_ir)) : array string"]
               if self._uses_dictlit() else []),
+            # r2c-wall R2c-local (gen #37): the FUNCTIONAL PATH WRITE-BACK ops for a nested
+            # store / append on a LOCALLY BUILT hval tree (`generics[t]["methods"].append(f)`
+            # -> `generics := map_update_some !generics t (.. pairs_set .. hval_list_snoc ..)`,
+            # statements.py `_handle_expr_stmt`). Total STRUCTURAL `let rec function`s over the
+            # bespoke carriers (definitional, descend the REAL structure), NO axiom, NO `val`
+            # spec -> ledger stays 3. `pairs_set` replaces the FIRST binding (the one
+            # `pairs_get` reads) else APPENDS at the end (Python insertion order). Proven with
+            # their read-back lemmas in getting-better/r2c-wall/spike/r2c_writeback.mlw.
+            # Gated on `r2c_on` (a non-trusted function with an hval-valued dict local that
+            # is the root of a nested store / computed-receiver append) -> byte-inert
+            # elsewhere.
+            *(["  let rec function pairs_set (p: hpairs) (k: string) (v: hval) : hpairs",
+               "    variant { p }",
+               "    = match p with",
+               "      | PNil -> PCons k v PNil",
+               "      | PCons k' w t -> if hpairs_key_eq k k' then PCons k' v t"
+               " else PCons k' w (pairs_set t k v)",
+               "      end",
+               "  let rec function hval_list_snoc (l: hval_list) (x: hval) : hval_list",
+               "    variant { l }",
+               "    = match l with HNil -> HCons x HNil"
+               " | HCons h t -> HCons h (hval_list_snoc t x) end"]
+              if r2c_on else []),
             "",
         ]
 

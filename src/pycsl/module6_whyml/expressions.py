@@ -13173,6 +13173,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if (isinstance(_v, dict) and _v.get("type") == "Var"
                     and getattr(self, "_dict_value_types", {}).get(_v.get("name")) == "hval"):
                 return True
+            # r2c (gen #37): a DEEPER subscript `generics[t]["methods"]` of an hval-valued dict
+            # LOCAL reads an `hval` too (the `pairs_get` descent of the inner hval), so
+            # `len(..)` takes the carrier-split `hval_list_len` arm instead of the int-typed
+            # `iter_length` (an L3-tc error). Restricted to a chain rooted at such a local.
+            _r2c_b = _v
+            while isinstance(_r2c_b, dict) and _r2c_b.get("type") == "Subscript":
+                _r2c_b = _r2c_b.get("value")
+            if (_r2c_b is not _v and isinstance(_r2c_b, dict) and _r2c_b.get("type") == "Var"
+                    and getattr(self, "_dict_value_types", {}).get(_r2c_b.get("name")) == "hval"):
+                return True
         return False
 
     def _refine_func_symmap_reader(self, node: Any,
@@ -13251,7 +13261,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # banked string projection of a string-consumed hval read). The result is
             # `string`-typed: an hval/int consumer fails closed at L3-tc. Gated on a pyval
             # left -> corpus byte-inert.
+            # r2c (gen #37): this branch projects the RAW hval itself, so the left operand
+            # is lowered with the string-classified-target flag OFF — under a `t: str = ..`
+            # target the flag pre-projected it through `hstr_of`, and the `match .. HStr`
+            # below then failed L3-tc (string vs hval). Restored right after.
+            _prev_pgas_or = getattr(self, "_pyval_get_as_string", False)
+            self._pyval_get_as_string = False
             _lws = self._expr_to_whyml(left, local_refs or set(), invariant_ctx, subst)
+            self._pyval_get_as_string = _prev_pgas_or
             _rws = self._expr_to_whyml(right, local_refs or set(), invariant_ctx, subst)
             # dict-value-wall Step 0 (red-team round 7 R6): the kept operand was projected
             # by `hstr_of`, which maps EVERY non-`HStr` carrier to "" — so a truthy INT /

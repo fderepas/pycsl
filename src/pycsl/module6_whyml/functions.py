@@ -3553,6 +3553,14 @@ class FunctionEmissionMixin:
             vt = v.get("type")
             # `x or {}` / `x or []`: the BinOp "or" left operand carries the value.
             if vt == "BinOp" and v.get("op") == "or":
+                # r2c (gen #37): `<hval> or "<lit>"` lowers (`_recognize_pyval_or_default`)
+                # to the STRING projection (`HStr s -> s | _ -> hval_opaque_str ..`), so the
+                # target is a `string`, not an hval. Marking it pyval made every later use
+                # (`t == "G"` -> `match t with HStr ..`, `generics[t]`) ill-typed (L3-tc red,
+                # fail-closed). Only the `or {}` / `or []` (hval) defaults keep it pyval.
+                _r2_or = v.get("right")
+                if isinstance(_r2_or, dict) and _r2_or.get("type") == "String":
+                    return False
                 return _rhs_is_pyval(v.get("left") or {})
             # a `.get(...)` call on a pyval receiver (self-field or pyval local).
             if vt == "Call":

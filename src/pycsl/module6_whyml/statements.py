@@ -2453,6 +2453,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 in getattr(self, "_mutable_state_classes", set())
                 and self._is_emit_ir_expr(arr)):
             return f"{indent}()"
+        # r2c-wall R2c-local (gen #37): a NESTED store `root[k]..[f] = v` whose root is an
+        # hval-valued dict (`Dict[str, PyVal]`) is the path write-back of `_handle_expr_stmt`
+        # (pseudo-call `__r2c_setitem__`), which lowers it or REFUSES it fail-closed.
+        if arr.get("type") == "Subscript":
+            _r2c_rt = arr
+            while isinstance(_r2c_rt, dict) and _r2c_rt.get("type") == "Subscript":
+                _r2c_rt = _r2c_rt.get("value")
+            if (isinstance(_r2c_rt, dict) and _r2c_rt.get("type") == "Var"
+                    and getattr(self, "_dict_value_types", {}).get(_r2c_rt.get("name")) == "hval"):
+                return self._handle_expr_stmt(
+                    stmt_from_dict({"stmt": "Expr", "value": {
+                        "type": "Call", "func": "__r2c_setitem__", "receiver": arr,
+                        "args": [stmt.index.to_dict(), stmt.value.to_dict()]}}),
+                    rest, local_refs, declared_refs, indent, in_loop)
         if arr.get("type") == "Var":
             var_name = arr.get("name", "")
             if var_name in getattr(self, "_dict_locals", set()):
@@ -2716,6 +2730,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if (isinstance(nu, str) and nu.strip().endswith("(option hval)")
                             and isinstance(_sv_ir, dict) and _sv_ir.get("type") == "DictLit"):
                         v = self._build_pyval_inner_map(_sv_ir, local_refs)
+                    elif (nu == "hval" and isinstance(_sv_ir, dict)
+                            and _sv_ir.get("type") in ("DictLit", "ArrayLit")):
+                        # r2c (gen #37): a container LITERAL stored into a `Dict[str, PyVal]`
+                        # (`generics[t] = {"kind": "class", "methods": []}`) is the REAL tagged
+                        # `hval` (`HMap`/`HArr` via `_pyval_wrap`), not the int-typed
+                        # `any_map ()` (an L3-tc error against the `option hval` codomain).
+                        v = self._pyval_wrap(_sv_ir, local_refs)
                     else:
                         v = self._dv_store_value(nu, val_expr)
                     if self_field_name is not None:
@@ -3245,6 +3266,370 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         in_loop: bool,
     ) -> str:
         val = stmt.value.to_dict()
+        # r2c-wall R2c-local (gen #37, getting-better/r2c-wall/r2c-wall-impl.md Step 1-2): a
+        # path mutation of a LOCALLY BUILT hval tree — `root[k]..["s"].append(e)`,
+        # `root.setdefault(k, []).append(e)`, and (delegated here by `_handle_array_set_stmt`
+        # as the pseudo-call `__r2c_setitem__`) `root[k]..["s"][f] = v` — lowers to a
+        # FUNCTIONAL WRITE-BACK of the root `ref` (`root := map_update_some !root k (..
+        # pairs_set .. hval_list_snoc ..)`). Value semantics are faithful ONLY when no other
+        # live name shares an object on the written path, so a FAIL-CLOSED syntactic
+        # escape/partner check (the #279/#283/#295 family, review §2) runs first and REFUSES
+        # otherwise:
+        #   (R1) `root` is a non-parameter `Dict[str, PyVal]` local whose every binding is a
+        #        dict literal (fresh), in a function with no `try` and no `no_exception`;
+        #   (R2) every other occurrence of `root` is a whitelisted NON-ESCAPING use: a store /
+        #        path-mutation target, the right operand of `in`/`not in`, an operand of
+        #        `==`/`!=`, or `return root` — never bound to another name, passed, iterated;
+        #   (R3) every key after the first is a string LITERAL (a list index / computed key
+        #        could reach a STORED element — a store below a stored parameter element
+        #        writes through a shared object, review §2 item 4) and every container on the
+        #        path is produced only by literals (a non-literal value stored on the path is
+        #        a shared container -> refused);
+        #   (R4) the appended / stored value is a scalar, a literal, or a mutable name that is
+        #        never mutated nor passed to a call in the function (its object is shared
+        #        with the tree after the append).
+        # A missing key / non-map / non-list on the path RAISES in Python; the model leaves
+        # the root unchanged there (partial correctness: no normal return follows; `try` and
+        # `no_exception` are refused by R1). Byte-inert: only reached for the pseudo-call or
+        # an `append` whose receiver is rooted at an hval-valued dict.
+        _r2c_fn = str(val.get("func", "") or "") if val.get("type") == "Call" else ""
+        _r2c_rcv = val.get("receiver") if _r2c_fn in ("append", "__r2c_setitem__") else None
+        _r2c_keys: List[Any] = []
+        _r2c_sd = False
+        _r2c_root = None
+        if isinstance(_r2c_rcv, dict):
+            _r2c_n = _r2c_rcv
+            if (_r2c_fn == "append" and _r2c_n.get("type") == "Call"
+                    and str(_r2c_n.get("func", "")).endswith(".setdefault")):
+                _r2c_sda = _r2c_n.get("args") or []
+                _r2c_sd = True
+                _r2c_keys = [_r2c_sda[0] if _r2c_sda else None]
+                _r2c_n = {"type": "Var",
+                          "name": str(_r2c_n.get("func"))[:-len(".setdefault")]}
+                if not (len(_r2c_sda) == 2 and isinstance(_r2c_sda[1], dict)
+                        and _r2c_sda[1].get("type") == "ArrayLit"
+                        and not _r2c_sda[1].get("elts")):
+                    _r2c_keys = [None]
+            while isinstance(_r2c_n, dict) and _r2c_n.get("type") == "Subscript":
+                _r2c_keys.insert(0, _r2c_n.get("index"))
+                _r2c_n = _r2c_n.get("value")
+            if isinstance(_r2c_n, dict) and _r2c_n.get("type") == "Var":
+                _r2c_root = _r2c_n.get("name")
+        if (_r2c_root and _r2c_keys
+                and getattr(self, "_dict_value_types", {}).get(_r2c_root) == "hval"
+                and (_r2c_fn == "__r2c_setitem__"
+                     or _r2c_root in getattr(self, "_dict_locals", set())
+                     or _r2c_root in getattr(self, "_formal_params", []))):
+            from errors import PyCSLSemanticError
+            _r2c_why = None
+            _r2c_args = val.get("args") or []
+            _r2c_val = _r2c_args[-1] if _r2c_args else None
+            _r2c_cef = str(getattr(self, "_current_emitting_func", "") or "")
+            _r2c_fir = next((f for f in (self.ir.get("functions", []) or [])
+                             if isinstance(f, dict)
+                             and (f.get("name") == _r2c_cef
+                                  or whyml_ident(str(f.get("name", ""))) == _r2c_cef)), None)
+            if _r2c_fir is None:
+                _r2c_why = "the enclosing function's IR is not found"
+            elif (_r2c_root in getattr(self, "_formal_params", [])
+                    or _r2c_root not in getattr(self, "_dict_locals", set())):
+                _r2c_why = (f"`{_r2c_root}` is a PARAMETER (the caller's tree: route (a), "
+                            f"needs the call-site kill rule), not a locally built root")
+            elif (getattr(self, "_current_no_exception", set())
+                    or getattr(self, "_current_no_exception_all", False)):
+                _r2c_why = "the function carries `no_exception` (path-error obligations unmodelled)"
+            elif (_r2c_val is None or (_r2c_fn == "__r2c_setitem__" and len(_r2c_args) != 2)
+                    or (_r2c_fn == "append" and len(_r2c_args) != 1)
+                    or val.get("keywords") or val.get("kwargs")):
+                _r2c_why = "unsupported call shape"
+            _r2c_body = (_r2c_fir.get("body") or []) if _r2c_fir is not None else []
+            # One walk: collect whitelisted root occurrences, the store EVENTS
+            # (const-suffix path, value), mutation statements on other roots, `try`, and
+            # every call argument name.
+            _r2c_ok_ids: Set[int] = set()
+            _r2c_events: List[Any] = []
+            _r2c_other_mut = False
+            _r2c_call_args: Set[str] = set()
+            _r2c_muts = ("append", "extend", "insert", "pop", "remove", "clear", "update",
+                         "setdefault", "add", "discard", "sort", "reverse", "popitem")
+            _r2c_st: List[Any] = [_r2c_body]
+            while _r2c_st and _r2c_why is None:
+                _x = _r2c_st.pop()
+                if isinstance(_x, list):
+                    _r2c_st.extend(_x)
+                    continue
+                if not isinstance(_x, dict):
+                    continue
+                _r2c_st.extend(v for v in _x.values() if isinstance(v, (list, dict)))
+                _sk = _x.get("stmt")
+                if _sk in ("Try", "TryExcept", "TryFinally", "With", "FunctionDef", "Lambda") \
+                        or _x.get("type") in ("Lambda", "ListComp", "DictComp", "SetComp",
+                                              "GeneratorExp", "Comprehension"):
+                    if _sk in ("Try", "TryExcept", "TryFinally"):
+                        _r2c_why = "the function has a `try` (a raised path error could be caught)"
+                    continue
+                if _sk in ("Assign", "AnnAssign") and _x.get("target") == _r2c_root:
+                    _bv = _x.get("value")
+                    if not (isinstance(_bv, dict) and _bv.get("type") == "DictLit"):
+                        _r2c_why = f"`{_r2c_root}` is bound to a non-literal (not fresh)"
+                    else:
+                        for _bvv in (_bv.get("values") or []):
+                            _r2c_events.append(([], _bvv))
+                    continue
+                if _sk in ("AugAssign", "Delete", "DelSubscript", "ArraySliceSet",
+                           "FieldAssign", "FieldAugAssign", "ArraySet"):
+                    _ch = _x.get("array") if _sk in ("ArraySet", "ArraySliceSet",
+                                                     "DelSubscript") else None
+                    _ks: List[Any] = []
+                    while isinstance(_ch, dict) and _ch.get("type") == "Subscript":
+                        _ks.insert(0, _ch.get("index"))
+                        _ch = _ch.get("value")
+                    if (_sk == "ArraySet" and isinstance(_ch, dict) and _ch.get("type") == "Var"
+                            and _ch.get("name") == _r2c_root):
+                        _r2c_ok_ids.add(id(_ch))
+                        _ks = _ks + [_x.get("index")]
+                        if all(isinstance(_k, dict) and _k.get("type") == "String"
+                               for _k in _ks[1:]):
+                            _r2c_events.append(([_k.get("value") for _k in _ks[1:]],
+                                                _x.get("value")))
+                        else:
+                            _r2c_events.append((None, None))
+                    elif _sk == "AugAssign" and _x.get("target") == _r2c_root:
+                        _r2c_why = f"augmented assignment to `{_r2c_root}`"
+                    else:
+                        _r2c_other_mut = True
+                    continue
+                if _sk == "Return":
+                    _rv = _x.get("value")
+                    if isinstance(_rv, dict) and _rv.get("type") == "Var" \
+                            and _rv.get("name") == _r2c_root:
+                        _r2c_ok_ids.add(id(_rv))
+                    continue
+                _t = _x.get("type")
+                if _t == "BinOp" and _x.get("op") in ("in", "not in", "==", "!="):
+                    for _side in ("left", "right"):
+                        if _side == "left" and _x.get("op") in ("in", "not in"):
+                            continue
+                        _ch = _x.get(_side)
+                        while isinstance(_ch, dict) and _ch.get("type") == "Subscript":
+                            _ch = _ch.get("value")
+                        if (isinstance(_ch, dict) and _ch.get("type") == "Var"
+                                and _ch.get("name") == _r2c_root):
+                            _r2c_ok_ids.add(id(_ch))
+                    continue
+                if _t == "Call":
+                    _cf = str(_x.get("func", "") or "")
+                    _la = _x.get("args") or []
+                    if (_cf == "len" and len(_la) == 1 and isinstance(_la[0], dict)
+                            and _la[0].get("type") == "Subscript"):
+                        # `len(root[k]..)` (depth >= 1): an int read, no partner.
+                        _ch = _la[0]
+                        while isinstance(_ch, dict) and _ch.get("type") == "Subscript":
+                            _ch = _ch.get("value")
+                        if (isinstance(_ch, dict) and _ch.get("type") == "Var"
+                                and _ch.get("name") == _r2c_root):
+                            _r2c_ok_ids.add(id(_ch))
+                            continue
+                    if _cf.startswith(f"{_r2c_root}.") and id(_x) not in _r2c_ok_ids:
+                        _r2c_why = (f"`{_cf}(..)` reads/mutates `{_r2c_root}` through a method "
+                                    f"(a partner or an unmodelled write)")
+                        continue
+                    _crv = _x.get("receiver")
+                    _r2c_self_app = False
+                    _ch = _crv
+                    if (_cf == "append" and isinstance(_ch, dict) and _ch.get("type") == "Call"
+                            and str(_ch.get("func", "")) == f"{_r2c_root}.setdefault"):
+                        _r2c_self_app = True
+                    while isinstance(_ch, dict) and _ch.get("type") == "Subscript":
+                        _ch = _ch.get("value")
+                    if (_cf == "append" and isinstance(_ch, dict) and _ch.get("type") == "Var"
+                            and _ch.get("name") == _r2c_root and _ch is not _crv):
+                        _r2c_self_app = True
+                    # the R2c appends' own argument is checked by (R4), not a partner pass
+                    if not _r2c_self_app:
+                        for _ca in (_x.get("args") or []):
+                            if isinstance(_ca, dict) and _ca.get("type") == "Var":
+                                _r2c_call_args.add(str(_ca.get("name")))
+                    _ch = _crv
+                    if (isinstance(_ch, dict) and _ch.get("type") == "Call"
+                            and str(_ch.get("func", "")) == f"{_r2c_root}.setdefault"):
+                        _sda = _ch.get("args") or []
+                        _r2c_events.append(([], _sda[1] if len(_sda) == 2 else None))
+                        _ch = {"type": "Var", "name": _r2c_root}
+                        if _cf == "append":
+                            _r2c_ok_ids.add(id(_crv))
+                        else:
+                            _r2c_why = f"`{_r2c_root}.setdefault(..)` result used other than `.append`"
+                    while isinstance(_ch, dict) and _ch.get("type") == "Subscript":
+                        _ch = _ch.get("value")
+                    _mroot = None
+                    if isinstance(_ch, dict) and _ch.get("type") == "Var":
+                        _mroot = _ch.get("name")
+                    elif "." in _cf:
+                        _mroot = _cf.rsplit(".", 1)[0]
+                    _mname = _cf.rsplit(".", 1)[-1]
+                    if _mroot == _r2c_root and _mname == "append" and isinstance(_ch, dict) \
+                            and _ch is not _crv:
+                        _r2c_ok_ids.add(id(_ch))
+                    elif _mroot == _r2c_root and _mname == "append" and _ch is _crv \
+                            and isinstance(_crv, dict) and _crv.get("type") == "Subscript":
+                        _r2c_ok_ids.add(id(_ch))
+                    elif _mname in _r2c_muts and _mroot != _r2c_root:
+                        _r2c_other_mut = True
+                    elif _mroot == _r2c_root and isinstance(_ch, dict) \
+                            and _ch.get("type") == "Var" and _mname == "append":
+                        _r2c_ok_ids.add(id(_ch))
+            # (R2) every root occurrence must be whitelisted.
+            if _r2c_why is None:
+                _r2c_st = [_r2c_body]
+                while _r2c_st:
+                    _x = _r2c_st.pop()
+                    if isinstance(_x, list):
+                        _r2c_st.extend(_x)
+                    elif isinstance(_x, dict):
+                        if (_x.get("type") == "Var" and _x.get("name") == _r2c_root
+                                and id(_x) not in _r2c_ok_ids):
+                            _r2c_why = (f"`{_r2c_root}` ESCAPES (bound to another name, "
+                                        f"passed, iterated or read into a partner)")
+                            break
+                        if _x.get("stmt") in ("For",) and _x.get("target") == _r2c_root:
+                            _r2c_why = f"`{_r2c_root}` rebound by a loop"
+                            break
+                        _r2c_st.extend(v for v in _x.values() if isinstance(v, (list, dict)))
+            # (R3) path keys and fresh containers along the path.
+            _r2c_cont = list(_r2c_keys)
+            if _r2c_why is None and _r2c_fn == "__r2c_setitem__":
+                _r2c_cont = list(_r2c_keys)   # container path; final key = args[0]
+            if _r2c_why is None and (any(_k is None for _k in _r2c_keys)
+                                     or not all(isinstance(_k, dict)
+                                                and _k.get("type") == "String"
+                                                for _k in _r2c_cont[1:])):
+                _r2c_why = ("a key after the first is not a string literal: the path could "
+                            "reach a STORED element (a store below a stored parameter "
+                            "element writes through a shared object — rule (iv))")
+            if _r2c_why is None and (_r2c_keys[0] is None
+                                     or not self._is_string_expr(_r2c_keys[0])):
+                _r2c_why = "the first key is not a string"
+            if _r2c_why is None:
+                _sfx = [_k.get("value") for _k in _r2c_cont[1:]]
+                for _j in range(len(_sfx) + 1):
+                    _S = _sfx[:_j]
+                    for _ep, _ev in _r2c_events:
+                        if _ep is None:
+                            _r2c_why = ("a store into the tree through a computed key (it could "
+                                        "reach a STORED element: a store below a stored "
+                                        "parameter element writes through a shared object — "
+                                        "rule (iv))")
+                            break
+                        if _ep != _S[:len(_ep)]:
+                            continue
+                        _cur = _ev
+                        _live = True
+                        for _kk in _S[len(_ep):]:
+                            if isinstance(_cur, dict) and _cur.get("type") == "DictLit":
+                                _nx = None
+                                for _dk, _dv in zip(_cur.get("keys") or [],
+                                                    _cur.get("values") or []):
+                                    if not (isinstance(_dk, dict) and _dk.get("type") == "String"):
+                                        _r2c_why = "a dict literal on the path has a computed key"
+                                    elif _dk.get("value") == _kk:
+                                        _nx = _dv
+                                if _nx is None:
+                                    _live = False
+                                    break
+                                _cur = _nx
+                            elif (isinstance(_cur, dict)
+                                  and _cur.get("type") in ("ArrayLit", "String", "Int",
+                                                           "Num", "Bool", "Float")):
+                                _live = False
+                                break
+                            else:
+                                _r2c_why = ("a NON-LITERAL value is stored on the written path "
+                                            "(its object may be shared)")
+                                break
+                        if _r2c_why is not None:
+                            break
+                        if _live and not (isinstance(_cur, dict) and _cur.get("type") in (
+                                "DictLit", "ArrayLit", "String", "Int", "Num", "Bool", "Float")):
+                            _r2c_why = ("a NON-LITERAL container is stored on the written path "
+                                        "(its object may be shared with another name)")
+                        if _r2c_why is not None:
+                            break
+                    if _r2c_why is not None:
+                        break
+            # (R4) the appended / stored value.
+            if _r2c_why is None:
+                _vs: List[Any] = [_r2c_val]
+                if _r2c_fn == "__r2c_setitem__" and not self._is_string_expr(_r2c_args[0]):
+                    _r2c_why = "the stored key is not a string"
+                while _vs and _r2c_why is None:
+                    _v = _vs.pop()
+                    _vt = _v.get("type") if isinstance(_v, dict) else None
+                    if _vt == "DictLit":
+                        _vs.extend(_v.get("values") or [])
+                        if not all(isinstance(_dk, dict) and self._is_string_expr(_dk)
+                                   for _dk in (_v.get("keys") or [])):
+                            _r2c_why = "a stored dict literal has a non-string key"
+                    elif _vt == "ArrayLit":
+                        _vs.extend(_v.get("elts") or [])
+                    elif _vt in ("String", "Int", "Num", "Bool"):
+                        pass
+                    elif _vt == "Var":
+                        _vn = _v.get("name")
+                        if self._is_string_expr(_v) or (getattr(self, "_current_symbol_table", {})
+                                                         or {}).get(_vn) in ("int", "str", "bool"):
+                            pass
+                        elif self._expr_is_pyval(_v):
+                            if _r2c_other_mut or _vn in _r2c_call_args or _vn == _r2c_root:
+                                _r2c_why = (f"the stored object `{_vn}` is shared with the tree and "
+                                            f"the function mutates / passes objects (partner)")
+                        else:
+                            _r2c_why = f"the stored value `{_vn}` has no faithful hval tag"
+                    else:
+                        _r2c_why = "the stored value is not a name or literal"
+            if _r2c_why is not None:
+                raise PyCSLSemanticError(
+                    f"r2c-local: the path mutation of `{_r2c_root}` (a heterogeneous "
+                    f"`Dict[str, PyVal]` tree) is REFUSED — {_r2c_why}. A value-model "
+                    f"write-back is faithful only for a locally built, non-escaping, "
+                    f"unshared tree (getting-better/r2c-wall/r2c-wall-impl.md). Rewrite the "
+                    f"mutation, or mark the enclosing function `#@ \\trusted`.",
+                    stage="module6-whyml", code="PYCSL-M6-R2C-LOCAL-REFUSED")
+            # Lowering (innermost leaf first, then the HMap/pairs_set wraps outwards).
+            self._add_abstract_op(
+                "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
+                ": map 'k (option 'v)\n"
+                "    ensures { result = Map.set m k (Some v) }")
+            _rw = whyml_ident(_r2c_root)
+            _depth = len(_r2c_cont)
+            _ew = self._pyval_wrap(_r2c_val, local_refs)
+            if _r2c_fn == "__r2c_setitem__":
+                _fk = self._expr_to_whyml(_r2c_args[0], local_refs)
+                _acc = (f"(match r2c_h{_depth} with HMap r2c_p -> HMap (pairs_set r2c_p "
+                        f"r2c_f r2c_e) | _ -> r2c_h{_depth} end)")
+            else:
+                _fk = None
+                _acc = (f"(match r2c_h{_depth} with HArr r2c_l -> HArr (hval_list_snoc r2c_l "
+                        f"r2c_e) | _ -> r2c_h{_depth} end)")
+            for _i in range(_depth - 1, 0, -1):
+                _sw = self._expr_to_whyml(_r2c_cont[_i], local_refs)
+                _acc = (f"(match r2c_h{_i} with HMap r2c_p{_i} -> (match pairs_get r2c_p{_i} "
+                        f"{_sw} with Some r2c_h{_i + 1} -> HMap (pairs_set r2c_p{_i} {_sw} "
+                        f"{_acc}) | None -> r2c_h{_i} end) | _ -> r2c_h{_i} end)")
+            _kw = self._expr_to_whyml(_r2c_keys[0], local_refs)
+            _pre = f"let r2c_k = {_kw} in let r2c_e = {_ew} in "
+            if _fk is not None:
+                _pre += f"let r2c_f = {_fk} in "
+            if _r2c_sd:
+                _body = (f"(let r2c_h1 = (match Map.get !{_rw} r2c_k with Some r2c_c -> r2c_c "
+                         f"| None -> HArr HNil end) in map_update_some !{_rw} r2c_k {_acc})")
+            else:
+                _body = (f"(match Map.get !{_rw} r2c_k with Some r2c_h1 -> "
+                         f"map_update_some !{_rw} r2c_k {_acc} | None -> !{_rw} end)")
+            code = f"{indent}({_pre}{_rw} := {_body})"
+            if rest:
+                code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+            return code
         # W-IPM S-C (#49): `self.<f>.append(v)` / `self.<f>.extend(<recv>.<g>)` on a LIST
         # self field held as a MUTABLE `array <T>` record field is a real field write-back
         # `self.<f> <- Array.append self.<f> (Array.make 1 v)` / `... <recv>.<g>` — the new

@@ -1,0 +1,4 @@
+2026-10-22T10:58:34Z start
+2026-10-22T11:00:49Z spike: cgd_min emitted; seams found (prescan t-or-str pyval, literal any_map, #280 refusal); prototyping lowering
+2026-10-22T11:07:26Z spike criterion (1) L3-tc clean with write-back + HMap literal; building witnesses (2)/(3)
+2026-10-22T11:14:04Z spike (1) PASS L3-tc; (2) w_len1 z3 Valid, twin non-Valid (OOM); (3) refused at emit
