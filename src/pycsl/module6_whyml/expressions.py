@@ -1466,7 +1466,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _rawh = (f"(match {_pvm} with HMap m_mem -> "
                          f"(match pairs_get m_mem {_kw} with Some v_ -> v_ "
                          f"| None -> (HInt 0) end) | _ -> (HInt 0) end)")
-                _mem = f"(hval_str_mem {_rawh} {left})"
+                # ch31 SOUNDNESS: `hval_str_mem` reads FALSE on every non-`HArr` carrier,
+                # so `"a" in rec["fields"]` with `rec["fields"] = {"a": 1}` was False
+                # (CPython: True; model-level claim proved, spike `head_in_map`). Now the
+                # R2b carrier dispatch: `HArr` -> the same `hval_list_str_mem` fold (the
+                # TypedDict field-name list keeps its exact lowering), `HMap` -> key
+                # presence, any other carrier -> the uninterpreted `hval_in_other`.
+                self._add_abstract_op(
+                    "val function hval_in_other (k: string) (h: hval) : bool")
+                _mem = (f"(let _hin = {_rawh} in let _kin = {left} in match _hin with "
+                        f"HMap _pin -> (match pairs_get _pin _kin with None -> false "
+                        f"| Some _ -> true end) "
+                        f"| HArr _lin -> hval_list_str_mem _lin _kin "
+                        f"| _ -> hval_in_other _kin _hin end)")
                 return f"(not {_mem})" if negate else _mem
         # dict-value-wall R2b: `"k" in <hval expr>` (a pyval local / `.get` / subscript read)
         # with a STRING needle. Python's `in` depends on the carrier: a dict (`HMap p`) tests
@@ -7263,6 +7275,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _lv = whyml_ident(arg_ir['name'])
             return (f"(match {_lv} with HArr _ -> (hval_len {_lv}) "
                     f"| _ -> (hval_len_other {_lv}) end)")
+        # ch31 (dict-value-wall, hval builtins): `len(<hval expr>)` on a NON-Var pyval read
+        # (`len(d.get("s"))`, `len(rec["fields"])`) fell to the opaque `iter_length : int ->
+        # int`, an L3-tc error against `hval`. Lowered by CARRIER: `HArr` -> the certified
+        # `hval_list_len` fold; `HStr` -> the string length (`hstr_len`, a `val function`
+        # whose spec `result = String.length s` is realizable, the `hpairs_key_eq` class);
+        # every other carrier (dict / int / node) -> the UNINTERPRETED `hval_len_other`.
+        # Body context only; the operand is bound once. Fail-closed: a non-pyval arg skips.
+        if (not self._in_spec and atype != "Var" and isinstance(arg_ir, dict)
+                and self._expr_is_pyval(arg_ir)):
+            self._add_abstract_op("val function hval_len_other (h: hval) : int")
+            self._add_abstract_op("val function hstr_len (s: string) : int\n"
+                                  "    ensures { result = String.length s }")
+            return (f"(let _hln = {args[0]} in match _hln with "
+                    f"HArr _lln -> hval_list_len _lln | HStr _sln -> hstr_len _sln "
+                    f"| _ -> hval_len_other _hln end)")
         # §B′: len(d[k]) where d is a seq-valued dict (`Dict[_, List[int]]`) — the
         # read is a `seq int`, so its length is `Seq.length`.
         if atype == "Subscript":
@@ -12021,6 +12048,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and (arg_ir.get("name") in getattr(self, "_inline_array_temps", set())
                          or arg_ir.get("name") in getattr(self, "_array_elem_types", {}))):
                 return f"(if Array.length {args[0]} <> 0 then 1 else 0)"
+            # ch31 (dict-value-wall, hval builtins): `bool(<hval>)` (`bool(func.get(
+            # "trusted"))`) is Python truthiness of the carrier -- the definitional
+            # `hval_truthy` (HStr non-empty / HInt non-zero / HArr,HMap non-empty / HNode
+            # true), the SAME function that already lowers `if <hval>:`, so `bool(x)` and
+            # `if x` agree by construction. NOT `bool_conv (x: int)` (an L3-tc error against
+            # `hval`). Body context only; gated on `_expr_is_pyval` -> fail-closed.
+            if (func_name == "bool" and not self._in_spec and isinstance(arg_ir, dict)
+                    and self._expr_is_pyval(arg_ir)):
+                return f"(if hval_truthy {args[0]} then 1 else 0)"
             # relaunch #16: `bool(<string>)` is Python STRING-truthiness — a string is
             # falsy iff it is EMPTY — so it lowers to `(if str_eq_op s "" then 0 else 1)`,
             # the FAITHFUL test, not the `bool_conv (x: int) : int` stub (which mistypes a
@@ -17811,8 +17847,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `_compute_return_type` PATH(b): an `hval` interpolation (`f"int{bounded_int}"`,
         # `bounded_int = func.get("bounded_int")`) projects its int carrier via `hint_of`
         # before `int_to_string` (which is int-typed). Descends the real hval (non-vacuous).
+        # ch31 (dict-value-wall, hval builtins): by CARRIER -- an `HStr s` segment IS `s`
+        # (it was `int_to_string (hint_of _)`, i.e. a fresh arbitrary string: sound only
+        # because `int_to_string` is a NON-deterministic program `val`, and never `s`).
+        # Every other carrier is the program `val hval_fmt_other` (NO `function`: `HInt`
+        # conflates int / bool / None, so `f"{True}"` and `f"{1}"` share a carrier but not
+        # a text -- a deterministic reader would equate them), never a constant.
         if self._expr_is_pyval(pp):
-            return f"(int_to_string (hint_of {w}))"
+            self._add_abstract_op("val hval_fmt_other (h: hval) : string")
+            return (f"(let _hfm = {w} in match _hfm with HStr _sfm -> _sfm "
+                    f"| _ -> hval_fmt_other _hfm end)")
         return f"(int_to_string {self._coerce_to_int(w)})"
 
     def _handle_fstring_expr(self, node: "ExprIR", local_refs: Set[str],

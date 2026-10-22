@@ -1381,11 +1381,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
         if self._is_string_expr(pp):
             return w
-        # `_compute_return_type` PATH(b): an `hval` interpolation (`f"int{bounded_int}"`,
-        # `bounded_int = func.get("bounded_int")`) projects its int carrier via `hint_of`
-        # before `int_to_string` (which is int-typed). Descends the real hval (non-vacuous).
+        # ch31 (dict-value-wall, hval builtins): by CARRIER -- an `HStr s` segment IS `s`;
+        # every other carrier is the NON-deterministic program `val hval_fmt_other`
+        # (`HInt` conflates int / bool / None), never a constant.
         if self._expr_is_pyval(pp):
-            return f"(int_to_string (hint_of {w}))"
+            self._add_abstract_op("val hval_fmt_other (h: hval) : string")
+            return (f"(let _hfm = {w} in match _hfm with HStr _sfm -> _sfm "
+                    f"| _ -> hval_fmt_other _hfm end)")
         return f"(int_to_string {self._coerce_to_int(w)})"
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
