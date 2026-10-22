@@ -642,3 +642,59 @@ inherited, not re-checked: r2c's "hval key projection maps a non-string key to `
   WITH-AS     pycsl.py::_resolve_runtime_config | HDR With open(config_path) as _cf | function '_resolve_runtime_config' binds _cf with a `with ... as` clause, and no certified lowering models it.
   DEFASSIGN   pycsl.py::main | source_code = f.read() | [ir-semantic] src/self-annotate/src/pycsl.py line 1472: src/self-annotate/src/pycsl.py (line 1472): function `
 ```
+
+## Re-measurement at HEAD — ch33 (gen #37)
+
+Measured 2026-10-22 on worktree `pycsl-g37ch33` (base `ee44b342`). Scope: the S-cost families
+SYNTAX 4, R301 12, UNBOUND 6, UNIT 4, STRM 6, FSTR 4 (36 markers). Method: `census.py` WITHOUT
+`--first` (full chain, up to 14 neutralise rounds) on a scratch copy of `src/`; rows in
+`ch33-chains.jsonl`. R301 chains behind the refusal were measured with the route #301 raise
+DISABLED in the scratch tree only (measurement, never landed): `ch33-r301-chains.jsonl`.
+UNBOUND re-measured after the label seams: `ch33-unbound-chains.jsonl`.
+**Result: 0 conversions (420 -> 420); 4 fail-closed emitter seams landed (`c033f11e`).**
+
+Landed (completeness, fail-closed, witnesses 3690-3696):
+- field-less record construction `{  }` -> `(any <rec>)` (+ receiver-less form kept in
+  `_handle_call_expr` for such a receiver); corpus mover 1277 only (now fails by proof).
+- `variant` containing `(any ...)` -> named refusal in `_handle_for_stmt` (3696).
+- `\length(self.<ambiguous field>)` and caller-side `writes { self.<f> }` print the field LABEL.
+
+Per-marker full chain (blocker AFTER the S-family one; none is honest after small seams):
+
+| family | marker | chain behind the S blocker | verdict |
+|---|---|---|---|
+| SYNTAX | `pure_ast.unparse` | `{  }` fixed -> `_pyobj_state` frame: `unparser.visit` writes object state of a FRESH local, `assigns \nothing` true of Python but the coarse cell cannot say "fresh" | OBJSTATE (L) |
+| SYNTAX | `_parse_atom_name` | fixed -> returns heterogeneous CSL records (`cslbool` vs int) | RECORD (M) |
+| SYNTAX | `_parse_contract` | 137 stmts; same record-return wall | RECORD (M) |
+| SYNTAX | `monomorphize._collect_instantiations` | now REFUSED (variant any); behind: `set(generics)` map typing, ir-semantic refusals x2 | ERASED/SET (M) |
+| R301 | `_Parser._slice` | `(r1,c1),(r2,c2)=(start,end)`; then `''.join(out)` seq int vs string, pytuple record vs int | LISTSTR+TUPLE (M) |
+| R301 | `_Parser._fin_block` | `node.end_lineno, node.end_col_offset = cur` (attribute targets); `_max_end` unit/MCYCLE | MCYCLE (L) |
+| R301 | `_linear_form` | tuple-for component read outside loop (#302) x3, ir-semantic | TUPLE (M) |
+| R301 | `_static_width` | emit_ir vs map | DICT (L) |
+| R301 | `_handle_attribute_expr` | ERASED x5, INTSTR, emit_ir (12 rounds) | ERASED (M) |
+| R301 | `_collect_array_var_assigns` | ERASED, ir-semantic recursion | ERASED (M) |
+| R301 | `_dispatch_function_contracts` | APPENDLEN x14 (CAP) | APPENDLEN (M) |
+| R301 | `_normalize_union_annotation` | ALIAS, DEFASSIGN, COMPRECV | ALIAS (M) |
+| R301 | `_resolve_direct_imports` / `_resolve_imported_classes` | ERASED x3, #302 tuple-for, CAP | ERASED (M) |
+| R301 | `visit_Module` / `_reset_function_state` | 184 / 1817 stmts, CAP-ROUNDS | L |
+| UNBOUND | `proof2why3.parser.lex` | `toks` label fixed -> ONE blocker left: module-global `_OP_TOKENS` (list of str) typed `array int` (`toks.append(Token('OP', op))`) | LISTSTR (M) — nearest miss |
+| UNBOUND | `_lex_contract` | `toks` fixed -> `m.lastgroup` int vs string, `_Tok` seq vs seq int | INTSTR/LISTSTR (M) |
+| UNBOUND | `_parse_atom_bs` | `writes { self.i }` fixed -> emit_ir vs int (353 stmts) | RECORD (M) |
+| UNBOUND | `_normalize_leading` | `any(_match_block_hdr(ln) for ...)` genexp | GENEXP (M) |
+| UNBOUND | `_const_value_getter/_setter` | free function with a `self` param: Module5 drops every param named `self` (4 sites); converted body would be `getattr_2 self <hash>` | needs free-fn `self` semantics (M), FACADE-ish |
+| UNIT | `_ContractParser.parse`, `_parse_inductive`, `_decode_fstring_middle`, `fix_missing_locations` | callee is a `\trusted` stub WITHOUT return annotation -> val returns `unit`; then record/emit_ir walls | UNIT seam would change corpus trusted-val signatures (not small) |
+| STRM | `normalize_prover_output` / `normalize_surface` | `out.replace(u, a)` with u,a from erased pairs, x4 | ERASED (M) |
+| STRM | `_split_rocq_check_output` | 4 str/array typing blockers | LISTSTR (M) |
+| STRM | `_cache_key` | sorted(List[str]) + hashlib | EXT, FACADE |
+| STRM | `_synthesize_block` / `_synthesize_legacy_text` | real/int, join of genexp; FACADE (hash 15) | GENEXP (M) |
+| FSTR | `get_type_comment` | mirror sig `-> int`; with `-> Optional[str]` the callee TCs but VERIFIED callers (`visit_Assign`: `if type_comment:` truthiness on the union, `self.write(...)` seq) break | ripple into verified callers (M) |
+| FSTR | `visit_Compare` | `'%d' % (n,)` only, but body = 5 zero-ary AST ctors + getattr erasure | FACADE |
+| FSTR | `whyml_ident` | f-string + APPENDLEN + join | APPENDLEN (M) |
+| FSTR | `_emit_preamble_uses` | seq int vs seq string, sorted, any() | LISTSTR (M) |
+
+R301 decision: no marker would become honest from a faithful nested-tuple lowering (every R301
+chain has an M/L blocker behind), so the route #301 refusal is LEFT IN PLACE.
+
+OWED (exact commands, from the worktree root, why3 on PATH via `. scratchpad/g29/env.sh`):
+`scratchpad/heavy/heavy.sh env PYTHONHASHSEED=0 .venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/expressions.py --import-path src/pycsl`
+`scratchpad/heavy/heavy.sh env PYTHONHASHSEED=0 .venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/module6_whyml/stmt_control_flow.py --import-path src/pycsl`
