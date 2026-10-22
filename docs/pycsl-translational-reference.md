@@ -2374,9 +2374,19 @@ both failed before and prove now.
 kept in the map and dropped by the reader. The rule that catches both: *a fold over a literal
 is sound only where the fold's key equality is the model's key equality.*
 
-**Stated residue**: a dict literal with a NON-CONSTANT key (13 in the mirror, 2 in the
-corpora) still takes the syntactic count, because two variables may be equal and the fold
-cannot know. Withholding the size there is a separate, measurable change.
+**The fold answers only what the source text decides** (routes #61 and #297). A dict literal
+with ANY key the fold cannot normalise to a Python value (a name, `-0`, `2 - 1`, `+1`, a call)
+or a non-integral float key registers NEITHER a size NOR an element map: a non-literal key may
+equal a literal one at runtime and overwrite it (`{0: 1, k: 2}[0]` is 2 when `k == 0`), so
+`len(d)` / `d[0]` read the faithful map or fail closed. The same holds for a set literal with
+a non-literal element (two values the fold cannot see may be equal) and for any list / tuple /
+set literal with a `Starred` element (`*ys` contributes `len(ys)` elements and shifts every
+later index). The name is then blacklisted like a rebound collection, so a later literal
+binding in another arm cannot register for it. The inline `len(<literal>)` fold follows the
+same rule (no `Starred`; all-literal set/dict elements counted DISTINCT under Python equality),
+and the indexed-read fold accepts an `int` index only (`a[1.0]` raises `TypeError`). A plain
+non-literal element of a list/tuple keeps the SIZE fold and the literal positions' element
+fold: one syntactic element is exactly one runtime element at its own index.
 
 ---
 
