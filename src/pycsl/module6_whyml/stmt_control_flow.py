@@ -509,8 +509,16 @@ class ControlFlowStmtMixin:
             # as the `.items()` walk. Every other R2b iterable keeps its emission.
             _hmk = (f"| HMap _ -> hval_values_len (hval_as_map {_hv}) "
                     if iter_ir.get("type") == "Var" else "")
-            _hmg = (f"| HMap _ -> HStr (hval_keys_get (hval_as_map {_hv}) !{idx}) "
+            # route #298: a nested map's key carrier is unknown (an int/tuple/None key is
+            # legal). By default it is `HStr _` (the declared assumption HVAL-STR-KEYS);
+            # `--strict-hval-keys` binds the uninterpreted `hval_keys_hget` instead.
+            _hmg = ((f"| HMap _ -> hval_keys_hget (hval_as_map {_hv}) !{idx} "
+                     if getattr(self, "strict_hval_keys", False) else
+                     f"| HMap _ -> HStr (hval_keys_get (hval_as_map {_hv}) !{idx}) ")
                     if iter_ir.get("type") == "Var" else "")
+            if iter_ir.get("type") == "Var" and getattr(self, "strict_hval_keys", False):
+                self._add_abstract_op(
+                    "val function hval_keys_hget (m: map string (option hval)) (i: int) : hval")
             _hlen = (f"(match {_hv} with HArr _hl -> hval_list_len _hl "
                      f"{_hmk}| _ -> hval_iter_len_other {_hv} end)")
             self._for_target_is_pyval = True
@@ -1265,7 +1273,24 @@ class ControlFlowStmtMixin:
         # is emitter-internal only).
         _saved_pyval_key_symtype = _MISSING
         _items_key_target = tuple_targets[0] if _is_pyval_items else None
-        if _is_pyval_items and _items_key_target and _items_key_target != "_":
+        # route #298 (gen #37): the KEY of a NESTED hval map (an `.items()` receiver that is
+        # an hval LOCAL/param read, not a declared `Dict[str, PyVal]` self-field) has NO
+        # declared type -- `Dict[str, PyVal]` constrains only the top-level keys, a nested
+        # `{1: 2}` has an int key. By default the key is a `string` (the DECLARED model
+        # assumption HVAL-STR-KEYS, listed by --soundness-report); `--strict-hval-keys`
+        # drops it: the key binds an UNINTERPRETED `hval` (`hval_keys_hget`), registered as
+        # a pyval local (never symbol-type "str"), so every key-typed observation
+        # (`isinstance`, `type`, comparisons, f-strings, string methods) reads an unknown
+        # carrier.
+        _items_key_hval = bool(getattr(self, "strict_hval_keys", False) and _is_pyval_items
+                               and self._hval_items_recv(iter_ir) is None)
+        _saved_pyval_key_member = None
+        if (_items_key_hval and _items_key_target and _items_key_target != "_"):
+            if not hasattr(self, "_pyval_locals"):
+                self._pyval_locals = set()
+            _saved_pyval_key_member = _items_key_target in self._pyval_locals
+            self._pyval_locals.add(_items_key_target)
+        elif _is_pyval_items and _items_key_target and _items_key_target != "_":
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
                 _saved_pyval_key_symtype = _st.get(_items_key_target, _MISSING)
@@ -1382,7 +1407,10 @@ class ControlFlowStmtMixin:
         elif (_is_pyval_items and _items_val_target and _items_val_target != "_"
                 and _saved_pyval_val_member is False):
             self._pyval_locals.discard(_items_val_target)
-        if _is_pyval_items and _items_key_target and _items_key_target != "_":
+        if (_items_key_hval and _items_key_target and _items_key_target != "_"):
+            if _saved_pyval_key_member is False:
+                self._pyval_locals.discard(_items_key_target)
+        elif _is_pyval_items and _items_key_target and _items_key_target != "_":
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
                 if _saved_pyval_key_symtype is _MISSING:
@@ -1674,7 +1702,14 @@ class ControlFlowStmtMixin:
                 _mapw = getattr(self, "_for_items_hval_map", None)
                 _kt, _vt = tuple_targets[0], tuple_targets[1]
                 _lines: List[str] = []
-                if _kt and _kt != "_" and _mapw is not None:
+                if _kt and _kt != "_" and _mapw is not None and _items_key_hval:
+                    # route #298: a NESTED map's key is an unknown-typed `hval` (immutable,
+                    # read bare like the value), never a `string`.
+                    self._add_abstract_op(
+                        "val function hval_keys_hget (m: map string (option hval)) (i: int) : hval")
+                    _lines.append(f"{bind_indent}let {whyml_ident(_kt)} = "
+                                  f"(hval_keys_hget {_mapw} !{idx}) in")
+                elif _kt and _kt != "_" and _mapw is not None:
                     # the KEY is a mutable `ref string` (in `body_declared`, so its reads
                     # deref `!k`) — the VALUE is an immutable pyval `hval` (read bare).
                     _lines.append(f"{bind_indent}let {whyml_ident(_kt)} = "

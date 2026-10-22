@@ -4083,6 +4083,7 @@ of the translation:
 | **FLOAT-FINITE** — every `float` value is finite and non-NaN | $\tau(\texttt{float}) = \texttt{real}$ (no NaN/±inf) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-float-finite`; counterexample corpus 2500-2502 |
 | **BUILTIN-EXACT** — a builtin-typed value is an exact instance (no dunder-overriding subclass) | $\tau$ of every builtin | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2506 |
 | **LATIN1-STR** — every `str` value consists of code points 0..255 (`ord(c) < 256`; `chr(n)` modelled only for `0 <= n < 256`) | $\tau(\texttt{str}) = \texttt{string}$ of Why3 `string.Char` (`axiom code`: every code < 256) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-latin1`; counterexample corpus 3020-3023 |
+| **HVAL-STR-KEYS** — every dict nested inside a `PyVal` value has `str` keys | $\tau$(`Dict[str, PyVal]`) = `map string (option hval)` with `HMap` over `hpairs` keyed by `string`; the nested-key walk `hval_keys_get` returns a `string` | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-hval-keys`; counterexample corpus 3550-3553 |
 | **CLASS-EXACT** — a user-class-typed value is an exact instance (no override is seen) | a method call through an `A`-typed receiver lowers against `A.m`'s contract | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5) ONLY under `--assume-class-exact`; the default emits the refinement goals and refusals of route #277/#278 instead; counterexample corpus 3100-3101 |
 | **FIELD-DISJOINT** — two distinct mutable fields hold distinct objects | one Why3 region per mutable field (frames such as `ensures { self.ys = old self.ys }`) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2570 |
 | **PARAM-DISJOINT** — two distinct mutable parameters (or a parameter and `self` / a module-level name), and two distinct elements of a container parameter, hold distinct objects | one Why3 region per `ref`/record parameter (frames such as `ensures { ys = old ys }`), an `array` of independent `array`/`seq` values for `List[List[_]]` | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 3180-3188 |
@@ -4253,6 +4254,27 @@ and `_run_pipeline` refuses (PYCSL-SEM-OVERRIDE-REFINEMENT) an override whose es
 (static semantics App. C.1, "What the default override check covers"). Under
 `--assume-class-exact` only the `#@ conforms_to` pairs are emitted, and `--soundness-report` lists
 CLASS-EXACT with every override pair and every method call of the unit.
+
+**HVAL-STR-KEYS** — every dict nested inside a `PyVal` value has `str` keys. The `hval`
+value model (`type hval = HStr string | HInt int | HArr hval_list | HMap hpairs | HNode hval`,
+`hpairs = PNil | PCons string hval hpairs`) keys every nested dict by `string`, while the
+annotation `Dict[str, PyVal]` constrains only the TOP-level keys. Two lowerings rely on it: the
+`.items()` walk over an `hval` local/param read binds the key `let k = ref (hval_keys_get
+(hval_as_map xs) !i)`, a `string` symbol-typed `str`, and the bare `for k in m` binds the
+`HMap` arm `HStr (hval_keys_get (hval_as_map m) !i)`. So `isinstance(k, str)` folds to true and
+`isinstance(k, int)` to false: 3550-3553 PROVE `\result == True`, CPython refutes them with
+`{"xs": {1: 2}}`. A read by a `str` needle (`pairs_get`) is faithful in both modes: the
+`hpairs` of a dict are its `str`-keyed entries, and a `str` needle can match only a `str` key.
+*Strict mode* `--strict-hval-keys` (opt-in) lowers both key views to the uninterpreted
+
+    val function hval_keys_hget (m: map string (option hval)) (i: int) : hval   (no spec, no axiom)
+    for k, v in xs.items()   ⟶  let k = (hval_keys_hget (hval_as_map xs) !i) in   (k a pyval local)
+    for k in m  (HMap arm)   ⟶  | HMap _ -> hval_keys_hget (hval_as_map m) !i
+
+so 3554-3557 FAIL and the controls 3558 PROVE. Cost (measured, route #298): a key that flows
+into a `str` sink (`return k` from `-> str`, `"None" in k`, an f-string, `seq string` append,
+a `map string` key) does not type-check, which is why the faithful key is not the default:
+3 self-annotation mirrors would need a new pyval-to-str coercion at 13 sinks.
 
 **LATIN1-STR** — every str value consists of code points 0..255. $\tau(\texttt{str})$ is the
 Why3 `string`, whose characters are `string.Char`s, and Why3's `axiom code: forall c. 0 <= code c

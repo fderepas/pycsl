@@ -349,6 +349,17 @@ def _parse_args() -> argparse.Namespace:
                              "code points 0..255, a declared assumption listed by "
                              "--soundness-report. Costs every proof that feeds "
                              "`ord(..)` into a cited lemma over `Char.code`.")
+    g_strict.add_argument("--strict-hval-keys", action="store_true",
+                        help="Drop the HVAL-STR-KEYS model assumption (route #298): "
+                             "the key of a NESTED `PyVal` dict (an `.items()` key or a "
+                             "bare `for k in m` over a dict read out of a "
+                             "`Dict[str, PyVal]`) is an unknown-typed value, not a "
+                             "`str`, so `isinstance(k, str)` no longer proves and a "
+                             "string operation on it does not type-check. Off by "
+                             "default — `Dict[str, PyVal]` constrains only the "
+                             "top-level keys, and every nested dict is assumed to "
+                             "have str keys, a declared assumption listed by "
+                             "--soundness-report.")
     g_strict.add_argument("--check-behavioral-subtyping", action="store_true",
                         help="Layer D (ON BY DEFAULT since route #277; kept for "
                              "compatibility): emit Liskov refinement goals for "
@@ -787,6 +798,67 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
         if _l1_vals:
             _l1_uses.append("%s: str values (8-bit string model) %s" % (
                 f["name"], ", ".join(sorted(_l1_vals))))
+    # ROUTE #298 — HVAL-STR-KEYS. The `hval` value model (`Dict[str, PyVal]`) keys every
+    # NESTED dict by `string` (`HMap` over `hpairs`; the `.items()` key walk
+    # `hval_keys_get` returns a `string`, the bare-loop `HMap` arm an `HStr`), but the
+    # annotation constrains only the TOP-level keys: `{"xs": {1: 2}}` is a legal argument.
+    # Reported for every loop (statement or comprehension) of a function that holds an
+    # `Any`-typed (PyVal) value and whose iterable is a key view (`.items()` / `.keys()`)
+    # or a bare iteration of a value that is not a declared parameter/field: a local, a
+    # subscript or a `.get` read (over-, never under-reported: the carrier is not resolved
+    # here; a list carrier is reported too).
+    _hk_uses: List[str] = []
+    for f in funcs:
+        _hk_st = f.get("symbol_table") or {}
+        _hk_any = {_n for _n, _t in _hk_st.items()
+                   if isinstance(_t, str) and ("Any" in _t or "PyVal" in _t)}
+        if not _hk_any:
+            continue
+        _hk_params = set((f.get("param_annotations") or {}).keys())
+        _hk_stack: List[Any] = [f.get("body", [])]
+        while _hk_stack:
+            _hk_n = _hk_stack.pop()
+            if isinstance(_hk_n, list):
+                _hk_stack.extend(_hk_n)
+                continue
+            if not isinstance(_hk_n, dict):
+                continue
+            _hk_stack.extend(_hk_n.values())
+            _hk_it = _hk_n.get("iter")
+            if not isinstance(_hk_it, dict):
+                continue
+            _hk_view = ""
+            _hk_rv: Any = _hk_it
+            if _hk_it.get("type") == "Call":
+                _hk_fn = _hk_it.get("func")
+                if isinstance(_hk_fn, str) and _hk_fn.rsplit(".", 1)[-1] in ("items", "keys"):
+                    _hk_view = "." + _hk_fn.rsplit(".", 1)[-1] + "()"
+                    _hk_rv = (_hk_it.get("receiver") if "." not in _hk_fn
+                              else {"type": "Var", "name": _hk_fn.rsplit(".", 1)[0]})
+                elif _hk_fn == "get" or (isinstance(_hk_fn, str) and _hk_fn.endswith(".get")):
+                    _hk_view = "bare iteration"
+                else:
+                    continue
+            elif _hk_it.get("type") in ("Var", "Subscript", "BoolOp", "BinOp"):
+                _hk_view = "bare iteration"
+            else:
+                continue
+            _hk_root = _hk_rv
+            while isinstance(_hk_root, dict) and _hk_root.get("type") in (
+                    "Subscript", "BoolOp", "BinOp", "Call"):
+                _hk_root = (_hk_root.get("value") or _hk_root.get("left")
+                            or _hk_root.get("receiver"))
+            _hk_nm = (_hk_root.get("name") if isinstance(_hk_root, dict)
+                      and _hk_root.get("type") == "Var" else None)
+            if (isinstance(_hk_nm, str) and (_hk_nm.startswith("self.")
+                                              or (_hk_rv is _hk_root
+                                                  and _hk_nm in _hk_params))):
+                continue  # a declared parameter/field: its own keys are annotated
+            if _hk_view == "bare iteration" and _hk_rv is _hk_root and (
+                    not isinstance(_hk_nm, str) or _hk_nm not in _hk_any):
+                continue  # a bare typed local (list/str/...): not an hval
+            _hk_uses.append("%s: %s over a nested PyVal value (line %s)" % (
+                f["name"], _hk_view, _hk_n.get("line", _hk_n.get("lineno", "?"))))
     # ROUTE #277 — CLASS-EXACT, reported only when the default override-refinement check
     # is turned off (`--assume-class-exact`; `_run_pipeline` marks the IR). A method call
     # on a receiver typed with a user class `A` is verified against `A.m`'s contract; a
@@ -895,6 +967,20 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
                               "ord(chr(300)) != 300 proves (corpus 3020-3021)",
             "strict_mode": "--strict-latin1",
             "relied_on_by": sorted(set(_l1_uses)),
+        })
+    if _hk_uses:
+        assumptions.append({
+            "name": "HVAL-STR-KEYS",
+            "statement": "every dict nested inside a PyVal value (Dict[str, PyVal]) has str "
+                         "keys: the hval model keys an HMap by string, so a key read off a "
+                         "nested dict (.items()/.keys() key, bare iteration of a dict "
+                         "carrier) is a str (the annotation constrains only the top-level "
+                         "keys)",
+            "counterexample": "xs = d['xs']; for k, v in xs.items(): return isinstance(k, str) "
+                              "proves \\result == True; f({'xs': {1: 2}}) is False "
+                              "(corpus 3550-3551)",
+            "strict_mode": "--strict-hval-keys",
+            "relied_on_by": sorted(set(_hk_uses)),
         })
     # (#49) ROUTE #292 — A CITED `#@ proof` LEMMA IS EMITTED AS A Why3 `axiom`: the
     # proof's soundness rests on the Rocq/Lean statement AND on the restatement being
@@ -3995,6 +4081,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # ROUTE #276 — opt-in drop of the LATIN1-STR assumption (read by the `ord`/`chr`
     # lowering in `module6_whyml/expressions.py::_call_named_builtins`).
     transpiler.strict_latin1 = bool(getattr(args, "strict_latin1", False))
+    # ROUTE #298 — opt-in drop of the HVAL-STR-KEYS assumption (read by the nested-map key
+    # views in `module6_whyml/stmt_control_flow.py`: `.items()` keys and the bare-loop
+    # `HMap` arm).
+    transpiler.strict_hval_keys = bool(getattr(args, "strict_hval_keys", False))
     _mlw = transpiler.transpile()
 
     # ROUTE #30 (relaunch #45) — REFUSE an UNINTERPRETED `match` pattern.

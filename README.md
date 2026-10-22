@@ -282,7 +282,12 @@ or fail closed, built in unverified code they are rule R1; no strict mode,
 corpus 3180-3196) and **LATIN1-STR** (every `str` value consists of code points
 0..255 — `str` is a Why3 string of 8-bit `string.Char`s, so
 `ord(s) < 256` and `ord(chr(300)) != 300` prove; drop it with
-`--strict-latin1`, corpus 3020-3029). See translational reference §T.10.5.
+`--strict-latin1`, corpus 3020-3029) and **HVAL-STR-KEYS** (every dict nested
+inside a `PyVal` value has `str` keys — `Dict[str, PyVal]` constrains only the
+top-level keys, but the `hval` model keys every nested dict by `string`, so
+`for k, v in d["xs"].items(): return isinstance(k, str)` proves for
+`{"xs": {1: 2}}`; drop it with `--strict-hval-keys`, corpus 3550-3558). See
+translational reference §T.10.5.
 
 **Overrides are checked by default (route #277).** A method call on a value
 typed with a user class `A` is verified against `A.m`'s contract, so every
