@@ -10994,6 +10994,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return None
         r = self._expr_to_whyml(recv_ir, local_refs, invariant_ctx, subst)
         p = args[0]
+        # route #296: a heterogeneous `hval` prefix/suffix (a pyval local, e.g. the element
+        # `ctor_name` of `for ctor_name in constructors` now that a bare pyval local iterates
+        # as a SEQUENCE of `hval`) projects its string carrier via the certified `hstr_of`.
+        # Python raises TypeError for a non-str argument, so the projected value only
+        # matters on non-raising paths, where the argument IS an `HStr` and `hstr_of` is
+        # exact. A `no_exception` context does NOT project (the raw `hval` fails Why3
+        # type-check: fail-closed, the dropped TypeError is never claimed absent).
+        if (isinstance(expr["args"][0], dict) and self._expr_is_pyval(expr["args"][0])
+                and not getattr(self, "_current_no_exception", None)
+                and not getattr(self, "_current_no_exception_all", False)):
+            p = f"(hstr_of {p})"
         if method == "startswith":
             self._add_abstract_op(
                 "val str_startswith_op (s: string) (prefix: string) : int\n"

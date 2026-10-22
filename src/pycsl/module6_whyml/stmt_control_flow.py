@@ -496,32 +496,40 @@ class ControlFlowStmtMixin:
         # axiom: ledger unchanged; a str/dict is NOT given the false length 0).
         if iter_ir.get("_r2b_hval_seq") is True:
             _hv = f"_hv{idx}"
-            self._for_iter_materialize = (_hv, self._expr_to_whyml(iter_ir, local_refs))
+            # the R2b marker is not an IR field: lower a copy WITHOUT it (route #296 -- a
+            # marked bare `Var` fails the typed `VarExpr` normalisation and lowered to "").
+            _r2b_ir = {_k: _v for _k, _v in iter_ir.items() if _k != "_r2b_hval_seq"}
+            self._for_iter_materialize = (_hv, self._expr_to_whyml(_r2b_ir, local_refs))
             self._add_abstract_op("val function hval_iter_len_other (h: hval) : int")
             self._add_abstract_op("val function hval_iter_get_other (h: hval) (i: int) : hval")
+            # route #296: a BARE pyval local (`for x in xs`) has an unknown carrier, so the
+            # dict-KEY view is taken exactly when the carrier IS an `HMap` (Python iterates a
+            # dict's keys): element `HStr (hval_keys_get (hval_as_map _hv) !idx)`, bound
+            # `hval_values_len (hval_as_map _hv)` -- the same uninterpreted key over-approx
+            # as the `.items()` walk. Every other R2b iterable keeps its emission.
+            _hmk = (f"| HMap _ -> hval_values_len (hval_as_map {_hv}) "
+                    if iter_ir.get("type") == "Var" else "")
+            _hmg = (f"| HMap _ -> HStr (hval_keys_get (hval_as_map {_hv}) !{idx}) "
+                    if iter_ir.get("type") == "Var" else "")
             _hlen = (f"(match {_hv} with HArr _hl -> hval_list_len _hl "
-                     f"| _ -> hval_iter_len_other {_hv} end)")
+                     f"{_hmk}| _ -> hval_iter_len_other {_hv} end)")
             self._for_target_is_pyval = True
             self._pyast_loop_variant_len = _hlen
             return (_hlen,
                     f"(match {_hv} with HArr _hl -> hval_list_nth _hl !{idx} "
-                    f"| _ -> hval_iter_get_other {_hv} !{idx} end)", False)
-        # self-tcb-reduction Tier-5 (union/match cluster, `_maybe_inject_union_return`): a
-        # bare `for ctor_name in <pyval-dict-local>` iterates the dict's KEYS (Python dict
-        # iteration yields keys). View the hval-LOCAL as its `map string (option hval)`
-        # carrier via `hval_as_map`, bound `hval_values_len`, element `hval_keys_get ...
-        # !idx` (a real `string` key per iteration), NOT the opaque `iter_length`/`iter_get`
-        # int fallback. Scoped to a bare-Var pyval-local that is NOT a collection/list-read
-        # local (`_pyval_coll_locals` = HArr sequences, which iterate as ELEMENTS) ->
-        # corpus/other-mirror byte-inert (no corpus loop bare-iterates a pyval dict local).
-        if (self._value_semantic and iter_ir.get("type") == "Var"
-                and iter_ir.get("name") not in getattr(self, "_pyval_coll_locals", set())
-                and self._expr_is_pyval(iter_ir)):
-            _hv = self._expr_to_whyml(iter_ir, local_refs)
-            _mapw = f"(hval_as_map {_hv})"
-            self._pyast_loop_variant_len = f"(hval_values_len {_mapw})"
-            return (f"(hval_values_len {_mapw})",
-                    f"(hval_keys_get {_mapw} !{idx})", False)
+                    f"{_hmg}| _ -> hval_iter_get_other {_hv} !{idx} end)", False)
+        # route #296 (gen #37): the former dict-KEY arm for a bare `for x in <pyval local>`
+        # (`hval_as_map` view, `x` bound to an arbitrary key `string`) is GONE. It treated
+        # EVERY pyval local as a dict, so a list carrier (`xs = d.get("xs") or []`) had its
+        # elements replaced by arbitrary strings (`isinstance(x, str)` proved True; CPython
+        # False). A pyval local is never STATICALLY provably an `HMap` (every binding is a
+        # `.get` / subscript / `or`-default READ of an arbitrary `hval`), so the key view is
+        # decided PER CARRIER instead: the bare local takes the R2b path above (judged in
+        # `_handle_for_stmt`: snapshot; `HArr` -> its real elements with the exact length,
+        # `HMap` -> its keys as `HStr`, any other carrier the uninterpreted
+        # `hval_iter_*_other`); when R2b declines (a mutating body) the loop
+        # falls through to the int-typed `iter_length` fallback, which an `hval` operand
+        # fails at Why3 type-check (fail-closed, never a constant/empty iteration).
         # self-tcb-reduction _typeddict_record_literal (cap-6/7 completion): the field-emit
         # loop `for fname in rec_info["fields"]` iterates the hval collection (`rec_info`'s
         # `"fields"` HArr of HStr names) as an ordered SEQUENCE — bound `hval_len <proj>`,
@@ -1041,18 +1049,9 @@ class ControlFlowStmtMixin:
         # through the faithful string ops, not the opaque int path. Restored after the body.
         _is_splitbody = (self._value_semantic
                          and self._split_call_recv_sep(iter_ir) is not None)
-        # self-tcb-reduction Tier-5 (union/match cluster, `_maybe_inject_union_return`): a
-        # bare `for ctor_name in <pyval-dict-local>` binds `ctor_name` to a real dict KEY
-        # `string` (`hval_keys_get`) per iteration → register it symbol-type "str" for the
-        # body's duration so `val.startswith(ctor_name)` / `"None" in ctor_name` lower via
-        # the faithful `str_startswith_op` / `str_contains_op`, not the opaque int path.
-        # Restored after the body. Gated identically to the `_classify_iterable` recognizer
-        # (a bare-Var pyval-local that is NOT a collection/list-read local) -> corpus inert.
-        _is_pyval_keys = (self._value_semantic and iter_ir.get("type") == "Var"
-                          and not tuple_targets
-                          and iter_ir.get("name")
-                          not in getattr(self, "_pyval_coll_locals", set())
-                          and self._expr_is_pyval(iter_ir))
+        # route #296: the bare `for x in <pyval local>` dict-KEY typing (`x` registered
+        # symbol-type "str") is gone with its `_classify_iterable` arm -- a bare pyval local
+        # now binds `x` to a real `hval` element via the R2b judgement below.
         # faithful for-over-literal (self-tcb-reduction): a `for prefix in <str-literal local>`
         # loop binds `prefix` to a real `string` (`Seq.get`) per iteration → register it
         # symbol-type "str" for the body's duration so `stripped.startswith(prefix)` lowers
@@ -1092,8 +1091,11 @@ class ControlFlowStmtMixin:
         # `.values()` walk. The decision is recorded on the iterable dict so
         # `_classify_iterable` (which has no body) lowers exactly the loops judged here.
         # The iterable is a pyval `.get(...)` / subscript read (`ir_data.get("functions",
-        # [])`, `func.get("type_params")`, `rec["xs"]`), optionally `or []`. FAIL-CLOSED:
-        # no tuple target, not a bare Var (the dict-KEY arm owns that), not `.values()` /
+        # [])`, `func.get("type_params")`, `rec["xs"]`), optionally `or []`, or (route #296)
+        # a BARE pyval local (`xs = d.get("xs") or []; for x in xs`, a nested loop target):
+        # its carrier is unknown, so it iterates as a sequence -- an `HArr` its REAL
+        # elements, any other carrier (a dict too) the uninterpreted over-approx. FAIL-CLOSED:
+        # no tuple target, not `.values()` /
         # `.items()`, a resolvable root variable, and NO in-place mutator call / store in
         # the body on that root, a pyval local or the loop target (Python would iterate
         # the mutated list; the evaluate-once snapshot would not). Written INLINE with an
@@ -1117,7 +1119,7 @@ class ControlFlowStmtMixin:
                                              and not _r2b_r.get("elts")) else None)
         _r2b_f = _r2b_c.get("func") if isinstance(_r2b_c, dict) else None
         if not (isinstance(_r2b_c, dict)
-                and (_r2b_c.get("type") == "Subscript"
+                and (_r2b_c.get("type") in ("Subscript", "Var")
                      or (_r2b_c.get("type") == "Call"
                          and ((isinstance(_r2b_f, str) and _r2b_f.endswith(".get"))
                               or _r2b_f == "get")))
@@ -1322,11 +1324,6 @@ class ControlFlowStmtMixin:
             if _st is not None:
                 _saved_symtype = _st.get(target, _MISSING)
                 _st[target] = "str"
-        elif _is_pyval_keys:
-            _st = getattr(self, "_current_symbol_table", None)
-            if _st is not None:
-                _saved_symtype = _st.get(target, _MISSING)
-                _st[target] = "str"
         elif _is_strseqlit:
             _st = getattr(self, "_current_symbol_table", None)
             if _st is not None:
@@ -1356,7 +1353,7 @@ class ControlFlowStmtMixin:
             else:
                 _rafl_map[target] = _rafl_saved
         if (_saved_symtype is not _MISSING or _is_classbody or _is_kwbody
-                or _is_tparambody or _is_splitbody or _is_pyval_keys or _is_strseqlit
+                or _is_tparambody or _is_splitbody or _is_strseqlit
                 or _is_strcallbody
                 or self._mktuple_elts_recv_ir(iter_ir) is not None
                 or self._tparam_bases_recv(iter_ir) is not None):
