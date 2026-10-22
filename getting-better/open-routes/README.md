@@ -11,6 +11,13 @@
 
 ## gen #37 (2026-10-22): #303 (dict aliased via tuple-unpacking assignment is a value copy; bypasses #59 and r2c-local root
 ##   freshness, incl. a parameter root) OPENED (red team 11); 4 witnesses rc=0, CPython violates.
+## gen #37 (2026-10-22): #302 REPAIRED (r302 executor, off d117596a; inline; no new def/field/raise; ledger 3; mirror twins `\trusted`).
+##   `_reset_function_state` marks every plain-name for target read STALE after a loop (the #301 path walk; a top-level
+##   re-binding kills it) under the key "#302:<name>" of the existing `_loop_targets_read_outside`; the binder then writes
+##   the element back for EVERY iteration lowering (exact when the types agree, L3-tc fail-closed otherwise) and, when
+##   the body re-binds the target, binds the outer ref with no shadow. Witnesses 3630-3639 PROVED -> FAIL; controls 3640
+##   PASS both; route witness rc=0 -> rc=1. Root 0/0/0, pyref 0/0/0, mirror 0/0/0 (nothing owed); fast 61/61.
+##   Residual: a type-mismatched stale read fails at L3-tc instead of a refusal message.
 
 ## gen #37 (2026-10-22): #302 (plain-name for target over a non-index sequence read after the loop keeps its pre-loop value; route
 ##   #36 residue) OPENED (r301 executor).

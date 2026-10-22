@@ -2050,9 +2050,25 @@ element really is an `int`). Witness `pycsl-reference/1027`. Note that
 the binder for a plain `a: list` parameter, so a version keyed on it never fires while
 looking exactly as though it does.
 
-What remains open is a loop over a NON-int sequence, or one whose target carries a
-non-int type: there the two types can still disagree and the binder has no way to compare
-them.
+**Route #302 — every other lowering, flow-aware.** The residue above was a real false
+proof: `x = ""; for x in e: pass; return x` proved `\result == ""` (CPython `e[0]`), and
+so did the char loop, `s.split()`, `sorted(e)`, a local list, `range(5, 0, -1)` (its
+element is not the bare counter), a loop under an `if` or in a `try`, a `break`-exited
+loop, and a body that re-binds its own target (witnesses `pycsl-reference/3630`–`3639`).
+`_reset_function_state` now walks each plain-name loop target's reads along their
+statement paths (the route #301 walk): a read is **stale** when a statement holding a
+plain loop on the name is met before a top-level re-binding (`Assign`/`TupleUnpack`),
+or the read sits in a non-binding loop holding one; a read in the body of a loop that
+binds the name, in a comprehension binding it, or in a (dropped) `assert` is not. A read
+is a `Var`, an `AugAssign` of the name, a field store through it or a call of it. For a
+stale name the binder writes the element back to the outer ref for **every** iteration
+lowering, whatever the types: where the outer ref's type is the element's this is
+Python's last-value semantics exactly (never-ran case included); where it is not, the
+emission does not type-check and the function fails closed (L3-tc) — a stale proof
+is never produced. When the loop body itself re-binds the target (an assignment, an
+inner loop on the name, a walrus), Python keeps one variable, so that loop binds the
+outer ref directly and opens no inner `let`. A name re-bound before every later read
+keeps the old emission byte-identical (root/pyref/mirror: 0 moved).
 
 ---
 
