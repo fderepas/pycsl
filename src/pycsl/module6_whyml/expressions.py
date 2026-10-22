@@ -7297,7 +7297,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # in listdir's invariant wrongly resolves to the non-existent array counter `!X_len`).
         if atype == "Var" and arg_ir.get("name") in getattr(self, "_seq_locals", set()):
             _is_param = arg_ir.get("name") in set(getattr(self, "_formal_params", []))
-            if not (_is_param and self._in_spec):
+            # dict-value-wall ch30: a by-value `seq hval` param (`_hval_seq_params`) has
+            # no array entry value -- it IS the seq, in a contract too.
+            if (not (_is_param and self._in_spec)
+                    or arg_ir.get("name") in getattr(self, "_hval_seq_params", set())):
                 return f"(Seq.length {args[0]})"
         if atype == "String" and isinstance(arg_ir.get("value"), str):
             return str(len(arg_ir["value"]))
@@ -10780,6 +10783,55 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             coerced_args = self._coerce_dotted_args(args, param_types[:len(args)])
         else:
             coerced_args = [self._coerce_to_int(a) for a in args]
+        # dict-value-wall ch30: hval-carrier bridges at a module-function call. (a) A
+        # `List[Dict[str, PyVal]]` / `List[PyVal]` formal (callee `param_list_elem_types
+        # == "hval"`, emitted `seq hval`) takes a `seq hval` actual RAW (no int
+        # `materialize` bridge from the `array int` registry entry) and an `hval` actual
+        # (`holder.get("records", [])`) through the DEFINITIONAL `hval_to_seq` (`HArr l`
+        # -> its elements in order; any other carrier -> the UNINTERPRETED
+        # `hval_as_seq_other`, never a false empty list). (b) A `Dict[str, PyVal]` formal
+        # (`map string (option hval)`) takes an `hval` actual (an `HMap` assoc list, e.g.
+        # a loop element) through `hval_to_map`, specified as the DEFINITIONAL ghost
+        # `hpairs_to_map` view (head binding wins = `pairs_get` order; non-HMap ->
+        # uninterpreted `hval_as_map_other`). Realized by the program `let rec` of
+        # getting-better/dict-value-wall/ch30/spike_ch30.mlw (z3 Valid); no kernel axiom.
+        # Any other actual is left as lowered (L3-tc decides: fail-closed). Gated on the
+        # callee's hval annotations (absent from the corpus) -> byte-inert.
+        if _mf is not None and self._value_semantic:
+            _c30_pl = _mf.get("param_list_elem_types") or {}
+            _c30_dv = _mf.get("dict_value_types") or {}
+            _c30_fp = list(_mf.get("formal_params") or [])
+            _c30_ai = expr.get("args", []) or []
+            for _c30_i in range(min(len(coerced_args), len(_c30_fp), len(args))):
+                _c30_nm = _c30_fp[_c30_i]
+                _c30_a = _c30_ai[_c30_i] if _c30_i < len(_c30_ai) else None
+                if _c30_pl.get(_c30_nm) == "hval":
+                    if isinstance(_c30_a, dict) and self._expr_is_pyval(_c30_a):
+                        self._add_abstract_op(
+                            "let rec function hval_list_to_seq (l: hval_list) : seq hval\n"
+                            "    variant { l }\n"
+                            "    = match l with HNil -> Seq.empty"
+                            " | HCons x t -> Seq.cons x (hval_list_to_seq t) end\n"
+                            "  val function hval_as_seq_other (h: hval) : seq hval\n"
+                            "  let function hval_to_seq (h: hval) : seq hval =\n"
+                            "    match h with HArr l -> hval_list_to_seq l"
+                            " | _ -> hval_as_seq_other h end")
+                        coerced_args[_c30_i] = f"(hval_to_seq {args[_c30_i]})"
+                    else:
+                        coerced_args[_c30_i] = args[_c30_i]
+                elif (_c30_dv.get(_c30_nm) == "hval" and isinstance(_c30_a, dict)
+                        and self._expr_is_pyval(_c30_a)):
+                    self._add_abstract_op(
+                        "let rec ghost function hpairs_to_map (p: hpairs)"
+                        " : map string (option hval)\n"
+                        "    variant { p }\n"
+                        "    = match p with PNil -> Const.const None"
+                        " | PCons k v t -> Map.set (hpairs_to_map t) k (Some v) end\n"
+                        "  val function hval_as_map_other (h: hval) : map string (option hval)\n"
+                        "  val hval_to_map (h: hval) : map string (option hval)\n"
+                        "    ensures { result = match h with HMap p -> hpairs_to_map p"
+                        " | _ -> hval_as_map_other h end }")
+                    coerced_args[_c30_i] = f"(hval_to_map {args[_c30_i]})"
         # wrong-lowering-to-fix.md §WL-05b: a callee that item-mutates a dict/set param
         # takes it as a caller-visible `ref (map …)`. At the call site the argument at
         # that position must be the BARE ref (the caller's local dict or its own

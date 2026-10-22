@@ -1098,6 +1098,15 @@ class ControlFlowStmtMixin:
         # the body on that root, a pyval local or the loop target (Python would iterate
         # the mutated list; the evaluate-once snapshot would not). Written INLINE with an
         # explicit stack (lesson a4: no helper method / nested def in a mirrored file).
+        # dict-value-wall ch30: `for x in <seq hval PARAM>` (a read-only
+        # `List[Dict[str, PyVal]]` param, `_hval_seq_params`) binds `x` to a real `hval`
+        # per element -- the `_seq_locals` arm of `_classify_iterable` reads `Seq.get p
+        # !idx`; here only the target is registered pyval (immutable `let`, K7 reads).
+        _c30_hsp = (self._value_semantic and not tuple_targets and not _is_pyval_values
+                    and iter_ir.get("type") == "Var"
+                    and iter_ir.get("name") in getattr(self, "_hval_seq_params", set()))
+        if _c30_hsp:
+            _is_pyval_values = True
         _r2b_c = iter_ir if (self._value_semantic and not tuple_targets
                              and not _is_pyval_values) else None
         if (isinstance(_r2b_c, dict) and _r2b_c.get("type") in ("BinOp", "BoolOp")
@@ -1447,6 +1456,8 @@ class ControlFlowStmtMixin:
                                              f"{_rlv}[!{idx}]", False)
         else:
             len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
+            if _c30_hsp:
+                self._for_target_is_pyval = True
 
         # PROGRAM-LENGTH FOR-LOOP TERMINATION (#29). The `for`-over-collection auto-variant
         # below is admitted only when the length term is already a pure LOGIC term

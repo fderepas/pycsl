@@ -178,6 +178,11 @@ class FunctionEmissionMixin:
         if arg in array1d_params or symtype in ("list", "bytes", "bytearray"):
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
             if self._value_semantic:
+                # dict-value-wall ch30: a read-only `List[Dict[str, PyVal]]` /
+                # `List[PyVal]` param is the by-value `seq hval` (see
+                # `_reset_function_state`, `_hval_seq_params`; empty -> byte-inert).
+                if arg in getattr(self, "_hval_seq_params", set()):
+                    return f"({safe}: seq hval)"
                 # nested-list.md S2: a `List[<container>]` param is `array (seq τ)` /
                 # `array (map κ (option ν))` — the inner collection is a PURE Why3 type
                 # (Why3 forbids a mutable element inside `array`; see the Gate-B spike).
@@ -2921,6 +2926,65 @@ class FunctionEmissionMixin:
             _rv = self._returned_var_name(body_stmts)
             if _rv is not None:
                 self._pyval_seq_locals.add(_rv)
+        # dict-value-wall ch30: a READ-ONLY `List[Dict[str, PyVal]]` / `List[PyVal]`
+        # PARAMETER (Module5 `param_list_elem_types[p] == "hval"`) is the by-value
+        # `seq hval` (the K1 self-field / K4 return carrier), NOT the int-erased `array
+        # int`: `for x in p` binds a real `hval` per element (`Seq.get p !idx`), `len(p)` /
+        # truthiness are `Seq.length p` (the `_seq_locals` arms). FAIL-CLOSED: any
+        # in-place mutator call on the param, a store into it, a rebinding of it, or an
+        # aliasing local that is mutated declines the lowering (keeps `array int`) -- a
+        # by-value seq would not show the caller the write. Inline explicit-stack scan
+        # (lesson a4: no helper method / nested def in a mirrored file).
+        self._hval_seq_params: Set[str] = set()
+        _c30_plet = func.get("param_list_elem_types", {}) or {}
+        _c30_cand = {_c30_p for _c30_p in (func.get("formal_params", []) or [])
+                     if _c30_plet.get(_c30_p) == "hval"
+                     and _c30_p not in self._mutated_collection_params
+                     and _c30_p not in self._stmt_seq_mut_params}
+        if self._value_semantic and _c30_cand:
+            _c30_mut = {"append", "extend", "insert", "pop", "remove", "clear", "sort",
+                        "reverse", "__setitem__", "__delitem__", "__iadd__"}
+            _c30_bad: Set[str] = set()
+            _c30_stack: List[Any] = [body_stmts]
+            while _c30_stack:
+                _c30_n = _c30_stack.pop()
+                if isinstance(_c30_n, list):
+                    _c30_stack.extend(_c30_n)
+                    continue
+                if not isinstance(_c30_n, dict):
+                    continue
+                _c30_f = _c30_n.get("func")
+                if (_c30_n.get("type") == "Call" and isinstance(_c30_f, str)
+                        and "." in _c30_f
+                        and _c30_f.rsplit(".", 1)[-1] in _c30_mut):
+                    _c30_bad.add(_c30_f.split(".", 1)[0])
+                _c30_rcv = _c30_n.get("receiver")
+                if (_c30_n.get("type") == "Call" and isinstance(_c30_rcv, dict)
+                        and _c30_rcv.get("type") == "Var"
+                        and str(_c30_f).rsplit(".", 1)[-1] in _c30_mut):
+                    _c30_bad.add(str(_c30_rcv.get("name")))
+                # a store into / rebinding of the name (Assign target, subscript store,
+                # augmented assign, delete) -- any statement node naming it as a target
+                for _c30_k in ("target", "array", "var", "name_target", "targets"):
+                    _c30_t = _c30_n.get(_c30_k)
+                    if isinstance(_c30_t, str) and _c30_n.get("type") not in ("Var",):
+                        _c30_bad.add(_c30_t)
+                    elif isinstance(_c30_t, dict) and _c30_t.get("type") == "Var":
+                        _c30_bad.add(str(_c30_t.get("name")))
+                    elif isinstance(_c30_t, list):
+                        for _c30_ti in _c30_t:
+                            if isinstance(_c30_ti, str):
+                                _c30_bad.add(_c30_ti)
+                            elif isinstance(_c30_ti, dict) and _c30_ti.get("type") == "Var":
+                                _c30_bad.add(str(_c30_ti.get("name")))
+                # an ALIAS `y = p` (the alias could be mutated): decline
+                _c30_v = _c30_n.get("value")
+                if (_c30_n.get("type") in ("Assign", "AnnAssign", "VarDecl")
+                        and isinstance(_c30_v, dict) and _c30_v.get("type") == "Var"):
+                    _c30_bad.add(str(_c30_v.get("name")))
+                _c30_stack.extend(_c30_n.values())
+            self._hval_seq_params = _c30_cand - _c30_bad
+            self._seq_locals |= self._hval_seq_params
         # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): the set of body locals
         # that RECEIVE a heterogeneous `pyval` value — a `.get` on a `map string (option
         # pyval)` self-field, a `.get` on another pyval local, an `x or {}` / `x or []`
@@ -3548,6 +3612,13 @@ class FunctionEmissionMixin:
                             and (self._hval_items_recv(_it) is not None
                                  or self._hval_items_local_recv(_it) is not None)):
                         pyval.add(_tt[1])
+                    # dict-value-wall ch30: `for x in <seq hval param>` binds `x` to a
+                    # real `hval` (see `_hval_seq_params`), so `t = x.get(..)` is pyval.
+                    _c30_tg = node.get("target")
+                    if (not _tt and isinstance(_c30_tg, str) and _c30_tg != "_"
+                            and isinstance(_it, dict) and _it.get("type") == "Var"
+                            and _it.get("name") in getattr(self, "_hval_seq_params", set())):
+                        pyval.add(_c30_tg)
                 for _v in node.values():
                     _seed_items(_v)
             elif isinstance(node, list):

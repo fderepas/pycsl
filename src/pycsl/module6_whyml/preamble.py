@@ -2081,6 +2081,8 @@ class PreambleEmissionMixin:
           or any(t.startswith("seq ") for f in functions
                  for t in f.get("param_list_nested_elem", {}).values()) \
           or any(f.get("vararg_str_param") for f in functions) \
+          or any(_c30v == "hval" for f in functions
+                 for _c30v in (f.get("param_list_elem_types", {}) or {}).values()) \
           or bool(getattr(self, "_module_str_list_constants", None)) \
           or any(self._body_uses_str_literal_for(body) for body in all_bodies) \
           or self._uses_stmt_ir() \
@@ -7984,6 +7986,13 @@ class PreambleEmissionMixin:
             fn.get("return_value_type") == "hval"
             or fn.get("return_annotation") == "PyVal"
             for fn in self.ir.get("functions", []) or [])
+        # dict-value-wall ch30: a `List[Dict[str, PyVal]]` / `List[PyVal]` PARAMETER
+        # (`param_list_elem_types[p] == "hval"`) is a `seq hval` -> needs the theory.
+        # Corpus has no such annotation -> byte-inert.
+        result = result or any(
+            v == "hval"
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("param_list_elem_types", {}) or {}).values())
         self._uses_pyval_cache = result
         return result
 
