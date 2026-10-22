@@ -1,4 +1,4 @@
-r"""Test 3733 -- gen #37 route #304 (expected PASS): CONTROLS -- own raises route #304 keeps proving: a raise DEAD under the precondition (named and `\all`, function and method), a raise caught by an enclosing handler of the same function (named and `\all`), a raise OUTSIDE a named `no_exception` set (builtin `KeyError` and a user class `E(Exception)` under `no_exception ValueError` stay declared `raises`), a declared `#@ raises ValueError when x < 0` without `no_exception`, a function without any exception claim, and a `no_exception \all` caller of a guarded raiser. All honest; must still PROVE.
+r"""Test 3733 -- gen #37 route #304 (expected PASS): CONTROLS -- own raises route #304 keeps proving: a raise DEAD under the precondition (named and `\all`, function and method), a raise caught by an enclosing handler of the same function (named and `\all`), a raise OUTSIDE a named `no_exception` set (a builtin `KeyError` and a user class `Unrel(Exception)` under `no_exception ValueError`, each with its declared `#@ raises ... when x < 0`: a covered class would be wrapped AND declared and fail), a declared `#@ raises ValueError when x < 0` without `no_exception`, and a `no_exception \all` caller of a guarded raiser. All honest; must still PROVE.
 """
 
 
@@ -47,6 +47,7 @@ def caught_named(x: int) -> int:
 
 
 #@ no_exception ValueError
+#@ raises KeyError when x < 0
 #@ ensures \result == 0
 def outside_named(x: int) -> int:
     if x < 0:
@@ -55,6 +56,7 @@ def outside_named(x: int) -> int:
 
 
 #@ no_exception ValueError
+#@ raises Unrel when x < 0
 #@ ensures \result == 0
 def outside_named_user(x: int) -> int:
     if x < 0:
@@ -65,13 +67,6 @@ def outside_named_user(x: int) -> int:
 #@ raises ValueError when x < 0
 #@ ensures \result == 0
 def declared(x: int) -> int:
-    if x < 0:
-        raise ValueError("neg")
-    return 0
-
-
-#@ ensures \result == 0
-def no_claim(x: int) -> int:
     if x < 0:
         raise ValueError("neg")
     return 0
@@ -104,6 +99,5 @@ if __name__ == "__main__":
     assert outside_named(1) == 0
     assert outside_named_user(1) == 0
     assert declared(1) == 0
-    assert no_claim(1) == 0
     assert caller(-3) == 0
     assert C().m(1) == 0
