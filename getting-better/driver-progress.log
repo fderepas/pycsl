@@ -12996,3 +12996,4 @@ measurement instead of re-running two hours of it.
 2026-10-22T09:25Z route #296 REPAIRED (scf proof pending)
 2026-10-22T10:29Z ch31 lever LANDED; route #298 RESOLVED (HVAL-STR-KEYS declared)
 2026-10-22T14:56Z routes #299/#300 REPAIRED; #301 opened
+2026-10-22T16:03Z r2c wall BROKEN: 449->448 (_collect_generic_decls)
