@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #298 (hval model assumes nested dicts have str keys; isinstance(k, str) over .items() proves for {1: 2})
+##   OPENED (found by r296); rc=0, CPython False.
+
 ## gen #37 (2026-10-22): #297 REPAIRED (r297 executor, off 2850cbbf; inline, mirror `\trusted`; no new def/field; ledger 3).
 ##   The literal fold answers only what the source decides: a Starred element (list/tuple/set), a non-literal set
 ##   element, a non-literal or non-integral-float dict key registers NO size and NO element map and blacklists the name;
