@@ -75,7 +75,8 @@ Gates (logs under the session scratchpad `r298/`): witness table above (base: 35
 3550-3553 rc=0 = declared counterexamples with `# pycsl-model-assumption: HVAL-STR-KEYS`; strict 3554-3557
 rc=1; controls 3558 rc=0 both modes); check-self-annotate-sync.sh rc=0 (925 verbatim);
 self-annotate-mirror-check.sh rc=0 (53); doc-coherency --check rc=0; check-assumed-facts (on the after sweep)
-rc=0 (85 facts, unchanged families); `run-soundness-planes.sh` fast rc=0 (61/61). Ledger unchanged (3
+rc=0 (85 facts, unchanged families); `run-soundness-planes.sh` fast rc=0 (61/61); `--slow` NOT completed (rc=124 at the 595 s tool cap after the
+61 fast planes re-passed; the 23 prover/emission planes are OWED to the driver: `bin/run-soundness-planes.sh --slow`). Ledger unchanged (3
 axioms); no `\trusted` marker added; no new def/field; no refusal added (the refusal-witness census does not
 move).
 Residuals: (1) DECLARED, not repaired: the default mode keeps proving 3550-3553 (CPython False) — the honest
