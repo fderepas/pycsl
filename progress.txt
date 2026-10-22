@@ -7,3 +7,19 @@
 2026-10-22T11:26:45Z converting cgd in mirror monomorphize.py
 2026-10-22T11:32:25Z cgd mirror --fun proof SUCCESS (228 Valid); witnesses running
 2026-10-22T11:33:15Z sd/sf measured: deepcopy fresh+identity done; next blockers pop + loop-element store (route a); measuring scc
+2026-10-22T11:34:15Z committed c6371724; starting base worktree + byte-diff sweeps
+2026-10-22T11:45:13Z cand corpus sweep running; writing witnesses 3590-3601
+2026-10-22T11:45:51Z waiting on cand corpus sweep (heavy queue)
+2026-10-22T11:46:02Z sweep queued behind another session's --slow planes + expressions whole-file proof
+2026-10-22T11:56:07Z heartbeat: waiting on heavy queue (byte-diff sweeps)
+2026-10-22T12:06:07Z heartbeat: waiting on heavy queue (byte-diff sweeps)
+2026-10-22T12:21:00Z heartbeat: waiting on heavy queue (byte-diff sweeps)
+2026-10-22T12:26:00Z heartbeat: waiting on heavy queue (byte-diff sweeps)
+2026-10-22T12:31:00Z heartbeat: waiting on heavy queue (byte-diff sweeps)
+2026-10-22T12:36:00Z heartbeat: waiting on heavy queue (byte-diff sweeps)
+2026-10-22T12:41:00Z heartbeat: waiting on heavy queue (byte-diff sweeps)
+2026-10-22T12:50:41Z targeted corpus+pyref byte-diff (250 hval/deepcopy files, QUICK): 6 MOVED (dead ref-0 predecl removed), 0 GONE/APPEARED; full queued sweep cancelled (queue blocked); running mirror sweep
+2026-10-22T12:56:48Z mirror sweep 53/53: 1 MOVED (frontend__monomorphize, intended). next: M1 re-proofs + witnesses (NORMAL queue)
+2026-10-22T13:16:42Z heartbeat: M1 proof job (0 lines)
+2026-10-22T13:26:42Z heartbeat: M1 proof job (5 lines)
+2026-10-22T13:33:16Z M1: 6 movers re-proved to labels; 12 witnesses match labels at cand, all FAIL at base; committing; next fast planes

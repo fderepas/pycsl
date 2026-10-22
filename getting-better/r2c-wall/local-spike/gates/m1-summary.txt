@@ -1,0 +1,31 @@
+cand 3320_gen37_dvw_r2b_harr_for_last_elem_field.py rc=0 exp=PASS
+cand 3321_gen37_dvw_r2b_harr_for_last_elem_field_false_claim.py rc=1 exp=FAIL
+cand 3326_gen37_dvw_r2b_for_over_hval_str_not_empty_false_claim.py rc=1 exp=FAIL
+cand 3328_gen37_dvw_r2b_for_over_hval_dict_not_empty_false_claim.py rc=1 exp=FAIL
+cand 3472_gen37_ch30_hval_elem_to_dict_param.py rc=0 exp=PASS
+cand 3473_gen37_ch30_hval_elem_to_dict_param_false_claim.py rc=1 exp=FAIL
+cand 3590_gen37_r2c_local_append_len_faithful.py rc=0 exp=PASS
+cand 3591_gen37_r2c_local_append_len_false_claim.py rc=1 exp=FAIL
+cand 3592_gen37_r2c_local_setdefault_append_faithful.py rc=0 exp=PASS
+cand 3593_gen37_r2c_local_setdefault_append_false_claim.py rc=1 exp=FAIL
+cand 3594_gen37_r2c_local_nested_store_faithful.py rc=0 exp=PASS
+cand 3595_gen37_r2c_local_nested_store_false_claim.py rc=1 exp=FAIL
+cand 3596_gen37_r2c_local_store_below_param_elem_refused.py rc=1 exp=FAIL
+cand 3597_gen37_r2c_local_shared_container_refused.py rc=1 exp=FAIL
+cand 3598_gen37_r2c_local_read_partner_refused.py rc=1 exp=FAIL
+cand 3599_gen37_r2c_local_param_root_refused.py rc=1 exp=FAIL
+cand 3600_gen37_r2c_local_cgd_min_typechecks.py rc=0 exp=PASS
+cand 3601_gen37_r2c_hval_mem_opaque_false_claim.py rc=1 exp=FAIL
+base 3590_gen37_r2c_local_append_len_faithful.py rc=1
+base 3591_gen37_r2c_local_append_len_false_claim.py rc=1
+base 3592_gen37_r2c_local_setdefault_append_faithful.py rc=1
+base 3593_gen37_r2c_local_setdefault_append_false_claim.py rc=1
+base 3594_gen37_r2c_local_nested_store_faithful.py rc=1
+base 3595_gen37_r2c_local_nested_store_false_claim.py rc=1
+base 3596_gen37_r2c_local_store_below_param_elem_refused.py rc=1
+base 3597_gen37_r2c_local_shared_container_refused.py rc=1
+base 3598_gen37_r2c_local_read_partner_refused.py rc=1
+base 3599_gen37_r2c_local_param_root_refused.py rc=1
+base 3600_gen37_r2c_local_cgd_min_typechecks.py rc=1
+base 3601_gen37_r2c_hval_mem_opaque_false_claim.py rc=1
+ALLDONE
