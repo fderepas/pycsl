@@ -289,3 +289,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-10-22T00:51Z | 109 | route #295 | cherry-picked onto main (794a6373..f2a7f400; ea7f5bcb empty-skipped; census union); driver verification running (v295) incl. the stack-wide --slow on HEAD (also discharges rB/r294/r295/R2b owed --slow) | -
 2026-10-22T00:52Z | 110 | ch30 Phase-2 lever: List[Dict[str,PyVal]] params as hval sequence (6 markers), spike-first (worktree pycsl-g37ch30, IDs 3470-3489) | launched | -
 2026-10-22T01:43Z | 109 | route #295 | REPAIRED (794a6373..f2a7f400). Driver-verified FRESH: route witness + 3450-3465 rc=0 -> rc=1, control 3466 PASS both; root/pyref/mirror 0 MOVED; sync/mirror-check rc=0; fast planes 61/61. Stack-wide --slow on HEAD running. worktree removed (v295base) | f2a7f400
+2026-10-22T01:43Z | 111 | red-team round 9 (hval model just landed + newest refusals' boundaries; read-only scratchpad/rt9) | launched | -
