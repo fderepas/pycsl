@@ -1678,7 +1678,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # Mirror `_handle_field_get_expr`: in a type/class invariant
                 # the record fields are bare; in a method contract `self`
                 # is an in-scope parameter.
-                ref = field if invariant_ctx else f"self.{field}"
+                # ch33 UNBOUND: an AMBIGUOUS field (shared by >1 record) is declared
+                # under its qualified label `<record>_<field>`; printing the raw name
+                # here gave `unbound function or predicate symbol 'toks'`. Label it
+                # exactly as `_handle_field_get_expr` does (bare names are unchanged).
+                _lbl = self._field_label(
+                    self._emit_record_ctx if invariant_ctx else self._current_self_type,
+                    field)
+                ref = _lbl if invariant_ctx else f"self.{_lbl}"
                 return f"(Array.length {ref})"
             # An array LOCAL (`out = [0]*n`) is bound as a plain `Array.make` mutable
             # array, NOT a ref — so it is referenced BARE even when it also appears in

@@ -1279,3 +1279,7 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 3637_gen37_r302_sorted_target_read_after.py	VERIFY-FAIL	
 3638_gen37_r302_conditional_loop_target_read_after.py	VERIFY-FAIL	
 3639_gen37_r302_try_loop_target_read_after.py	VERIFY-FAIL	
+3691_gen37_ch33_empty_record_ctor_false.py	VERIFY-FAIL	
+3693_gen37_ch33_ambiguous_field_length_false.py	VERIFY-FAIL	
+3695_gen37_ch33_ambiguous_field_writes_false.py	VERIFY-FAIL	
+3696_gen37_ch33_variant_any_refused.py	REFUSAL	a `for` loop over an iterable whose length term contains an unconstrained value (`any`) has no legal termination `variant`: a variant is a logic term and cannot mention a program `any` (the iterable reads an erased value) -- bind the iterable to a typed local before the loop.

@@ -1614,6 +1614,17 @@ class ControlFlowStmtMixin:
                            ("Array.length", "Seq.length", "String.length")))
                    # #29: the hoisted immutable program length — see the block above.
                    or _len_hoist is not None)):
+            # ch33 SYNTAX: a `variant` is a LOGIC term and `any` is a PROGRAM expression;
+            # a length term carrying an unconstrained `(any T)` (an erased argument of
+            # the iterable call) printed `variant { Array.length (f (any int)) - !i }`,
+            # a Why3 syntax error. Refuse it by name (fail-closed) rather than emit it.
+            if "(any " in str(len_expr):
+                raise PyCSLIRError(
+                    "a `for` loop over an iterable whose length term contains an "
+                    "unconstrained value (`any`) has no legal termination `variant`: a "
+                    "variant is a logic term and cannot mention a program `any` (the "
+                    "iterable reads an erased value) -- bind the iterable to a typed "
+                    "local before the loop.")
             while_parts.append(f"{inner_indent}invariant {{ 0 <= !{idx} }}")
             while_parts.append(f"{inner_indent}variant {{ {len_expr} - !{idx} }}")
         # W2: character-level string iteration carries an ARITHMETIC termination

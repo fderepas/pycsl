@@ -8402,7 +8402,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if writes_fields or _objw:
                 # Why3 `writes` is COMMA-separated (a `;` is a syntax error — only shows with
                 # multi-field writes like os.sys_write's disk+fd_offset+_mtime_ticks).
-                _wparts = [f"self.{f}" for f in writes_fields]
+                # ch33 UNBOUND: `writes_fields` are the callee's declared PYTHON field
+                # names (kept by `_writes_filtered_to_labels` because their LABEL is
+                # emitted); an ambiguous field's label is `<record>_<field>`, so print
+                # the label, never the raw name (`writes { self.i }` was unbound).
+                _wparts = [f"self.{self._field_label(receiver_class, f)}"
+                           for f in writes_fields]
                 if _objw:
                     self._obj_state_written = True
                     self._add_abstract_op("val _pyobj_state : ref int")
@@ -10615,7 +10620,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # runs with `--no-typecheck` (measured on corpus 0425: byte-diff clean,
                 # proof red). Only a SIMPLE receiver term is carried.
                 _bad = ("{", "(let ")
+                # ch33: a FIELD-LESS record construction now lowers to `(any <rec>)`
+                # (`_call_record_constructor`) instead of the ill-formed `{  }`; it is the
+                # same record-typed receiver, so it keeps the same historical
+                # receiver-less form (passing it would be an L3-tc type error).
+                _anyrec = {"(any %s)" % _ri.get("whyml_name")
+                           for _ri in (getattr(self, "_record_types", {}) or {}).values()}
                 if (not str(_rw).lstrip().startswith(_bad)
+                        and str(_rw).strip() not in _anyrec
                         and "Array." not in str(_rw)
                         and "Seq." not in str(_rw)
                         and "match " not in str(_rw)):
@@ -15867,6 +15879,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 else init_map.get(fn, _field_default(fn)))
             for fn in rec_info["fields"]
         )
+        # ch33 SYNTAX: a FIELD-LESS record type (`type t = {  }`) has no record-literal
+        # term — `{  }` is a Why3 syntax error. The declared type carries no field the
+        # model could observe, so an unconstrained value of it is exact (and two
+        # constructions are NOT provably equal, as in CPython where they are distinct
+        # objects). `any` is a PROGRAM expression: a logic context rejects it, so this
+        # stays fail-closed there.
+        if not rec_info["fields"]:
+            return "(any %s)" % rec_info.get("whyml_name", rec_lower)
         return f"{{ {field_inits} }}"
 
     # WL-06d P1-literal: encodings under which an ASCII code point IS the single
@@ -18521,7 +18541,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # Mirror `_handle_field_get_expr`: in a type/class invariant
                 # the record fields are bare; in a method contract `self`
                 # is an in-scope parameter.
-                ref = field if invariant_ctx else f"self.{field}"
+                # ch33 UNBOUND: an AMBIGUOUS field (shared by >1 record) is declared
+                # under its qualified label `<record>_<field>`; printing the raw name
+                # here gave `unbound function or predicate symbol 'toks'`. Label it
+                # exactly as `_handle_field_get_expr` does (bare names are unchanged).
+                _lbl = self._field_label(
+                    self._emit_record_ctx if invariant_ctx else self._current_self_type,
+                    field)
+                ref = _lbl if invariant_ctx else f"self.{_lbl}"
                 return f"(Array.length {ref})"
             # An array LOCAL (`out = [0]*n`) is bound as a plain `Array.make` mutable
             # array, NOT a ref — so it is referenced BARE even when it also appears in
