@@ -61,7 +61,9 @@ pyref rc=0; mirror-emit-sweep base/after rc=0, compare `--min-files 50` rc=0; ch
 verbatim); self-annotate-mirror-check.sh rc=0 (53); run-soundness-planes.sh fast rc=0, 61/61 green (the first run was
 3 RED: frontend-only-conformance from the IR-key cut, fixed; corpus-contract-truth-args from three reachable-raise
 controls, fixed by declaring their `raises`; check-vacuous-drivers did not reproduce standalone or on the re-run);
-doc-coherency --check rc=0; check-assumed-facts rc=0.
+doc-coherency --check rc=0; check-assumed-facts rc=0. `--slow` NOT run as a whole (> the 10-min tool limit); the
+relevant slow planes run individually: check-open-route-carriers rc=0 (7), check-swallowed-exceptions rc=0,
+check-no-exception-differential in three chunks through its own functions: 0 UNSOUND over 46 drivers.
 Residuals: (1) j02 -- a declared `#@ raises E1 when C` is not exhaustive: an undeclared own `raise E2` without
 `no_exception` keeps its inferred `raises { E2 }` and `ensures` is a normal-return claim, as documented (annotations.md
 row 9 constrains E1 only). Making declared `raises` exhaustive is a language change, not a soundness repair under the
