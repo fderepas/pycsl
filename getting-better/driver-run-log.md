@@ -295,3 +295,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 2026-10-22T02:43Z | 110 | ch30 | cherry-picked onto main (12eb9a83..5c9e0c80 -> 4ebe84fa); driver verification running (v30). worktree removed (g37ch30) | -
 2026-10-22T02:43Z | 112 | route #296 | executor launched (r296 on main+ch30, IDs 3490-3509) | -
 2026-10-22T03:04Z | 111 | red-team round 9 (~262 probes) | hval model + #286-#295 refusals held; 3 false proofs, ONE root: types.py compile-time literal fold (_known_collection_elements/_sizes) -- F1 dict literal non-literal key equal at runtime to a literal key ignored (route #61's unmeasured element-fold residue), F2 set literal with non-literal elements counted distinct, F3 starred tuple/set elements indexed/counted syntactically. Driver reproduction running | -
+2026-10-22T03:06Z | 111 | red-team 9 | 7 probes driver-reproduced rc=0 -> OPENED #297 | (this commit)

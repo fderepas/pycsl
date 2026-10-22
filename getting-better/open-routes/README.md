@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #297 (compile-time collection-literal fold ignores non-literal keys/elements and starred elements:
+##   dict/set/tuple) OPENED (red team 9, ~262 probes; hval model + #286-#295 held); 7 witnesses rc=0, CPython violates.
+
 ## gen #37 (2026-10-22): #296 (hval local holding a list, iterated bare, is iterated as dict keys) OPENED (ch30); rc=0, CPython False.
 
 ## gen #37 (2026-10-20): #295 (dict returned by a may-alias call is a copy; store through it misses the original) OPENED; rc=0, CPython 2.
