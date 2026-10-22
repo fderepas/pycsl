@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #304 (a function's own explicit `raise` escapes its `#@ no_exception` claim: the emitter auto-adds
+##   `raises { E }` and the contradiction check only reads declared raises) OPENED (red team 12); 7 witnesses rc=0, CPython raises.
+
 ## gen #37 (2026-10-22): #303 REPAIRED (r303 executor, off 388cd100; inline; no new def/field; ledger 3; mirror twins `\trusted`).
 ##   `_reset_function_state` refuses a mutation through any name a TupleUnpack slot aliases (literal elements, swaps,
 ##   call results with kind-filtered arguments, sub-collection reads; pure permutations exempt); r2c R1 treats unpack /
