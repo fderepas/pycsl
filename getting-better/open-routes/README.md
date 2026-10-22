@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #299 + #300 REPAIRED (r299 executor, off f11bba0e; inline; `_pyval_wrap` unmirrored, `_reset_function_state`
+##   mirror `\trusted`; no new def/field; ledger 3). #299: a list literal with a Starred element / dict literal with a `**`
+##   entry stored as an hval is the opaque `(HArr (any hval_list))` / `(HMap (any hpairs))` (refused in a spec). #300: the
+##   per-function pre-pass counts every static binding (params, with-as, Assign/AugAssign/For/walrus/comprehension
+##   targets, TupleUnpack/tuple-For, except-as, match capture); a name bound twice is fold-unsafe whatever its first binding.
+##   Witnesses 3570-3573, 3576-3580, 3582-3584 PROVED -> FAIL, 3574 FAIL -> FAIL (now well-typed), controls 3575/3581
+##   PASS both; route witnesses 6/6 rc=0 -> rc=1. Root 0/0/0, pyref 0/0/0, mirror 0/0/0 (nothing owed); fast 61 green;
+##   --slow 84/84 green. Residuals: see the two route files. NEW suspect: `[*h, t] = e` is dropped (false proof, route299 §residual 2).
+
 ## gen #37 (2026-10-22): #299 (starred element in an hval list literal wrapped as one element) and #300 (literal rebinding after a
 ##   non-literal first binding registers a fixed fold size; #297 residual) OPENED (red team 10); 6 witnesses rc=0, CPython violates.
 
