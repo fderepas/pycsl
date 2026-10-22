@@ -2,6 +2,13 @@
 
 ## gen #37 (2026-10-22): #298 (hval model assumes nested dicts have str keys; isinstance(k, str) over .items() proves for {1: 2})
 ##   OPENED (found by r296); rc=0, CPython False.
+## gen #37 (2026-10-22): #298 DECLARED (r298 executor, off 47f53c06; inline, mirror twins `\trusted`; no new def/field; ledger 3).
+##   Decision (B) by measurement: the faithful key (A) breaks L3-tc in 3 mirrors (7 pyval `.items()` loops, 13 str
+##   sinks of 7 kinds, 5 converted methods) and costs control 3497, so the assumption is DECLARED: HVAL-STR-KEYS in
+##   `--soundness-report` (+ README, static-semantics C.1, translational T.10.5, check-assumed-facts), and
+##   `--strict-hval-keys` binds a nested key to the uninterpreted `hval_keys_hget` (an unknown-carrier `hval`).
+##   Witnesses 3550-3553 PROVED (declared counterexamples), strict twins 3554-3557 FAIL, controls 3558 PASS both
+##   modes. Root 0/0/0, pyref 0/0/0, mirror 0/0/0 (nothing owed); fast 61 green. Residual: default still proves 3550.
 
 ## gen #37 (2026-10-22): #297 REPAIRED (r297 executor, off 2850cbbf; inline, mirror `\trusted`; no new def/field; ledger 3).
 ##   The literal fold answers only what the source decides: a Starred element (list/tuple/set), a non-literal set
