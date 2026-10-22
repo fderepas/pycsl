@@ -51,9 +51,10 @@ Gates (logs under the r297 scratchpad): 14 route witnesses rc=0 -> rc=1; corpus 
 the shapes they carry), 3528/3529 rc=0 after (rc=1 base); byte-diff-sweep base/after rc=0; byte-diff-compare root
 rc=0, pyref rc=0; mirror-emit-sweep base/after rc=0, compare `--min-files 50` rc=0; check-self-annotate-sync.sh
 rc=0 (925 verbatim); self-annotate-mirror-check.sh rc=0 (53); run-soundness-planes.sh fast rc=0 (61 green);
---slow: see README entry.
+`--slow` rc=0, all 84 green.
 Residuals: (1) PRE-EXISTING, not introduced here — the rebinding blacklist only fires when the FIRST binding
 registered or was refused by this function; a first binding that is not a literal at all (`t = g()`) followed by a
-literal binding in another arm is outside this route (unmeasured; worth a probe). (2) A dict index `d[1.0]` /
+literal binding in another arm is outside this route; one shape probed (p26: `xs = g()` / `xs = [1, 2]` per arm,
+`xs[1] == 2` under `requires c == 1`) FAILS as it should, other shapes unmeasured. (2) A dict index `d[1.0]` /
 `d[True]` no longer folds (completeness only; the map answers). (3) Witness probes p02/p03/p06/p20/p23-p25 live in
 the scratchpad only (corpus range 3510-3529 exhausted).

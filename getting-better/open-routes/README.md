@@ -5,7 +5,7 @@
 ##   element, a non-literal or non-integral-float dict key registers NO size and NO element map and blacklists the name;
 ##   inline `len(<literal>)` follows the same rule (distinct-counted); the indexed fold takes an int index only.
 ##   Witnesses 3510-3527 PROVED -> FAIL, controls 3528/3529 FAIL -> PASS; route witnesses 14/14 rc=0 -> rc=1. Root 0/0/0,
-##   pyref 0/0/0, mirror 0/0/0; fast planes 61 green. Residuals: see route297.
+##   pyref 0/0/0, mirror 0/0/0; planes --slow 84/84 green. Residuals: see route297.
 
 ## gen #37 (2026-10-22): #297 (compile-time collection-literal fold ignores non-literal keys/elements and starred elements:
 ##   dict/set/tuple) OPENED (red team 9, ~262 probes; hval model + #286-#295 held); 7 witnesses rc=0, CPython violates.
