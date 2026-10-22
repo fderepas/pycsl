@@ -1911,6 +1911,19 @@ by their contract only (route #207 refuses a bodyless method under `no_exception
 function's stub carries the `raises` its body shows); `super().m()` is refused by route #161;
 constructors are route #179's.
 
+**A function's own explicit `raise` under its `no_exception` (route #304).** The escaping set of
+the body (`IRScanner.collect_escaping_exceptions`, handler-aware) used to become `raises { E }` on
+the function's OWN `let` for every class, and Why3 checks `ensures` on normal termination only, so
+`#@ no_exception ValueError` + `ensures \result == 0` + `if x < 0: raise ValueError` PROVED (CPython
+raises); likewise under `\all` for any class, a user subclass of a listed class, and methods. RULE
+(`_emit_function_block`): each escaping class covered by the DECLARED claim (`\all`: any; a named
+list: the class or an ancestor — builtin `exception_model.bases_closure` plus the program's class
+bases snapshotted by `_run_pipeline` before the inheritance merge clears them; unknown ancestry is
+covered) is dropped from the inferred `raises`, and the lowered body becomes
+`try (<body>) with E -> (assert { [@expl:no_exception: own raise E reachable] false }; absurd) end`.
+A raise caught by a handler of the same function never reaches the wrapper; the #171 handler-widened
+context is not consulted.
+
 **Inlined global-instance methods (routes #168, #169).** `_g.m()` is spliced into the caller. A
 discarded tail `return <e>` dropped `<e>` — its division check, its nested mutating call — so it is
 now bound to a fresh local; and only the callee's own single-name binds were freshened, so a

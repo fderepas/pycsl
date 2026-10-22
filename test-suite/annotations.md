@@ -217,6 +217,18 @@ precondition would discharge it.
 on the same function are mutually contradictory and rejected by Module 4.
 The `\all` form additionally requires `raises { }` to be empty.
 
+**The function's own explicit `raise` (route #304).** A `raise E` in the
+body that escapes the function (no enclosing handler of the same function
+catches it) is COVERED by the claim when the form is `\all` (any class,
+including ones outside the Phase-1 set such as `RuntimeError`, `TypeError`
+or a user class) or when `E` or one of its ancestors is listed (builtin
+hierarchy plus the program's own class bases; a class whose ancestry is
+unknown, e.g. imported, counts as covered). A covered raise is NOT added
+to the function's inferred `raises`; it is a reachability obligation
+(`no_exception: own raise E reachable`): it proves when the raise is dead
+under `requires`, and FAILS otherwise. An uncovered raise keeps the
+inferred `raises { E }`. Without `no_exception` nothing changes.
+
 **Known exceptions (Phase 1):** `ZeroDivisionError`, `IndexError`,
 `KeyError`, `ValueError`, `StopIteration`. The authoritative set lives
 in `exception_model.KNOWN_EXCEPTIONS`. Adding a new exception requires

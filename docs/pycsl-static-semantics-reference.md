@@ -1540,7 +1540,11 @@ dom(TRIGGERS)` must discharge each `trigger(op, E)` for which
 
 where `active(f) = no_exception_set(f) ∪ (no_exception_all(f) ?
 KNOWN_EXCEPTIONS : ∅)` and `TRIGGERS` is the table in
-`exception_model.py`. (Route #281: the row `("call", "int_str")`
+`exception_model.py`. (Route #304: an EXPLICIT `raise E` of the body that
+escapes `f` is covered when `no_exception_all(f)` — any class — or when
+`E` or an ancestor of `E` is in `no_exception_set(f)`; a covered raise
+owes `Γ, P ⊢ false` at its site, i.e. it must be unreachable, and is not
+added to the inferred `raises` of `f`.) (Route #281: the row `("call", "int_str")`
 gives every int -> decimal-string conversion — `str`/`repr`/`format`
 of an int, a non-string `print` argument, an int f-string part
 rendered in decimal, an int `%` operand — the `ValueError` trigger

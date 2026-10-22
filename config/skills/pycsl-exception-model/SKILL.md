@@ -139,6 +139,13 @@ declared `raises` only (and only for `self.`/class-bound variable
 receivers — not `C.m()` / `C().m()`), and the hidden set propagates
 transitively through methods and module functions.
 
+The function's OWN explicit `raise` is not ambient either (route #304):
+an escaping `raise E` covered by the function's declared `no_exception`
+(`\all`: any class; named: the class or an ancestor, user class bases
+included) is a reachability obligation at the raise (`try ... with E ->
+assert false; absurd`), never an inferred `raises { E }` on its own `let`.
+Corpus 3720-3732 (FAIL), 3733 (controls).
+
 ## Test-corpus cross-references
 
 Numbering blocks under `test-suite/corpus/pycsl-reference/` (reserved in

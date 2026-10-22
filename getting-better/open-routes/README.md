@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #304 REPAIRED (r304 executor, off 1d2401a5; inline; no new def; no IR change; ledger 3; no mirror twin touched).
+##   `_emit_function_block` splits the body's escaping own raises against the DECLARED `no_exception` (`\all` = any class;
+##   named = class or ancestor, builtin closure + class bases snapshotted by `_run_pipeline` before the inheritance merge;
+##   unknown ancestry covered): covered classes are no longer inferred `raises`, the body is wrapped `try ... with E ->
+##   assert false; absurd` (label `no_exception: own raise E reachable`). Witnesses 3720-3732 PROVED -> FAIL; controls 3733
+##   FAIL(L3-tc) -> PASS; route witnesses 10/10 rc=0 -> rc=1. Root 0/0/0, pyref 0/0/0, mirror 0/0/0 (nothing owed); fast
+##   61/61. Residuals: j02 (declared `raises` not exhaustive, by documented semantics); imported unrelated class under a
+##   named set is a spurious FAIL.
+
 ## gen #37 (2026-10-22): #304 (a function's own explicit `raise` escapes its `#@ no_exception` claim: the emitter auto-adds
 ##   `raises { E }` and the contradiction check only reads declared raises) OPENED (red team 12); 7 witnesses rc=0, CPython raises.
 
