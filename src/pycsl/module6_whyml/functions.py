@@ -334,6 +334,12 @@ class FunctionEmissionMixin:
                 "parameter is read in the body, but keyword-variadic parameters are not "
                 "modelled (route #232: the read would be an opaque constant shared by "
                 "every call) -- refused fail-closed.")
+        # (#301) ROUTE #301 — Module 5 records a dropped unpacking / loop target shape
+        # (`[*h, t] = e`, `(u, (v1, v2)) = p`, `for a[0], b in ps`, ...) as
+        # `unpack_target_refused`; it is refused here, where the body is LOWERED.
+        if func.get("unpack_target_refused") and not (func.get("trusted") or func.get("abstract")):
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(func["unpack_target_refused"])
         # (#49) ROUTE #171 — A HANDLER FOR AN IMPLICIT EXCEPTION OBSERVES AN OPERATION THE
         # MODEL SAYS CANNOT FAIL. Without `no_exception` the implicit raises of the modelled
         # operations are ambient: a placeholder array read, `int("1.5")`'s opaque
@@ -2550,36 +2556,118 @@ class FunctionEmissionMixin:
                 if not _names301:
                     continue
                 for _nm301 in sorted(_names301):
-                    # Reads under ANY loop that itself binds the name (this one, or a
-                    # later `for u, w in ...` / `for u in ...`) see that loop's own binder.
-                    _so301 = [func.get("body", [])]
+                    # Walk the body keeping the statement PATH ((list, index) pairs). A
+                    # read is SAFE when, at some level of its path, an earlier statement
+                    # of the same list is a top-level `Assign`/`TupleUnpack` of the name
+                    # (re-binding it) with no tuple loop on the name in between, and no
+                    # deeper level reintroduces one (an earlier sibling holding such a
+                    # loop, or an enclosing loop holding one anywhere, so a previous
+                    # iteration could leave the stale value). Reads under ANY loop or
+                    # comprehension that itself binds the name see that binder.
+                    _so301 = [(func.get("body", []), ())]
                     while _so301:
-                        _y301 = _so301.pop()
-                        if isinstance(_y301, dict):
-                            if _y301.get("stmt") == "Assert":
-                                continue
-                            if _y301.get("stmt") == "For" and (
-                                    _y301.get("target") == _nm301
-                                    or _nm301 in (_y301.get("tuple_targets") or [])):
-                                _so301.append(_y301.get("iter"))   # evaluated OUTSIDE it
-                                continue
-                            if (_y301.get("type") == "Var"
-                                    and _y301.get("name") == _nm301):
-                                from errors import PyCSLSemanticError
-                                raise PyCSLSemanticError(
-                                    f"function '{func.get('name')}': the tuple `for` target "
-                                    f"component `{_nm301}` is read outside its loop, but a "
-                                    "tuple loop target's components are bound only inside "
-                                    "the loop body and never written back, so the read would "
-                                    "see the PRE-loop value (route #301; measured: `u = 0; "
-                                    "for u, v in ps: pass; return u` proved `\\result == 0` "
-                                    "while CPython returns ps[-1][0]). Refusing instead of "
-                                    "answering incorrectly; copy the component into a fresh "
-                                    "name inside the loop body (`last = u`) and read that "
-                                    "afterwards.")
-                            _so301.extend(_y301.values())
-                        elif isinstance(_y301, (list, tuple)):
-                            _so301.extend(_y301)
+                        _y301, _p301 = _so301.pop()
+                        if isinstance(_y301, list):
+                            _isl301 = bool(_y301) and all(
+                                isinstance(_z301, dict) and "stmt" in _z301 for _z301 in _y301)
+                            for _ix301, _z301 in enumerate(_y301):
+                                _so301.append((_z301, _p301 + ((_y301, _ix301),)
+                                               if _isl301 else _p301))
+                            continue
+                        if isinstance(_y301, tuple):
+                            _so301.extend((_z301, _p301) for _z301 in _y301)
+                            continue
+                        if not isinstance(_y301, dict):
+                            continue
+                        if _y301.get("stmt") == "Assert":
+                            continue
+                        if _y301.get("stmt") == "For" and (
+                                _y301.get("target") == _nm301
+                                or _nm301 in (_y301.get("tuple_targets") or [])):
+                            _so301.append((_y301.get("iter"), _p301))   # evaluated OUTSIDE it
+                            continue
+                        # A comprehension binding the name has its OWN scope (only its
+                        # first iterable is evaluated in the enclosing one).
+                        _gs301 = _y301.get("generators")
+                        if isinstance(_gs301, list) and any(
+                                isinstance(_g301, dict) and _g301.get("target") == _nm301
+                                for _g301 in _gs301):
+                            if _gs301 and isinstance(_gs301[0], dict):
+                                _so301.append((_gs301[0].get("iter"), _p301))
+                            continue
+                        if not (_y301.get("type") == "Var" and _y301.get("name") == _nm301):
+                            _so301.extend((_z301, _p301) for _z301 in _y301.values())
+                            continue
+                        # A read of the name: is it covered by a re-binding?
+                        _safe301 = False
+                        # (level -1: no tuple loop on the name precedes the read at all,
+                        # e.g. a read of a parameter BEFORE the loop -> safe.)
+                        for _lv301 in range(len(_p301) - 1, -2, -1):
+                            # deeper levels must not reintroduce a stale value
+                            _dirty301 = False
+                            for _dl301 in range(max(_lv301, 0), len(_p301)):
+                                _dls301, _dli301 = _p301[_dl301]
+                                # (at the kill level itself only the enclosing LOOP counts:
+                                # its earlier siblings are scanned by the kill search)
+                                _chk301 = (list(_dls301[:_dli301])
+                                           if _dl301 > _lv301 else [])
+                                _anc301 = _dls301[_dli301]
+                                if _anc301.get("stmt") in ("For", "While"):
+                                    _chk301.append(_anc301)
+                                _cs301 = list(_chk301)
+                                while _cs301 and not _dirty301:
+                                    _c301 = _cs301.pop()
+                                    if isinstance(_c301, dict):
+                                        if (_c301.get("stmt") == "For" and _nm301
+                                                in (_c301.get("tuple_targets") or [])):
+                                            _dirty301 = True
+                                        _cs301.extend(_c301.values())
+                                    elif isinstance(_c301, (list, tuple)):
+                                        _cs301.extend(_c301)
+                                if _dirty301:
+                                    break
+                            if _dirty301:
+                                break
+                            if _lv301 < 0:
+                                _safe301 = True
+                                break
+                            _ls301, _li301 = _p301[_lv301]
+                            for _kj301 in range(_li301 - 1, -1, -1):
+                                _k301 = _ls301[_kj301]
+                                if ((_k301.get("stmt") == "Assign"
+                                        and _k301.get("target") == _nm301)
+                                        or (_k301.get("stmt") == "TupleUnpack"
+                                            and _nm301 in (_k301.get("targets") or []))):
+                                    _safe301 = True
+                                    break
+                                _cs301 = [_k301]
+                                _hit301 = False
+                                while _cs301 and not _hit301:
+                                    _c301 = _cs301.pop()
+                                    if isinstance(_c301, dict):
+                                        if (_c301.get("stmt") == "For" and _nm301
+                                                in (_c301.get("tuple_targets") or [])):
+                                            _hit301 = True
+                                        _cs301.extend(_c301.values())
+                                    elif isinstance(_c301, (list, tuple)):
+                                        _cs301.extend(_c301)
+                                if _hit301:
+                                    break
+                            if _safe301:
+                                break
+                        if not _safe301:
+                            from errors import PyCSLSemanticError
+                            raise PyCSLSemanticError(
+                                f"function '{func.get('name')}': the tuple `for` target "
+                                f"component `{_nm301}` is read outside its loop, but a "
+                                "tuple loop target's components are bound only inside "
+                                "the loop body and never written back, so the read would "
+                                "see the PRE-loop value (route #301; measured: `u = 0; "
+                                "for u, v in ps: pass; return u` proved `\\result == 0` "
+                                "while CPython returns ps[-1][0]). Refusing instead of "
+                                "answering incorrectly; copy the component into a fresh "
+                                "name inside the loop body (`last = u`) and read that "
+                                "afterwards.")
         self._fold_unsafe_elems: Set[str] = set()
         self._fold_unsafe_sizes: Set[str] = set()
         # Builtins that CANNOT mutate the list they are handed (`sorted`/`list` copy).

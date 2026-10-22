@@ -6287,9 +6287,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # drop it: Assign targets, for / async-for targets and comprehension targets,
         # anywhere in the function (nested defs included). (A `with ... as` binding of ANY
         # shape is already refused by the with-as boundary, so it is not repeated here.)
-        # Inline (no helper: lesson a4); this method's mirror twin is `\trusted` and
-        # already raises, so the trusted-raises ledger does not move.
+        # RECORDED here as `unpack_target_refused` (the route #232 `kwarg_read` pattern);
+        # Module 6 refuses it when (and only when) it EMITS that body — an imported library
+        # function or a `\trusted`/abstract one is a bodiless `val` and is never lowered.
+        # Inline (no helper: lesson a4).
+        _unpack301: Optional[str] = None
         for _n301 in ast.walk(node):
+            if _unpack301 is not None:
+                break
             _tg301: List[Any] = []
             if isinstance(_n301, ast.Assign):
                 _tg301 = list(_n301.targets)
@@ -6308,8 +6313,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                       and not isinstance(_n301, ast.Assign)):
                     _bad301 = type(_t301).__name__
                 if _bad301 is not None:
-                    from errors import PyCSLSemanticError
-                    raise PyCSLSemanticError(
+                    _unpack301 = (
                         f"function '{node.name}': an unpacking / loop target of shape "
                         f"`{_bad301}` (line {getattr(_t301, 'lineno', 0) or getattr(_n301, 'lineno', 0)}) is out of scope: "
                         f"only a plain name or a flat tuple of plain names is bound "
@@ -6318,10 +6322,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         f"kept their old values; measured: `t = 0; [*h, t] = e` proved "
                         f"`\\result == 0` while CPython returns e[-1]). Refusing instead of "
                         f"answering incorrectly; unpack by index (`t = e[len(e) - 1]`, "
-                        f"`u = p[0]`, `v = p[1]`) or bind a flat tuple of names first.",
-                        stage="ir-emit",
-                        code="PYCSL-UNPACK-TARGET",
-                    )
+                        f"`u = p[0]`, `v = p[1]`) or bind a flat tuple of names first.")
+                    break
         return_annotation = None
         return_value_type = None
         is_noreturn = False
@@ -6806,6 +6808,9 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             **({"posonly_params": _posonly232} if _posonly232 else {}),
             **({"kwarg_param": _kwarg232.arg} if _kwarg232 is not None else {}),
             **({"kwarg_read": True} if _kwread232 else {}),
+            # (#301) a dropped unpacking / loop target shape (refused by Module 6 when
+            # it lowers this body). Absent for every other function -> byte-identical IR.
+            **({"unpack_target_refused": _unpack301} if _unpack301 else {}),
             # W8 (ii): name of the `*vals: str` vararg parameter (`seq string`), or
             # absent. Omitted for every function without a str-annotated vararg.
             **({"vararg_str_param": _vararg_str} if _vararg_str else {}),
