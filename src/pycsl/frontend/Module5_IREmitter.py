@@ -6273,6 +6273,55 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     self._cur_func_vararg_elem = "int"
         # STEP 1 (B-final): surface name for the \proj-index guard in `_csl_proj`.
         self._cur_func_name = f"function '{node.name}'"
+        # (#301) ROUTE #301 — THE STARRED TARGET THAT WAS DROPPED. The store-target arms
+        # bind a plain Name, or a FLAT tuple of plain Names, and nothing else:
+        # `_py_stmt_assign` has no `ast.List` arm (so `[*h, t] = e` and `[u, t] = e` emitted
+        # NOTHING) and compacts a tuple target to its Name elements (so `(u, (v1, v2)) = p`
+        # kept only `u`, and `a[0], t = p` / `*h, t = e` lost an element); `_process_for`
+        # (and the comprehension path) turns any other target into `_for_target` / a `_`
+        # placeholder. The bound names then KEPT THEIR OLD VALUES: `t = 0; [*h, t] = e`
+        # under `requires len(e) == 1` PROVED `\result == 0` (CPython 5), and the same for
+        # a list target, a nested tuple, `for [t] in e`, `for a, (b, c) in ps`,
+        # `for *b, a in ps` and `for a[0], b in ps` (witnesses 3610-3621). Every target
+        # shape outside {Name, flat tuple of Names} is REFUSED here, before any arm can
+        # drop it: Assign targets, for / async-for targets and comprehension targets,
+        # anywhere in the function (nested defs included). (A `with ... as` binding of ANY
+        # shape is already refused by the with-as boundary, so it is not repeated here.)
+        # Inline (no helper: lesson a4); this method's mirror twin is `\trusted` and
+        # already raises, so the trusted-raises ledger does not move.
+        for _n301 in ast.walk(node):
+            _tg301: List[Any] = []
+            if isinstance(_n301, ast.Assign):
+                _tg301 = list(_n301.targets)
+            elif isinstance(_n301, (ast.For, ast.AsyncFor, ast.comprehension)):
+                _tg301 = [_n301.target]
+            for _t301 in _tg301:
+                _bad301 = None
+                if isinstance(_t301, (ast.List, ast.Starred)):
+                    _bad301 = type(_t301).__name__
+                elif isinstance(_t301, ast.Tuple):
+                    for _e301 in _t301.elts:
+                        if not isinstance(_e301, ast.Name):
+                            _bad301 = f"Tuple with a {type(_e301).__name__} element"
+                            break
+                elif (not isinstance(_t301, ast.Name)
+                      and not isinstance(_n301, ast.Assign)):
+                    _bad301 = type(_t301).__name__
+                if _bad301 is not None:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"function '{node.name}': an unpacking / loop target of shape "
+                        f"`{_bad301}` (line {getattr(_t301, 'lineno', 0) or getattr(_n301, 'lineno', 0)}) is out of scope: "
+                        f"only a plain name or a flat tuple of plain names is bound "
+                        f"faithfully (route #301: a starred, list, nested, attribute or "
+                        f"subscript element of a target was DROPPED, so the names it binds "
+                        f"kept their old values; measured: `t = 0; [*h, t] = e` proved "
+                        f"`\\result == 0` while CPython returns e[-1]). Refusing instead of "
+                        f"answering incorrectly; unpack by index (`t = e[len(e) - 1]`, "
+                        f"`u = p[0]`, `v = p[1]`) or bind a flat tuple of names first.",
+                        stage="ir-emit",
+                        code="PYCSL-UNPACK-TARGET",
+                    )
         return_annotation = None
         return_value_type = None
         is_noreturn = False

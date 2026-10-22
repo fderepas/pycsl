@@ -2522,6 +2522,64 @@ class FunctionEmissionMixin:
                     _so36.extend(_y36.values())
                 elif isinstance(_y36, (list, tuple)):
                     _so36.extend(_y36)
+        # (#301) ROUTE #301 — A TUPLE `for` TARGET READ OUTSIDE ITS LOOP. The route #36
+        # write-back above is keyed on the single `target`, which for a tuple target is the
+        # synthetic `_for_target`; the COMPONENT names (`tuple_targets`) are bound only by
+        # an inner `let` (or not at all when the body does not read them), so an outer
+        # binding of the same name keeps its PRE-loop value: `u = 0; for u, v in ps: pass;
+        # return u` PROVED `\result == 0` (CPython ps[-1][0]), and `i = 0; for i, x in
+        # enumerate(e): pass; return i` likewise (witnesses 3622-3623). No binder writes a
+        # component back, so a component read anywhere outside its loop's own subtree is
+        # REFUSED (an `assert` is dropped by Module 6 and is not a read, as for #36). A
+        # bodiless `\trusted`/abstract function never lowers its body and is not refused.
+        if not (func.get("trusted") or func.get("abstract")):
+            _fq301 = [func.get("body", [])]
+            while _fq301:
+                _fn301 = _fq301.pop()
+                if isinstance(_fn301, (list, tuple)):
+                    _fq301.extend(_fn301)
+                    continue
+                if not isinstance(_fn301, dict):
+                    continue
+                _fq301.extend(_fn301.values())
+                if not (_fn301.get("stmt") == "For"
+                        and isinstance(_fn301.get("tuple_targets"), list)):
+                    continue
+                _names301 = {t for t in _fn301["tuple_targets"]
+                             if isinstance(t, str) and t and t != "_"}
+                if not _names301:
+                    continue
+                for _nm301 in sorted(_names301):
+                    # Reads under ANY loop that itself binds the name (this one, or a
+                    # later `for u, w in ...` / `for u in ...`) see that loop's own binder.
+                    _so301 = [func.get("body", [])]
+                    while _so301:
+                        _y301 = _so301.pop()
+                        if isinstance(_y301, dict):
+                            if _y301.get("stmt") == "Assert":
+                                continue
+                            if _y301.get("stmt") == "For" and (
+                                    _y301.get("target") == _nm301
+                                    or _nm301 in (_y301.get("tuple_targets") or [])):
+                                _so301.append(_y301.get("iter"))   # evaluated OUTSIDE it
+                                continue
+                            if (_y301.get("type") == "Var"
+                                    and _y301.get("name") == _nm301):
+                                from errors import PyCSLSemanticError
+                                raise PyCSLSemanticError(
+                                    f"function '{func.get('name')}': the tuple `for` target "
+                                    f"component `{_nm301}` is read outside its loop, but a "
+                                    "tuple loop target's components are bound only inside "
+                                    "the loop body and never written back, so the read would "
+                                    "see the PRE-loop value (route #301; measured: `u = 0; "
+                                    "for u, v in ps: pass; return u` proved `\\result == 0` "
+                                    "while CPython returns ps[-1][0]). Refusing instead of "
+                                    "answering incorrectly; copy the component into a fresh "
+                                    "name inside the loop body (`last = u`) and read that "
+                                    "afterwards.")
+                            _so301.extend(_y301.values())
+                        elif isinstance(_y301, (list, tuple)):
+                            _so301.extend(_y301)
         self._fold_unsafe_elems: Set[str] = set()
         self._fold_unsafe_sizes: Set[str] = set()
         # Builtins that CANNOT mutate the list they are handed (`sorted`/`list` copy).
