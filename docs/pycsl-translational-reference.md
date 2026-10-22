@@ -2388,6 +2388,24 @@ and the indexed-read fold accepts an `int` index only (`a[1.0]` raises `TypeErro
 non-literal element of a list/tuple keeps the SIZE fold and the literal positions' element
 fold: one syntactic element is exactly one runtime element at its own index.
 
+**The fold is per NAME, so it needs a name with exactly one static binding** (route #300). The
+emitter registers a literal's size/elements when it emits the binding, and it cannot see the
+branch or loop the binding sits in; a literal binding in ONE arm after a non-literal first
+binding (`d = e; if c == 1: d = {"a": 1}; return len(d)`, or a parameter re-bound in one arm)
+used to answer on EVERY path. The per-function pre-pass now counts every static binding of each
+name — a formal parameter, `with ... as`, any Assign / AugAssign / GhostAssign / `for` /
+walrus / comprehension target, a `TupleUnpack` or tuple-`for` target list, an `except ... as`
+name, a `match` capture — and a name bound more than once is fold-unsafe (no size, no
+elements; a literal-bound one is also a rebound collection), whatever its first binding was.
+
+**A starred element is not wrapped element-wise into an `hval`** (route #299). A `PyVal`
+dict-literal value is tagged into `hval` element by element (`HArr` over `HCons`, `HMap` over
+`PCons`). A list literal with a `Starred` element (`[*range(2), 3]`, `[*"q"]`) or a dict
+literal with a `**m` entry lowers instead to an unconstrained carrier of the right constructor,
+`(HArr (any hval_list))` / `(HMap (any hpairs))`: `isinstance(x, list|dict)` stays decided,
+the length, truthiness, membership and the `hval_to_seq` bridge are unknown. In a
+specification (no `any`) such a literal is refused.
+
 ---
 
 ### §T.5.12r  `is None` was decided from a TYPE where only a BINDING could justify it
