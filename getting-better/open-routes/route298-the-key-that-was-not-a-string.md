@@ -16,8 +16,8 @@ and two lowerings read a nested map's key as a str: the `.items()` walk over an 
 arm binds `HStr (hval_keys_get ..)`. `Dict[str, PyVal]` constrains only the top-level keys.
 
 Measurement of (A), the faithful key (prototype = exactly the `--strict-hval-keys` lowering below, applied by
-default): the key becomes an unknown-carrier `hval` (`hval_keys_hget`), a pyval local. Corpus: 10 root `.mlw`
-MOVED (the r296 files 3490-3499, whose bare arm text changes) and the r296 control 3497 (literal holder
+default): the key becomes an unknown-carrier `hval` (`hval_keys_hget`), a pyval local. Corpus: 11 root `.mlw`
+MOVED (the r296 files 3490-3500, whose bare-arm text changes; pyref 0) and the r296 control 3497 (literal holder
 `{"m": {"a": 1}}`) PASS -> FAIL. Mirror: 3 mirror files FAIL L3-tc (`stmt_control_flow`: `none_ctor :=
 ctor_name` hval vs string; `functions`: `Map.get !_st _k`; `expressions`: `return ctor_name`), because the
 mirror's 7 `.items()` loops over a pyval local (5 converted methods: `_union_none_ctor_for` x2,
