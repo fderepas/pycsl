@@ -9640,6 +9640,68 @@ class FunctionEmissionMixin:
         # (#49) ROUTE #171 — the DECLARED set, not the handler-widened one.
         callee_escaping -= set((func.get("contracts", {}) or {}).get("no_exception", []) or [])
         func_exceptions |= callee_escaping
+        # (#49) ROUTE #304 — A FUNCTION'S OWN `raise` USED TO DECLARE ITSELF. Every
+        # explicit `raise E` that escapes the body became `raises { E }` on the function's
+        # own `let`, and Why3 checks `ensures` on NORMAL termination only, so a
+        # `#@ no_exception` claim covering E was never checked against the function's own
+        # raise. MEASURED (witness f14):
+        #     #@ no_exception ValueError
+        #     #@ ensures \result == 0
+        #     def g(x: int) -> int:
+        #         if x < 0: raise ValueError("neg")
+        #         return 0
+        #     [+] Verification SUCCESS! All contracts formally proven.   (CPython raises)
+        # and likewise under `no_exception \all` for ANY class (RuntimeError, TypeError, a
+        # user class), for a user SUBCLASS of a named class, and for methods.
+        # REPAIR: the escaping own raises COVERED by the DECLARED claim (`\all` = every
+        # class; a named set = the class or any ancestor of it, builtin hierarchy plus the
+        # program's own class bases; a user class whose ancestry cannot be resolved is
+        # covered, fail-closed) are NOT declared. The lowered body is wrapped in
+        # `try <body> with E -> (assert { false }; absurd) end` for exactly those tags, so
+        # the raise becomes a REACHABILITY obligation: it PROVES when the raise is dead
+        # under the precondition and FAILS when reachable. A raise caught by an enclosing
+        # handler of the same function never reaches the wrapper (it is not in the escaping
+        # set). The DECLARED contract is read — never the #171 handler-widened context.
+        _r304_c = func.get("contracts", {}) or {}
+        _r304_all = bool(_r304_c.get("no_exception_all"))
+        _r304_named = set(_r304_c.get("no_exception", []) or [])
+        _r304_tags: List[str] = []
+        if (_r304_all or _r304_named) and not emit_as_val:
+            from exception_model import bases_closure as _bc304
+            # the class bases snapshotted by `ir_resolve.apply_inheritance` BEFORE its
+            # merge clears `td["bases"]`; a class of this program absent from it has
+            # unknown ancestry and is covered (fail-closed) below.
+            _r304_bases: Dict[str, List[str]] = {}
+            for _td304 in (self.ir.get("type_decls", []) or []):
+                if isinstance(_td304, dict) and _td304.get("name"):
+                    _r304_bases[str(_td304["name"])] = [str(b) for b in (_td304.get("bases") or [])]
+            for _k304, _v304 in ((self.ir.get("class_bases") or {}).items()):
+                if _v304:
+                    _r304_bases[str(_k304)] = [str(b) for b in _v304]
+            for _e304 in sorted(IRScanner.collect_escaping_exceptions(body_stmts)):
+                _cov304 = _r304_all
+                if not _cov304:
+                    _anc304: Set[str] = set()
+                    _todo304: List[str] = [str(_e304)]
+                    while _todo304:
+                        _x304 = _todo304.pop()
+                        if _x304 in _anc304:
+                            continue
+                        _anc304.add(_x304)
+                        _anc304 |= set(_bc304(_x304))
+                        if _x304 in _r304_bases:
+                            if not _r304_bases[_x304] and not _bc304(_x304):
+                                _cov304 = True
+                            _todo304.extend(_r304_bases[_x304])
+                        elif not _bc304(_x304) and _x304 not in ("BaseException",):
+                            # neither a modelled builtin nor a class of this program:
+                            # ancestry unknown -> covered (fail-closed)
+                            _cov304 = True
+                    if _anc304 & _r304_named:
+                        _cov304 = True
+                if _cov304:
+                    _r304_tags.append(safe_exc_name(_e304))
+                    func_exceptions.discard(_e304)
         # b-spec Track B (P3): an imported/abstract `val` stub shows only the NARROW interface
         # contract. Per-kind: a specified interface clause REPLACES the definition's; an OMITTED kind
         # INHERITS the definition (so `#@ interface ensures \length==64` narrows ensures but keeps the
@@ -9942,8 +10004,16 @@ class FunctionEmissionMixin:
             for fact in self._fresh_globals_facts():
                 if fact and fact != "true":
                     lines.append(f"    assume {{ {fact} }};")
-        lines.append(self._emit_body_code(func, body_stmts, local_refs, ghost_vars,
-                                          ref_params, is_method, return_type))
+        _r304_body = self._emit_body_code(func, body_stmts, local_refs, ghost_vars,
+                                          ref_params, is_method, return_type)
+        if _r304_tags:
+            # (#49) ROUTE #304 — see the escaping-set computation above: each own raise
+            # covered by the declared `no_exception` is a reachability obligation.
+            _r304_arms = " | ".join(
+                f"{_t304} -> (assert {{ [@expl:no_exception: own raise {_t304} reachable] "
+                f"false }}; absurd)" for _t304 in sorted(set(_r304_tags)))
+            _r304_body = f"    try (\n{_r304_body}\n    ) with {_r304_arms} end"
+        lines.append(_r304_body)
         # OBJECT-STATE WRITE MODEL (driver frame-honesty fix, 2026-08-30). The body just
         # emitted at least one abstract `setattr_*`, i.e. it MUTATES AN OBJECT the model
         # does not carry as a record. Those vals now declare `writes { _pyobj_state }`

@@ -2121,6 +2121,15 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
     base classes are merged before the subclasses that extend them.
     """
     type_decls = ir_data.get("type_decls", [])
+    # (#49) ROUTE #304 — snapshot the ORIGINAL class bases before the merge below clears
+    # them (`td["bases"] = []  # mark merged`): Module 6 needs a raised user exception
+    # class's ancestry to decide whether a `#@ no_exception <Named>` claim covers it
+    # (`class E(ValueError)` under `no_exception ValueError`). Read-only side table; only
+    # written when some class has bases, so a program without inheritance is untouched.
+    for _td304 in type_decls:
+        if _td304.get("bases") and _td304.get("name"):
+            ir_data.setdefault("class_bases", {}).setdefault(
+                str(_td304["name"]), [str(_b304) for _b304 in _td304["bases"]])
     records = {td["name"]: td for td in type_decls if td.get("kind") == "record"}
     funcs = ir_data.setdefault("functions", [])
     # (#49) ROUTES #123 + #125 — WHICH CLASS PROVIDES AN INHERITED METHOD. The merge below
