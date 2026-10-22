@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #303 REPAIRED (r303 executor, off 388cd100; inline; no new def/field; ledger 3; mirror twins `\trusted`).
+##   `_reset_function_state` refuses a mutation through any name a TupleUnpack slot aliases (literal elements, swaps,
+##   call results with kind-filtered arguments, sub-collection reads; pure permutations exempt); r2c R1 treats unpack /
+##   tuple-for / walrus bindings of the root as non-fresh; route #59 now also guards dict REBINDS (plain + chained
+##   were PROVED false) and walks the whole body for a binding inside a loop (back-edge store was PROVED false).
+##   Witnesses 3650-3654, 3661, 3662, 3664 PROVED -> REFUSED; 3655-3660 FAIL -> REFUSED; control 3663 PASS; route
+##   witnesses rc=0 -> rc=1. Root 0/0/0, pyref 0/0/0, mirror 0/0/0 (nothing owed); fast 61/61. Residual: a callee
+##   returning an element of a differently-kinded argument is not refused by construction (FAILS today).
+
 ## gen #37 (2026-10-22): #303 (dict aliased via tuple-unpacking assignment is a value copy; bypasses #59 and r2c-local root
 ##   freshness, incl. a parameter root) OPENED (red team 11); 4 witnesses rc=0, CPython violates.
 
