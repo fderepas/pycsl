@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-22): #303 (dict aliased via tuple-unpacking assignment is a value copy; bypasses #59 and r2c-local root
+##   freshness, incl. a parameter root) OPENED (red team 11); 4 witnesses rc=0, CPython violates.
+
 ## gen #37 (2026-10-22): #302 (plain-name for target over a non-index sequence read after the loop keeps its pre-loop value; route
 ##   #36 residue) OPENED (r301 executor).
 
