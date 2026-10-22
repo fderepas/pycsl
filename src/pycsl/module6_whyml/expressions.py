@@ -1528,6 +1528,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     f"| HArr _lin -> hval_list_str_mem _lin _kin "
                     f"| _ -> hval_in_other _kin _hin end)")
             return f"(not {_mem})" if negate else _mem
+        # r2c (gen #37): an HVAL needle in an hval collection (`func not in
+        # generics[t]["methods"]`, both `hval`). Python's `in` is identity-or-`==`, and dict
+        # `==` is ORDER-INSENSITIVE while the `hpairs` carrier is ordered, so a structural
+        # equality would be unfaithful. Lower to the UNINTERPRETED `hval_mem_opaque` (a `val
+        # function` of the two values: no spec, no axiom -> ledger 3; sound, decides nothing),
+        # not the int-typed `contains_check` (an L3-tc error against `hval`). Body only.
+        if (not self._in_spec and isinstance(rhs, dict) and isinstance(_lir_m, dict)
+                and self._expr_is_pyval(_lir_m) and self._expr_is_pyval(rhs)
+                and not (rhs.get("type") == "Var"
+                         and rhs.get("name") in getattr(self, "_dict_value_types", {}))):
+            self._add_abstract_op("val function hval_mem_opaque (x: hval) (h: hval) : bool")
+            _mem = f"(hval_mem_opaque {left} {right})"
+            return f"(not {_mem})" if negate else _mem
         # self-tcb-reduction `_compute_return_type` PATH(b): DIRECT-self map membership
         # `K in self._record_types` / `K in getattr(self, "_variant_types", {})` -> the
         # membership reader `<base>_mem <K> : bool` (the direct-access twin of the
@@ -4705,6 +4718,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      or (ir.get("op") == "or"
                          and isinstance(ir.get("right"), dict)
                          and ir["right"].get("type") == "None"))):
+            return True
+        # r2c (gen #37): `<hval> or "<lit>"` lowers (`_recognize_pyval_or_default`, ch26) to a
+        # `string` (the `HStr` payload, `hval_opaque_str` for a truthy non-string, else the
+        # literal), so it is STRING-typed: its local let-binds as a string, not `ref 0`.
+        if (t == "BinOp" and ir.get("op") == "or"
+                and isinstance(ir.get("right"), dict) and ir["right"].get("type") == "String"
+                and self._expr_is_pyval(ir.get("left") or {})):
             return True
         if t == "Call":
             _fn = ir.get("func", "")
@@ -10134,6 +10154,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (func_name == "copy.deepcopy" and len(args) == 1
                 and (_cef_dc == "_canonical_preservation_ensures"
                      or _cef_dc.endswith("___canonical_preservation_ensures"))):
+            return args[0]
+        # r2c (gen #37): `copy.deepcopy(<hval value>)` — a `Dict[str, PyVal]` name or an hval
+        # expression — is IDENTITY in the value model: `hval` / `map string (option hval)`
+        # are pure immutable values, so the deep copy is observationally equal and shares no
+        # object with its source (which is why the #283/#295 partner walk treats it as FRESH).
+        if (func_name in ("copy.deepcopy", "deepcopy") and len(args) == 1
+                and isinstance(expr.get("args")[0], dict)
+                and ((expr.get("args")[0].get("type") == "Var"
+                      and getattr(self, "_dict_value_types", {}).get(
+                          expr.get("args")[0].get("name")) == "hval")
+                     or self._expr_is_pyval(expr.get("args")[0]))):
             return args[0]
         if "." in func_name:
             # (#49) ROUTE #232 — PARAMETER KINDS ON A DOTTED (METHOD) CALL. The receiver's

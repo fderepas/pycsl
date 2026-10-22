@@ -716,6 +716,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if (_t283 in ("ArrayLit", "ListComp", "SetComp", "DictComp", "GenExp",
                               "GeneratorExp", "SliceAccess", "Lambda")
                         or (_t283 == "BinOp" and _n283.get("op") in ("+", "*"))
+                        or (_t283 == "Call" and _f283 in ("copy.deepcopy", "deepcopy"))
                         or (_t283 == "Call" and (_f283 in ("list", "sorted", "bytes",
                                                            "bytearray", "len")
                                                  or _f283.endswith(".copy")

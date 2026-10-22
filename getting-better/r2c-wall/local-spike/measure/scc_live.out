@@ -1,0 +1,7 @@
+/home/fabrice/git/pycsl-r2c/src/pycsl/core_ir_semantic.py:1708: UserWarning: Function 'sort_functions_by_scc': path condition narrows a Union-typed variable without a recognized guard (is None / isinstance / TypeIs / TypeGuard). The variable retains its Union type on both branches (C8).
+  _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
+[*] Parsing and Semantic Analysis for 'scc_live.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[module6-whyml]: `sorted_names.append(...)` appends to a list whose length this lowering cannot track: the local is not a growable sequence (it was bound from a call result, a `*` repetition, a loop target, an object field, ...), so the append would be modelled as a store at a length counter that starts at 0 WHATEVER the list holds — overwriting element 0, freezing `len`, and losing the alias when the value is another list (route #283; measured: `b = ident([5]); b.append(9); return len(b)` proved `\result == 1` while Python returns 2). Annotate the local as a list built in this function (`b: List[int] = [...]`), or build the new list with a literal or a comprehension.

@@ -3683,6 +3683,16 @@ class FunctionEmissionMixin:
                             and isinstance(_it, dict) and _it.get("type") == "Var"
                             and _it.get("name") in getattr(self, "_hval_seq_params", set())):
                         pyval.add(_c30_tg)
+                    # r2c (gen #37): `for x in <hval-dict>.get(k[, []])` — the loop is the
+                    # `_hv_idx_*` walk over the hval read, binding `x` to a real `hval`
+                    # element (same as above), so seed `x` (then `t = x.get(..) or ""` is a
+                    # string local and `p = x.get(..)` an hval local, at setup time).
+                    _r2c_itf = str(_it.get("func", "") or "") if isinstance(_it, dict) else ""
+                    if (not _tt and isinstance(_c30_tg, str) and _c30_tg != "_"
+                            and _it.get("type") == "Call" and _r2c_itf.endswith(".get")
+                            and getattr(self, "_dict_value_types", {}).get(
+                                _r2c_itf[:-len(".get")]) == "hval"):
+                        pyval.add(_c30_tg)
                 for _v in node.values():
                     _seed_items(_v)
             elif isinstance(node, list):

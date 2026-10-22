@@ -2,3 +2,8 @@
 2026-10-22T11:00:49Z spike: cgd_min emitted; seams found (prescan t-or-str pyval, literal any_map, #280 refusal); prototyping lowering
 2026-10-22T11:07:26Z spike criterion (1) L3-tc clean with write-back + HMap literal; building witnesses (2)/(3)
 2026-10-22T11:14:04Z spike (1) PASS L3-tc; (2) w_len1 z3 Valid, twin non-Valid (OOM); (3) refused at emit
+2026-10-22T11:24:55Z build: setdefault/nested-store witnesses proving (heavy queue)
+2026-10-22T11:26:24Z cgd live body L3-tc clean after prescan-seed + hval_mem_opaque; reviewing
+2026-10-22T11:26:45Z converting cgd in mirror monomorphize.py
+2026-10-22T11:32:25Z cgd mirror --fun proof SUCCESS (228 Valid); witnesses running
+2026-10-22T11:33:15Z sd/sf measured: deepcopy fresh+identity done; next blockers pop + loop-element store (route a); measuring scc

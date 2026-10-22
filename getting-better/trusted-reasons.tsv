@@ -179,7 +179,6 @@ frontend/ir_resolve.py	resolve	unclassified	-
 frontend/module_collect.py	collect_module_constants	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/module_collect.py	collect_module_globals	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/monomorphize.py	apply_monomorphization	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-frontend/monomorphize.py	_collect_generic_decls	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/monomorphize.py	_collect_instantiations	unclassified	-
 frontend/monomorphize.py	_check_gt4_polymorphic_recursion	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/monomorphize.py	_emit_specializations	unclassified	-
