@@ -7175,7 +7175,54 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if not isinstance(ir, dict) or ir.get("type") != "Call":
             return None
         fn = ir.get("func", "")
-        fn_short = fn.rsplit(".", 1)[-1] if isinstance(fn, str) else ""
+        # (#49) ROUTE #323 — THE CALLEE WAS MATCHED BY ITS SHORT NAME AND ITS KEYWORD AND
+        # STARRED ARGUMENTS WERE IGNORED. Measured at 67edf13c (each rc=0, CPython
+        # violates): a user `def product(a, b): return [0]` / `def chain(..)` was modelled
+        # as itertools' (`len(list(product([1, 2], [3, 4]))) == 4` PROVED, CPython 1);
+        # `itertools.product(xs, repeat=2)` was modelled as `product(xs)`; `chain(*xss)`
+        # and `product(*xss)` counted the starred list as ONE operand. Now the callee must
+        # RESOLVE: bare `list` only when no user definition or import rebinds it; a bare
+        # `chain`/`product`/`islice` only when every import binding that name is
+        # `from itertools import <it>` (an `as` alias resolves to the original) and no user
+        # definition shadows it; a dotted `M.<it>` only when every import binding `M` is
+        # `import itertools [as M]`. An unresolved callee is not this model's (None: the
+        # generic call path lowers the user's own function). A RESOLVED itertools callee
+        # with a keyword or starred argument is REFUSED.
+        _r323_user = set(getattr(self, "_module_method_return_types", {}) or {})
+        _r323_imps = [_r323_i for _r323_i in (
+            (self.ir.get("imports") or []) if isinstance(getattr(self, "ir", None), dict)
+            else []) if isinstance(_r323_i, (list, tuple)) and len(_r323_i) >= 5]
+        fn_short = ""
+        if isinstance(fn, str) and fn == "list":
+            if "list" not in _r323_user and not any(
+                    _r323_i[0] == "list" for _r323_i in _r323_imps):
+                fn_short = "list"
+        elif isinstance(fn, str) and "." not in fn:
+            _r323_b = [_r323_i for _r323_i in _r323_imps if _r323_i[0] == fn]
+            if (fn not in _r323_user and _r323_b
+                    and all(_r323_i[2] == "itertools" and not _r323_i[4] and not _r323_i[3]
+                            and _r323_i[1] == _r323_b[0][1] for _r323_i in _r323_b)):
+                fn_short = _r323_b[0][1]
+        elif isinstance(fn, str) and fn.count(".") == 1:
+            _r323_m, _r323_a = fn.split(".")
+            _r323_b = [_r323_i for _r323_i in _r323_imps if _r323_i[0] == _r323_m]
+            if (_r323_m not in _r323_user and _r323_b
+                    and all(_r323_i[2] == "itertools" and _r323_i[4] and _r323_i[1] == "itertools"
+                            for _r323_i in _r323_b)):
+                fn_short = _r323_a
+        if fn_short not in ("list", "chain", "product", "islice"):
+            return None
+        if (ir.get("keywords")
+                or any(not isinstance(_r323_x, dict) or _r323_x.get("type") == "Starred"
+                       for _r323_x in (ir.get("args") or []))):
+            if fn_short == "list":
+                return None
+            raise PyCSLIRError(
+                f"`len(... itertools.{fn_short}(...) ...)` with a keyword or starred argument is "
+                "not modelled: the length model reads positional operands only, so "
+                "`len(list(itertools.product(xs, repeat=2)))` was modelled as `len(xs)` and "
+                "`len(list(chain(*xss)))` as `len(xss)` (route #323). Spell the operands "
+                "out: `product(xs, xs)`, `chain(a, b)`.")
         args_ir = ir.get("args", [])
         if fn_short == "list" and len(args_ir) == 1:
             inner = self._iter_len_expr(args_ir[0], local_refs)
@@ -11815,14 +11862,89 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             #   `stdlib/collections/counter_proves.py` is `\trusted` under `--no-proof`).
             #   So this is byte-inert BY MEASUREMENT, not by construction.
             _r48_args = expr.get("args") or []
+            # (#49) ROUTE #321 — THE SEEDED-MAP MODEL WAS KEYED ON THE SEED'S SOURCE TEXT,
+            #   DROPPED KEYWORD SEEDS, IGNORED THE FACTORY AND NEVER INSERTED ON A READ.
+            #   Measured at 67edf13c (each rc=0, CPython violates):
+            #     xs=[1,1]; c1=Counter(xs); xs=[2]; c2=Counter(xs); c1[1] != c2[1] -> False
+            #       (one constant for the text `xs`: two DIFFERENT maps decided equal)
+            #     Counter(a=5)["a"] == 0 / OrderedDict(a=5) / defaultdict(int, a=5) -> PROVED
+            #     defaultdict(lambda: 7)[5] == 0, defaultdict(str)[5] == 0 -> PROVED
+            #     d = defaultdict(int); x = d[5]; 5 in d -> False (CPython: the read INSERTS)
+            #   Fail closed on each: (1) a keyword or starred argument, or an arity CPython
+            #   rejects, is REFUSED; (2) a seed must be a LITERAL (numbers, strings, bools,
+            #   None, negated numbers, and list/tuple/set/dict displays of them) — a literal's
+            #   IR repr IS its value, so equal keys now mean equal maps; anything else is
+            #   REFUSED. `Counter` is keyed apart from `OrderedDict`/`defaultdict`, whose seed
+            #   denotes the same map as `dict(seed)`: `Counter([(1, 1)])` counts the PAIR,
+            #   `OrderedDict([(1, 1)])` maps 1 to 1. (3) the only modelled `defaultdict`
+            #   factories are `int` and `lambda: 0` (the model's missing-key default is 0;
+            #   no factory raises KeyError, any other default is not 0) — the rest REFUSED.
+            #   (4) a `defaultdict` construction is lowered only inside a function body that
+            #   `_reset_function_state` scanned (`_r249_scope["r321_dd"]`): that scan REFUSES every
+            #   construction that is not the value of a plain local assignment whose
+            #   subscript reads cannot be observed to have NOT inserted the key.
+            if (expr.get("keywords")
+                    or any(not isinstance(_r321_a, dict) or _r321_a.get("type") == "Starred"
+                           for _r321_a in _r48_args)
+                    or len(_r48_args) > (2 if func_name == "defaultdict" else 1)):
+                raise PyCSLIRError(
+                    f"`{func_name}(...)` with a keyword, a starred argument or more "
+                    "arguments than CPython accepts is not modelled: the collections model "
+                    "reads positional arguments only, so `Counter(a=5)` became the EMPTY map "
+                    "and `Counter(a=5)['a'] == 0` PROVED (CPython 5) (route #321). Spell the "
+                    "seed as a dict display: `Counter({'a': 5})`.")
+            if func_name == "defaultdict":
+                _r321_fac = _r48_args[0] if _r48_args else None
+                _r321_ft = _r321_fac.get("type") if isinstance(_r321_fac, dict) else None
+                if not ((_r321_ft == "Var" and _r321_fac.get("name") == "int"
+                         and "int" not in getattr(self, "_module_method_return_types", {}))
+                        or (_r321_ft == "Lambda" and not _r321_fac.get("params")
+                            and isinstance(_r321_fac.get("body"), dict)
+                            and _r321_fac["body"].get("type") == "Number"
+                            and _r321_fac["body"].get("value") == 0
+                            and type(_r321_fac["body"].get("value")) is int)):
+                    raise PyCSLIRError(
+                        "`defaultdict(<factory>)` is modelled only for the factories `int` "
+                        "and `lambda: 0`: the map model answers 0 for a missing key, so "
+                        "`defaultdict(lambda: 7)[5] == 0` and `defaultdict(str)[5] == 0` "
+                        "PROVED (CPython 7 and '') and a factory-less `defaultdict()` (which "
+                        "raises KeyError) answered 0 too (route #321).")
+                if not (getattr(self, "_r249_scope", None) or {}).get("r321_dd"):
+                    raise PyCSLIRError(
+                        "`defaultdict(...)` is modelled only as the value of a plain local "
+                        "assignment `d = defaultdict(int)` in a function body, whose "
+                        "subscript READS cannot be observed to have inserted the key: "
+                        "CPython's `d[k]` INSERTS `k`, the map model does not, so "
+                        "`x = d[5]; 5 in d` was decided False (CPython True) (route #321).")
             _r48_seed = None
             if func_name in ("Counter", "OrderedDict") and _r48_args:
                 _r48_seed = _r48_args[0]
             elif func_name == "defaultdict" and len(_r48_args) > 1:
                 _r48_seed = _r48_args[1]
             if _r48_seed is not None:
+                _r321_work = [_r48_seed]
+                while _r321_work:
+                    _r321_n = _r321_work.pop()
+                    _r321_t = _r321_n.get("type") if isinstance(_r321_n, dict) else None
+                    if _r321_t in ("ArrayLit", "Tuple", "SetLit", "List", "Set"):
+                        _r321_work.extend(_r321_n.get("elts") or [])
+                    elif _r321_t == "DictLit":
+                        _r321_work.extend(list(_r321_n.get("keys") or [])
+                                          + list(_r321_n.get("values") or []))
+                    elif (_r321_t == "UnaryOp" and _r321_n.get("op") == "-"
+                          and isinstance(_r321_n.get("expr"), dict)
+                          and _r321_n["expr"].get("type") == "Number"):
+                        pass
+                    elif _r321_t not in ("Number", "String", "Bool", "None"):
+                        raise PyCSLIRError(
+                            f"`{func_name}(<seed>)` is modelled only for a LITERAL seed: the "
+                            "seeded map is an opaque constant keyed on the seed, and keyed on a "
+                            "NAME it made `Counter(xs)` before and after `xs = [2]` the SAME "
+                            "map, so `c1[1] != c2[1]` was decided False (CPython True) "
+                            "(route #321). Build the map with explicit stores instead.")
                 _r48 = "pycsl_seeded_map_%d" % (
-                    stable_hash(repr(_r48_seed)) & 0xffffffff)
+                    stable_hash(repr(("Counter", _r48_seed) if func_name == "Counter"
+                                     else _r48_seed)) & 0xffffffff)
                 self._add_abstract_op(
                     "val function %s : map int (option int)" % _r48)
                 return _r48

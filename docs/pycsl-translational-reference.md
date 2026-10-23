@@ -3781,6 +3781,27 @@ a method writing a global, and an override writing a position its base does not 
 frame (route #34). Emission is byte-identical for every method/stub whose body writes no
 parameter.
 
+### §T.6.24  Collections constructors and the itertools length model (routes #321 / #323)
+
+$\mathcal{T}_e(\texttt{Counter}()) = \mathcal{T}_e(\texttt{OrderedDict}()) =
+\mathcal{T}_e(\texttt{defaultdict}(f)) = \texttt{(const (None: option int))}$, the empty map
+whose read of a missing key is 0 — faithful for `Counter` and for $f \in \{$`int`,
+`lambda: 0`$\}$ only, so every other factory (and none: `KeyError`) is refused. A seeded
+construction is $\texttt{pycsl\_seeded\_map}_{h}$, $h$ the hash of the seed's IR (tagged
+with `Counter` for a counter): an UNINTERPRETED constant, so the translation is sound only
+if equal $h$ means equal maps — true for a LITERAL seed and false for a name (measured at
+67edf13c: `Counter(xs)` before and after `xs = [2]` shared $h$; `Counter([(1,1)])` and
+`OrderedDict([(1,1)])` shared $h$), hence non-literal seeds are refused. Keyword and starred
+arguments have no image and are refused. The map read $\mathcal{T}_e(d[k])$ does not insert
+$k$, which CPython's `defaultdict.__getitem__` does; the scan in `_reset_function_state`
+(annotations.md §7.13) admits a `defaultdict` local only when its key set is unobservable or
+every read is fused into a store of the same key, so the two agree on every observation.
+$\mathcal{T}(\texttt{len}(\texttt{list}(\textit{it}(\vec a))))$ is
+$\sum |a_i|$ / $\prod |a_i|$ / $\min(|a_0|, n)$ only for an $\textit{it}$ resolved through
+the module's import table to `itertools.chain` / `product` / `islice`, with positional,
+unstarred $\vec a$; a keyword or starred operand is refused and an unresolved callee falls to
+the generic call path.
+
 ## §T.7  Memory Models
 
 _Corresponds to `annotations.md` §5._

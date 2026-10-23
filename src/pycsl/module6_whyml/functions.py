@@ -1726,6 +1726,130 @@ class FunctionEmissionMixin:
                                  if isinstance(v, (dict, list)))
             elif isinstance(_r69_n, (list, tuple)):
                 _r69_work.extend(_r69_n)
+        # (#49) ROUTE #321 — A `defaultdict` SUBSCRIPT READ INSERTS THE KEY; THE MAP MODEL'S
+        # READ DOES NOT. Measured at 67edf13c: `d = defaultdict(int); x = d[5]; 5 in d`
+        # was decided False (CPython True). The seeded-map arm (`_call_named_builtins`)
+        # models a `defaultdict(...)` only inside a body scanned HERE (`_r249_scope["r321_dd"]`), and
+        # this scan REFUSES every construction except the value of a plain local assignment
+        # `D = defaultdict(...)` for which either
+        #   (A) every occurrence of `D` in the body is the base of a subscript (a read, a
+        #       store or an augmented store): nothing can observe the key set, so a read
+        #       that does not insert is indistinguishable from one that does; or
+        #   (B) `D` is otherwise only OBSERVED, never aliased — the right operand of
+        #       `in`/`not in`, `len(D)`, `del D[k]`, `D.get/keys/values/items(..)` — and
+        #       every subscript read is FUSED into a store of the same key, `D[k] = D[k] +
+        #       e` / `D[k] += e` with `k` a literal or a name and no other mention of `D`
+        #       in the stored value: the store inserts `k` anyway, so the key sets agree.
+        # Anything else (a return, an argument, an alias, an iteration, another method, an
+        # attribute target, a nested construction) is REFUSED. A user `defaultdict` is the
+        # user's (route #75) and is not scanned.
+        _r321_work = list(func.get("body", []) or [])
+        _r321_dd = []
+        _r321_all = []
+        while _r321_work:
+            _r321_n = _r321_work.pop()
+            if isinstance(_r321_n, dict):
+                _r321_v = _r321_n.get("value")
+                if (_r321_n.get("stmt") == "Assign" and isinstance(_r321_n.get("target"), str)
+                        and isinstance(_r321_v, dict) and _r321_v.get("type") == "Call"
+                        and _r321_v.get("func") == "defaultdict"):
+                    _r321_dd.append((_r321_n["target"], _r321_v))
+                if _r321_n.get("type") == "Call" and _r321_n.get("func") == "defaultdict":
+                    _r321_all.append(_r321_n)
+                _r321_work.extend(v for v in _r321_n.values() if isinstance(v, (dict, list)))
+            elif isinstance(_r321_n, list):
+                _r321_work.extend(_r321_n)
+        if ("defaultdict" in (getattr(self, "_module_method_return_types", {}) or {})
+                or "defaultdict" in (getattr(self, "_record_types", {}) or {})):
+            _r321_dd, _r321_all = [], []
+        _r321_ok = set()
+        for _r321_name, _r321_call in _r321_dd:
+            _r321_base_only = True
+            _r321_escape = False
+            _r321_reads = []
+            _r321_fused = set()
+            _r321_work = [(_r321_s, None, None) for _r321_s in (func.get("body", []) or [])]
+            while _r321_work:
+                _r321_n, _r321_p, _r321_k = _r321_work.pop()
+                if isinstance(_r321_n, list):
+                    _r321_work.extend((_r321_c, _r321_p, _r321_k) for _r321_c in _r321_n)
+                    continue
+                if not isinstance(_r321_n, dict):
+                    continue
+                _r321_f = _r321_n.get("func")
+                if (_r321_n.get("type") == "Call" and isinstance(_r321_f, str)
+                        and _r321_f.split(".", 1)[0] == _r321_name and "." in _r321_f):
+                    _r321_base_only = False
+                    if _r321_f.split(".", 1)[1] not in ("get", "keys", "values", "items"):
+                        _r321_escape = True
+                if _r321_n.get("type") == "Var" and _r321_n.get("name") == _r321_name:
+                    _r321_pt = _r321_p.get("type") if isinstance(_r321_p, dict) else None
+                    _r321_ps = _r321_p.get("stmt") if isinstance(_r321_p, dict) else None
+                    if _r321_pt == "Subscript" and _r321_k == "value":
+                        _r321_reads.append(_r321_p)
+                    elif _r321_ps == "ArraySet" and _r321_k == "array":
+                        pass
+                    else:
+                        _r321_base_only = False
+                        if not ((_r321_pt == "BinOp" and _r321_k == "right"
+                                 and _r321_p.get("op") in ("in", "not in"))
+                                or (_r321_pt == "Call" and _r321_p.get("func") == "len"
+                                    and len(_r321_p.get("args") or []) == 1
+                                    and "len" not in (getattr(
+                                        self, "_module_method_return_types", {}) or {}))
+                                or (_r321_ps == "DelSubscript" and _r321_k == "array")):
+                            _r321_escape = True
+                if (_r321_n.get("stmt") == "ArraySet"
+                        and isinstance(_r321_n.get("array"), dict)
+                        and _r321_n["array"].get("type") == "Var"
+                        and _r321_n["array"].get("name") == _r321_name
+                        and isinstance(_r321_n.get("index"), dict)
+                        and _r321_n["index"].get("type") in ("Number", "String", "Var")):
+                    _r321_idx = repr(_r321_n["index"])
+                    _r321_vw = [_r321_n.get("value")]
+                    _r321_hits = []
+                    _r321_clean = True
+                    while _r321_vw:
+                        _r321_x = _r321_vw.pop()
+                        if isinstance(_r321_x, list):
+                            _r321_vw.extend(_r321_x)
+                        elif isinstance(_r321_x, dict):
+                            _r321_xv = _r321_x.get("value")
+                            if (_r321_x.get("type") == "Subscript"
+                                    and isinstance(_r321_xv, dict)
+                                    and _r321_xv.get("type") == "Var"
+                                    and _r321_xv.get("name") == _r321_name):
+                                if repr(_r321_x.get("index")) == _r321_idx:
+                                    _r321_hits.append(id(_r321_x))
+                                else:
+                                    _r321_clean = False
+                                continue
+                            if (_r321_x.get("type") in ("NamedExpr", "Walrus")
+                                    or (_r321_x.get("type") == "Var"
+                                        and _r321_x.get("name") == _r321_name)
+                                    or (isinstance(_r321_x.get("func"), str)
+                                        and _r321_x["func"].split(".", 1)[0]
+                                        == _r321_name)):
+                                _r321_clean = False
+                            _r321_vw.extend(v for v in _r321_x.values()
+                                            if isinstance(v, (dict, list)))
+                    if _r321_clean:
+                        _r321_fused.update(_r321_hits)
+                _r321_work.extend((v, _r321_n, k) for k, v in _r321_n.items()
+                                  if isinstance(v, (dict, list)))
+            if _r321_base_only or (not _r321_escape and all(
+                    id(_r321_r) in _r321_fused for _r321_r in _r321_reads)):
+                _r321_ok.add(id(_r321_call))
+        if any(id(_r321_c) not in _r321_ok for _r321_c in _r321_all):
+            raise PyCSLIRError(
+                "`defaultdict(...)` is modelled only as the value of a plain local "
+                "assignment `d = defaultdict(int)` whose subscript READS cannot be observed "
+                "to have inserted the key: CPython's `d[k]` INSERTS `k`, the map model does "
+                "not, so `x = d[5]; 5 in d` was decided False (CPython True) (route #321). "
+                "Use `d` only as `d[k]` reads and stores, or observe it (`k in d`, "
+                "`len(d)`, `d.get/keys/values/items`) only when every read is fused into a "
+                "store of the same key (`d[k] = d[k] + e` / `d[k] += e`); never alias, "
+                "return or pass it.")
         # (#49) ROUTE #275 — A BUILTIN'S KEYWORD ARGUMENTS WERE DROPPED, AND THE MODEL STAYED.
         # The generic call path lowers a builtin from its POSITIONAL arguments only, so a
         # keyword the lowering does not read simply vanished while the builtin's model
@@ -2639,7 +2763,9 @@ class FunctionEmissionMixin:
             "erased": _r249_erased, "cont": _r249_cont, "ret_erased": _r249_ret_erased,
             "any_ret": _r249_any_ret_funcs, "eq_classes": _r249_eq_classes,
             "arg_prop": _r255_arg_prop,
-            "lam": {_k: _v.get("body") for _k, _v in _r255_lam.items()}}
+            "lam": {_k: _v.get("body") for _k, _v in _r255_lam.items()},
+            # route #321: this body's `defaultdict` constructions all passed the scan above.
+            "r321_dd": bool(_r321_all)}
         # typed-ir-for-b-ceiling.md §26: `X = getattr(self, "<field>", {})` binds a
         # local aliasing a dict/set self-field (the emitter's `known_sizes =
         # getattr(self, "_known_collection_sizes", {})` / `st = getattr(self,

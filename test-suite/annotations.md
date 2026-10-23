@@ -1636,6 +1636,29 @@ override that writes a parameter position its overridden base does not;
 `PYCSL-METHOD-ARG-UNFRAMED` — a written parameter that lowers to a non-array type. Writes to
 `self` fields stay checked by the method body's frame postconditions. Witnesses
 `4070`-`4079`, `4082`-`4084`; controls `4088`-`4090`.
+### 7.13 The collections and itertools length models (routes #321 / #323)
+
+`Counter(...)`, `OrderedDict(...)` and `defaultdict(...)` lower to a `map int (option int)`
+whose missing-key default is 0. They are MODELLED only as follows, and refused otherwise:
+no keyword or starred argument and no arity CPython rejects (`Counter(a=5)` was the empty
+map); a seed (`Counter(s)`, `OrderedDict(s)`, `defaultdict(f, s)`) must be a LITERAL —
+numbers, strings, bools, `None`, negated numbers and list/tuple/set/dict displays of them —
+because the seeded map is an opaque constant keyed on the seed (keyed on a NAME, two
+`Counter(xs)` around `xs = [2]` were one map); `Counter` seeds are keyed apart from
+`OrderedDict`/`defaultdict` seeds (a `Counter` counts the pairs an `OrderedDict` unpacks);
+the `defaultdict` factory must be `int` or `lambda: 0` (any other default is not 0, and no
+factory raises `KeyError`). A `defaultdict(...)` must be the value of a plain local
+assignment `d = defaultdict(...)` in a function body, and because CPython's `d[k]` READ
+INSERTS `k` while the model's does not, `d` may appear only as a subscript base, or else
+only as the right operand of `in` / `not in`, in `len(d)`, `del d[k]` and `d.get/keys/
+values/items(..)` with every read fused into a store of the same key (`d[k] = d[k] + e`,
+`d[k] += e`, `k` a literal or a name, no other mention of `d` in `e`); never aliased,
+returned, passed or iterated. The itertools length model (`len(list(chain(..)))`,
+`product`, `islice`) applies only when the callee RESOLVES to itertools (`from itertools
+import <it> [as a]`, `import itertools [as m]`, not shadowed by a user definition; bare
+`list` not shadowed); an unresolved callee is the user's function. A resolved itertools
+call with a keyword (`product(xs, repeat=2)`) or a starred argument (`chain(*xss)`) is
+refused. Witnesses `4150`-`4169`, `4175`; controls `4170`-`4174`.
 
 ---
 
