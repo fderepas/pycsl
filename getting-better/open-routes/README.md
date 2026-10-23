@@ -1,5 +1,15 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #310 REPAIRED (r310 executor, off 09e2b7c9; inline; no new def/field; ledger 3; mirror twins `\trusted`;
+##   no IR change). An erased value is still EVALUATED: an effectful display (route #307's predicate) bound to a tuple/set
+##   local -> `(let _ = <display> in (any int))`; one coerced / `len`-folded / dropped inside an expression -> `let _ =
+##   <display> in <node>` at its Python position (else REFUSED: a conditional arm); stores, dict-literal values,
+##   `for` iterables (materialised), `append` arguments and `raise E(a)` evaluate it; a `raise` with a dropped 2nd/keyword
+##   argument, `from` cause or computed exception containing a call -> `PYCSL-SEM-ERASED-EFFECT-R310`. Witnesses 3960-3980
+##   PROVED -> FAIL (3970, 3978 REFUSED); controls 3981-3984 PASS both, 3985-3989 FAIL -> PASS. Root 0/0/0, pyref 0/0/0,
+##   mirror 0/0/0 (nothing owed); fast planes 61/61. Residuals: unreachable statement-level unsafe hoist, newly fail-closed
+##   L3-tc evaluations, `@mutable_state` dict displays, effectful user exception constructors.
+
 ## gen #37 (2026-10-23): #308 + #309 REPAIRED (r308 executor, off 35748ef0; inline; no new def; ledger 3). #308: Module 5
 ##   records (`aug_target_refused`, the #301 pattern) and Module 6 refuses (`PYCSL-SEM-AUGASSIGN-R308`) a `c[k] op= v` /
 ##   `p.f op= v` whose container/index has an effect, or reads mutable state while `v` has one; census 0 of 81 refused.
