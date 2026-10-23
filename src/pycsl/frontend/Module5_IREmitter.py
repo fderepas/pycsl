@@ -2981,9 +2981,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # error). The int-coded convention is used for the default value;
             # a non-int default falls back to 0 (sound — the field is set at
             # construction time, never read before write).
+            # (#49) ROUTE #322 census — route #148's rule: a NON-INTEGRAL float is not an
+            # int default (`int(2.5)` is 2). MEASURED: NamedTuple `r: int = 2.5`, `P().r == 2`
+            # PROVED (CPython 2.5). Without a default the field is a required argument.
             if (child.value is not None
                     and isinstance(child.value, ast.Constant)
-                    and isinstance(child.value.value, (int, float))):
+                    and isinstance(child.value.value, (int, float))
+                    and not (isinstance(child.value.value, float)
+                             and not child.value.value.is_integer())):
                 field_defaults[fname] = int(child.value.value)
             init_params.append(fname)
             init_body.append({"field": fname,
@@ -3489,8 +3494,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 _fld_i["key_type"] = _kt_i
                             fields.append(_fld_i)
                             field_names_seen.add(stmt.target.attr)
+                            # (#49) ROUTE #322 census — route #148's rule (non-integral
+                            # float is no int default).
                             if (stmt.value and isinstance(stmt.value, ast.Constant) and
-                                    isinstance(stmt.value.value, (int, float))):
+                                    isinstance(stmt.value.value, (int, float))
+                                    and not (isinstance(stmt.value.value, float)
+                                             and not stmt.value.value.is_integer())):
                                 field_defaults[stmt.target.attr] = int(stmt.value.value)
                             elif stmt.value is not None:
                                 sz = self._array_init_size(stmt.value)
@@ -3672,6 +3681,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         self._m5_dc_unknown.append(stmt.target.id)
                     elif _rhs145 is None:
                         pass
+                    elif (isinstance(_rhs145, ast.Constant)
+                            and isinstance(_rhs145.value, float)
+                            and not _rhs145.value.is_integer()):
+                        # (#49) ROUTE #322 census — route #148's rule: a non-integral float
+                        # is no int default; the field is UNKNOWN (fails closed).
+                        self._m5_dc_unknown.append(stmt.target.id)
                     elif (isinstance(_rhs145, ast.Constant)
                             and isinstance(_rhs145.value, (int, float))):
                         field_defaults[stmt.target.id] = int(_rhs145.value)

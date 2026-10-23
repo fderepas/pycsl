@@ -155,8 +155,10 @@ class TypeInferenceMixin:
                         else f'{int(e["value"])}.0')
                     for i, e in enumerate(elts)}
             else:
+                # (#49) ROUTE #322 census — INT elements only: a float element never folds
+                # to its `int()` truncation.
                 elem_map = {i: str(int(e["value"])) for i, e in enumerate(elts)
-                            if e.get("type") == "Number" and isinstance(e.get("value"), (int, float))}
+                            if e.get("type") == "Number" and isinstance(e.get("value"), int)}
             if elem_map and target not in _u_el:
                 self._known_collection_elements[target] = elem_map
         elif vt == "String" and isinstance(val_ir.get("value"), str):
@@ -245,9 +247,11 @@ class TypeInferenceMixin:
                     _r54_kv = int(k["value"])
                 elif k.get("type") == "Bool":
                     _r54_kv = 1 if k.get("value") else 0
+                # (#49) ROUTE #322 census — an INT value only; a float value is a value the
+                # fold cannot normalise (it shadows the key below, never `int()`-truncates).
                 if (_r54_kv is not None
                         and v.get("type") == "Number"
-                        and isinstance(v.get("value"), (int, float))):
+                        and isinstance(v.get("value"), int)):
                     elem_map[_r54_kv] = str(int(v["value"]))
                 elif _r54_kv is not None:
                     # a key the fold CAN normalise whose VALUE it cannot: it must still

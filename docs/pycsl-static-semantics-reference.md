@@ -2816,6 +2816,19 @@ Default frames (no refusal): a method with no `#@ assigns` — its call stub car
 a `\trusted` / imported function with no `#@ assigns` — its `val` carries `writes { p }` for
 each written list parameter (witness `4080`; controls `4088`-`4091`).
 
+### Source refusal and fold domain added by routes #322 / #324 (`_run_pipeline` IR scan; Module 6 folds)
+
+| Code | Condition | Witnesses |
+|------|-----------|-----------|
+| `PYCSL-R322-FLOAT-MODULE-CONSTANT` | The program reads a float constant of `math` / `cmath` (`pi e tau inf nan infj nanj`, via `import m [as a]` + `a.c` or `from m import c [as n]`) or `sys.float_info`, anywhere in the IR (bodies, contracts) or in a module/class-level `=` / `: T =` / `op=` binding. | `4194`-`4198` |
+
+Fold domain (no refusal): the emission-time folds of `abs(<lit>)`, `sum([<lits>])`, `sum(<known
+local>)`, the known-element maps of list/dict literals, and NamedTuple / `__init__` annotated /
+dataclass int defaults apply to INT literals only (a non-integral float default is no default:
+NamedTuple -> required argument, dataclass -> UNKNOWN field). Witnesses `4190`-`4193`, `4199`;
+controls `4203`-`4207`. Contract-side string slices (route #324) are a translation rule, not
+a refusal (§T.6.25; witnesses `4200`-`4202`, controls `4208`-`4211`).
+
 ---
 
 ## 10. Gap Analysis

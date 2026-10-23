@@ -1162,6 +1162,78 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"to acknowledge the boundary. "
                 f"See config/skills/pycsl-ub-catalog/SKILL.md §7.1."
             )
+    # (#49) ROUTE #322 — A FLOAT MODULE CONSTANT HAS NO INT MODEL. `math.pi` lowered to the
+    # generic opaque getter `val get_pi (x: int) : int` (and `from math import pi` to an
+    # opaque `val constant pi : int`), so every claim true of ALL INTEGERS was proved of
+    # pi: `math.pi % 1 == 0` PROVED (CPython 0.14159...). The float constants of `math` /
+    # `cmath` and every `sys.float_info.<f>` are refused wherever they are read (body or
+    # contract); typing them `real` is the FLOAT-FINITE model's job, not this fold's.
+    _r322_floats = {"pi", "e", "tau", "inf", "nan", "infj", "nanj"}
+    _r322_mods = {}
+    _r322_names = {}
+    for _im322 in (ir_data.get("imports") or []):
+        if not (isinstance(_im322, list) and len(_im322) == 5):
+            continue
+        if _im322[4] and _im322[1] in ("math", "cmath", "sys"):
+            _r322_mods[str(_im322[0])] = str(_im322[1])
+        elif (not _im322[4] and _im322[2] in ("math", "cmath")
+                and _im322[1] in _r322_floats):
+            _r322_names[str(_im322[0])] = f"{_im322[2]}.{_im322[1]}"
+        elif not _im322[4] and _im322[2] == "sys" and _im322[1] == "float_info":
+            _r322_names[str(_im322[0])] = "sys.float_info"
+    if _r322_mods or _r322_names:
+        _st322 = [_v322 for _k322, _v322 in ir_data.items() if _k322 != "imports"]
+        # A MODULE- or CLASS-level binding (`PI = math.pi`) is not in the IR at all: the
+        # name then lowers to the opaque `val constant PI : int` (MEASURED: `PI % 1 == 0`
+        # PROVED). Read those bindings off the parsed SOURCE (the woven tree is not `ast`).
+        import ast as _ast322
+        _top322 = list(_ast322.parse(source_code).body)
+        _top322 += [_s322 for _c322 in _top322 if isinstance(_c322, _ast322.ClassDef)
+                    for _s322 in _c322.body]
+        for _s322 in _top322:
+            if not isinstance(_s322, (_ast322.Assign, _ast322.AnnAssign, _ast322.AugAssign)):
+                continue
+            for _a322 in _ast322.walk(_s322):
+                if (isinstance(_a322, _ast322.Attribute)
+                        and isinstance(_a322.value, _ast322.Name)):
+                    _m322 = _r322_mods.get(_a322.value.id)
+                    if _m322 in ("math", "cmath") and _a322.attr in _r322_floats:
+                        _st322.append({"type": "Attribute", "attr": _a322.attr,
+                                       "object": {"type": "Var", "name": _a322.value.id}})
+                    elif _m322 == "sys" and _a322.attr == "float_info":
+                        _st322.append({"type": "Attribute", "attr": "float_info",
+                                       "object": {"type": "Var", "name": _a322.value.id}})
+                elif (isinstance(_a322, _ast322.Name)
+                        and isinstance(_a322.ctx, _ast322.Load)
+                        and _a322.id in _r322_names):
+                    _st322.append({"type": "Var", "name": _a322.id})
+        while _st322:
+            _n322 = _st322.pop()
+            if isinstance(_n322, list):
+                _st322.extend(_n322)
+                continue
+            if not isinstance(_n322, dict):
+                continue
+            _hit322 = None
+            _o322 = _n322.get("object")
+            if (_n322.get("type") == "Attribute" and isinstance(_o322, dict)
+                    and _o322.get("type") == "Var"):
+                _m322 = _r322_mods.get(_o322.get("name"))
+                if _m322 in ("math", "cmath") and _n322.get("attr") in _r322_floats:
+                    _hit322 = f"{_m322}.{_n322.get('attr')}"
+                elif _m322 == "sys" and _n322.get("attr") == "float_info":
+                    _hit322 = "sys.float_info"
+            elif _n322.get("type") == "Var" and _n322.get("name") in _r322_names:
+                _hit322 = _r322_names[_n322.get("name")]
+            if _hit322 is not None:
+                raise _PyCSLSemanticError(
+                    f"{args.file}: PYCSL-R322-FLOAT-MODULE-CONSTANT (route #322) — "
+                    f"`{_hit322}` is a Python FLOAT constant and PyCSL has no faithful "
+                    f"model of it here: it would lower to an opaque INT, under which "
+                    f"every claim true of all integers (`x % 1 == 0`, "
+                    f"`x // 1 == x`) is proved of it. Refused (fail closed). Pass the value "
+                    f"in as a `float` parameter with an explicit `requires` bound instead.")
+            _st322.extend(_n322.values())
 
     # refactor.md Phase C (C2b): run the four post-Module5 IR-resolution passes — in
     # order: import resolution → inheritance (Layers B+C) → Tier-1 composition →

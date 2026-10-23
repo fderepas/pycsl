@@ -3781,6 +3781,23 @@ a method writing a global, and an override writing a position its base does not 
 frame (route #34). Emission is byte-identical for every method/stub whose body writes no
 parameter.
 
+### §T.6.25  Literal folds over int literals only; float module constants; contract slices (routes #322 / #324)
+
+A fold $\mathcal{T}_e(\texttt{abs}(n)) = |n|$, $\mathcal{T}_e(\texttt{sum}([n_1,\dots,n_k])) = \sum n_i$
+(and the known-element / default maps) is defined only when every $n_i$ is an INT literal;
+for a float literal no fold applies and the general lowering runs (before route #322 the
+fold computed $|\lfloor n \rfloor|$ / $\sum \lfloor n_i \rfloor$, so `abs(2.5) == 2` was proved).
+`int(n)` for a finite float literal folds to $\mathrm{trunc}(n)$, which is its meaning.
+A float module constant ($\texttt{math}.c$, $c \in \{\texttt{pi},\texttt{e},\texttt{tau},
+\texttt{inf},\texttt{nan}\}$, the `cmath` ones, `sys.float_info`) has no image: its generic
+lowering was the opaque $(\texttt{get\_}c\ \texttt{math}) : \texttt{int}$ and is refused before
+Module 6 (`_run_pipeline`, IR walk + module/class-level bindings).
+In a contract, $\mathcal{T}_s(s[a:b]) = \texttt{String.substring}\ s\ a'\ (b' - a')$ with
+$x' = x$ for a non-negative int literal or an omitted bound, else
+$x' = \texttt{if}\ x < 0\ \texttt{then}\ \max(x + |s|, 0)\ \texttt{else}\ x$; Why3's
+`substring` (empty for an offset outside $[0, |s|)$ or a length $\le 0$, clipped at the end)
+then coincides with CPython's step-1 slice. The body side keeps route #190's guarded
+`str_sub_op`.
 ### §T.6.24  Collections constructors and the itertools length model (routes #321 / #323)
 
 $\mathcal{T}_e(\texttt{Counter}()) = \mathcal{T}_e(\texttt{OrderedDict}()) =

@@ -1634,7 +1634,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 shi = f"(str_length_op {arr})"
             slen = f"(({shi}) - ({slo}))"
             if self._in_spec:
-                return f"(String.substring {arr} {slo} {slen})"
+                # (#49) ROUTE #324 — Why3's `String.substring s i x` equals Python's
+                # `s[i:i+x]` for NON-NEGATIVE bounds only (out-of-range clamps the same way);
+                # a NEGATIVE bound is `""` in Why3 but counts from the end in Python, so
+                # `len(s[1:-1])` PROVED 0 (CPython 1). A bound that is not a non-negative int
+                # literal is normalised exactly as CPython does (`b < 0` -> `max(b + n, 0)`).
+                # Non-negative literal / omitted bounds, and a bare `len(x)` (a single
+                # `(String.length x)` application, never negative), keep the raw form.
+                _lo_raw324 = ((not _lo_has190) or slo.isdigit()
+                              or (slo.startswith("(String.length ")
+                                  and slo.count("(") == 1 and slo.count(")") == 1))
+                _hi_raw324 = ((not _up_has190) or shi.isdigit()
+                              or (shi.startswith("(String.length ")
+                                  and shi.count("(") == 1 and shi.count(")") == 1))
+                if _lo_raw324 and _hi_raw324:
+                    return f"(String.substring {arr} {slo} {slen})"
+                _n324 = f"(String.length {arr})"
+                if not _lo_raw324:
+                    slo = (f"(if {slo} < 0 then (if {slo} + {_n324} < 0 then 0 "
+                           f"else {slo} + {_n324}) else {slo})")
+                if not _hi_raw324:
+                    shi = (f"(if {shi} < 0 then (if {shi} + {_n324} < 0 then 0 "
+                           f"else {shi} + {_n324}) else {shi})")
+                return f"(String.substring {arr} {slo} (({shi}) - ({slo})))"
             # The length lemma is baked into the bridge's `ensures`: deriving
             # `String.length (substring s lo len) = len` from the substring theory makes the
             # SMT backend OOM for general (non-literal) args, but the fact is sound (cf. the
