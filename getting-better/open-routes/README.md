@@ -10,6 +10,18 @@
 ##   #314 str-method keyword arguments dropped; #315 __init__ bodies never emitted/verified (argument mutations,
 ##   callee preconditions, explicit __init__ contracts all ignored).
 
+## gen #37 (2026-10-23): #311 + #312 + #313 + #314 REPAIRED (r311 executor, off d4e39ef2; inline; no new def/field; ledger 3;
+##   touched functions' mirror twins `\trusted`; no IR change). Route #310's choke point generalised from displays to EVERY
+##   effectful operand: a non-display operand is PROBED (not marked: position-dependent lowerings keep their text), and an
+##   operand absent from the node's lowering is evaluated first (`let _ = <op> in ..`) or REFUSED (arm / after an unbound
+##   operand / re-derived call); operands whose calls are effect-free opaque `val`s / `(any T)` / literal records stay dropped
+##   (byte-inert). `for` over any erased effectful iterable is materialised. #311: `SliceAccess` receiver/bounds join #307's
+##   left-to-right sequencing. #314: builtin-type method keywords REFUSED in `_reset_function_state` (except `sort`;
+##   string-literal `encoding`/`errors` of encode/decode rewritten positionally). Witnesses 3990, 3993-4001, 4003-4008
+##   PROVED -> FAIL; 4009-4011 PROVED -> REFUSED; 4012-4014 FAIL -> REFUSED; 3991 near-miss FAIL -> FAIL; controls 4015-4020
+##   FAIL -> PASS. Root 1 MOVED (0425, PASS -> PASS, positional decode), pyref 0/0/0, mirror 0/0/0 (nothing OWED);
+##   fast planes PLANES_TBD. Residuals: sequenced slice then indexed is fail-closed L3-tc; statements ~3285 field-store
+##   havoc text-keyed (census: unreachable with an effect); probe that raises out of position gives no verdict.
 ## gen #37 (2026-10-23): #315 REPAIRED (r315 executor, off d4e39ef2; sound refusal, inline in `_run_pipeline` (`\trusted` twin);
 ##   no new def/field; no IR change; ledger 3). A class whose constructor (`__init__`/`__post_init__`, else the base's) is not a
 ##   FIELD INITIALISER (only `self.<f>`/local stores, total-builtin / builtin-exception / `setattr(self)` / `super().__init__` /
