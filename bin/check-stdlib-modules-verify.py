@@ -98,6 +98,14 @@ BASELINE = {
     "iomod/__init__.py": "REFUSED.",
     "proc/__init__.py": "REFUSED.",
     "re/_engine.py": "REFUSED — 478 lines, 35 annotations.",
+    "re/__init__.py": "REFUSED since route #317 (gen #37, PYCSL-VAL-ARG-UNFRAMED): the "
+        "module has no function of its own; it imports `re/_engine.py` (itself REFUSED "
+        "above), whose unframed helpers become bodyless `val`s. Measured 2026-10-23: the "
+        "refusal names `_scan_json_string`, then `_match_color_pattern`, then "
+        "`_sub_color` — and `_sub_color` calls the caller's `repl(m)` callback, whose "
+        "writes no `#@ assigns` can name, so no honest frame exists and the refusal is "
+        "correct (the route-#317 rule is not to be weakened). Not route #305: "
+        "`error = PatternError` is not what fires.",
     "subproc/__init__.py": "REFUSED.",
     "sysmod/__init__.py": "REFUSED.",
     "tmpf/__init__.py": "REFUSED.",
