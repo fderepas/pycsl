@@ -5284,6 +5284,65 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 continue
                             _tall175.body.extend(_dt181.body)
                             _todo181.append((_dt181, _os181.path.dirname(_pp181)))
+        # (#49) ROUTE #305 — A USER EXCEPTION CLASS NAMED LIKE A BUILTIN IS THE BUILTIN.
+        # Handler matching (`exception_model.handler_catches`) reads the builtin hierarchy by
+        # NAME and the WhyML exception tag is the bare name, so a user `class KeyError(Exception)`
+        # shares the builtin's tag AND its bases: MEASURED (gen #37), raised under `except
+        # LookupError` it was "caught" (`no_exception \all` + `\result == 1` PROVED, CPython
+        # escapes); a user `class LookupError` "caught" the builtin KeyError; the IMPLICIT
+        # KeyError of `d[5]` was "caught" by `except KeyError` naming the user class. Refused:
+        # any binding — in the main file or a dependency module it imports — of a name the
+        # exception model keys on (`EXCEPTION_BASES`, `KNOWN_EXCEPTIONS`, the OSError aliases):
+        # a `class` statement at any depth, and a def / import binding / assignment target /
+        # parameter / `except ... as` name in a module or function scope (a class-body binding
+        # is an attribute, not the name). `from builtins import KeyError` rebinds the builtin
+        # itself and is accepted. CENSUS: 0 such bindings in pycsl-reference (beyond 1375,
+        # already refused by #131), python-reference, the mirror and the live tree; pycsl_lib
+        # `re/__init__.py` binds `error = PatternError` (not a dependency of any corpus file).
+        from exception_model import (EXCEPTION_BASES as _eb305, KNOWN_EXCEPTIONS as _ke305)
+        _names305 = set(_eb305) | set(_ke305) | {"EnvironmentError", "IOError"}
+        _st305 = [(_x305, False) for _x305 in _tall175.body]
+        while _st305:
+            _y305, _incls305 = _st305.pop()
+            _bd305 = []
+            if isinstance(_y305, _ast175.ClassDef):
+                _bd305 = [("class", _y305.name)]
+            elif _incls305:
+                _bd305 = []
+            elif isinstance(_y305, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                _bd305 = [("def", _y305.name)]
+            elif isinstance(_y305, _ast175.Import):
+                _bd305 = [("import", _a305.asname or _a305.name.split(".")[0]) for _a305 in _y305.names]
+            elif isinstance(_y305, _ast175.ImportFrom):
+                _bd305 = [("import", _a305.asname or _a305.name) for _a305 in _y305.names
+                          if _a305.name != "*"
+                          and not (_y305.module in ("builtins", "__builtin__") and not _y305.level
+                                   and (_a305.asname or _a305.name) == _a305.name)]
+            elif isinstance(_y305, _ast175.Name) and isinstance(_y305.ctx, (_ast175.Store, _ast175.Del)):
+                _bd305 = [("assignment", _y305.id)]
+            elif isinstance(_y305, _ast175.arg):
+                _bd305 = [("parameter", _y305.arg)]
+            elif isinstance(_y305, _ast175.ExceptHandler) and isinstance(_y305.name, str):
+                _bd305 = [("except-as", _y305.name)]
+            for _k305, _n305 in _bd305:
+                if _n305 in _names305:
+                    from errors import PyCSLSemanticError as _PyCSLSemErr305
+                    raise _PyCSLSemErr305(
+                        f"a {_k305} at line {getattr(_y305, 'lineno', 0)} (of this file or a module it imports) binds `{_n305}`, a name "
+                        f"the exception model keys on (ROUTE #305): handler matching and the "
+                        f"WhyML exception tag read the BUILTIN `{_n305}` (its hierarchy, its "
+                        f"implicit raises) by name, so a user definition under that name would be "
+                        f"conflated with the builtin and a handler / `no_exception` claim proved "
+                        f"of the wrong class. Give the class (or binding) its own name.",
+                        stage="whyml-emit", code="PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED")
+            if isinstance(_y305, _ast175.ClassDef):
+                _st305.extend((_c305, True) for _c305 in _y305.body)
+                _st305.extend((_c305, _incls305) for _c305 in
+                              list(_y305.bases) + list(_y305.keywords) + list(_y305.decorator_list))
+            elif isinstance(_y305, (_ast175.FunctionDef, _ast175.AsyncFunctionDef, _ast175.Lambda)):
+                _st305.extend((_c305, False) for _c305 in _ast175.iter_child_nodes(_y305))
+            else:
+                _st305.extend((_c305, _incls305) for _c305 in _ast175.iter_child_nodes(_y305))
         _bases175 = {}
         for _c175 in _ast175.walk(_tall175):
             if isinstance(_c175, _ast175.ClassDef):
