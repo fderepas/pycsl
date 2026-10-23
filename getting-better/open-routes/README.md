@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #307 REPAIRED (r307 executor, off f48adff0; inline at the `_expr_to_whyml` choke point (`\trusted` twin) + the
+##   dict-literal folds (no twin); no new def/field; one new raise site; no IR change; ledger 3). Why3 1.8.2 measured RIGHT-TO-LEFT
+##   for application args, infix operands, tuples, raise-vs-write. An n-ary program node whose later operand is effectful (walrus,
+##   yield, or a call not known `assigns \nothing`/raise-free) let-binds its earlier non-inert operands left-to-right; container
+##   operands stay inline (Python observes them late), effectful ones REFUSED; dict folds bind k0,v0,k1,...; range(start, stop)
+##   header and re-derived operands REFUSED. Witnesses 3890-3903, 3907-3912 PROVED -> FAIL; 3904/3905 FAIL -> REFUSED; 3925 REFUSED;
+##   controls 3913-3924 PASS (11 were FAIL). Root 18 MOVED (all explained by binder inlining, verdicts unchanged), pyref 0/0/0,
+##   mirror 10 MOVED (L3-tc all; errors/struct_format proved; 8 long OWED); fast 61/61. New suspected false proof (not #307):
+##   `t = (inc(xs), 0)` drops the call's effect (PROVED; repro in the route file).
 ## gen #37 (2026-10-23): #310 (a tuple assigned to a name is havocked to `(any ..)`, dropping the effects of calls inside it)
 ##   OPENED (r307 executor census); witness rc=0, CPython violates.
 
