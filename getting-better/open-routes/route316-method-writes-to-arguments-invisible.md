@@ -72,8 +72,12 @@ treated as aliases of their arguments (`_N("Attribute")(value=atom)`; `out = set
 regression; nothing OWED. Census: 16 rows via `_census_row` (4070-4085; 6 REFUSAL, 10 VERIFY-FAIL).
 
 Gates (rc): witnesses/controls above; byte-diff root rc=1 only for the declared 3195 mover, pyref rc=0; mirror-emit-sweep
-compare rc=0 (`--min-files 50`); check-self-annotate-sync.sh 0 (926 verbatim); self-annotate-mirror-check.sh and
-run-soundness-planes.sh fast: see README entry; doc-coherency --check 0; check-assumed-facts 0 (85, ledger 3 unchanged);
+compare rc=0 (`--min-files 50`; re-run after d3a934a9: still 0/0/0); corpus re-run after d3a934a9: `--expect-moved 3195`
+rc=0 (14 new sources emitted, 6 refused), pyref rc=0; check-self-annotate-sync.sh 0 (926 verbatim);
+self-annotate-mirror-check.sh 0 (53 in sync); run-soundness-planes.sh fast 61/61 rc=0 (run 1: 1 RED,
+`check-assigns-underdeclaration` HOLE 1 = the `self.ir[...]` store in `transpile`, fixed by d3a934a9 — base HOLE 0; run 2:
+4 RED with `cross-module-contract-parity` "53 emitted file(s) and 0 shared symbol(s)" — a failed shared mirror emission
+under queue contention, `check-artifact-cleanup` green alone; run 3 at ad520dd8: all 61 green); `--slow` NOT run; doc-coherency --check 0; check-assumed-facts 0 (85, ledger 3 unchanged);
 check-trusted-raises-honesty 0 (61 = ratchet); check-refusal-witness-coverage 0 (264 demonstrated, 5 ceiling).
 
 Residuals: (1) the analysis is syntactic: a write through a call result that aliases a PARAMETER of a builtin/constructor

@@ -10,7 +10,8 @@
 ##   not), PYCSL-METHOD-ARG-UNFRAMED / PYCSL-VAL-ARG-UNFRAMED (record argument written). Witnesses 4071-4077, 4079-4081 PROVED
 ##   -> FAIL; 4070, 4078, 4082, 4083, 4085 PROVED -> REFUSED; 4084 FAIL -> REFUSED; controls 4088-4091 PASS. Root 1 MOVED
 ##   (3195, expected FAIL, `assigns xs[0]` stub gains `writes { x0 }`, FAIL -> FAIL), pyref 0/0/0, mirror 0/0/0 (nothing OWED;
-##   no latent false proof). Residuals: syntactic alias analysis; dict aliasing via elements (WL-05); record args refused not
+##   no latent false proof); fast planes 61/61 rc=0 (assigns-underdeclaration caught a first-cut `self.ir[..]` store, fixed);
+##   sync/mirror-check/doc-coherency/assumed-facts/raises/refusal-coverage rc=0. Residuals: syntactic alias analysis; dict aliasing via elements (WL-05); record args refused not
 ##   framed; global writes from methods refused even if declared; element-precise `assigns` unchecked (as for plain functions).
 ## gen #37 (2026-10-23): #318 (range bound re-read every iteration), #319 (list parameter rebound in a nested block is lost after
 ##   the block; later writes hit the caller), #320 (literal rebind of a local list overwrites the same array in place) OPENED (red team 17);
