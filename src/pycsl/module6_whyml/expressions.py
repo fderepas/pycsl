@@ -9787,6 +9787,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _rget = self._record_get_field(expr)
         if _rget is not None:
             _recv, _label, _ = _rget
+            # (#49) ROUTE #306 — the dropped default is still EVALUATED by Python (eagerly,
+            # before the lookup): `t.get("a", bump(xs))` runs `bump`, `t.get("a", 10 // x)`
+            # raises on `x == 0`. MEASURED at 370e1875: both PROVED (`xs[0] == 0` after the
+            # call; `no_exception \all`). A non-literal default is evaluated for its effects
+            # and obligations and its value discarded; literal/name defaults stay dropped
+            # (byte-identical).
+            _d306 = ((expr.get("args") or [])[1:2] or [None])[0]
+            if (isinstance(_d306, dict) and not getattr(self, "_in_spec", False)
+                    and not (_d306.get("type") in ("Number", "String", "Bool", "None", "Var")
+                             or (_d306.get("type") == "UnaryOp"
+                                 and isinstance(_d306.get("expr"), dict)
+                                 and _d306["expr"].get("type") == "Number")
+                             or (_d306.get("type") in ("DictLit", "SetLit", "ArrayLit", "List")
+                                 and not _d306.get("keys") and not _d306.get("elts")
+                                 and not _d306.get("values")))):
+                _dw306 = self._expr_to_whyml(_d306, local_refs, invariant_ctx, subst)
+                return f"(let _ = {_dw306} in {whyml_ident(_recv)}.{_label})"
             return f"{whyml_ident(_recv)}.{_label}"
         # option-of-record projection (boundary-1 G1 extension): `<optvar>.get("<field>")`
         # on an `Optional[<record>]` receiver projects the field from the `Some` arm —
@@ -13499,6 +13516,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _kw2 = self._expr_to_whyml(_a2[0], local_refs or set(),
                                            invariant_ctx, subst)
                 _dw2 = self._pyval_wrap(_a2[1], local_refs or set())
+                # (#49) ROUTE #306 — the default is evaluated EAGERLY, after the receiver
+                # and the key (see `_lower_dict_get_call`): a non-literal default is bound
+                # first (a non-atomic key before it) and both arms read the binder.
+                _d306 = _a2[1]
+                _b306 = ""
+                if (isinstance(_d306, dict) and not getattr(self, "_in_spec", False)
+                        and not (_d306.get("type") in ("Number", "String", "Bool", "None", "Var")
+                                 or (_d306.get("type") == "UnaryOp"
+                                     and isinstance(_d306.get("expr"), dict)
+                                     and _d306["expr"].get("type") == "Number")
+                                 or (_d306.get("type") in ("DictLit", "SetLit", "ArrayLit", "List")
+                                     and not _d306.get("keys") and not _d306.get("elts")
+                                     and not _d306.get("values")))):
+                    if not (_a2[0].get("type") in ("Number", "String", "Bool", "None", "Var")):
+                        _b306 = f"let k_r306 = {_kw2} in "
+                        _kw2 = "k_r306"
+                    _b306 = f"{_b306}let dflt_r306 = {_dw2} in "
+                    _dw2 = "dflt_r306"
                 # dict-value-wall Step 0 (red-team round 7 R5): the `| _ -> D` arm below is
                 # NOT Python. `(x or {})` is `{}` only when `x` is falsy; a TRUTHY non-dict
                 # `x` (str / int / list) has no `.get` and CPython raises AttributeError.
@@ -13517,9 +13552,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     return (f"(let r_k9 = {_rvw2} in begin assert {{ [@expl:PyCSL-DVW-R5 "
                             f"`.get` on a receiver that is not a dict raises AttributeError] "
                             f"match r_k9 with HMap _ -> true | _ -> false end }}; "
+                            f"({_b306}(match r_k9 with HMap m_k9 -> "
+                            f"(match pairs_get m_k9 {_kw2} with Some v_ -> v_ "
+                            f"| None -> {_dw2} end) | _ -> {_dw2} end)) end)"
+                            if _b306 else
+                            f"(let r_k9 = {_rvw2} in begin assert {{ [@expl:PyCSL-DVW-R5 "
+                            f"`.get` on a receiver that is not a dict raises AttributeError] "
+                            f"match r_k9 with HMap _ -> true | _ -> false end }}; "
                             f"(match r_k9 with HMap m_k9 -> "
                             f"(match pairs_get m_k9 {_kw2} with Some v_ -> v_ "
                             f"| None -> {_dw2} end) | _ -> {_dw2} end) end)")
+                if _b306:
+                    return (f"({_b306}(match {_rvw2} with HMap m_k9 -> "
+                            f"(match pairs_get m_k9 {_kw2} with Some v_ -> v_ "
+                            f"| None -> {_dw2} end) | _ -> {_dw2} end))")
                 return (f"(match {_rvw2} with HMap m_k9 -> "
                         f"(match pairs_get m_k9 {_kw2} with Some v_ -> v_ "
                         f"| None -> {_dw2} end) | _ -> {_dw2} end)")
@@ -13660,6 +13706,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # be the empty MAP whatever D was.
                 _empty = self._pyval_wrap((expr.get("args") or [None, None])[1],
                                           local_refs or set())
+                # (#49) ROUTE #306 — the default is evaluated EAGERLY (see
+                # `_lower_dict_get_call`): a non-literal default is bound first.
+                _d306 = ((expr.get("args") or [])[1:2] or [None])[0]
+                if (isinstance(_d306, dict) and not getattr(self, "_in_spec", False)
+                        and not (_d306.get("type") in ("Number", "String", "Bool", "None", "Var")
+                                 or (_d306.get("type") == "UnaryOp"
+                                     and isinstance(_d306.get("expr"), dict)
+                                     and _d306["expr"].get("type") == "Number")
+                                 or (_d306.get("type") in ("DictLit", "SetLit", "ArrayLit", "List")
+                                     and not _d306.get("keys") and not _d306.get("elts")
+                                     and not _d306.get("values")))):
+                    _k306 = ((expr.get("args") or [])[:1] or [None])[0]
+                    _kb306 = ""
+                    if not (isinstance(_k306, dict) and _k306.get("type")
+                            in ("Number", "String", "Bool", "None", "Var")):
+                        _kb306 = f"let k_r306 = {_k} in "
+                        _k = "k_r306"
+                    return (f"({_kb306}let dflt_r306 = {_empty} in "
+                            f"(match {recv} with HMap m_k7 -> "
+                            f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
+                            f"| None -> dflt_r306 end) | _ -> dflt_r306 end))")
                 return (f"(match {recv} with HMap m_k7 -> "
                         f"(match pairs_get m_k7 {_k} with Some v_ -> v_ "
                         f"| None -> {_empty} end) | _ -> {_empty} end)")
@@ -13872,6 +13939,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # (never the scalar `None -> <default>` unwrap that clashes at the slot).
             if getattr(self, "_get_return_raw_option", False) and len(args) == 1:
                 return f"(Map.get {recv_whyml} {k})"
+            # (#49) ROUTE #306 — the default is evaluated EAGERLY (see the body-dict twin
+            # below): a non-literal default is bound first, a non-atomic key before it.
+            _d306 = ((expr.get("args") or [])[1:2] or [None])[0] if len(args) >= 2 else None
+            if (isinstance(_d306, dict) and not getattr(self, "_in_spec", False)
+                    and not (_d306.get("type") in ("Number", "String", "Bool", "None", "Var")
+                                     or (_d306.get("type") == "UnaryOp"
+                                         and isinstance(_d306.get("expr"), dict)
+                                         and _d306["expr"].get("type") == "Number")
+                                     or (_d306.get("type") in ("DictLit", "SetLit", "ArrayLit", "List")
+                                         and not _d306.get("keys") and not _d306.get("elts")
+                                         and not _d306.get("values")))):
+                _k306 = ((expr.get("args") or [])[:1] or [None])[0]
+                _kb306 = ""
+                if not (isinstance(_k306, dict)
+                        and _k306.get("type") in ("Number", "String", "Bool", "None", "Var")):
+                    _kb306 = f"let k_r306 = {k} in "
+                    k = "k_r306"
+                return (f"({_kb306}let dflt_r306 = {default} in "
+                        f"(match Map.get {recv_whyml} {k} "
+                        f"with | Some v_ -> v_ | None -> dflt_r306 end))")
             return (f"(match Map.get {recv_whyml} {k} "
                     f"with | Some v_ -> v_ | None -> {default} end)")
         if not is_dict:
@@ -13949,6 +14036,35 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(Map.get {recv_whyml} {k})"
         _res = (f"(match Map.get {recv_whyml} {k} "
                 f"with | Some v_ -> v_ | None -> {default} end)")
+        # (#49) ROUTE #306 — PYTHON EVALUATES THE DEFAULT EAGERLY. `d.get(k, D)` evaluates
+        # the receiver, the key and THEN `D` before the lookup runs, whether or not `k` is
+        # present; the match above put `D` on the `None` arm only, so every write of a
+        # callee in `D` and every exception obligation of `D` (`10 // x`, `a[5]`) vanished
+        # whenever the key was present. MEASURED at 370e1875: `return d.get(1, 10 // x)`
+        # PROVED `no_exception \all` (CPython ZeroDivisionError), and a default `bump(xs)`
+        # whose contract assigns `xs[0]` PROVED `xs[0] == 0` afterwards (e10/e22/e23/e27/e32).
+        # A default that is not a literal / name / empty collection is BOUND FIRST, in
+        # Python order (a non-atomic key before it), so its effects and obligations are on
+        # every path; the lookup then reads the receiver AFTER the default ran, as the bound
+        # `dict.get` does. Literal/name defaults (no effect, no raise) are byte-identical.
+        _d306 = ((expr.get("args") or [])[1:2] or [None])[0] if len(args) >= 2 else None
+        if (isinstance(_d306, dict) and not getattr(self, "_in_spec", False)
+                and not (_d306.get("type") in ("Number", "String", "Bool", "None", "Var")
+                                 or (_d306.get("type") == "UnaryOp"
+                                     and isinstance(_d306.get("expr"), dict)
+                                     and _d306["expr"].get("type") == "Number")
+                                 or (_d306.get("type") in ("DictLit", "SetLit", "ArrayLit", "List")
+                                     and not _d306.get("keys") and not _d306.get("elts")
+                                     and not _d306.get("values")))):
+            _k306 = ((expr.get("args") or [])[:1] or [None])[0]
+            _kb306 = ""
+            if not (isinstance(_k306, dict)
+                    and _k306.get("type") in ("Number", "String", "Bool", "None", "Var")):
+                _kb306 = f"let k_r306 = {k} in "
+                k = "k_r306"
+            _res = (f"({_kb306}let dflt_r306 = {default} in "
+                    f"(match Map.get {recv_whyml} {k} "
+                    f"with | Some v_ -> v_ | None -> dflt_r306 end))")
         # self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): a STRING-typed
         # target (`name = x_ir.get("name")`, `x_ir` a `Dict[str, PyVal]` param with hval
         # codomain) forces the `.get` leaf to project its `hval` to a `string` (`hstr_of`),

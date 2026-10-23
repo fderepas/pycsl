@@ -1752,7 +1752,19 @@ class FunctionEmissionMixin:
                         _r275_vt = _r275_v.get("type") if isinstance(_r275_v, dict) else None
                         _r275_ok = False
                         if _r275_f in ("max", "min") and _r275_a == "default":
-                            _r275_ok = True
+                            # (#49) ROUTE #306 — the `default` is DROPPED by the lowering
+                            # (`max_1 xs`) but Python EVALUATES it eagerly, so its effects
+                            # and raises vanished: `m = max(s, default=bump(xs))` PROVED
+                            # `xs[0] == 0` (CPython 1). Only a default with neither (a
+                            # literal, a name, an empty collection) may be dropped.
+                            _r275_ok = (_r275_vt in ("Number", "String", "Bool", "None", "Var")
+                                        or (_r275_vt == "UnaryOp"
+                                            and isinstance(_r275_v.get("expr"), dict)
+                                            and _r275_v["expr"].get("type") == "Number")
+                                        or (_r275_vt in ("DictLit", "SetLit", "ArrayLit", "List")
+                                            and not _r275_v.get("keys")
+                                            and not _r275_v.get("elts")
+                                            and not _r275_v.get("values")))
                         elif _r275_f == "sorted" and _r275_a == "reverse":
                             _r275_ok = _r275_vt == "Bool"
                         elif _r275_f == "sorted" and _r275_a == "key":
@@ -1781,8 +1793,9 @@ class FunctionEmissionMixin:
                                 "and `sum(xs, start=10)` proved `== 3` (CPython: descending; "
                                 "13) (route #275). The keyword spellings that ARE modelled: "
                                 "`sorted` with `reverse=<bool literal>` and `key=None` or a "
-                                "lambda whose body invokes nothing; `max`/`min` with "
-                                "`default`; `print` with `sep`/`end` (str literal or None), "
+                                "lambda whose body invokes nothing; `max`/`min` with a "
+                                "`default` that is a literal, a name or an empty collection "
+                                "(route #306); `print` with `sep`/`end` (str literal or None), "
                                 "`flush` (bool literal) and `file=sys.stdout`/`sys.stderr`.")
                 _r275_work.extend(v for v in _r275_n.values()
                                   if isinstance(v, (dict, list)))
