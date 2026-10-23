@@ -2799,8 +2799,8 @@ dotted call takes the union over every method of that name. A `\trusted` callee 
 | `PYCSL-METHOD-FRAME` | A verified method declares `#@ assigns` (including `\nothing` / only `self.<f>`) and $W$ contains a parameter the frame does not name. | `4070`, `4078` |
 | `PYCSL-METHOD-GLOBAL-WRITE` | A verified method may write a module-level object (directly or through a callee). | `4083` |
 | `PYCSL-OVERRIDE-FRAME` | An override writes a parameter position its overridden base method does not write (route #277 pairs). | `4082` |
-| `PYCSL-METHOD-ARG-UNFRAMED` | A call resolved exactly to a method that writes a parameter whose stub type is not an `array`. | — (no witness: every corpus/mirror written parameter is a list) |
-| `PYCSL-VAL-ARG-UNFRAMED` | A `\trusted` / imported function emitted as a bodyless `val` with no `#@ assigns` writes a non-list parameter. | — (same) |
+| `PYCSL-METHOD-ARG-UNFRAMED` | A call resolved exactly to a method that writes a parameter whose stub type is not an `array`. | `4084` |
+| `PYCSL-VAL-ARG-UNFRAMED` | A `\trusted` / imported function emitted as a bodyless `val` with no `#@ assigns` writes a non-list parameter. | `4085` |
 
 Default frames (no refusal): a method with no `#@ assigns` — its call stub carries
 `writes { x_i }` for each written list position (witnesses `4071`-`4077`, `4079`, `4081`);

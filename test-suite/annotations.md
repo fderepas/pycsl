@@ -1357,7 +1357,7 @@ store rooted at the parameter or at a local aliasing it, an in-place list mutato
 forwarding it to a callee position that is written; a conservative fixpoint over the
 module), emitted as `writes { xs }` on the bodyless `val`. A written parameter that is not
 a list cannot be framed and is refused (`PYCSL-VAL-ARG-UNFRAMED`). A stub WITH `#@ assigns`
-is taken at its declared frame. Witnesses `4080`-`4081`; control `4091`.
+is taken at its declared frame. Witnesses `4080`-`4081`, `4085`; control `4091`.
 
 ```python
 # dir2/file2.py
@@ -1609,7 +1609,7 @@ declared before the global, so no `writes` can name it); `PYCSL-OVERRIDE-FRAME` 
 override that writes a parameter position its overridden base does not;
 `PYCSL-METHOD-ARG-UNFRAMED` — a written parameter that lowers to a non-array type. Writes to
 `self` fields stay checked by the method body's frame postconditions. Witnesses
-`4070`-`4079`, `4082`-`4083`; controls `4088`-`4090`.
+`4070`-`4079`, `4082`-`4084`; controls `4088`-`4090`.
 
 ---
 
