@@ -2771,6 +2771,12 @@ Complete catalogue of errors raised during static analysis.
 | `PYCSL-SEM-GETATTR-DEFAULT-R309` | `getattr(o, name, D)` with `D` not a literal / name / negative number / empty collection / argument-less builtin constructor, when `o`'s class is unknown or `name` is not a literal; a walrus in `D`. For a known class `D` is sequenced before the field read (declared literal name) or IS the answer (undeclared name). | `3940`-`3946`, `3950` (controls `3947`-`3949`) |
 | `PYCSL-SEM-ERASED-EFFECT-R310` (source scan, `_run_pipeline`) and the uncoded route #310 lowering refusals (`_expr_to_whyml`, `_stmts_to_whyml`: "an effectful expression is erased here (route #310)") | A `raise` whose second / keyword argument, `from` cause or dotted / computed exception expression contains a call outside `str repr len int float bool type format hex oct bin abs isinstance chr ord`, a walrus, `await` or `yield` (Module 5 keeps only the class and first argument). An effectful tuple/list/set/dict display (route #307's verdict) whose value the lowering erases, when it cannot be evaluated at its Python position: a conditional-expression arm, or a display after a non-inert unbound operand of the same node / call statement. Every other erased effectful display is evaluated (`let _ = <display> in ...`). | `3970`, `3978` (evaluated: `3960`-`3969`, `3971`-`3977`, `3979`-`3980`; controls `3981`-`3989`) |
 
+### Source refusal added by route #315 (`_run_pipeline` source scan)
+
+| Code | Condition | Witnesses |
+|------|-----------|-----------|
+| `PYCSL-R315-UNMODELLED-CONSTRUCTOR` | A non-trusted function of the main file (or a `#@ fresh_globals` module body) calls `K(...)` / `m.K(...)` where class `K` (declared in the main file or a dependency module it imports) has a constructor that is not a field initialiser (annotations.md §7.9): a call outside the total builtins / builtin exceptions / `setattr(self, ...)` / `super().__init__` / modelled constructors, a subscript read, a subscript or non-`self` attribute store, an in-place augmented store, a division/shift by a non-literal, or a `while`/`try`/`with`/`assert`/`global`/`nonlocal`/`del` of a non-`self` target. Transitive over constructors constructed in the body and over bases of a class without its own `__init__`. A base not declared in the parsed sources is assumed modelled. | `4040`-`4058`, `4063` (controls `4059`-`4062`) |
+
 ---
 
 ## 10. Gap Analysis

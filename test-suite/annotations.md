@@ -1545,6 +1545,28 @@ computed exception contains a call is refused with `PYCSL-SEM-ERASED-EFFECT-R310
 the class and first argument are modelled). Witnesses `3960`-`3980`; controls
 `3981`-`3989`.
 
+### 7.9 A constructor is modelled only as a field initialiser (route #315)
+
+`K(args)` is lowered to a record literal built from `__init__`'s `self.<f> = ...` stores
+(routes #79/#83/#88/#150/#152/#154 make every field they cannot state UNKNOWN); the rest of
+the constructor body is never emitted, so its effects on the arguments and on globals, its
+callees' preconditions and its implicit raises are not in the proof. A class's constructor
+(its own `__init__` / `__post_init__`, else the nearest base's) is therefore MODELLED only
+when it is a field initialiser: statements are stores to `self.<f>` or to a local name,
+`if` / `for` / `match` / `raise` / `return` / `pass` / an expression statement; an
+augmented store is only `+=` / `-=` of a number; calls go only to total builtins (`len
+isinstance issubclass bool list set dict tuple frozenset sorted reversed str repr range sum
+any all abs bytearray bytes object type zip enumerate id callable`), builtin exception
+classes, `setattr(self, ...)`, `super().__init__(...)` of a modelled base, or the
+constructor of another modelled class; no subscript read (a slice is total), no subscript
+or non-`self` attribute store, no `/ // % << >>` by anything but a positive int literal,
+no `while` / `try` / `with` / `assert` / `global` / `nonlocal`. A non-trusted function of
+the main file (or the module body of a `#@ fresh_globals` file) that constructs any other
+class is refused with `PYCSL-R315-UNMODELLED-CONSTRUCTOR`; move the work out of the
+constructor. A `#@ requires` on `__init__` is still not checked at the construction site
+(route #15: the body of a field initialiser cannot observe its violation). Witnesses
+`4040`-`4058`, `4063`; controls `4059`-`4062`.
+
 ---
 
 ## 10. Concurrent Model Annotations

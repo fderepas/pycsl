@@ -3704,6 +3704,24 @@ an effectful `a` before `raise E`, and a `raise` whose dropped parts (second/key
 arguments, `from` cause, computed exception) contain a call is refused
 (`PYCSL-SEM-ERASED-EFFECT-R310`). Pure displays keep their emission byte-for-byte.
 
+### §T.6.20  A construction is a field initialiser or refused (route #315)
+
+$\mathcal{T}_e(K(\vec a))$ is the record literal $\{ f_i = \sigma(e_i) \}$ of `__init__`'s
+recognised stores $\texttt{self.}f_i = e_i$ under the parameter substitution $\sigma$
+(`(any int)` for each field the capture cannot state); the constructor body itself has no
+image. That is faithful only if executing the body has no effect outside the new object,
+no precondition and no raise beyond those the literal carries (a captured
+$\sigma(e_i)$ keeps its own division/bounds obligation). Measured at d4e39ef2: `a[0] += 1`,
+`self.n = inc(a)` (also inside a list/dict/slice/`sorted`, a `print`, an `if` test),
+`self.xs = a; self.xs[0] = 5`, `self.xs += [5]`, an inherited or nested such constructor, a
+dataclass `__post_init__` (also through an `InitVar`) and a user exception's `__init__` each
+proved a caller claim CPython falsifies; `self.n = first(a)` under `K([])` proved past a
+violated `requires` (CPython IndexError); a conditional `10 // d` / `a[0]` lost its raise.
+The source scan in `_run_pipeline` (annotations.md §7.9) therefore admits $\mathcal{T}_e(K(\vec a))$
+only for a class whose constructor is a field initialiser, closed over constructed classes
+and inherited constructors; any other construction in a non-trusted function is REFUSED
+(`PYCSL-R315-UNMODELLED-CONSTRUCTOR`). Emission is byte-identical wherever it is admitted.
+
 ## §T.7  Memory Models
 
 _Corresponds to `annotations.md` §5._

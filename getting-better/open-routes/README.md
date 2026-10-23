@@ -6,6 +6,16 @@
 ##   #314 str-method keyword arguments dropped; #315 __init__ bodies never emitted/verified (argument mutations,
 ##   callee preconditions, explicit __init__ contracts all ignored).
 
+## gen #37 (2026-10-23): #315 REPAIRED (r315 executor, off d4e39ef2; sound refusal, inline in `_run_pipeline` (`\trusted` twin);
+##   no new def/field; no IR change; ledger 3). A class whose constructor (`__init__`/`__post_init__`, else the base's) is not a
+##   FIELD INITIALISER (only `self.<f>`/local stores, total-builtin / builtin-exception / `setattr(self)` / `super().__init__` /
+##   modelled-ctor calls; no subscript read or store, non-`self` attribute store, in-place augmented store, non-literal
+##   division/shift, `while`/`try`/`with`/`assert`/`global`), transitively, may not be constructed in a non-trusted function ->
+##   `PYCSL-R315-UNMODELLED-CONSTRUCTOR`. Witnesses 4040-4058, 4063 PROVED -> REFUSED; controls 4059-4062 PASS both. Root 0
+##   MOVED / 7 GONE (declared expected-FAIL #150/#154/#235 witnesses, FAIL -> REFUSED), pyref 0/0/0, mirror 0/0/0 (nothing
+##   owed); fast planes 61/61. Residuals: undeclared/unresolved bases assumed modelled, `cls()`/alias constructions,
+##   `default_factory`, `__init__` `requires` unchecked at the call site (#15), user dunders reached from initialisers.
+
 ## gen #37 (2026-10-23): #310 REPAIRED (r310 executor, off 09e2b7c9; inline; no new def/field; ledger 3; mirror twins `\trusted`;
 ##   no IR change). An erased value is still EVALUATED: an effectful display (route #307's predicate) bound to a tuple/set
 ##   local -> `(let _ = <display> in (any int))`; one coerced / `len`-folded / dropped inside an expression -> `let _ =
