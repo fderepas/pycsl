@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/import_classifier.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] --fun filter: verifying ['collect_imports'], trusting ['_stub_set', 'any_function_trusted', 'check_imports', 'classify', 'pycslerror__as_dict', 'pycslerror__message']
+[level] L1 ✓  L2 ✓  L3-tc ✓
+[+] Verification SUCCESS (--no-proof: WhyML generated AND type-checks [L3-tc ✓]; proof skipped).

@@ -1,0 +1,208 @@
+# ROUTE #46 — **CLOSED 2026-09-08 by relaunch #49, commit `5f57a95d`** ("ROUTES #46 AND
+# #50 — the erased-locals record could not carry a path fact, and Optional[str] was
+# modelled as never-None"). Witnesses `1089`, `1090`, `1091` are in the corpus.
+#
+# THE ERASED-LOCALS RECORD WAS FLOW-INSENSITIVE AND A BRANCH WALKED PAST IT
+# (it carried TWO routes' facts: route #44's `None` and route #45's NaN)
+#
+# ## THIS FILE WAS STALE FOR TWO DAYS AND SAID "NOT CLOSED" THE WHOLE TIME
+#
+# The closure landed on 2026-09-08 and neither this file nor `open-routes/README.md` was
+# updated, so the ledger still advertised #46 as the campaign's last OPEN route. Relaunch
+# #51 generation #3 caught it on 2026-09-10 by running the FRESHNESS PRECONDITION before
+# building — re-reproduce at HEAD, never inherit a status line — and found both
+# reproducers already dead. **RE-MEASURE, NEVER INHERIT.** This is the third stale entry
+# this window (#56 and #57 were the others), and each one would have cost the next
+# relaunch a re-derivation of work already done.
+#
+# ## VERIFIED AT HEAD (`cf35437f`, 2026-09-10), BOTH HALVES AND FOUR VARIANTS
+#
+#     j1   the `None` join, `if x == 0` after the branches      FAILS CLOSED
+#     j2   the NaN join, `if x == x` after the branches         REFUSED outright, with a
+#          diagnostic naming the exact measured leak and offering two ways to write it
+#     v2   the same `None` join with the BRANCHES SWAPPED       FAILS CLOSED
+#     v3   ARITHMETIC on the joined `None` (Python raises)      FAILS CLOSED
+#     v4   the `else` branch binding a `bool` rather than int   FAILS CLOSED
+#     v1   `if not x:` — TRUE of the program (f(1) == 7)        STILL PROVES
+#
+# v1 is the one that matters for judging the repair: the route is closed WITHOUT the
+# model losing the true truthiness fact, so this is a fail-closed fix and not a refusal
+# blanket. `scratchpad/w51g3/r46/`.
+#
+# ===================== the original report follows, unchanged ====================
+#
+# OPEN ROUTE #46 — THE ERASED-LOCALS RECORD IS FLOW-INSENSITIVE, AND A BRANCH WALKS PAST IT
+# (it now carries TWO route's facts: route #44's `None` and route #45's NaN)
+
+**Found 2026-09-08 by relaunch #48 while closing route #44, at commit `c9bb23b2`.
+Its status line as written then — superseded by the header above:
+NOT CLOSED — the residue is measured, and the obvious repair was BUILT and REFUTED.**
+
+## The demonstration (default `hoare` model, no flags, Python run to confirm)
+
+```python
+#@ requires c > 0
+#@ ensures \result == 7
+#@ assigns \nothing
+def f(c: int) -> int:
+    if c > 0:
+        x = None
+    else:
+        x = 5
+    if x == 0:             # Python: `None == 0` is False -> f(1) returns 0
+        return 7
+    return 0
+```
+Proves at `c9bb23b2` (and at every earlier commit). Reproducer:
+`/tmp/w48probe/j1_none_branch_leak.py`, kept as `scratchpad/w48/probe/j1_none_branch_leak.py`.
+
+## Why route #44's fix does not reach it
+
+Route #44 records a `None` binding in `_erased_truthy_locals` and makes a READ of that name
+the opaque `pycsl_none`. The record is **linear**: it is written when the assignment is
+EMITTED and CLEARED when the name is rebound, exactly as route #41 established. Emission
+walks the `if` body and then the `else` body, so the `else`'s `x = 5` clears the record the
+`then`'s `x = None` had set, and the guard after the join reads the ordinary `!x`. In the
+`then` branch the model still holds `x := 0`, so `x == 0` is decidable there.
+
+## THE OBVIOUS REPAIR WAS BUILT AND IT IS REFUTED — do not re-attempt it as stated
+
+**"Never clear a `None` record" (a STICKY record) closes this reproducer and introduces a
+NEW UNSOUNDNESS of its own.** Measured, both halves:
+
+* it DOES close it (`j1` fails closed) and the corpus byte-diff stays at the same single
+  line;
+* but `_to_bool` reads the SAME dict, and route #44's truthiness arm answers `false` for a
+  `None`-recorded name — which is faithful only on the path that bound `None`. With a
+  sticky record, `cls = None; cls = <str>; if cls:` collapsed to the literal `false` on a
+  path where the string is non-empty. MEASURED in the `module6_whyml/types.py` mirror
+  emission: `if (not (not (str_eq_op !cls "")))` became `if (not false)`.
+* a second sticky variant, gated at READ time on the name not being string-typed, ALSO
+  fails: the read then falls through to route #41's per-name arm (the name is still IN the
+  dict), so a string local emitted `pycsl_erased_receiver_name` — an `int` — into
+  `str_eq_op`, a Why3 TYPE ERROR. Both variants are in this window's record.
+
+**THE LESSON, and it generalizes past this route: `bool(x) is False` and `x is the None
+singleton` are PATH facts, and a flow-INSENSITIVE record cannot carry a path fact. Route
+#41 got away with it because its facts ("this name is bound to a generator") were only ever
+used to REFUSE; route #44's are used to DECIDE.**
+
+## A CHEAPER REOPENING PATH THAN THE JOIN, DESIGNED AND CENSUSED (relaunch #48)
+
+The join below is the semantically right fix and it is expensive: `_handle_if_stmt` is an
+UNTRUSTED mirror method, so it owes a verbatim body sync, an `assigns` extension, a
+whole-file re-proof of `stmt_control_flow.py`, AND a MODEL for the dict save/restore/merge
+inside a body that is itself verified. There is a strictly cheaper design that is sound,
+flow-INSENSITIVE, and lands entirely in `\trusted` mirror methods — i.e. FIDELITY-FREE:
+
+**AN AMBIGUITY PRE-SCAN, seeded in `_reset_function_state`.** At function-emission start,
+walk the body once: `none_bound` = names assigned a `None`/NaN-valued RHS anywhere,
+`other_bound` = names assigned anything else anywhere. A name in BOTH is AMBIGUOUS on some
+path, so it is pre-seeded into `_erased_truthy_locals` under a distinct `"AMBIG"` value that
+the linear recorder in `_handle_assign_stmt` must NOT overwrite. Then:
+
+  * `_expr_to_whyml` reads an AMBIG name as a PER-NAME opaque int (route #41's device);
+  * `_to_bool` must NOT decide it — it falls through to the default `<> 0` coercion over
+    that opaque, which is undecidable. This is the exact half the STICKY variant got wrong.
+
+All three sites — `_reset_function_state`, `_expr_to_whyml`, `_to_bool` — are `\trusted` in
+the mirror, so the build costs NO body sync and NO model.
+
+**IT MUST CARRY THE TYPE GATE the sticky variant lacked.** A `str`-typed name that is
+`None`-then-string cannot become an opaque INT (that is the `str_eq_op` type error measured
+above), so AMBIG applies only where the symbol table types the name int-ish or leaves it
+unknown. Names of other types remain a stated, narrower residue.
+
+**CENSUS, so the cost is known before the build** (AST scan of `src/self-annotate/src`,
+`src/pycsl_lib` and BOTH corpora): **59** (function, name) pairs are bound to `None` AND to
+something else in the same function — 28 in `frontend/pure_ast.py`, 7 in
+`Module5_IREmitter.py`, and single digits elsewhere. **ZERO in either corpus**, so the
+corpus byte-diff is 0 by measurement. The type gate will cut the 59 further, since many of
+`pure_ast`'s are token/string locals.
+
+## REOPENING CAPABILITY
+
+A real JOIN at `_handle_if_stmt`: save the record before the branches, emit each branch from
+the saved state, and merge by UNION (a name recorded in EITHER branch stays recorded after
+the join, and its `_to_bool` arm must then become opaque rather than decided — `false` for
+`None` and `true` for NaN are both PATH facts, and after a join neither is certain). ONE
+build closes it for BOTH routes, which is the argument for doing it rather than patching
+each record kind. The cost is honest and was measured: `_handle_if_stmt` is
+an UNTRUSTED mirror method, so the build owes a verbatim mirror body sync, an extension of
+its `assigns` clause to include `_erased_truthy_locals` (the frame plane will demand it),
+and a whole-file re-proof of `module6_whyml/stmt_control_flow.py`.
+
+## IT AFFECTS ROUTE #45's NaN RECORD TOO — same dict, same join, second demonstration
+
+```python
+#@ requires c > 0
+#@ ensures \result == 7
+#@ assigns \nothing
+def f(c: int) -> int:
+    if c > 0:
+        x = float("nan")
+    else:
+        x = 1
+    if x == x:            # Python with c > 0: `nan == nan` is False -> f(1) returns 0
+        return 7
+    return 0
+```
+PROVES at `230c9a43`, i.e. WITH route #45's fix in place. The `else` branch's `x = 1` clears
+the NaN record the `then` branch set, so the guard falls through to ordinary int
+reflexivity. Reproducer: `scratchpad/w48/probe/nan_branch_leak2.py`.
+
+**The `else` branch's TYPE matters, and that is worth knowing before building the join.**
+The same shape with `x = 1.0` in the `else` FAILS CLOSED — a float-typed `x` routes through
+the `real` comparison path, which does not decide reflexivity either. So the leak needs the
+other branch to bind something the model types as `int`. That is luck, not design.
+
+**What does NOT leak, measured:** `x = float("nan"); x = x; if x == x:` fails closed,
+because route #45's recognizer descends a `Var` RHS and re-records the name. Propagation
+through arithmetic and through a plain re-binding both work; it is only the JOIN that does
+not.
+
+## What is NOT affected, so the residue is not overstated
+
+* A `while` loop does not leak: the loop havocs locals the invariant does not pin, so
+  `x = None; while ...; if x == 0:` already fails closed (measured).
+* Both-branches-`None` does not leak (the record survives).
+* The four shapes route #44 closes (witnesses `1053`–`1055` are route #42's; route #44's are
+  `1058`–`1061`) are unaffected — they are all straight-line.
+
+## RELAUNCH #49 BUILT THE PRE-SCAN, AND IT WORKS — BUT ITS OPACITY IS THE WRONG TYPE
+
+The pre-scan designed by #48 was implemented in full (patch:
+`scratchpad/w49/r46_prescan.patch`, 234 lines, against `90fed0c9`) and MEASURED. What it does:
+
+* **BOTH reproducers fail closed.** `j1_none_branch_leak.py` (the `None` join) goes from
+  `[+] SUCCESS` to `FAILED`, and `nan_branch_leak2.py` (the NaN join) is refused outright.
+* **The NaN half needed a SECOND device, and route #45 is why.** Making an ambiguous name's
+  VALUE opaque does not close `x == x` — an opaque int is still equal to itself. So the
+  pre-scan marks NaN-ambiguity distinctly (`AMBIG#nan`, INCLUDING names that inherit the taint
+  through arithmetic, since IEEE 754 makes every operation with a NaN operand NaN) and the
+  comparison is REFUSED (`PYCSL-WHYML-AMBIGUOUS-NAN-COMPARISON`).
+* **Controls hold**: `x = None; y = None; x == y` still proves (the shared-singleton control),
+  and `x = None; if x:` still proves `\result == 0` (the faithful-truthiness control).
+
+**WHY IT IS NOT LANDED: the per-name opaque is an INT, and ambiguous locals are not all ints.**
+Measured on the mirror emission (all 53 files emit, 7 move, 73 lines):
+
+    frontend/Module2_Parser  3   frontend/Module5_IREmitter  5   frontend/pure_ast 14
+    module6_whyml/expressions 7  module6_whyml/statements 18     module6_whyml/stmt_control_flow 9
+    module6_whyml/types 17
+
+and the `types.py` and `Module2_Parser` hunks are ILL-TYPED — `pycsl_erased_receiver_name`
+(an `int`) fed into `str_eq_op` and `str_concat_op`, which is the EXACT type error the "sticky
+record" variant hit and which #48 recorded as the reason a type gate is load-bearing. The gate
+IS there (`symbol_table` type in `int`/`bool`/`Any`/unset) and it is NOT ENOUGH: an unannotated
+str local carries the tag `Any`, so the symbol table cannot distinguish it from an int local.
+
+**THAT MEASUREMENT IS WHAT FOUND ROUTE #50** (`getting-better/open-routes/route50-*.md`): the
+poisoned `receiver_name` is an `Optional[str]`, and reading why its emission was a string sent
+me to `if receiver_name is None or field_name is None:` → `if false || false`.
+
+**THE TWO ROUTES SHARE ONE REPAIR.** Route #50's reopening capability is a STRING-typed opaque
+`val function pycsl_none_str : string`; the pre-scan's per-name opaque needs exactly the same
+thing one name at a time (`pycsl_erased_str_<n> : string`). Neither should be built without the
+other, and the type a local's opaque must take is the WhyML type the emitter ALREADY gives its
+`ref` (`ref ""` vs `ref 0`), not the symbol table's Python tag — that is the measured lesson.

@@ -1,0 +1,33 @@
+diff --git a/src/self-annotate/src/frontend/pure_ast.py b/src/self-annotate/src/frontend/pure_ast.py
+index 35c91127..5cf55e5c 100644
+--- a/src/self-annotate/src/frontend/pure_ast.py
++++ b/src/self-annotate/src/frontend/pure_ast.py
+@@ -4219,12 +4219,16 @@ class _Precedence(_enum.IntEnum):
+ 
+ class _Unparser(NodeVisitor):
+     'Methods in this class recursively traverse an AST and output source.'
+-    #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+-    #@ assigns \nothing
++    #@ assigns self._source, self._precedences, self._type_ignores, self._indent, self._avoid_backslashes, self._in_try_star
+     def __init__(self, *, _avoid_backslashes=False):
+-        pass
++        self._source: List[str] = []
++        self._precedences = {}
++        self._type_ignores = {}
++        self._indent = 0
++        self._avoid_backslashes = _avoid_backslashes
++        self._in_try_star = False
+ 
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+@@ -4257,7 +4261,7 @@ class _Unparser(NodeVisitor):
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing
+-    def write(self, *text):
++    def write(self, *text: str):
+         self._source.extend(text)
+ 
+     #@ \trusted reviewer: pycsl-self-annotate

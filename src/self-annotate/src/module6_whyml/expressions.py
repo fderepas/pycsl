@@ -24,6 +24,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _current_params: Set[str] = None
     _current_self_type: str = ""
     _emit_record_ctx: str = ""
+    # self-tcb-reduction _typeddict_record_literal (cap-1): the current function's
+    # declared return type (live: functions.py sets it per emitted function). Modeled
+    # as a string self-field so `getattr(self, "_func_return_type", "")` reads the real
+    # `string`, not the folded "" default — the construction-context disambiguator.
+    _func_return_type: str = ""
     _lambda_locals: Set[str] = None
     _module_constants: Dict[str, str] = None
     _module_global_classes: Dict[str, str] = None
@@ -31,19 +36,47 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _quant_scalar_binders: Set[str] = None
     _record_locals: Set[str] = None
     _record_types: Dict[str, Any] = None
+    # self-tcb-reduction _namedtuple_positional_access (WL-04b/c): the record-array
+    # PARAM/LOCAL name→whyml_name maps (live: functions.py `__init__`), modeled as
+    # string→string dict self-fields so `getattr(self, "_record_array_params",
+    # {}).get(_nm)` reads the real `map string (option string)`.
+    _record_array_params: Dict[str, str] = None
+    _record_array_locals: Dict[str, str] = None
     _shared_var_names: Set[str] = None
     _todict_aliases: Dict[str, str] = None
     _current_symbol_table: Dict[str, str] = None
     _mutable_state_classes: Set[str] = None
     _ambiguous_fields: Set[str] = None
     _getattr_self_dict_aliases: Dict[str, str] = None
-    _variant_types: Dict[str, str] = None
+    # self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): `_variant_types`
+    # (symtype -> variant-metadata sub-dict, a heterogeneous `Dict[str, Any]`) is annotated
+    # `Dict[str, Dict[str, PyVal]]` so the emitter types it as the faithful nested `map string
+    # (option (map string (option hval)))` — thus `_variant_types.get(symtype)` reads a real
+    # `map string (option hval)` vinfo whose `.get("constructors", {}).items()` descends the
+    # actual structure (NOT the int-erased facade). Matches the `stmt_control_flow.py` mirror's
+    # retype of the SAME emitter field. The two already-converted key-membership readers
+    # (`_tag_of_type`, `_handle_var_expr`'s `name in _variant_types`) survive: a `mem` test over
+    # a differently-VALUED map is value-type-agnostic. Emitter-internal, corpus-absent -> the
+    # reference corpus + every other mirror byte-identical. Live: Module6_WhyMLTranspiler.__init__.
+    _variant_types: Dict[str, Dict[str, PyVal]] = None
     _seq_value_types: Dict[str, str] = None
     _array_elem_types: Dict[str, str] = None
+    # (#49) gen #35, backlog #77 — fields the `_handle_dotted_call` cluster DECLARES in its
+    # `#@ assigns` (44 methods each) and the class never declared, so every occurrence was
+    # DROPPED from the emitted `writes` (check-assigns-writes-survival TRAP). Types read off the
+    # LIVE initialisers, never guessed: `_frame_trigger_active: bool = False`
+    # (Module6_WhyMLTranspiler.__init__), `_comp_content_counter` (`= n + 1`, an int counter),
+    # and three bool flags set only to True/False/a saved bool.
+    _frame_trigger_active: bool = False
+    _comp_content_counter: int = 0
+    _needs_array_init: bool = False
+    _obj_state_written: bool = False
+    _todict_arg_wants_pymap: bool = False
     _current_array1d_params: Set[str] = None
     # self-tcb-reduction T1.a: further state fields the ported expression handlers read.
     _in_spec: int = 0
     _value_semantic: int = 0
+    _mutated_collection_params: Set[str] = None
     _seq_locals: Set[str] = None
     _result_alias: str = ""
     _heap_var: str = ""
@@ -51,29 +84,49 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     _scope_all: Set[str] = None
     _scope_params: Set[str] = None
     _scope_dyn_exec: int = 0
+    # (#49) gen #35, backlog #77 batch 3 — annotations COPIED from StatementEmissionMixin's
+    # declarations of the same live fields (live: `self._abstract_ops: Dict[str, str] = {}`,
+    # `self._dict_locals: Set[str] = set()`, `_string_local_vars` a set of local names).
+    _string_local_vars: Set[str] = None
+    _abstract_ops: Dict[str, str] = None
+    _dict_locals: Set[str] = None
     'Expression-emission dispatch: every IR expression-shape `_handle_*_expr`\n    handler routed via `_EXPR_DISPATCH` on the facade, plus the orchestration\n    entrypoints (`_expr_to_whyml`, `_expr_to_whyml_string_ctx`) and the shared\n    helpers (`_to_bool`, `_coerce_*`, `_match_pattern_cond`, ...). Mixed into\n    Module6_WhyMLTranspiler. `_EXPR_DISPATCH` stays on the facade as a class\n    attribute — moving it would force a circular import.\n    '
     _BITWISE_FOLD_OPS = {'&': lambda a, b: a & b, '|': lambda a, b: a | b, '^': lambda a, b: a ^ b, '<<': lambda a, b: a << b, '>>': lambda a, b: a >> b, '**': lambda a, b: a ** b}
     _BITWISE_FN_NAMES = {'&': 'bit_and', '|': 'bit_or', '^': 'bit_xor', '<<': 'bit_lshift', '>>': 'bit_rshift', '**': 'py_pow'}
+    _STRING_VALUED_OPS = ("(str_concat_op ", "(str_repeat_op ", "(str_sub_op ",
+                          "(str_strip_op ", "(str_lower_op ", "(str_upper_op ",
+                          "(str_replace_op ", "(str_repr_op ", "(str_mod_op ",
+                          "(str_split_elem_op ", "(int_to_string ", "(str_dunder_op ")
 
     # self-tcb-reduction T1.a: sibling stubs the ported expression handlers call cross-mixin.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _add_abstract_op(self, decl: str) -> None:
         return
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._uses_pyast_parser_cache
     def _is_emit_ir_expr(self, ir: "ExprIR") -> bool:
         return False
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _e(self, ir: Dict, lr: Set[str]) -> str:
         return ""
 
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._whyml_string_literal(...)` call site in this file went through the receiver-less abstract
+    # `val self___whyml_string_literal_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -86,20 +139,46 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _to_bool(self, whyml_str: str, ir_expr: "ExprIR") -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # str(<int>) value-model increment (self-tcb-reduction M6, C-bucket): now that
+    # `str(<int>)` lowers to the faithful `str_of_int : int -> string` (expressions.py
+    # value-model fix), this `-> str` helper ports body-faithfully: a quoted-literal arg
+    # is rendered to its `str(stable_hash(...))` decimal string, else returned unchanged.
+    # isinstance_op = 0, assigns nothing. Verbatim body port of the LIVE `_coerce_str_arg`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _coerce_str_arg(whyml_str: str) -> str:
-        return ""
+        if whyml_str.startswith('"') and whyml_str.endswith('"'):
+            return str(stable_hash(whyml_str))
+        return whyml_str
+    # (#49) gen #35 — `_materialize_if_seq` calls `self._materialize_bridge()`, and with no
+    # concrete copy in THIS file that call lowered to a RECEIVER-LESS abstract op
+    # (`self__materialize_bridge_0 ()`, no effect), so the method's `writes { }` VERIFIED and
+    # its frame-preservation postcondition `self._abstract_ops = old self._abstract_ops` was
+    # PROVED while the live bridge writes `_abstract_ops` (via `_add_abstract_op`).
+    # `check-trusted-frame-honesty`'s converted arm went RED the moment `_abstract_ops` became
+    # a record field (backlog #77 batch 3). The relocated concrete copy gives the call its
+    # receiver and its real effect, and `_materialize_if_seq` now declares the honest frame.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
+    def _materialize_bridge(self) -> None:
+        """07-1705-rev4 P4: emit the faithful seq→array bridge val (fresh result, no
+        region link), used where a seq-modelled value crosses into `array int` code."""
+        self._add_abstract_op(
+            "val materialize (s: seq int) : array int\n"
+            "    ensures { Array.length result = Seq.length s }\n"
+            "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _materialize_if_seq(self, whyml_str: str, arg_ir: "ExprIR") -> str:
         """L2 (os-bodyvc-spec): if `arg_ir` is a seq-promoted local Var, bridge it seq→array with
         `materialize` so it can flow into an `array int` slot (e.g. `bytes(parts)`,
@@ -111,13 +190,82 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(materialize {whyml_str})"
         return whyml_str
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _array_coerce_arg(whyml_str: str) -> str:
-        return ""
+        """Coerce an arbitrary WhyML expression to an `array int`. Used
+        when abstract vals (`any_1`, `all_1`, `sorted_1`, `list_new`)
+        expect an array but the actual arg is an int — typically because
+        the IR dropped an unsupported iterable shape (generator
+        expression, comprehension, variadic *args) to a scalar. A
+        length-1 placeholder array works because the abstract vals have
+        no axioms about their input contents.
+
+        Recognises explicit array-shaped expressions and leaves them
+        alone: `Array.make ...`, `Array.get ...`, `sorted_1 ...`, bare
+        identifiers we can't disambiguate (passed through; callers must
+        ensure their type). For everything else, returns the placeholder."""
+        stripped = whyml_str.strip()
+        # (#49) ROUTE #241: an erased generator now lowers to `(any int)`, not `0`; it is
+        # the same unknown iterable, so it takes the same unconstrained array.
+        if stripped == "0" or stripped == "(any int)":
+            # (#49) ROUTE #193 — A PLACEHOLDER FOR AN UNKNOWN ARRAY MUST NOT HAVE A KNOWN
+            # LENGTH. This returned `(Array.make 1 0)`, a DEFINITE length-1 array, and the
+            # defence written above ("the abstract vals have no axioms about their input
+            # contents") is about CONTENTS and says nothing about LENGTH — `sorted_1`
+            # carries `ensures { Array.length result = Array.length a }`, so
+            # `len(sorted(x for x in [3, 1, 2]))` PROVED `== 1` while CPython answers 3,
+            # and `array_to_seq`'s `Seq.length result = Array.length a` is the same law one
+            # step further on. The honest placeholder is Why3's `any`, which stands for
+            # EVERY array of ints, so nothing about it — length or contents — is decidable.
+            # `any` and not an abstract `val`: declaring one would make this function
+            # register an abstract op, i.e. EFFECTFUL, and its mirror is a CONVERTED method
+            # whose proven contract is `assigns \nothing` (measured: battery C went RED on
+            # check-self-annotate-mirror-sync, check-mirror-signature-drift and
+            # check-trusted-frame-honesty). `any` needs no declaration, so the function
+            # stays a pure @staticmethod and the mirror stays a verbatim one-line edit.
+            return "(any (array int))"
+        # Already array-shaped — leave alone.
+        if (stripped.startswith("(Array.make")
+                or stripped.startswith("(Array.get")
+                or stripped.startswith("(sorted_1 ")
+                or stripped.startswith("(list_new ")
+                or stripped.startswith("(any_1 ")
+                or stripped.startswith("(all_1 ")):
+            return whyml_str
+        # Bare identifier or a dotted FIELD access (`self.fields`) — could be array-typed (callee's
+        # responsibility); pass through. (Track C / cprobe: clobbering `self.fields` to a placeholder
+        # severs it from its representation invariant, so a callee's array precondition can never
+        # discharge from `0 <= self.fields[k] <= MAX`.)
+        if stripped.replace("_", "").replace("!", "").replace(".", "").isalnum():
+            return whyml_str
+        # L2 sub-gap 2 (os-bodyvc-spec): a function application `(fn arg…)` or array-literal
+        # `(let _alit = …)` in an array slot is an array-returning expression (e.g. `(pack16 x)`,
+        # `(materialize !s)`, the `[..]` literal). Pass it through — clobbering it to a placeholder
+        # discards the value, which breaks contract-composition round-trips
+        # (`unpack(pack(x)) == x` lost `pack(x)` to `(Array.make 1 0)`). Only genuinely-scalar args
+        # (`0`, a numeric `(a + b)`) still get the placeholder.
+        if stripped.startswith("("):
+            inner = stripped[1:].lstrip()
+            head = inner.split(" ", 1)[0] if " " in inner else inner.rstrip(")")
+            head_ok = head.lstrip("!").replace("_", "").replace(".", "").isalnum()
+            if head and head_ok and not head.lstrip("!")[:1].isdigit():
+                return whyml_str
+        # (#49) ROUTE #201 — this returned `(Array.make 1 0)`, an array whose length
+        # the model KNOWS to be 1. Route #193 repaired the `stripped == "0"` case
+        # above for exactly this reason and left this tail alone; a STRING LITERAL
+        # reaches it (not `"0"`, not array-shaped, not alphanumeric once the quotes
+        # are counted), and so does an int BinOp. MEASURED: a callee declaring
+        # `p: List[int]` and carrying `ensures len(p) == 1 ==> \result == 1` — TRUE of
+        # its own body — called as `callee("ab")` PROVED `\result == 1` while CPython
+        # answers 2 (`len("ab")` is 2), with the TRUE twin REFUSED. `any` and not an
+        # abstract `val` for the same reason as the arm above: declaring one would make
+        # this function EFFECTFUL and its mirror is a CONVERTED method with
+        # `assigns \nothing`, so `any` keeps it a pure @staticmethod.
+        return "(any (array int))"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -127,12 +275,76 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         collection operand may arrive already-dereffed."""
         return f"!{expr.lstrip('!')}" if expr.startswith("!") else expr
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._coerce_to_int(...)` call site in this file went through the receiver-less abstract
+    # `val self___coerce_to_int_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _coerce_to_int(self, whyml_str: str) -> str:
-        return ""
+        if whyml_str.startswith('"') and whyml_str.endswith('"'):
+            return str(stable_hash(whyml_str))
+        stripped = whyml_str.strip()
+        # (ROUTE #110) THESE PREFIX TESTS ARE KEYED ON SPELLING, AND SEVEN OF THE SPELLINGS
+        # ARE ORDINARY PYTHON IDENTIFIERS. `array_slice`, `sorted_1`, `list_new_arr`,
+        # `any_1`, `all_1`, `map_update_some`, `map_update_none` all survive `whyml_ident`
+        # unchanged, so a user who merely NAMES A FUNCTION `any_1` had its call argument
+        # REPLACED BY THE LITERAL `0` -- the value, and every contract the callee carries,
+        # discarded in silence. MEASURED: `xs = [any_1(x)]; return xs[0]` PROVED
+        # `ensures \result == 0` while CPython returns x+1, and the emitted list literal was
+        # `Array.make 1 (0)` with the call GONE. The control, identical but for renaming the
+        # callee `anyq_1`, correctly FAILED and kept `(anyq_1 x)`.
+        #
+        # The head symbol of a term the USER defined is never one of this emitter's minted
+        # ops, so it must never be treated as array- or map-shaped. Passing it through is the
+        # FAIL-CLOSED direction: if such a call really is collection-typed, Why3 rejects it
+        # where an `int` is expected, which is a loud error rather than a silent `0`.
+        _head = ""
+        if stripped.startswith("("):
+            _head = stripped[1:].split(" ")[0]
+        # Read the field DIRECTLY, never `getattr(self, ..., set())`. The defensive default
+        # is dead code — `Module6_WhyMLTranspiler.__init__` initialises `_module_func_names`
+        # unconditionally — and in the self-annotation mirror a `getattr` WITH A DEFAULT on a
+        # name the record does not declare lowers to a `pycsl_getattr_default_*` FALL-THROUGH,
+        # i.e. one more erasure site on `bin/check-getattr-erasure.py`'s ABSENT ratchet. A
+        # repair that buys its soundness with a new erasure site has moved the problem, not
+        # fixed it; the ratchet caught exactly that and the line was NOT raised to hide it.
+        _user_fn = _head in self._module_func_names
+        # (#49) ROUTE #194 — AN ERASED COLLECTION IS NOT THE INTEGER 0. These two arms
+        # answered the LITERAL `0` for an array- or map-shaped actual reaching an
+        # int-erased param, and the defence was that "the receiving param is int-erased,
+        # so no law reads it". A CONTRACT ON AN INT-ERASED PARAM IS A LAW THAT READS IT:
+        # a callee `def f(self, p)` (un-annotated, so the `val` declares `p: int`) with
+        # the contract `ensures p == 0 ==> \result == 1` — TRUE of its own body — called
+        # as `self.f(sorted(xs))` emitted `(p__f self 0)`, the array discarded (Why3 even
+        # warns "unused variable xs"), and `\result == 1` PROVED while CPython answers 2
+        # (witness 1685). Why3's `(any int)` stands for EVERY int, so the erased
+        # collection decides nothing — route #115's device, and declaration-free, which
+        # matters here: this function's mirror is a CONVERTED method with
+        # `#@ assigns \nothing`, so registering an abstract op would break its frame
+        # (route #193 paid for that lesson).
+        array_prefixes = ("(Array.make", "(Array.sub ", "(array_slice ", "(sorted_1 ",
+                          "(list_new_arr ", "(any_1 ", "(all_1 ")
+        for prefix in array_prefixes:
+            if stripped.startswith(prefix) and not _user_fn:
+                return "(any int)"
+        map_prefixes = ("(map_update_some ", "(map_update_none ",
+                        "(const (None: option int)")
+        for prefix in map_prefixes:
+            if stripped.startswith(prefix) and not _user_fn:
+                return "(any int)"
+        if "," in whyml_str and whyml_str.startswith("(") and whyml_str.endswith(")"):
+            if _head.replace("_", "").replace(".", "").replace("'", "").isalnum():
+                return whyml_str
+            return "(any int)"
+        return whyml_str
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -141,11 +353,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         int dict (the caller keeps the `(const (None: option int))` it has)."""
         if nu == "string":
             return "(const (None: option string))"
+        if nu == "hval":
+            # hval-value-model-wall: a `Dict[str, PyVal]` heterogeneous dict is
+            # `map string (option hval)`; the empty base is the everywhere-None map.
+            return "(const (None: option hval))"
+        if nu == "emit_ir":
+            # self-tcb-reduction _typeddict_record_literal (cap-5): a `Dict[str, ExprIR]`
+            # local (`kv = {}` mapping field-name -> value IR node) is `map string (option
+            # emit_ir)`; the empty base is the everywhere-None map.
+            return "(const (None: option emit_ir))"
         if nu == "seq int":
             return "(const (None: option (seq int)))"
         if nu and nu.startswith("map "):
             return f"(const (None: option ({nu})))"
         return ""
+    # SHADOWED-SELFCALL REPAIR: `_dv_absent_opaque` below ends `return
+    # self._dv_missing_default(nu)`, and that is this method's ONLY reachable call site in
+    # the mirror (the other three live sites sit inside trusted-stub methods and never reach
+    # emission). Without the opt-in marker that call lowered to the receiver-less abstract
+    # `val self__dv_missing_default_1`, so the caller saw an UNCONSTRAINED string where the
+    # body computes a typed placeholder — a LOST CONVERSION, and the one RED on
+    # `check-shadowed-selfcalls` (15 > 14). Ordering was measured and REFUTED as the cause
+    # (see `39f00d6f`); the real difference from the four working siblings in this file
+    # (`_whyml_string_literal`, `_array_coerce_arg`, `_coerce_to_int`, `_field_label`) is
+    # simply that they carry this marker and this one did not. `-> str` is already in the
+    # concrete-route RETURN-TYPE allowlist, and the callee calls nothing, so no recursive
+    # group forms. Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -154,6 +388,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         dead under `#@ no_exception KeyError`, the ambient default otherwise)."""
         if nu == "string":
             return '""'
+        if nu == "hval":
+            # hval-value-model-wall: the missing-key default for a `Dict[str, PyVal]`
+            # read — an `hval` sentinel (proven dead under `#@ no_exception KeyError`).
+            return "(HInt 0)"
+        if nu == "emit_ir":
+            # cap-5: the missing-key default for a `Dict[str, ExprIR]` read — the emit_ir
+            # absent sentinel `IrOther ""` (total; the `kv.get(fname)` fallback).
+            return '(IrOther "")'
         if nu and nu.startswith("seq "):
             # #15: `Dict[str, List[T]]` value (`seq string`/`seq int`) -> the empty seq default.
             return f"(Seq.empty: {nu})"
@@ -163,79 +405,170 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(const (None: option {inner_v}))"
         return "0"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
+    def _dv_absent_opaque(self, nu: str) -> str:
+        """ROUTE #57: the `None ->` arm for a ONE-ARGUMENT `.get`, where Python's answer is
+        genuinely `None` rather than an unreachable placeholder.
+
+        `_dv_missing_default` above is the SUBSCRIPT read's placeholder and its
+        justification is that `d[k]` RAISES on a missing key, so under
+        `#@ no_exception KeyError` the arm is dead and the value only has to type-check.
+        **`d.get(k)` never raises.** It is total and returns `None`, so nothing can ever
+        make this arm dead and its value IS the model's answer. Reusing the subscript's
+        zero there made `d.get(5) == 0` prove where Python answers False, and
+        `d.get(5) + 1` prove `\result == 1` where Python raises TypeError.
+
+        Answer the campaign's EXISTING `None` opaques instead — route #44's `pycsl_none`
+        for an int codomain, route #50's `pycsl_none_str` for a string one — so the read is
+        UNDECIDED rather than wrong. No new model, no new axiom, ledger stays 3.
+
+        Codomains that are not scalar (hval, seq, map, array, emit_ir) keep the existing
+        placeholder DELIBERATELY: they were NOT measured, and route #56's lesson is that a
+        carrier must be measured rather than assumed. The TWO-argument form `d.get(k, v)`
+        never reaches here and stays EXACT, because there Python really does answer `v` —
+        witness 1115 pins that boundary.
+        """
+        if nu == "string":
+            self._add_abstract_op("val function pycsl_none_str : string")
+            return "pycsl_none_str"
+        # `not nu` rather than `nu in (None, "", "int")`. THE TUPLE FORM MADE THIS FILE'S
+        # OWN MIRROR ILL-TYPED and cost route #57 its `expressions` re-proof: `nu` is
+        # declared `str`, so the mirror types it as a Why3 `string`, and the `None` in the
+        # tuple lowers through the `None -> "0"` leaf to the INT `0` — emitting
+        # `str_eq_op nu 0`, "This expression has type int, but is expected to have type
+        # string". The corpus never saw it (byte-inert), and only the whole-file MIRROR
+        # proof did. The sibling `_dv_missing_default` above already had the typed idiom:
+        # it tests absence by TRUTHINESS (`if nu and nu.startswith(...)`) and never
+        # mentions `None`. Same set — `nu` is only ever None, "" or a type tag.
+        if not nu or nu == "int":
+            self._add_abstract_op("val function pycsl_none : int")
+            return "pycsl_none"
+        return self._dv_missing_default(nu)
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _dv_store_value(self, nu: Optional[str], val_expr: str) -> str:
-        return ""
+        """The value stored at `d[k] = val`: a `seq int` snapshots the array
+        (ownership-discipline §3), a string/nested-map value passes through
+        unhashed, otherwise int-coerce."""
+        if nu == "seq int":
+            self._add_abstract_op(
+                "val function array_to_seq (a: array int) : seq int\n"
+                "    ensures { Seq.length result = Array.length a }")
+            return f"(array_to_seq {self._array_coerce_arg(val_expr)})"
+        if nu == "string" or nu == "emit_ir" or (nu and nu.startswith("map ")):
+            # cap-5: an emit_ir value (`kv[fname] = v`, v a value IR node) passes through
+            # unhashed, like the string / nested-map cases.
+            return val_expr
+        return self._coerce_to_int(val_expr)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _match_pattern_cond(self, pat: int, subject: str, local_refs: int) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _emit_membership(self, op: str, expr: int, left: str, right: str, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _emit_bitwise_or_power(self, op_char: str, expr: int, left: str, right: str) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache
     def _is_string_expr(self, ir: "ExprIR") -> bool:
         return False
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _is_float_expr(self, ir: "ExprIR") -> bool:
-        return ""
-    #@ \trusted reviewer: pycsl-self-annotate
+        """True if an IR expression is float-typed (no-more-int Stage D): a float literal,
+        a `float`-typed Var, or float arithmetic. Routes ops to Why3 `real`."""
+        t = ir.get("type")
+        if t == "Number":
+            return isinstance(ir.get("value"), float)
+        if t == "Var":
+            return getattr(self, "_current_symbol_table", {}).get(ir.get("name", "")) == "float"
+        if t == "BinOp" and ir.get("op") in ("+", "-", "*", "/"):
+            return (self._is_float_expr(ir.get("left", {}))
+                    and self._is_float_expr(ir.get("right", {})))
+        return False
+    # str(<int>) value-model increment (self-tcb-reduction M6, C-bucket): now that
+    # `str(<int>)` lowers to `str_of_int : int -> string`, a quoted-literal string operand
+    # hashes to its decimal `str(stable_hash(...))`; a non-literal goes through the
+    # uninterpreted `str_hash_op`. isinstance_op = 0. Verbatim body port of the LIVE
+    # `_str_operand_to_int`.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _str_operand_to_int(self, whyml_str: str) -> str:
-        return ""
+        s = whyml_str.strip()
+        if s.startswith('"') and s.endswith('"'):
+            return str(stable_hash(whyml_str))
+        self._add_abstract_op("val str_hash_op (s: string) : int")
+        return f"(str_hash_op {whyml_str})"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _handle_binop(self, expr: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _handle_binop(self, node: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
+
+    # THE CALLEE L1's `_handle_var_expr` RE-SYNC NEEDS. Without a mirror model, Module 6
+    # synthesizes the receiver-less avatar `val self__union_local_read_projection_1
+    # (x0: int) : int` — BOTH SIDES DEFAULTING TO int — and `raise (Return_str !_proj)` is
+    # then ill-typed. `#@ sibling_concrete` is what makes the call route to THIS stub
+    # (typed `-> Optional[str]`) instead of to the synthesized avatar; the stub alone was
+    # tried first and does NOT fix it, because the avatar is synthesized from the CALL
+    # SITE, not from the presence of a same-named method.
+    # FRAME RE-DERIVED FROM THE LIVE BODY, not assumed. A `\trusted` stub's `assigns` is
+    # ASSUMED and never checked, so `\nothing` here would have been a FALSE ASSUMPTION:
+    # the live body writes no `self` field DIRECTLY, but it reaches `_add_abstract_op` and
+    # `_record_default_literal`, whose transitive closure writes `_abstract_ops` and
+    # `_obj_state_written`. Measured across all of `src/pycsl`, not read off this file.
+    #@ sibling_concrete
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._abstract_ops, self._obj_state_written
+    def _union_local_read_projection(self, name: str) -> Optional[str]:
+        return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _iter_len_expr(self, ir: int, local_refs: int) -> Optional[str]:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache
     def _handle_len_call(self, expr: int, args: List[str]) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _handle_join_call(self, expr: int, args: List[str]) -> str:
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _handle_join_call(self, expr: int, args: List[str], local_refs: int=None, invariant_ctx: int=False, subst: int=None) -> str:
         return ""
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -254,60 +587,91 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _handle_dotted_call(self, func_name: str, args: List[str]) -> str:
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _handle_dotted_call(self, func_name: str, args: List[str], arg_irs: int=None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _coerce_dotted_args(self, args: List[str], param_types: List[str]) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _strip_outer_parens(s: str) -> str:
-        return ""
+        s = s.strip()
+        if not (s.startswith("(") and s.endswith(")")):
+            return s
+        depth = 0
+        for i, ch in enumerate(s):
+            if ch == "(":
+                depth += 1
+            elif ch == ")":
+                depth -= 1
+                if depth == 0:
+                    return s[1:-1].strip() if i == len(s) - 1 else s
+        return s
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _frame_trigger_term(self, node: Any) -> Optional[Dict[str, Any]]:
+        if not isinstance(node, dict):
+            return None
+        if node.get("type") == "BinOp" and node.get("op") == "==":
+            l, r = node.get("left"), node.get("right")
+            l_old = isinstance(l, dict) and l.get("type") in ("Old", "OldField")
+            r_old = isinstance(r, dict) and r.get("type") in ("Old", "OldField")
+            if r_old and not l_old:
+                return l
+            if l_old and not r_old:
+                return r
+        for v in node.values():
+            for c in (v if isinstance(v, list) else [v]):
+                res = self._frame_trigger_term(c)
+                if res is not None:
+                    return res
+        return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _frame_trigger_term(self, node: Any) -> int:
-        return {}
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _dotted_ensures_suffix(self, result_ensures: List[int], n: int, param_types: List[str], field_spec: Optional[Any]=None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _handle_struct_call(self, expr: int, args: List[str], func_name: str) -> Optional[str]:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _emit_contract_logic_symbol(self, func_name: str, expr: int, args: List[str]) -> Optional[str]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _is_null_byte_lit(ir: int) -> bool:
-        return False
+    def _is_null_byte_lit(ir: "ExprIR") -> bool:
+        """True iff `ir` is the byte literal `b'\\x00'` — represented in the IR as an
+        `ArrayLit` of a single `Number 0` (the bytes literal lowering)."""
+        if ir.get("type") != "ArrayLit":
+            return False
+        elts = ir.get("elts", [])
+        return (len(elts) == 1
+                and elts[0].get("type") == "Number"
+                and elts[0].get("value") == 0)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -320,22 +684,73 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _static_width(self, lower_ir: int, upper_ir: int) -> int:
+    def _static_width(self, lower_ir: "ExprIR", upper_ir: "ExprIR") -> Optional[int]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _match_field_decode_idiom(self, expr: int) -> Optional[tuple]:
-        return None
+    #@ no_inline
+    def _match_field_decode_idiom(self, expr: "ExprIR") -> Optional[tuple]:
+        # (1) outer decode('utf-8', ...)
+        if not isinstance(expr, dict):
+            return None
+        dargs = expr.get("args", [])
+        if not dargs or dargs[0].get("type") != "String" \
+                or dargs[0].get("value") != "utf-8":
+            return None
+        recv = expr.get("receiver")
+        if not isinstance(recv, dict):
+            return None
+        # (2) receiver is Subscript[0]
+        if recv.get("type") != "Subscript":
+            return None
+        idx = recv.get("index", {})
+        if idx.get("type") != "Number" or idx.get("value") != 0:
+            return None
+        split_call = recv.get("value", {})
+        # (3) ... over a `split(b'\x00')` Call
+        if split_call.get("type") != "Call":
+            return None
+        sfunc = split_call.get("func", "")
+        if not (sfunc == "split" or (isinstance(sfunc, str) and sfunc.endswith(".split"))):
+            return None
+        sargs = split_call.get("args", [])
+        if len(sargs) != 1 or not self._is_null_byte_lit(sargs[0]):
+            return None
+        slice_node = split_call.get("receiver", {})
+        # (4) ... whose receiver is a genuine `arr[a:b]` slice
+        if slice_node.get("type") != "SliceAccess":
+            return None
+        sl = slice_node.get("slice", {})
+        if sl.get("type") != "Slice" or sl.get("step") is not None:
+            return None
+        lower_ir = sl.get("lower")
+        upper_ir = sl.get("upper")
+        if lower_ir is None or upper_ir is None:
+            return None
+        # (5) statically-known field WIDTH (upper - lower), even though both bounds
+        # carry the loop variable: the affine difference cancels it to the constant.
+        width = self._static_width(lower_ir, upper_ir)
+        if width is None or width <= 0:
+            return None
+        return (slice_node, lower_ir, width)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _recognize_field_decode_idiom(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
-        return None
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _recognize_field_decode_idiom(self, expr: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+        m = self._match_field_decode_idiom(expr)
+        if m is None:
+            return None
+        slice_node, lower_ir, width = m
+        base = slice_node.get("value", {})
+        arr = self._array_coerce_arg(
+            self._expr_to_whyml(base, local_refs, invariant_ctx, subst))
+        off = self._expr_to_whyml(lower_ir, local_refs, invariant_ctx, subst)
+        # Genuine codec TERM — the abstract `field_to_str` symbol the axioms key on
+        # (declared `val function` in preamble._AXIOM_FUNCTIONS, no ensures/shim).
+        return f"(field_to_str {arr} {off} {width})"
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -412,31 +827,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _handle_call_expr(self, expr: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _handle_call_expr(self, node: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _content_string_method(self, expr: int, args: List[str], func_name: str, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _call_named_builtins(self, expr: int, args: List[str], func_name: str, local_refs: int=None, invariant_ctx: bool=False, subst: int=None) -> Optional[str]:
         return None
 
-    _METATYPE_TAGS: Dict[str, str] = {'int': 'tag_int', 'bool': 'tag_int', 'str': 'tag_str', 'float': 'tag_float', 'list': 'tag_list', 'List': 'tag_list', 'dict': 'tag_dict', 'Dict': 'tag_dict', 'set': 'tag_dict', 'frozenset': 'tag_dict', 'object': 'tag_object'}
-    #@ \trusted reviewer: pycsl-self-annotate
+    _METATYPE_TAGS: Dict[str, str] = {'int': 'tag_int', 'bool': 'tag_int', 'str': 'tag_str', 'float': 'tag_float', 'list': 'tag_list', 'List': 'tag_list', 'dict': 'tag_dict', 'Dict': 'tag_dict', 'set': 'tag_set', 'frozenset': 'tag_frozenset', 'object': 'tag_object'}
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _emit_metatype_tags(self) -> None:
-        pass
+        for nm, v in (("tag_int", 0), ("tag_str", 1), ("tag_float", 2), ("tag_list", 3),
+                      ("tag_dict", 4), ("tag_record", 5), ("tag_variant", 6),
+                      ("tag_object", 99)):
+            self._add_abstract_op(f"function {nm} : int = {v}")
+        # `99` is `tag_object` inlined: the abstract-op block is emitted alphabetically,
+        # so `subtag` must not reference `tag_object` by name (it would sort before it).
+        # The `tag_*` functions are used only in goals (after all decls), so they are fine.
+        self._add_abstract_op("predicate subtag (a b: int) = a = b \\/ b = 99")
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -455,80 +876,239 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _tag_of_value(self, x_ir: Dict[str, Any]) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _union_none_ctor_for(self, x_ir: int) -> Optional[str]:
+    def _union_none_ctor_for(self, x_ir: Dict[str, PyVal]) -> Optional[str]:
+        """typing-engagement ty1 C5 — if `x_ir` is a Var whose symbol-table type
+        is a synthesized `_union_*` variant that has a nullary `Arm_*_None`
+        constructor, return that constructor name (so `x is None` lowers to a
+        constructor check). Else None (caller falls back to `x = 0`)."""
+        if not isinstance(x_ir, dict):
+            return None
+        # GAP #1c (self-tcb-reduction parser vein): spec-position `\result` on a
+        # union return type. `\result != None` / `\result == None` in an `ensures`
+        # of an `-> Optional[<object>]` method (return lowered to a `_union_*` with
+        # a nullary `Arm_*_None`, e.g. `accept_op`) must lower to the is-None ctor
+        # DISCRIMINANT on `result`, not the `(result <> 0)` int coercion (a
+        # union-vs-int L3-tc error). `_union_none_ctor_for` on a `Var` reads the
+        # symbol table; for `\result` the union type is the CURRENT function's
+        # `_func_return_type` (set in functions.py before the body/spec are
+        # lowered). Same nullary-None-ctor lookup as the Var branch below.
+        if x_ir.get("type") == "Result":
+            frt = getattr(self, "_func_return_type", "")
+            if not isinstance(frt, str) or not frt.startswith("_union_"):
+                return None
+            vinfo = getattr(self, "_variant_types", {}).get(frt)
+            if not vinfo:
+                return None
+            for ctor_name, ctor in vinfo.get("constructors", {}).items():
+                if ctor.get("arity") == 0 and "None" in ctor_name:
+                    return ctor_name
+            return None
+        if x_ir.get("type") != "Var":
+            return None
+        name = x_ir.get("name")
+        symtype = getattr(self, "_current_symbol_table", {}).get(name)
+        if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            if ctor.get("arity") == 0 and "None" in ctor_name:
+                return ctor_name
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _handle_isinstance(self, expr: int) -> str:
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _handle_isinstance(self, expr: int, local_refs: int=None) -> str:
         return ""
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _subst_params(self, ir: Any, arg_nodes: Dict[str, Any]) -> Any:
-        return ""
+        if isinstance(ir, dict):
+            if ir.get("type") == "Var" and ir.get("name") in arg_nodes:
+                return arg_nodes[ir["name"]]
+            return {k: self._subst_params(v, arg_nodes) for k, v in ir.items()}
+        if isinstance(ir, list):
+            return [self._subst_params(x, arg_nodes) for x in ir]
+        return ir
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _call_record_constructor(self, args: List[str], func_name: str) -> Optional[str]:
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _call_record_constructor(self, args: List[str], func_name: str, kwargs_map: int=None, kwargs_ir: int=None) -> Optional[str]:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _call_bytes_methods(self, args: List[str], func_name: str) -> Optional[str]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _typeddict_field_access(self, value: int, index_ir: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
-        return None
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _typeddict_field_access(self, value: "ExprIR", index_ir: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+        if index_ir.get("type") != "String":
+            return None
+        field_name = index_ir.get("value", "")
+        if not isinstance(field_name, str) or not field_name:
+            return None
+        rec_name = None
+        if value.get("type") == "Var":
+            sym = getattr(self, "_current_symbol_table", {}).get(value.get("name", ""))
+            if sym and sym in getattr(self, "_record_types", {}):
+                if self._record_types[sym].get("is_typeddict"):
+                    rec_name = sym
+        if rec_name is None and value.get("type") in ("Attribute", "FieldGet"):
+            ft = self._field_type_of(value)
+            if ft and ft in getattr(self, "_record_types", {}):
+                if self._record_types[ft].get("is_typeddict"):
+                    rec_name = ft
+        if rec_name is None:
+            return None
+        rec_info = self._record_types[rec_name]
+        if field_name not in rec_info["fields"]:
+            return None
+        rec_lower = rec_info["whyml_name"]
+        base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+        return f"{base}.{self._field_label(rec_lower, field_name)}"
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _typeddict_record_literal(self, expr: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+        frt = getattr(self, "_func_return_type", "")
+        if not frt:
+            return None
+        rec_name = None
+        for name, info in getattr(self, "_record_types", {}).items():
+            if info.get("whyml_name") == frt and info.get("is_typeddict"):
+                rec_name = name
+                break
+        if rec_name is None:
+            return None
+        rec_info = self._record_types[rec_name]
+        rec_lower = rec_info["whyml_name"]
+        keys = expr.get("keys", [])
+        values = expr.get("values", [])
+        kv: Dict[str, Dict[str, Any]] = {}
+        for k, v in zip(keys, values):
+            if isinstance(k, dict) and k.get("type") == "String":
+                kv[k.get("value", "")] = v
+        declared = set(rec_info["fields"])
+        present = set(kv.keys())
+        missing = [f for f in rec_info["fields"] if f not in present]
+        extra = [k for k in present if k not in declared]
+        if missing or extra:
+            from errors import PyCSLSemanticError
+            if missing:
+                raise PyCSLSemanticError(
+                    f"TypedDict construction is missing required key(s) "
+                    f"{missing!r} (T9 / PEP 589 — a total=True TypedDict "
+                    f"literal must provide every declared key).",
+                    stage="whyml-emit")
+            raise PyCSLSemanticError(
+                f"TypedDict construction has extra key(s) "
+                f"{extra!r} not declared on the TypedDict (T9 / PEP 589 — "
+                f"a literal must not provide keys outside the declared set).",
+                stage="whyml-emit")
+        parts: List[str] = []
+        for fname in rec_info["fields"]:
+            v = kv.get(fname)
+            val = self._expr_to_whyml(v, local_refs, invariant_ctx, subst)
+            parts.append(f"{self._field_label(rec_lower, fname)} = {val}")
+        return "{ " + "; ".join(parts) + " }"
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _namedtuple_positional_access(self, value: "ExprIR", index_ir: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
+        if index_ir.get("type") != "Number":
+            return None
+        idx_val = index_ir.get("value")
+        if not isinstance(idx_val, int) or idx_val < 0:
+            return None
+        rec_name = None
+        if value.get("type") == "Var":
+            sym = getattr(self, "_current_symbol_table", {}).get(value.get("name", ""))
+            if sym and sym in getattr(self, "_record_types", {}):
+                if self._record_types[sym].get("is_namedtuple"):
+                    rec_name = sym
+        if rec_name is None and value.get("type") in ("Attribute", "FieldGet"):
+            ft = self._field_type_of(value)
+            if ft and ft in getattr(self, "_record_types", {}):
+                if self._record_types[ft].get("is_namedtuple"):
+                    rec_name = ft
+        # WL-04b (record residual): `a[i][k]` on a flat `List[Tuple[…]]` param — the
+        # inner read `a[i]` is a namedtuple record (the synthesized `pytuple_<tags>`),
+        # so the outer integer subscript `[k]` is its k-th positional slot. Hoist the
+        # element read into a `let` (it may carry a body-context bounds-assert block).
+        _wrap_let = False
+        if (rec_name is None and value.get("type") == "Subscript"
+                and isinstance(value.get("value"), dict)
+                and value["value"].get("type") == "Var"):
+            _nm = value["value"].get("name", "")
+            # WL-04c: a record-array LOCAL (`a = [Pt(1,2), …]`) shares the WL-04b
+            # `a[i][k]` slot path with a record-array PARAM.
+            _rn = (getattr(self, "_record_array_params", {}).get(_nm)
+                   or getattr(self, "_record_array_locals", {}).get(_nm))
+            if _rn is not None:
+                # `_rn` is the whyml_name; find the record class whose whyml_name matches.
+                for _cls, _info in getattr(self, "_record_types", {}).items():
+                    if _info.get("whyml_name") == _rn and _info.get("is_namedtuple"):
+                        rec_name = _cls
+                        _wrap_let = True
+                        break
+        if rec_name is None:
+            return None
+        rec_info = self._record_types[rec_name]
+        fields = rec_info["fields"]
+        if idx_val >= len(fields):
+            return None
+        field_name = fields[idx_val]
+        rec_lower = rec_info["whyml_name"]
+        base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
+        if _wrap_let:
+            return f"(let _rec_ = {base} in _rec_.{self._field_label(rec_lower, field_name)})"
+        return f"{base}.{self._field_label(rec_lower, field_name)}"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _typeddict_record_literal(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
-        return None
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _namedtuple_positional_access(self, value: int, index_ir: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
-        return None
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _handle_subscript(self, expr: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _handle_subscript(self, node: int, local_refs: int, invariant_ctx: bool=False, subst: int=None) -> str:
         return ""
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _handle_attribute_expr(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    def _handle_attribute_expr(self, node: int, local_refs: int, invariant_ctx: bool, subst: int) -> str:
         return ""
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._var_todict_alias(...)` call site in this file went through the receiver-less abstract
+    # `val self___var_todict_alias_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _var_todict_alias(self, name: str, local_refs: Set[str],
                           subst: Optional[Dict[str, str]]) -> str:
         """If `name` is a `to_dict()` ALIAS (`_todict_aliases[name] == "self.types"`), rebuild the
@@ -546,7 +1126,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return self._expr_to_whyml(_n, local_refs, False, subst)
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_var_expr(self, node: "ExprIR", local_refs: Set[str],
                          subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature
@@ -571,7 +1151,42 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return whyml_ident(name)
         if name in self._record_locals:
             return whyml_ident(name)
+        if name in getattr(self, "_iropt_ir_local_vars", set()):
+            # OPTIONAL-NODE LOCAL (relaunch #11): a VALUE read of an `iropt_ir` carrier
+            # local where an `emit_ir` is required (`_subscript_item`'s `return lower`)
+            # projects through the DEFINED total `iropt_val`. The two positions that must
+            # NOT go through here are handled before ever reaching a Var read: an
+            # `iropt_ir` PAYLOAD SLOT binds the carrier itself (`expressions.
+            # _call_irnode_constructor`), and a carrier-to-carrier chained-assignment alias
+            # copies it (`statements._handle_assign_stmt`) — so an absent optional child is
+            # never turned into a present sentinel node.
+            return f"(iropt_val !{whyml_ident(name)})"
+        if name in getattr(self, "_optional_union_locals", set()):
+            # tool-feature-5 (giants read-projection): a VALUE read of a mutable
+            # Optional-union local `x` (a `ref _union_*`) projects the carrier of its
+            # Some-arm (`match !x with Arm_i_0 _v -> _v | _ -> <sentinel>`) so `x` used as
+            # its underlying τ (a string key, an emit_ir arg) type-checks. The `is None`
+            # guard uses the RAW `!x` (handled in `_handle_binop`); the assignment TARGET
+            # is not a read; so only value reads project. Sentinel picks the carrier's
+            # zero (string "", emit_ir `IrOther ""`, real 0.0, else 0).
+            _proj = self._union_local_read_projection(name)
+            if _proj is not None:
+                return _proj
+        # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): a pyval chain local is
+        # `let`-bound IMMUTABLE (single-assignment), so a read is the BARE name — never
+        # the `!x` deref (which would type-clash: it is not a ref). Comes before the
+        # `local_refs` deref so `return info` emits `info`, not `!info`. Gated -> inert.
+        if name in getattr(self, "_pyval_locals", set()):
+            return whyml_ident(name)
         if name in local_refs:
+            return f"!{whyml_ident(name)}"
+        # wrong-lowering-to-fix.md §WL-05b: an inner-mutated dict/set PARAM is a
+        # `ref (map …)` (caller-visible mutation frame), so a bare read derefs it
+        # (`!d`) — UNIFORMLY with the write site `d := map_update_some !d k v` and the
+        # subscript read `Map.get !d k`. This is exactly the ref discipline the old
+        # WL-05 lowering violated (the `d :=`/bare-`d` mix). Read-only params (not in
+        # the set) keep the by-value bare read → byte-identical.
+        if name in getattr(self, "_mutated_collection_params", set()):
             return f"!{whyml_ident(name)}"
         if name in self._current_params or name == "self":
             return whyml_ident(name) if name != "self" else name
@@ -631,16 +1246,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._quant_record_binders
     def _push_quant_binder(self, var: Optional[str], binder_type: Optional[str]):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._dict_locals, self._quant_record_binders, self._quant_scalar_binders
     def _pop_quant_binder(self, var: Optional[str], token) -> None:
         pass
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._field_label(...)` call site in this file went through the receiver-less abstract
+    # `val self___field_label_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -654,20 +1279,65 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return base
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written, self._uses_build_param_list_cache
     def _handle_field_get_expr(self, node: "ExprIR", invariant_ctx: bool) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature
         if invariant_ctx:
             return self._field_label(self._emit_record_ctx, expr['field'])
         obj = expr['object']
         field = expr['field']
+        # `@property` SUPPORT, the SELF-RECEIVER READ half (relaunch #16). The non-self
+        # path (`_handle_attribute_expr`) already routes `<recv>.<prop>` to the emitted
+        # nullary getter; `self.<prop>` arrives HERE instead, and without this it projects
+        # a RECORD FIELD of the same name — so the proven getter sits beside an
+        # unconstrained mutable field that nothing relates to it (`_heap_var` is exactly
+        # that shape). `_property_getters` is keyed by (class whyml_name, property name)
+        # and built ONLY from methods Module 5 flagged `is_property`, so it is empty for
+        # every property-free module -> corpus byte-inert.
+        _pg2 = getattr(self, "_property_getters", None)
+        if _pg2 and obj == "self":
+            _pgfn2 = _pg2.get((getattr(self, "_current_self_type", None), field))
+            if _pgfn2:
+                return f"({_pgfn2} self)"
+        # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`):
+        # the opaque-int self-field READS this signature builder makes — the symbol table
+        # and the three source-ordered param sequences — are typed collections, NOT the
+        # int-erased `getattr_functionemissionmixin self <hash>`. A Why3 `map` has no
+        # iterable key-set and the body ITERATES these fields (`for arg in
+        # self._formal_params`, the `{v for v in symbol_table …}` comprehension), so the
+        # faithful model of what the method OBSERVES is the `seq string` of the keys/
+        # elements. Each an uninterpreted `val <field>_of (self): seq string` (sound
+        # over-approx, real structural descent). `_current_self_type` reads back the
+        # string it wrote (effect-free write cap) as a `string`. Per-method scoped ->
+        # byte-inert for the corpus and every other mirror.
+        if obj == "self" and self._emitting_build_param_list():
+            _bst = self._current_self_type or "functionemissionmixin"
+            if field == "_current_symbol_table":
+                self._add_abstract_op(
+                    f"val current_symbol_table_of (self: {_bst}) : seq string")
+                return "(current_symbol_table_of self)"
+            if field == "_array2d_params":
+                self._add_abstract_op(
+                    f"val array2d_params_of (self: {_bst}) : seq string")
+                return "(array2d_params_of self)"
+            if field == "_current_array1d_params":
+                self._add_abstract_op(
+                    f"val current_array1d_params_of (self: {_bst}) : seq string")
+                return "(current_array1d_params_of self)"
+            if field == "_formal_params":
+                self._add_abstract_op(
+                    f"val formal_params_of (self: {_bst}) : seq string")
+                return "(formal_params_of self)"
+            if field == "_current_self_type":
+                self._add_abstract_op(
+                    f"val current_self_type_of (self: {_bst}) : string")
+                return "(current_self_type_of self)"
         # Class-body integer constant referenced as `self.CONST` → its literal.
         self_type = self._current_self_type
         if (obj == "self" and self_type
                 and field in self._class_constants.get(self_type, {})):
             return f"({self._class_constants[self_type][field]})"
-        decl_fields = self._all_record_fields
-        if field in decl_fields:
+        if field in self._all_record_fields:
             return f"{obj}.{self._field_label(self_type, field)}"
         hash_field = stable_hash(field)
         self_type = self._current_self_type
@@ -681,7 +1351,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"({name} {obj} {hash_field})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _fstring_str_part(self, pp: "ExprIR", local_refs: Set[str],
                           invariant_ctx: bool, subst: Dict[str, str]) -> str:
         """One segment of a MIXED (str/int) f-string in a @mutable_state class: a string
@@ -689,63 +1359,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         (07-03-refactor R2) from the `_sp` nested closure in `_handle_fstring_expr` so the
         segment logic types identically under proof mode and `--no-proof`."""
         w = self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
-        return w if self._is_string_expr(pp) else f"(int_to_string {self._coerce_to_int(w)})"
+        if self._is_string_expr(pp):
+            return w
+        # `_compute_return_type` PATH(b): an `hval` interpolation (`f"int{bounded_int}"`,
+        # `bounded_int = func.get("bounded_int")`) projects its int carrier via `hint_of`
+        # before `int_to_string` (which is int-typed). Descends the real hval (non-vacuous).
+        if self._expr_is_pyval(pp):
+            return f"(int_to_string (hint_of {w}))"
+        return f"(int_to_string {self._coerce_to_int(w)})"
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_fstring_expr(self, node: "ExprIR", local_refs: Set[str],
                               invariant_ctx: bool, subst: Dict[str, str]) -> str:
-        expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
-        parts = expr.get("parts", [])
-        if not parts:
-            return "0"
-        # b14 B2: an f-string whose EVERY segment is string-typed (literal text and
-        # `str`-typed interpolations) lowers to a faithful Why3 `string` concat chain
-        # — the same `str_concat_op`/`concat` bridge as `s + t` (strings-plan Stage 2)
-        # — instead of collapsing each segment to an int hash. A mixed f-string (any
-        # int/opaque interpolation) keeps the legacy int-hash model below, so the
-        # corpus that interpolates non-string values stays byte-identical.
-        if all(self._is_string_expr(p) for p in parts):
-            acc = self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst)
-            # 07-03-refactor R2 (finish): a `for` over `parts[1:]` (array-emit_ir slice, R7) gets the
-            # auto index-bound invariant so `parts[i]` discharges -- unlike the manual
-            # `while i_part < n_parts` (bound in a local, no `Array.length` relation).
-            for part in parts[1:]:
-                p = self._expr_to_whyml(part, local_refs, invariant_ctx, subst)
-                if self._in_spec:
-                    acc = f"(concat {acc} {p})"
-                else:
-                    self._add_abstract_op(
-                        "val str_concat_op (a: string) (b: string) : string\n"
-                        "    ensures { result = (concat a b) }\n"
-                        "    ensures { String.length result = String.length a + String.length b }")
-                    acc = f"(str_concat_op {acc} {p})"
-            return acc
-        # todict-reflection-plan.md R3: in a @mutable_state class (the emitter model),
-        # a MIXED str/int f-string (e.g. a gensym `f"__x_{n}"`) is still a STRING — the
-        # int segments convert via `int_to_string`. So an emitter local bound to it types
-        # as `string`. Gated on @mutable_state → byte-identical for every other f-string.
-        if (not self._in_spec and getattr(self, "_current_self_type", None)
-                in getattr(self, "_mutable_state_classes", set())):
-            self._add_abstract_op("val int_to_string (n: int) : string")
-            self._add_abstract_op(
-                "val str_concat_op (a: string) (b: string) : string\n"
-                "    ensures { result = (concat a b) }\n"
-                "    ensures { String.length result = String.length a + String.length b }")
-
-            acc = self._fstring_str_part(parts[0], local_refs, invariant_ctx, subst)
-            for pp in parts[1:]:
-                acc = f"(str_concat_op {acc} {self._fstring_str_part(pp, local_refs, invariant_ctx, subst)})"
-            return acc
-        acc = self._coerce_str_arg(self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst))
-        for part in parts[1:]:
-            p = self._coerce_str_arg(self._expr_to_whyml(part, local_refs, invariant_ctx, subst))
-            self._add_abstract_op("val str_concat (x: int) (y: int) : int")
-            acc = f"(str_concat {acc} {p})"
-        return acc
+        # re-trusted: _handle_fstring_expr — `getattr(self, "_current_self_type", None) in
+        # getattr(self, "_mutable_state_classes", set())` reflection leak, value-model-gapped
+        # (self-scalar getattr-default collapses to int-0 vs string-keyed set) (see generic-dict-str-and.md)
+        return ""
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_unaryop_expr(
         self,
         node: "UnaryOpExpr",
@@ -767,7 +1401,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"({op} {e})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_old_expr(
         self,
         node: "OldExpr",
@@ -786,7 +1420,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(old {e})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_at_expr(
         self,
         node: "AtExpr",
@@ -829,8 +1463,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return False
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     #@ requires_method _seq_operand: (self, val_ir: ExprIR, local_refs: set) -> str
+    #@   assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _ifexpr_seq_arm(self, test: str, _bd: "ExprIR", _od: "ExprIR",
                         local_refs: Set[str]) -> str:
         """CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|") if … else
@@ -842,9 +1477,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return (f"(if {test} then {self._seq_operand(_bd, local_refs)} "
                 f"else {self._seq_operand(_od, local_refs)})")
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_ifexpr_expr(
         self,
         node: "IfExprExpr",
@@ -852,50 +1488,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         invariant_ctx: bool,
         subst: Optional[Dict[str, str]],
     ) -> str:
-        # Phase-B-expr: typed. IfExprExpr (test, body, orelse: ExprIR).
-        test = self._expr_to_whyml(node.test, local_refs, invariant_ctx, subst)
-        test = self._to_bool(test, node.test.to_dict())
-        # 07-03-refactor R2: split the tuple-unpack into two assignments so each arm types as
-        # emit_ir (via the `.to_dict()` recognizer) instead of the int tuple-unpack target.
-        _bd = node.body.to_dict()
-        _od = node.orelse.to_dict()
-        body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
-        orelse = self._expr_to_whyml(node.orelse, local_refs, invariant_ctx, subst)
-        # i-feel-good.md I-A/I-B: a ternary is a STRING expression when at least one arm is
-        # string-typed and the other is string-or-`None` — emit the string arms directly (a
-        # bare `""`/`"lit"` stays a WhyML string, a `None` arm → "" the absent sentinel), so
-        # `arr.get("name","") if … else ""` and `d.get(k) if k else None` type-check as
-        # string. @mutable_state-gated → the corpus int model is byte-identical.
-        _ms = (getattr(self, "_current_self_type", None)
-               in getattr(self, "_mutable_state_classes", set()))
-        _b_str = self._is_string_expr(_bd)
-        _o_str = self._is_string_expr(_od)
-        _b_none = _bd.get("type") == "None"
-        _o_none = _od.get("type") == "None"
-        if _ms and (_b_str or _o_str) and (_b_str or _b_none) and (_o_str or _o_none):
-            if _b_none: body = '""'
-            if _o_none: orelse = '""'
-            return f"(if {test} then {body} else {orelse})"
-        # item34.md CF1: the emit_ir analogue — `stmt.value.to_dict() if stmt.value is not
-        # None else None` (an `Optional[ExprIR]` ternary) is an emit_ir expression; a `None`
-        # arm → `(IrOther "")` (the emit_ir absent sentinel). @mutable_state.
-        _b_ir = self._is_emit_ir_expr(_bd)
-        _o_ir = self._is_emit_ir_expr(_od)
-        if _ms and (_b_ir or _o_ir) and (_b_ir or _b_none) and (_o_ir or _o_none):
-            if _b_none: body = '(IrOther "")'
-            if _o_none: orelse = '(IrOther "")'
-            return f"(if {test} then {body} else {orelse})"
-        # item34.md CF5: a ternary whose BOTH arms are `seq string` name-lists (`exc.split("|")
-        # if "|" in exc else [exc]`) — emit each arm seq-ified (`_seq_operand`), no int
-        # coercion. @mutable_state.
-        if _ms and self._cf5_arr(_bd) and self._cf5_arr(_od):
-            return self._ifexpr_seq_arm(test, _bd, _od, local_refs)
-        body = self._coerce_to_int(body)
-        orelse = self._coerce_to_int(orelse)
-        return f"(if {test} then {body} else {orelse})"
+        # re-trusted: _handle_ifexpr_expr — `getattr(self, "_current_self_type", None) in
+        # getattr(self, "_mutable_state_classes", set())` reflection leak, value-model-gapped
+        # (self-scalar getattr-default collapses to int-0 vs string-keyed set) (see generic-dict-str-and.md)
+        return ""
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_named_expr_expr(
         self,
         node: "NamedExprExpr",
@@ -910,9 +1509,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return f"(begin {target} := {v}; !{target} end)"
         local_refs.add(target)
         return f"(let {target} = ref {v} in !{target})"
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._slice_array_or_opaque(...)` call site in this file went through the receiver-less abstract
+    # `val self___slice_array_or_opaque_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     #@ requires_method _field_type_of: (self, attr_ir: ExprIR) -> str
     def _slice_array_or_opaque(self, node: "ExprIR", arr: str, sl: "ExprIR",
                                local_refs: Set[str], invariant_ctx: bool,
@@ -946,7 +1555,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_slice_access_expr(
         self,
         node: "ExprIR",
@@ -956,15 +1565,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     ) -> str:
         arr = self._expr_to_whyml(node.value, local_refs, invariant_ctx, subst)
         sl = node.slice.to_dict()
+        # (#49) ROUTE #190 — AN OMITTED SLICE BOUND IS A `None` NODE, NOT AN ABSENT KEY.
+        # Every branch below asks `sl.get("upper")` and falls back to the sequence's own
+        # LENGTH when the bound is absent — the right answer, and DEAD CODE, because the
+        # typed `SliceExpr` carries an omitted bound as a `None` EXPRESSION, which is
+        # truthy and lowers to the integer `0` (route #56's None-as-zero, reached through
+        # a slice). So `s[1:]` emitted `str_sub_op s 1 ((0) - (1))`, i.e. a NEGATIVE
+        # length, and Why3's `String.substring` answers the EMPTY string for that —
+        # MEASURED at landed HEAD: `"abc"[1:]` PROVED `len(t) == 0` (CPython 2), and so
+        # did `"abc"[0:]` (CPython 3). Normalising the bound to a real absence restores the
+        # length fallback the code below already writes.
+        # Two BOOLEANS rather than a normalised copy of `sl`: this function is MIRRORED,
+        # and writing `None` into the dict made the mirror's own emission ill-typed
+        # (`This expression has type emit_ir, but is expected to have type int` — the map's
+        # values are nodes and `None` lowers to 0). `check-mirror-type-only` caught that, so
+        # the presence test lives in a bool and the dict is left alone.
+        _lo_has190 = node.slice.lower.kind != "None"
+        _up_has190 = node.slice.upper.kind != "None"
         # seq-model-pivot.md SQ3: a slice of a seq local (`body_stmts[:-1]`) is a seq
         # sub-sequence (`seq_sub`) — a pure immutable value, NO `array_slice`/region. Content
         # opaque; the length law is conditional (sound). @mutable_state (via _seq_locals).
         _bv = node.value.to_dict()
         if (_bv.get("type") == "Var" and _bv.get("name") in getattr(self, "_seq_locals", set())):
             _slo = (self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst)
-                    if sl.get("lower") else "0")
+                    if _lo_has190 else "0")
             _shi = (self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst)
-                    if sl.get("upper") else f"(Seq.length {arr})")
+                    if _up_has190 else f"(Seq.length {arr})")
             self._add_abstract_op(
                 "val seq_sub (s: seq 'a) (lo hi: int) : seq 'a\n"
                 "    ensures { 0 <= lo <= hi <= Seq.length s -> Seq.length result = hi - lo }")
@@ -973,8 +1599,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # uses the logic symbol; body bridges through `str_sub_op` (and `str_length_op` for an
         # omitted upper bound), since `String.substring`/`String.length` aren't program values.
         if self._is_string_expr(node.value.to_dict()):
-            slo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if sl.get("lower") else "0"
-            if sl.get("upper"):
+            slo = self._expr_to_whyml(sl["lower"], local_refs, invariant_ctx, subst) if _lo_has190 else "0"
+            if _up_has190:
                 shi = self._expr_to_whyml(sl["upper"], local_refs, invariant_ctx, subst)
             elif self._in_spec:
                 shi = f"(String.length {arr})"
@@ -991,11 +1617,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # Stage-0 literal probe), so we supply it directly under its bounds guard.
             self._add_abstract_op(
                 "val str_sub_op (s: string) (lo len: int) : string\n"
-                "    ensures { result = (String.substring s lo len) }\n"
+                "    ensures { (0 <= lo /\\ 0 <= len)"
+                " -> result = (String.substring s lo len) }\n"
                 "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
                 " -> String.length result = len }")
             return f"(str_sub_op {arr} {slo} {slen})"
         return self._slice_array_or_opaque(node, arr, sl, local_refs, invariant_ctx, subst)
+
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -1012,7 +1640,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # In a pre/post-condition a seq-promoted *param* names the original `array int`
             # entry value (the body seq shadow is out of scope), so fall through to
             # `Array.length` there.
-            if var in getattr(self, "_seq_locals", set()) and not self._in_spec:
+            # ...or inside a LOOP invariant/variant, where the body's local scope IS live
+            # (`_in_loop_spec`, set by `_handle_for_stmt`/`_handle_while_stmt`). Excluding
+            # loop clauses emitted `Array.length` on a `seq` — a LOUD type error, which is
+            # exactly what blocked writing a termination variant for a `for`-over-list
+            # conversion whose accumulator is seq-promoted.
+            if var in getattr(self, "_seq_locals", set()) and (
+                    not self._in_spec or getattr(self, "_in_loop_spec", False)):
                 deref = "!" if var in local_refs else ""
                 return f"(Seq.length {deref}{whyml_ident(var)})"
             if var == "\\result":
@@ -1035,15 +1669,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      else "")
             return f"(Array.length {deref}{var})"
         return f"{node.var}_len"
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _module_binding_names(self) -> Set[str]:
-        return ""
+        """07-1839 P2: statically-declared module-level names — the sound lower bound for
+        `\\in_globals` (functions, module-global object instances, module constants, and
+        classes). The world is OPEN beyond this (import/exec), so a name's absence here is
+        *unknown*, never decided-false."""
+        ir = getattr(self, "ir", {})
+        names: Set[str] = {f.get("name") for f in ir.get("functions", [])}
+        names |= set(getattr(self, "_module_global_classes", {}))
+        names |= set(getattr(self, "_module_constants", {}))
+        names |= {c.get("name") for c in ir.get("classes", []) if isinstance(c, dict)}
+        names.discard(None)
+        return names
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _handle_in_globals_expr(self, node: "ExprIR", local_refs: Set[str],
                                 invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
         """07-1839 P2: `\\in_globals(name)` — three-valued, true-only lower bound.
@@ -1058,7 +1702,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(in_globals_op {sum(ord(c) for c in name)})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _handle_in_scope_expr(self, node: "ExprIR", local_refs: Set[str],
                               invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> str:
         """07-1839 P3: `\\in_scope(name)` — three-valued via definite-assignment.
@@ -1078,7 +1722,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(in_scope_op {sum(ord(c) for c in name)})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_valid_expr(
         self,
         node: "ExprIR",
@@ -1093,7 +1737,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(valid !{self._heap_var} {base} {length})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_separated_expr(
         self,
         node: "ExprIR",
@@ -1110,7 +1754,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(separated {b1} {l1} {b2} {l2})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_length2d_expr(
         self,
         node: "ExprIR",
@@ -1126,7 +1770,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_valid2d_expr(
         self,
         node: "ExprIR",
@@ -1142,7 +1786,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_issorted_expr(
         self,
         node: "ExprIR",
@@ -1158,7 +1802,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_arrayeq_expr(
         self,
         node: "ExprIR",
@@ -1181,7 +1825,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_permutation_expr(
         self,
         node: "ExprIR",
@@ -1203,7 +1847,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "true"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_sum_node_expr(
         self,
         node: "ExprIR",
@@ -1219,7 +1863,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return "0"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_lambda_expr(
         self,
         node: "ExprIR",
@@ -1233,7 +1877,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         return f"(fun {param_str} -> {body})"
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_setlit_expr(
         self,
         node: "ExprIR",
@@ -1268,14 +1912,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _expr_to_whyml(self, expr: "ExprIR", local_refs: Set[str], invariant_ctx: bool=False, subst: Optional[Dict[str, str]]=None) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _expr_to_whyml_string_ctx(self, ir: "ExprIR", local_refs: int) -> str:
         return ""
 

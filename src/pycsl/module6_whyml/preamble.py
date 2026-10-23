@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Set, Tuple
+import re
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 from module6_whyml.identifiers import whyml_ident, safe_mutex_name, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
@@ -1698,6 +1699,42 @@ class PreambleEmissionMixin:
         rec(func.get("body", []))
         return found[0]
 
+    @staticmethod
+    def _body_uses_str_literal_for(body: List[Dict[str, Any]]) -> bool:
+        """True if `body` has a `for` loop over an ALL-string tuple/list literal — DIRECT
+        (`for k in ("body", "orelse")`) or a Var bound to one — i.e. the pattern the
+        `_classify_iterable` recogniser materialises as a `seq string` (needing `use
+        seq.Seq`). Import-scan twin of `_str_lit_seq_elts` + `_collect_str_literal_seq_locals`."""
+        def _is_str_lit(v: Any) -> bool:
+            return (isinstance(v, dict)
+                    and v.get("type") in ("Tuple", "ArrayLit", "ListLit")
+                    and bool(v.get("elts"))
+                    and all(isinstance(e, dict) and e.get("type") == "String"
+                            and isinstance(e.get("value"), str) for e in v.get("elts", [])))
+        def rec(stmts: List[Any], litvars: Set[str]) -> bool:
+            # First pass: collect locals bound to an all-string literal at this level.
+            for s in stmts:
+                if isinstance(s, dict) and s.get("stmt") == "Assign" and _is_str_lit(s.get("value")):
+                    if s.get("target"):
+                        litvars = litvars | {s.get("target")}
+            for s in stmts:
+                if not isinstance(s, dict):
+                    continue
+                if s.get("stmt") == "For":
+                    it = s.get("iter", {})
+                    if _is_str_lit(it) or (isinstance(it, dict) and it.get("type") == "Var"
+                                           and it.get("name") in litvars):
+                        return True
+                for k in ("body", "orelse"):
+                    if isinstance(s.get(k), list) and rec(s[k], litvars):
+                        return True
+                if s.get("stmt") == "Try":
+                    for h in s.get("handlers", []):
+                        if rec(h.get("body", []), litvars):
+                            return True
+            return False
+        return rec(body or [], set())
+
     def _scan_preamble_needs(self, functions: List[Dict[str, Any]],
                              all_bodies: List[Any]) -> Dict[str, Any]:
         """Scan all function bodies once to collect feature flags for preamble emission."""
@@ -1782,13 +1819,57 @@ class PreambleEmissionMixin:
                 or any(IRScanner.uses_subscript(body) for body in all_bodies)
                 or any(IRScanner.uses_arrayset(body) for body in all_bodies)
                 or any(IRScanner.uses_array_lit(body) for body in all_bodies)
+                or any(IRScanner.uses_str_split_comp(body) for body in all_bodies)
                 or any(IRScanner.uses_ghost_type(body, {"array"}) for body in all_bodies)
                 or axiom_needs_array
                 or _binder_needs_array
-                # the emit_ir ADT (emitted for any @mutable_state module) declares
-                # `args_of : array emit_ir`, so `use array.Array` is required even when the
-                # bodies use no other array. @mutable_state-gated → byte-identical for the corpus.
+                # the emit_ir ADT (emitted for any @mutable_state module OR — tier3-p1 — any
+                # IR-node-typed param) declares `args_of : array emit_ir`, so `use array.Array`
+                # is required even when the bodies use no other array. Both gates are False for
+                # the corpus → byte-identical.
                 or bool(getattr(self, "_mutable_state_classes", None))
+                or bool(getattr(self, "_uses_ir_node_param", False))
+                # the stmt_ir ADT theory (append convention OR the tree-walk
+                # recogniser) declares `array int` body readers → needs Array.
+                or self._uses_stmt_ir()
+                # J1: the Call-internals theory declares `args_of : array emit_ir`
+                # (via the full emit_ir theory it forces) → needs Array. Byte-inert
+                # elsewhere (`_uses_call_kw` False for the whole corpus).
+                or self._uses_call_kw()
+                # L1: the tparam theory forces the full emit_ir theory (`args_of :
+                # array emit_ir`) → needs Array. Byte-inert (`_uses_tparam` False
+                # for the whole corpus).
+                or self._uses_tparam()
+                # relaunch #16: a LIST OR TUPLE FIELD lowers to an `array …` in the
+                # record type decl, which is emitted whether or not any BODY uses an array
+                # op — so the `use array.Array` must be pulled from the FIELD, not only
+                # from the bodies. Without it the record decl itself is `unbound type
+                # symbol 'array'`.
+                #
+                # (#49) gen #31 — THIS USED TO SAY `and _fd.get("value_type") == "string"`,
+                # and that conjunct made the guard one witness wide. Relaunch #16 had a
+                # `StructFormat.slots: List[str]` in hand and fixed THAT, while its own
+                # comment (kept above, unchanged) states the rule correctly: the record decl
+                # is emitted from the FIELD. An INT-element list field lowers to `array int`
+                # in exactly the same decl and died in exactly the same way. MEASURED:
+                #
+                #     #@ class invariant \length(self.xs) == 0
+                #     class C:
+                #         def __init__(self) -> None:
+                #             self.xs: list = []
+                #     -> unbound type symbol 'array'
+                #
+                # and the CONTROL — the identical class with one list PARAMETER added to a
+                # method, which trips `has_list_param` and nothing else — VERIFIES, true
+                # invariant and all. So a whole shape of program (a class holding a list and
+                # doing no other array work) could not be verified at all. Fail-closed, so
+                # never a false green; a completeness wall with a Why3-internal message.
+                #
+                # Same shape as four other repairs found this session: scoped to the witness
+                # rather than to the mechanism the comment already named (wall-lesson (s4)).
+                or any(_fd.get("type") in ("list", "tuple")
+                       for _td in (self.ir.get("type_decls", []) or [])
+                       for _fd in (_td.get("fields", []) or []))
             )
         else:
             needs_array = False
@@ -1799,8 +1880,22 @@ class PreambleEmissionMixin:
         needs_return_void = False
         needs_return_seq = False
         needs_return_seq_str = False
+        needs_return_seq_ir = False
         needs_return_str = False
+        needs_return_emit_ir = False
         tuple_return_arities: Set[int] = set()
+        # Optional-tuple return: the refined `(τ...)` tuple types of `Optional[Tuple]`
+        # readers, each emitted as an `exception Return_opttuple_<arity> (option (τ...))`.
+        opt_tuple_return_types: Set[str] = set()
+        # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): refined tuple return types
+        # carrying a `pyconst_val` slot (`_classify_literal_value`) — each emitted as a
+        # `Return_tup_<slots> (<slots>)` exception DEFERRED into the emit_ir/pyconst_val theory.
+        pyconst_val_tuple_return_types: Set[str] = set()
+        # value-model campaign incr5 (primitive c): synthesized-union (`Optional[X]`) return
+        # types that need a dedicated `Return_<variant>` exception — a function returning a
+        # `_union_*` variant WITH an early/in-loop return can't carry the variant through the
+        # generic `exception Return int`. Parallel to needs_return_str/needs_return_emit_ir.
+        union_return_types: Set[str] = set()
         n = len(functions)
         i = 0
         while i < n:
@@ -1811,11 +1906,40 @@ class PreambleEmissionMixin:
                 ann = func.get("return_annotation")
                 if ret_type == "unit":
                     needs_return_void = True
+                elif (isinstance(ann, str) and ann.startswith("_union_")
+                        and ret_type.startswith("(") and "," in ret_type
+                        and IRScanner.has_none_return(func["body"])):
+                    # Optional-tuple return: an `Optional[Tuple[τ...]]` reader carries
+                    # either `Some (τ...)` or `None` through a dedicated
+                    # `Return_opttuple_<arity>` exception whose payload is the built-in
+                    # `option (τ...)`. Parallel to the raw-tuple `Return_<arity>` branch
+                    # below, but option-wrapped so the `return None` value model is
+                    # faithful. The refined slot types match `_compute_return_type`'s
+                    # `option (τ...)` return type. Byte-inert (see `_compute_return_type`).
+                    opt_tuple_return_types.add(
+                        self._refine_tuple_return_type(func, func["body"], ret_type))
                 elif ret_type.startswith("(") and "," in ret_type:
-                    # Tuple return — needs a dedicated Return_<arity> exception
-                    # so the value carries through; the plain `exception Return int`
-                    # would force `_coerce_to_int` to hash the whole tuple.
-                    tuple_return_arities.add(ret_type.count(",") + 1)
+                    # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return whose
+                    # REFINED type carries a `pyconst_val` slot (`_classify_literal_value`'s
+                    # `(string, pyconst_val, emit_ir)`) needs a DEDICATED payload-typed exception
+                    # `Return_tup_<slots>` declared AFTER the pyconst_val/emit_ir theory (both slot
+                    # types are out of scope at top-of-module) — NOT the shared homogeneous
+                    # `Return_<arity>` (whose `(int,...,int)` payload mis-types the slots and
+                    # collides with corpus 3-tuples). Byte-inert: no corpus/other-mirror tuple
+                    # return refines to a pyconst_val slot.
+                    _pv_fn = func.get("name", "") or ""
+                    self._pyconst_val_tuple_slot = (
+                        _pv_fn == "_classify_literal_value"
+                        or _pv_fn.endswith("___classify_literal_value"))
+                    _refined_tup = self._refine_tuple_return_type(func, func["body"], ret_type)
+                    self._pyconst_val_tuple_slot = False
+                    if "pyconst_val" in _refined_tup:
+                        pyconst_val_tuple_return_types.add(_refined_tup)
+                    else:
+                        # Tuple return — needs a dedicated Return_<arity> exception
+                        # so the value carries through; the plain `exception Return int`
+                        # would force `_coerce_to_int` to hash the whole tuple.
+                        tuple_return_arities.add(ret_type.count(",") + 1)
                 elif ret_type == "array int" or ann in ("list", "bytes", "bytearray"):
                     # return-arr.md: an array-returning function with early/in-loop returns.
                     # Why3 forbids a mutable `array int` exception payload, so carry the value
@@ -1824,8 +1948,29 @@ class PreambleEmissionMixin:
                     needs_return_seq = True
                     # str-list-elements: a list whose returned seq local carries STRING
                     # elements travels through the parallel `Return_seq_str (seq string)`.
-                    if self._func_returns_string_seq(func):
+                    # The type-driven signal `return_value_type == "string"` (the `-> List[str]`
+                    # annotation, item34.md CF5) ALSO fires it: it is authoritative for the
+                    # `array string` return type in `_compute_return_type` — and hence for the
+                    # raise site's `Return_seq_str` (func_ret == "array string") — even when the
+                    # body returns a list LITERAL (`return [x]` / `return []`) whose elements are
+                    # not a seq-local Var and so are invisible to `_func_returns_string_seq`.
+                    # ADDITIVE (keeps the always-on `needs_return_seq`): the extra int-typed
+                    # `Return_seq` decl is unused-but-harmless, and any corpus function this newly
+                    # fires for currently FAILS L3-tc (unbound `Return_seq_str`), so it cannot be
+                    # in a passing baseline — byte-diff-0 preserved.
+                    if (self._func_returns_string_seq(func)
+                            or func.get("return_value_type") == "string"):
                         needs_return_seq_str = True
+                    # THE STATEMENT-LIST CARRIER (pyast ctor family): a `-> "List[ExprIR]"`
+                    # method (`_else_block`, `_if_tail`, `statement`, `simple_stmt`,
+                    # `block`) returns `array emit_ir`, and an early/in-loop return of one
+                    # has no carrier — the int `exception Return` mistypes it. Same shape
+                    # as the two arms above: Why3 forbids a MUTABLE array exception
+                    # payload, so the value travels as an immutable `seq emit_ir` and the
+                    # catch materializes it back. Keyed on the `emit_ir` element that
+                    # `ir_resolve` sets only for that annotation -> corpus byte-inert.
+                    if func.get("return_value_type") == "emit_ir":
+                        needs_return_seq_ir = True
                 elif ret_type == "string" or ann == "str":
                     # 10-1732-gap Gap 1: a faithful `string`-returning function with an
                     # early/in-loop return carries a `string` payload — the generic
@@ -1835,6 +1980,37 @@ class PreambleEmissionMixin:
                     # find_return_type reports `int` for a string body.) Structured so a
                     # later `Return_<T>` generalization (real/record) slots in here.
                     needs_return_str = True
+                elif isinstance(ann, str) and ann.startswith("_union_"):
+                    # value-model campaign incr5 (primitive c): the function's return
+                    # annotation resolves to a synthesized `_union_*` variant (an `Optional[X]`
+                    # normalized by Module5). With an early/in-loop return the value travels
+                    # through a dedicated `exception Return_<variant> <variant>` (declared
+                    # below), NOT the generic `Return int`. The trusted union stubs have no
+                    # early return (they hit this loop only via `has_ret`), so ONLY genuinely
+                    # body-verified union walkers register — corpus-inert (a corpus Optional[X]
+                    # function with an early return currently fails the `Return int` clash, so
+                    # none is in a passing baseline).
+                    union_return_types.add(ann)
+                elif (IRScanner.returns_emit_ir_literal(func["body"])
+                      or ann in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")):
+                    # NODE-CTOR (self-tcb-reduction): the SAME need, reached via the
+                    # DECLARED return annotation instead of a dict-literal body shape —
+                    # a recursive-descent method annotated `-> "ExprIR"` whose early
+                    # return carries a CLASS-constructed node (`return UnaryOp(op, …)`,
+                    # lowered to `(IrUnaryOp …)` by `_call_irnode_constructor`). The
+                    # literal-shape scanner cannot see through a class construction, so
+                    # the annotation is the detector here. Same annotation set
+                    # `_compute_return_type` already maps to `emit_ir`.
+                    # Return_emit_ir infra: an emit_ir-returning function (a recursive
+                    # `_csl_*`-style dispatcher building a `{"type": K}` IR-node literal)
+                    # with an early/in-loop return carries the node payload through a
+                    # dedicated `exception Return_emit_ir emit_ir` — the plain `exception
+                    # Return int` would mis-type it (int is not emit_ir). Mirrors the
+                    # Return_str/Return_seq machinery above. `find_return_type` reports
+                    # `int` for a dict-literal body (like it does for string bodies), so
+                    # this static literal-shape check (not `ret_type`/`ann`) is the
+                    # detector — see IRScanner.returns_emit_ir_literal.
+                    needs_return_emit_ir = True
                 else:
                     needs_return_exc = True
             i += 1
@@ -1874,6 +2050,27 @@ class PreambleEmissionMixin:
             or any(f.get("return_annotation") == "float" for f in functions)
             or needs_truediv  # WL-02: `/.` real division
         )
+        # (#49) gen #36: a plain local's `<x>.extend(self.<m>(..))` may lower to the
+        # `seq string` accumulator (`x := Seq.(++) !x (snapshot_str ..)`, statements.py
+        # `_handle_expr_stmt`), which needs `seq.Seq`. Structural over-approximation on the
+        # IR (a spare `use` is harmless); no such call -> False -> byte-inert.
+        # Written INLINE as an explicit stack walk, not a nested `def`: lesson (a4) —
+        # `check-mirror-coverage` ratchets on every FunctionDef, nested ones included.
+        _ext36 = False
+        _stk36: List[Any] = list(all_bodies)
+        while _stk36 and not _ext36:
+            _n36 = _stk36.pop()
+            if isinstance(_n36, dict):
+                if _n36.get("type") == "Call" and isinstance(_n36.get("func"), str):
+                    _fx = _n36["func"]
+                    _ax = _n36.get("args") or []
+                    if (_fx.endswith(".extend") and _fx.count(".") == 1 and len(_ax) == 1
+                            and isinstance(_ax[0], dict) and _ax[0].get("type") == "Call"
+                            and str(_ax[0].get("func", "")).startswith("self.")):
+                        _ext36 = True
+                _stk36.extend(_n36.values())
+            elif isinstance(_n36, list):
+                _stk36.extend(_n36)
         # no-more-int-7 §B′: a `seq int`-valued dict (`Dict[_, List[int]]`) needs
         # `seq.Seq` for the immutable list-snapshot model.
         needs_seq = any(
@@ -1882,7 +2079,37 @@ class PreambleEmissionMixin:
           or needs_return_seq \
           or bool(getattr(self, "_mutable_state_classes", None)) \
           or any(t.startswith("seq ") for f in functions
-                 for t in f.get("param_list_nested_elem", {}).values())
+                 for t in f.get("param_list_nested_elem", {}).values()) \
+          or any(f.get("vararg_str_param") for f in functions) \
+          or bool(getattr(self, "_module_str_list_constants", None)) \
+          or any(self._body_uses_str_literal_for(body) for body in all_bodies) \
+          or self._uses_stmt_ir() \
+          or _ext36 \
+          or any((_fd.get("type") in ("list", "tuple")
+                  and _fd.get("value_type") == "string")
+                 # (#49) gen #31 — THE SAME ONE-WITNESS SCOPE AS `needs_array` ABOVE, and
+                 # the same repair. A DICT field whose values are lists resolves to
+                 # `seq int` / `seq string` (the resolver has handled `Dict[K, List[T]]`
+                 # since nested-map.md / #15) and the record decl then names `seq` with no
+                 # `use seq.Seq` in scope: `unbound type symbol 'seq'`. MEASURED on a class
+                 # field annotated `Dict[int, List[int]]`. Any field whose RESOLVED value
+                 # type is a `seq ...` needs the theory, whatever the field's own kind.
+                 or str(_fd.get("value_type") or "").startswith("seq ")
+                 for _td in (self.ir.get("type_decls", []) or [])
+                 for _fd in (_td.get("fields", []) or []))
+        # ^ relaunch #16: a STRING-ELEMENT LIST FIELD is `array string` — or, on a record
+        #   PINNED as a list ELEMENT (Why3 forbids a mutable field inside `array`),
+        #   `seq string`. Either way the record decl itself needs the theory in scope, and
+        #   the decl is emitted whether or not any BODY touches a seq. Same condition as
+        #   the field-type branch and the `needs_array` disjunct -> corpus byte-inert.
+        # ^ faithful for-over-literal (self-tcb-reduction): a `for k in ("body", "orelse")`
+        #   / `for p in <str-literal local>` loop materialises a `seq string` (Seq.cons/get/
+        #   length), so `use seq.Seq` must be present. Scoped to the SAME all-string-literal
+        #   pattern the `_classify_iterable` recogniser fires on → no corpus program matches
+        #   (byte-identical; verified by the full-corpus .mlw sweep).
+        # ^ W8 (ii): a `*vals: str` vararg param is a `seq string` -> `use seq.Seq`.
+        #   Module5 records it only for a str-ANNOTATED vararg, so no corpus function
+        #   triggers it (byte-identical).
         # ^ nested-list.md S2: a `List[List[τ]]` param is `array (seq τ)` → `use seq.Seq`.
         # ^ seq-model-pivot.md SQ1: a @mutable_state module may promote a REASSIGNED list-elem
         #   local to `seq` (decided during emission, after this import scan), so `use seq.Seq`
@@ -1939,6 +2166,29 @@ class PreambleEmissionMixin:
         if _binder_needs_map:
             needs_body_dict = True
             needs_ghost_dict = True
+        # option-of-record projection (boundary-1 G1 extension): an `Optional[<record>]`
+        # param (symbol_table symtype `"option:<R>"`) lowers to `option <record>` in the
+        # signature, so `option.Option` must be `use`d even with no body dict/map. Mirrors
+        # the set/dict param-type check above. Gated on the `option:` symtype prefix →
+        # byte-inert for every module without an Optional-of-record param.
+        needs_option_record = any(
+            isinstance(v, str) and v.startswith("option:")
+            for func in functions
+            for v in func.get("symbol_table", {}).values()
+        )
+        # CLASS-BY-NAME FACTORY vein: a harvested `_NODE_SPEC` RECORD may itself carry an
+        # `option`-typed FIELD (`alias.asname` is `Optional[str]` -> `option string`), which
+        # puts `option` in the emitted `type` declaration with no param, return or body-level
+        # map anywhere in the file. Measured: `unbound type symbol 'option'` on the record
+        # decl line. Mirrors the `option:<R>` param check above; gated on a record field
+        # whose type tag is literally "option" -> byte-inert for every file without one.
+        if not needs_option_record:
+            needs_option_record = any(
+                isinstance(f, dict) and f.get("type") == "option"
+                for td in (self.ir.get("type_decls", []) or [])
+                if td.get("kind") == "record"
+                for f in (td.get("fields", []) or [])
+            )
         needs_list_ghost = any(IRScanner.uses_ghost_type(body, {"ghost_list"}) for body in all_bodies)
         needs_sum = any(IRScanner.uses_sum(func) for func in functions)
         needs_set_card = any(IRScanner.uses_set_card(func) for func in functions)
@@ -1951,6 +2201,59 @@ class PreambleEmissionMixin:
             func.get("contracts", {}).get("no_exception_all")
             for func in functions
         )
+        # (#49) ROUTE #171 — a function whose `try` has a NAMED handler for a modelled
+        # implicit exception is checked as if it declared `no_exception` (see
+        # `_reset_function_state`), so its obligations need the predicate vocabulary too.
+        if not needs_no_exception:
+            import builtins as _bi171p
+            from exception_model import all_phase1_exceptions as _ph171p
+            # Same gate as the widening itself: only a function that makes a claim (a
+            # non-trivial `ensures`, route #70's test, or an in-body assertion).
+            _w171p: List[Any] = []
+            for _f171p in functions:
+                _claim171p = False
+                for _e171p in ((_f171p.get("contracts", {}) or {}).get("ensures", []) or []):
+                    _t171p = _e171p.get("type") if isinstance(_e171p, dict) else None
+                    _v171p = (_e171p.get("value", _e171p.get("id"))
+                              if isinstance(_e171p, dict) else None)
+                    if not ((_t171p in ("Bool", "Constant", "NameConstant") and _v171p is True)
+                            or (_t171p in ("Name", "Var") and _v171p in ("True", "true"))
+                            or (_t171p == "Number" and _v171p == 1)):
+                        _claim171p = True
+                _s171p: List[Any] = [_f171p.get("body", [])]
+                while _s171p and not _claim171p:
+                    _x171p = _s171p.pop()
+                    if isinstance(_x171p, dict):
+                        if (_x171p.get("stmt") in ("Assert", "ProofAssert")
+                                or _x171p.get("invariants") or _x171p.get("variants")):
+                            _claim171p = True
+                        _s171p.extend(v for v in _x171p.values() if isinstance(v, (dict, list)))
+                    elif isinstance(_x171p, list):
+                        _s171p.extend(_x171p)
+                if _f171p.get("self_type") and not _claim171p:
+                    for _td171p in (self.ir.get("type_decls", []) or []):
+                        if (str(_td171p.get("name", "")).lower()
+                                == str(_f171p.get("self_type")).lower()
+                                and _td171p.get("class_invariants")):
+                            _claim171p = True
+                if _claim171p:
+                    _w171p.append(_f171p.get("body", []))
+            while _w171p and not needs_no_exception:
+                _n171p = _w171p.pop()
+                if isinstance(_n171p, dict):
+                    if _n171p.get("stmt") == "Try":
+                        for _h171p in (_n171p.get("handlers") or []):
+                            _et171p = _h171p.get("exc_type") if isinstance(_h171p, dict) else None
+                            for _nm171p in (str(_et171p).split("|") if _et171p else [""]):
+                                _b171p = (getattr(_bi171p, _nm171p, None) if _nm171p
+                                          else BaseException)
+                                if (isinstance(_b171p, type) and issubclass(_b171p, BaseException)
+                                        and any(issubclass(getattr(_bi171p, _x), _b171p)
+                                                for _x in _ph171p())):
+                                    needs_no_exception = True
+                    _w171p.extend(v for v in _n171p.values() if isinstance(v, (dict, list)))
+                elif isinstance(_n171p, list):
+                    _w171p.extend(_n171p)
         bounded_sizes = {func["bounded_int"] for func in functions if func.get("bounded_int")}
         user_exceptions: Set[str] = set()
         n2 = len(all_bodies)
@@ -1967,7 +2270,905 @@ class PreambleEmissionMixin:
                 exc = rc.get("exc_type")
                 if exc:
                     user_exceptions.add(exc)
+        # bigger-build.md Phase 1: a function whose body is the A-unit generic-fold
+        # catamorphism (recognizer, fail-closed) routes to the type-derived walk
+        # group and needs the L1 `pyval`/`pydict`/`size` theory. Gated + corpus-inert
+        # (fires on 0/756 programs) → byte-diff-0.
+        from module6_whyml.generic_fold import (
+            recognize_generic_fold, recognize_setfold, recognize_substmap,
+            recognize_self_method_calls,
+            recognize_bool_existence, recognize_bool_multiway, recognize_frt,
+            recognize_sawalk, recognize_cpwalk, recognize_pbexpr,
+            recognize_dictfold,
+            recognize_void_dispatch,
+            recognize_stmt_setfold, recognize_void_generic_descend,
+            recognize_wall2_items_walk,
+            recognize_walk_dicts_generator, recognize_walk_dicts_bool_consumer,
+            recognize_walk_dicts_void_consumer, recognize_walk_dicts_set_consumer,
+            recognize_boolfold_isinstance,
+            recognize_flat_tag_func_pred,
+            recognize_type_existence, recognize_named_field_existence,
+            recognize_pyval_string_walker, recognize_pyval_list_walker,
+            recognize_pyval_flatten, recognize_ir_free_vars,
+            recognize_check_class_invariants,
+            recognize_check_gt3_schema_only,
+            recognize_check_bounds,
+            recognize_extract_ast_subscript,
+            recognize_collect_instantiations_ast,
+            recognize_collect_field_sites,
+            recognize_any_function_trusted,
+            recognize_contains_exec,
+            recognize_is_trivial_new,
+            recognize_collect_imports,
+            recognize_scan_node_for_subscript_calls,
+            recognize_find_subscript_calls,
+            recognize_collect_protect_sites,
+            recognize_collect_protect_index_sites,
+            recognize_check_mutex_invariants,
+            recognize_check_callable_params,
+            recognize_check_fresh_globals,
+            recognize_module_binding_names,
+            recognize_mutex_inv_params,
+            recognize_check_noreturn,
+            recognize_first_tuple_return,
+            recognize_find_assigned_vars,
+            recognize_first_assign_value_ir,
+            recognize_collect_mutations,
+            recognize_find_iteration_mutations,
+            recognize_build_method_writes_map,
+            recognize_build_method_return_type_map,
+            recognize_build_method_param_whyml_by_name,
+            recognize_build_method_param_types_map,
+            recognize_collect_record_fields,
+            recognize_verify_module_groups,
+            recognize_build_method_result_ensures_map,
+            recognize_build_method_field_result_ensures_map,
+            recognize_build_method_field_old_ensures_map,
+            recognize_test_contains_map,
+            recognize_is_linear_vc,
+            recognize_handler_catches,
+            recognize_subclasses_of,
+            recognize_collect_escaping_exceptions,
+            recognize_callee_implicit_exceptions,
+            recognize_find_array_and_dict_vars,
+            recognize_classify,
+            recognize_global_call_target,
+            recognize_method_edges,
+            recognize_refs_bvar,
+            recognize_cs_clause, recognize_check_contract_exprs,
+            recognize_check_body_walk,
+            recognize_check_subscript_assignments,
+            recognize_check_contract_scope,
+            recognize_check_clause_fold,
+            recognize_check_no_exception, recognize_check_warn_fold)
+        # NoReturn dead-successor WALKER + CALLER (ghost-assign-bc6): the stateful
+        # bool-carry walker `_noreturn_walk_stmts` (#3) and its caller
+        # `_check_noreturn_successors` (#4). Both are FORWARD REFERENCES (the
+        # walker calls the textually-later `_stmt_is_noreturn_call`; the caller
+        # calls the walker), so both are emitted DEFERRED — appended right after
+        # the `_stmt_is_noreturn_call` group. `_nrw_funcs`/`_ccns_funcs` hold the
+        # recognised func dicts + descriptors; the `_emitted` sets gate the
+        # once-only append. The caller is recognised only when its walker is a
+        # converted (recognised) walker name. Set up BEFORE the `needs_*` gates
+        # (which read `self._nrw_names`). Corpus-inert.
+        from module6_whyml.generic_fold import (
+            recognize_noreturn_walk_stmts, recognize_check_noreturn_successors)
+        self._nrw_funcs = [
+            (f, recognize_noreturn_walk_stmts(f)) for f in functions
+            if recognize_noreturn_walk_stmts(f) is not None]
+        self._nrw_names = {f.get("name") for f, _ in self._nrw_funcs}
+        self._nrw_emitted = set()
+        self._ccns_funcs = [
+            (f, recognize_check_noreturn_successors(f, self._nrw_names))
+            for f in functions
+            if recognize_check_noreturn_successors(f, self._nrw_names) is not None]
+        self._ccns_names = {f.get("name") for f, _ in self._ccns_funcs}
+        self._ccns_emitted = set()
+        # ir-traversal-residual T3: the context-threading walk `_sa_walk` routes
+        # to the env-threaded pyval/pydict group and additionally needs the
+        # string-keyed `sdict` theory (`needs_sdict`, gated separately so the
+        # already-landed pydict-group mirrors stay byte-identical).
+        from module6_whyml.generic_fold import recognize_rewrite_ir_calls
+        needs_sdict = any(
+            # seven-levers §1 (Lever 1): `_rewrite_ir_calls`'s `rw` reads
+            # `obj.get(...)` via the program-context `pget_dyn` reader (bridge
+            # theory, emitted with the sdict block); route sdict on so the reader
+            # is in scope.
+            recognize_rewrite_ir_calls(f) is not None or
+            recognize_sawalk(f) is not None or recognize_dictfold(f) is not None
+            or recognize_pbexpr(f) is not None
+            or recognize_cs_clause(f) is not None
+            or recognize_check_class_invariants(f) is not None
+            or recognize_check_gt3_schema_only(f) is not None
+            or recognize_check_bounds(f) is not None
+            or recognize_extract_ast_subscript(f) is not None
+            or recognize_collect_instantiations_ast(f) is not None
+            # Weaver `_collect_field_sites`: raw-ast iter_child_nodes descent (pget_dyn).
+            or recognize_collect_field_sites(f) is not None
+            # import_classifier `any_function_trusted`: raw-`ast.walk` bool existence walk (pget_dyn).
+            or recognize_any_function_trusted(f) is not None
+            # exec_splice `_contains_exec`: raw-`ast.walk` bool existence walk (pget_dyn).
+            or recognize_contains_exec(f) is not None
+            # Weaver `_is_trivial_new`: raw-ast straight-line structural predicate (pget_dyn).
+            or recognize_is_trivial_new(f) is not None
+            # import_classifier `collect_imports`: raw-`ast.walk` list-of-(str,int) collector (pget_dyn).
+            or recognize_collect_imports(f) is not None
+            # monomorphize `_scan_node_for_subscript_calls`/`_find_subscript_calls`: IR-dict
+            # subscript-call catamorphism reads via pget_dyn (+ membership via Map.get).
+            or recognize_scan_node_for_subscript_calls(f) is not None
+            or recognize_find_subscript_calls(f) is not None
+            # Weaver `_collect_protect_sites`: iter_child_nodes descent + target fold (pget_dyn/pget_list).
+            or recognize_collect_protect_sites(f) is not None
+            # Weaver `_collect_protect_index_sites`: subscript point-write descent (pget_dyn/pget_list).
+            or recognize_collect_protect_index_sites(f) is not None
+            or recognize_check_mutex_invariants(f) is not None
+            or recognize_check_callable_params(f) is not None
+            or recognize_check_fresh_globals(f) is not None
+            # `_module_binding_names`: self.ir.functions/classes descent (pget_list/pget_dyn).
+            or recognize_module_binding_names(f) is not None
+            # `_mutex_inv_params`: self.ir.shared_vars descent (pget_list/pget_dyn).
+            or recognize_mutex_inv_params(f) is not None
+            or recognize_check_noreturn(f) is not None
+            or recognize_first_tuple_return(f) is not None
+            or recognize_find_assigned_vars(f) is not None
+            or recognize_first_assign_value_ir(f) is not None
+            or recognize_collect_mutations(f) is not None
+            or recognize_find_iteration_mutations(f) is not None
+            or recognize_test_contains_map(f) is not None
+            or recognize_is_linear_vc(f) is not None
+            or recognize_handler_catches(f) is not None
+            or recognize_subclasses_of(f) is not None
+            or recognize_classify(f) is not None
+            or recognize_global_call_target(f) is not None
+            or recognize_method_edges(f) is not None
+            or recognize_check_contract_exprs(f) is not None
+            or recognize_check_body_walk(f) is not None
+            or recognize_check_subscript_assignments(f) is not None
+            or recognize_check_contract_scope(f) is not None
+            or recognize_check_clause_fold(f) is not None
+            or recognize_check_no_exception(f) is not None
+            or recognize_check_warn_fold(f) is not None
+            for f in functions)
+        # pdict-to-sdict-impl.md: the heterogeneous-func caller cluster
+        # (`_check_contract_exprs` + the body-only `_check_checkpoints`/
+        # `_check_ghost_string_ops` siblings) additionally needs the pydict->sdict
+        # bridge theory (`pget_dyn`/`pget_list`/`pdict_to_sdict`). Gated separately
+        # so every already-landed sdict mirror stays byte-identical; corpus-inert.
+        from module6_whyml.generic_fold import (
+            recognize_collect_noreturn_names, recognize_stmt_noreturn_call,
+            recognize_noreturn_walk_stmts, recognize_check_noreturn_successors,
+            recognize_rewrite_ir_calls)
+        needs_pdict_bridge = any(
+            recognize_check_contract_exprs(f) is not None
+            or recognize_check_body_walk(f) is not None
+            or recognize_check_subscript_assignments(f) is not None
+            or recognize_check_contract_scope(f) is not None
+            or recognize_check_clause_fold(f) is not None
+            or recognize_check_no_exception(f) is not None
+            or recognize_check_warn_fold(f) is not None
+            # #1 `_collect_noreturn_names` reads `ir["functions"]` via `pget_list`.
+            or recognize_collect_noreturn_names(f) is not None
+            # #3/#4 the walker + caller read child/functions lists via `pget_list`.
+            or recognize_noreturn_walk_stmts(f) is not None
+            or recognize_check_noreturn_successors(f, self._nrw_names) is not None
+            # class-invariant / gt3 checkers read fields/type_params via pget_list.
+            or recognize_check_class_invariants(f) is not None
+            or recognize_check_gt3_schema_only(f) is not None
+            or recognize_check_bounds(f) is not None
+            # `_extract_ast_subscript`: raw-ast node descent reads via `pget_dyn`.
+            or recognize_extract_ast_subscript(f) is not None
+            # `_collect_instantiations_ast`: `_ast.walk` set-collect reads via pget_dyn/pget_list.
+            or recognize_collect_instantiations_ast(f) is not None
+            # Weaver `_collect_field_sites`: raw-ast iter_child_nodes descent reads via pget_dyn.
+            or recognize_collect_field_sites(f) is not None
+            # import_classifier `any_function_trusted`: raw-`ast.walk` bool existence walk reads via pget_dyn.
+            or recognize_any_function_trusted(f) is not None
+            # exec_splice `_contains_exec`: raw-`ast.walk` bool existence walk (pget_dyn).
+            or recognize_contains_exec(f) is not None
+            # Weaver `_is_trivial_new`: raw-ast straight-line structural predicate (pget_dyn).
+            or recognize_is_trivial_new(f) is not None
+            # import_classifier `collect_imports`: raw-`ast.walk` list-of-(str,int) collector reads via pget_dyn.
+            or recognize_collect_imports(f) is not None
+            # monomorphize `_scan_node_for_subscript_calls`/`_find_subscript_calls`: IR-dict
+            # subscript-call catamorphism reads via pget_dyn.
+            or recognize_scan_node_for_subscript_calls(f) is not None
+            or recognize_find_subscript_calls(f) is not None
+            # Weaver `_collect_protect_sites`: iter_child_nodes descent + target fold reads via pget_dyn/pget_list.
+            or recognize_collect_protect_sites(f) is not None
+            # Weaver `_collect_protect_index_sites`: subscript point-write descent reads via pget_dyn/pget_list.
+            or recognize_collect_protect_index_sites(f) is not None
+            or recognize_check_mutex_invariants(f) is not None
+            or recognize_check_callable_params(f) is not None
+            or recognize_check_fresh_globals(f) is not None
+            # `_module_binding_names`: self.ir.functions/classes descent (pget_list/pget_dyn).
+            or recognize_module_binding_names(f) is not None
+            # `_mutex_inv_params`: self.ir.shared_vars descent (pget_list/pget_dyn).
+            or recognize_mutex_inv_params(f) is not None
+            or recognize_check_noreturn(f) is not None
+            or recognize_first_tuple_return(f) is not None
+            or recognize_find_assigned_vars(f) is not None
+            or recognize_first_assign_value_ir(f) is not None
+            or recognize_collect_mutations(f) is not None
+            or recognize_find_iteration_mutations(f) is not None
+            or recognize_test_contains_map(f) is not None
+            or recognize_is_linear_vc(f) is not None
+            or recognize_handler_catches(f) is not None
+            or recognize_subclasses_of(f) is not None
+            or recognize_classify(f) is not None
+            or recognize_global_call_target(f) is not None
+            or recognize_method_edges(f) is not None
+            # Lever 1 (`_rewrite_ir_calls`): the `rw` walk reads `obj.get(...)`
+            # via `pget_dyn` (bridge theory).
+            or recognize_rewrite_ir_calls(f) is not None
+            for f in functions)
+        # seven-levers §1 (Lever 1): the pydict WRITE half (`pput`/`pappend` +
+        # the by-reference `#@ assigns` frame). Gated separately so every
+        # already-landed pydict mirror stays byte-identical; corpus-inert (only
+        # a construction recognizer sets it).
+        from module6_whyml.generic_fold import recognize_substitute
+        from module6_whyml.generic_fold import recognize_subst_params
+        needs_pput = any(
+            recognize_rewrite_ir_calls(f) is not None
+            or recognize_substitute(f) is not None
+            for f in functions)
+        from module6_whyml.generic_fold import (
+            recognize_closure_existence_pairs, recognize_lemma_string_search_pairs,
+            recognize_func_returns_string_seq_pairs,
+            recognize_returns_string_seq_pairs,
+            recognize_struct_pack_targets_pairs,
+            recognize_struct_unpack_targets_pairs,
+            recognize_contract_referenced_names_pairs,
+            recognize_field_decode_str_locals_pairs,
+            recognize_str_decode_locals_pairs,
+            recognize_string_elem_read_locals_pairs,
+            recognize_shared_symbol_decls_pairs,
+            recognize_callee_raised_direct_pairs,
+            recognize_contract_referenced_var_names_pairs,
+            recognize_collect_map_typed_locals_pairs,
+            recognize_has_set_op_on_map_pairs,
+            recognize_is_linear_expr_pairs,
+            recognize_extract_array_lengths_pairs,
+            recognize_final_pair, recognize_check_final, recognize_conc_cluster,
+            recognize_scan2d_trio, recognize_symtab_set_dispatch)
+        # CONCURRENCY CLUSTER (generic_fold.py): the mutually-trusted held-mutex
+        # / lock-order protected-access walk {_check_concurrency,
+        # _conc_check_shared_access, _conc_check_reads, _conc_stmts, _conc_stmt}
+        # emitted as ONE self-contained `let rec` block (conc_spike.mlw 17/17,
+        # emitted 18/18 Valid). None (no cluster) -> every other mirror + the
+        # whole corpus byte-identical (self-annotate-mirror-only match).
+        self._conc_cluster = recognize_conc_cluster(functions)
+        self._conc_names = (
+            set(self._conc_cluster["names"]) if self._conc_cluster else set())
+        self._conc_emitted = False
+        # UNION-NARROWING cluster (generic_fold.py): the 4-function
+        # {_union_c8_walk, _union_c8_test_references_union_var,
+        # _union_c8_recognized_guard, _union_c11_check_dead_arms} C8/C11 check,
+        # emitted as ONE self-contained `let rec` block onto the pyval spine so
+        # all four un-trust together (the driver `_check_union_narrowing` stays
+        # \trusted). None (no cluster) -> every other mirror + the whole corpus
+        # byte-identical (self-annotate-mirror-only match).
+        from module6_whyml.generic_fold import recognize_union_cluster
+        self._union_cluster = recognize_union_cluster(functions)
+        self._union_names = (
+            set(self._union_cluster["names"]) if self._union_cluster else set())
+        self._union_emitted = False
+        # FINAL PAIR FUSION (generic_fold.py): the `{_final_walk_body,
+        # _final_check_stmt}` Final write-policy walker pair re-based onto the
+        # pyval spine (mutually-recursive `let rec` group so `_final_check_stmt`
+        # can be un-trusted). Module-level (needs both functions). None (no pair)
+        # -> every other mirror + the whole corpus byte-identical.
+        self._final_pair = recognize_final_pair(functions)
+        self._final_pair_names = (
+            set(self._final_pair["names"]) if self._final_pair else set())
+        self._final_pair_emitted = False
+        # SCAN-2D TRIO FUSION (generic_fold.py): the mutually-recursive
+        # `{_scan_2d_in_expr,_scan_2d_in_stmt,_collect_2d_params}` 2-D-access
+        # walker triad emitted as ONE self-contained `let rec … with …` group at
+        # the first-reached member slot (real cross-calls between the lifted
+        # siblings); set_add gated by the `Map.get pn nm` membership. Module-level
+        # (needs all three). None (no trio) -> every other mirror + the whole
+        # corpus byte-identical.
+        self._scan2d_trio = recognize_scan2d_trio(functions)
+        self._scan2d_trio_names = (
+            set(self._scan2d_trio["names"]) if self._scan2d_trio else set())
+        self._scan2d_trio_emitted = False
+        # CHECK-FINAL CALLER (generic_fold.py): the `_check_final(ir)` Final
+        # driver, re-based onto pyval and emitted RIGHT AFTER the pair group it
+        # calls into. Gated on the pair (needs its walk-body name); None -> the
+        # caller stays `\trusted` and every other mirror stays byte-identical.
+        self._check_final_desc = None
+        if self._final_pair:
+            _wn = self._final_pair["walk_name"]
+            for _f in functions:
+                if isinstance(_f, dict):
+                    _cfd = recognize_check_final(_f, _wn)
+                    if _cfd is not None:
+                        self._check_final_desc = _cfd
+                        break
+        self._check_final_name = (
+            self._check_final_desc["cf_name"] if self._check_final_desc else None)
+        needs_pydict = needs_sdict or (self._final_pair is not None) \
+            or (self._scan2d_trio is not None) \
+            or (self._conc_cluster is not None) \
+            or (self._union_cluster is not None) or bool(
+            recognize_closure_existence_pairs(functions)["outer_ids"]) or bool(
+            recognize_lemma_string_search_pairs(functions)["outer_ids"]) or bool(
+            recognize_func_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
+            recognize_returns_string_seq_pairs(functions)["outer_ids"]) or bool(
+            recognize_struct_pack_targets_pairs(functions)["outer_ids"]) or bool(
+            recognize_struct_unpack_targets_pairs(functions)["outer_ids"]) or bool(
+            recognize_contract_referenced_names_pairs(functions)["outer_ids"]) or bool(
+            recognize_field_decode_str_locals_pairs(functions)["outer_ids"]) or bool(
+            recognize_str_decode_locals_pairs(functions)["outer_ids"]) or bool(
+            recognize_string_elem_read_locals_pairs(functions)["outer_ids"]) or bool(
+            recognize_shared_symbol_decls_pairs(functions)["outer_ids"]) or bool(
+            recognize_callee_raised_direct_pairs(functions)["outer_ids"]) or bool(
+            recognize_contract_referenced_var_names_pairs(functions)["outer_ids"]) or bool(
+            recognize_collect_map_typed_locals_pairs(functions)["outer_ids"]) or bool(
+            recognize_has_set_op_on_map_pairs(functions)["outer_ids"]) or bool(
+            recognize_is_linear_expr_pairs(functions)["outer_ids"]) or bool(
+            recognize_extract_array_lengths_pairs(functions)["outer_ids"]) or any(
+            recognize_generic_fold(f) is not None or recognize_setfold(f) is not None
+            or recognize_self_method_calls(f) is not None
+            or recognize_substmap(f) is not None
+            or recognize_substitute(f) is not None
+            or recognize_subst_params(f) is not None
+            or recognize_bool_existence(f) is not None
+            or recognize_bool_multiway(f) is not None
+            or recognize_frt(f) is not None
+            or recognize_stmt_setfold(f) is not None
+            or recognize_collect_escaping_exceptions(f) is not None
+            or recognize_callee_implicit_exceptions(f) is not None
+            or recognize_find_array_and_dict_vars(f) is not None
+            or recognize_void_generic_descend(f) is not None
+            or recognize_wall2_items_walk(f) is not None
+            or recognize_walk_dicts_generator(f) is not None
+            or recognize_walk_dicts_bool_consumer(f) is not None
+            or recognize_walk_dicts_void_consumer(f) is not None
+            or recognize_walk_dicts_set_consumer(f) is not None
+            or recognize_boolfold_isinstance(f) is not None
+            or recognize_flat_tag_func_pred(f) is not None
+            or recognize_type_existence(f) is not None
+            or recognize_named_field_existence(f) is not None
+            or recognize_pyval_string_walker(f) is not None
+            or recognize_pyval_list_walker(f) is not None
+            or recognize_pyval_flatten(f) is not None
+            or recognize_cpwalk(f) is not None
+            or recognize_ir_free_vars(f) is not None
+            # string-keyed-set NoReturn cluster: #1 `set_add`/`set_union` +
+            # #2 `pystr_eq`/`Map.get` all live in the `needs_pydict` block.
+            or recognize_collect_noreturn_names(f) is not None
+            or recognize_stmt_noreturn_call(f) is not None
+            # #3/#4 the walker + caller fold pyval/pydict/list with `pv_size`.
+            or recognize_noreturn_walk_stmts(f) is not None
+            or recognize_check_noreturn_successors(f, self._nrw_names) is not None
+            # `_body_references_bvar_0` de-Bruijn depth-threading walk folds
+            # pyval/pydict with `pv_size`/`size_dict` + `pystr_eq`.
+            or recognize_refs_bvar(f) is not None
+            # `_collect_mutations` ref-accumulator whole-stmt append folds
+            # pyval/pydict/list (`pv_size`/`size_dict`/`size_list`) + `pystr_eq`.
+            or recognize_collect_mutations(f) is not None
+            or recognize_find_iteration_mutations(f) is not None
+            # `_build_method_writes_map` folds pyval/pydict/list into a
+            # `map string (list string)` result (`pv_size`/`size_dict`/`size_list`
+            # + `Map.set`/`const`) + `pystr_eq`.
+            or recognize_build_method_writes_map(f) is not None
+            # `_build_method_return_type_map` folds pyval/pydict into a KEY-ITERABLE
+            # `pydict` result (the self-referential key-enum breaker) + `pystr_eq`.
+            or recognize_build_method_return_type_map(f) is not None
+            # `_build_method_param_whyml_types_by_name` folds pyval/pydict/list into a
+            # `map string (map string string)` result (`Map.set`/`const` + `pystr_eq`).
+            or recognize_build_method_param_whyml_by_name(f) is not None
+            # `_build_method_param_types_map` folds pyval/pydict into a
+            # `map string (list string)` result (`Map.set`/`const`/`snoc` + `pystr_eq`).
+            or recognize_build_method_param_types_map(f) is not None
+            # `_collect_record_fields` StrSet set-collect + the
+            # `_build_method_*_ensures_map` cluster fold pyval/pydict/list into a
+            # `map string bool` / `map string (list pyval)` result (`pv_size`/
+            # `size_dict`/`size_list` + `set_add`/`set_union`/`Map.set`/`const`) + `pystr_eq`.
+            or recognize_collect_record_fields(f) is not None
+            # `_verify_module_groups` folds pyval/pydict/list into a
+            # `map string (list string)` result (`Map.set`/`Map.get`/`const`/`snoc`
+            # + `pget_dyn`) via a pinned `__setappend`.
+            or recognize_verify_module_groups(f) is not None
+            or recognize_build_method_result_ensures_map(f) is not None
+            or recognize_build_method_field_result_ensures_map(f) is not None
+            or recognize_build_method_field_old_ensures_map(f) is not None
+            # symtab-set-dispatch typing drivers (`_check_typeddict_access`/
+            # `_check_namedtuple_access`/`_check_union_narrowing`): the pydict
+            # `.items()` set-collect (`pget_dyn`/`pget_list`/`set_add`/`const`/
+            # `Map.get`) then void-dispatch to a converted walker.
+            or recognize_symtab_set_dispatch(
+                f, {g.get("name"): g for g in functions if isinstance(g, dict)}) is not None
+            # seven-levers §1 (Lever 1 — pydict WRITE half): `_rewrite_ir_calls`
+            # folds pyval/pydict/list (`pv_size`/`size_dict`/`size_list`) and
+            # `pput`s at Call nodes — needs the base pydict theory.
+            or recognize_rewrite_ir_calls(f) is not None
+            for f in functions)
+        # G-void-dispatch-thin: the recognized wrapper's `stmts` is the built-in
+        # Why3 `list int` (Cons/Nil, not the pyval/pydict L1 theory) — needs only
+        # `list.List` in scope, gated separately from `needs_pydict`/
+        # `needs_list_ghost` so their emission stays byte-identical. Gated +
+        # never set by the reference corpus (self-annotate-mirror-only) → byte-diff-0.
+        needs_void_dispatch = any(recognize_void_dispatch(f) is not None for f in functions)
+        # class-variant-impl.md (driver-backlog item 3): the class-instance VARIANT
+        # ADT carrier — the proof2why3 `Term` union (isinstance-dispatch + named-field
+        # reads). Compute the `term` variant spec from the imported dataclass
+        # type_decls + the file's fold usage; store it so the theory (gated) + the
+        # dispatch both see the SAME spec. None (no term-fold) -> carrier off, corpus
+        # + every other mirror byte-identical.
+        from module6_whyml.generic_fold import (
+            compute_term_adt_spec, recognize_term_isinstance_fold,
+            recognize_term_isinstance_transform,
+            recognize_term_list_build, recognize_term_flatten_arrow,
+            recognize_term_free_vars, recognize_term_string_pp,
+            recognize_term_pp_methods, recognize_pb_trio, recognize_cs_trio)
+        # PB-TRIO FUSION (generic_fold.py): the mutually-recursive
+        # `{_pb_stmt,_pb_body,_pb_descend}` statement-walker triad emitted as ONE
+        # `let rec` group so `_pb_stmt` can be un-trusted. Module-level (needs all
+        # three functions). None (no trio) -> every other mirror + the whole
+        # corpus byte-identical. `_pb_trio_emitted` gates the once-only emission
+        # (deferred to just after the `_pb_expr` group the trio calls into).
+        self._pb_trio = recognize_pb_trio(functions)
+        self._pb_trio_names = (
+            set(self._pb_trio["names"]) if self._pb_trio else set())
+        self._pb_trio_emitted = False
+        # CS-TRIO FUSION: the `{_cs_stmt,_cs_body,_cs_descend}` scope-check triad
+        # (cross-calls `_cs_clause`, deferred to just after the `_cs_clause`
+        # group). Same once-only emit gating as the pb trio; corpus-inert.
+        self._cs_trio = recognize_cs_trio(functions)
+        self._cs_trio_names = (
+            set(self._cs_trio["names"]) if self._cs_trio else set())
+        self._cs_trio_emitted = False
+        # pdict-to-sdict-impl.md (heterogeneous-func caller cluster): the
+        # `_check_contract_exprs` caller is a FORWARD REFERENCE to its
+        # `_pb_expr`/`_pb_body` callees (textually before them), so it is emitted
+        # AFTER the `_pb_expr` group + pb-trio (same deferred-append plumbing).
+        # `_cce_funcs` holds the recognised caller func dicts; `_cce_emitted`
+        # gates the once-only append. Corpus-inert.
+        from module6_whyml.generic_fold import recognize_check_contract_exprs
+        self._cce_funcs = [
+            f for f in functions if recognize_check_contract_exprs(f) is not None]
+        self._cce_names = {f.get("name") for f in self._cce_funcs}
+        self._cce_emitted = False
+        # BODY-WALK caller siblings (`_check_checkpoints`/`_check_ghost_string_ops`):
+        # each is a FORWARD REFERENCE to its `_cp_walk`/`_gso_walk` walker callee
+        # (textually before it), so it is emitted AFTER its walker group, keyed on
+        # the emitted walker's name. `_cbw_funcs` holds the recognised caller func
+        # dicts (with their descriptors); `_cbw_emitted` gates each once-only append.
+        from module6_whyml.generic_fold import recognize_check_body_walk
+        self._cbw_funcs = [
+            (f, recognize_check_body_walk(f)) for f in functions
+            if recognize_check_body_walk(f) is not None]
+        self._cbw_names = {f.get("name") for f, _ in self._cbw_funcs}
+        self._cbw_emitted = set()
+        # SYMTAB-SET-DISPATCH typing drivers (`_check_typeddict_access`/
+        # `_check_namedtuple_access`/`_check_union_narrowing`): each BUILDS a
+        # typed-var StrSet from `func["symbol_table"].items()` (membership/
+        # startswith gate) then void-dispatches to an already-converted walker.
+        # FORWARD REFERENCES (textually before their walker(s)), so emitted AFTER
+        # all their walker deps (the `_check_final`/CSA precedent). `_ssd_funcs`
+        # holds (caller, descriptor); `_ssd_walkers_seen` accumulates emitted
+        # walker canon-names; `_ssd_emitted` gates each once-only append.
+        from module6_whyml.generic_fold import recognize_symtab_set_dispatch
+        _ssd_by_name = {f.get("name"): f for f in functions if isinstance(f, dict)}
+        self._ssd_funcs = [
+            (f, recognize_symtab_set_dispatch(f, _ssd_by_name)) for f in functions
+            if recognize_symtab_set_dispatch(f, _ssd_by_name) is not None]
+        self._ssd_names = {f.get("name") for f, _ in self._ssd_funcs}
+        self._ssd_emitted = set()
+        self._ssd_walkers_seen = set()
+        # CLOSURE-FORM existence walk (`_body_has_diverging_construct`/
+        # `_lemma_returns_value`): a `found=[False]` nested `def walk` existence
+        # predicate whose lifted `walk` sibling shares the accumulator as an
+        # int-erased global (a vacuous facade). Pair each OUTER wrapper with its
+        # lifted `walk` (adjacency), emit the wrapper as the certified `list
+        # pyval` existence catamorphism, and SUPPRESS the lifted `walk`. Keyed on
+        # object identity (`id`) — the walks share the name `walk`, so a
+        # name-keyed set would over-suppress. Corpus-inert (fires only on the
+        # recognised mirror wrappers). See generic_fold.py module note.
+        from module6_whyml.generic_fold import recognize_closure_existence_pairs
+        _clx = recognize_closure_existence_pairs(functions)
+        self._clx_outer_ids = _clx["outer_ids"]
+        self._clx_walk_ids = _clx["walk_ids"]
+        # STRING first-match SEARCH closure (`_lemma_calls_trusted`): the `hit=[""]`
+        # string-accumulator sibling of the bool `found=[False]` closure. Same
+        # OUTER+lifted-`walk` adjacency pairing; the wrapper emits a certified
+        # first-match search catamorphism (`option string`, `map string bool`
+        # set param membership), the lifted `walk` is SUPPRESSED. Keyed on `id`.
+        # Corpus-inert (self-annotate-mirror-only). See generic_fold.py note.
+        from module6_whyml.generic_fold import recognize_lemma_string_search_pairs
+        _lss = recognize_lemma_string_search_pairs(functions)
+        self._lss_outer_ids = _lss["outer_ids"]
+        self._lss_walk_ids = _lss["walk_ids"]
+        # `_func_returns_string_seq` (generic_fold.py boundary-A): the svt-guarded
+        # `found=[False]` nested-`def rec` closure existence walk (Return-of-string-
+        # typed-Var). Same OUTER+lifted-`rec` adjacency pairing as closure_existence,
+        # but its own recognizer (5-stmt svt-guarded outer + a nested computed-key
+        # `svt.get(v.get("name"))=="string"` leaf that INSPECTS svt's value). The
+        # wrapper emits a mutual pyval/pydict/list existence catamorphism with `svt`
+        # threaded UNCHANGED as a non-variant pydict param; the lifted `rec` is
+        # SUPPRESSED. Keyed on `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_func_returns_string_seq_pairs
+        _frss = recognize_func_returns_string_seq_pairs(functions)
+        self._frss_outer_ids = _frss["outer_ids"]
+        self._frss_walk_ids = _frss["walk_ids"]
+        # `_returns_string_seq` (generic_fold.py): the SELF-STATE sibling of
+        # `_func_returns_string_seq` (FunctionEmissionMixin instance method). Same
+        # OUTER+lifted-`rec` adjacency pairing + shared walk grammar, but `svt` is sourced
+        # from the self field `getattr(self,"_seq_value_types",{})` (opaque-but-real
+        # `val <n>__svt (self):pydict`, REALLY read) and the walk is seeded with the PARAM
+        # `body_stmts` directly. The lifted `rec` is SUPPRESSED. Keyed on `id`;
+        # corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_returns_string_seq_pairs
+        _rss = recognize_returns_string_seq_pairs(functions)
+        self._rss_outer_ids = _rss["outer_ids"]
+        self._rss_walk_ids = _rss["walk_ids"]
+        # `_class_inv_refs_axiom_func` (generic_fold.py): the nonlocal-scalar-`hit` twin of
+        # `_func_returns_string_seq`. Same OUTER+lifted-`_walk` adjacency pairing, but the
+        # accumulator is a SCALAR `hit` (lowered to `||` short-circuit) and the leaf is a
+        # `Map.get`-membership `node.get("func") in _axiom_logic_funcs` (opaque-but-real
+        # self-source `val <n>__axset (self):map string bool`). The REAL type_decls->
+        # class_invariants spine is walked. The lifted `_walk` is SUPPRESSED. Keyed on `id`;
+        # corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_class_inv_refs_axiom_pairs
+        _cira = recognize_class_inv_refs_axiom_pairs(functions)
+        self._cira_outer_ids = _cira["outer_ids"]
+        self._cira_walk_ids = _cira["walk_ids"]
+        # `_inductive_refs_global_or_axiom_func` (generic_fold.py): the globals-set EXTENSION
+        # of `_class_inv_refs_axiom_func`. Same nonlocal-scalar-`hit` walk, but an 8-stmt
+        # outer that also builds `globals_names` from `ir["module_globals"]`, a 3-disjunct
+        # leaf (axiom-fn membership + Var-name/object-name membership in globals_names), and a
+        # triple-loop seed. `axset` stays opaque-but-real; `gset` is REALLY built from
+        # `module_globals`. The lifted `_walk` is SUPPRESSED. Keyed on `id`; corpus-inert.
+        from module6_whyml.generic_fold import recognize_inductive_refs_pairs
+        _iroaf = recognize_inductive_refs_pairs(functions)
+        self._iroaf_outer_ids = _iroaf["outer_ids"]
+        self._iroaf_walk_ids = _iroaf["walk_ids"]
+        # `_build_method_*_ensures_map` cluster (generic_fold.py): the map-valued propagation
+        # maps whose nested `def result_only/classify/saw/refs_self_field_or_old` Module5
+        # hoists to `<class>__<nested>` siblings (the two `classify` defs collide on ONE name).
+        # The group-emit is self-contained, so every lifted sibling is SUPPRESSED. Keyed on
+        # `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_build_method_ensures_map_pairs
+        _bmem = recognize_build_method_ensures_map_pairs(functions)
+        self._bmem_outer_ids = _bmem["outer_ids"]
+        self._bmem_walk_ids = _bmem["walk_ids"]
+        # `_collect_struct_pack_assign_targets` (generic_fold.py boundary-A SET-COLLECT):
+        # the self-free `Set[str]` collector of `X = struct.pack(fmt, …)` assign targets —
+        # same OUTER+lifted-`_scan` adjacency pairing, ref-accumulator `map string bool`.
+        # The REAL `struct.pack` func + `target` are read off the pydict; only
+        # `parse_format(fmt)!=None` is opaque. The lifted `_scan` is SUPPRESSED. Keyed on
+        # `id`; corpus-inert (self-annotate-mirror-only; sole caller `_emit_body_code` is
+        # `\trusted`, so the returned set never crosses into a converted caller).
+        from module6_whyml.generic_fold import recognize_struct_pack_targets_pairs
+        _spat = recognize_struct_pack_targets_pairs(functions)
+        self._spat_outer_ids = _spat["outer_ids"]
+        self._spat_walk_ids = _spat["walk_ids"]
+        # `_collect_struct_unpack_array_targets` (generic_fold.py boundary-A SET-COLLECT):
+        # the TUPLE-UNPACK twin of the pack collector — same OUTER+lifted-`_scan` adjacency
+        # pairing, ref-accumulator `map string bool` with an index-threaded per-slot
+        # set-fold over the REAL `targets` spine (BOTH branches reflected; only the per-slot
+        # `array int` decision is opaque). The lifted `_scan` is SUPPRESSED. Keyed on `id`;
+        # corpus-inert (self-annotate-mirror-only; sole callers are `\trusted` stubs).
+        from module6_whyml.generic_fold import recognize_struct_unpack_targets_pairs
+        _suat = recognize_struct_unpack_targets_pairs(functions)
+        self._suat_outer_ids = _suat["outer_ids"]
+        self._suat_walk_ids = _suat["walk_ids"]
+        # `_contract_referenced_names` (generic_fold.py boundary-A SET-COLLECT): the
+        # `Set[str]` sibling of `_func_returns_string_seq` — same OUTER+lifted-`_walk`
+        # adjacency pairing, but the accumulator is a returned `map string bool` folded
+        # with `set_union` (the leaf set_adds the real `node["func"]` string). The lifted
+        # `_walk` is SUPPRESSED. Keyed on `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_contract_referenced_names_pairs
+        _crn = recognize_contract_referenced_names_pairs(functions)
+        self._crn_outer_ids = _crn["outer_ids"]
+        self._crn_walk_ids = _crn["walk_ids"]
+        # `_collect_field_decode_str_locals` (generic_fold.py Module5 lambda-lift
+        # capture-threading SET-COLLECT): the field-decode-idiom local collector — same
+        # OUTER+lifted-`rec` adjacency pairing + `set_union` skeleton as
+        # `_contract_referenced_names`, but the nested `def rec` captures a mutable `out`
+        # (re-expressed as the returned `map string bool`, NOT a by-ref effect) + the
+        # immutable `self` (idiom self-call modeled OPAQUE). The lifted `rec` keeps its own
+        # `\trusted` marker (bodyless `val`, unused) — the outer's group-emit is
+        # self-contained. Keyed on `id`; corpus-inert (name-gated; sole caller
+        # `_typed_local_vars` is `\trusted`).
+        from module6_whyml.generic_fold import recognize_field_decode_str_locals_pairs
+        _fdsl = recognize_field_decode_str_locals_pairs(functions)
+        self._fdsl_outer_ids = _fdsl["outer_ids"]
+        self._fdsl_walk_ids = _fdsl["walk_ids"]
+        # `_collect_str_decode_locals` (generic_fold.py Module5 lambda-lift
+        # capture-threading SET-COLLECT): the DECODE-CALL sibling of
+        # `_collect_field_decode_str_locals` — same OUTER+lifted-`rec` adjacency
+        # pairing + `set_union` skeleton, but the leaf gate is a SINGLE opaque
+        # self-call `self._is_decode_call(node.get("value"))` over the REAL value
+        # pyval (no 4-conjunct idiom, no post-`rec` symtab tail; outer body = 3
+        # statements). The lifted `rec` is SUPPRESSED. Keyed on `id`; corpus-inert
+        # (name-gated; sole caller `_detect_seq_promotion` is `\trusted`).
+        from module6_whyml.generic_fold import recognize_str_decode_locals_pairs
+        _sdl = recognize_str_decode_locals_pairs(functions)
+        self._sdl_outer_ids = _sdl["outer_ids"]
+        self._sdl_walk_ids = _sdl["walk_ids"]
+        # `_collect_critical_mutexes` (generic_fold.py Module5 lambda-lift capture-threading
+        # SET-COLLECT over `self.ir`): COMBINES the `_collect_str_decode_locals` `.values()`
+        # pyval catamorphism (leaf-gate every dict), the converted `_mutex_inv_params` self.ir
+        # opaque-pyval + REAL `pget_list` fold, and the opaque `sorted(set) : list string`
+        # library op (permutation dropped). The lifted `walk` is SUPPRESSED. Keyed on `id`;
+        # corpus-inert (name-gated; sole caller `_emit_shared_state` is `\trusted`).
+        from module6_whyml.generic_fold import recognize_critical_mutexes_pairs
+        _ccm = recognize_critical_mutexes_pairs(functions)
+        self._ccm_outer_ids = _ccm["outer_ids"]
+        self._ccm_walk_ids = _ccm["walk_ids"]
+        # `_collect_string_elem_read_locals` (generic_fold.py TWO-SEQUENTIAL-CATAMORPHISM
+        # SET-COLLECT): same OUTER+lifted-`rec` adjacency pairing, but the walk carries a
+        # CROSS-ACCUMULATOR dependency between two sets (`str_arrays` feeds `elem_reads`'s
+        # membership test). Lowered to two sequential total `set_union` folds over the SAME
+        # `map string bool` repr; the outer composes `= f2 body (f1 body)`. The lifted `rec`
+        # is SUPPRESSED. Keyed on `id`; corpus-inert (name-gated).
+        from module6_whyml.generic_fold import recognize_string_elem_read_locals_pairs
+        _serl = recognize_string_elem_read_locals_pairs(functions)
+        self._serl_outer_ids = _serl["outer_ids"]
+        self._serl_walk_ids = _serl["walk_ids"]
+        # `_collect_shared_symbol_decls` (generic_fold.py, Module6_WhyMLTranspiler.py):
+        # lambda-lifted `_symbol` string-tokenizer + `self._AXIOM_FUNCTIONS.values()`
+        # catamorphism. Same OUTER+lifted-sibling adjacency pairing; the FAITHFUL `_symbol`
+        # parser (REAL split + `pystr_eq` on the extracted literals) drives two set-UNION
+        # folds. The lifted `_symbol` is SUPPRESSED. Keyed on `id`; corpus-inert
+        # (name-gated; sole caller `_transpile_modular` is `\trusted`).
+        from module6_whyml.generic_fold import recognize_shared_symbol_decls_pairs
+        _cssd = recognize_shared_symbol_decls_pairs(functions)
+        self._cssd_outer_ids = _cssd["outer_ids"]
+        self._cssd_walk_ids = _cssd["walk_ids"]
+        # `_callee_raised_direct` (generic_fold.py raises-registry SET-COLLECT): the raises-
+        # registry sibling of `_contract_referenced_names` — same OUTER+lifted-`walk`
+        # adjacency pairing + `set_union` skeleton, but the Call leaf looks the real `func`
+        # up in the opaque-but-real self-source `_module_func_raises` registry val (`__mfr`,
+        # ensures-free) and unions each real clause dict's real `exc_type` string. The lifted
+        # `walk` is SUPPRESSED. Keyed on `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_callee_raised_direct_pairs
+        _crd = recognize_callee_raised_direct_pairs(functions)
+        self._crd_outer_ids = _crd["outer_ids"]
+        self._crd_walk_ids = _crd["walk_ids"]
+        # `_contract_referenced_var_names` (generic_fold.py boundary-A SET-COLLECT): the
+        # bare-variable-NAME sibling of `_contract_referenced_names` — same OUTER+lifted-
+        # `_walk` adjacency pairing + `set_union` skeleton, EXTENDED with a third folded
+        # contract list (`assigns`) and a two-arm leaf (`Var`->`node["name"]`; `Attribute`
+        # -> the nested `node["object"]`'s `["name"]`). The lifted `_walk` is SUPPRESSED.
+        # Keyed on `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import \
+            recognize_contract_referenced_var_names_pairs
+        _crvn = recognize_contract_referenced_var_names_pairs(functions)
+        self._crvn_outer_ids = _crvn["outer_ids"]
+        self._crvn_walk_ids = _crvn["walk_ids"]
+        # `_collect_map_typed_locals` (auto_trust.py, boundary-A SET-COLLECT): the
+        # map-typed-local pre-pass — same OUTER+lifted-`walk` adjacency pairing as
+        # `_collect_struct_pack_assign_targets`, but the leaf gate is `tgt and
+        # _rhs_yields_map(value)` and the accumulator is a returned `map string bool`.
+        # The lifted `walk` is SUPPRESSED. Keyed on `id`; corpus-inert (mirror-only).
+        from module6_whyml.generic_fold import recognize_collect_map_typed_locals_pairs
+        _cmtl = recognize_collect_map_typed_locals_pairs(functions)
+        self._cmtl_outer_ids = _cmtl["outer_ids"]
+        self._cmtl_walk_ids = _cmtl["walk_ids"]
+        # `_has_set_op_on_map` (auto_trust.py): the recursive bool-existence predicate
+        # over pyval — same OUTER+lifted-`yields_map` adjacency pairing; the flag-branches
+        # test the real `left`/`right`/`iter` node with real `map_locals` membership. The
+        # lifted `yields_map` is SUPPRESSED. Keyed on `id`; corpus-inert (mirror-only).
+        from module6_whyml.generic_fold import recognize_has_set_op_on_map_pairs
+        _hsom = recognize_has_set_op_on_map_pairs(functions)
+        self._hsom_outer_ids = _hsom["outer_ids"]
+        self._hsom_walk_ids = _hsom["walk_ids"]
+        # `_is_linear_expr` (auto_trust.py): the nested `def _check(e)` linear-arith
+        # classifier + its `return _check(expr)` staticmethod wrapper — OUTER+lifted-`_check`
+        # adjacency pairing. The wrapper emits ONE recursive bool catamorphism over pyval
+        # (every discriminant reflected from the real body); the lifted `_check` is
+        # SUPPRESSED. Keyed on `id`; corpus-inert (self-annotate-mirror-only).
+        from module6_whyml.generic_fold import recognize_is_linear_expr_pairs
+        _ile = recognize_is_linear_expr_pairs(functions)
+        self._ile_outer_ids = _ile["outer_ids"]
+        self._ile_walk_ids = _ile["walk_ids"]
+        # `_extract_array_lengths` (auto_trust.py): OUTER for-loop over `invs` paired with
+        # its two lifted closures `_field_of`/`_int_of` (i+1, i+2). Builds
+        # `map string (option int)` via a pinned `__setdefault` + faithful readers. The
+        # lifted closures are SUPPRESSED. Keyed on `id`; corpus-inert (mirror-only).
+        from module6_whyml.generic_fold import recognize_extract_array_lengths_pairs
+        _eal = recognize_extract_array_lengths_pairs(functions)
+        self._eal_outer_ids = _eal["outer_ids"]
+        self._eal_walk_ids = _eal["walk_ids"]
+        # MULTI-GUARD CASCADE `_check_*` caller (check-diverges-noreturn-impl.md):
+        # the set of single-arg closure-existence-converted `list pyval -> bool`
+        # predicate NAMES (`_body_has_diverging_construct`). A cascade guard that
+        # calls one of these on the body list is emitted as a real predicate call;
+        # a guard referencing an unconverted / differently-typed predicate keeps
+        # the caller `\trusted` (fail-closed). Single-arg only (no extra params).
+        self._clx_pred_names = {
+            d["name"] for d in self._clx_outer_ids.values()
+            if not d.get("extra_params")}
+        # LEMMA-SOUNDNESS `_check_lemma` caller (lemma-soundness-impl.md): the set
+        # of converted string-search predicate NAMES (`_lemma_calls_trusted`,
+        # `list pyval -> map string bool -> string`). `_check_lemma` threads its
+        # `trusted_funcs` set PARAM into one of these; a call to an unconverted /
+        # differently-typed predicate keeps the caller `\trusted` (fail-closed).
+        self._lss_pred_names = {
+            d["name"] for d in self._lss_outer_ids.values()}
+        # CHECK-SUBSCRIPT-ASSIGNMENTS caller (driver target #2): a body-only
+        # caller running TWO `_sa_walk`-family walks with an annotation gate. It
+        # is a forward reference to BOTH walkers, so it is DEFERRED until both
+        # walker groups are emitted (tracked in `_emitted_walker_names`).
+        from module6_whyml.generic_fold import (
+            recognize_check_subscript_assignments, recognize_check_contract_scope)
+        self._csa_funcs = [
+            (f, recognize_check_subscript_assignments(f)) for f in functions
+            if recognize_check_subscript_assignments(f) is not None]
+        self._csa_names = {f.get("name") for f, _ in self._csa_funcs}
+        self._csa_emitted = set()
+        self._emitted_walker_names = set()
+        # CHECK-CONTRACT-SCOPE caller (driver target #3): the per-key
+        # `allow_result` scope check — a forward reference to `_cs_clause`/
+        # `_cs_body`, DEFERRED to just after the `_cs_clause` group + cs-trio
+        # (same append plumbing as `_check_contract_exprs` after the pb-trio).
+        self._ccs_funcs = [
+            (f, recognize_check_contract_scope(f)) for f in functions
+            if recognize_check_contract_scope(f) is not None]
+        self._ccs_names = {f.get("name") for f, _ in self._ccs_funcs}
+        self._ccs_emitted = False
+        self._term_adt_spec = compute_term_adt_spec(
+            functions, self.ir.get("type_decls", []))
+        # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)
+        # transforms need the str->str module constants (op-swap maps) + the
+        # abstract `val pystr_eq` string guard. Stash both; a transform sets
+        # needs_term exactly like a bool fold.
+        self._term_const_dicts = self.ir.get("module_const_dicts") or {}
+        # class-variant-impl.md T-string: the term->string BUILD catamorphism
+        # (`_pp`) needs the str->int module const dicts (`_BINOP_PREC` precedence
+        # table) + the module int constants (`_PREC_*`) + `val pystr_eq`.
+        self._term_const_int_dicts = self.ir.get("module_const_int_dicts") or {}
+        _mc = self.ir.get("module_constants") or {}
+        _term_transforms = [
+            recognize_term_isinstance_transform(
+                f, self._term_adt_spec, self._term_const_dicts)
+            for f in functions] if self._term_adt_spec else []
+        _term_pps = [
+            recognize_term_string_pp(
+                f, self._term_adt_spec, _mc, self._term_const_int_dicts)
+            for f in functions] if self._term_adt_spec else []
+        self._term_pp_names = {
+            f["name"] for f, d in zip(functions, _term_pps) if d is not None}
+        self._term_pp_mc = _mc
+        needs_term_streq = any(
+            d is not None and d.get("uses_streq") for d in _term_transforms) \
+            or any(d is not None and (d.get("uses_streq") or d.get("binop_dicts"))
+                   for d in _term_pps)
+        # T-string: the pp catamorphism BUILDS a string -> it needs `str_concat_op`
+        # (string concat) + `str_of_int` (IntLit `str()`). Gate their declaration
+        # in the term theory (emit_why3.py's other functions don't pull them).
+        needs_term_strbuild = any(d is not None for d in _term_pps)
+        # class-variant-impl.md §OUTCOME-TS RESIDUAL: the RECORD⇄VARIANT BRIDGE
+        # for the 5 ir.py per-class `.pp` METHODS. The family is recognized as a
+        # WHOLE (every ctor's pp body parses into a string-build arm), synthesizing
+        # a unified `pp_term : term -> string`. Sets needs_term (same certified
+        # inductive) + the ctor-class set the record-field-type override consults.
+        # `pp_term` uses the leaf pp methods' existing abstract `val`s
+        # (str_concat_op/str_of_int) which sit after `type term` -> no strbuild flag.
+        self._term_pp_family = recognize_term_pp_methods(
+            functions, self._term_adt_spec)
+        self._term_pp_method_classes = (
+            set(self._term_pp_family["classes"]) if self._term_pp_family else set())
+        # the record-field-type override applies ONLY to classes whose pp method is
+        # CONVERTED (delegates) in THIS file -> a file that imports the pp methods as
+        # `\trusted` vals keeps its records byte-identical.
+        self._term_pp_convert_classes = (
+            set(self._term_pp_family["convert_classes"])
+            if self._term_pp_family else set())
+        # `pp_term` is emitted ONCE (before the first per-class delegation); the
+        # flag resets here per file.
+        self._pp_term_emitted = False
+        # class-variant-impl.md §OUTCOME-TL: the T-set/list LEAF algebras
+        # (`mk_arrow_chain` list-fold builder, `flatten_arrow_chain` while-spine
+        # tuple return) also set needs_term — same certified `term` inductive.
+        needs_term = bool(self._term_adt_spec) and (any(
+            recognize_term_isinstance_fold(f, self._term_adt_spec) is not None
+            for f in functions) or any(d is not None for d in _term_transforms)
+            or any(recognize_term_list_build(f, self._term_adt_spec) is not None
+                   for f in functions)
+            or any(recognize_term_flatten_arrow(f, self._term_adt_spec) is not None
+                   for f in functions)
+            or any(recognize_term_free_vars(f, self._term_adt_spec) is not None
+                   for f in functions)
+            or any(d is not None for d in _term_pps)
+            or self._term_pp_family is not None)
+        # §OUTCOME-TL: the `free_vars` set-fold needs `use bool.Bool` (orb/andb/notb
+        # in `set_union`/`set_diff`). Gate it narrowly so needs_term files WITHOUT a
+        # set-fold (emit_why3.py, canonical.py) stay byte-identical.
+        _term_setfolds = [recognize_term_free_vars(f, self._term_adt_spec)
+                          for f in functions] if self._term_adt_spec else []
+        needs_term_setfold = any(
+            d is not None and (d.get("uses_union") or d.get("uses_diff"))
+            for d in _term_setfolds)
+        if not needs_term:
+            self._term_adt_spec = None
+            self._term_const_dicts = {}
+            self._term_const_int_dicts = {}
+            self._term_pp_names = set()
+            self._term_pp_family = None
+            self._term_pp_method_classes = set()
+            self._term_pp_convert_classes = set()
+            needs_term_streq = False
+            needs_term_setfold = False
+            needs_term_strbuild = False
+        self._needs_term_streq = needs_term_streq
+        self._needs_term_strbuild = needs_term_strbuild
+        # A frozen-dataclass term ctor with a `tuple` field emits an `array int`
+        # RECORD field (`type app = { args: array int }`), which requires
+        # `use array.Array`. Pull it when the term carrier is active and any ctor
+        # dataclass has a tuple field. Gated on needs_term -> corpus (no term ADT)
+        # byte-identical; the term mirrors already pull Array via other conditions.
+        if needs_term and self._term_adt_spec:
+            _ctors = set(self._term_adt_spec.get("ctors", {}))
+            for _td in self.ir.get("type_decls", []):
+                if _td.get("name") in _ctors and any(
+                        f.get("type") == "tuple" for f in _td.get("fields", [])):
+                    needs_array = True
+                    break
+        # crosscheck_ir.py self-state carrier (class-variant-impl.md §OUTCOME-CC):
+        # a record field of value_type "opaque_term" (Module5 allow-list) gates
+        # the self-state boolean recognizer + `val pystr_eq`. Corpus/other-mirror
+        # never carry this value_type -> byte-inert everywhere else.
+        from module6_whyml.generic_fold import (
+            recognize_crosscheck_selfstate_bool, _uses_str_empty,
+            recognize_crosscheck_term_method)
+        self._has_opaque_term_fields = any(
+            f.get("value_type") == "opaque_term"
+            for td in self.ir.get("type_decls", [])
+            if td.get("kind") == "record"
+            for f in td.get("fields", []))
+        # driver-backlog "string-field twin": gate for the STRING-FIELD
+        # crosscheck `all_agree` recognizer. TIGHT record-shape predicate (the
+        # `_has_opaque_term_fields` analog): a record whose EVERY field is a
+        # `str` (>= 3 fields). `CrossCheckResult` (7 str fields) qualifies;
+        # `IRCrossCheckResult` (Optional[Term] canon fields) does NOT, and no
+        # corpus program carries an all-string record + this exact 4-stmt
+        # `norms/present/all` idiom -> byte-inert everywhere but crosscheck.py.
+        from module6_whyml.generic_fold import recognize_crosscheck_str_agree
+        self._has_crosscheck_str_record = any(
+            td.get("kind") == "record"
+            and len(td.get("fields", [])) >= 3
+            and all(f.get("type") in ("str", "string")
+                    for f in td.get("fields", []))
+            for td in self.ir.get("type_decls", []))
+        needs_crosscheck_str_agree = bool(
+            self._has_crosscheck_str_record and any(
+                recognize_crosscheck_str_agree(f) is not None
+                for f in functions))
+        self._needs_crosscheck_str_agree = needs_crosscheck_str_agree
+        needs_selfstate_streq = self._has_opaque_term_fields and any(
+            recognize_crosscheck_selfstate_bool(f) is not None
+            and _uses_str_empty(recognize_crosscheck_selfstate_bool(f)["expr"])
+            for f in functions)
+        # class-variant-impl.md §F4: a CONVERTED term-structural crosscheck
+        # method that compares terms (`provers_agree`/`all_agree`, `==` on Term)
+        # needs the DEFINED structural `term_eq`/`term_list_eq`/`strlist_eq`
+        # emitted in the `term` theory. Gated on the recognizer matching (a still-
+        # `\trusted` stub body `return False` never matches) AND the term spec
+        # being present -> term_eq emits ONLY once an eq-method is converted;
+        # corpus/other-mirror byte-inert (no opaque_term fields there).
+        needs_term_eq = bool(
+            self._has_opaque_term_fields and self._term_adt_spec and any(
+                (recognize_crosscheck_term_method(f) or {}).get("uses_term_eq")
+                for f in functions))
+        self._needs_term_eq = needs_term_eq
         return {
+            "needs_pydict": needs_pydict,
+            "needs_term": needs_term,
+            "needs_term_streq": needs_term_streq,
+            "needs_term_setfold": needs_term_setfold,
+            "needs_term_strbuild": needs_term_strbuild,
+            "needs_selfstate_streq": needs_selfstate_streq,
+            "needs_crosscheck_str_agree": needs_crosscheck_str_agree,
+            "needs_term_eq": needs_term_eq,
+            "needs_sdict": needs_sdict,
+            "needs_pdict_bridge": needs_pdict_bridge,
+            "needs_pput": needs_pput,
+            "needs_void_dispatch": needs_void_dispatch,
             "needs_array": needs_array,
             "needs_matrix": needs_matrix,
             "needs_minmax": needs_minmax,
@@ -1976,10 +3177,15 @@ class PreambleEmissionMixin:
             "needs_return_exc": needs_return_exc,
             "needs_return_seq": needs_return_seq,
             "needs_return_seq_str": needs_return_seq_str,
+            "needs_return_seq_ir": needs_return_seq_ir,
             "needs_return_str": needs_return_str,
+            "needs_return_emit_ir": needs_return_emit_ir,
             "needs_return_void": needs_return_void,
             "needs_body_dict": needs_body_dict,
             "tuple_return_arities": tuple_return_arities,
+            "opt_tuple_return_types": opt_tuple_return_types,
+            "pyconst_val_tuple_return_types": pyconst_val_tuple_return_types,
+            "union_return_types": union_return_types,
             "needs_string": needs_string,
             "needs_char": needs_char,
             "needs_real": needs_real,
@@ -1987,6 +3193,7 @@ class PreambleEmissionMixin:
             "needs_seq": needs_seq,
             "needs_map_ghost": needs_map_ghost,
             "needs_ghost_dict": needs_ghost_dict,
+            "needs_option_record": needs_option_record,
             "needs_list_ghost": needs_list_ghost,
             "needs_sum": needs_sum,
             "needs_set_card": needs_set_card,
@@ -1994,6 +3201,11 @@ class PreambleEmissionMixin:
             "needs_no_exception": needs_no_exception,
             "bounded_sizes": bounded_sizes,
             "user_exceptions": user_exceptions,
+            # compound-key const-map lowering: a tuple-keyed const dict needs
+            # `map.Map` + `option.Option` + `list.List` in scope for its opaque
+            # `val constant` and the defaulting `Map.get`/`Nil` at the getter site.
+            "needs_compound_const_map": bool(
+                self.ir.get("module_const_compound_dicts")),
         }
 
     def _emit_preamble_uses(self, needs: Dict[str, Any],
@@ -2032,6 +3244,17 @@ class PreambleEmissionMixin:
             out.append("  use real.FromInt")
         if needs.get("needs_seq"):
             out.append("  use seq.Seq")  # no-more-int-7 §B′ — immutable list-snapshot value model
+        if self._uses_pyconst_val():
+            # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the
+            # `_py_expr_constant` complex branch truncates the real part of a PVComplex
+            # `.value` — `int(expr.value.real)` -> `(real_trunc (pvreal_of expr.value))`,
+            # where `real_trunc`'s spec is pinned to `truncate : real -> int` (`real.Truncate`).
+            # GATED TIGHTLY on a Constant/`pyconst_val` field actually being present (only the
+            # Module5 mirror harvests one) — NOT on the broad emit_ir-theory condition — so the
+            # real-arithmetic axioms of `real.Truncate` are NOT injected into the SMT context of
+            # every other full-theory mirror (that bloats their vacuity/proof search). A corpus
+            # file (no pyconst_val field) never sees this use -> byte-identical.
+            out.append("  use real.Truncate")
         if self._value_semantic:
             if needs["needs_matrix"]:
                 out.append("  use matrix.Matrix")
@@ -2048,11 +3271,15 @@ class PreambleEmissionMixin:
             if needs["needs_map_ghost"] or needs.get("needs_body_dict") or _record_has_map:
                 out.append("  use map.Map")
                 out.append("  use map.Const")
-            if needs["needs_ghost_dict"] or needs.get("needs_body_dict") or _record_has_map:
+            if (needs["needs_ghost_dict"] or needs.get("needs_body_dict")
+                    or _record_has_map or needs.get("needs_option_record")
+                    or getattr(self, "_has_opaque_term_fields", False)):
                 # Body-level Python dicts are modelled as
                 # `ref (map int (option int))` (parallel to ghost dicts);
                 # `None` marks absent keys. self-field-dict-reflection (§12): a record
-                # `map …` field also needs `option`.
+                # `map …` field also needs `option`. option-of-record projection
+                # (boundary-1 G1 extension): an `Optional[<record>]` param is
+                # `option <record>` → needs `option.Option` too.
                 out.append("  use option.Option")
             # `array.Array` MUST be imported AFTER `map.Map` — both
             # provide a `([])` operator, and when both are in scope the
@@ -2069,6 +3296,14 @@ class PreambleEmissionMixin:
                 out.append("  use list.NthNoOpt")
                 out.append("  use list.Mem")
                 out.append("  use list.Append")
+            elif needs.get("needs_void_dispatch"):
+                # G-void-dispatch-thin needs ONLY the bare `list.List` Cons/Nil
+                # ADT (structural `variant { stmts }` recursion) — Length/
+                # NthNoOpt/Mem/Append are unused axiom baggage that measurably
+                # perturbed an unrelated pre-existing lemma's solver timing in
+                # this file (`wf_ir_binds`, `_emit_pydict_theory`) when
+                # included; omitting them restored it to Valid.
+                out.append("  use list.List")
         else:
             out.append("  use map.Map")
             if needs["needs_list_ghost"]:
@@ -2077,6 +3312,8 @@ class PreambleEmissionMixin:
                 out.append("  use list.NthNoOpt")
                 out.append("  use list.Mem")
                 out.append("  use list.Append")
+            elif needs.get("needs_void_dispatch"):
+                out.append("  use list.List")
             if needs["needs_minmax"]:
                 out.append("  use int.MinMax")
             out.append("")
@@ -2091,6 +3328,51 @@ class PreambleEmissionMixin:
             out.append(f"  predicate separated (a: loc) (na: int) (b: loc) (nb: int) =")
             out.append(f"    a + na <= b \\/ b + nb <= a")
             out.append("")
+        if needs.get("needs_compound_const_map"):
+            # compound-key const-map lowering: ensure map.Map / option.Option /
+            # list.List are in scope for the opaque `val constant` map and the
+            # defaulting `Map.get … Nil` getter. Guarded appends keep the file
+            # byte-identical for the corpus (the flag is never set there).
+            for _u in ("  use map.Map", "  use option.Option", "  use list.List"):
+                if _u not in out:
+                    out.append(_u)
+        if needs.get("needs_pydict"):
+            # WALL-PLAN v2: the concrete-map pyval/pydict/doc theory
+            # (`_emit_pydict_theory`) needs list/option/string; the A-unit
+            # accumulator model (`set_add`/`ref (map string bool)`) needs map.Map +
+            # map.Const. Emit any not already `use`d above. Gated + never set by the
+            # reference corpus → byte-diff-0.
+            for _u in ("  use list.List", "  use option.Option", "  use string.String",
+                       "  use map.Map", "  use map.Const", "  use bool.Bool"):
+                if _u not in out:
+                    out.append(_u)
+        if needs.get("needs_term"):
+            # class-variant-impl.md: the `term` variant's constructors carry
+            # `string` (Var/App/...), `list term` (App.args), `list string`
+            # (Forall.binders) — need string.String + list.List in scope. Idempotent
+            # guarded appends; a corpus file never sets `needs_term` -> byte-identical.
+            for _u in ("  use string.String", "  use list.List"):
+                if _u not in out:
+                    out.append(_u)
+        if needs.get("needs_term_setfold"):
+            # §OUTCOME-TL: the `free_vars` set-of-strings result algebra
+            # (`map string bool`) needs map.Map (get/set) + bool.Bool (orb/andb/notb
+            # in the pointwise union/diff). Gated on a set-fold present -> needs_term
+            # files WITHOUT one stay byte-identical.
+            for _u in ("  use map.Map", "  use bool.Bool"):
+                if _u not in out:
+                    out.append(_u)
+        if self._uses_pyval():
+            # hval-value-model-wall (self-tcb-reduction, heterogeneous value model):
+            # the `hval` sum + the `map string (option hval)` heterogeneous dict need
+            # map.Map/map.Const (the empty base + Map.set/Map.get) and option.Option
+            # (the `option hval` codomain) and string.String (the HStr carrier + the
+            # native string keys). Idempotent guarded appends — a corpus file never sets
+            # `_uses_pyval` (no `Dict[str, PyVal]` annotation) → byte-identical there.
+            for _u in ("  use map.Map", "  use map.Const", "  use option.Option",
+                       "  use string.String"):
+                if _u not in out:
+                    out.append(_u)
         return out
 
     def _emit_preamble_exceptions(self, needs: Dict[str, Any]) -> List[str]:
@@ -2116,6 +3398,11 @@ class PreambleEmissionMixin:
             # exception (the catch materializes the `seq string` to `array string`).
             out.append("")
             out.append("  exception Return_seq_str (Seq.seq string)")
+        # NOTE: `Return_seq_ir (Seq.seq emit_ir)` is NOT declared here. `emit_ir` is not
+        # in scope until the ADT theory further down, so — like the emit_ir-slot
+        # opttuple exceptions and `Return_emit_ir` itself — it is DEFERRED and appended to
+        # the exprir theory by the transpiler. Declaring it in this top-of-module block
+        # emits `unbound type symbol 'emit_ir'` (measured).
         if needs.get("needs_return_str"):
             # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
             # return carries an immutable `string` payload (parallel to Return_seq).
@@ -2131,6 +3418,36 @@ class PreambleEmissionMixin:
             parts = ", ".join(["int"] * arity)
             out.append("")
             out.append(f"  exception Return_{arity} ({parts})")
+        for ot in sorted(needs.get("opt_tuple_return_types", set())):
+            # Optional-tuple return: carry `Some (τ...)` / `None` through a dedicated
+            # exception whose payload is the built-in `option (τ...)`. `ot` is the
+            # refined `(τ...)` tuple type (from `_compute_return_type`); named by arity
+            # to match the `raise (Return_opttuple_<arity> ...)` / catch sites.
+            # self-tcb-reduction Layer-2: an opttuple whose slot type references `emit_ir`
+            # (a receiver/slice recognizer returning `Optional[Tuple[ExprIR, ...]]`) CANNOT
+            # be declared here — `emit_ir` is not in scope until the ADT theory below. Those
+            # are deferred and appended to `_exprir_theory` (see the transpiler, the
+            # `Return_emit_ir` precedent). Skip them here so the top-of-module block stays in
+            # scope. Byte-inert: no existing opttuple return has an emit_ir slot.
+            if "emit_ir" in ot:
+                continue
+            # self-tcb-reduction Tier-5 (union/match cluster C1b): likewise an opttuple whose
+            # slot references `hval` (the union readers' `Optional[Tuple[str, PyVal]]`) CANNOT
+            # be declared here — `hval` is not in scope until `_emit_pyval_theory` below. Those
+            # are deferred and emitted right after the pyval theory (see the transpiler).
+            # Byte-inert: no existing opttuple return has an hval slot.
+            if "hval" in ot:
+                continue
+            # Name the exception by its PAYLOAD TYPE, not just arity: two same-arity
+            # opttuples with distinct element types (e.g. `(int,int,int)` vs
+            # `(emit_ir,emit_ir,int)`) would collide on `Return_opttuple_<arity>`.
+            suffix = ot.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+            out.append("")
+            out.append(f"  exception Return_opttuple_{suffix} (option {ot})")
+        # NOTE (value-model incr5, primitive c): the `Return_<variant>` exceptions are NOT
+        # declared here — they reference synthesized `_union_*` types that are emitted LATER by
+        # `_emit_type_decls`, so they are emitted just AFTER it (see `_emit_union_return_exceptions`,
+        # called from the transpiler right after `out += type_lines`).
         # Sanitize each user-exception name; collapse Python local-alias
         # imports (`from X import Y as _Y`) by deduping via set after
         # leading-underscore strip. See `safe_exc_name` in identifiers.py.
@@ -2139,9 +3456,55 @@ class PreambleEmissionMixin:
             out.append(f"  exception {exc}")
         return out
 
+    def _emit_union_return_exceptions(self, needs: Dict[str, Any],
+                                      declared_types: Optional[Set[str]] = None) -> List[str]:
+        """value-model campaign incr5 (primitive c): emit the `Return_<variant>` exceptions for
+        synthesized-union (`Optional[X]`) return types that early-return. Emitted AFTER
+        `_emit_type_decls` (the `_union_*` types must be in scope), so it is called from the
+        transpiler right after the type declarations — NOT in `_emit_preamble_exceptions`. The
+        name `Return_<type>` is kept identical in `_wrap_body_with_return_catch` (catch) and
+        `_handle_return_stmt` (raise). Empty for a module with no early-returning union walker
+        → byte-identical.
+
+        A `union_return_types` entry names a synthesized `_union_*` type that MUST be in scope
+        (declared by `_emit_type_decls`). When an IMPORTED trusted-stub function has an
+        `Optional[X]` return annotation AND an early/in-loop return in its body, the scan
+        (`preamble._collect_needs`) records its `_union_*` return type — but that type's
+        `type_decl` was synthesized in the SOURCE module's IR and is NOT merged into the
+        emitting module's `type_decls`, so it is never declared here. The stub itself emits as
+        an abstract `val` with NO body, so no `raise Return_<ut>` / catch references the
+        exception; emitting `exception Return_<ut> <ut>` for such an undeclared `ut` dangles an
+        unbound type symbol and fails L3-tc for the WHOLE file. Skip any `ut` not in
+        `declared_types` (the set `_emit_type_decls` actually declared). BYTE-INERT: a file that
+        currently PASSES L3-tc cannot contain an undeclared `ut` in `union_return_types` (it
+        would already fail on the unbound symbol), so no passing corpus emission changes; a
+        genuinely body-verified local union walker has its `_union_*` type declared, so its
+        `Return_<ut>` is still emitted unchanged."""
+        out: List[str] = []
+        for ut in sorted(needs.get("union_return_types", set())):
+            if declared_types is not None and ut not in declared_types:
+                continue
+            out.append("")
+            out.append(f"  exception Return_{ut} {ut}")
+        return out
+
     def _emit_preamble_helpers(self, needs: Dict[str, Any]) -> List[str]:
         """Phase C: emit helper lemmas, pycsl_sum, pycsl_div, pycsl_mod function bodies."""
         out: List[str] = []
+        # crosscheck_ir.py self-state carrier (class-variant-impl.md §OUTCOME-CC):
+        # the string-empty test `not self.<strfield>` lowers to the abstract
+        # `val pystr_eq` (result no VC constrains -> NOT an axiom, ledger 3; the
+        # term-carrier precedent). Gated on the self-state recognizer; never
+        # double-declared (pydict/term declare their own, and this file has
+        # neither). Corpus/other-mirror byte-inert (needs_selfstate_streq False).
+        if ((needs.get("needs_selfstate_streq")
+                or needs.get("needs_crosscheck_str_agree"))
+                and not needs.get("needs_pydict")
+                and not needs.get("needs_term_streq")):
+            out.append("")
+            out.append("  (* crosscheck self-state string-empty guard"
+                       " (result VC-free; ledger 3) *)")
+            out.append("  val pystr_eq (a b: string) : bool")
         if needs.get("needs_list_ghost"):
             # axiom mem_head: base case of mem — makes \mem(x, \cons(x, l)) proofs tractable
             # without recursive unfolding. This is the head-match case of mem's definition,
@@ -2516,6 +3879,16 @@ class PreambleEmissionMixin:
             if qn in already_axioms:
                 continue
             if qn not in self._AXIOM_REGISTRY:
+                # (#45) `PyCSLIRError` IS NOT IMPORTED IN THIS MODULE. The refusal
+                # below has been raising `NameError: name 'PyCSLIRError' is not
+                # defined` — an INTERNAL CRASH on a refusal path, reported as
+                # `[!] UNEXPECTED PIPELINE ERROR` instead of the message it was
+                # written to give. This is the SECOND instance of that shape this
+                # window: `pycsl-reference/0540`, the item the window opened on, was
+                # the first. Fail-closed either way (exit 1), but a crash is only
+                # fail-closed while nothing catches it, and it tells the user
+                # nothing.
+                from errors import PyCSLIRError
                 raise PyCSLIRError(
                     f"#@ proof {qn}: not in Module6 axiom registry. "
                     f"Either add the axiom body to _AXIOM_REGISTRY or run "
@@ -2547,12 +3920,540 @@ class PreambleEmissionMixin:
             out.append(f"  {line}")
         return out
 
+    def _term_pp_field_override(self, cls: Optional[str],
+                                field: Optional[str]) -> Optional[str]:
+        """class-variant-impl.md §OUTCOME-TS RESIDUAL (record⇄variant bridge, part a):
+        for a term-ctor dataclass whose `.pp` family is recognized, override a
+        RECURSIVE field's record type to the VARIANT field type (`term` / `list
+        term` / `list string`) so the record→variant injection `pp_term (<Ctor>
+        self.<f>...)` typechecks. Only the recursive/variant fields are overridden
+        (scalar `string`/`int`/`bool` fields keep the emitter's default computation,
+        so `boollit_value: int` etc stay byte-identical). Returns the WhyML type or
+        None (no override). Gated on the pp family present (only ir.py) -> corpus +
+        every other term mirror byte-identical."""
+        classes = getattr(self, "_term_pp_convert_classes", None)
+        spec = getattr(self, "_term_adt_spec", None)
+        if not classes or not spec or cls not in classes:
+            return None
+        wt = dict(spec.get("ctors", {}).get(cls, [])).get(field)
+        if wt in ("term", "list term", "list string"):
+            return wt
+        return None
+
+    def _emit_term_theory(self, needs: Dict[str, Any]) -> List[str]:
+        """class-variant-impl.md (driver-backlog item 3): emit the `term` VARIANT
+        ADT (the proof2why3 `Term` union: Var|IntLit|BoolLit|App|BinOp|UnaryOp|
+        Forall|Exists|Unsupported) — the class-instance-variant carrier for
+        isinstance-dispatch + named-field reads. A `\trusted` walker
+        (`contains_unsupported`) lowers onto a total positional `match` over this
+        variant. The type is a plain inductive: constructors are DISTINCT +
+        INJECTIVE (Why3 intrinsic), recursion (`App string (list term)`,
+        `BinOp string term term`, ...) is structurally WELL-FOUNDED — co-landed
+        AXIOM-FREE with the Rocq `Phase2i_TermIR.v` / Lean `TermIR.lean`
+        certificate (ledger stays 3). Gated on `needs_term` -> the reference
+        corpus (which never imports the proof2why3 Term ADT into a term-fold) and
+        every other mirror emit byte-identical."""
+        spec = getattr(self, "_term_adt_spec", None)
+        if not needs.get("needs_term") or not spec:
+            return []
+        ctors = spec["ctors"]
+        order = spec["order"]
+        lines = [
+            "  (* ==== class-variant-impl.md: the proof2why3 `Term` union as a Why3"
+            " VARIANT (isinstance-dispatch + named-field carrier). Co-landed"
+            " axiom-free with the Rocq/Lean TermIR certificate; ledger 3. Gated on"
+            " `needs_term` -> corpus + every other mirror byte-identical. ==== *)",
+            "  type term =",
+        ]
+        for c in order:
+            tys = "".join(
+                (" (" + wt + ")") if " " in wt else (" " + wt)
+                for (_fn, wt) in ctors[c])
+            lines.append(f"    | {c}{tys}")
+        lines.append("")
+        # TERM CARRIER (L13 cursor-nest): the term-typed EARLY-RETURN channel. A
+        # `-> Term` method of the emitter model with an early/in-loop return cannot
+        # carry its value through the generic `exception Return int` (measured:
+        # `has type PyCSL_Program.term, but is expected to have type int`). Declared
+        # HERE, immediately after `type term` itself, rather than in the top-of-module
+        # needs-scan — the scan runs BEFORE `_term_adt_spec` is computed, so a gate
+        # there would read an unset attribute, which is a hard pipeline error.
+        # DEMAND-GATED, and the gate is load-bearing rather than cosmetic: declaring it
+        # unconditionally alongside `type term` was MEASURED to break corpus
+        # byte-inertness — 14 of 813 corpus programs (the `09xx` term-carrier family)
+        # gained exactly these two lines. Emitting it only when some function actually
+        # needs it restores byte-diff 0 while keeping the exception adjacent to the type
+        # it mentions, so it can never outlive its payload type.
+        # NOTE the key normalization: `_mutable_state_classes` holds the WhyML class
+        # identifier (lowercased, e.g. `_parser`) while a function record's `self_type`
+        # carries the PYTHON class name (`_Parser`). Comparing them raw silently matches
+        # NOTHING — measured as `unbound exception symbol 'Return_term'`, i.e. the gate
+        # suppressed a declaration the body still raised. Fail-LOUD, which is why the
+        # mistake surfaced at L3-tc instead of becoming a silent facade.
+        _ms_cls = getattr(self, "_mutable_state_classes", set())
+        if any(f.get("return_annotation") == "Term"
+               and ((f.get("self_type") or "").lower() in _ms_cls
+                    # TERM CARRIER, MODULE-LEVEL (relaunch #17): a MODULE-LEVEL
+                    # `-> Term` function has no `self_type` at all, so the
+                    # class-membership gate excluded it and its early return raised an
+                    # UNDECLARED `Return_term`.
+                    or not f.get("self_type"))
+               and (IRScanner.has_in_loop_return(f.get("body", []))
+                    or IRScanner.has_early_return(f.get("body", [])))
+               for f in self.ir.get("functions", [])):
+            lines.append("  exception Return_term term")
+            lines.append("")
+        # class-variant-impl.md T-transform: a Term->Term const-map guard
+        # (`if t.op in _MAP`) lowers to `pystr_eq` on the string field. It is an
+        # abstract `val` whose result no VC constrains (contract is `ensures
+        # True`) — NOT an axiom (ledger stays 3). Emit it here only when a
+        # transform needs it AND the pydict theory (which also declares it) is
+        # not present, so it is never declared twice.
+        if ((getattr(self, "_needs_term_streq", False)
+                or needs.get("needs_term_eq"))
+                and not needs.get("needs_pydict")
+                and not needs.get("needs_selfstate_streq")):
+            # `needs_selfstate_streq` (the registry_skipped string-empty path)
+            # already declares `val pystr_eq` via the preamble helpers — never
+            # double-declare it here (term_eq reuses that one).
+            lines.append("  (* T-transform const-map string guard (result VC-free; ledger 3) *)")
+            lines.append("  val pystr_eq (a b: string) : bool")
+            lines.append("")
+        # class-variant-impl.md §F4: the DEFINED structural equality over the
+        # certified `term` inductive — `a == b` on Term (crosscheck_ir
+        # `provers_agree`/`all_agree`) lowers to `term_eq`. TOTAL, mutually
+        # recursive with `term_list_eq` (App.args : list term) and `strlist_eq`
+        # (Forall/Exists.binders : list string), structural `variant` (Why3-
+        # intrinsic termination over the same Phase2i-certified inductive — NO
+        # new certificate, NO axiom; `pystr_eq` is a VC-free `val`). Emitted
+        # generically from the term spec so a field-type change flows.
+        # T-string (`_pp`): the string-BUILD catamorphism needs string concat +
+        # int->string. Abstract `val`s (str_concat_op is spec'd by `concat`; ledger
+        # 3 — no axiom). Gated on the pp recognizer so non-pp term files stay
+        # byte-identical.
+        if getattr(self, "_needs_term_strbuild", False):
+            lines.append("  (* T-string (`_pp`) string-build ops (ledger 3) *)")
+            lines.append("  val str_concat_op (a: string) (b: string) : string")
+            lines.append("    ensures { result = (concat a b) }")
+            lines.append("    ensures { String.length result"
+                         " = String.length a + String.length b }")
+            lines.append("  val str_of_int (x: int) : string")
+            lines.append("")
+        if needs.get("needs_term_eq"):
+            lines += self._emit_term_eq_defs(ctors, order)
+        return lines
+
+    def _emit_term_eq_defs(self, ctors: Dict[str, Any],
+                           order: List[str]) -> List[str]:
+        """Generate `term_eq`/`term_list_eq`/`strlist_eq` from the term spec
+        (class-variant-impl.md §F4). Per-ctor arm ANDs the field-wise equality
+        chosen by each field's WhyML type (string -> pystr_eq, int -> `=`,
+        bool -> iff, term -> term_eq, list term -> term_list_eq, list string ->
+        strlist_eq). Faithful (a field-type change flows); axiom-free (the
+        Phase2i cert already certifies the inductive is well-formed / distinct /
+        injective — the facts this total structural eq relies on)."""
+        def _feq(wt: str, a: str, b: str) -> str:
+            if wt == "string":
+                return f"(pystr_eq {a} {b})"
+            if wt == "int":
+                return f"(if {a} = {b} then true else false)"
+            if wt == "bool":
+                return f"(if {a} then {b} else (not {b}))"
+            if wt == "term":
+                return f"(term_eq {a} {b})"
+            if wt == "list term":
+                return f"(term_list_eq {a} {b})"
+            if wt == "list string":
+                return f"(strlist_eq {a} {b})"
+            return "false"                    # fail-closed (unreachable for spec)
+        lines = [
+            "  (* §F4: DEFINED structural term equality (mutual, terminating;"
+            " ledger 3) *)",
+            "  let rec term_eq (a b: term) : bool",
+            "    variant { a }",
+            "  = match a, b with",
+        ]
+        for c in order:
+            flds = ctors[c]
+            av = [f"a{i}" for i in range(len(flds))]
+            bv = [f"b{i}" for i in range(len(flds))]
+            lpat = f"{c} {' '.join(av)}".rstrip()
+            rpat = f"{c} {' '.join(bv)}".rstrip()
+            if flds:
+                conj = " && ".join(
+                    _feq(wt, av[i], bv[i]) for i, (_fn, wt) in enumerate(flds))
+            else:
+                conj = "true"
+            lines.append(f"    | {lpat}, {rpat} -> {conj}")
+        lines.append("    | _, _ -> false")
+        lines.append("    end")
+        lines.append("  with term_list_eq (xs ys: list term) : bool")
+        lines.append("    variant { xs }")
+        lines.append("  = match xs, ys with")
+        lines.append("    | Nil, Nil -> true")
+        lines.append("    | Cons x xs2, Cons y ys2 ->"
+                     " (term_eq x y) && (term_list_eq xs2 ys2)")
+        lines.append("    | _, _ -> false")
+        lines.append("    end")
+        lines.append("  with strlist_eq (xs ys: list string) : bool")
+        lines.append("    variant { xs }")
+        lines.append("  = match xs, ys with")
+        lines.append("    | Nil, Nil -> true")
+        lines.append("    | Cons x xs2, Cons y ys2 ->"
+                     " (pystr_eq x y) && (strlist_eq xs2 ys2)")
+        lines.append("    | _, _ -> false")
+        lines.append("    end")
+        lines.append("")
+        return lines
+
+    def _emit_pydict_theory(self, needs: Dict[str, Any]) -> List[str]:
+        """WALL-PLAN v2 (generic-dict-str-any-2-plan.md §1 D1–D3, §2 E4, §3 F4):
+        the concrete-map universal-value theory, promoted from the Phase-0 spike
+        (`test-suite/corpus/conformance/spikes/v2_pydict_spike.mlw`, verdict
+        `getting-better/tier3/wall-plan-v2-phase0.md`) into the emitter preamble.
+
+        Pure inductive datatypes + a PROVEN lemma pack — NO `axiom` (R-C). The
+        Rocq/Lean twins (`Phase2c_PyValDict.v` / `PyValDict.lean`) certify the same
+        laws axiom-free, so the 3-axiom ledger is unchanged.
+
+        ADDITIVE / inert: gated on `needs.get("needs_pydict")`, which nothing in
+        the reference corpus sets (Phase 2 routing turns it on), so the emission is
+        byte-diff-0 on the 756-program corpus. The required `use`s are emitted by
+        `_emit_preamble_uses` under the same gate."""
+        if not needs.get("needs_pydict"):
+            return []
+        return (self._pydict_theory_lines() + self._sdict_theory_lines(needs)
+                + self._pyput_theory_lines(needs))
+
+    def _pyput_theory_lines(self, needs: Dict[str, Any]) -> List[str]:
+        """LEVER 1 (seven-levers.md §1): the WRITE half of the pydict value model
+        — `pput` (Map.set over the certified assoc-list `pydict`) + `pappend`
+        (list construct/append), with the characterizing law pack and the program
+        wrappers/by-reference frames the emitter's construction recognizers call.
+
+        `pput`/`pappend` are pure LOGIC `function`s with total structural bodies,
+        so they add NO VC of their own; the laws (`get_pput_same`/`get_pput_other`/
+        `size_dict_pput`/`mem_pput_same`/`size_pappend`/`mem_pappend`) are each a
+        PROVEN `let rec lemma` (the recursion IS the induction) — NO `axiom`. The
+        program `val pput_prog`/`pappend_prog` and the by-reference `val`
+        `set_field_inplace`/`set_add_inplace` are realizable-by-construction (the
+        logic functions witness a result satisfying each `ensures` EXISTS — the
+        established `set_add` pattern), so they add no assumption a model couldn't
+        realize. The Rocq/Lean twins (`Phase2c_PyValDict.v::pput/pappend` +
+        `PyValDict.lean::pput/pappend`) certify the SAME laws axiom-free
+        (`Print Assumptions`/`#print axioms` == 3), so the ledger is UNCHANGED.
+
+        ADDITIVE / inert: gated on `needs_pput` (nothing in the reference corpus
+        sets it; only a Lever-1 construction recognizer routes it on), so the
+        emission is byte-diff-0 on the corpus. Requires the base `needs_pydict`
+        theory (pydict/get/mem_key/pv_size/size_list/size_dict) in scope."""
+        if not needs.get("needs_pput"):
+            return []
+        return [
+            "",
+            "  (* ==== seven-levers §1: the WRITE half — pput / pappend (construction) ==== *)",
+            "  (* pput = total structural Map.set over the assoc-list pydict: replace the *)",
+            "  (* value if the key is present, else cons the new binding. LOGIC function *)",
+            "  (* (structural body => no VC of its own); irkey `=` is LOGIC equality here. *)",
+            "  function pput (d: pydict) (k: irkey) (v: pyval) : pydict",
+            "  = match d with",
+            "    | DNil -> DCons k v DNil",
+            "    | DCons k' v' rest ->",
+            "        if k = k' then DCons k v rest else DCons k' v' (pput rest k v)",
+            "    end",
+            "",
+            "  (* pappend = list construct/append (d.append / insert-at-end). *)",
+            "  function pappend (l: list pyval) (x: pyval) : list pyval",
+            "  = match l with Nil -> Cons x Nil | Cons h t -> Cons h (pappend t x) end",
+            "",
+            "  (* ---- the characterizing law pack (each a PROVEN `let rec lemma`, no axiom); *)",
+            "  (* bodies match on the structure and recurse UNCONDITIONALLY, the SMT closes *)",
+            "  (* the `k = k'` case split inside each arm's VC. Certified in Phase2c_PyValDict.v. *)",
+            "  let rec lemma get_pput_same (d: pydict) (k: irkey) (v: pyval) : unit",
+            "    ensures { get (pput d k v) k = Some v } variant { d }",
+            "  = match d with DNil -> () | DCons _ _ rest -> get_pput_same rest k v end",
+            "",
+            "  let rec lemma get_pput_other (d: pydict) (k k2: irkey) (v: pyval) : unit",
+            "    requires { k2 <> k }",
+            "    ensures  { get (pput d k v) k2 = get d k2 } variant { d }",
+            "  = match d with DNil -> () | DCons _ _ rest -> get_pput_other rest k k2 v end",
+            "",
+            "  let rec lemma size_dict_pput (d: pydict) (k: irkey) (v: pyval) : unit",
+            "    ensures { size_dict (pput d k v) <= size_dict d + pv_size v + 1 }",
+            "    ensures { size_dict (pput d k v) >= 0 }",
+            "    variant { d }",
+            "  = match d with",
+            "    | DNil -> size_pos v",
+            "    | DCons _ v' rest ->",
+            "        size_pos v; size_pos v'; size_dict_nonneg rest; size_dict_pput rest k v",
+            "    end",
+            "",
+            "  let rec lemma mem_pput_same (d: pydict) (k: irkey) (v: pyval) : unit",
+            "    ensures { mem_key (pput d k v) k } variant { d }",
+            "  = match d with DNil -> () | DCons _ _ rest -> mem_pput_same rest k v end",
+            "",
+            "  let rec lemma size_pappend (l: list pyval) (x: pyval) : unit",
+            "    ensures { size_list (pappend l x) = size_list l + pv_size x + 1 }",
+            "    variant { l }",
+            "  = match l with Nil -> () | Cons _ t -> size_pappend t x end",
+            "",
+            "  (* ---- program wrappers (realizable-by-construction; the emitter calls THESE) *)",
+            "  val pput_prog (d: pydict) (k: irkey) (v: pyval) : pydict",
+            "    ensures { result = pput d k v }",
+            "  val pappend_prog (l: list pyval) (x: pyval) : list pyval",
+            "    ensures { result = pappend l x }",
+            "",
+            "  (* ---- by-reference mutation frames: the `#@ assigns d` (dict/set param) model. *)",
+            "  (* `d[k]=v` on a by-value dict param lowers to a `ref pydict` in-place set; *)",
+            "  (* `s.add e` on a Set[str] param to a `ref (map string bool)` bit-set. *)",
+            "  val set_field_inplace (r: ref pydict) (k: irkey) (v: pyval) : unit",
+            "    writes  { r }",
+            "    ensures { !r = pput (old !r) k v }",
+            "    ensures { get !r k = Some v }",
+            "  val set_add_inplace (s: ref (map string bool)) (e: string) : unit",
+            "    writes  { s }",
+            "    ensures { !s = Map.set (old !s) e true }",
+            "    ensures { Map.get !s e = true }",
+        ]
+
+    def _sdict_theory_lines(self, needs: Dict[str, Any]) -> List[str]:
+        """ir-traversal-residual T3 (plan §5): the string-keyed symbol table
+        `sdict` — a SECOND, deliberately-boring datatype whose keys are RUNTIME
+        strings (not interned `irkey`), with an option-valued `slookup` (variant
+        on the list, structural). Two facts keep computed-key reads in the solved
+        discipline: (a) `pystr_eq`'s result is program code no VC constrains
+        (insight C); (b) the read returns `option` with an explicit `None` arm
+        (defensive totalization) — no string theory enters any VC. Pure inductive
+        datatype + a defined function; certified axiom-free in
+        `Phase2c_PyValDict.v` / `PyValDict.lean` (the 2nd/last certificate), so
+        the 3-axiom ledger is UNCHANGED. Gated on `needs_sdict` (corpus-inert)."""
+        if not needs.get("needs_sdict"):
+            return []
+        return [
+            "",
+            "  (* ==== ir-traversal-residual T3: string-keyed symbol table `sdict` ==== *)",
+            "  (* keys are RUNTIME strings (not interned irkey); slookup is option-valued *)",
+            "  (* (defensive totalization) + `pystr_eq`-tested (result no VC constrains). *)",
+            "  type sdict = SNil | SCons string pyval sdict",
+            "",
+            "  let rec slookup (k: string) (s: sdict) : option pyval",
+            "    variant { s }",
+            "  = match s with",
+            "    | SNil -> None",
+            "    | SCons k' v rest -> if pystr_eq k k' then Some v else slookup k rest",
+            "    end",
+            "",
+            "  (* census §3: the returned-`sdict` dict-fold `.update`-merge combinator. *)",
+            "  (* Purely DEFINED list-concat over the certified `sdict`; totality is *)",
+            "  (* discharged by Why3 (structural `variant`), no axiom — the returned-dict *)",
+            "  (* model needs no new certificate beyond the already-certified `sdict`. *)",
+            "  let rec sappend (a b: sdict) : sdict",
+            "    variant { a }",
+            "  = match a with",
+            "    | SNil -> b",
+            "    | SCons k v rest -> SCons k v (sappend rest b)",
+            "    end",
+        ] + self._pdict_bridge_theory_lines(needs)
+
+    def _pdict_bridge_theory_lines(self, needs: Dict[str, Any]) -> List[str]:
+        """pdict-to-sdict-impl.md (heterogeneous-func caller cluster): the
+        `pydict -> sdict` extraction bridge a caller (`_check_contract_exprs`)
+        needs to hand a function's `symbol_table` pydict field to the
+        already-converted `sdict`-consuming walkers. `pget_dyn`/`pget_list` are
+        the program-level dynamic-string-key readers (constructor `K_dyn` match,
+        NOT irkey `=`, which resolves to int equality in program context);
+        `irkey_to_string` is a TOTAL pure literal map (a genuine symbol_table has
+        only `K_dyn s` keys, so its faithful case is the carried runtime string);
+        `pdict_to_sdict` is the total, structurally-terminating conversion. All
+        purely DEFINED over the already-certified `pydict`/`sdict` — NO new type,
+        NO new axiom (ledger 3 unchanged). Gated on `needs_pdict_bridge`
+        (corpus-inert; fires only for the recognised caller)."""
+        if not needs.get("needs_pdict_bridge"):
+            return []
+        return [
+            "",
+            "  (* ==== pdict-to-sdict-impl.md: pydict -> sdict extraction bridge ==== *)",
+            "  (* dynamic-string-key readers (constructor `K_dyn` match, never irkey `=`) *)",
+            "  let rec pget_dyn (name: string) (d: pydict) : option pyval",
+            "    variant { d }",
+            "    ensures { match result with Some v -> pv_size v <= size_dict d | None -> true end }",
+            "  = match d with",
+            "    | DNil -> None",
+            "    | DCons (K_dyn s) v rest -> if pystr_eq name s then Some v else pget_dyn name rest",
+            "    | DCons _ _ rest -> pget_dyn name rest",
+            "    end",
+            "",
+            "  let pget_list (name: string) (d: pydict) : list pyval",
+            "    ensures { size_list result <= size_dict d }",
+            "  = match pget_dyn name d with Some (PList xs) -> xs | _ -> Nil end",
+            "",
+            "  (* irkey -> string: TOTAL pure literal map (K_dyn carries its runtime string; *)",
+            "  (* interned keys are totalised to their literal — never appear in a symbol_table). *)",
+            "  let function irkey_to_string (k: irkey) : string",
+            "  = match k with",
+            '    | K_type   -> "type"   | K_left  -> "left"  | K_right  -> "right"',
+            '    | K_op     -> "op"     | K_z     -> "z"     | K_value  -> "value"',
+            '    | K_target -> "target" | K_body  -> "body"  | K_orelse -> "orelse"',
+            '    | K_func   -> "func"   | K_name  -> "name"',
+            "    | K_dyn s  -> s",
+            "    end",
+            "",
+            "  (* total, structurally-terminating pydict -> sdict conversion (no axiom). *)",
+            "  let rec function pdict_to_sdict (d: pydict) : sdict",
+            "    variant { d }",
+            "  = match d with",
+            "    | DNil -> SNil",
+            "    | DCons k v rest -> SCons (irkey_to_string k) v (pdict_to_sdict rest)",
+            "    end",
+        ]
+
+    def _pydict_theory_lines(self) -> List[str]:
+        return [
+            "",
+            "  (* ==== wall-plan v2: concrete-map universal-value theory (inert unless routed) ==== *)",
+            "  (* D2 / R-B — interned IR keys: key (dis)equality is constructor reasoning, *)",
+            "  (* zero string theory in any walker VC. `K_dyn s` is the computed-key fallback. *)",
+            "  type irkey =",
+            "    | K_type | K_left | K_right | K_op | K_z",
+            "    | K_value | K_target | K_body | K_orelse | K_func | K_name",
+            "    | K_dyn string",
+            "",
+            "  (* D1 / R-A — the strictly-positive concrete universal value (no arrow / no map *)",
+            "  (* in any constructor); `pydict` is a bespoke assoc-list keyed by irkey. *)",
+            "  type pyval =",
+            "    | PInt  int",
+            "    | PStr  string",
+            "    | PBool bool",
+            "    | PNone",
+            "    | PList (list pyval)",
+            "    | PDict pydict",
+            "  with pydict =",
+            "    | DNil",
+            "    | DCons irkey pyval pydict",
+            "",
+            "  let function is_pdict (v: pyval) : bool = match v with PDict _ -> true | _ -> false end",
+            "  let function is_plist (v: pyval) : bool = match v with PList _ -> true | _ -> false end",
+            "  let function is_pstr  (v: pyval) : bool = match v with PStr  _ -> true | _ -> false end",
+            "",
+            "  (* get / mem_key : structural over the dict; key test is constructor (dis)equality. *)",
+            "  function get (d: pydict) (k: irkey) : option pyval",
+            "  = match d with",
+            "    | DNil -> None",
+            "    | DCons k' v rest -> if k = k' then Some v else get rest k",
+            "    end",
+            "",
+            "  predicate mem_key (d: pydict) (k: irkey)",
+            "  = match d with",
+            "    | DNil -> false",
+            "    | DCons k' _ rest -> k = k' \\/ mem_key rest k",
+            "    end",
+            "",
+            "  function values (d: pydict) : list pyval",
+            "  = match d with",
+            "    | DNil -> Nil",
+            "    | DCons _ v rest -> Cons v (values rest)",
+            "    end",
+            "",
+            "  (* D3 — size measure: +1 per cons cell (list AND dict), so the HEAD recursion *)",
+            "  (* strictly decreases even for a singleton (the spike's crux fix). *)",
+            "  function pv_size (v: pyval) : int",
+            "  = match v with",
+            "    | PInt _ | PStr _ | PBool _ | PNone -> 1",
+            "    | PList xs -> 1 + size_list xs",
+            "    | PDict d  -> 1 + size_dict d",
+            "    end",
+            "  with size_list (l: list pyval) : int",
+            "  = match l with Nil -> 0 | Cons h t -> 1 + pv_size h + size_list t end",
+            "  with size_dict (d: pydict) : int",
+            "  = match d with DNil -> 0 | DCons _ v rest -> 1 + pv_size v + size_dict rest end",
+            "",
+            "  (* R-C — the PROVEN lemma pack (`let rec lemma`: the recursion IS the induction). *)",
+            "  let rec lemma size_pos (v: pyval) : unit",
+            "    ensures { pv_size v > 0 } variant { v }",
+            "  = match v with",
+            "    | PList xs -> size_list_nonneg xs",
+            "    | PDict d  -> size_dict_nonneg d",
+            "    | _ -> () end",
+            "  with lemma size_list_nonneg (l: list pyval) : unit",
+            "    ensures { size_list l >= 0 } variant { l }",
+            "  = match l with Nil -> () | Cons h t -> size_pos h; size_list_nonneg t end",
+            "  with lemma size_dict_nonneg (d: pydict) : unit",
+            "    ensures { size_dict d >= 0 } variant { d }",
+            "  = match d with DNil -> () | DCons _ v rest -> size_pos v; size_dict_nonneg rest end",
+            "",
+            "  let rec lemma size_dict_mem (k: irkey) (d: pydict) : unit",
+            "    ensures { mem_key d k -> match get d k with",
+            "                             | Some w -> pv_size w < pv_size (PDict d)",
+            "                             | None   -> true end }",
+            "    variant { d }",
+            "  = match d with DNil -> () | DCons _ _ rest -> size_dict_mem k rest end",
+            "",
+            "  (* E4 — wf_ir well-formedness + the compositionality lemma the unguarded read *)",
+            "  (* discharges from. `wf_val` is the per-key expected-shape table (representative *)",
+            "  (* here; `wf_ir_gen.py` emits the full per-(shape,key) predicate from ir_schema.py). *)",
+            "  predicate wf_val (k: irkey) (v: pyval)",
+            "  = match k with",
+            "    | K_op | K_type | K_target | K_func | K_name ->",
+            "        (match v with PStr _ -> true | _ -> false end)",
+            "    | _ -> true",
+            "    end",
+            "",
+            "  predicate wf_dict (d: pydict)",
+            "  = match d with",
+            "    | DNil -> true",
+            "    | DCons k v rest -> wf_val k v /\\ wf_dict rest",
+            "    end",
+            "",
+            "  predicate wf_ir (v: pyval)",
+            "  = match v with PDict d -> wf_dict d | _ -> true end",
+            "",
+            "  let rec lemma wf_ir_binds (k: irkey) (d: pydict) : unit",
+            "    requires { wf_dict d }",
+            "    ensures  { forall v: pyval. get d k = Some v -> wf_val k v }",
+            "    variant  { d }",
+            "  = match d with",
+            "    | DNil -> ()",
+            "    | DCons _ _ rest -> wf_ir_binds k rest",
+            "    end",
+            "",
+            "  (* F4 — the document ADT + render skeleton; only render touches strings, and no *)",
+            "  (* walker VC ever carries a string term (projections flow PStr into DText opaquely). *)",
+            "  type doc = DText string | DInt int | DCat doc doc | DDoc_nil",
+            "  function int_to_str int : string   (* abstract (uninterpreted) — no axiom *)",
+            "  function render (d: doc) : string",
+            "  = match d with",
+            "    | DText s -> s",
+            "    | DInt n  -> int_to_str n",
+            "    | DCat a b -> String.concat (render a) (render b)",
+            "    | DDoc_nil -> String.empty",
+            "    end",
+            "",
+            "  (* A-unit accumulator model (WL-05b): a Set[str] is `ref (map string bool)`; *)",
+            "  (* `.add e` sets the membership bit. `pystr_eq` is the string-guard test *)",
+            "  (* (payload equality; the walk contract is `ensures True`, so it need not *)",
+            "  (* interpret the string — only type-check the guard). *)",
+            "  val set_add (m: map string bool) (e: string) : map string bool",
+            "    ensures { result = Map.set m e true }",
+            "  val pystr_eq (a b: string) : bool",
+            "",
+            "  (* A-set result algebra (phase3.md §3.1): a RETURNED set is the same *)",
+            "  (* `map string bool`; the `|=` union fold combinator is pointwise or. *)",
+            "  (* PURELY DEFINED (map = string -> bool) — no axiom, certified by *)",
+            "  (* construction, so the returned-set model needs no new certificate *)",
+            "  (* beyond the already-certified L1 set repr. *)",
+            "  let function set_union (a b: map string bool) : map string bool",
+            "    = fun (k: string) -> orb (Map.get a k) (Map.get b k)",
+            "",
+        ]
+
     def _emit_preamble(self, needs: Dict[str, Any],
                        module_name: str = "PyCSL_Program") -> List[str]:
         """Emit the WhyML module header: use declarations, exception types, helper functions."""
         out = self._emit_preamble_uses(needs, module_name)
         out += self._emit_preamble_exceptions(needs)
         out += self._emit_preamble_helpers(needs)
+        out += self._emit_pydict_theory(needs)
+        out += self._emit_term_theory(needs)
         out += self._emit_preamble_no_exception_predicates(needs)
         # NOTE: `#@ proof` axioms are emitted by `transpile()` AFTER the type
         # declarations (not here) — an axiom may quantify over a user
@@ -2603,7 +4504,18 @@ class PreambleEmissionMixin:
             while i < n:
                 sv = shared_vars[i]
                 safe_name = whyml_ident(sv["name"])
-                out.append(f"  val {safe_name} : ref int")
+                # (#49) gen #31 — A KNOWN MODULE-LEVEL INITIALISER MAKES THE REF CONCRETE.
+                # `val <v> : ref int` is an UNCONSTRAINED global, and the
+                # `_check_initial_<mutex>` assertion below asserts the mutex invariant OF
+                # THAT REF — so it was unprovable for every invariant that is not vacuously
+                # true, in every program. `let <v> = ref <init>` is the module's own
+                # `<v> = 0` said in WhyML, so the initial-state obligation becomes a real
+                # question about a real value. Absent `init` (a non-literal binding, or a
+                # global the module never binds) the abstract `val` is kept, byte-identical.
+                if "init" in sv:
+                    out.append(f"  let {safe_name} = ref {sv['init']}")
+                else:
+                    out.append(f"  val {safe_name} : ref int")
                 i += 1
             out.append("")
         if mutex_invariants_ir:
@@ -2644,8 +4556,42 @@ class PreambleEmissionMixin:
                 inv_str2 = self._expr_to_whyml(inv_ir2, set())
                 self._in_spec = False
                 app = self._mutex_inv_application(mutex2, inv_str2)
-                out.append(f"  let _check_initial_{safe_mutex2} () : unit =")
-                out.append(f"    assert {{ {app} }}")
+                # (#49) gen #31 — THE INITIAL-STATE OBLIGATION IS A GOAL ABOUT THE INITIAL
+                # VALUES, NOT AN ASSERTION INSIDE A FUNCTION.
+                #
+                # `let _check_initial_<m> () : unit = assert { <m>_inv !v }` is a PROGRAM
+                # FUNCTION, and Why3's WP for a function reading a mutable global has no
+                # information about that global's current value — it quantifies over every
+                # reachable state. So the assertion was unprovable for any invariant that is
+                # not vacuously true, IN EVERY PROGRAM, whether or not the module's own
+                # `v = 0` reached the emission. Making the ref concrete (`let v = ref 0`)
+                # was necessary and NOT sufficient, measured: the goal stayed Unknown.
+                #
+                # The obligation this is meant to state is "the module's INITIAL values
+                # satisfy the mutex invariant", which is a pure logic question about
+                # literals. Emitted as a `goal` applying the predicate to those literals it
+                # is decidable, and it is the real check: `counter = 0` against
+                # `counter >= 0` proves, against `counter >= 1` does not.
+                #
+                # FALLBACK, unchanged: if ANY shared var the invariant is parameterized by
+                # has no known module-level initialiser, the old function-with-assert form
+                # is kept — there is no literal to state the goal about, and an
+                # unconstrained `val ref` is exactly what that case still has.
+                _p_mi = self._mutex_inv_params(mutex2, inv_str2)
+                _inits_mi = {}
+                for _sv_mi in (self.ir.get("shared_vars") or []):
+                    if "init" in _sv_mi:
+                        _inits_mi[_sv_mi["name"]] = _sv_mi["init"]
+                if _p_mi and all(_v_mi in _inits_mi for _v_mi in _p_mi):
+                    _args_mi = " ".join(
+                        ("(%d)" % _inits_mi[_v_mi]) if _inits_mi[_v_mi] < 0
+                        else str(_inits_mi[_v_mi]) for _v_mi in _p_mi)
+                    out.append(
+                        f"  goal _check_initial_{safe_mutex2} : "
+                        f"{safe_mutex2}_inv {_args_mi}")
+                else:
+                    out.append(f"  let _check_initial_{safe_mutex2} () : unit =")
+                    out.append(f"    assert {{ {app} }}")
                 out.append("")
                 i2 += 1
         # Faithful concurrency: acquiring a lock can block forever
@@ -2885,6 +4831,157 @@ class PreambleEmissionMixin:
         self._in_spec = prev_spec
         return facts
 
+    def _emit_module_const_compound_maps(self) -> List[str]:
+        """compound-key const-map lowering: emit each module-const dict with a
+        compound (tuple) key + list value (`TRIGGERS`) as an OPAQUE Why3 map constant
+
+            val constant <NAME> : map <key_whyml> (option (list <elem_whyml>))
+
+        The content is UNMODELLED — sound under the weak `ensures True` contract of the
+        getter — while the TYPE is faithful: the key is the native tuple, the value the
+        `option`-wrapped list (so a `.get(k, [])` read defaults `None -> Nil`). Emitted
+        after the type declarations (order-insensitive for an opaque val). Empty for
+        every corpus program (no tuple-keyed const dict) → byte-identical."""
+        mcc = getattr(self, "_module_const_compound_dicts", {}) or {}
+        if not mcc:
+            return []
+        out: List[str] = []
+        for name in sorted(mcc):
+            meta = mcc[name]
+            wid = whyml_ident(name)
+            out.append(
+                f"  val constant {wid} : map {meta['key_whyml']} "
+                f"(option (list {meta['elem_whyml']}))")
+        out.append("")
+        return out
+
+    # Measured over all 34 non-trivial constructor contracts in the tree: only `int` and
+    # `list` actually occur. The rest are here so an unseen annotation degrades to a typed
+    # guess rather than silently to `int` — which is what made corpus 0661's nineteen
+    # `initial[i]` preconditions lower against an int-typed `initial` and fail.
+    _INIT_PARAM_WHYML = {
+        "int": "int", "bool": "int", "str": "string", "float": "real",
+        "list": "array int", "List[int]": "array int", "List[str]": "array string",
+        "dict": "map int (option int)", "set": "map int (option int)",
+    }
+    _INIT_PARAM_SYMTAB = {
+        "int": "int", "bool": "bool", "str": "str", "float": "float",
+        "list": "list", "List[int]": "list", "List[str]": "list",
+        "dict": "dict", "set": "set",
+    }
+
+    def _emit_init_contract_checks(self) -> List[str]:
+        """(#43) ROUTE #15 — CHECK the constructor contract that used to go nowhere.
+
+        `__init__` is never emitted as a function: it is INLINED at every allocation site,
+        so its `#@ requires` / `#@ ensures` were silently discarded and the run still
+        printed *All contracts formally proven* over them. MEASURED:
+        `#@ ensures self.x == 99` over a body `self.x = 0` proved SUCCESS.
+
+        This emits a CHECKING-ONLY `let <class>__init (<params>) : <class>` carrying the
+        declared clauses over the SAME record literal every allocation site already builds
+        (`_call_record_constructor`, which fuses `init_body`'s param-dependent stores with
+        the per-field default witness). The inlining is UNTOUCHED, so no call site moves and
+        the caller-side faithfulness that makes route #15 a dishonesty rather than an
+        unsoundness is preserved.
+
+        The shape was SPIKED in Why3 before this was written (`scratchpad/w8/spike15/`):
+        `let c__init () : c ensures { result.x = 0 } = { x = 0 }` gives
+        `Goal c__init'vc — Valid`, and that goal INCLUDES the record's class-invariant
+        obligation; the same function with `ensures { result.x = 99 }` gives `Unknown`. It
+        type-checks AND discriminates.
+
+        Gated on `init_contract_check`, which Module 5 emits only for a NON-TRIVIAL
+        constructor contract — ZERO classes in the mirror, so every mirror emission and both
+        conformance golden sets are byte-identical."""
+        out: List[str] = []
+        for td in self.ir.get("type_decls", []) or []:
+            if not isinstance(td, dict) or td.get("kind") != "record":
+                continue
+            icc = td.get("init_contract_check")
+            if not icc:
+                continue
+            cls = td.get("name")
+            rec = (getattr(self, "_record_types", {}) or {}).get(cls)
+            if rec is None:
+                continue
+            # ONLY A CONSTRUCTOR WHOSE PARAMETERS ARE ALL ANNOTATED WITH A TYPE THIS
+            # EMITTER RECOGNIZES. An unannotated parameter would be typed `int` by default,
+            # and a clause that reads it as a string or a sequence then lowers through the
+            # opaque `subscript_get` fallback — which is registered too late to be declared
+            # and leaves the module with `unbound function or predicate symbol`. MEASURED on
+            # `pycsl_lib/os.DirEntry(self, name, inode_num)`, whose parameters carry no
+            # annotations at all, and on `pycsl_lib/world`, which imports it. Those classes
+            # keep their un-checked constructor contract and stay visible in
+            # `bin/check-clause-survival.py`.
+            _pt0 = (td.get("init_contract_check") or {}).get("param_types", {}) or {}
+            if any(_pt0.get(_p, "") not in self._INIT_PARAM_WHYML
+                   for _p in (td.get("init_params", []) or [])):
+                continue
+            lower = rec.get("whyml_name") or whyml_ident(str(cls).lower())
+            params = list(td.get("init_params", []) or [])
+            ptypes = icc.get("param_types", {}) or {}
+            args = [whyml_ident(p) for p in params]
+            prev_self = getattr(self, "_current_self_type", None)
+            prev_spec = self._in_spec
+            self._current_self_type = lower
+            body = self._call_record_constructor(args, cls)
+            if body is None:
+                self._current_self_type = prev_self
+                continue
+            # ONLY CHECK A BODY THAT IS THE REAL CONSTRUCTOR. `_call_record_constructor`
+            # falls back to the per-field DEFAULT WITNESS for a non-scalar (list/dict/set)
+            # or non-param-dependent field — its own docstring says so — so for a class
+            # whose `__init__` binds a LIST field from a parameter it produces
+            # `{ fields = (Array.make 0 0) }`, which is a different program from
+            # `self.fields = initial`. Checking the declared contract against THAT would
+            # report a failure that is about the modelling gap, not about the contract.
+            # MEASURED on corpus 0661/0662 (`Inode.__init__(self, initial: list)` with
+            # NINETEEN preconditions): the emitted body was the empty-array default and the
+            # class invariant `Array.length fields = 18` could not hold.
+            # Detected structurally rather than by re-deriving the fallback rule: if the
+            # constructor takes parameters and NONE of them appears in the emitted literal,
+            # the parameters were dropped. Those classes keep their un-checked constructor
+            # contract and stay visible in `bin/check-clause-survival.py`, which is exactly
+            # what that plane is for.
+            if args and not any((" " + a) in body or ("=" + a) in body
+                                or ("= " + a) in body for a in args):
+                self._current_self_type = prev_self
+                continue
+            # Give the clause lowering the same parameter context a real function would
+            # have, or `initial[0]` lowers through the opaque `subscript_get` fallback and
+            # mistypes against an `array int` parameter (measured on corpus 0661).
+            prev_symtab = getattr(self, "_current_symbol_table", None)
+            prev_formals = getattr(self, "_formal_params", None)
+            prev_cparams = getattr(self, "_current_params", None)
+            self._current_symbol_table = {
+                p: self._INIT_PARAM_SYMTAB.get(ptypes.get(p, ""), "int") for p in params}
+            self._formal_params = list(params)
+            self._current_params = set(params)
+            self._in_spec = True
+            try:
+                reqs = [self._expr_to_whyml(e, set()) for e in (icc.get("requires") or [])]
+                enss = [self._expr_to_whyml(self._subst_self_in_expr(e, "result"), set())
+                        for e in (icc.get("ensures") or [])]
+            finally:
+                self._in_spec = prev_spec
+                self._current_self_type = prev_self
+                self._current_symbol_table = prev_symtab
+                self._formal_params = prev_formals
+                self._current_params = prev_cparams
+            sig = " ".join(
+                "(%s: %s)" % (whyml_ident(p),
+                              self._INIT_PARAM_WHYML.get(ptypes.get(p, ""), "int"))
+                for p in params)
+            out.append("")
+            out.append("  let %s__init %s: %s" % (lower, (sig + " ") if sig else "() ", lower))
+            for r in reqs:
+                out.append("    requires { %s }" % r)
+            for e in enss:
+                out.append("    ensures  { %s }" % e)
+            out.append("  = " + body)
+        return out
+
     def _emit_module_globals(self) -> List[str]:
         """inline.md Phase 1: emit each module-level global object instance `g = C(...)`
         as a Why3 mutable-record binding `let g : c = <constructor literal>`. The
@@ -2957,25 +5054,887 @@ class PreambleEmissionMixin:
         Emitted only for a module with a @mutable_state class (the emitter model);
         the 627-file corpus has none → byte-identical there."""
         return [
-            "  (* typed-ir-for-b-ceiling.md B-C1: typed IR-node sum for the emitter model *)",
-            "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
-            " | IrNum int | IrRaw string | IrOther string"
-            " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
-            " | IrTuple emit_ir emit_ir",
+            "  (* tier3-p1 T3.1.1 (getting-better/tier3/ir-node-adt-signature.md §7,"
+            " risk 7 / no-more-int): the faithful numeric-leaf carrier for a Number node —"
+            " keeps int vs float distinct instead of coercing float→int. The Number"
+            " constructor's int payload is refined onto this carrier in a later increment;"
+            " declared here as the certified (Phase-0 spike) numeric leaf type. *)",
+            "  type ir_num = INum int | IReal real",
             "",
+            "  (* typed-ir-for-b-ceiling.md B-C1: typed IR-node sum for the emitter model."
+            " tier3-p1 T3.1.1: extended with IrBinOp (op, left, right) — the EXPR-family"
+            " operator node — realizing the Phase-0 spike design in the live emitter."
+            " post-m1-census.md orelse_of mini-M1: extended with IrIfExpr (body, orelse) —"
+            " the IfExpr ternary node — following the IrBinOp precedent verbatim."
+            " ghost-handler-wall Q2/gh-spike.mlw::Q1FaithfulThirdChild: extended with"
+            " IrTer3 (a, b, c) — a GENERIC 3-emit_ir-child node, following the"
+            " IrBinOp/IrIfExpr precedent verbatim — for the 3-child ghost handlers"
+            " (MapSetExpr(dict,key,value), SetCardExpr(set,lo,hi)) whose 3rd child"
+            " previously fell through to the `svalue_of` sentinel (sound but"
+            " value-degenerate; see ghost-handler-wall-response.md §1.4/§2)."
+            " post-m1-census.md spec-op batch mini-M1: extended with the SPEC-OP"
+            " family — IrUnaryOp/IrAt/IrArrayLen/IrInGlobals/IrInScope/IrValid/"
+            " IrSeparated/IrLength2D/IrValid2D/IrIsSorted/IrArrayEq/IrPermutation/"
+            " IrSum/IrAssignsRegion/IrForallItems — realizing the `_csl_unaryop`,"
+            " `_csl_at`, `_csl_array_length`, `_csl_in_globals`, `_csl_in_scope`,"
+            " `_csl_valid`, `_csl_separated`, `_csl_length2d`, `_csl_valid2d`,"
+            " `_csl_is_sorted`, `_csl_array_eq`, `_csl_permutation`, `_csl_sum`,"
+            " `_csl_assigns_region`, `_csl_forall_items` single-return CSL-AST-node"
+            " constructions verbatim (IrBinOp precedent)."
+            " post-m1-census.md map/set/list batch mini-M1: extended with the"
+            " MAP/SET/LIST ghost-collection family — IrMapEmpty/IrMapGet/IrMapSet/"
+            " IrMapEq/IrHasKey/IrMapRemove/IrSetEmpty/IrSetAdd/IrSetRemove/IrSetMem/"
+            " IrSetUnion/IrSetInter/IrSetDiff/IrSetCard/IrSetSubset/IrSetEq/IrNil/"
+            " IrCons/IrHd/IrTl/IrListLength/IrNth/IrMem/IrAppend — realizing the"
+            " `_csl_map_empty`, `_csl_map_get`, `_csl_map_set`, `_csl_map_eq`,"
+            " `_csl_has_key`, `_csl_map_remove`, `_csl_set_empty`, `_csl_set_add`,"
+            " `_csl_set_remove`, `_csl_set_mem`, `_csl_set_union`, `_csl_set_inter`,"
+            " `_csl_set_diff`, `_csl_set_card`, `_csl_set_subset`, `_csl_set_eq`,"
+            " `_csl_nil`, `_csl_cons`, `_csl_hd`, `_csl_tl`, `_csl_list_length`,"
+            " `_csl_nth`, `_csl_mem`, `_csl_append` single-return CSL-AST-node"
+            " constructions verbatim (IrBinOp precedent)."
+            " post-m1-census.md misc single-return batch mini-M1: extended with the"
+            " STRING/TUPLE/GHOST + fieldless family — IrFst/IrSnd/IrCtorTest/"
+            " IrCtorPayload/IrStrConcat/IrStrLength/IrStrSub/IrGhostCopy/"
+            " IrGhostCopyRange/IrGhostMake/IrSliceAccess/IrSlice/IrNone/IrResult/"
+            " IrNothing — realizing the `_csl_fst`, `_csl_snd`, `_csl_ctor_test`,"
+            " `_csl_ctor_payload`, `_csl_strconcat`, `_csl_str_length`, `_csl_str_sub`,"
+            " `_csl_ghost_copy`, `_csl_ghost_copy_range`, `_csl_ghost_make`,"
+            " `_csl_slice`, `_csl_none`, `_csl_result`, `_csl_nothing` single-return"
+            " CSL-AST-node constructions verbatim (IrBinOp precedent)."
+            " IrSlice realizes the NESTED `{\"type\": \"Slice\", \"lower\":…, \"upper\":…,"
+            " \"step\": None}` literal inside `_csl_slice`'s `SliceAccess` payload — a"
+            " 2-level dict construction, the `\"value\"` sibling already lowering via the"
+            " pre-existing IrVar."
+            " cleanup batch (no-more-int doctrine): `_csl_number`/`_csl_bool` NOW convert —"
+            " `CSLNumber.value` is a `float` record field lowering to `real`, carried by the"
+            " NEW `IrNumF real` leaf (distinct from the pre-existing `IrNum int`, which the"
+            " int-literal `{\"type\":\"Number\",\"value\":0}` in `_py_expr_name` keeps);"
+            " `CSLBool.value` is a `bool` record field lowering to `int` (bool-as-int),"
+            " carried by the NEW `IrBoolC int` leaf. The Number/IrNumF split is chosen at"
+            " construction (expressions.py `_lower_irnode_construction`) by the value arg's"
+            " type — a `real`-typed field read → `IrNumF`, an int literal → `IrNum`. Both"
+            " leaves are childless (no size arm; `_ -> 1` catch-all covers them). *)",
+            # J1 Call-internals value model (self-tcb-reduction, callinternals-oracle.mlw
+            # Gate-R CONFIRMED): the keyword-node list + Name/Attribute-distinguishing
+            # `kwval` — the value-model capability the emitter's Call-internals reflection
+            # (`_collect_typevar_registry`-shaped `for kw in call.keywords: if kw.arg==...:
+            # kw.value.id`) needs, which the bare-string callee currently COLLAPSES. Declared
+            # as STANDALONE types BEFORE the emit_ir sum (kwval is a leaf string, carries no
+            # emit_ir → keyword_list is strictly positive and standalone; the composition
+            # probe proved folding it into the `with irlist` block hits a termination-measure
+            # wall). Referenced from the new `IrCallKw` ctor's `keyword_list` field. Gated on
+            # `_uses_call_kw` (a `CallKw`-annotated param/local; no corpus program or other
+            # mirror carries it → the emit_ir theory stays byte-identical everywhere else).
+            *(([
+                "  (* J1 Call-internals value model (self-tcb-reduction,"
+                " callinternals-oracle.mlw Gate-R CONFIRMED, axiom-free Z3-Valid): the"
+                " keyword-node list + Name/Attribute-distinguishing kwval. KwName carries"
+                " an ast.Name node's `.id`; KwAttr carries an ast.Attribute node's `.attr`"
+                " — exactly the distinction the bare-string callee COLLAPSES. Standalone"
+                " types BEFORE the emit_ir sum (kwval is a leaf string — carries no emit_ir"
+                " — so keyword_list is strictly positive and does NOT need the `with irlist`"
+                " mutual block, which the composition probe showed hits a termination-measure"
+                " wall). keyword_list is a BESPOKE cons-list (KWNil/KWCons), NOT `seq`"
+                " (respects the recorded seq non-strict-positivity wall). Gated on"
+                " `_uses_call_kw` → every other emit_ir-theory file byte-identical. *)",
+                "  type kwval = KwName string | KwAttr string",
+                "  type keyword = { kw_arg: string; kw_value: kwval }",
+                "  type keyword_list = KWNil | KWCons keyword keyword_list",
+                "",
+            ]) if self._uses_call_kw() else []),
+            # LITERAL-VALUE MODEL (relaunch #12): `Constant.value` is the one Python-AST
+            # child that is neither a node nor a string — the class models EVERY literal.
+            # Relaunch #11 gave it a BESPOKE two-arm `irconst`; a CENSUS (lesson (p)) found
+            # that the model it needs ALREADY EXISTS and is CERTIFIED: `pyconst_val`, the
+            # discriminated union of the Python constant scalar kinds, co-landed with the
+            # AXIOM-FREE Rocq+Lean certificate (Phase2c_PyConstVal.v / PyConstVal.lean)
+            # that pins the abstraction map py-scalar -> pyconst_val as TOTAL and
+            # injective-per-kind. So `irconst` is RETIRED and the slot carries
+            # `pyconst_val`: a string literal is `PVStr`, a bare `None` is `PVNone`, and a
+            # NUMBER is whatever `_parse_number` returns — int, float or complex, all three
+            # of which the certified union has an arm for, which is exactly what the
+            # bespoke two-arm carrier could not express.
+            # DECLARED HERE, BEFORE the emit_ir sum, because `IrPyConstant` carries it: the
+            # type is STANDALONE and MONOMORPHIC (no emit_ir payload), so it needs no `with`
+            # and adds nothing to emit_ir's size induction — the `_uses_call_kw` kwval /
+            # keyword_list precedent directly above. Only the TYPE is emitted (demand-first:
+            # no site in this file reads a literal back, so no `is_pv*` / `pv*_of` yet);
+            # the Module5 mirror keeps declaring the full block after the sum, and the two
+            # placements are mutually exclusive so nothing is declared twice.
+            *(([
+                "  type pyconst_val = PVNone | PVBool bool | PVInt int | PVStr string"
+                " | PVBytes (seq int) | PVComplex real | PVEllipsis",
+                "",
+            ]) if (self._uses_pyast_parser()
+                   and not self._uses_pyconst_val()) else []),
+            "  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string"
+            " | IrNum int | IrNumF real | IrBoolC int | IrRaw string | IrOther string"
+            " | IrCall string emit_ir int | IrSub emit_ir emit_ir"
+            " | IrTuple emit_ir emit_ir"
+            " | IrBinOp string emit_ir emit_ir"
+            " | IrFieldGet string string"
+            " | IrOld emit_ir | IrOldField string string"
+            " | IrIfExpr emit_ir emit_ir"
+            " | IrTer3 emit_ir emit_ir emit_ir"
+            " | IrUnaryOp string emit_ir"
+            " | IrAt emit_ir string"
+            " | IrArrayLen string"
+            " | IrInGlobals string"
+            " | IrInScope string"
+            " | IrValid string emit_ir"
+            " | IrSeparated string emit_ir string emit_ir"
+            " | IrLength2D string emit_ir emit_ir"
+            " | IrValid2D string emit_ir emit_ir"
+            " | IrIsSorted string emit_ir emit_ir"
+            " | IrArrayEq emit_ir emit_ir"
+            " | IrPermutation emit_ir emit_ir"
+            " | IrSum string emit_ir emit_ir"
+            " | IrAssignsRegion string emit_ir emit_ir"
+            " | IrForallItems string string string emit_ir"
+            " | IrMapEmpty | IrMapGet emit_ir emit_ir | IrMapSet emit_ir emit_ir emit_ir"
+            " | IrMapEq emit_ir emit_ir | IrHasKey emit_ir emit_ir"
+            " | IrMapRemove emit_ir emit_ir"
+            " | IrSetEmpty | IrSetAdd emit_ir emit_ir | IrSetRemove emit_ir emit_ir"
+            " | IrSetMem emit_ir emit_ir | IrSetUnion emit_ir emit_ir"
+            " | IrSetInter emit_ir emit_ir | IrSetDiff emit_ir emit_ir"
+            " | IrSetCard emit_ir emit_ir emit_ir | IrSetSubset emit_ir emit_ir"
+            " | IrSetEq emit_ir emit_ir"
+            " | IrNil | IrCons emit_ir emit_ir | IrHd emit_ir | IrTl emit_ir"
+            " | IrListLength emit_ir | IrNth emit_ir emit_ir | IrMem emit_ir emit_ir"
+            " | IrAppend emit_ir emit_ir"
+            " | IrFst emit_ir | IrSnd emit_ir"
+            " | IrCtorTest string string | IrCtorPayload string string int"
+            " | IrStrConcat emit_ir emit_ir | IrStrLength emit_ir"
+            " | IrStrSub emit_ir emit_ir emit_ir"
+            " | IrGhostCopy string | IrGhostCopyRange string emit_ir emit_ir"
+            " | IrGhostMake emit_ir emit_ir"
+            " | IrSliceAccess emit_ir emit_ir | IrSlice emit_ir emit_ir"
+            " | IrNone | IrResult | IrNothing"
+            " | IrStarred emit_ir"
+            " | IrNamedExpr string emit_ir"
+            " | IrMkTupleN irlist"
+            " | IrListN irlist"
+            " | IrSetN irlist"
+            " | IrCallN string irlist"
+            " | IrForall string emit_ir iropt_str iropt_ir"
+            " | IrExists string emit_ir iropt_str iropt_ir"
+            " | IrSliceN iropt_ir iropt_ir iropt_ir"
+            " | IrFunctionVariant emit_ir iropt_str"
+            # _py_expr_lambda increment (self-tcb-reduction M5, C-bucket): the lambda-expr
+            # node `IrLambda <params irlist> <body>` — inserted INSIDE the emit_ir type
+            # (one implicit-concat string) via `+` so the `with` clauses stay on the same
+            # line. Gated on `_uses_stmt_ir` (only the Module5 mirror's `_py_expr_lambda`
+            # builds it) — every OTHER emit_ir-theory file (incl. corpus files that emit
+            # `type emit_ir`, e.g. 0746) is byte-identical (empty string off-gate). size's
+            # `| _ -> 1` catch-all covers it (flat for the measure).
+            # PYTHON-AST NODE CTOR FAMILY (`_fin` recognizer vein, increment 9): the
+            # pure_ast RECURSIVE-DESCENT PARSER builds Python-AST nodes whose children are
+            # OTHER Python-AST nodes of a DIFFERENT class — the Pratt-parser passthrough
+            # shape (`return x` beside `return self._fin(_N("Await")(value=x), t)`) that a
+            # PER-CLASS WhyML record can never type (wall-lessons (zz)). `emit_ir` IS the
+            # sum type those returns need — the `-> "ExprIR"` RETURN INTERFACE already gives
+            # every un-converted sibling that type — so the missing half is a faithful
+            # CONSTRUCTOR for each such node class. One arm per class, payload in ASDL field
+            # order, children typed `emit_ir`. Gated on `_uses_pyast_parser` (the file
+            # defines `_Parser._fin`) -> every corpus file and every other mirror is
+            # byte-identical. `size`'s `| _ -> 1` catch-all covers the new arms.
+            + (self._pyast_ctor_arms() if self._uses_pyast_parser() else "")
+            + (" | IrLambda irlist emit_ir"
+               " | IrDictLit irlist irlist"
+               " | IrGenExp emit_ir emit_ir"
+               " | IrListComp emit_ir emit_ir"
+               " | IrSetComp emit_ir emit_ir"
+               " | IrDictComp emit_ir emit_ir emit_ir"
+               if self._uses_stmt_ir() else "")
+            # self-tcb-reduction _typeddict_record_literal (cap-2): the DictLit-node reflector
+            # lives in the expression-emission mirror, whose emit_ir ADT does NOT carry the
+            # `_uses_stmt_ir` Module5 ctors — so `IrDictLit` is appended HERE for a
+            # `_uses_dictlit` file that is NOT already a stmt_ir file (no duplicate, and the
+            # stmt_ir mirror stays byte-identical). Corpus-inert (`_uses_dictlit` is
+            # name-gated on `_typeddict_record_literal`).
+            + (" | IrDictLit irlist irlist"
+               if (self._uses_dictlit() and not self._uses_stmt_ir()) else "")
+            # J1: the Call-with-keyword-internals ctor — func-name, the standalone
+            # keyword_list (declared above), arg0, arity — PARALLEL to the existing
+            # `IrCall string emit_ir int` (kind_of returns "Call" for both; non-injective
+            # kind_of is sound, the IrCall/IrCallN precedent). size's `_ -> 1` catch-all
+            # covers it (no recursive consumer reflects a keyword list back). Gated WITH
+            # the standalone types on `_uses_call_kw` → byte-inert elsewhere.
+            + (" | IrCallKw string keyword_list emit_ir int"
+               if self._uses_call_kw() else "")
+            # self-tcb-reduction Layer-2 (method-call RECEIVER value model): the
+            # receiver-carrying method-call ctor — receiver sub-node, func-name, arg0,
+            # arity — PARALLEL to the existing `IrCall string emit_ir int` (kind_of returns
+            # "Call" for both; non-injective kind_of is sound, the IrCall/IrCallKw
+            # precedent). UNLIKE IrCall it carries the RECEIVER as a strictly-positive
+            # recursive emit_ir occurrence, read back by the total `receiver_of`; size
+            # counts BOTH the receiver AND arg0 children (the receiver child is then
+            # strictly smaller — certified axiom-free in Phase2j_MethodRecv.v / MethodRecv
+            # .lean). Gated on `_uses_method_recv` (a `.get("receiver")` read on an emit_ir,
+            # a NEW shape in 0 corpus programs / other mirrors) -> byte-inert elsewhere.
+            + (" | IrMethodCall emit_ir string emit_ir int"
+               if self._uses_method_recv() else "")
+            # self-tcb-reduction family-B (parser clause parsers): the CONTRACT-CLAUSE
+            # node ctors the recursive-descent `_ContractParser._parse_*` methods
+            # construct. IrProofDecl carries the `#@ proof <prover> <qualname>` node's two
+            # LEAF strings (`ProofDecl(prover, qualname)`, `_parse_proof`) — a childless
+            # (for the `size` measure) leaf, covered by size's `_ -> 1` catch-all; no
+            # consumer reflects it back (terminal parser output), so no discriminant /
+            # size-decrease law is needed (the IrOldField two-leaf-string precedent).
+            # Gated WITH its kind_of arm on `_uses_clause_ir` → byte-inert in every other
+            # mirror + the whole corpus. The IrBinOp/IrCallKw structural-variant precedent.
+            + (" | IrProofDecl string string"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B: IrClassInvariant carries the `#@ class
+            # invariant <expr>` node's single EMIT_IR child (`ClassInvariant(expr)`,
+            # `_parse_class_invariant`) — the parsed contract expression. size recurses
+            # the real `expr` child (`1 + size e`, gated arm below); kind_of has its own
+            # arm. Gated on `_uses_clause_ir` → byte-inert in every other mirror + the
+            # whole corpus. The IrBinOp/IrForallItems emit_ir-child precedent.
+            + (" | IrClassInvariant emit_ir"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B: IrRaisesDecl carries the `#@ raises <Exc> when
+            # <cond>` node's LEAF-string exception name (`exc_type`) + its single EMIT_IR
+            # condition child (`RaisesDecl(exc, self._parse_expr())`, `_parse_raises`).
+            # size recurses the real `condition` child (`1 + size e`, gated arm below).
+            # Gated on `_uses_clause_ir` → byte-inert everywhere else. The IrForallItems
+            # (leading-strings + emit_ir child) precedent.
+            + (" | IrRaisesDecl string emit_ir"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (membership run): IrCSLIn / IrCSLNotIn carry
+            # the `<e> in <coll>` / `<e> not in <coll>` node's TWO EMIT_IR children
+            # (`CSLIn(element, collection)` / `CSLNotIn(element, collection)`,
+            # `_parse_membership`). size recurses BOTH children (`1 + size l + size r`,
+            # gated arms below; the IrGhostArraySetDecl / IrStrConcat two-emit_ir-child
+            # precedent); kind_of has its own arm each. Gated on `_uses_clause_ir` →
+            # byte-inert in every other mirror + the whole corpus.
+            + (" | IrCSLIn emit_ir emit_ir | IrCSLNotIn emit_ir emit_ir"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction csl-family (_csl_proj): IrProj carries the `\proj(t,i)`
+            # node's ONE emit_ir child (`tuple_expr`, retyped "ExprIR") + the int literal
+            # `index` (`int(node.index.value)`; the IrCtorPayload int-arg precedent).
+            # size recurses the real `tuple` child (`1 + size t`, gated arm below, IrFst
+            # precedent); kind_of has its own arm. Gated on `_uses_csl_proj` → byte-inert
+            # in every other mirror + the whole corpus.
+            + (" | IrProj emit_ir int" if self._uses_csl_proj() else "")
+            # self-tcb-reduction family-B (_err-divergence run): IrLoopInvariant /
+            # IrLoopVariant carry the `#@ loop invariant/variant <e>` node's single EMIT_IR
+            # child (`LoopInvariant(expr)` / `LoopVariant(expr)`, `_parse_loop`). size
+            # recurses the real `expr` child (`1 + size e`, gated arms below); kind_of has
+            # its own arm each. Gated on `_uses_clause_ir` → byte-inert in every other mirror
+            # + the whole corpus. The IrClassInvariant emit_ir-child precedent.
+            + (" | IrLoopInvariant emit_ir | IrLoopVariant emit_ir"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (_err-divergence run): IrInterfaceClause carries
+            # the `#@ interface <kind> <clause>` node's LEAF-string kind + its EMIT_IR
+            # payload (the wrapped Ensures/Requires/Assigns node); IrEnsures/IrRequires each
+            # wrap the single emit_ir contract expression (`_parse_interface`). size recurses
+            # the real emit_ir children (gated arms below). Gated `_uses_clause_ir` →
+            # byte-inert. The IrRaisesDecl / IrClassInvariant precedents.
+            + (" | IrInterfaceClause string emit_ir | IrEnsures emit_ir | IrRequires emit_ir"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (ghost run): IrGhostAssignDecl carries the
+            # `#@ ghost <name> <op> <e>` (opt. `: <type>`) node's LEAF-string `target` +
+            # its EMIT_IR `value` child + LEAF-string `op` + LEAF-string `declared_type`
+            # (`GhostAssignDecl(name, value, op[, declared_type=gtype])`, `_parse_ghost`);
+            # `declared_type` defaults to the concrete string "int". IrGhostArraySetDecl
+            # carries `#@ ghost <name>[<i>] = <e>` — LEAF-string `target` + EMIT_IR `index`
+            # + EMIT_IR `value` (`GhostArraySetDecl(name, index, value)`). size recurses the
+            # real emit_ir children (gated arms below); kind_of has its own arm each. Gated
+            # `_uses_clause_ir` → byte-inert. The IrRaisesDecl (string+emit_ir) precedent.
+            + (" | IrGhostAssignDecl string emit_ir string string"
+               " | IrGhostArraySetDecl string emit_ir emit_ir"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (footprint run): IrFootprint carries the
+            # `#@ footprint <NAME>(<arg>)` node's LEAF-string `happy_name` + its single
+            # EMIT_IR `arg` child (`Footprint(happy_name, self._parse_expr())`,
+            # `_parse_footprint`). Same string-leaf + emit_ir-child shape as IrRaisesDecl.
+            # size recurses the real `arg` child (gated arm below); kind_of has its own
+            # arm. Gated `_uses_clause_ir` → byte-inert. The IrRaisesDecl precedent.
+            + (" | IrFootprint string emit_ir"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (mutex run): IrMutexInvariant carries the
+            # `#@ mutex_invariant <MUTEX>: <EXPR>` node's LEAF-string `mutex` (the mutex
+            # expression string, from the trusted `-> str` `_parse_mutex_expr_str`) + its
+            # single EMIT_IR `expr` child (`MutexInvariant(mutex, self._parse_expr())`,
+            # `_parse_mutex_invariant`). Same string-leaf + emit_ir-child shape as
+            # IrRaisesDecl/IrFootprint. size recurses the real `expr` child (gated arm
+            # below); kind_of has its own arm. Gated `_uses_clause_ir` → byte-inert.
+            + (" | IrMutexInvariant string emit_ir"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (shared run): IrSharedDecl carries the
+            # `#@ shared <VAR> [protected_by <MUTEX>]` node's LEAF-string `variable` + its
+            # OPTIONAL `mutex` string as a monomorphic-option `iropt_str` (`SharedDecl(name,
+            # mutex)` / `SharedDecl(name, None)`, `_parse_shared`). No emit_ir child → NO
+            # size arm (falls to `size`'s `_ -> 1` catch-all, the IrProofDecl leaf precedent);
+            # the `iropt_str` domain is not recursed (the IrFunctionVariant precedent). kind_of
+            # has its own arm. Gated `_uses_clause_ir` → byte-inert.
+            + (" | IrSharedDecl string iropt_str"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (mixin-decl run): IrSharedStateDecl carries the
+            # `#@ shared_state <name>: <type>` node's two LEAF strings (SharedStateDecl(name,
+            # type_str), `_parse_shared_state`). No emit_ir child → childless for the `size`
+            # measure (the IrProofDecl two-leaf-string precedent, falls to size's `_ -> 1`
+            # catch-all → NO size arm). kind_of has its own arm. Gated `_uses_clause_ir`.
+            + (" | IrSharedStateDecl string string"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (mixin-decl run): IrTouchesFieldDecl carries the
+            # `#@ touches_field <name>: <type>` node's two LEAF strings (TouchesFieldDecl(
+            # name, type_str), `_parse_touches_field`). No emit_ir child → NO size arm (the
+            # IrProofDecl / IrSharedStateDecl precedent). kind_of has its own arm. Gated.
+            + (" | IrTouchesFieldDecl string string"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (mixin-decl run): IrMethodDependencyDecl carries
+            # the `#@ depends_method/requires_method <m>: <sig>` node's three LEAF strings
+            # (MethodDependencyDecl(method, sig, kind), `_parse_depends_method`; `sig` from
+            # the converted `-> str` `_parse_mixin_method_sig`, `kind` the method's own
+            # discriminator param). No emit_ir child → NO size arm (the IrProofDecl
+            # leaf-string precedent). kind_of has its own arm. Gated `_uses_clause_ir`.
+            + (" | IrMethodDependencyDecl string string string"
+               if self._uses_clause_ir() else "")
+            # self-tcb-reduction family-B (LIST-append clause parsers): IrComposeFromDecl /
+            # IrConformsToDecl / IrLockOrder each carry the single `list string` field the
+            # `.append`-loop clause parsers build (`ComposeFromDecl(mixins)` /
+            # `ConformsToDecl(protocols)` / `LockOrder(order)`, `_parse_compose_from` /
+            # `_parse_conforms_to` / `_parse_lock_order`). The payload is the growable
+            # `seq string` the in-body list local lowers to (Seq.cons/snoc; the `_parse_act_names`
+            # precedent — a `list string` returned/passed as `seq string`), NOT an emit_ir child
+            # → childless for the `size` measure (falls to size's `_ -> 1` catch-all → NO size
+            # arm; the IrProofDecl leaf precedent). kind_of has its own arm each. Gated
+            # `_uses_clause_ir` → byte-inert in every other mirror + the whole corpus.
+            + (" | IrComposeFromDecl (seq string)"
+               " | IrConformsToDecl (seq string)"
+               " | IrLockOrder (seq string)"
+               if self._uses_clause_ir() else "")
+            + "  with irlist = ILNil | ILCons emit_ir irlist"
+            + "  with iropt_str = IrSNone | IrSSome string"
+            + "  with iropt_ir = IrONone | IrOSome emit_ir"
+            # OPTIONAL-ELEMENT CHILD LIST (relaunch #10): `Dict.keys` really holds `None`
+            # ELEMENTS — `{**a, 'k': v}` parses to `keys=[None, 'k']` — so its faithful
+            # payload is a list of `iropt_ir`, NOT an `irlist` (which would have to model
+            # the absent key as a NODE, exactly the sentinel this family exists to avoid).
+            # A BESPOKE cons-list for the same reason `irlist` is one: Why3 rejects a `seq`
+            # inside the recursive group as non-strictly-positive. Gated on the pure_ast
+            # parser file -> every other emit_ir theory in the tree is byte-identical.
+            + ("  with iroptlist = IONil | IOCons iropt_ir iroptlist"
+               if self._uses_pyast_parser() else "")
+            # LITERAL-VALUE MODEL (relaunch #12): the bespoke `irconst` carrier that used
+            # to close this group is RETIRED — `IrPyConstant`'s value slot now carries the
+            # CERTIFIED `pyconst_val`, declared STANDALONE above the sum (see the note at
+            # its declaration). It has no emit_ir payload, so it stays out of the `size`
+            # induction exactly as `irconst` did, and it gains five arms the two-arm
+            # carrier never had.
+            ,
+            "",
+            "  (* _py_expr fixed-child batch mini-M1: IrStarred carries the single"
+            " emit_ir child (`_py_expr_starred`'s `value` field) — a GENERIC"
+            " 1-emit_ir-child node, following the IrFst/IrHd single-child precedent"
+            " (no discriminant/size-decrease lemma pair; those consumers are"
+            " non-recursive single reads, same as this one). *)",
             "  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries"
             " value and index sub-nodes — the emitter reflects on Call/Subscript IR."
             " B-C6: IrTuple carries the first two elements (elts[0], elts[1]) — the"
-            " emitter reflects on a MkTuple node's `elts` in the ghost-dict `+=` branch. *)",
+            " emitter reflects on a MkTuple node's `elts` in the ghost-dict `+=` branch."
+            " tier3-p1: IrBinOp carries the operator string and the left/right sub-nodes."
+            " orelse_of mini-M1: IrIfExpr carries the body (then/value) and orelse (else)"
+            " sub-nodes — the emitter reflects on an IfExpr ternary's `.get(\"body\")`/"
+            " `.get(\"orelse\")`. *)",
+            "  (* isinstance-on-CSL-class recognizer (self-tcb-reduction M5, _csl_old):"
+            " IrOld carries the single wrapped emit_ir sub-node (`_csl_old`'s FALSE"
+            " branch `{\"type\":\"Old\",\"expr\":self._csl_to_ir(node.expr)}`); IrOldField"
+            " carries the two LEAF strings of the flat `\\old(x.f)` node (`_csl_old`'s TRUE"
+            " branch `{\"type\":\"OldField\",\"object\":node.expr.object,\"field\":"
+            " node.expr.field}`, reading the CSLFieldAccess's raw `object`/`field` string"
+            " fields). CSLFieldAccess-as-emit_ir is modeled as IrFieldGet (its raw"
+            " (object:str, field:str) shape matches IrFieldGet string string exactly), so"
+            " `isinstance(node.expr, CSLFieldAccess)` lowers to `is_fieldget node.expr` and"
+            " the two reads project via `fgobject_of`/`field_of`. Neither node is reflected"
+            " back (terminal outputs), so no discriminant/size-decrease law is needed —"
+            " both fall to size's `_ -> 1` catch-all (the IrForallItems-domain precedent). *)",
+            "  (* variadic content-law comprehension (FABLE-sanctioned): IrMkTupleN carries"
+            " the VARIADIC element list of a tuple node (`_csl_mktuple`/`_py_expr_tuple`'s"
+            " `elts` — an `array emit_ir` mapped through the recursive dispatcher). The"
+            " payload is `irlist` — a MONOMORPHIC cons-list mutually-recursive WITH emit_ir"
+            " (ILNil/ILCons), NOT the polymorphic library `list emit_ir`: the polymorphic"
+            " `list.List` axioms, unavoidably in scope before the ADT type, made the emit_ir"
+            " `size_*_dec` size-decrease lemmas EXPLODE (27-34M-step 30s timeout, measured);"
+            " the self-contained `irlist` keeps them at ~30K steps (measured Valid, 0.03s)."
+            " `irlen`/`irnth` (below) are its length/nth, used by the comprehension op's"
+            " content law — declared AFTER the size lemmas so nothing perturbs them. The op"
+            " emits BOTH a length law AND a per-index content law over a SHARED, per-dispatcher"
+            " `emit_ir_disp__<disp>` `val function` (expressions.py `_content_comp` variadic"
+            " branch). The content law pins map STRUCTURE — result[i] is a deterministic"
+            " function of src[i] — NOT dispatcher value-semantics; honest labeling per the"
+            " FABLE §6 condition 3. Non-vacuity holds by ILCons injectivity (a non-functional"
+            " hostile is refuted). size's `_ -> 1` catch-all covers IrMkTupleN (no recursive"
+            " consumer reflects a tuple's element list back — the IrStarred single-read"
+            " precedent). IrListN/IrSetN carry the SAME `irlist` payload for `_py_expr_list`'s"
+            " ArrayLit / `_py_expr_set`'s SetLit tuple-shaped element lists; IrCallN carries a"
+            " func-name `string` + the `irlist` args of `_csl_call_expr`'s Call node (the"
+            " content law over `emit_ir_disp__csl_to_ir`). Distinct ctors per node kind for"
+            " clarity; each has its own kind_of arm (\"ArrayLit\"/\"SetLit\"/\"Call\"), all"
+            " covered by size's `_ -> 1`. IrCallN's \"Call\" tag is intentionally shared with"
+            " the pre-existing projection-reflection IrCall (non-injective kind_of is sound —"
+            " the IrCall/IrCallN precedent). *)",
+            "  (* optional-field builder (monomorphic-option ADTs): IrForall/IrExists carry a"
+            " binder var (string), a body sub-node (emit_ir), and the two OPTIONAL binder"
+            " fields of `_csl_forall`/`_csl_exists` — the typed/bounded `binder_type`"
+            " (`Optional[str]`) and the `in S` `domain` (`Optional[ExprIR]`). The optionals"
+            " are carried as MONOMORPHIC option-like ADTs — `iropt_str = IrSNone | IrSSome"
+            " string` and `iropt_ir = IrONone | IrOSome emit_ir` — NOT the polymorphic library"
+            " `option string`/`option emit_ir`: adding a polymorphic `option emit_ir` INSIDE"
+            " the recursive emit_ir sum brings the `option.Option` library axioms into scope"
+            " before the emit_ir/irlist `size_*_dec` size-decrease lemmas, exploding them to a"
+            " 400s `--fun _csl_forall` TIMEOUT (measured, reverted 2026-07-16); the self-"
+            " contained `iropt_ir` keeps them fast (the irlist precedent). The construction"
+            " (expressions.py `_lower_irnode_construction`, `_QUANTIFIER_OPT_CTORS`) reads the"
+            " Forall/Exists RECORD's `option` fields and converts them at the ctor arg:"
+            " `match node.binder_type with Some s -> IrSSome s | None -> IrSNone` and"
+            " `match node.domain with Some d -> IrOSome (csl_to_ir d) | None -> IrONone`."
+            " size (below) recurses ONLY the body (`1 + size b`); the domain-opt is NOT"
+            " counted (no consumer recurses a quantifier's domain — same as IrForallItems),"
+            " so `iropt_ir`/`iropt_str` need NO size arm and stay out of the size lemmas. *)",
+            "  (* optional-field ext (monomorphic-option ADTs): IrSliceN carries the THREE"
+            " ternary-optional bounds of `_py_expr_slice` — `lower`/`upper`/`step`, each the"
+            " Python `disp(expr.X) if expr.X else None` (an `Optional[ExprIR]` pure_ast Slice"
+            " field, `_OPTIONAL_FIELDS['Slice']`). Each bound is carried as the SAME monomorphic"
+            " `iropt_ir` the quantifier domain uses — NOT a bare emit_ir — so a MISSING bound is"
+            " the honest `IrONone` and a present one `IrOSome (self._py_expr_to_ir v)`, reading"
+            " the `option emit_ir` Slice record field and unwrapping at the ctor arg (expressions."
+            " py `_lower_sliceN_optfield`, routed via the SliceN internal tag from functions.py"
+            " `_recognize_slice_builder`). kind_of returns \"Slice\" (the real `.get(\"type\")`"
+            " tag `_py_expr_slice` emits) — non-injective with the spec-side IrSlice (which drops"
+            " step); the IrCall/IrCallN precedent. No consumer recurses a slice bound, so — like"
+            " IrForall's domain — NO size arm is needed (falls to `_ -> 1`), keeping the size"
+            " lemmas fast. *)",
+            "  (* optional-field ext (monomorphic-option ADTs): IrFunctionVariant realizes the"
+            " TYPE-LESS `_csl_function_variant` dict `{\"expr\": self._csl_to_ir(node.expr)}` +"
+            " optional `if node.ordering: ir[\"ordering\"] = node.ordering`. It carries the"
+            " required `expr` sub-node (a bare emit_ir — the `self._csl_to_ir(node.expr)`"
+            " dispatch, so `_csl_function_variant` — itself a `_csl_to_ir` handler — stays"
+            " emit_ir-typed) and the OPTIONAL `ordering` as `iropt_str`. `node.ordering` is a"
+            " parser `expect_name()` token (Optional[str], NEVER the empty string), so the"
+            " Python truthiness `if node.ordering:` is exactly presence: `match node.ordering"
+            " with Some s -> IrSSome s | None -> IrSNone` (functions.py"
+            " `_recognize_functionvariant_builder`, expressions.py"
+            " `_lower_functionvariant_optfield`). kind_of returns \"FunctionVariant\" — a label"
+            " only (the source dict is type-less, so nothing reflects `.get(\"type\")` on it);"
+            " size recurses the real `expr` child (`1 + size e`), NOT the iropt_str. *)",
             "  let function kind_of (e: emit_ir) : string =",
             "    match e with",
             "    | IrVar _ -> \"Var\" | IrAttr _ _ -> \"Attribute\"",
             "    | IrStr _ -> \"String\" | IrNum _ -> \"Number\"",
+            "    | IrNumF _ -> \"Number\" | IrBoolC _ -> \"Bool\"",
             "    | IrRaw _ -> \"RawWhyml\"",
             "    | IrCall _ _ _ -> \"Call\" | IrSub _ _ -> \"Subscript\"",
             "    | IrTuple _ _ -> \"MkTuple\"",
+            "    | IrBinOp _ _ _ -> \"BinOp\"",
+            "    | IrFieldGet _ _ -> \"FieldGet\"",
+            "    | IrIfExpr _ _ -> \"IfExpr\"",
+            "    | IrTer3 _ _ _ -> \"Ter3\"",
+            "    | IrUnaryOp _ _ -> \"UnaryOp\"",
+            "    | IrAt _ _ -> \"At\"",
+            "    | IrArrayLen _ -> \"ArrayLen\"",
+            "    | IrInGlobals _ -> \"InGlobals\"",
+            "    | IrInScope _ -> \"InScope\"",
+            "    | IrValid _ _ -> \"Valid\"",
+            "    | IrSeparated _ _ _ _ -> \"Separated\"",
+            "    | IrLength2D _ _ _ -> \"Length2D\"",
+            "    | IrValid2D _ _ _ -> \"Valid2D\"",
+            "    | IrIsSorted _ _ _ -> \"IsSorted\"",
+            "    | IrArrayEq _ _ -> \"ArrayEq\"",
+            "    | IrPermutation _ _ -> \"Permutation\"",
+            "    | IrSum _ _ _ -> \"Sum\"",
+            "    | IrAssignsRegion _ _ _ -> \"AssignsRegion\"",
+            "    | IrForallItems _ _ _ _ -> \"ForallItems\"",
+            "    | IrMapEmpty -> \"MapEmpty\" | IrMapGet _ _ -> \"MapGet\"",
+            "    | IrMapSet _ _ _ -> \"MapSet\" | IrMapEq _ _ -> \"MapEq\"",
+            "    | IrHasKey _ _ -> \"HasKey\" | IrMapRemove _ _ -> \"MapRemove\"",
+            "    | IrSetEmpty -> \"SetEmpty\" | IrSetAdd _ _ -> \"SetAdd\"",
+            "    | IrSetRemove _ _ -> \"SetRemove\" | IrSetMem _ _ -> \"SetMem\"",
+            "    | IrSetUnion _ _ -> \"SetUnion\" | IrSetInter _ _ -> \"SetInter\"",
+            "    | IrSetDiff _ _ -> \"SetDiff\" | IrSetCard _ _ _ -> \"SetCard\"",
+            "    | IrSetSubset _ _ -> \"SetSubset\" | IrSetEq _ _ -> \"SetEq\"",
+            "    | IrNil -> \"Nil\" | IrCons _ _ -> \"Cons\"",
+            "    | IrHd _ -> \"Hd\" | IrTl _ -> \"Tl\"",
+            "    | IrListLength _ -> \"ListLength\" | IrNth _ _ -> \"Nth\"",
+            "    | IrMem _ _ -> \"Mem\" | IrAppend _ _ -> \"Append\"",
+            "    | IrFst _ -> \"FstExpr\" | IrSnd _ -> \"SndExpr\"",
+            *(["    | IrProj _ _ -> \"ProjExpr\""] if self._uses_csl_proj() else []),
+            "    | IrCtorTest _ _ -> \"CtorTest\" | IrCtorPayload _ _ _ -> \"CtorPayload\"",
+            "    | IrStrConcat _ _ -> \"StrConcat\" | IrStrLength _ -> \"StrLength\"",
+            "    | IrStrSub _ _ _ -> \"StrSub\"",
+            "    | IrGhostCopy _ -> \"GhostCopy\" | IrGhostCopyRange _ _ _ -> \"GhostCopyRange\"",
+            "    | IrGhostMake _ _ -> \"GhostMake\"",
+            "    | IrSliceAccess _ _ -> \"SliceAccess\" | IrSlice _ _ -> \"Slice\"",
+            "    | IrNone -> \"None\" | IrResult -> \"Result\" | IrNothing -> \"Nothing\"",
+            "    | IrStarred _ -> \"Starred\"",
+            "    | IrNamedExpr _ _ -> \"NamedExpr\"",
+            "    | IrMkTupleN _ -> \"MkTuple\"",
+            "    | IrListN _ -> \"ArrayLit\"",
+            "    | IrSetN _ -> \"SetLit\"",
+            "    | IrCallN _ _ -> \"Call\"",
+            "    | IrForall _ _ _ _ -> \"Forall\"",
+            "    | IrExists _ _ _ _ -> \"Exists\"",
+            "    | IrSliceN _ _ _ -> \"Slice\"",
+            "    | IrFunctionVariant _ _ -> \"FunctionVariant\"",
+            "    | IrOld _ -> \"Old\" | IrOldField _ _ -> \"OldField\"",
+            # _py_expr_lambda/dict/comprehension increments: the gated tags (gated WITH the
+            # ctors above so kind_of stays exhaustive in both configurations — byte-inert).
+            *(["    | IrLambda _ _ -> \"Lambda\""
+               " | IrDictLit _ _ -> \"DictLit\""
+               " | IrGenExp _ _ -> \"GenExp\""
+               " | IrListComp _ _ -> \"ListComp\""
+               " | IrSetComp _ _ -> \"SetComp\""
+               " | IrDictComp _ _ _ -> \"DictComp\""]
+              if self._uses_stmt_ir() else []),
+            # cap-2: the IrDictLit kind_of arm for a dictlit-only (non-stmt_ir) file —
+            # REQUIRED for exhaustiveness (kind_of has no wildcard) when the ctor is
+            # appended above. No duplicate (the stmt_ir arm already covers stmt_ir files).
+            *(["    | IrDictLit _ _ -> \"DictLit\""]
+              if (self._uses_dictlit() and not self._uses_stmt_ir()) else []),
+            # J1: IrCallKw's "Call" tag (gated WITH the ctor so kind_of stays exhaustive
+            # in both configs — kind_of has NO wildcard, so the arm is REQUIRED when the
+            # ctor is present and ABSENT when it is not). Shares "Call" with IrCall/IrCallN
+            # (non-injective kind_of is sound — the IrCall/IrCallN precedent).
+            *(["    | IrCallKw _ _ _ _ -> \"Call\""]
+              if self._uses_call_kw() else []),
+            # Layer-2: IrMethodCall's "Call" tag (gated WITH the ctor so kind_of stays
+            # exhaustive — kind_of has NO wildcard). Shares "Call" with IrCall/IrCallKw
+            # (non-injective kind_of is sound — the IrCall/IrCallKw precedent).
+            *(["    | IrMethodCall _ _ _ _ -> \"Call\""]
+              if self._uses_method_recv() else []),
+            # self-tcb-reduction family-B: the clause-node kind_of arms (gated WITH the
+            # ctors so kind_of stays exhaustive in both configs — kind_of has NO wildcard,
+            # so the arm is REQUIRED when the ctor is present and ABSENT when it is not).
+            *(["    | IrProofDecl _ _ -> \"ProofDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrClassInvariant _ -> \"ClassInvariant\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrRaisesDecl _ _ -> \"RaisesDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrCSLIn _ _ -> \"CSLIn\"",
+               "    | IrCSLNotIn _ _ -> \"CSLNotIn\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrLoopInvariant _ -> \"LoopInvariant\"",
+               "    | IrLoopVariant _ -> \"LoopVariant\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrInterfaceClause _ _ -> \"InterfaceClause\"",
+               "    | IrEnsures _ -> \"Ensures\"",
+               "    | IrRequires _ -> \"Requires\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrGhostAssignDecl _ _ _ _ -> \"GhostAssignDecl\"",
+               "    | IrGhostArraySetDecl _ _ _ -> \"GhostArraySetDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrFootprint _ _ -> \"Footprint\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrMutexInvariant _ _ -> \"MutexInvariant\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrSharedDecl _ _ -> \"SharedDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrSharedStateDecl _ _ -> \"SharedStateDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrTouchesFieldDecl _ _ -> \"TouchesFieldDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrMethodDependencyDecl _ _ _ -> \"MethodDependencyDecl\""]
+              if self._uses_clause_ir() else []),
+            *(["    | IrComposeFromDecl _ -> \"ComposeFromDecl\"",
+               "    | IrConformsToDecl _ -> \"ConformsToDecl\"",
+               "    | IrLockOrder _ -> \"LockOrder\""]
+              if self._uses_clause_ir() else []),
+            # PYTHON-AST NODE CTOR FAMILY (increment 9): `kind_of` enumerates EVERY arm
+            # (no `_` catch-all before `IrOther`), so a new ctor makes the match
+            # NON-EXHAUSTIVE and Why3 raises an unreachable-point VC that no prover can
+            # discharge (measured: one 30s Timeout, 39.5M steps). Each pyast arm's kind is
+            # its PYTHON CLASS NAME — exactly the `.get("type")` tag the node carries.
+            *(self._pyast_kind_of_arms() if self._uses_pyast_parser() else []),
             "    | IrOther k -> k",
             "    end",
+            "",
+            "  (* tier3-p1 T3.1.2 (spike LAW 1): the BinOp constructor DISCRIMINANT — a"
+            " match-based bool, NOT `kind_of e = \"BinOp\"`. The two agree on every REAL IR"
+            " node (Module 5 never emits an IrOther whose kind is a registry tag — the"
+            " commit-d2479fe9 fail-closed boundary), but `is_binop` EXCLUDES the IrOther"
+            " catch-all, which is what makes the size-decrease law (below) hold and thus"
+            " lets structural recursion over a projected sub-node terminate. *)",
+            "  let function is_binop (e: emit_ir) : bool =",
+            "    match e with IrBinOp _ _ _ -> true | _ -> false end",
+            "",
+            "  (* orelse_of mini-M1: the IfExpr constructor DISCRIMINANT, following is_binop"
+            " verbatim — a match-based bool that EXCLUDES the IrOther catch-all, which is"
+            " what makes the size-decrease laws (below) hold and thus lets structural"
+            " recursion over a projected sub-node (body_of/orelse_of) terminate. *)",
+            "  let function is_ifexpr (e: emit_ir) : bool =",
+            "    match e with IrIfExpr _ _ -> true | _ -> false end",
+            "",
+            "  (* tier3-p1 increment 2 (complete the EXPR family, triage-ranked-tcb-tier3.md"
+            " T3.1.2): the per-kind constructor DISCRIMINANTS. Each is a match-based bool that"
+            " agrees with `kind_of e = \"K\"` on every REAL node yet EXCLUDES the IrOther"
+            " catch-all — the guard shape under which the size-decrease laws hold. Registered"
+            " in expressions.py::_KIND_DISCRIMINANT so `node.get(\"type\") == \"K\"` lowers to"
+            " `(is_K node)` (the faithful match dispatch, not a string compare). *)",
+            "  let function is_var (e: emit_ir) : bool =",
+            "    match e with IrVar _ -> true | _ -> false end",
+            "  let function is_num (e: emit_ir) : bool =",
+            "    match e with IrNum _ -> true | _ -> false end",
+            "  let function is_str (e: emit_ir) : bool =",
+            "    match e with IrStr _ -> true | _ -> false end",
+            "  let function is_sub (e: emit_ir) : bool =",
+            "    match e with IrSub _ _ -> true | _ -> false end",
+            "  let function is_attribute (e: emit_ir) : bool =",
+            "    match e with IrAttr _ _ -> true | _ -> false end",
+            "  let function is_call (e: emit_ir) : bool =",
+            # Layer-2: IrMethodCall is also a "Call" (matches kind_of). The gate combinations
+            # are enumerated so is_call stays a single total match in every configuration.
+            (("    match e with IrCall _ _ _ -> true | IrCallKw _ _ _ _ -> true"
+              " | IrMethodCall _ _ _ _ -> true | _ -> false end"
+              if self._uses_method_recv() else
+              "    match e with IrCall _ _ _ -> true | IrCallKw _ _ _ _ -> true"
+              " | _ -> false end") if self._uses_call_kw() else
+             ("    match e with IrCall _ _ _ -> true | IrMethodCall _ _ _ _ -> true"
+              " | _ -> false end" if self._uses_method_recv() else
+              "    match e with IrCall _ _ _ -> true | _ -> false end")),
+            "  let function is_tuple (e: emit_ir) : bool =",
+            "    match e with IrTuple _ _ -> true | _ -> false end",
+            "  let function is_fieldget (e: emit_ir) : bool =",
+            "    match e with IrFieldGet _ _ -> true | _ -> false end",
+            # const-reflection value model (self-tcb-reduction, Tier-5 value-model wall):
+            # the two COMPOUND const-node discriminants. `is_constant` spans ALL const-literal
+            # leaves (`isinstance(x, ast.Constant)` <-> x lowered from an ast.Constant node,
+            # which `_py_expr_constant` sends to IrNum/IrNumF/IrStr/IrBoolC/IrNone by value);
+            # `is_num_or_float` is the tuple-of-types `isinstance(x.value, (int, float))` (the
+            # NUMERIC subset IrNum/IrNumF). Both are definitional `let function`s over the
+            # EXISTING leaves — like is_num/is_str/is_none — NO axiom, NO new ADT. Proven
+            # axiom-free by getting-better/const-reflect-oracle.mlw (Z3 Valid, evil-twins
+            # refuted). Gated on `_uses_const_reflect` (a file with an `isinstance(_, (int,
+            # float))` reflect) -> corpus + every other mirror byte-identical.
+            *(([
+                "  (* const-reflection value model (self-tcb-reduction, Tier-5 value-model"
+                " wall): the COMPOUND const-node discriminants. `is_constant` spans ALL"
+                " const-literal leaves (`isinstance(x, ast.Constant)` <-> x lowered from an"
+                " ast.Constant, which `_py_expr_constant` sends to IrNum/IrNumF/IrStr/IrBoolC/"
+                " IrNone by value); `is_num_or_float` is the tuple-of-types `isinstance(x.value,"
+                " (int, float))` (the numeric subset). Definitional `let function`s over the"
+                " existing leaves (the is_num/is_str/is_none precedent) — NO axiom, NO new ADT."
+                " Proven axiom-free by getting-better/const-reflect-oracle.mlw. *)",
+                "  let function is_constant (e: emit_ir) : bool =",
+                "    match e with IrNum _ -> true | IrNumF _ -> true | IrStr _ -> true"
+                " | IrBoolC _ -> true | IrNone -> true | _ -> false end",
+                "  let function is_num_or_float (e: emit_ir) : bool =",
+                "    match e with IrNum _ -> true | IrNumF _ -> true | _ -> false end",
+            ]) if self._uses_const_reflect() else []),
+            *(([
+                "  (* value-model campaign incr8: the None-literal DISCRIMINANT, HOISTED here from"
+                " the `_py_expr_dict` dict-literal block below (both gated on `_uses_stmt_ir`) so"
+                " the `isinstance(x, ast.Constant) and x.value is None` -> `is_none x` recognizer"
+                " (expressions.py `_recognize_none_constant_guard`) can use it. A `None` literal"
+                " `ast.Constant` lowers (via `_py_expr_constant`) to EXACTLY `IrNone`, so `is_none"
+                " e` <-> \"e is a None literal\" — faithful, definitional `let function`, NO axiom."
+                " Same `_uses_stmt_ir` gate as its former dict-block home, so a plain-emit_ir"
+                " corpus file (no stmt_ir) stays byte-identical. *)",
+                "  let function is_none (e: emit_ir) : bool =",
+                "    match e with IrNone -> true | _ -> false end",
+            ]) if self._uses_stmt_ir() else []),
+            "",
+            "  (* output-side slice-discrimination (self-tcb-reduction M5, _py_expr_subscript):"
+            " the Slice-kind constructor DISCRIMINANT. `_py_expr_subscript` rewrites its"
+            " input-side `isinstance(node.slice, ast.Slice)` test to the SOUND output-side"
+            " `self._py_expr_to_ir(node.slice).get(\"type\") == \"Slice\"` — discriminating on"
+            " the LOWERED slice's kind (expressions.py::_KIND_DISCRIMINANT `\"Slice\" ->"
+            " is_slice`). Matches BOTH slice ctors so it agrees with `kind_of e = \"Slice\"`"
+            " on every REAL node (the is_binop faithfulness law): IrSliceN (the 3-bound node"
+            " `_py_expr_slice` actually emits) AND the spec-side IrSlice, while EXCLUDING the"
+            " IrOther catch-all. No consumer recurses a slice sub-node here (a boolean test"
+            " only), so — like the other EXPR discriminants — no size arm/lemma is needed. *)",
+            "  let function is_slice (e: emit_ir) : bool =",
+            "    match e with IrSlice _ _ -> true | IrSliceN _ _ _ -> true | _ -> false end",
+            "",
+            "  (* ghost-handler-wall Q2: the IrTer3 constructor DISCRIMINANT, following"
+            " is_binop/is_ifexpr verbatim — a match-based bool that EXCLUDES the IrOther"
+            " catch-all, which is what makes the size-decrease laws (below) hold. *)",
+            "  let function is_ter3 (e: emit_ir) : bool =",
+            "    match e with IrTer3 _ _ _ -> true | _ -> false end",
+            "",
+            "  (* tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections. `op_of` reads the"
+            " operator STRING leaf; `left_of`/`right_of` project the SUB-NODES. Total over"
+            " the sum (a non-BinOp reads the empty string / the IrOther \"\" sentinel). *)",
+            "  let function op_of (e: emit_ir) : string =",
+            "    match e with IrBinOp o _ _ -> o | _ -> \"\" end",
+            "",
+            "  let function left_of (e: emit_ir) : emit_ir =",
+            "    match e with IrBinOp _ l _ -> l | _ -> IrOther \"\" end",
+            "",
+            "  let function right_of (e: emit_ir) : emit_ir =",
+            "    match e with IrBinOp _ _ r -> r | _ -> IrOther \"\" end",
+            "",
+            "  (* orelse_of mini-M1: IfExpr field projections, following left_of/right_of"
+            " verbatim. `body_of` projects the then/value sub-node, `orelse_of` the else"
+            " sub-node. Total over the sum (a non-IfExpr reads the IrOther \"\" sentinel). *)",
+            "  let function body_of (e: emit_ir) : emit_ir =",
+            "    match e with IrIfExpr b _ -> b | _ -> IrOther \"\" end",
+            "",
+            "  let function orelse_of (e: emit_ir) : emit_ir =",
+            "    match e with IrIfExpr _ o -> o | _ -> IrOther \"\" end",
+            "",
+            "  (* ghost-handler-wall Q2 (self-tcb-reduction, ghost-handler-wall-response.md"
+            " §2/gh-spike.mlw::Q1FaithfulThirdChild): IrTer3 field projections, following"
+            " left_of/right_of/body_of/orelse_of verbatim — a GENERIC 3-emit_ir-child node"
+            " reused by every 3-child ghost handler (not one constructor per handler)."
+            " `ter_fst_of`/`ter_snd_of`/`ter_thd_of` project the 1st/2nd/3rd sub-node in"
+            " declared dataclass field order (the same idx0/idx1/idx2 convention"
+            " `_schema_swap_projectors` already uses for the 2-child swap family)."
+            " Total over the sum (a non-Ter3 reads the IrOther \"\" sentinel). *)",
+            "  let function ter_fst_of (e: emit_ir) : emit_ir =",
+            "    match e with IrTer3 a _ _ -> a | _ -> IrOther \"\" end",
+            "",
+            "  let function ter_snd_of (e: emit_ir) : emit_ir =",
+            "    match e with IrTer3 _ b _ -> b | _ -> IrOther \"\" end",
+            "",
+            "  let function ter_thd_of (e: emit_ir) : emit_ir =",
+            "    match e with IrTer3 _ _ c -> c | _ -> IrOther \"\" end",
+            "",
+            "  (* tier3-p1 T3.1.4 (spike LAW 3): the structural subtree-size measure. The"
+            " `variant { e }` is STRUCTURAL (recurses on pattern-bound sub-terms), so it"
+            " discharges natively here. The `ensures { result >= 1 }` — proven at this"
+            " definition, each recursive call assuming it — exposes `size e >= 1 > 0` to"
+            " every caller, discharging the int-variant well-foundedness lower bound. *)",
+            "  let rec function size (e: emit_ir) : int",
+            "    ensures { result >= 1 }",
+            "    variant { e }",
+            "  = match e with",
+            "    | IrBinOp _ l r -> 1 + size l + size r",
+            "    | IrIfExpr b o -> 1 + size b + size o",
+            "    | IrSub a b -> 1 + size a + size b",
+            "    | IrTuple a b -> 1 + size a + size b",
+            "    | IrAttr o _ -> 1 + size o",
+            "    | IrCall _ a _ -> 1 + size a",
+            "    | IrTer3 a b c -> 1 + size a + size b + size c",
+            "    | IrUnaryOp _ e -> 1 + size e",
+            "    | IrAt e _ -> 1 + size e",
+            "    | IrValid _ l -> 1 + size l",
+            "    | IrSeparated _ l1 _ l2 -> 1 + size l1 + size l2",
+            "    | IrLength2D _ r c -> 1 + size r + size c",
+            "    | IrValid2D _ r c -> 1 + size r + size c",
+            "    | IrIsSorted _ l h -> 1 + size l + size h",
+            "    | IrArrayEq l r -> 1 + size l + size r",
+            "    | IrPermutation l r -> 1 + size l + size r",
+            "    | IrSum _ l h -> 1 + size l + size h",
+            "    | IrAssignsRegion _ l h -> 1 + size l + size h",
+            "    | IrForallItems _ _ _ b -> 1 + size b",
+            "    | IrMapGet d k -> 1 + size d + size k",
+            "    | IrMapSet d k v -> 1 + size d + size k + size v",
+            "    | IrMapEq l r -> 1 + size l + size r",
+            "    | IrHasKey d k -> 1 + size d + size k",
+            "    | IrMapRemove d k -> 1 + size d + size k",
+            "    | IrSetAdd s e -> 1 + size s + size e",
+            "    | IrSetRemove s e -> 1 + size s + size e",
+            "    | IrSetMem e s -> 1 + size e + size s",
+            "    | IrSetUnion l r -> 1 + size l + size r",
+            "    | IrSetInter l r -> 1 + size l + size r",
+            "    | IrSetDiff l r -> 1 + size l + size r",
+            "    | IrSetCard s lo hi -> 1 + size s + size lo + size hi",
+            "    | IrSetSubset l r -> 1 + size l + size r",
+            "    | IrSetEq l r -> 1 + size l + size r",
+            "    | IrCons h t -> 1 + size h + size t",
+            "    | IrHd l -> 1 + size l",
+            "    | IrTl l -> 1 + size l",
+            "    | IrListLength l -> 1 + size l",
+            "    | IrNth l i -> 1 + size l + size i",
+            "    | IrMem e l -> 1 + size e + size l",
+            "    | IrAppend l r -> 1 + size l + size r",
+            "    | IrFst t -> 1 + size t",
+            "    | IrSnd t -> 1 + size t",
+            *(["    | IrProj t _ -> 1 + size t"] if self._uses_csl_proj() else []),
+            "    | IrStrConcat l r -> 1 + size l + size r",
+            "    | IrStrLength s -> 1 + size s",
+            "    | IrStrSub s l h -> 1 + size s + size l + size h",
+            "    | IrGhostCopyRange _ l h -> 1 + size l + size h",
+            "    | IrGhostMake sz d -> 1 + size sz + size d",
+            "    | IrSliceAccess v s -> 1 + size v + size s",
+            "    | IrSlice l h -> 1 + size l + size h",
+            "    | IrStarred v -> 1 + size v",
+            "    | IrNamedExpr _ v -> 1 + size v",
+            "    | IrForall _ b _ _ -> 1 + size b",
+            "    | IrExists _ b _ _ -> 1 + size b",
+            "    | IrFunctionVariant e _ -> 1 + size e",
+            # J2/J3 convergence: IrCallKw's size counts its arg0 child (parallel to
+            # IrCall's `1 + size a`), so the `size_arg0_dec` lemma (`is_call e -> size
+            # (arg0_of e) < size e`) stays VALID now that `is_call` also matches IrCallKw.
+            # Without this arm IrCallKw falls to `| _ -> 1` and the lemma is FALSE.
+            *(["    | IrCallKw _ _ a _ -> 1 + size a"] if self._uses_call_kw() else []),
+            # Layer-2: IrMethodCall's size counts BOTH its receiver AND arg0 children, so a
+            # recursive receiver-descending fold's `variant { size e }` is discharged (the
+            # receiver child is strictly smaller — Phase2j `recv_size_lt`). Without a
+            # dedicated arm it would fall to `| _ -> 1` and any receiver-size-decrease law
+            # would be FALSE (the IrCallKw arg0 precedent).
+            *(["    | IrMethodCall r _ a _ -> 1 + size r + size a"]
+              if self._uses_method_recv() else []),
+            # self-tcb-reduction family-B: IrClassInvariant recurses its single emit_ir
+            # child (`1 + size e`), gated WITH the ctor so the measure stays faithful in
+            # Module2_Parser.mlw and byte-inert elsewhere. The IrForallItems-body precedent.
+            *(["    | IrClassInvariant e -> 1 + size e"] if self._uses_clause_ir() else []),
+            # self-tcb-reduction family-B: IrRaisesDecl recurses its emit_ir condition
+            # child (`1 + size e`); the leading exception-name string is not counted
+            # (the IrForallItems/IrSum leading-string precedent). Gated WITH the ctor.
+            *(["    | IrRaisesDecl _ e -> 1 + size e"] if self._uses_clause_ir() else []),
+            # self-tcb-reduction family-B (membership run): IrCSLIn / IrCSLNotIn recurse
+            # BOTH emit_ir children (the IrGhostArraySetDecl / IrStrConcat precedent).
+            *(["    | IrCSLIn l r -> 1 + size l + size r",
+               "    | IrCSLNotIn l r -> 1 + size l + size r"]
+              if self._uses_clause_ir() else []),
+            *(["    | IrLoopInvariant e -> 1 + size e",
+               "    | IrLoopVariant e -> 1 + size e"] if self._uses_clause_ir() else []),
+            *(["    | IrInterfaceClause _ e -> 1 + size e",
+               "    | IrEnsures e -> 1 + size e",
+               "    | IrRequires e -> 1 + size e"] if self._uses_clause_ir() else []),
+            # self-tcb-reduction family-B (ghost run): IrGhostAssignDecl recurses its single
+            # emit_ir `value` child (`1 + size v`; leading `target` + trailing `op`/
+            # `declared_type` strings not counted); IrGhostArraySetDecl recurses BOTH emit_ir
+            # children `index` + `value` (the IrGhostCopyRange two-emit_ir-child precedent).
+            # Gated WITH the ctors.
+            *(["    | IrGhostAssignDecl _ v _ _ -> 1 + size v",
+               "    | IrGhostArraySetDecl _ i v -> 1 + size i + size v"]
+              if self._uses_clause_ir() else []),
+            # self-tcb-reduction family-B (footprint run): IrFootprint recurses its single
+            # emit_ir `arg` child (`1 + size a`; leading `happy_name` string not counted —
+            # the IrRaisesDecl precedent). Gated WITH the ctor.
+            *(["    | IrFootprint _ a -> 1 + size a"] if self._uses_clause_ir() else []),
+            # self-tcb-reduction family-B (mutex run): IrMutexInvariant recurses its single
+            # emit_ir `expr` child (`1 + size e`; leading `mutex` string not counted).
+            # Gated WITH the ctor.
+            *(["    | IrMutexInvariant _ e -> 1 + size e"] if self._uses_clause_ir() else []),
+            "    | _ -> 1",
+            "    end",
+            "",
+            "  (* tier3-p1 T3.1.4: the guarded size-DECREASE laws — a BinOp's left/right"
+            " sub-node is strictly smaller than the node. PROVEN (no axiom) by case"
+            " analysis on the sum + `size`'s `result >= 1`. These are the facts an"
+            " emitter-shaped recursive function over an IR-node param needs at its"
+            " recursive call sites (`f (node.get(\"left\"))`) to discharge termination. *)",
+            "  lemma size_left_dec  : forall e: emit_ir. is_binop e -> size (left_of e) < size e",
+            "  lemma size_right_dec : forall e: emit_ir. is_binop e -> size (right_of e) < size e",
+            "",
+            "  (* orelse_of mini-M1: the guarded size-DECREASE laws for IfExpr — a ternary's"
+            " body/orelse sub-node is strictly smaller than the node. PROVEN (no axiom) by"
+            " case analysis on the sum + `size`'s `result >= 1`, following size_left_dec/"
+            " size_right_dec verbatim. These are the facts an emitter-shaped recursive"
+            " function over an IR-node param needs at its recursive call sites"
+            " (`f (node.get(\"body\", {}))`, `f (node.get(\"orelse\", {}))`) to discharge"
+            " the injected `variant { size node }`. *)",
+            "  lemma size_ifexpr_body_dec : forall e: emit_ir. is_ifexpr e -> size (body_of e) < size e",
+            "  lemma size_ifexpr_orelse_dec : forall e: emit_ir. is_ifexpr e -> size (orelse_of e) < size e",
+            "",
+            "  (* ghost-handler-wall Q2: the guarded size-DECREASE laws for IrTer3 — each of"
+            " the 3 sub-nodes is strictly smaller than the node. PROVEN (no axiom) by case"
+            " analysis on the sum + `size`'s `result >= 1`, following size_left_dec/"
+            " size_right_dec/size_ifexpr_body_dec verbatim. Not required by the two"
+            " NON-recursive consumers (map_set/set_card just read each child once), but"
+            " kept for parity with every other multi-child constructor's projector triple"
+            " and to pre-clear any future recursive walker over IrTer3. *)",
+            "  lemma size_ter_fst_dec : forall e: emit_ir. is_ter3 e -> size (ter_fst_of e) < size e",
+            "  lemma size_ter_snd_dec : forall e: emit_ir. is_ter3 e -> size (ter_snd_of e) < size e",
+            "  lemma size_ter_thd_dec : forall e: emit_ir. is_ter3 e -> size (ter_thd_of e) < size e",
             "",
             "  let function name_of (e: emit_ir) : string =",
             "    match e with IrVar n -> n | IrAttr _ a -> a | _ -> \"\" end",
@@ -2983,18 +5942,130 @@ class PreambleEmissionMixin:
             "  let function value_of (e: emit_ir) : string =",
             "    match e with IrStr v -> v | IrRaw v -> v | _ -> \"\" end",
             "",
+            # self-tcb-reduction (_is_null_byte_lit): the INTEGER-value reader for a Number
+            # leaf. `value_of` reads only the STRING leaves (IrStr/IrRaw), so a `Number` node's
+            # `.get("value")` (an int) has no faithful projector — `_is_null_byte_lit`'s
+            # `elts[0].get("value") == 0` would mis-lower to `str_hash_op (value_of elt) = 0`
+            # (value_of = "" for every Number, so it cannot tell Number 0 from Number 5 —
+            # vacuous). `num_of` projects IrNum's int payload, so `num_of elt = 0` is the
+            # FAITHFUL int test. Definitional `let function`, NO axiom. GATED on
+            # `_uses_null_byte_num_reader` (a file defining `_is_null_byte_lit`); no corpus
+            # program defines it, so the emit_ir theory every corpus file emits stays
+            # byte-identical. Routed ONLY inside `_is_null_byte_lit` via a scoped `.get("value")`
+            # override, so every other handler's `.get("value")` keeps the string `value_of`.
+            *(([
+                "  let function num_of (e: emit_ir) : int =",
+                "    match e with IrNum n -> n | _ -> 0 end",
+                "",
+            ]) if (self._uses_null_byte_num_reader() or self._uses_const_reflect()) else []),
+            "  (* tier3-p1 increment 2 (§5e / risk-6 asymmetry): FieldGet projections."
+            " FieldGet.object is a LEAF string (`fgobject_of` : string) — UNLIKE"
+            " Attribute.object which is a SUB-node (`object_of` : emit_ir). FieldGet.field is"
+            " also a leaf string (`field_of`). The two `object` reads have DIFFERENT result"
+            " type-classes, so a naive \"object is a sub-node\" rule is wrong for FieldGet. *)",
+            "  let function fgobject_of (e: emit_ir) : string =",
+            "    match e with IrFieldGet o _ -> o | _ -> \"\" end",
+            "",
+            "  let function field_of (e: emit_ir) : string =",
+            "    match e with IrFieldGet _ f -> f | _ -> \"\" end",
+            "",
             "  let function object_of (e: emit_ir) : emit_ir =",
             "    match e with IrAttr o _ -> o | _ -> IrOther \"\" end",
             "",
+            "  (* SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction M5): the"
+            " UNIFIED `.value` projector for `_py_stmt_augassign`, which reads `stmt.target"
+            ".value` in BOTH the self-field branch (`stmt.target` is an IrAttr — its `.value`"
+            " is the Attribute OBJECT sub-node) and the subscript branch (`stmt.target` is an"
+            " IrSub — its `.value` is the Subscript ARRAY sub-node). A REFINEMENT of both"
+            " `object_of` (IrAttr arm) and `svalue_of` (IrSub arm): it agrees with `svalue_of`"
+            " on every non-IrAttr node and with `object_of` on every non-IrSub node, so each"
+            " branch's guard pins which arm fires. Scoped to `_py_stmt_augassign` via"
+            " `_EMIT_IR_HANDLER_ATTR_PROJ`. *)",
+            "  let function avalue_of (e: emit_ir) : emit_ir =",
+            "    match e with IrAttr o _ -> o | IrSub v _ -> v | _ -> IrOther \"\" end",
+            "",
             "  let function func_of (e: emit_ir) : string =",
-            "    match e with IrCall f _ _ -> f | _ -> \"\" end",
+            ("    match e with IrCall f _ _ -> f"
+             + (" | IrCallKw f _ _ _ -> f" if self._uses_call_kw() else "")
+             + (" | IrMethodCall _ f _ _ -> f" if self._uses_method_recv() else "")
+             + " | _ -> \"\" end"),
             "",
             "  let function nargs_of (e: emit_ir) : int =",
-            "    match e with IrCall _ _ n -> n | _ -> 0 end",
+            ("    match e with IrCall _ _ n -> n"
+             + (" | IrMethodCall _ _ _ n -> n" if self._uses_method_recv() else "")
+             + " | _ -> 0 end"),
             "",
             "  let function arg0_of (e: emit_ir) : emit_ir =",
-            "    match e with IrCall _ a _ -> a | _ -> IrOther \"\" end",
+            ("    match e with IrCall _ a _ -> a"
+             + (" | IrCallKw _ _ a _ -> a" if self._uses_call_kw() else "")
+             + (" | IrMethodCall _ _ a _ -> a" if self._uses_method_recv() else "")
+             + " | _ -> IrOther \"\" end"),
             "",
+            # Layer-2: the total method-call RECEIVER projector — reads back the receiver
+            # sub-node of an IrMethodCall, the absent-sentinel `IrOther ""` for every other
+            # node (real discrimination: a non-method-call reads the sentinel; the EVIL TWIN
+            # reading a WRONG receiver is provably UNprovable — Phase2j `receiver_of_evil`).
+            # Gated WITH the ctor on `_uses_method_recv` -> byte-inert elsewhere.
+            *((["  let function receiver_of (e: emit_ir) : emit_ir =",
+                "    match e with IrMethodCall r _ _ _ -> r | _ -> IrOther \"\" end",
+                "",
+                # Layer-1 slice accessors (gated WITH the receiver model — their sole
+                # consumer, `_match_field_decode_idiom`, also reads the receiver). `slice_of`
+                # projects an IrSliceAccess's slice sub-node (the IrSliceN `_py_expr_slice`
+                # emits). `lower_of`/`upper_of`/`step_of` unwrap IrSliceN's THREE
+                # `iropt_ir` bounds — an ABSENT bound reads back the honest `IrNone` (so the
+                # recognizer's `lower is None`/`step is not None` guards discriminate REAL
+                # presence), a present one its real emit_ir sub-node. Total over the sum.
+                "  let function slice_of (e: emit_ir) : emit_ir =",
+                "    match e with IrSliceAccess _ s -> s | _ -> IrOther \"\" end",
+                "  let function lower_of (e: emit_ir) : emit_ir =",
+                "    match e with IrSliceN lo _ _ ->"
+                " (match lo with IrOSome x -> x | IrONone -> IrNone end)"
+                " | _ -> IrOther \"\" end",
+                "  let function upper_of (e: emit_ir) : emit_ir =",
+                "    match e with IrSliceN _ up _ ->"
+                " (match up with IrOSome x -> x | IrONone -> IrNone end)"
+                " | _ -> IrOther \"\" end",
+                "  let function step_of (e: emit_ir) : emit_ir =",
+                "    match e with IrSliceN _ _ st ->"
+                " (match st with IrOSome x -> x | IrONone -> IrNone end)"
+                " | _ -> IrOther \"\" end",
+                ""]) if self._uses_method_recv() else []),
+            # J1: the Call-internals projectors (gated WITH the ctor on `_uses_call_kw`).
+            # `call_keywords` reads an IrCallKw's keyword_list (`call.keywords`); the kwval
+            # discriminant/projector pair (`is_kwname`/`kwname_id`/`is_kwattr`/`kwattr_of`)
+            # reads the Name.id / Attribute.attr faithfully (`kw.value.id` / `kw.value.attr`);
+            # `kw_arg_of`/`kw_value_of` read a keyword record's `.arg`/`.value`. All total
+            # (a non-IrCallKw reads KWNil; a non-Name/Attr reads its sole string arm). NO
+            # axiom — definitional `let function`s, exactly the oracle's shape. *)
+            *(([
+                "  let function call_keywords (e: emit_ir) : keyword_list =",
+                "    match e with IrCallKw _ kws _ _ -> kws | _ -> KWNil end",
+                "",
+                "  (* J2/J3 convergence: indexed access over the bespoke keyword_list cons"
+                " (the psl_len/psl_nth precedent) so the imperative `for kw in call.keywords`"
+                " loop lowers to the standard index-bounded while. Total + structurally"
+                " terminating (variant { l }); NO axiom. *)",
+                "  let rec function kwl_len (l: keyword_list) : int =",
+                "    match l with KWNil -> 0 | KWCons _ t -> 1 + kwl_len t end",
+                "  let rec function kwl_nth (i: int) (l: keyword_list) : keyword",
+                "    variant { l } =",
+                "    match l with KWNil -> { kw_arg = \"\"; kw_value = KwName \"\" }",
+                "    | KWCons h t -> if i <= 0 then h else kwl_nth (i-1) t end",
+                "",
+                "  let function kw_arg_of (k: keyword) : string = k.kw_arg",
+                "  let function kw_value_of (k: keyword) : kwval = k.kw_value",
+                "",
+                "  let function is_kwname (v: kwval) : bool =",
+                "    match v with KwName _ -> true | KwAttr _ -> false end",
+                "  let function is_kwattr (v: kwval) : bool =",
+                "    match v with KwAttr _ -> true | KwName _ -> false end",
+                "  let function kwname_id (v: kwval) : string =",
+                "    match v with KwName s -> s | KwAttr s -> s end",
+                "  let function kwattr_of (v: kwval) : string =",
+                "    match v with KwAttr s -> s | KwName s -> s end",
+                "",
+            ]) if self._uses_call_kw() else []),
             "  (* resync-campaign.md R1: the args LIST of a reflected Call node — opaque"
             " `array emit_ir` (sound; the ADT carries only arg0/nargs, so content is"
             " unmodelled). Used by the emitter's `val_ir.get(\"args\")`. *)",
@@ -3003,6 +6074,23 @@ class PreambleEmissionMixin:
             " an `array int` (stmt-lists stay int-opaque, feeding `_stmts_to_whyml`), distinct"
             " from `args_of`'s reflected `array emit_ir`. *)",
             "  val stmts_of (e: emit_ir) : array int",
+            # self-tcb-reduction _try_union_is_none_match: gated on `_uses_stmt_if_test`
+            # (name-gated on the sole If-stmt-test reader) so these two opaque `val`s emit
+            # ONLY into that file's theory — corpus + every other mirror stays byte-identical.
+            *(["  (* self-tcb-reduction (union/match cluster): the TEST sub-node of an If-statement-"
+            " shaped reflected node (`stmt.get(\"test\")` in `_try_union_is_none_match`). An"
+            " If STATEMENT is not an emit_ir EXPRESSION constructor, so its test is projected"
+            " by an OPAQUE `val` returning `emit_ir` (like `stmts_of`/`args_of` — the ADT"
+            " carries no If-stmt ctor, so the sub-node content is unmodelled). A subsequent"
+            " `test.get(\"op\"/\"left\"/\"right\")` reflects over this abstract emit_ir via the"
+            " total op_of/left_of/right_of projectors (\"\" / IrOther for a non-BinOp). *)",
+            "  val test_of (e: emit_ir) : emit_ir",
+            "  (* self-tcb-reduction (union/match cluster): the ELSE statement-list of an"
+            " If-statement-shaped node (`stmt.get(\"orelse\", [])`). A DISTINCT opaque `val`"
+            " from `stmts_of` (the then-branch) so `body = stmts_of stmt` and `orelse ="
+            " orelse_stmts_of stmt` get SEPARATE Why3 regions — two `stmts_of stmt` calls"
+            " would alias the one result region and Why3 forbids using both. *)",
+            "  val orelse_stmts_of (e: emit_ir) : array int"] if self._uses_stmt_if_test() else []),
             "",
             "  let function svalue_of (e: emit_ir) : emit_ir =",
             "    match e with IrSub v _ -> v | _ -> IrOther \"\" end",
@@ -3016,18 +6104,2449 @@ class PreambleEmissionMixin:
             "  let function elt1_of (e: emit_ir) : emit_ir =",
             "    match e with IrTuple _ b -> b | _ -> IrOther \"\" end",
             "",
+            "  (* tier3-p1 increment 2 (T3.1.4): the guarded size-DECREASE laws for the rest of"
+            " the EXPR family — a Subscript's value/index, an Attribute's object, a Call's"
+            " arg0, and a MkTuple's elt0/elt1 sub-node is strictly smaller than the node."
+            " PROVEN (no axiom) by case analysis on the sum + `size`'s `result >= 1`. These"
+            " are the facts an emitter-shaped recursive function over an IR-node param needs"
+            " at each recursive call site (`f (node.get(\"value\"))`, `f (node.get(\"object\"))`,"
+            " …) to discharge the injected `variant { size node }`. *)",
+            "  lemma size_svalue_dec : forall e: emit_ir. is_sub e -> size (svalue_of e) < size e",
+            "  lemma size_sindex_dec : forall e: emit_ir. is_sub e -> size (sindex_of e) < size e",
+            "  lemma size_object_dec : forall e: emit_ir. is_attribute e -> size (object_of e) < size e",
+            "  lemma size_arg0_dec   : forall e: emit_ir. is_call e -> size (arg0_of e) < size e",
+            "  lemma size_elt0_dec   : forall e: emit_ir. is_tuple e -> size (elt0_of e) < size e",
+            "  lemma size_elt1_dec   : forall e: emit_ir. is_tuple e -> size (elt1_of e) < size e",
+            "",
+            "  (* variadic content-law comprehension (FABLE-sanctioned): the length and nth of"
+            " the monomorphic `irlist` (IrMkTupleN's payload). Declared AFTER the size"
+            " size-decrease lemmas so their proofs never see these defining axioms. Used ONLY"
+            " by the comprehension content-law op's `ensures` (an abstract `val` — assumed,"
+            " never a VC here). `irnth`'s out-of-range/nil default is `IrOther \"\"` (the"
+            " emit_ir absent-sentinel), total. Non-vacuity of the content law rests on ILCons"
+            " INJECTIVITY: a non-functional hostile (unequal outputs on equal source elements)"
+            " is refuted for every interpretation of the shared `emit_ir_disp__<disp>`. *)",
+            "  let rec function irlen (l: irlist) : int",
+            "    ensures { result >= 0 }",
+            "    variant { l }",
+            "  = match l with ILNil -> 0 | ILCons _ t -> 1 + irlen t end",
+            "",
+            "  let rec function irnth (i: int) (l: irlist) : emit_ir",
+            "    variant { l }",
+            "  = match l with ILNil -> IrOther \"\""
+            " | ILCons h t -> if i <= 0 then h else irnth (i - 1) t end",
+            "",        ] + ([
+            "  (* OPTIONAL-ELEMENT CHILD LIST (relaunch #10): length and nth of the"
+            " `iroptlist` carrier, the exact twin of `irlen`/`irnth` one element-type over."
+            " `ionth`'s out-of-range/nil default is `IrONone` — the carrier's OWN absent"
+            " arm, so the total function never invents a node. Used only by the"
+            " `seq_to_iroptlist` bridge's `ensures` (an abstract `val`: assumed there,"
+            " never a VC here). Gated on the pure_ast parser file. *)",
+            "  let rec function iolen (l: iroptlist) : int",
+            "    ensures { result >= 0 }",
+            "    variant { l }",
+            "  = match l with IONil -> 0 | IOCons _ t -> 1 + iolen t end",
+            "",
+            "  let rec function ionth (i: int) (l: iroptlist) : iropt_ir",
+            "    variant { l }",
+            "  = match l with IONil -> IrONone"
+            " | IOCons h t -> if i <= 0 then h else ionth (i - 1) t end",
+            "",
+            "  (* OPTIONAL-NODE LOCAL (relaunch #11): the total projection out of the"
+            " `iropt_ir` carrier, for the ONE position where an `Optional[<node>]` local is"
+            " read where a plain `emit_ir` is required (`_subscript_item`'s `return lower`,"
+            " guarded in Python by the branch that has just assigned it). DEFINED, not"
+            " axiomatized — the `IrONone` arm reads the `IrOther \"\"` absent sentinel, the"
+            " same total-projector device `left_of`/`body_of` use. Nothing else may read a"
+            " carrier local as a node: an `iropt_ir` PAYLOAD SLOT binds the carrier itself,"
+            " so an absent child stays the honest `IrONone`. *)",
+            "  let function iropt_val (o: iropt_ir) : emit_ir",
+            "  = match o with IrOSome v -> v | IrONone -> IrOther \"\" end",
+            "",
+            "  (* OPTIONAL-STRING CARRIER (relaunch #11): the `iropt_str` twin of"
+            " `iropt_val`, for the one position where an `Optional[str]` local is read"
+            " where a plain `string` is required (`_fstring_replacement`'s"
+            " `Constant(value=debug_text)`, guarded in Python by the"
+            " `if debug_text is not None:` that has just proved it present). DEFINED, not"
+            " axiomatized; the `IrSNone` arm's `\"\"` is unreachable at that site. *)",
+            "  let function iropt_str_val (o: iropt_str) : string",
+            "  = match o with IrSSome v -> v | IrSNone -> \"\" end",
+            "",
+        ] if self._uses_pyast_parser() else []) + [
+
+            # self-tcb-reduction _typeddict_record_literal (cap-2): the two child-list
+            # projections of an IrDictLit node — `expr.get("keys")` / `expr.get("values")`
+            # read the DictLit's key/value irlists directly (a total projection over the sum,
+            # ILNil for a non-DictLit). Definitional over the existing IrDictLit ctor + irlist
+            # (NO new axiom/ADT; ledger stays 3). Gated on the SAME condition that emits the
+            # IrDictLit ctor (`_uses_stmt_ir or _uses_dictlit`) so it references a bound ctor;
+            # absent (byte-inert) in every other emit_ir-theory file.
+            *(["  let function dictlit_keys_of (e: emit_ir) : irlist",
+               "  = match e with IrDictLit ks _ -> ks | _ -> ILNil end",
+               "",
+               "  let function dictlit_values_of (e: emit_ir) : irlist",
+               "  = match e with IrDictLit _ vs -> vs | _ -> ILNil end",
+               ""]
+              if self._uses_dictlit() else []),
             "  (* self-ir-schema.md IR1: the typed slice of `self.ir` the emitter reflects on —"
             " `self.ir.get(\"shared_vars\", [])` is an array of these records"
             " (`sv[\"name\"]`/`sv.get(\"mutex\")`). Only the string TYPE is modelled; the"
             " content stays opaque via `ir_shared_vars`. *)",
             "  type sharedvar = { sv_name: string; sv_mutex: string }",
             "",
+            # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the WHOLE
+            # block — type + `is_pv*`/`pv*_of` + `real_trunc`/`bytes_content_comp` — is emitted
+            # ONLY in a file that actually harvested a Constant record (`_uses_pyconst_val`;
+            # only the Module5 mirror). Every OTHER full-theory mirror gets NOTHING here, so it
+            # stays byte-identical to the pre-feature emitter: adding the 7-constructor
+            # `pyconst_val` datatype to their emit_ir theory made Why3's `split_vc` enumerate
+            # its constructor cases, exploding the vacuity/proof sub-goal count on heavy
+            # mirrors (e.g. `stmt_control_flow`'s `_handle_for_stmt`). Sound: no other mirror
+            # references `pyconst_val`, so it is only ever declared where it is used. Corpus is
+            # likewise fully inert (its emit_ir drivers have no Constant field).
+            *(([
+                "  (* pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the"
+                " discriminated union of the Python CONSTANT scalar kinds an `ast.Constant`"
+                " node's `.value` field holds — the value-model capability the resolver note"
+                " (frontend/ir_resolve.py `_PURE_AST_FIELD_TABLE`, the \"_py_expr_constant"
+                " blocked\" paragraph) named as the missing value-type-discrimination (the"
+                " harvested `value` field was a single opaque leaf, not a discriminated union"
+                " of Python scalar types). STANDALONE + MONOMORPHIC: DISJOINT from the emit_ir"
+                " mutual-recursion block above (no `with`, no shared `size` induction), so it"
+                " adds NO constructor to emit_ir's soundness induction and NO size-decrease"
+                " obligation. `is_pv*` discriminants + total `pv*_of` projectors follow the"
+                " emit_ir `is_binop`/`left_of` precedent. A `_py_expr_constant`-style"
+                " `isinstance(expr.value, bool/str/int/bytes/complex)` / `expr.value is None` /"
+                " `is ...` INPUT-side value-type test lowers to the matching `is_pv*`"
+                " discriminant (module6_whyml/expressions.py `_handle_isinstance` / the `is"
+                " None` handler). Co-landed with an AXIOM-FREE Rocq+Lean certificate"
+                " (src/formal-semantics/rocq/Phase2c_PyConstVal.v + lean/PyCSL/PyConstVal.lean):"
+                " the abstraction map py-scalar->pyconst_val is total + injective-per-kind, the"
+                " `is_pv*` agree with Python isinstance/`is None`, and the `pv*_of` are exact"
+                " on their variant. *)",
+                "  type pyconst_val = PVNone | PVBool bool | PVInt int | PVStr string"
+                " | PVBytes (seq int) | PVComplex real | PVEllipsis",
+                "  let function is_pvnone (v: pyconst_val) : bool ="
+                " match v with PVNone -> true | _ -> false end",
+                "  let function is_pvbool (v: pyconst_val) : bool ="
+                " match v with PVBool _ -> true | _ -> false end",
+                "  let function is_pvint (v: pyconst_val) : bool ="
+                " match v with PVInt _ -> true | _ -> false end",
+                "  let function is_pvstr (v: pyconst_val) : bool ="
+                " match v with PVStr _ -> true | _ -> false end",
+                "  let function is_pvbytes (v: pyconst_val) : bool ="
+                " match v with PVBytes _ -> true | _ -> false end",
+                "  let function is_pvcomplex (v: pyconst_val) : bool ="
+                " match v with PVComplex _ -> true | _ -> false end",
+                "  let function is_pvellipsis (v: pyconst_val) : bool ="
+                " match v with PVEllipsis -> true | _ -> false end",
+                "  let function pvbool_of (v: pyconst_val) : bool ="
+                " match v with PVBool b -> b | _ -> false end",
+                "  let function pvint_of (v: pyconst_val) : int ="
+                " match v with PVInt n -> n | _ -> 0 end",
+                "  let function pvstr_of (v: pyconst_val) : string ="
+                " match v with PVStr s -> s | _ -> \"\" end",
+                "  let function pvbytes_of (v: pyconst_val) : seq int ="
+                " match v with PVBytes b -> b | _ -> Seq.empty end",
+                "  let function pvreal_of (v: pyconst_val) : real ="
+                " match v with PVComplex r -> r | _ -> 0.0 end",
+                # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): the DEFINITIONAL
+                # projection of a CONSTANT-leaf emit_ir node to its `pyconst_val` value — the model
+                # of `elt.value` where `elt` is an `ast.Constant` self-annotated as `emit_ir` (the
+                # ADT, not a Constant-record; `_pyconst_val_field_read` handles the record case).
+                # `_py_expr_constant` sends a Python scalar to IrNum/IrStr/IrBoolC/IrNumF/IrNone by
+                # value; `const_pyval_of` is its FAITHFUL inverse (IrNum n -> PVInt n, IrStr s ->
+                # PVStr s, IrBoolC b -> PVBool (b<>0) matching the int-encoded bool leaf, IrNumF r ->
+                # PVComplex r, IrNone -> PVNone). Total `let function` over the EXISTING const leaves
+                # (the num_of/svalue_of precedent) — NO axiom, NO new ADT/ctor/cert; the pyconst_val
+                # variants it produces are exactly those the Phase2c_PyConstVal certificate pins to
+                # Python isinstance/`is None`. Gated on `_uses_pyconst_val` -> Module5 mirror only.
+                "  let function const_pyval_of (e: emit_ir) : pyconst_val =",
+                "    match e with",
+                "    | IrNone -> PVNone",
+                "    | IrBoolC b -> PVBool (b <> 0)",
+                "    | IrNum n -> PVInt n",
+                "    | IrStr s -> PVStr s",
+                "    | IrNumF r -> PVComplex r",
+                "    | _ -> PVNone",
+                "    end",
+                # _const_int_value UnaryOp accessors (self-tcb-reduction M5, B-bucket): the
+                # is-discriminant + op-string + operand-sub-node projectors of an IrUnaryOp node —
+                # the model of a raw `ast.UnaryOp` (`-N`) the const-int extractor isinstance-
+                # dispatches over. Total `let function`s over the EXISTING `IrUnaryOp string emit_ir`
+                # ctor (the is_binop/op_of/left_of precedent) — NO axiom, NO new ADT/ctor/cert. The
+                # op string is `_py_op_to_str(ast.USub) = "-"` (what the live `_py_expr_unaryop`
+                # emits into IrUnaryOp's op field); `unaryop_operand_of` reads the operand emit_ir,
+                # `IrNone` on a non-UnaryOp (the absent-const sentinel `const_pyval_of` also uses).
+                # Gated on `_uses_pyconst_val` -> Module5 mirror only (byte-inert elsewhere).
+                "  let function is_unaryop (e: emit_ir) : bool =",
+                "    match e with IrUnaryOp _ _ -> true | _ -> false end",
+                "  let function unaryop_op_of (e: emit_ir) : string =",
+                "    match e with IrUnaryOp op _ -> op | _ -> \"\" end",
+                "  let function unaryop_operand_of (e: emit_ir) : emit_ir =",
+                "    match e with IrUnaryOp _ x -> x | _ -> IrNone end",
+                # complex branch of `_py_expr_constant`: `int(expr.value.real)` is a real->int
+                # truncation. Why3's `real.Truncate.truncate` is a LOGIC function (rejected in
+                # a program/ghost-free context), so expose a program-callable wrapper PINNED by
+                # `ensures` to that exact stdlib symbol — NOT an opaque `val` (its result is
+                # fully determined by the trusted `truncate`, adding no PyCSL axiom / TCB).
+                "  val function real_trunc (r: real) : int"
+                "    ensures { result = truncate r }",
+                # bytes content-comprehension: the CONTENT law for `[IrNum(b) for b in
+                # <PVBytes payload>]` (the byte-literal branch). Total over the source seq,
+                # per-index `IrNum (Seq.get s i)` + exact length — value-faithful, NOT an opaque
+                # length-only stub. Abstract `val function` (its `ensures` is assumed, never a
+                # VC), the `list_content_comp_N` precedent over a `seq int` source with the
+                # `IrNum` leaf ctor. Non-vacuous: `IrNum` is injective.
+                "  val function bytes_content_comp (s: seq int) : irlist",
+                "    ensures { irlen result = Seq.length s }",
+                "    ensures { forall i: int. 0 <= i < Seq.length s ->"
+                " irnth i result = IrNum (Seq.get s i) }",
+                "",
+            ]) if self._uses_pyconst_val() else []),
+            # stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): the
+            # STATEMENT-IR sum an `_py_stmt_*` handler appends to its `ir_stmts` list.
+            # STANDALONE + MONOMORPHIC: DISJOINT from the emit_ir mutual-recursion block
+            # above (no `with`, no shared `size` induction) — it REFERENCES emit_ir for a
+            # statement's expr children (SReturn/SExpr) but emit_ir does NOT reference
+            # stmt_ir, so the recursion is one-directional and stmt_ir adds NO constructor
+            # to emit_ir's soundness/size induction. TAG-PRESERVING: `stmt_kind_of`
+            # projects the node tag (SPass -> "Pass", SBreak -> "Break", …) — the honest
+            # discriminant that KILLS the pre-feature `.append({"stmt":K})` -> integer-`0`
+            # erasure (fable Oracle 3). Emitted ONLY where a `{"stmt":K}` node is actually
+            # appended (`_uses_stmt_ir`; only the Module5 mirror + the wall reference
+            # drivers) — every other full-theory mirror + the whole corpus is inert
+            # (byte-identical). Co-landed with the axiom-free Rocq+Lean certificate
+            # (src/formal-semantics/rocq/Phase2d_StmtIR.v + lean/PyCSL/StmtIR.lean): stmt_ir
+            # is a well-founded inductive (size measure + decidable eq), the dict->ctor map
+            # is total+injective on the recognized key-set, and the emit_ir child
+            # introduces no mutual recursion. The mutable-ref append convention itself is a
+            # Why3-intrinsic `writes` VC (no certificate clause needed — recorded in the
+            # .v/.lean headers).
+            *(([
+                "  (* stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket):"
+                " the statement-IR sum. SExpr carries one emit_ir expr child; SReturn"
+                " carries the OPTIONAL return value as `iropt_ir` (`IrONone` for a bare"
+                " `return`, `IrOSome e` for `return e`) — faithful to `ast.Return.value`"
+                " being `option emit_ir` (the ternary `disp(stmt.value) if stmt.value else"
+                " None`). The nullary/expr ctors are one-directional references to the"
+                " emit_ir ADT above (and its `iropt_ir` sibling) — NOT mutual recursion"
+                " WITH emit_ir, so no shared `size` obligation with it. *)",
+                "  (* SUB-BODY recursion (self-tcb-reduction M5, C-bucket, this increment):"
+                " the compound statements carry their nested statement body/orelse LISTS."
+                " SWhile carries the loop TEST (emit_ir) + BODY; SIf carries the TEST +"
+                " BODY + ORELSE; SFor carries the ITER (emit_ir) + BODY. The body list is a"
+                " bespoke MONOMORPHIC cons-list `stmt_list = SLNil | SLCons stmt_ir"
+                " stmt_list` — MUTUALLY recursive WITH stmt_ir (the `irlist` precedent)."
+                " The literal `SWhile emit_ir (seq stmt_ir)` is Why3 TYPE-REJECTED (an"
+                " abstract `seq` in a ctor arg is non-strictly-positive); `list stmt_ir`"
+                " drags the polymorphic `list.List` axioms into scope and EXPLODES the"
+                " emit_ir `size_*_dec` lemmas (the measured 27-34M-step blow-up). The"
+                " bespoke `stmt_list` is strictly positive and keeps them fast. This"
+                " mutual block is STILL one-directional w.r.t. emit_ir (stmt_ir/stmt_list"
+                " reference emit_ir for expr children; emit_ir never mentions either), and"
+                " is declared AFTER emit_ir's `size`/`size_*_dec` lemmas so nothing"
+                " perturbs them. `stmt_kind_of` is the TAG-PRESERVING discriminant (the"
+                " honest node tag, never erased to 0). Co-landed with the axiom-free"
+                " Rocq+Lean certificate (Phase2d_StmtIR.v / StmtIR.lean) extended for the"
+                " mutual `size_stmt`/`size_slist` measure. *)",
+                "  (* SAssign + str-Constant recognizer (self-tcb-reduction M5, C-bucket,"
+                " this increment): the ASSIGNMENT statement `x = v` carries the TARGET"
+                " NAME (a bare `string` leaf — `stmt.target.id` projected via `name_of`,"
+                " NOT an emit_ir sub-node) and the RHS VALUE (`emit_ir` — `py_expr_to_ir"
+                " stmt.value`). FLAT (no sub-body list), so it falls in `size_stmt`'s"
+                " `| _ -> 1` catch-all — NO change to the mutual size measure, the"
+                " `size_stmt`/`size_slist` lemmas stay byte-identical. Shared by the"
+                " `Assign` dict-key both `_py_stmt_annassign` (`x: T = v`) and — a later"
+                " increment — `_py_stmt_assign`'s Name-target branch append. *)",
+                "  (* SAugAssign/SFieldAugAssign/SArraySet increment (self-tcb-reduction"
+                " M5, C-bucket, this increment): the augmented-assignment statement"
+                " `x op= v` / `self.f op= v` / `c[k] op= v` (the `_py_stmt_augassign`"
+                " three-branch dispatch). SAugAssign carries the TARGET NAME (string,"
+                " `stmt.target.id` via `name_of`), the OP string (`py_op_to_str stmt.op`),"
+                " and the RHS emit_ir (`py_expr_to_ir stmt.value`). SFieldAugAssign carries"
+                " the self-FIELD NAME (string, `stmt.target.attr` via `name_of`), the OP"
+                " string, and the RHS — the constant `object:\"self\"` is DROPPED (the guard"
+                " `stmt.target.value.id == 'self'` pins it). SArraySet carries the ARRAY, the"
+                " INDEX, and the desugared `(c[k]) op v` BinOp VALUE (all emit_ir). All three"
+                " are FLAT (no sub-body list), so they fall in `size_stmt`'s `| _ -> 1`"
+                " catch-all — NO change to the mutual size measure. *)",
+                "  (* strlist — the monomorphic cons of names; STupleUnpack's targets field"
+                " (`[elt.id for elt in target.elts if isinstance(elt, ast.Name)]`), the"
+                " concrete compaction over the MkTuple elts (declared before stmt_ir since"
+                " STupleUnpack carries it). *)",
+                "  type strlist = SLNilS | SLConsS string strlist",
+                "  type stmt_ir = SPass | SBreak | SContinue"
+                " | SReturn iropt_ir | SExpr emit_ir"
+                " | SAssign string emit_ir"
+                " | SAssert emit_ir iropt_str"
+                # OPTIONAL-NODE FIELD UNWRAP (relaunch #15): the `raise E(v)` statement.
+                # BOTH children are genuinely OPTIONAL — a bare `raise` carries neither
+                # (`_OPTIONAL_FIELDS['Raise'] == ('exc','cause')`), and
+                # `_py_stmt_raise` also leaves `exc_type` absent for a computed/dotted
+                # exception expression — so they are `iropt_str` (the class NAME) and
+                # `iropt_ir` (the first constructor ARGUMENT), never a plain `string`/
+                # `emit_ir` whose absent value would read back as a `""`-named class or
+                # a present `IrOther ""` node (lesson (aq)'s measured erasure). FLAT (no
+                # sub-body list), so it falls in `size_stmt`'s `| _ -> 1` catch-all — NO
+                # change to the mutual size measure.
+                " | SRaise iropt_str iropt_ir"
+                " | SAugAssign string string emit_ir"
+                " | SFieldAugAssign string string emit_ir"
+                " | SArraySet emit_ir emit_ir emit_ir"
+                " | SWhile emit_ir stmt_list"
+                " | SIf emit_ir stmt_list stmt_list"
+                " | SFor emit_ir stmt_list"
+                " | STry stmt_list handler_list stmt_list stmt_list"
+                " | SMatch emit_ir match_case_list"
+                " | SDelSubscript emit_ir emit_ir"
+                " | SFieldAssign string string emit_ir"
+                " | SArraySliceSet emit_ir iropt_ir iropt_ir emit_ir"
+                " | STupleUnpack strlist emit_ir"
+                " | SCriticalSection string stmt_list emit_ir emit_ir"
+                " | SGhostArraySet string emit_ir emit_ir"
+                " | SGhostAssign string emit_ir string string"
+                "  with stmt_list = SLNil | SLCons stmt_ir stmt_list"
+                "  with handler_list = HLNil | HLCons except_handler handler_list"
+                "  with except_handler ="
+                " { eh_exc_type: iropt_str; eh_name: iropt_str; eh_body: stmt_list }"
+                "  with match_case_list = MCNil | MCCons match_case match_case_list"
+                "  with match_case ="
+                " { mc_pattern: emit_ir; mc_guard: iropt_ir; mc_body: stmt_list }",
+                "  let function stmt_kind_of (s: stmt_ir) : string =",
+                "    match s with",
+                "    | SPass -> \"Pass\" | SBreak -> \"Break\""
+                " | SContinue -> \"Continue\"",
+                "    | SReturn _ -> \"Return\" | SExpr _ -> \"Expr\""
+                " | SAssign _ _ -> \"Assign\"",
+                "    | SAssert _ _ -> \"Assert\""
+                " | SRaise _ _ -> \"Raise\"",
+                "    | SAugAssign _ _ _ -> \"AugAssign\""
+                " | SFieldAugAssign _ _ _ -> \"FieldAugAssign\""
+                " | SArraySet _ _ _ -> \"ArraySet\"",
+                "    | SWhile _ _ -> \"While\" | SIf _ _ _ -> \"If\""
+                " | SFor _ _ -> \"For\""
+                " | STry _ _ _ _ -> \"Try\""
+                " | SMatch _ _ -> \"Match\""
+                " | SDelSubscript _ _ -> \"DelSubscript\""
+                " | SFieldAssign _ _ _ -> \"FieldAssign\""
+                " | SArraySliceSet _ _ _ _ -> \"ArraySliceSet\""
+                " | STupleUnpack _ _ -> \"TupleUnpack\""
+                " | SCriticalSection _ _ _ _ -> \"CriticalSection\""
+                " | SGhostArraySet _ _ _ -> \"GhostArraySet\""
+                " | SGhostAssign _ _ _ _ -> \"GhostAssign\"",
+                "    end",
+                "",
+                "  (* The MUTUAL well-founded size measure over stmt_ir/stmt_list — the"
+                " WhyML twin of the certificate's `size_stmt`/`size_slist`. size_stmt"
+                " descends into the sub-body list (size_slist), which descends into each"
+                " element (size_stmt), the mutual induction. Every node has size >= 1;"
+                " a list has size >= 0. Does NOT descend into the FOREIGN emit_ir expr"
+                " children (one-directional), so emit_ir's own `size` is untouched. *)",
+                "  let rec function size_stmt (s: stmt_ir) : int",
+                "    ensures { result >= 1 }",
+                "    variant { s }",
+                "  = match s with",
+                "    | SWhile _ b -> 1 + size_slist b",
+                "    | SIf _ b o -> 1 + size_slist b + size_slist o",
+                "    | SFor _ b -> 1 + size_slist b",
+                "    | STry b hs oe fb -> 1 + size_slist b + size_hlist hs"
+                " + size_slist oe + size_slist fb",
+                "    | SMatch _ cs -> 1 + size_mclist cs",
+                "    | SCriticalSection _ b _ _ -> 1 + size_slist b",
+                "    | _ -> 1",
+                "    end",
+                "  with function size_slist (l: stmt_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with SLNil -> 0"
+                " | SLCons h t -> size_stmt h + size_slist t end",
+                "  with function size_hlist (l: handler_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with HLNil -> 0"
+                " | HLCons h t -> size_handler h + size_hlist t end",
+                "  with function size_handler (h: except_handler) : int",
+                "    ensures { result >= 0 }",
+                "    variant { h }",
+                "  = 1 + size_slist h.eh_body",
+                "  with function size_mclist (l: match_case_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with MCNil -> 0"
+                " | MCCons c t -> size_mcase c + size_mclist t end",
+                "  with function size_mcase (c: match_case) : int",
+                "    ensures { result >= 0 }",
+                "    variant { c }",
+                "  = 1 + size_slist c.mc_body",
+                "",
+                "  (* sl_len : the LENGTH of a stmt_list — the observable the non-vacuity"
+                " fixture proves (`sl_len body = <right count>`). *)",
+                "  let rec function sl_len (l: stmt_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with SLNil -> 0 | SLCons _ t -> 1 + sl_len t end",
+                "",
+                "  (* seq_to_sl : materialize a runtime `seq stmt_ir` (what the mutable-ref"
+                " append convention grows, and what the trusted `_py_stmts_to_ir` sub-body"
+                " dispatcher yields) into the pure `stmt_list` an SWhile/SIf/SFor ctor"
+                " carries. Termination is Why3-INTRINSIC (`variant { Seq.length s - i }`"
+                " over the index cursor); no certificate clause needed. The bridge lemma"
+                " `seq_to_sl_len` pins the length: `sl_len (seq_to_sl s) = Seq.length s` —"
+                " so a body of k runtime nodes yields a stmt_list of length k (NON-facade:"
+                " an empty body is SLNil of length 0, a k-node body is a real k-long cons"
+                " chain). Proven by the recursive lemma `seq_to_sl_from_len` (the recursion"
+                " IS the induction), instantiated at i=0. *)",
+                "  let rec function seq_to_sl_from (s: seq stmt_ir) (i: int) : stmt_list",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then SLNil",
+                "    else SLCons (Seq.get s i) (seq_to_sl_from s (i + 1))",
+                "  let function seq_to_sl (s: seq stmt_ir) : stmt_list ="
+                " seq_to_sl_from s 0",
+                "",
+                "  let rec lemma seq_to_sl_from_len (s: seq stmt_ir) (i: int)",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    ensures  { sl_len (seq_to_sl_from s i) = Seq.length s - i }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then () else seq_to_sl_from_len s (i + 1)",
+                "  lemma seq_to_sl_len : forall s: seq stmt_ir."
+                " sl_len (seq_to_sl s) = Seq.length s",
+                "",
+                "  (* STry + except_handler + handler_list increment (self-tcb-reduction"
+                " M5, C-bucket): the TRY statement `try: <body> except <T> as <n>:"
+                " <hbody> ... else: <orelse> finally: <finalbody>`. STry carries FOUR"
+                " children: the body/orelse/finalbody sub-lists (each a `stmt_list` via"
+                " `seq_to_sl`) and the HANDLER list — a `handler_list = HLNil | HLCons"
+                " except_handler handler_list`, MUTUALLY recursive WITH stmt_ir/stmt_list"
+                " (the `except_handler` record's `eh_body` field is a `stmt_list`, so the"
+                " STry->handler_list->except_handler->stmt_list->stmt_ir cycle forces ONE"
+                " mutual `with` block — a `seq except_handler` field is Why3 TYPE-REJECTED"
+                " (abstract seq in a ctor arg is non-strictly-positive), the bespoke cons"
+                " `handler_list` is strictly positive). except_handler = { eh_exc_type:"
+                " iropt_str (the `\"|\".join` compaction of the caught exception TYPE names,"
+                " `IrSNone` for a bare `except:`); eh_name: iropt_str (the `as <n>` bind,"
+                " `IrSNone` if absent); eh_body: stmt_list (the handler body sub-list) }."
+                " The 4-way mutual size measure (size_stmt/size_slist/size_hlist/"
+                " size_handler) is declared above; the STry ctor's `_ -> 1` sibling covers"
+                " nothing (STry has its own arm). Co-landed with the axiom-free Rocq+Lean"
+                " certificate (Phase2d_StmtIR.v / StmtIR.lean) extended for STry +"
+                " except_handler + handler_list + the compaction correctness. *)",
+                "  (* hl_len : the LENGTH of a handler_list — the observable the"
+                " non-vacuity fixture proves (`hl_len handlers = <right count>`). *)",
+                "  let rec function hl_len (l: handler_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with HLNil -> 0 | HLCons _ t -> 1 + hl_len t end",
+                "",
+                "  (* seq_to_hl : materialize a runtime `seq except_handler` (what the"
+                " `handlers = []; for h in stmt.handlers: handlers.append(<rec>)` accumulator"
+                " loop grows) into the pure `handler_list` the STry ctor carries. Termination"
+                " is Why3-INTRINSIC (`variant { Seq.length s - i }`); the bridge lemma"
+                " `seq_to_hl_len` pins `hl_len (seq_to_hl s) = Seq.length s` — a k-handler"
+                " loop yields a real k-long cons chain (NON-facade: empty = HLNil length 0). *)",
+                "  let rec function seq_to_hl_from (s: seq except_handler) (i: int)"
+                " : handler_list",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then HLNil",
+                "    else HLCons (Seq.get s i) (seq_to_hl_from s (i + 1))",
+                "  let function seq_to_hl (s: seq except_handler) : handler_list ="
+                " seq_to_hl_from s 0",
+                "  let rec lemma seq_to_hl_from_len (s: seq except_handler) (i: int)",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    ensures  { hl_len (seq_to_hl_from s i) = Seq.length s - i }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then () else seq_to_hl_from_len s (i + 1)",
+                "  lemma seq_to_hl_len : forall s: seq except_handler."
+                " hl_len (seq_to_hl s) = Seq.length s",
+                "",
+                "  (* SMatch + match_case + match_case_list increment (self-tcb-reduction"
+                " M5, C-bucket): the MATCH statement `match <subject>: case <p> [if <g>]:"
+                " <body> ...`. SMatch carries the SUBJECT (emit_ir) + the CASE list — a"
+                " `match_case_list = MCNil | MCCons match_case match_case_list`, MUTUALLY"
+                " recursive WITH stmt_ir/stmt_list (the `match_case` record's `mc_body` is a"
+                " `stmt_list`, the same SMatch->match_case_list->match_case->stmt_list->"
+                " stmt_ir cycle as STry/handler_list). match_case = { mc_pattern: emit_ir"
+                " (`_match_pattern_to_ir(case.pattern)`, the trusted pattern dispatcher's"
+                " emit_ir); mc_guard: iropt_ir (the `disp(case.guard) if case.guard else"
+                " None` optional guard); mc_body: stmt_list (the case body sub-list) }."
+                " The `size_mclist`/`size_mcase` measures are in the mutual block above. *)",
+                "  let rec function mcl_len (l: match_case_list) : int",
+                "    ensures { result >= 0 }",
+                "    variant { l }",
+                "  = match l with MCNil -> 0 | MCCons _ t -> 1 + mcl_len t end",
+                "",
+                "  let rec function seq_to_mcl_from (s: seq match_case) (i: int)"
+                " : match_case_list",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then MCNil",
+                "    else MCCons (Seq.get s i) (seq_to_mcl_from s (i + 1))",
+                "  let function seq_to_mcl (s: seq match_case) : match_case_list ="
+                " seq_to_mcl_from s 0",
+                "  let rec lemma seq_to_mcl_from_len (s: seq match_case) (i: int)",
+                "    requires { 0 <= i <= Seq.length s }",
+                "    ensures  { mcl_len (seq_to_mcl_from s i) = Seq.length s - i }",
+                "    variant  { Seq.length s - i }",
+                "  = if i >= Seq.length s then () else seq_to_mcl_from_len s (i + 1)",
+                "  lemma seq_to_mcl_len : forall s: seq match_case."
+                " mcl_len (seq_to_mcl s) = Seq.length s",
+                "",
+                "  (* The TYPED AST-input readers for `_py_stmt_match`: `py_match_node` models"
+                " `ast.Match` (its `stmt` param), `ast_match_case` an `ast.match_case`"
+                " element of `stmt.cases`. Opaque deterministic AST projectors (the typed"
+                " analogue of iter_get/get_body + the `_match_pattern_to_ir`/`_py_stmts_to_ir`"
+                " trusted dispatchers). `mc_pattern_ir` is the pattern lowered to emit_ir"
+                " (`_match_pattern_to_ir(case.pattern)`, folded — the trusted pattern"
+                " dispatcher yields a real emit_ir, NOT int-erased); `mc_guard_ast` the raw"
+                " OPTIONAL guard as `iropt_ir` (`IrONone` = no guard, `IrOSome g` = `if g`);"
+                " `mc_body_ast` the case body as `array int` (the `_py_stmts_to_ir`"
+                " dispatcher's param type). Gated on `_uses_stmt_ir`. *)",
+                "  type py_match_node",
+                "  type ast_match_case",
+                "  val function match_subject_ast (s: py_match_node) : emit_ir",
+                "  val function match_cases_ast (s: py_match_node) : seq ast_match_case",
+                "  val function mc_pattern_ir (c: ast_match_case) : emit_ir",
+                "  val function mc_guard_ast (c: ast_match_case) : iropt_ir",
+                "  val function mc_body_ast (c: ast_match_case) : array int",
+                "",
+                "  (* SDelSubscript increment (self-tcb-reduction M5, C-bucket): the typed"
+                " AST reader for `_py_stmt_delete`. `py_delete_node` models `ast.Delete`"
+                " (its `stmt` param); `del_targets_ast` reads `stmt.targets` as a `seq"
+                " emit_ir` — each target already the emit_ir of a `_py_expr_to_ir`-lowered"
+                " del target (a Subscript -> IrSub, a Name -> IrVar). Opaque deterministic"
+                " AST reader (the typed analogue of iter_get). Gated on `_uses_stmt_ir`. *)",
+                "  type py_delete_node",
+                "  val function del_targets_ast (s: py_delete_node) : seq emit_ir",
+                "",
+                "  (* SCriticalSection increment (self-tcb-reduction M5, C-bucket): the typed"
+                " AST reader for `_py_stmt_with`. `py_with_node` models `ast.With`;"
+                " `with_body_ast` reads `stmt.body` (`array int`, the dispatcher param);"
+                " `csl_mutex_ast` models the WEAVE-INJECTED `getattr(stmt,"
+                " 'csl_critical_mutex', None) or getattr(stmt, 'csl_acquires', None)` mutex"
+                " as an opaque `iropt_str` (the mutex NAME, `IrSNone` for a plain `with:`) —"
+                " the weaver's `#@ critical`/`#@ acquires` attribute is runtime data on the"
+                " With node, so the reader is the honest opaque model (NOT the generic"
+                " getattr int-erasure). `mutex_invariant_ir` is the trusted"
+                " `_get_mutex_invariant_ir(mutex)` (an emit_ir val, like the pattern"
+                " dispatcher). Gated on `_uses_stmt_ir`. *)",
+                "  type py_with_node",
+                "  val function with_body_ast (s: py_with_node) : array int",
+                "  val function csl_mutex_ast (s: py_with_node) : iropt_str",
+                "  val function mutex_invariant_ir (mutex: string) : emit_ir",
+                "",
+                "  (* _py_expr_compare increment (self-tcb-reduction M5, C-bucket): the"
+                " typed AST readers for `_py_expr_compare`. `py_compare_node` models"
+                " `ast.Compare`; `compare_left_ast` reads `expr.left`, `compare_op0_ast`"
+                " the FIRST comparison operator `expr.ops[0]` (an int cmpop, fed to the"
+                " trusted `py_op_to_str`), `compare_comp0_ast` the FIRST comparator"
+                " `expr.comparators[0]` (emit_ir) — the ast-LIST-HEAD projections (the same"
+                " opaque head-reader shape as `_py_stmt_assign`'s `stmt.targets[0]`). Gated"
+                " on `_uses_stmt_ir`. Reuses the certified IrBinOp ctor (no new ctor). *)",
+                "  type py_compare_node",
+                "  val function compare_left_ast (s: py_compare_node) : emit_ir",
+                "  val function compare_op0_ast (s: py_compare_node) : int",
+                "  val function compare_comp0_ast (s: py_compare_node) : emit_ir",
+                "",
+                "  (* _py_expr_boolop increment (self-tcb-reduction M5, C-bucket): the"
+                " LEFT-FOLD `result = disp(values[0]); for v in values[1:]: result ="
+                " {BinOp, op, left=result, right=disp(v)}`. `boolop_fold` is the CONCRETE"
+                " recursive fold over the `values[1:]` irlist (each element re-lowered by"
+                " the trusted `dispatch` = _py_expr_to_ir, then folded into a left-nested"
+                " IrBinOp tree) — NOT an abstract length-only law (the fable vacuity trap)."
+                " `boolop_is_and` is the `isinstance(expr.op, ast.And)` And/Or discriminant;"
+                " `boolop_val0_ast` reads `values[0]`, `boolop_rest_ast` reads `values[1:]`"
+                " (irlist). Gated on `_uses_stmt_ir`. Reuses the certified IrBinOp ctor. *)",
+                "  type py_boolop_node",
+                "  val function boolop_is_and (s: py_boolop_node) : bool",
+                "  val function boolop_val0_ast (s: py_boolop_node) : emit_ir",
+                "  val function boolop_rest_ast (s: py_boolop_node) : irlist",
+                "  val function boolop_dispatch (e: emit_ir) : emit_ir",
+                "  (* _emit_ghost_assign increment (self-tcb-reduction M5, C-bucket): the"
+                " typed AST readers for `_emit_ghost_assign`. `py_ghost_node` models a ghost"
+                " assignment object; `ghost_is_arrayset` the `isinstance(ga,"
+                " GhostArraySetDecl)` CSL-class discriminant (opaque bool, like symtab_mem);"
+                " `ghost_target_ast`/`ghost_op_ast` the target/op strings;"
+                " `ghost_index_ast`/`ghost_value_ast` the raw CSL index/value nodes (fed to"
+                " the trusted `csl_to_ir` = `_csl_to_ir`); `ghost_declared_type_ast` the"
+                " `getattr(ga, 'declared_type', 'int')` default-folded string (like delete's"
+                " getattr / csl_mutex_ast). Gated on `_uses_stmt_ir`. *)",
+                "  type py_ghost_node",
+                "  val function ghost_is_arrayset (g: py_ghost_node) : bool",
+                "  val function ghost_target_ast (g: py_ghost_node) : string",
+                "  val function ghost_op_ast (g: py_ghost_node) : string",
+                "  val function ghost_declared_type_ast (g: py_ghost_node) : string",
+                "  val function ghost_index_ast (g: py_ghost_node) : emit_ir",
+                "  val function ghost_value_ast (g: py_ghost_node) : emit_ir",
+                # SOUNDNESS (2026-08-31): a PURE `val function` asserts the symbol is a
+                # DETERMINISTIC FUNCTION of its argument. `_csl_to_ir` is not: it dispatches
+                # (through `_CSL_HANDLERS` + `getattr`) to `_csl_in`, which allocates fresh
+                # binder names from `self._fresh_var_counter` — the mirror's own `_csl_in`
+                # honestly declares `#@ assigns self._fresh_var_counter`. So two applications
+                # to EQUAL nodes really can differ, and the pure symbol forced them equal.
+                # Demoted to a PROGRAM `val`: every use is a program context (measured: 0
+                # occurrences inside any `requires`/`ensures`/`invariant`/`variant`/`assert`
+                # across all 52 emitted mirrors), so nothing needs it as a logic term. The
+                # SIBLING `csl_to_ir_op` (declared ~350 lines below, in the
+                # `_uses_synthesize_overload_guard` block) WAS demoted the same way in the
+                # SAME increment: its consuming fold was rewritten from a logic
+                # `function synth_overload_clauses` to the PROGRAM `let rec
+                # synth_overload_clauses_prog` with a structural `variant { ens }`, and the
+                # pinning `ensures` law was dropped. Both siblings are now program `val`s.
+                # (An earlier revision of THIS comment said `csl_to_ir_op` "CANNOT be demoted";
+                # that text outlived the fix by one edit and was then quoted forward as a
+                # live-unsoundness record for four relaunches. Verified 2026-09-01 (#29)
+                # against the source AND all 53 emitted mirrors: `val function csl_to_ir_op`
+                # occurs ZERO times, a logic `function synth_overload_clauses` occurs ZERO
+                # times, and `csl_to_ir_op` occurs in ZERO spec clauses. CLOSED.)
+                "  val csl_to_ir (e: emit_ir) : emit_ir",
+                "  (* _py_expr_lambda increment (self-tcb-reduction M5, C-bucket): the typed"
+                " AST reader for `_py_expr_lambda`. `py_lambda_node` models `ast.Lambda`;"
+                " `lambda_args_ast` reads `expr.args.args` (an irlist of arg name-nodes);"
+                " `lambda_body_ast` reads `expr.body`. `lambda_param_names_of` is the"
+                " CONCRETE `[arg.arg for arg in expr.args.args]` compaction — projecting"
+                " `name_of` over the args irlist into IrVar param-name nodes (NOT an abstract"
+                " length-only law); `lambda_param_names_prog` its program primitive. The"
+                " IrLambda ctor carries the resulting params irlist + the body. *)",
+                "  type py_lambda_node",
+                "  val function lambda_args_ast (s: py_lambda_node) : irlist",
+                "  val function lambda_body_ast (s: py_lambda_node) : emit_ir",
+                "  function lambda_param_names_of (l: irlist) : irlist =",
+                "    match l with",
+                "    | ILNil -> ILNil",
+                "    | ILCons a t -> ILCons (IrVar (name_of a))"
+                " (lambda_param_names_of t)",
+                "    end",
+                "  val function lambda_param_names_prog (l: irlist) : irlist",
+                "    ensures { result = lambda_param_names_of l }",
+                "  (* _py_expr_dict increment (self-tcb-reduction M5, C-bucket): the DUAL"
+                " child-list `keys=[disp(k) if k else None for k in expr.keys]; values="
+                " [disp(v) for v in expr.values]`. `is_none` is the `k else None` truthiness"
+                " test (a None key = IrNone, for `{**spread}`); `dict_keys_of` is the"
+                " CONCRETE keys map WITH the None-guard (`if is_none k then IrNone else disp"
+                " k`), `dict_values_of` the plain values map — NOT abstract length-only"
+                " laws. `dict_dispatch` models the trusted `_py_expr_to_ir`. The IrDictLit"
+                " ctor carries the two compacted irlists. (`is_none` is HOISTED to the"
+                " unconditional discriminant block above — incr8.) *)",
+                "  val function dict_dispatch (e: emit_ir) : emit_ir",
+                "  function dict_keys_of (l: irlist) : irlist =",
+                "    match l with",
+                "    | ILNil -> ILNil",
+                "    | ILCons k t -> ILCons (if is_none k then IrNone else dict_dispatch k)"
+                " (dict_keys_of t)",
+                "    end",
+                "  function dict_values_of (l: irlist) : irlist =",
+                "    match l with",
+                "    | ILNil -> ILNil",
+                "    | ILCons v t -> ILCons (dict_dispatch v) (dict_values_of t)",
+                "    end",
+                "  val function dict_keys_prog (l: irlist) : irlist",
+                "    ensures { result = dict_keys_of l }",
+                "  val function dict_values_prog (l: irlist) : irlist",
+                "    ensures { result = dict_values_of l }",
+                "  type py_dict_node",
+                "  val function dict_keys_ast (s: py_dict_node) : irlist",
+                "  val function dict_values_ast (s: py_dict_node) : irlist",
+                "  (* _py_expr_listcomp/setcomp/dictcomp increment (self-tcb-reduction M5,"
+                " C-bucket): the comprehension nodes — FIXED-CHILD (elt/key/value via disp)"
+                " + the generators via the trusted `_comprehension_generators_to_ir` (an"
+                " opaque emit_ir reader, like `_match_pattern_to_ir`). No child-list"
+                " iteration. IrListComp/IrSetComp carry elt + generators; IrDictComp carries"
+                " key + value + generators. *)",
+                "  (* genexp-erasure-wall R2a: a GENERATOR expression had no Module-5 handler,"
+                " so it reached the IR as UnknownPyExpr and its predicate + bound variable were"
+                " destroyed. Same fixed-child shape as listcomp. *)",
+                "  type py_genexp_node",
+                "  val function genexp_elt_ast (s: py_genexp_node) : emit_ir",
+                "  val function genexp_gens_ir (s: py_genexp_node) : emit_ir",
+                "  type py_listcomp_node",
+                "  val function listcomp_elt_ast (s: py_listcomp_node) : emit_ir",
+                "  val function listcomp_gens_ir (s: py_listcomp_node) : emit_ir",
+                "  type py_setcomp_node",
+                "  val function setcomp_elt_ast (s: py_setcomp_node) : emit_ir",
+                "  val function setcomp_gens_ir (s: py_setcomp_node) : emit_ir",
+                "  type py_dictcomp_node",
+                "  val function dictcomp_key_ast (s: py_dictcomp_node) : emit_ir",
+                "  val function dictcomp_value_ast (s: py_dictcomp_node) : emit_ir",
+                "  val function dictcomp_gens_ir (s: py_dictcomp_node) : emit_ir",
+                "  (* base bool-recognizers (self-tcb-reduction M5, C-bucket): the"
+                " `_is_typeddict_class`/`_is_namedtuple_class`/`_is_protocol_class` existence"
+                " test `for b in node.bases: if isinstance(b, ast.Name/Attribute) and b.id/"
+                " b.attr == <Base>: return True; return False`. `bases_has_name` is the"
+                " CONCRETE recursive `any` fold over the bases irlist — a base MATCHES iff it"
+                " is a Name/Attribute whose head name (`name_of`, which returns IrVar's name"
+                " AND IrAttr's attr) equals the target — NOT an abstract length-only law."
+                " `class_bases_ast` reads `node.bases`. Reuses the existing is_var/"
+                " is_attribute/name_of discriminants (no new ctor). Gated on `_uses_stmt_ir`. *)",
+                "  type py_classdef_node",
+                "  val function class_bases_ast (n: py_classdef_node) : irlist",
+                "  function bases_has_name (target: string) (l: irlist) : bool =",
+                "    match l with",
+                "    | ILNil -> false",
+                "    | ILCons b t -> if (is_var b || is_attribute b)"
+                " && (name_of b = target) then true else bases_has_name target t",
+                "    end",
+                "  val function bases_has_name_prog (target: string) (l: irlist) : bool",
+                "    ensures { result = bases_has_name target l }",
+                "  (* _is_final_annotation bool-recognizer (self-tcb-reduction M5, C-bucket):"
+                " the FIXED-SHAPE test `isinstance(ann, ast.Name) and ann.id == \"Final\"` OR"
+                " `isinstance(ann, ast.Subscript) and isinstance(ann.value, ast.Name) and"
+                " ann.value.id == \"Final\"`. `is_final_ann` is the CONCRETE discriminant"
+                " chain (is_var/name_of for the bare `Final`; is_sub/svalue_of/is_var/"
+                " name_of for `Final[T]`). No child-list. Reuses existing discriminants. *)",
+                "  function is_final_ann (ann: emit_ir) : bool =",
+                "    (is_var ann && name_of ann = \"Final\")"
+                " || (is_sub ann && is_var (svalue_of ann)"
+                " && name_of (svalue_of ann) = \"Final\")",
+                "  val function is_final_ann_prog (ann: emit_ir) : bool",
+                "    ensures { result = is_final_ann ann }",
+                "  let rec function boolop_fold (op: string) (acc: emit_ir) (rest: irlist)"
+                " : emit_ir",
+                "    variant { rest }",
+                "  = match rest with",
+                "    | ILNil -> acc",
+                "    | ILCons v tl -> boolop_fold op"
+                " (IrBinOp op acc (boolop_dispatch v)) tl",
+                "    end",
+                "",
+                "  (* SFieldAssign/SArraySliceSet/STupleUnpack increment (self-tcb-reduction"
+                " M5, C-bucket): the typed AST reader for `_py_stmt_assign`. `py_assign_node`"
+                " models `ast.Assign`; `assign_target0_ast` reads `stmt.targets[0]` (the"
+                " HEAD target, an emit_ir — Name/Attribute/Subscript/Tuple); `assign_value_ast`"
+                " reads `stmt.value` (the RHS emit_ir). `symtab_mem` models the instance-state"
+                " membership `target.value.id in self._cur_func_symtab` as an opaque"
+                " name-keyed predicate (the symtab is runtime state; the membership RESULT is"
+                " a sound abstract bool, deciding the named-base FieldAssign vs the module-"
+                " global no-op). `sliceN_lower_of`/`sliceN_upper_of` project the IrSliceN"
+                " OPTIONAL bounds (iropt_ir) for the `a[lo:hi] = v` ArraySliceSet branch."
+                " Gated on `_uses_stmt_ir`. *)",
+                "  type py_assign_node",
+                "  val function assign_target0_ast (s: py_assign_node) : emit_ir",
+                "  val function assign_value_ast (s: py_assign_node) : emit_ir",
+                "  val function symtab_mem (key: string) : bool",
+                "  let function sliceN_lower_of (e: emit_ir) : iropt_ir =",
+                "    match e with IrSliceN lo _ _ -> lo | _ -> IrONone end",
+                "  let function sliceN_upper_of (e: emit_ir) : iropt_ir =",
+                "    match e with IrSliceN _ up _ -> up | _ -> IrONone end",
+                "",
+                "  (* The CONCRETE compaction of a Tuple exc_type `\"|\".join(n.id for n in"
+                " h.type.elts if isinstance(n, ast.Name))`: `var_names_of` filters `is_var`"
+                " + projects `name_of` over the MkTuple `elts` irlist; `join_pipe` inserts"
+                " \"|\" BETWEEN the resulting names. NOT a length-only abstract law (the"
+                " fable's vacuity trap) — a total structural recursion over the ALREADY-"
+                " concrete `is_var`/`name_of` projectors. `pipe_join` is the program-level"
+                " primitive the emitter emits (concat is logic-only in Why3), pinned by"
+                " ensures to the EXACT concrete logic compaction `tuple_exc_type`. *)",
+                "  (* the variadic-tuple discriminant + elts projector: `isinstance(h.type,"
+                " ast.Tuple)` on the caught-exception type lowers to `is_mktuple` (the"
+                " IrMkTupleN variadic ctor), `h.type.elts` to `elts_of` (its irlist"
+                " payload). Gated on `_uses_stmt_ir` — only the mirror's `_py_stmt_try`"
+                " compaction needs them, so the emit_ir theory of every OTHER file (and the"
+                " whole corpus) stays byte-identical. *)",
+                "  let function is_mktuple (e: emit_ir) : bool =",
+                "    match e with IrMkTupleN _ -> true | _ -> false end",
+                "  let function elts_of (e: emit_ir) : irlist =",
+                "    match e with IrMkTupleN l -> l | _ -> ILNil end",
+                "  function var_names_of (l: irlist) : strlist =",
+                "    match l with",
+                "    | ILNil -> SLNilS",
+                "    | ILCons e rest -> if is_var e then SLConsS (name_of e)"
+                " (var_names_of rest) else var_names_of rest",
+                "    end",
+                "  function join_pipe (l: strlist) : string =",
+                "    match l with",
+                "    | SLNilS -> \"\"",
+                "    | SLConsS h t -> match t with"
+                " | SLNilS -> h"
+                " | SLConsS _ _ -> concat h (concat \"|\" (join_pipe t)) end",
+                "    end",
+                "  function tuple_exc_type (l: irlist) : string ="
+                " join_pipe (var_names_of l)",
+                "  val function pipe_join (l: irlist) : string",
+                "    ensures { result = tuple_exc_type l }",
+                "  (* STupleUnpack: the program-level primitive for `[elt.id for elt in"
+                " target.elts if isinstance(elt, ast.Name)]` — the CONCRETE `var_names_of`"
+                " strlist (filter is_var + project name_of), NOT the abstract length-only"
+                " `list_content_comp_N` law (the fable's vacuity trap). Pinned by ensures to"
+                " the concrete logic compaction. *)",
+                "  val function var_names_prog (l: irlist) : strlist",
+                "    ensures { result = var_names_of l }",
+                "",
+                "  (* The TYPED AST-input readers for `_py_stmt_try`: `py_try_node` models"
+                " `ast.Try` (its `stmt` param), `ast_excepthandler` models an `ast."
+                " ExceptHandler` element of `stmt.handlers`. These are OPAQUE deterministic"
+                " AST projectors — the typed analogue of the trusted `iter_get`/`get_body`"
+                " AST readers and the `self._py_stmts_to_ir` dispatcher (the Python AST is"
+                " the untrusted INPUT; fidelity is about the OUTPUT STry/except_handler/"
+                " compaction construction, which is concrete below). `eh_type_ast` returns"
+                " the caught-exception type as an `iropt_ir` (`IrONone` = bare `except:`,"
+                " `IrOSome t` = `except T`/`except (T1,T2)`); `eh_name_ast` the `as <n>`"
+                " bind as `iropt_str`; the body readers return `array int` (the trusted"
+                " `_py_stmts_to_ir` dispatcher's param type). Gated on `_uses_stmt_ir`. *)",
+                "  type py_try_node",
+                "  type ast_excepthandler",
+                "  val function try_body_ast (s: py_try_node) : array int",
+                "  val function try_handlers_ast (s: py_try_node) : seq ast_excepthandler",
+                "  val function try_orelse_ast (s: py_try_node) : array int",
+                "  val function try_finalbody_ast (s: py_try_node) : array int",
+                "  val function eh_type_ast (h: ast_excepthandler) : iropt_ir",
+                "  val function eh_name_ast (h: ast_excepthandler) : iropt_str",
+                "  val function eh_body_ast (h: ast_excepthandler) : array int",
+                "",
+            ]) if self._uses_stmt_ir() else []),
+            *(([
+                "",
+                "  (* py_functiondef_node (self-tcb-reduction M5, functiondef-node wall):"
+                " the typed AST reader for `_should_skip_method`'s `node: ast.FunctionDef`"
+                " param. `func_name_ast` reads `node.name` (a REAL string, fed to the"
+                " faithful str_startswith_op/str_endswith_op dunder test);"
+                " `func_decorator_list_ast` reads `node.decorator_list` (an irlist iterated"
+                " by the CONCRETE `decorator_has_name` existence fold — a decorator matches"
+                " iff it is a Name whose head name equals the target, reusing is_var/name_of,"
+                " NO new ctor, NOT a length-only law). Both accessors TAKE the node (no"
+                " erasure). `m5_current_class_present` models the opaque instance-state"
+                " truthiness `self._current_class`. SOUNDNESS (2026-08-31, relaunch #19):"
+                " it is a PROGRAM `val` taking `unit`, NOT an argument-less `val function`."
+                " `self._current_class` is genuine per-visit MUTABLE state (Module5 sets it"
+                " on entering a ClassDef and clears it on leaving), so a pure argument-less"
+                " symbol is a CONSTANT: it asserts the truthiness is the same at every"
+                " point of the module, forcing two reads separated by a class transition to"
+                " agree. Nothing consumes it as a logic term (measured: 0 occurrences in any"
+                " `requires`/`ensures`/`invariant`/`variant`/`assert` across all 52 emitted"
+                " mirrors, and `_should_skip_method` has NO caller in any mirror), so the"
+                " claim was unexercised — but unexercised is not sound, and a `unit`-taking"
+                " program `val` asserts nothing at all."
+                " Gated on `_uses_py_functiondef_node` -> corpus + every other mirror"
+                " byte-identical. *)",
+                "  type py_functiondef_node",
+                "  val function func_name_ast (n: py_functiondef_node) : string",
+                "  val function func_decorator_list_ast (n: py_functiondef_node) : irlist",
+                "  val m5_current_class_present (_u: unit) : bool",
+                "  function decorator_has_name (target: string) (l: irlist) : bool =",
+                "    match l with",
+                "    | ILNil -> false",
+                "    | ILCons d t -> if is_var d && name_of d = target"
+                " then true else decorator_has_name target t",
+                "    end",
+                "  val function decorator_has_name_prog (target: string) (l: irlist) : bool",
+                "    ensures { result = decorator_has_name target l }",
+            ] + ([
+                "  (* decorator_has_name_or_attr (self-tcb-reduction M5, `_is_overload_stub`):"
+                " the `@overload` decorator scan matches a decorator that is EITHER a bare"
+                " `Name(\"overload\")` OR an `Attribute(attr=\"overload\")` — the live body's"
+                " `isinstance(d, ast.Name) and d.id == t` OR `isinstance(d, ast.Attribute) and"
+                " d.attr == t`. `name_of` returns IrVar's name for a Name AND IrAttr's attr for"
+                " an Attribute, so `(is_var d || is_attribute d) && name_of d = target` is the"
+                " FAITHFUL Name-or-Attribute test (the `bases_has_name` device verbatim). Reuses"
+                " existing discriminants, NO new ctor. Gated on `_uses_is_overload_stub`. *)",
+                "  function decorator_has_name_or_attr (target: string) (l: irlist) : bool =",
+                "    match l with",
+                "    | ILNil -> false",
+                "    | ILCons d t -> if (is_var d || is_attribute d) && name_of d = target"
+                " then true else decorator_has_name_or_attr target t",
+                "    end",
+                "  val function decorator_has_name_or_attr_prog (target: string) (l: irlist) : bool",
+                "    ensures { result = decorator_has_name_or_attr target l }",
+            ] if self._uses_is_overload_stub() else []) + [
+                "",
+            ]) if self._uses_py_functiondef_node() else []),
+            *(([
+                "",
+                "  (* py_arg_node + build_overload_guard_acc (self-tcb-reduction M5,"
+                " functiondef-node cluster): the typed AST readers for"
+                " `_build_overload_param_guard`'s `for arg in node.args.args` loop."
+                " `func_args_ast` reads `node.args.args` (a REAL list of arg nodes, TAKING"
+                " the node); `arg_name_ast a` reads `arg.arg` (the param-name string, tested"
+                " `= \"self\"`); `arg_annotation_ast a` reads `arg.annotation`"
+                " (`option emit_ir` — None iff un-annotated). `overload_type_name_op` is the"
+                " opaque sibling `_overload_type_name` reader (`emit_ir -> option string`) the"
+                " guard just CALLS. `build_overload_guard_acc` FAITHFULLY folds the loop"
+                " head-first with a left-associated accumulator: per typed non-self arg it"
+                " constructs the guard `IrCallN \"isinstance\" [IrVar arg; IrVar tn]`"
+                " (both args present, no erasure) and conjoins with `IrBinOp \"and\" acc g`"
+                " (matching the live `{and, left:acc, right:g}` order). Returns"
+                " `option emit_ir` (None iff no guard). Structural recursion on the arg list"
+                " (irlist/decorator_has_name fold precedent — no termination VC, no new ctor,"
+                " no new variant ADT: `list`/`option` are stdlib, the guards reuse the"
+                " EXISTING emit_ir ctors). Gated on `_uses_build_overload_param_guard`. *)",
+                "  type py_arg_node",
+                "  val function func_args_ast (n: py_functiondef_node) : list py_arg_node",
+                "  val function arg_name_ast (a: py_arg_node) : string",
+                "  val function arg_annotation_ast (a: py_arg_node) : option emit_ir",
+                "  val function overload_type_name_op (ann: emit_ir) : option string",
+                "  function build_overload_guard_acc (acc: option emit_ir)"
+                " (args: list py_arg_node) : option emit_ir =",
+                "    match args with",
+                "    | Nil -> acc",
+                "    | Cons a rest ->",
+                "      build_overload_guard_acc",
+                "        (if arg_name_ast a = \"self\" then acc",
+                "         else match arg_annotation_ast a with",
+                "              | None -> acc",
+                "              | Some ann ->",
+                "                match overload_type_name_op ann with",
+                "                | None -> acc",
+                "                | Some tn ->",
+                "                  let g = IrCallN \"isinstance\""
+                " (ILCons (IrVar (arg_name_ast a)) (ILCons (IrVar tn) ILNil)) in",
+                "                  (match acc with None -> Some g"
+                " | Some p -> Some (IrBinOp \"and\" p g) end)",
+                "                end",
+                "              end)",
+                "        rest",
+                "    end",
+                "  val function build_overload_guard_acc_prog (acc: option emit_ir)"
+                " (args: list py_arg_node) : option emit_ir",
+                "    ensures { result = build_overload_guard_acc acc args }",
+                "",
+            ]) if self._uses_build_overload_param_guard() else []),
+            *(([
+                "",
+                "  (* ens_node + synth_overload_clauses (self-tcb-reduction M5, functiondef-node"
+                " cluster): the typed readers for `_synthesize_overload_guard`'s guarded-"
+                " postcondition synthesis. `func_csl_ensures_ast node` reads `node.csl_ensures`"
+                " (a REAL list of `#@ ensures` nodes, TAKING the node); `ens_expr_ast e` reads"
+                " `csl_ens.expr` (the ensures expression, an emit_ir); `csl_to_ir_op` is the"
+                " opaque sibling `_csl_to_ir` reader (`emit_ir -> emit_ir`), a PROGRAM `val`"
+                " and NOT a `val function`: `_csl_to_ir` is state-dependent, so a pure symbol"
+                " would assert a determinism the source does not have. The guard comes"
+                " from the sibling `build_overload_guard_acc_prog None (func_args_ast node)`"
+                " (`option emit_ir`); `guard is None -> return []` is the None arm. Per ensures"
+                " the clause `IrBinOp \"==>\" guard (csl_to_ir_op (ens_expr_ast e))` is built"
+                " (both operands present, no erasure) and CONSed head-first into a `seq emit_ir`"
+                " (order-preserving: clause i mirrors the i-th `#@ ensures`, matching the live"
+                " `clauses.append(...)`). The seq is materialized to the CANONICAL `array emit_ir`"
+                " List-return via `materialize_ir` (the emit_ir analogue of `materialize_str`;"
+                " fresh result, no region link). The fold is PROGRAM code (a `let rec` over"
+                " the ens list with a STRUCTURAL `variant { ens }`, discharged by the"
+                " algebraic-type descent order) precisely so the state-dependent"
+                " `csl_to_ir_op` is applied in a PROGRAM context; there is no logic-level"
+                " `synth_overload_clauses` and no pinning `ensures` law. No new ctor and no"
+                " new variant ADT: `list`/`seq` are stdlib, the clauses reuse the EXISTING"
+                " emit_ir ctors. Gated on"
+                " `_uses_synthesize_overload_guard`. *)",
+                "  type ens_node",
+                "  val function func_csl_ensures_ast (n: py_functiondef_node) : list ens_node",
+                "  val function ens_expr_ast (e: ens_node) : emit_ir",
+                # SOUNDNESS (2026-08-31, relaunch #19): `csl_to_ir_op` stands for the
+                # STATE-DEPENDENT `_csl_to_ir` (it reaches `_csl_in`, which writes
+                # `self._fresh_var_counter`), so a PURE `val function` asserted a
+                # determinism the source does not have: two structurally EQUAL ensures
+                # expressions were forced to lower to EQUAL clauses. Its sibling
+                # `csl_to_ir` was demoted to a program `val` earlier; THIS one could not
+                # be, because it was applied inside the LOGIC-level fold
+                # `function synth_overload_clauses`. The fold is now PROGRAM code — a
+                # `let rec` with a STRUCTURAL `variant { ens }` on the `list ens_node`
+                # (Why3 accepts structural descent on an algebraic type, so no `diverges`
+                # is needed and NO effect propagates to the caller). The logic function
+                # and the `ensures { result = synth_overload_clauses ... }` pinning law
+                # are GONE: nothing consumed them as a logic term (the sole consumer is
+                # `_emit_synthesize_overload_guard_bespoke`, whose method contract is
+                # `requires true / ensures true`). Zero axioms; ledger untouched.
+                "  val csl_to_ir_op (e: emit_ir) : emit_ir",
+                "  let rec synth_overload_clauses_prog (guard: emit_ir)"
+                " (ens: list ens_node) : Seq.seq emit_ir",
+                "    variant { ens }",
+                "  =",
+                "    match ens with",
+                "    | Nil -> Seq.empty",
+                "    | Cons e rest ->",
+                "      Seq.cons (IrBinOp \"==>\" guard (csl_to_ir_op (ens_expr_ast e)))"
+                " (synth_overload_clauses_prog guard rest)",
+                "    end",
+                "  val materialize_ir (s: Seq.seq emit_ir) : array emit_ir",
+                "    ensures { Array.length result = Seq.length s }",
+                "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }",
+                "",
+            ]) if self._uses_synthesize_overload_guard() else []),
+            *(([
+                "",
+                "  (* pyast_stmt ADT (self-tcb-reduction giants, generic class-body lowering):"
+                " the INPUT-side raw `ast.stmt` union a class-body iterator"
+                " (`_collect_class_constants`) isinstance-dispatches over. `PS*` prefix"
+                " (disjoint from the OUTPUT stmt_ir's SAssign). Carries emit_ir children (the"
+                " already-lowered target/value/annotation exprs). `stmt_node_kind_of` +"
+                " `is_K` discriminants + faithfulness lemmas (is_K <-> kind = \"K\") model the"
+                " isinstance dispatch faithfully. Projectors `stmt_target0`/`stmt_value`/"
+                " `stmt_annotation`/`def_name` read the children; `stmt_targets_len` the"
+                " opaque `len(child.targets)` count. `psl` is the mutual-cons statement-list"
+                " `node.body` iterates (the irlist precedent). `class_body_ast` reads the"
+                " class-body psl; `ps_const_int` models the trusted `_const_int_value`;"
+                " `ps_field_mem` the `target in field_names` membership. Gated on"
+                " `_uses_pyast_stmt` -> corpus + every other mirror byte-identical. *)",
+            ] + (["  type py_classdef_node"] if not self._uses_stmt_ir() else []) + [
+                "  type pyast_stmt =",
+                "    | PSAssign emit_ir emit_ir",
+                "    | PSAnnAssign emit_ir emit_ir emit_ir",
+                "    | PSClassDef string",
+                "    | PSFunctionDef string",
+            ] + ([
+                "    | PSPass",
+                "    | PSExprEllipsis",
+            ] if self._uses_is_overload_stub() else []) + [
+                "    | PSOther",
+                "  let function stmt_node_kind_of (s: pyast_stmt) : string =",
+                "    match s with",
+                "    | PSAssign _ _ -> \"Assign\"",
+                "    | PSAnnAssign _ _ _ -> \"AnnAssign\"",
+                "    | PSClassDef _ -> \"ClassDef\"",
+                "    | PSFunctionDef _ -> \"FunctionDef\"",
+            ] + ([
+                "    | PSPass -> \"Pass\"",
+                "    | PSExprEllipsis -> \"ExprEllipsis\"",
+            ] if self._uses_is_overload_stub() else []) + [
+                "    | PSOther -> \"Other\"",
+                "    end",
+                "  let predicate is_assign_node (s: pyast_stmt) ="
+                " match s with PSAssign _ _ -> true | _ -> false end",
+                "  let predicate is_annassign_node (s: pyast_stmt) ="
+                " match s with PSAnnAssign _ _ _ -> true | _ -> false end",
+                "  let predicate is_classdef_node (s: pyast_stmt) ="
+                " match s with PSClassDef _ -> true | _ -> false end",
+                "  let predicate is_functiondef_node (s: pyast_stmt) ="
+                " match s with PSFunctionDef _ -> true | _ -> false end",
+            ] + ([
+                "  let predicate is_pass_node (s: pyast_stmt) ="
+                " match s with PSPass -> true | _ -> false end",
+                "  let predicate is_expr_ellipsis_node (s: pyast_stmt) ="
+                " match s with PSExprEllipsis -> true | _ -> false end",
+            ] if self._uses_is_overload_stub() else []) + [
+                "  lemma is_assign_faithful : forall s: pyast_stmt."
+                " is_assign_node s <-> stmt_node_kind_of s = \"Assign\"",
+                "  lemma is_annassign_faithful : forall s: pyast_stmt."
+                " is_annassign_node s <-> stmt_node_kind_of s = \"AnnAssign\"",
+                "  lemma is_classdef_faithful : forall s: pyast_stmt."
+                " is_classdef_node s <-> stmt_node_kind_of s = \"ClassDef\"",
+                "  lemma is_functiondef_faithful : forall s: pyast_stmt."
+                " is_functiondef_node s <-> stmt_node_kind_of s = \"FunctionDef\"",
+            ] + ([
+                "  lemma is_pass_faithful : forall s: pyast_stmt."
+                " is_pass_node s <-> stmt_node_kind_of s = \"Pass\"",
+                "  lemma is_expr_ellipsis_faithful : forall s: pyast_stmt."
+                " is_expr_ellipsis_node s <-> stmt_node_kind_of s = \"ExprEllipsis\"",
+            ] if self._uses_is_overload_stub() else []) + [
+                "  let function stmt_target0 (s: pyast_stmt) : emit_ir =",
+                "    match s with PSAssign t _ -> t | PSAnnAssign t _ _ -> t"
+                " | _ -> IrOther \"\" end",
+                "  let function stmt_value (s: pyast_stmt) : emit_ir =",
+                "    match s with PSAssign _ v -> v | PSAnnAssign _ _ v -> v"
+                " | _ -> IrOther \"\" end",
+                "  let function stmt_annotation (s: pyast_stmt) : emit_ir =",
+                "    match s with PSAnnAssign _ a _ -> a | _ -> IrOther \"\" end",
+                "  let function def_name (s: pyast_stmt) : string =",
+                "    match s with PSClassDef n -> n | PSFunctionDef n -> n | _ -> \"\" end",
+                "  val function stmt_targets_len (s: pyast_stmt) : int",
+                "  type psl = PSLNil | PSLCons pyast_stmt psl",
+                "  let rec function psl_len (l: psl) : int ="
+                " match l with PSLNil -> 0 | PSLCons _ t -> 1 + psl_len t end",
+                "  let rec function psl_nth (i: int) (l: psl) : pyast_stmt",
+                "    variant { l } =",
+                "    match l with PSLNil -> PSOther"
+                " | PSLCons h t -> if i <= 0 then h else psl_nth (i-1) t end",
+            ] + ([
+                "  (* func_body_ast (self-tcb-reduction M5, `_is_overload_stub`): reads"
+                " `node.body` of a `py_functiondef_node` as the shared `psl` cons-list (the"
+                " class_body_ast device, but for a FunctionDef node). The stub test reads"
+                " `psl_len (func_body_ast node)` (the `len(body) != 1` guard) and"
+                " `psl_nth 0 (func_body_ast node)` (`body[0]`), then discriminates that"
+                " element via `is_pass_node`/`is_expr_ellipsis_node`. TAKES the node (no"
+                " erasure). Opaque `val function` — NO new axiom. Gated on"
+                " `_uses_is_overload_stub`. *)",
+                "  val function func_body_ast (n: py_functiondef_node) : psl",
+            ] if self._uses_is_overload_stub() else []) + [
+                "  val function class_body_ast (n: py_classdef_node) : psl",
+                "  val function ps_const_int (v: emit_ir) : option int",
+                "  val function ps_field_mem (name: string) : bool",
+                "  (* K2 convergence (self-tcb-reduction, nested-body + ast.walk dispatch):"
+                " `stmt_body` reads the `.body` psl of a `pyast_stmt` LOCAL (the outer"
+                " module-body loop var `stmt`, a ClassDef whose class body a nested"
+                " `for cstmt in stmt.body` iterates); `ast_walk` is the faithful"
+                " over-approximation of `ast.walk(<pyast_stmt local>)` — the recursive"
+                " descendant enumeration as an opaque psl (consistent with `class_body_ast`"
+                " opacity; the loop only isinstance-dispatches + reads projectors over each"
+                " element, so an abstract psl is sound). Both are opaque `val function`s —"
+                " NO new axiom. Gated WITH the block on `_uses_pyast_stmt`. *)",
+                "  val function stmt_body (s: pyast_stmt) : psl",
+                "  val function ast_walk (s: pyast_stmt) : psl",
+            ] + ([
+                "  (* J2/J3 convergence (self-tcb-reduction, module-body dispatch): the"
+                " class-body giant generalized to `ast.Module` bodies. `py_module_node` is"
+                " an `ast.Module` param whose `.body` reads the SAME shared `psl` cons-list"
+                " (`_collect_typevar_registry` iterates `for stmt in node.body`). Distinct"
+                " opaque AST-node type from py_classdef_node; reuses the whole pyast_stmt ADT"
+                " + psl loop. Gated WITH the block on `_uses_pyast_stmt`. *)",
+                "  type py_module_node",
+                "  val function module_body_ast (n: py_module_node) : psl",
+            ] if self._uses_pyast_module() else []) + [
+                "",
+            ]) if self._uses_pyast_stmt() else []),
+            # csl_clause contract-clause ADT (self-tcb-reduction, `_act_guard`
+            # conversion): the contract-clause union an `Act`'s `.clauses` list
+            # carries, which `_act_guard` filters (`isinstance(cl, Given)`) + projects
+            # (`cl.expr`) over. `C*` prefix (disjoint from ast/stmt_ir/emit_ir's
+            # PS*/S*/Ir*). Carries emit_ir children (the clause `.expr`).
+            # `clause_kind_of` + `is_K` discriminants + faithfulness lemmas (is_K <->
+            # kind = "K") model the `isinstance(cl, Given)` dispatch faithfully;
+            # `clause_expr_of` reads the `.expr`. `clause_list` is the bespoke cons-list
+            # `act.clauses` iterates (the keyword_list/psl precedent); `cl_len`/`cl_nth`
+            # its length/index; `act_clauses_of` the opaque `Act` node's `.clauses`
+            # reader (the func_body_ast precedent). `act_guard_fold` is the verbatim
+            # `_act_guard` fold (filter given -> project expr -> left-nested IrBinOp
+            # "and"; IrBoolC 1 if none). Certified AXIOM-FREE in
+            # src/formal-semantics/rocq/Phase2k_CslClause.v + lean/PyCSL/CslClause.lean
+            # (csl_clause ADT + discriminants + faithfulness + clause_expr_of +
+            # clause_list well-foundedness + the act_guard_fold reference semantics).
+            # Gated on the tight `_uses_act_guard` sentinel -> corpus + every other
+            # mirror byte-identical.
+            *(([
+                "",
+                "  (* csl_clause ADT (self-tcb-reduction, `_act_guard`): the contract-clause"
+                " union an `Act`'s `.clauses` list carries. `C*` prefix (disjoint from"
+                " ast/stmt_ir/emit_ir). Carries emit_ir children (the clause `.expr`)."
+                " `clause_kind_of` + `is_K` discriminants + faithfulness lemmas model the"
+                " `isinstance(cl, Given)` dispatch; `clause_expr_of` reads `.expr`."
+                " `clause_list` is the bespoke cons `act.clauses` iterates (keyword_list"
+                " precedent); `act_clauses_of` reads the opaque `Act` node's `.clauses`."
+                " `act_guard_fold` = the verbatim `_act_guard` fold. Certified axiom-free"
+                " in Phase2k_CslClause.v / CslClause.lean. Gated on `_uses_act_guard` ->"
+                " corpus + every other mirror byte-identical. *)",
+                "  type act_node",
+                "  type csl_clause =",
+                "    | CGiven emit_ir",
+                "    | CRequires emit_ir",
+                "    | CEnsures emit_ir",
+                "    | CAssigns emit_ir",
+                "  let function clause_kind_of (s: csl_clause) : string =",
+                "    match s with",
+                "    | CGiven _ -> \"Given\"",
+                "    | CRequires _ -> \"Requires\"",
+                "    | CEnsures _ -> \"Ensures\"",
+                "    | CAssigns _ -> \"Assigns\"",
+                "    end",
+                "  let predicate is_given_node (s: csl_clause) ="
+                " match s with CGiven _ -> true | _ -> false end",
+                "  let predicate is_requires_node (s: csl_clause) ="
+                " match s with CRequires _ -> true | _ -> false end",
+                "  let predicate is_ensures_node (s: csl_clause) ="
+                " match s with CEnsures _ -> true | _ -> false end",
+                "  let predicate is_assigns_node (s: csl_clause) ="
+                " match s with CAssigns _ -> true | _ -> false end",
+                "  lemma is_given_faithful : forall s: csl_clause."
+                " is_given_node s <-> clause_kind_of s = \"Given\"",
+                "  lemma is_requires_faithful : forall s: csl_clause."
+                " is_requires_node s <-> clause_kind_of s = \"Requires\"",
+                "  lemma is_ensures_faithful : forall s: csl_clause."
+                " is_ensures_node s <-> clause_kind_of s = \"Ensures\"",
+                "  lemma is_assigns_faithful : forall s: csl_clause."
+                " is_assigns_node s <-> clause_kind_of s = \"Assigns\"",
+                "  let function clause_expr_of (s: csl_clause) : emit_ir =",
+                "    match s with CGiven e -> e | CRequires e -> e"
+                " | CEnsures e -> e | CAssigns e -> e end",
+                "  type clause_list = ClNil | ClCons csl_clause clause_list",
+                "  let rec function cl_len (l: clause_list) : int ="
+                " match l with ClNil -> 0 | ClCons _ t -> 1 + cl_len t end",
+                "  let rec function cl_nth (i: int) (l: clause_list) : csl_clause",
+                "    variant { l } =",
+                "    match l with ClNil -> CAssigns (IrOther \"\")"
+                " | ClCons h t -> if i <= 0 then h else cl_nth (i-1) t end",
+                "  val function act_clauses_of (a: act_node) : clause_list",
+                "  (* act_guard_fold: the verbatim `_act_guard` fold. `None` accumulator"
+                " until the first given (`g = givens[0]`), then `Some g`; each further"
+                " given conjoins with `IrBinOp \"and\"`; `IrBoolC 1` (= CSLBool(True)) if"
+                " none. Structurally terminating (variant { l }) — cert Phase2k. *)",
+                "  let rec function act_guard_fold (acc: option emit_ir) (l: clause_list)"
+                " : emit_ir",
+                "    variant { l } =",
+                "    match l with",
+                "    | ClNil -> (match acc with None -> IrBoolC 1 | Some g -> g end)",
+                "    | ClCons c rest ->",
+                "        if is_given_node c then",
+                "          (match acc with",
+                "           | None -> act_guard_fold (Some (clause_expr_of c)) rest",
+                "           | Some g -> act_guard_fold"
+                " (Some (IrBinOp \"and\" g (clause_expr_of c))) rest",
+                "           end)",
+                "        else act_guard_fold acc rest",
+                "    end",
+                "",
+            ]) if self._uses_act_guard() else []),
+            # L1 tparam reflection-node ADT (self-tcb-reduction, collector-family
+            # unlock; getting-better/self-field-append-wall-impl.md §K5/§L1, K5 hand-
+            # oracle scratchpad/k5_spike.mlw Z3-Valid + axiom-free). Models the PEP-695
+            # `type_params` reflection the mirror's `_collect_type_params` dispatches
+            # over: `type(tp).__name__` -> `tp_kind_of` (a NODE-KIND DISCRIMINANT, the
+            # pyast_stmt/emit_ir precedent — NOT the dropped generic reflection);
+            # `getattr(tp,"name")` -> `tp_name`; `getattr(tp,"bound")` -> `tp_bound`
+            # (an emit_ir child, TypeVar only); the bound `isinstance`/`.id`/`.attr`
+            # dispatch REUSES the existing emit_ir `is_var`/`is_attribute`/`name_of`
+            # (K5-confirmed). `tparam_list` is a BESPOKE cons-list (TPNil/TPCons — NOT
+            # seq, respecting the recorded seq non-strict-positivity wall);
+            # `type_params_of` is an opaque `val function` (the `class_body_ast`
+            # precedent, no new axiom). Gated on `_uses_tparam` (a `TParamNode`-annotated
+            # param — a NEW sentinel name; no corpus program or other mirror carries it
+            # -> the emit_ir theory stays byte-identical everywhere else). Axiom-free
+            # (ADT + definitional projectors + the faithfulness lemmas; reuses the
+            # emit_ir discriminants) -> ledger stays 3.
+            *(([
+                "",
+                "  (* L1 tparam reflection-node ADT (self-tcb-reduction, collector-family"
+                " unlock): the PEP-695 `type_params` node union `_collect_type_params`"
+                " isinstance/type-name-dispatches over. `TP*` prefix (disjoint). TPTypeVar"
+                " carries the bound sub-node as an emit_ir child (TypeVar only);"
+                " ParamSpec/TypeVarTuple are bound-less. `tp_kind_of` maps"
+                " `type(tp).__name__` to the kind discriminant (\"TypeVar\"/\"ParamSpec\"/"
+                " \"TypeVarTuple\"); `tp_name` = `getattr(tp,\"name\")`; `tp_bound` ="
+                " `getattr(tp,\"bound\")` (emit_ir); `is_K`<->`tp_kind_of=\"K\"`"
+                " faithfulness lemmas model the reflection faithfully. The bound"
+                " isinstance/`.id`/`.attr` dispatch reuses the existing emit_ir"
+                " is_var/is_attribute/name_of. `tparam_list` is the bespoke cons-list"
+                " `type_params_of` (an opaque val, class_body_ast precedent) yields."
+                " Gated on `_uses_tparam` -> corpus + every other mirror byte-identical. *)",
+                "  type tparam =",
+                "    | TPTypeVar string emit_ir",
+                "    | TPParamSpec string",
+                "    | TPTypeVarTuple string",
+                "  let function tp_kind_of (tp: tparam) : string =",
+                "    match tp with",
+                "    | TPTypeVar _ _ -> \"TypeVar\"",
+                "    | TPParamSpec _ -> \"ParamSpec\"",
+                "    | TPTypeVarTuple _ -> \"TypeVarTuple\"",
+                "    end",
+                "  let function tp_name (tp: tparam) : string =",
+                "    match tp with TPTypeVar n _ -> n | TPParamSpec n -> n"
+                " | TPTypeVarTuple n -> n end",
+                "  let function tp_bound (tp: tparam) : emit_ir =",
+                "    match tp with TPTypeVar _ b -> b | _ -> IrOther \"\" end",
+                "  let predicate is_typevar (tp: tparam) ="
+                " match tp with TPTypeVar _ _ -> true | _ -> false end",
+                "  let predicate is_paramspec (tp: tparam) ="
+                " match tp with TPParamSpec _ -> true | _ -> false end",
+                "  let predicate is_typevartuple (tp: tparam) ="
+                " match tp with TPTypeVarTuple _ -> true | _ -> false end",
+                "  lemma is_typevar_faithful : forall tp: tparam."
+                " is_typevar tp <-> tp_kind_of tp = \"TypeVar\"",
+                "  lemma is_paramspec_faithful : forall tp: tparam."
+                " is_paramspec tp <-> tp_kind_of tp = \"ParamSpec\"",
+                "  lemma is_typevartuple_faithful : forall tp: tparam."
+                " is_typevartuple tp <-> tp_kind_of tp = \"TypeVarTuple\"",
+                "  type tparam_list = TPNil | TPCons tparam tparam_list",
+                "  let rec function tpl_len (l: tparam_list) : int ="
+                " match l with TPNil -> 0 | TPCons _ t -> 1 + tpl_len t end",
+                "  let rec function tpl_nth (i: int) (l: tparam_list) : tparam",
+                "    variant { l } =",
+                "    match l with TPNil -> TPParamSpec \"\""
+                " | TPCons h t -> if i <= 0 then h else tpl_nth (i-1) t end",
+                "  type py_tparam_node",
+                "  val function type_params_of (n: py_tparam_node) : tparam_list",
+                # 7b (self-tcb-reduction L4b): `_collect_type_params`'s legacy `Generic[T]`
+                # branch reflects on the SAME node as a ClassDef — `isinstance(node,
+                # ast.ClassDef)` and `for b in node.bases`. `is_classdef_of` is the opaque
+                # runtime-kind bool (the `symtab_mem` precedent, NO isinstance_op 0 0);
+                # `bases_of` reads `node.bases` as an emit_ir `irlist` (the `class_bases_ast`
+                # precedent, NO get_bases int fallback). Opaque vals -> NO new axiom.
+                "  val function is_classdef_of (n: py_tparam_node) : bool",
+                "  val function bases_of (n: py_tparam_node) : irlist",
+                "",
+            ]) if self._uses_tparam() else []),
         ]
+
+    def _uses_tparam(self) -> bool:
+        """L1 tparam reflection-node ADT (self-tcb-reduction, collector-family unlock):
+        True iff some function in this file has a param/local annotated with the
+        `TParamNode` sentinel type — the node whose `.type_params` the PEP-695 reflection
+        loop iterates (`for tp in <node>.type_params`). Only then are the `tparam` ADT +
+        `tparam_list` + `tp_kind_of`/`tp_name`/`tp_bound` projectors + `type_params_of`
+        emitted into the emit_ir theory, so the certified tparam value model stays OUT of
+        every other mirror's SMT context and the whole reference corpus (`TParamNode` is a
+        NEW sentinel name; no corpus program or other mirror carries it -> byte-identical).
+        The byte-inert gate, mirroring `_uses_call_kw`'s `CallKw` sentinel. Cached."""
+        cached = getattr(self, "_uses_tparam_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            v == "TParamNode"
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("symbol_table", {}) or {}).values()
+        ) or any(
+            v == "TParamNode"
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("param_annotations", {}) or {}).values()
+        )
+        self._uses_tparam_cache = result
+        return result
+
+    def _uses_compute_return_type(self) -> bool:
+        """self-tcb-reduction `_compute_return_type` PATH(b): True iff this file defines
+        `_compute_return_type` — the largest return-type dispatcher on the opaque-int
+        FunctionEmissionMixin. Gates every new opaque-self typed field-accessor `val`
+        (`record_types_mem`/`variant_types_whyml_name`/`mutable_state_classes_mem`/the
+        option-map `compound_map_getter_*` reader/the `dict_key_types`/`dict_value_types`
+        readers) plus the string-typed return of `IRScanner.find_return_type` and the
+        `option string` return of `_returned_var_name` into that ONE file's SMT context.
+        No corpus program (and no other mirror) defines a method by that name, so every
+        other file's emission stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_compute_return_type_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_compute_return_type")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_compute_return_type_cache = result
+        return result
+
+    def _emitting_compute_return_type(self) -> bool:
+        """self-tcb-reduction `_compute_return_type` PATH(b): True iff the method CURRENTLY
+        being emitted is `_compute_return_type`. Used to enable the typed-local pre-decls
+        (`ref None`/`ref ""` for its hoisted option/string locals) and the string
+        classification of its `or`/ternary locals WITHOUT globally registering
+        FunctionEmissionMixin as @mutable_state (which would perturb its sibling methods —
+        the documented PATH(a) regression). Per-method scoped -> byte-inert elsewhere."""
+        return (self._uses_compute_return_type()
+                and str(getattr(self, "_current_emitting_func", "") or "")
+                .endswith("_compute_return_type"))
+
+    def _uses_refine_tuple_return_type(self) -> bool:
+        """self-tcb-reduction typed-self-field-WRITE cap: True iff this file defines
+        `_refine_tuple_return_type` — the tuple-slot dispatcher on the opaque-int
+        FunctionEmissionMixin that (unlike its read-only siblings) CONSTRUCTS a
+        `map string (option string)` symbol table AND WRITES self-fields
+        (`self._current_symbol_table = _st`). Gates the reusable typed self-field WRITE
+        (a polymorphic effect-free `setattr`), the func-param-field->string-map projector
+        (`func.get("symbol_table"|"param_annotations", {}) or {}`), the map-copy identity
+        (`dict(symtab)`), and the map `.items()`/`.get`/subscript-assign readers into that
+        ONE file's SMT context. No corpus program (and no other mirror) defines a method by
+        that name, so every other file's emission stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_refine_tuple_return_type_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_refine_tuple_return_type")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_refine_tuple_return_type_cache = result
+        return result
+
+    def _emitting_refine_tuple_return_type(self) -> bool:
+        """self-tcb-reduction typed-self-field-WRITE cap: True iff the method CURRENTLY
+        being emitted is `_refine_tuple_return_type`. Scopes the polymorphic self-field
+        WRITE, the func-field->string-map projector, the map-copy identity, and the
+        map-`.items()`/`.get`/subscript readers to that ONE method WITHOUT globally
+        registering FunctionEmissionMixin as @mutable_state (the documented PATH(a)
+        sibling regression). Per-method scoped -> byte-inert elsewhere."""
+        return (self._uses_refine_tuple_return_type()
+                and str(getattr(self, "_current_emitting_func", "") or "")
+                .endswith("_refine_tuple_return_type"))
+
+    def _uses_build_param_list(self) -> bool:
+        """self-tcb-reduction FunctionEmissionMixin WRITER class: True iff this file
+        defines `_build_param_list` — the smallest self-field-WRITING signature builder
+        on the opaque-int FunctionEmissionMixin. Gates the extended opaque-self typed
+        READ accessors (`current_symbol_table_of : map string (option string)`,
+        `array2d_params_of`/`current_array1d_params_of`/`formal_params_of : seq string`),
+        the `set string` set-comprehension over the symbol-table map, and the
+        `(set string, string)` tuple return into that ONE file's SMT context. Reuses the
+        banked write cap (`setattr_functionemissionmixin_poly`), the hval-int f-string
+        interpolation, the seq-string-local support, and `str_join_seq`. No corpus program
+        (and no other mirror) defines a method by that name, so every other file's emission
+        stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_build_param_list_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_build_param_list")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_build_param_list_cache = result
+        return result
+
+    def _emitting_build_param_list(self) -> bool:
+        """self-tcb-reduction FunctionEmissionMixin WRITER class: True iff the method
+        CURRENTLY being emitted is `_build_param_list`. Scopes the extended opaque-self
+        READ accessors, the set-comprehension-to-`set string`, the `(set string, string)`
+        tuple return, and the seq-string param-part locals to that ONE method WITHOUT
+        globally registering FunctionEmissionMixin as @mutable_state (the documented
+        PATH(a) sibling regression). Per-method scoped -> byte-inert elsewhere."""
+        return (self._uses_build_param_list()
+                and str(getattr(self, "_current_emitting_func", "") or "")
+                .endswith("_build_param_list"))
+
+    def _uses_pyast_stmt(self) -> bool:
+        """pyast_stmt ADT (self-tcb-reduction giants): True iff some function in this file
+        iterates a class-body — `for <x> in <p>.body` where `<p>` is a parameter annotated
+        `ast.ClassDef` — the shape the generic class-body lowering handles (piece 2/3). Only
+        the Module5 mirror's `_collect_class_constants` produces it, so the pyast_stmt theory
+        + psl loop stay OUT of every other mirror's SMT context and the whole corpus
+        (byte-identical). Cached."""
+        cached = getattr(self, "_uses_pyast_stmt_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            self._pyast_classdef_body_params(fn) or self._pyast_module_body_params(fn)
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_pyast_stmt_cache = result
+        return result
+
+    def _uses_pyast_module(self) -> bool:
+        """J2/J3 convergence (self-tcb-reduction, module-body dispatch): True iff some
+        function iterates an `ast.Module` param's `.body` (`for stmt in node.body`). Only
+        then are `type py_module_node` + `val module_body_ast` emitted (with the shared
+        pyast_stmt block). Only the Module5 mirror's `_collect_typevar_registry` produces
+        this shape -> byte-inert everywhere else. Cached."""
+        cached = getattr(self, "_uses_pyast_module_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            self._pyast_module_body_params(fn)
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_pyast_module_cache = result
+        return result
+
+    def _pyast_module_body_params(self, func: Dict[str, Any]) -> Set[str]:
+        """The parameters of `func` that are (a) annotated `ast.Module` AND (b) iterated
+        via `for <x> in <param>.body`. These become `py_module_node` params whose `.body`
+        reads the shared `module_body_ast` psl (module-body dispatch). Parallel to
+        `_pyast_classdef_body_params`; the ONLY difference is the "Module" node tag."""
+        return self._pyast_bodyparams_for_tag(func, "Module")
+
+    def _pyast_classdef_body_params(self, func: Dict[str, Any]) -> Set[str]:
+        """The parameters of `func` that are (a) annotated `ast.ClassDef` AND (b) iterated
+        via `for <x> in <param>.body` somewhere in the body. These become `py_classdef_node`
+        params whose `.body` reads the `class_body_ast` psl (generic class-body lowering)."""
+        return self._pyast_bodyparams_for_tag(func, "ClassDef")
+
+    def _pyast_bodyparams_for_tag(self, func: Dict[str, Any], tag: str) -> Set[str]:
+        """Shared helper: params annotated `ast.<tag>` AND iterated via `for <x> in
+        <param>.body`. `tag`="ClassDef" -> py_classdef_node/class_body_ast; "Module" ->
+        py_module_node/module_body_ast."""
+        pann = func.get("param_ast_node_types") or {}
+        tag_params = {
+            p for p, a in pann.items()
+            if isinstance(a, str) and a == tag}
+        if not tag_params:
+            return set()
+        found: Set[str] = set()
+
+        def walk(stmts: Any) -> None:
+            if not isinstance(stmts, list):
+                return
+            for st in stmts:
+                if not isinstance(st, dict):
+                    continue
+                if st.get("stmt") in ("For", "ForStmt"):
+                    it = st.get("iter", {})
+                    if (isinstance(it, dict) and it.get("type") == "Attribute"
+                            and it.get("attr") == "body"):
+                        obj = it.get("object", {})
+                        if (isinstance(obj, dict) and obj.get("type") == "Var"
+                                and obj.get("name") in tag_params):
+                            found.add(obj["name"])
+                for v in st.values():
+                    if isinstance(v, list):
+                        walk(v)
+                    elif isinstance(v, dict):
+                        walk(v.get("body")) if isinstance(v.get("body"), list) else None
+        walk(func.get("body"))
+        return found
+
+    # self-tcb-reduction family-B (parser clause parsers): the CSL-AST CONTRACT-CLAUSE
+    # node kinds the recursive-descent `_ContractParser._parse_*` methods construct
+    # (`ProofDecl(prover, qualname)`, `ClassInvariant(expr)`, `LoopInvariant(expr)`,
+    # `LoopVariant(expr)`, `RaisesDecl(exc, cond)`, ...). Distinct from the EXPR family
+    # (IrBinOp/IrVar/...) which appears inside ordinary contract expressions and thus
+    # reaches the corpus — these clause kinds appear ONLY as a parser method's returned
+    # node, never as a sub-expression of a corpus contract. Lowercased (the
+    # `_record_types` key convention).
+    _CLAUSE_IR_NODES = (
+        "ProofDecl", "ClassInvariant", "LoopInvariant", "LoopVariant",
+        "RaisesDecl",
+        # self-tcb-reduction family-B (LIST-append clause parsers): the clause node
+        # kinds whose sole field is a `list string` built by an `.append` loop
+        # (`ComposeFromDecl(mixins)`, `ConformsToDecl(protocols)`, `LockOrder(order)` —
+        # `_parse_compose_from`/`_parse_conforms_to`/`_parse_lock_order`).
+        "ComposeFromDecl", "ConformsToDecl", "LockOrder",
+    )
+
+    def _uses_clause_ir(self) -> bool:
+        """self-tcb-reduction family-B: True iff THIS file DEFINES one of the parser
+        contract-clause node classes (`_CLAUSE_IR_NODES`) as a `record` type_decl. Only
+        `frontend/Module2_Parser` defines them (both live and mirror), and it is the SOLE
+        file that constructs them, so gating the clause `emit_ir` ctors + their `kind_of`
+        arms on this keeps the emit_ir theory BYTE-IDENTICAL in every other mirror AND the
+        whole reference corpus (no corpus program declares a `@mutable_state` class, let
+        alone one of these clause classes). Reads `self.ir['type_decls']` DIRECTLY (the
+        `_record_types` dict is populated LATE — during preamble record-decl emission,
+        after the emit_ir theory is first realized — so a `_record_types` probe caches a
+        false negative). The `_uses_call_kw` byte-inert-gate pattern verbatim. Cached."""
+        cached = getattr(self, "_uses_clause_ir_cache", None)
+        if cached is not None:
+            return cached
+        clause = set(self._CLAUSE_IR_NODES)
+        result = any(
+            td.get("kind") == "record" and td.get("name") in clause
+            for td in (self.ir.get("type_decls", []) or []))
+        self._uses_clause_ir_cache = result
+        return result
+
+    def _uses_stmt_ir(self) -> bool:
+        """stmt-list-append-mutation wall (self-tcb-reduction M5, C-bucket): True iff some
+        function in this file appends a statement-IR node — a `<list>.append({"stmt": K})`
+        with a STRING-literal `"stmt"` kind — to a list parameter. That syntactic shape is
+        the sole discriminator of the mutable-ref stmt-append convention; only the Module5
+        mirror's `_py_stmt_*` handlers (and the wall reference drivers) produce it, so the
+        stmt_ir theory block + the `ref (seq stmt_ir)` param typing stay OUT of every other
+        mirror's SMT context and the whole corpus (byte-identical). Cached."""
+        cached = getattr(self, "_uses_stmt_ir_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            self._stmt_seq_append_params(fn)
+            for fn in self.ir.get("functions", []) or []) \
+            or self._uses_stmt_return_recogniser()
+        self._uses_stmt_ir_cache = result
+        return result
+
+    def _uses_py_functiondef_node(self) -> bool:
+        """functiondef-node wall (self-tcb-reduction M5, C-bucket): True iff some function
+        in this file is a recognized `ast.FunctionDef`-node method (currently only
+        `_should_skip_method`) AND the stmt_ir theory is emitted (which supplies the shared
+        is_var/name_of/irlist devices the `py_functiondef_node` accessors reuse). Only then
+        are `type py_functiondef_node` + `func_name_ast`/`func_decorator_list_ast` +
+        `decorator_has_name` emitted. Only the Module5 mirror has this method, so every other
+        mirror + the whole corpus stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_py_functiondef_node_cache", None)
+        if cached is not None:
+            return cached
+        result = self._uses_stmt_ir() and any(
+            str(fn.get("name", "")).endswith("_should_skip_method")
+            or str(fn.get("name", "")).endswith("_build_overload_param_guard")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_py_functiondef_node_cache = result
+        return result
+
+    def _uses_build_overload_param_guard(self) -> bool:
+        """functiondef-node cluster (self-tcb-reduction M5, C-bucket): True iff some function
+        in this file is the Module5 mirror's `_build_overload_param_guard` AND the
+        py_functiondef_node theory is emitted. Only then are the extra arg-node accessors
+        (`py_arg_node`/`func_args_ast`/`arg_name_ast`/`arg_annotation_ast`/
+        `overload_type_name_op`) + the `build_overload_guard_acc` isinstance-guard fold
+        emitted. Only the Module5 mirror has this method, so every other mirror + the whole
+        corpus stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_build_overload_param_guard_cache", None)
+        if cached is not None:
+            return cached
+        result = self._uses_py_functiondef_node() and any(
+            str(fn.get("name", "")).endswith("_build_overload_param_guard")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_build_overload_param_guard_cache = result
+        return result
+
+    def _uses_synthesize_overload_guard(self) -> bool:
+        """functiondef-node cluster (self-tcb-reduction M5, C-bucket): True iff some function
+        in this file is the Module5 mirror's `_synthesize_overload_guard` AND the
+        build_overload_guard_acc theory is emitted (which supplies the guard fold +
+        py_functiondef_node/func_args_ast the synthesizer reuses). Only then are the
+        `ens_node`/`func_csl_ensures_ast`/`ens_expr_ast`/`csl_to_ir_op` readers +
+        `synth_overload_clauses` + `materialize_ir` emitted. Only the Module5 mirror has this
+        method, so every other mirror + the whole corpus stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_synthesize_overload_guard_cache", None)
+        if cached is not None:
+            return cached
+        result = self._uses_build_overload_param_guard() and any(
+            str(fn.get("name", "")).endswith("_synthesize_overload_guard")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_synthesize_overload_guard_cache = result
+        return result
+
+    def _uses_is_overload_stub(self) -> bool:
+        """functiondef-node cluster (self-tcb-reduction M5, C-bucket): True iff some function
+        in this file is the Module5 mirror's `_is_overload_stub` AND BOTH the
+        py_functiondef_node theory (supplies `func_decorator_list_ast` + is_var/is_attribute/
+        name_of/irlist) AND the pyast_stmt theory (supplies the `psl` cons-list + `psl_len`/
+        `psl_nth`) are emitted. Only then are the pyast_stmt `PSPass`/`PSExprEllipsis`
+        constructors (+ their `stmt_node_kind_of` arms + `is_pass_node`/`is_expr_ellipsis_node`
+        discriminants + faithfulness lemmas), the `func_body_ast : py_functiondef_node -> psl`
+        accessor, and the `decorator_has_name_or_attr` fold emitted. Only the Module5 mirror has
+        this method (alongside `_should_skip_method` and `_collect_class_constants`, so both
+        prerequisite gates are True there), so every other mirror + the whole corpus stays
+        byte-identical (the pyast_stmt block emits its ORIGINAL 5-constructor shape elsewhere).
+        Cached."""
+        cached = getattr(self, "_uses_is_overload_stub_cache", None)
+        if cached is not None:
+            return cached
+        result = (self._uses_py_functiondef_node() and self._uses_pyast_stmt() and any(
+            str(fn.get("name", "")).endswith("_is_overload_stub")
+            for fn in self.ir.get("functions", []) or []))
+        self._uses_is_overload_stub_cache = result
+        return result
+
+    def _uses_act_guard(self) -> bool:
+        """csl_clause contract-clause ADT (self-tcb-reduction, `_act_guard`): True iff
+        some function in this file is the Module3 mirror's `_act_guard` — the SOLE
+        consumer of the csl_clause theory (`act.clauses` filter+fold over the
+        contract-clause union). Only the Module3_Weaver mirror (and live) defines a
+        method by that name; no reference-corpus program does, so gating the
+        act_node/csl_clause/clause_list types + discriminants + faithfulness lemmas +
+        clause_expr_of + act_clauses_of + act_guard_fold on this keeps the emit_ir
+        theory BYTE-IDENTICAL in every other mirror AND the whole corpus. The
+        `_uses_csl_proj`/`_uses_null_byte_num_reader` name-based-gate pattern verbatim.
+        Cached."""
+        cached = getattr(self, "_uses_act_guard_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_act_guard")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_act_guard_cache = result
+        return result
+
+    def _uses_csl_proj(self) -> bool:
+        """self-tcb-reduction csl-family (_csl_proj): True iff THIS file defines the
+        Module5 mirror's `_csl_proj` method, the SOLE constructor of a `{"type":
+        "ProjExpr", ...}` source dict-literal (lowered to the `IrProj emit_ir int` leaf).
+        Only the Module5 mirror (and live) has it; no reference-corpus program constructs
+        a ProjExpr *source dict* (a corpus `\\proj` contract lowers through Module6's
+        runtime ProjExpr-IR path, NOT `_lower_irnode_construction`), so gating the IrProj
+        emit_ir ctor + its `kind_of`/`size` arms on this keeps the emit_ir theory
+        BYTE-IDENTICAL in every other mirror AND the whole corpus. The
+        `_uses_synthesize_overload_guard` name-based-gate pattern verbatim. Cached."""
+        cached = getattr(self, "_uses_csl_proj_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_csl_proj")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_csl_proj_cache = result
+        return result
+
+    def _uses_stmt_return_recogniser(self) -> bool:
+        """tree-walk-wall-impl.md (self-tcb-reduction, GATE-S): True iff some
+        function in this file is a `_body_has_return`-shaped stmt_ir tree-walk
+        existence fold (`recognize_stmt_has`). It READS a statement tree (no
+        `.append`), so `_uses_stmt_ir`'s append-shape probe misses it — this fires
+        the SAME certified stmt_ir ADT + `size_*` theory emission the recogniser's
+        `stmt_has`/`sl_has`/`hl_has`/`mcl_has` group references. Corpus-inert: only
+        the Module5/core_ir_semantic mirror's NoReturn walkers have this shape, so
+        every corpus program stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_stmt_return_recogniser_cache", None)
+        if cached is not None:
+            return cached
+        from module6_whyml.generic_fold import recognize_stmt_has
+        result = any(
+            recognize_stmt_has(fn) is not None
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_stmt_return_recogniser_cache = result
+        return result
+
+    def _uses_null_byte_num_reader(self) -> bool:
+        """self-tcb-reduction (_is_null_byte_lit): True iff this file defines a
+        `_is_null_byte_lit` function — the sole consumer of the `num_of` integer-value
+        reader (which projects IrNum's int payload so `elts[0].get("value") == 0` reads
+        faithfully). No corpus program defines a function by that name, so gating `num_of`'s
+        emission on this keeps the emit_ir theory every corpus file emits byte-identical.
+        Cached."""
+        cached = getattr(self, "_uses_null_byte_num_reader_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_is_null_byte_lit")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_null_byte_num_reader_cache = result
+        return result
+
+    def _pyast_kind_of_arms(self) -> List[str]:
+        """PYTHON-AST NODE CTOR FAMILY (increment 9): the `kind_of` arms for the pure_ast
+        node ctors, derived from the SAME single source as the ADT arms and the payload
+        binding. `kind_of` has no `_` catch-all, so every added ctor MUST appear here or
+        the match is non-exhaustive."""
+        from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
+        return [f'    | {_ctor}{" _" * len(_payload)} -> "{_cls}"'
+                for _cls, (_ctor, _payload) in _PYC.items()]
+
+    def _pyast_ctor_arms(self) -> str:
+        """PYTHON-AST NODE CTOR FAMILY (`_fin` recognizer vein, increment 9): the emit_ir
+        ADT arms for the pure_ast parser's node classes, derived from the SINGLE SOURCE
+        `frontend.ir_resolve._PYAST_IRNODE_CTORS` (which also drives the by-name payload
+        binding and the harvest) — so an arm and its binding can never drift apart. Emitted
+        in table order; empty off the `_uses_pyast_parser` gate."""
+        from frontend.ir_resolve import _PYAST_IRNODE_CTORS as _PYC
+        return "".join(
+            " | " + _ctor + "".join(
+                " " + (f"({_ty})" if " " in _ty else _ty)
+                for _fn, _ty in _payload)
+            for _ctor, _payload in _PYC.values())
+
+    def _uses_pyast_parser(self) -> bool:
+        """PYTHON-AST NODE CTOR FAMILY (`_fin` recognizer vein, increment 9): True iff this
+        file defines `_Parser._fin` — the pure_ast recursive-descent parser's node finisher,
+        and the single structural signature of that ONE mirror file. Gates the `IrPy*`
+        emit_ir arms (the Python-AST node constructions the parser builds) into pure_ast's
+        theory only. No corpus program, and no other mirror, defines a `_Parser._fin`, so
+        every other emit_ir theory in the tree stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_pyast_parser_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_parser___fin")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_pyast_parser_cache = result
+        return result
+
+    def _uses_dictlit(self) -> bool:
+        """self-tcb-reduction _typeddict_record_literal (cap-2): True iff this file defines
+        `_typeddict_record_literal` — the sole DictLit-node reflector (`expr.get("keys")` /
+        `expr.get("values")` over an `IrDictLit` node). Gates the `IrDictLit` ctor + the
+        `dictlit_keys_of`/`dictlit_values_of` projections INTO the expression-emission mirror
+        (whose emit_ir ADT is otherwise the spec/reduced variant, without the `_uses_stmt_ir`
+        Module5 py-expr ctors). No corpus program defines a function by that name, so every
+        corpus file's emit_ir theory stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_dictlit_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_typeddict_record_literal")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_dictlit_cache = result
+        return result
+
+    def _uses_stmt_if_test(self) -> bool:
+        """self-tcb-reduction _try_union_is_none_match: True iff this file defines
+        `_try_union_is_none_match` — the sole reader of an If-STATEMENT's `test`/`orelse`
+        sub-nodes off a reflected emit_ir node. Gates the opaque `test_of`/`orelse_stmts_of`
+        `val`s into that file's emit_ir theory only. No corpus program defines a function by
+        that name, so every corpus file's theory stays byte-identical. Cached."""
+        cached = getattr(self, "_uses_stmt_if_test_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            str(fn.get("name", "")).endswith("_try_union_is_none_match")
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_stmt_if_test_cache = result
+        return result
+
+    def _uses_call_kw(self) -> bool:
+        """J1 Call-internals value model (self-tcb-reduction, callinternals-oracle.mlw
+        Gate-R CONFIRMED): True iff some function in this file has a param/local annotated
+        with the `CallKw` sentinel type — the receiving context that needs keyword-node
+        inspection (`call.keywords` / `for kw in ...` / `kw.arg` / `kw.value.id`). Only
+        then are the standalone `kwval`/`keyword`/`keyword_list` types + the `IrCallKw`
+        ctor + its projectors emitted into the emit_ir theory, so the certified Call-
+        internals value model stays OUT of every other mirror's SMT context and the whole
+        reference corpus (`CallKw` is a NEW sentinel name; no corpus program or other
+        mirror carries it → byte-identical). The byte-inert gate, mirroring `_uses_pyval`'s
+        `Dict[str, PyVal]` sentinel. Cached."""
+        cached = getattr(self, "_uses_call_kw_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            v == "CallKw"
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("symbol_table", {}) or {}).values()
+        ) or any(
+            v == "CallKw"
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("param_annotations", {}) or {}).values()
+        ) or any(
+            # J2/J3 convergence: a `for <kw> in <call>.keywords` loop is the receiving
+            # context that needs the keyword-node model (the `_collect_typevar_registry`
+            # shape). No corpus program iterates `.keywords` -> byte-inert.
+            self._has_keywords_iteration(fn)
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_call_kw_cache = result
+        return result
+
+    def _uses_method_recv(self) -> bool:
+        """self-tcb-reduction Layer-2 method-call RECEIVER value model: True iff some
+        function in this file READS `<x>.get("receiver")` — the receiving context that
+        needs the receiver-carrying method-call ctor (`IrMethodCall`) + its `receiver_of`
+        projector + the Layer-1 slice accessors. Only then are those symbols emitted into
+        the emit_ir theory, so the certified receiver value model stays OUT of every other
+        mirror's SMT context AND the whole reference corpus (`.get("receiver")` appears in
+        0 corpus programs and 0 other mirror files -> byte-identical). The byte-inert gate,
+        mirroring `_uses_call_kw`'s `.keywords`-iteration trigger. Cached."""
+        cached = getattr(self, "_uses_method_recv_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            self._reads_receiver_get(fn)
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_method_recv_cache = result
+        return result
+
+    def _reads_receiver_get(self, func: Dict[str, Any]) -> bool:
+        """Layer-2: True iff `func` contains a `<x>.get("receiver")` call WHOSE BASE `<x>`
+        is emit_ir-typed — the DEMAND-DRIVEN trigger for the receiver value model. The base
+        check is the make-or-break: a purely-syntactic `.get("receiver")` scan over-fires,
+        because `ir_schema._expr_from_dict_inner` reads `d.get("receiver")` on a raw
+        `Dict[str, Any]` param `d` (NOT emit_ir) and the twin emits it as an ordinary map
+        read — never as `receiver_of` — so injecting the IrMethodCall/receiver_of/slice
+        extension into that file's emit_ir theory is PURE UNUSED BLOAT that balloons every
+        VC's E-matching (stmt_control_flow.py timed out). We reuse the SAME predicate the
+        twin's lowering site uses to decide `receiver_of` (`_is_emit_ir_expr` on the
+        `.get` receiver, expressions.py §B-C3), evaluated in the function's OWN symbol-table
+        context. Only `expressions.py::_match_field_decode_idiom` reads `.get("receiver")`
+        on an ExprIR (emit_ir) base, so ONLY there does the extension actually get emitted
+        (and USED) — every other mirror + the whole corpus stays byte-identical to baseline."""
+        found = [False]
+        _saved_st = getattr(self, "_current_symbol_table", None)
+        self._current_symbol_table = func.get("symbol_table", {}) or {}
+
+        def rec(n: Any) -> None:
+            if found[0]:
+                return
+            if isinstance(n, dict):
+                if n.get("type") == "Call":
+                    _f = n.get("func", "")
+                    if isinstance(_f, str) and _f.endswith(".get"):
+                        _a = n.get("args") or []
+                        if (_a and isinstance(_a[0], dict)
+                                and _a[0].get("type") == "String"
+                                and _a[0].get("value") == "receiver"
+                                # DEMAND-DRIVEN: only count the read whose base `<x>` is
+                                # emit_ir-typed (the exact `.get`-projection precondition at
+                                # the expressions.py §B-C3 lowering site) — a `d.get(...)`
+                                # on a plain-dict base does NOT lower to `receiver_of`.
+                                and self._is_emit_ir_expr(
+                                    {"type": "Var", "name": _f[:-len(".get")]})):
+                            found[0] = True
+                            return
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        try:
+            rec(func.get("body"))
+        finally:
+            if _saved_st is None:
+                if hasattr(self, "_current_symbol_table"):
+                    delattr(self, "_current_symbol_table")
+            else:
+                self._current_symbol_table = _saved_st
+        return found[0]
+
+    def _has_keywords_iteration(self, func: Dict[str, Any]) -> bool:
+        """J2/J3: True iff `func` iterates `for <x> in <y>.keywords` — the syntactic
+        trigger for the Call-internals keyword model. Byte-inert (no corpus shape)."""
+        found = [False]
+
+        def rec(n: Any) -> None:
+            if found[0]:
+                return
+            if isinstance(n, dict):
+                if n.get("stmt") in ("For", "ForStmt"):
+                    _it = n.get("iter", {})
+                    if (isinstance(_it, dict) and _it.get("type") == "Attribute"
+                            and _it.get("attr") == "keywords"):
+                        found[0] = True
+                        return
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        rec(func.get("body"))
+        return found[0]
+
+    def _uses_pyval(self) -> bool:
+        """pyval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall):
+        True iff some function in this file has a dict typed `Dict[str, PyVal]` — its
+        `dict_value_types` carries the `"hval"` sentinel (set by Module5
+        `_m5_get_dict_value_type` on a `Dict[str, PyVal]` annotation). Only then is the
+        `hval` sum + `map string (option hval)` theory emitted, so the certified
+        heterogeneous value variant stays OUT of every other mirror's SMT context and the
+        whole reference corpus (no `Dict[str, PyVal]` annotation there → byte-identical).
+        The value carrier `PyVal` is a NEW sentinel type name; this is the byte-inert gate
+        (the `_uses_pyconst_val`/`_uses_pyast_stmt` precedent). Cached."""
+        cached = getattr(self, "_uses_pyval_cache", None)
+        if cached is not None:
+            return cached
+        # A dict value type is the bare `hval` sentinel (`Dict[str, PyVal]`) OR a
+        # NESTED hval map (`Dict[str, Dict[str, PyVal]]` -> `map string (option hval)`,
+        # J2/J3 convergence). Both need the `hval` theory. `hval` is a NEW type name
+        # absent from the corpus -> byte-inert.
+        result = any(
+            isinstance(v, str) and (v == "hval" or "option hval" in v)
+            for fn in self.ir.get("functions", []) or []
+            for v in (fn.get("dict_value_types", {}) or {}).values())
+        # K1 (seq-pyval self-field append): a `List[PyVal]`/`List[Dict[str, PyVal]]`
+        # record field (value_type == "hval") lowers to `seq hval` and so ALSO needs
+        # the `hval` theory in scope — fire the gate even when no function-local
+        # `Dict[str, PyVal]` annotation is present. Corpus has no such field -> byte-inert.
+        result = result or any(
+            f.get("value_type") == "hval" or f.get("name") == "_record_types"
+            for td in self.ir.get("type_decls", []) or []
+            for f in td.get("fields", []) or [])
+        # K4/#6 (local/return-position seq-pyval + scalar pyval return): a function that
+        # RETURNS `seq hval` (`-> List[Dict[str, PyVal]]`, return_value_type "hval") or
+        # a scalar `hval` (`-> PyVal`, return_annotation "PyVal") needs the `hval`
+        # theory in scope even when no pyval FIELD is present. Corpus has neither
+        # annotation -> byte-inert.
+        result = result or any(
+            fn.get("return_value_type") == "hval"
+            or fn.get("return_annotation") == "PyVal"
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_pyval_cache = result
+        return result
+
+    def _emit_pyval_theory(self) -> List[str]:
+        """hval heterogeneous value model (self-tcb-reduction, Tier-5 value-model wall):
+        the CERTIFIED faithful value variant for a heterogeneous `Dict[str, Any]`
+        (`_render_match_pattern`-shaped) — proven axiom-free by the fable oracle
+        (`getting-better/pyval-oracle.mlw`, Z3 Valid) and co-landed with the Rocq/Lean
+        `Phase2f_PyVal` cert. Emit EXACTLY the oracle's shape (renamed carrier):
+
+          type hval = HStr string | HInt int | HArr hval_list
+                    | HMap (map string (option hval)) | HNode hval
+          with hval_list = HNil | HCons hval hval_list
+
+        NAME COLLISION (fixed here): the OLDER D1/R-A generic-fold value model
+        (`_pydict_theory_lines`) also declares `type pyval` with `PInt|PStr|PBool|PNone|
+        PList|PDict`. A file that needs BOTH gates (the first is `frontend/ir_resolve.py`,
+        which imports Module3_Weaver AND Module5_IREmitter) emitted two clashing
+        declarations — `Symbol PStr is already defined in the current scope`. The two
+        types are NOT mergeable (the generic-fold `pv_size`/`size_pos` measure pack
+        cannot extend over `HMap`'s map codomain), so this Tier-5 family carries the
+        DISJOINT `h*` names and both theories now coexist in one scope.
+
+        `HArr` recurses through the BESPOKE `hval_list` (HNil/HCons), NOT `seq hval` —
+        Why3 rejects `seq` recursion as a non-strictly-positive occurrence (the hard
+        refinement from Gate R). `HMap (map string (option hval))` is accepted (hval
+        sits in the positive arrow codomain). Structural mutual recursion, NO `variant`
+        clause (the `irlist`/`stmt_list` fold precedent — Why3 emits no termination VC).
+        `size`/`size_pos` are the cert-side measure ONLY (no frontier fold needs them);
+        they are NOT emitted here (kept out of every VC's SMT context). Gated on
+        `_uses_pyval` → corpus + every other mirror byte-identical."""
+        return [
+            "  (* hval heterogeneous value model (self-tcb-reduction, Tier-5"
+            " value-model wall): the faithful value carrier for a heterogeneous"
+            " Python `Dict[str, Any]` — HStr/HInt/HArr/HMap/HNode. Proven axiom-free by"
+            " the fable oracle (getting-better/pyval-oracle.mlw, Z3 Valid); co-landed with"
+            " the Rocq/Lean Phase2f_PyVal cert. The `h*` names are DISJOINT from the older"
+            " D1/R-A generic-fold `pyval`/`PStr` family (_pydict_theory_lines) so both"
+            " value models can coexist in one scope. HArr recurses through the BESPOKE"
+            " `hval_list` (HNil/HCons), NOT `seq hval` (Why3 rejects `seq` recursion as"
+            " non-strictly-positive). R3: HMap's carrier is the BESPOKE assoc list"
+            " `hpairs` (PNil/PCons), NOT a `map string (option hval)` — the map was"
+            " non-iterable so `.values()` could not fold; the assoc list keeps the"
+            " recursion structural and makes the read a terminating lookup fold"
+            " (`pairs_get`). Structural mutual recursion, NO `variant` clause. Gated on"
+            " `_uses_pyval` -> corpus byte-identical. The abstract-val insert point"
+            " (`_find_abstract_val_insert_idx`, which skips `with`/`invariant`/`by` but"
+            " NOT `|` arm lines) lands AFTER the whole mutual group + `pairs_get`. *)",
+            "  type hval = HStr string | HInt int | HArr hval_list"
+            " | HMap hpairs | HNode hval",
+            "  with hval_list = HNil | HCons hval hval_list",
+            "  with hpairs = PNil | PCons string hval hpairs",
+            "  (* R3 carrier read: `.values()`-foldable lookup over the assoc list"
+            " (the map carrier was non-iterable). Build PREPENDS a binding (PCons)."
+            " A `let rec function` (usable in program `let` bindings — where the reads"
+            " occur); `variant { p }` gives structural termination over the assoc-list"
+            " cons. The key test is the opaque program primitive `hpairs_key_eq` (Why3"
+            " has no native program string `=`; disjoint from the str-set `pystr_eq`);"
+            " the DECIDABLE key equality + non-vacuity is certified in Phase2f_PyVal. *)",
+            "  val hpairs_key_eq (a b: string) : bool",
+            "  let rec function pairs_get (p: hpairs) (k: string) : option hval",
+            "    variant { p }",
+            "    = match p with",
+            "      | PNil -> None",
+            "      | PCons k' v t -> if hpairs_key_eq k k' then Some v else pairs_get t k",
+            "      end",
+            "  (* hval-retype (self-tcb-reduction Tier-5): project the string carrier out"
+            " of an `hval` — the `HStr s` payload, else the empty string. A `let function`"
+            " (usable in program `let`/guard positions, where the record-registry scan's"
+            " `info.get(\"whyml_name\") == cls` compare + the Optional[str] return occur)."
+            " Descends the REAL hval structure (non-vacuous), NOT an abstract reader. *)",
+            "  let function hstr_of (h: hval) : string"
+            " = match h with HStr s -> s | _ -> \"\" end",
+            "  (* self-tcb-reduction Tier-5 (union/match cluster sub-increment 2): project"
+            " the INT carrier out of an `hval` — the `HInt i` payload, else 0. The int twin"
+            " of `hstr_of`, for the `ctor.get(\"arity\") == 0` read in `_union_none_ctor_for`"
+            " (`.get` on an hval local produces an `hval`; compared against an int literal it"
+            " projects via `hint_of`). Total definitional `let function` over the certified"
+            " hval ADT (`HInt` already exists), descends the REAL structure (non-vacuous),"
+            " NO axiom -> ledger stays 3. *)",
+            "  let function hint_of (h: hval) : int"
+            " = match h with HInt i -> i | _ -> 0 end",
+            "  (* self-tcb-reduction _typeddict_field_access (a): Python truthiness of an"
+            " `hval` projected from a DOUBLED `.get` read used in a bool/if context"
+            " (`if self._record_types[sym].get(\"is_typeddict\"):`). Total definitional"
+            " `let function` over the hval ADT — HStr non-empty / HInt non-zero / HArr,HMap"
+            " non-empty / HNode present. The string-emptiness test reuses the certified"
+            " decidable key equality `hpairs_key_eq` (Why3 has no native program string `=`,"
+            " same reason `pairs_get` uses it). Descends the REAL structure (non-vacuous),"
+            " NO axiom -> ledger stays 3. *)",
+            "  let function hval_truthy (h: hval) : bool =",
+            "    match h with",
+            "    | HStr s -> not (hpairs_key_eq s \"\")",
+            "    | HInt i -> i <> 0",
+            "    | HArr l -> (match l with HNil -> false | _ -> true end)",
+            "    | HMap p -> (match p with PNil -> false | _ -> true end)",
+            "    | HNode _ -> true",
+            "    end",
+            "  (* self-tcb-reduction _typeddict_field_access (d): faithful membership of a"
+            " string in an hval collection (`field_name not in rec_info[\"fields\"]`, an"
+            " `HArr` of `HStr` field names). Total definitional recursion over the bespoke"
+            " `hval_list` carrier via the certified `hpairs_key_eq` element test — descends"
+            " the REAL structure (non-vacuous), NO axiom. *)",
+            "  let rec function hval_list_str_mem (l: hval_list) (x: string) : bool",
+            "    variant { l }",
+            "    = match l with",
+            "      | HNil -> false",
+            "      | HCons h t -> if (match h with HStr s -> hpairs_key_eq s x"
+            " | _ -> false end) then true else hval_list_str_mem t x",
+            "      end",
+            "  let function hval_str_mem (h: hval) (x: string) : bool =",
+            "    match h with HArr l -> hval_list_str_mem l x | _ -> false end",
+            "  (* self-tcb-reduction _namedtuple_positional_access: an hval collection"
+            " (`rec_info[\"fields\"]`, an `HArr` of `HStr`) viewed as an ordered SEQUENCE —"
+            " its LENGTH (`len(fields)`) and its i-th element as a `string` (`fields[idx]`)."
+            " Total definitional recursion over the bespoke `hval_list` carrier, descends"
+            " the REAL structure (non-vacuous), NO axiom. *)",
+            "  let rec function hval_list_len (l: hval_list) : int",
+            "    variant { l }",
+            "    = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end",
+            "  let function hval_len (h: hval) : int =",
+            "    match h with HArr l -> hval_list_len l | _ -> 0 end",
+            "  let rec function hval_list_nth (l: hval_list) (i: int) : hval",
+            "    variant { l }",
+            "    = match l with",
+            "      | HNil -> HInt 0",
+            "      | HCons x t -> if i <= 0 then x else hval_list_nth t (i - 1)",
+            "      end",
+            "  let function hval_nth_str (h: hval) (i: int) : string =",
+            "    match h with HArr l -> hstr_of (hval_list_nth l i) | _ -> \"\" end",
+            "  (* hval-retype (self-tcb-reduction Tier-5): the abstract `.values()`"
+            " iterator over a `map string (option hval)` field — a native Why3 `map` is"
+            " not finitely iterable, so the ENUMERATION is over-approximated (arbitrary"
+            " length, arbitrary element), but each element is a REAL `hval` whose `.get`"
+            " reads descend the actual structure via `pairs_get` (non-vacuous). Declared"
+            " in the theory (not late via `_add_abstract_op`) so the decl is always in"
+            " scope before the loop use, across the proof + vacuity re-emission paths. *)",
+            "  (* LOGIC `function`s (not program `val`s) so `hval_values_len` is usable in"
+            " the loop `variant` term (a logic context) — exactly like the psl-loop"
+            " `psl_len`. Uninterpreted + total + effect-free, so also usable in the"
+            " program while-condition + element `let`. NO axiom (the variant's `0 <=`"
+            " bound falls out of the loop condition `idx < len`) -> ledger stays 3. *)",
+            "  val function hval_values_len (m: map string (option hval)) : int",
+            "  val function hval_values_get (m: map string (option hval)) (i: int) : hval",
+            "  (* self-tcb-reduction _namedtuple_positional_access: the `.items()` twin of"
+            " the `.values()` walk — a `for k, v in <hval-field>.items()` loop binds the"
+            " KEY `k` to an arbitrary `string` (over-approx enumeration, same length as"
+            " the values) alongside the real `hval` value. Uninterpreted + total +"
+            " effect-free; NO axiom. *)",
+            "  val function hval_keys_get (m: map string (option hval)) (i: int) : string",
+            "  (* self-tcb-reduction Tier-5 (union/match cluster C3): a NESTED `hval` viewed"
+            " as its `map string (option hval)` carrier — the `.items()` twin over an hval"
+            " LOCAL (`vinfo.get(\"constructors\", {}).items()`), not a self-field. Total +"
+            " uninterpreted (an `HMap` IS a `map string (option hval)`; a non-map hval views"
+            " as the empty map), so `hval_values_len/get`/`hval_keys_get` apply to the view."
+            " NO axiom -> ledger stays 3. *)",
+            "  val function hval_as_map (h: hval) : map string (option hval)",
+            # self-tcb-reduction _typeddict_record_literal (cap-6/7): the raise-branch
+            # consumers `missing = [f for f in rec_info["fields"] if f not in present]` /
+            # `extra = [k for k in present if k not in declared]` are a SOUND OVER-APPROX
+            # (they feed ONLY the `if missing or extra: raise` guard — the returned record
+            # depends solely on the faithful `kv.get(fname)`), modelled as an arbitrary
+            # `array string` reader that CONSUMES both real inputs: the iterated hval
+            # collection (`rec_info["fields"]` / `declared`) AND the kv-domain map
+            # (`present`). Every emitted CALL passes a real term (an hval projection that
+            # descends `rec_info`, and `!present` = the `kv` map), so the emission is
+            # non-vacuous (Gate-C) — no input-blind `kv_keys_0 ()`/`set_1` facade.
+            # Uninterpreted + total + effect-free; NO axiom -> ledger stays 3. Gated on
+            # `_uses_dictlit` (the sole `_typeddict_record_literal` file) -> byte-inert.
+            *(["  val typeddict_str_overapprox (h: hval) (m: map string (option emit_ir)) : array string"]
+              if self._uses_dictlit() else []),
+            "",
+        ]
+
+    @staticmethod
+    def _str_set_locals_of(func: Dict[str, Any]) -> Set[str]:
+        """set-value-model-wall (self-tcb-reduction, Tier-5): the set of body locals
+        of `func` that are an EMITTER-LOCAL `Set[str]` value — a local annotated
+        `Set[str]` (`set_value_types[v] == "string"`) AND initialized with a bare
+        `set()` call (`v = set()`) somewhere in the body. BOTH conditions are
+        required so the corpus stays byte-identical: 0775's `s: Set[str] = None`
+        (no `= set()`) and 0823/0833's `Set[int]` (element not "string") never
+        qualify. Returns the empty set for every corpus function -> byte-inert.
+
+        These locals lower to the executable `set.SetApp[string]` clone (`scope
+        StrSet` in the preamble): `set()` -> `StrSet.empty ()`, `.add(x)` ->
+        `StrSet.add x !s`, `x in s`/`x not in s` -> `StrSet.mem`/`not StrSet.mem`
+        (a program bool guard). NO set-non-membership proof obligation is ever
+        emitted (that times out — see set-value-model-wall-response.md §4)."""
+        svt = func.get("set_value_types", {}) or {}
+        candidates = {v for v, t in svt.items() if t == "string"}
+        if not candidates:
+            return set()
+        found: Set[str] = set()
+
+        def _is_empty_set_call(v: Any) -> bool:
+            return (isinstance(v, dict) and v.get("type") == "Call"
+                    and v.get("func") == "set" and not v.get("args"))
+
+        def _walk(node: Any) -> None:
+            if isinstance(node, dict):
+                if (node.get("stmt") == "Assign"
+                        and node.get("target") in candidates
+                        and _is_empty_set_call(node.get("value"))):
+                    found.add(node["target"])
+                for _k in ("body", "orelse", "finalbody", "handlers"):
+                    _v = node.get(_k)
+                    if isinstance(_v, list):
+                        _walk(_v)
+            elif isinstance(node, list):
+                for _s in node:
+                    _walk(_s)
+
+        _walk(func.get("body", []))
+        return found
+
+    def _uses_str_set(self) -> bool:
+        """set-value-model-wall (self-tcb-reduction, Tier-5 value-model wall): True
+        iff SOME function in this file has an emitter-local `Set[str]` value (an
+        annotated `Set[str]` local initialized `= set()`; see `_str_set_locals_of`).
+        Only then is the executable `set.SetApp[string]` clone (`scope StrSet`,
+        `_emit_str_set_theory`) emitted, so the set theory stays OUT of every other
+        mirror's SMT context and the whole reference corpus (no `Set[str] = set()`
+        local there -> byte-identical). The `set.SetApp`/`set.Fset` theories are
+        trusted Why3 stdlib and the string-eq `val` is a decidable primitive — NO
+        project axiom is added (the ledger stays 3)."""
+        cached = getattr(self, "_uses_str_set_cache", None)
+        if cached is not None:
+            return cached
+        result = any(self._str_set_locals_of(fn)
+                     for fn in self.ir.get("functions", []) or [])
+        self._uses_str_set_cache = result
+        return result
+
+    def _uses_const_reflect(self) -> bool:
+        """const-reflection value model (self-tcb-reduction, Tier-5 value-model wall;
+        L1/L4a infra-witness): True iff SOME function in this file reflects on an emit_ir
+        CONSTANT node via the tuple-of-types test `isinstance(<x>.value, (int, float))` —
+        the numeric-Constant discriminant shape shared by `_collect_class_fields` /
+        `_synthesize_*`. Only then are the `is_constant`/`is_num_or_float` COMPOUND
+        discriminants (spanning the existing IrNum/IrNumF/IrStr/IrBoolC/IrNone const
+        leaves) + the `num_of` int projector emitted into the emit_ir theory, so the
+        const-reflection recognisers stay OUT of every other mirror's SMT context and the
+        whole reference corpus (no `isinstance(_, (int, float))` there → byte-identical).
+        The three lowerings are axiom-free `let function`s over EXISTING emit_ir leaves +
+        the pre-existing `num_of` — NO new ADT/cert, ledger stays 3. Cached."""
+        cached = getattr(self, "_uses_const_reflect_cache", None)
+        if cached is not None:
+            return cached
+        result = any(
+            self._has_num_or_float_isinstance(fn)
+            for fn in self.ir.get("functions", []) or [])
+        self._uses_const_reflect_cache = result
+        return result
+
+    def _has_num_or_float_isinstance(self, func: Dict[str, Any]) -> bool:
+        """const-reflection: True iff `func` contains the const-reflection numeric test
+        `isinstance(<x>.value, (int, float))` — an isinstance Call whose SECOND arg is the
+        `(int, float)` tuple AND whose FIRST arg is a `.value` ATTRIBUTE read (the
+        const-node value projection). Narrowing to the `.value`-attribute shape (exactly
+        the `is_num_or_float` recogniser's trigger, expressions.py branch B) EXCLUDES a
+        bare runtime `isinstance(v, (int, float))` value check on a plain scalar, so the
+        gate fires only where the recogniser actually rewrites. Byte-inert (no corpus
+        program reflects on a const node's `.value` this way)."""
+        found = [False]
+
+        def rec(n: Any) -> None:
+            if found[0]:
+                return
+            if isinstance(n, dict):
+                if (n.get("type") == "Call" and n.get("func") == "isinstance"):
+                    _args = n.get("args") or []
+                    _a0 = _args[0] if _args else None
+                    if (len(_args) == 2 and self._is_int_float_tuple(_args[1])
+                            and isinstance(_a0, dict)
+                            and _a0.get("type") == "Attribute"
+                            and _a0.get("attr") == "value"):
+                        found[0] = True
+                        return
+                    # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): `isinstance(<x>,
+                    # ast.Constant)` — the compound const-node discriminant test — ALSO needs the
+                    # `is_constant` COMPOUND discriminant emitted into the emit_ir theory (the
+                    # recognizer at expressions.py `_handle_isinstance` branch (A), same gate). arg1
+                    # is the dotted `ast.Constant` class. Byte-inert (no corpus program does an
+                    # emit_ir `isinstance(_, ast.Constant)`).
+                    _a1 = _args[1] if len(_args) > 1 else None
+                    if (isinstance(_a1, dict) and _a1.get("type") == "Attribute"
+                            and isinstance(_a1.get("object"), dict)
+                            and _a1["object"].get("type") == "Var"
+                            and _a1["object"].get("name") == "ast"
+                            and _a1.get("attr") == "Constant"):
+                        found[0] = True
+                        return
+                for x in n.values():
+                    rec(x)
+            elif isinstance(n, list):
+                for x in n:
+                    rec(x)
+        rec(func.get("body"))
+        return found[0]
+
+    @staticmethod
+    def _is_int_float_tuple(ir: Any) -> bool:
+        """True iff `ir` is the tuple literal `(int, float)` — exactly two `Var` arms
+        named `int` and `float` (the `isinstance(_, (int, float))` numeric class set)."""
+        if not (isinstance(ir, dict) and ir.get("type") in ("Tuple", "MkTuple")):
+            return False
+        elts = ir.get("elts") or []
+        if len(elts) != 2:
+            return False
+        names = {e.get("name") for e in elts
+                 if isinstance(e, dict) and e.get("type") == "Var"}
+        return names == {"int", "float"}
+
+    def _emit_str_set_theory(self) -> List[str]:
+        """set-value-model-wall (self-tcb-reduction, Tier-5): the EXECUTABLE
+        emitter-local `Set[str]` value model — a `set.SetApp` clone over `string`,
+        emitted as a nested `scope StrSet` so its `empty`/`add`/`mem`/`set` symbols
+        do NOT collide with `list.Mem.mem`/`list.Append` in the flat program module.
+
+        Proven axiom-free by the fable oracle (getting-better/set-oracle.mlw, Z3
+        Valid: mem/dedup goals Valid, evil-twin non-vacuous, `eq'refn'vc` Valid).
+        `set.SetApp`/`set.Fset` are trusted Why3 stdlib (their axioms are NOT
+        PyCSL `_AXIOM_REGISTRY` entries — the ledger stays 3). `eq_str` is a
+        DECIDABLE program-level string equality primitive (Python `s1 == s2`),
+        NOT a project axiom — its refinement VC discharges (Valid).
+
+        A `set()` lowers to `StrSet.empty ()` (`ref StrSet.set`, NOT `ref 0`),
+        `s.add(x)` to `s := StrSet.add x !s`, `s |= t` to `s := StrSet.union !s t`
+        (statements.py `_handle_augassign_stmt`; `union` is a plain `SetApp` val, no
+        new axiom), and `x in s`/`x not in s` to a
+        PROGRAM BOOL `StrSet.mem`/`not (StrSet.mem …)` guard. CRITICAL: NO
+        set-non-membership assert/ensures is ever emitted (`assert { not (Fset.mem
+        …) }` times out through the abstract set layer — see
+        set-value-model-wall-response.md §4); the fixed type-safety + frame
+        contract shape (`ensures True`) carries no such obligation. Gated on
+        `_uses_str_set` -> corpus + every other mirror byte-identical."""
+        return [
+            "  (* set-value-model-wall (self-tcb-reduction, Tier-5 value-model wall):"
+            " the EXECUTABLE emitter-local `Set[str]` value model — a `set.SetApp`"
+            " clone over `string`. Nested `scope` so `empty`/`add`/`mem`/`set` do"
+            " NOT collide with list.Mem/list.Append in the flat program module."
+            " Proven axiom-free by getting-better/set-oracle.mlw (Z3 Valid). `eq_str`"
+            " is a decidable program string-equality PRIMITIVE (Python `==`), NOT a"
+            " project axiom — its refinement VC discharges. `set.SetApp`/`set.Fset`"
+            " are trusted Why3 stdlib (NOT `_AXIOM_REGISTRY` entries) — the ledger"
+            " stays 3. `set()`->`StrSet.empty ()`, `.add`->`StrSet.add`,"
+            " `in`/`not in`->a PROGRAM BOOL `StrSet.mem`/`not StrSet.mem` guard; NO"
+            " set-non-membership proof obligation is ever emitted (it times out). *)",
+            "  scope StrSet",
+            "    use string.String",
+            "    val eq_str (x y: string) : bool ensures { result <-> x = y }",
+            "    clone export set.SetApp with type elt = string, val eq = eq_str, axiom .",
+            "  end",
+            "",
+        ]
+
+    def _uses_pyconst_val(self) -> bool:
+        """pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket): True iff this
+        file actually harvested a Constant record — a `pyconst_val`-typed field is present in
+        some `type_decl`. Only then is the real-truncation wrapper `real_trunc` (and its
+        `use real.Truncate`) emitted, so the real-arithmetic axioms stay OUT of every other
+        full-theory mirror's SMT context. The pure pyconst_val type + its non-real accessors +
+        `bytes_content_comp` remain unconditional (axiom-free, cheap, unused-val-inert).
+
+        ALSO True when this file EMITS a function that makes the `pyconst_val` TYPE appear
+        in its lowered WhyML — so the type block is declared wherever it is referenced or
+        Why3 raises `unbound type symbol 'pyconst_val'`. Two such emitters exist beyond the
+        Constant-harvesting Module5:
+          (1) `_classify_literal_value` — the V1 pyconst-dispatch method whose REFINED tuple
+              return type carries a `pyconst_val` slot (`(string, pyconst_val, …)`). Files
+              that emit it as a cross-module dependency `val` + its dedicated
+              `Return_tup_…pyconst_val…` exception (`frontend/__init__.py`,
+              `frontend/ir_resolve.py`, `pycsl.py`) reference the type without harvesting a
+              Constant record. This is the SAME name signal the exception-declaration loop
+              uses (see `_pyconst_val_tuple_slot`, this file ~L1863).
+          (2) the synced verified methods `_infer_tuple_slot_type` / `_handle_return_stmt`,
+              whose (dead-branch-included) whole-body lowering references the type.
+        The whole block is axiom-free / unused-val-inert, so declaring it wherever these
+        functions are emitted is sound. The name matches methods the emitter DEFINES on
+        itself (`endswith` precedent = `_uses_compute_return_type`); no corpus program
+        defines/emits a function so-named, so the corpus stays byte-identical."""
+        for td in self.ir.get("type_decls", []) or []:
+            for f in td.get("fields", []) or []:
+                if f.get("type") == "PyConstVal":
+                    return True
+        for fn in self.ir.get("functions", []) or []:
+            nm = str(fn.get("name", ""))
+            if (nm == "_classify_literal_value"
+                    or nm.endswith("___classify_literal_value")
+                    or nm.endswith("_infer_tuple_slot_type")
+                    or nm.endswith("_handle_return_stmt")):
+                return True
+        return False
+
+    def _projected_field_reads(self, stmts: Any) -> Set[str]:
+        """Field names this body READS as an rvalue projection (`e.f`, IR `FieldGet` /
+        `Attribute`), which is exactly the position a same-named binder shadows in Why3.
+
+        Deliberately EXCLUDES assignment targets: `self.f <- v` type-checks with `f` in
+        scope (measured), so counting write targets here would over-qualify and break
+        byte-inertness for the four `__init__(self, toks)` corpus programs. A `FieldSet`
+        node's own field is therefore not collected; any `FieldGet` nested INSIDE its
+        value still is, since that is a real read."""
+        found: Set[str] = set()
+
+        def walk(n: Any) -> None:
+            if isinstance(n, list):
+                for x in n:
+                    walk(x)
+                return
+            if not isinstance(n, dict):
+                return
+            t = n.get("type")
+            if t in ("FieldGet", "Attribute"):
+                f = n.get("field") or n.get("attr")
+                if isinstance(f, str):
+                    found.add(f)
+            for k, v in n.items():
+                if k in ("type", "field", "attr"):
+                    continue
+                walk(v)
+
+        walk(stmts)
+        return found
+
+    def _reserved_exprir_symbols(self) -> Set[str]:
+        """field-label/emit_ir-symbol collision fix: the set of top-level WhyML
+        symbol names the `emit_ir` ADT theory (`_emit_exprir_theory`) declares —
+        `let (rec) function` names, `val` declarations, `lemma` names, and inline
+        record field labels (e.g. `sharedvar`'s `sv_name`/`sv_mutex`) all share
+        Why3's global per-module namespace. A record field with one of these
+        names (`size`, `kind_of`, `is_binop`, `left_of`, …) collides exactly like
+        two records sharing a field — `_field_label`'s existing ambiguous-field
+        qualification handles that shape once the name is registered here.
+
+        Derived by parsing `_emit_exprir_theory()`'s OWN emitted text (not a
+        hand-maintained duplicate list), so this set can never drift out of sync
+        with the theory it protects against. Cached: the theory text is static
+        per instance."""
+        cached = getattr(self, "_reserved_exprir_symbols_cache", None)
+        if cached is not None:
+            return cached
+        text = "\n".join(self._emit_exprir_theory())
+        names: Set[str] = set()
+        names.update(re.findall(r"\blet\s+(?:rec\s+)?function\s+(\w+)", text))
+        names.update(re.findall(r"\bval\s+(\w+)", text))
+        names.update(re.findall(r"\blemma\s+(\w+)", text))
+        # inline record types declared within the theory (e.g. `sharedvar`) —
+        # capture their field labels too.
+        for rec_body in re.findall(r"\{([^{}]*)\}", text):
+            names.update(re.findall(r"(\w+)\s*:", rec_body))
+        self._reserved_exprir_symbols_cache = names
+        return names
+
+    # ------------------------------------------------------------------
+    # theory-tailoring — minimal emit_ir for opaque-use mirrors
+    # ------------------------------------------------------------------
+    # The full `_emit_exprir_theory` (~80-ctor sum + kind_of + every
+    # projector/discriminant + the recursive `size` + its size-decrease
+    # LEMMAS + irlist/iropt/irnth/irlen) is emitted MONOLITHICALLY into every
+    # mirror whose class is @mutable_state OR that carries an emit_ir param.
+    # But some mirrors use emit_ir PURELY OPAQUELY — they pass emit_ir
+    # params/locals to `trusted` `val`s and never CONSTRUCT a real IR-node
+    # ctor nor PROJECT one (kind_of/left_of/size/is_*/irnth/...) in any PROVEN
+    # (non-`trusted`) body. Those mirrors only need `type emit_ir` to EXIST (so
+    # opaque params/locals/record-fields typecheck and the `IrOther ""`
+    # absent-sentinel constructs) — not the 80-ctor theory. Emitting the
+    # minimal surface for them keeps every VC's SMT context small, so they
+    # prove ~4x faster. SOUND: each mirror is proven independently against its
+    # OWN emit_ir, and a single-ctor emit_ir is sound for opaque use. This does
+    # NOT change any conversion (count is unchanged) — pure emission
+    # performance headroom.
+    #
+    # The RICH/OPAQUE decision is made by an EXPLICIT class-name ALLOW-LIST
+    # (`_TAILOR_OPAQUE_MIRROR_CLASSES` in Module6_WhyMLTranspiler — currently
+    # just `StatementEmissionMixin`; `ControlFlowStmtMixin` is NOT opaque, it
+    # applies `svalue_of`, so it keeps the FULL theory) gated in
+    # `_transpile` — corpus programs never define these emitter mixin classes,
+    # so the tailoring is corpus-inert BY CONSTRUCTION (every corpus program
+    # keeps the full theory / stays byte-identical). This deliberately does NOT
+    # use a post-hoc emitted-body symbol scan (which mis-classified corpus
+    # files and monomorphize in a prior attempt).
+
+    def _emit_minimal_emit_ir_theory(self) -> List[str]:
+        """The MINIMAL emit_ir surface for an OPAQUE-use mirror: just the bare
+        types so opaque params/locals/record-fields typecheck and `IrOther ""`
+        constructs. Drops the sum's rich ctors, kind_of, every
+        projector/discriminant, `size` + its size-decrease lemmas, and
+        irlist/iropt/irnth/irlen. `ir_num` and `sharedvar` are retained (both
+        trivial, zero proof cost; `sharedvar` backs the separately-emitted
+        `val ir_shared_vars : array sharedvar`). Selected by the class-name
+        allow-list gate in `_transpile`."""
+        return [
+            "  (* theory-tailoring: MINIMAL emit_ir — this mirror uses emit_ir"
+            " PURELY OPAQUELY (no IR-node ctor construction / no projection in"
+            " any proven body), so only the bare type need exist. The full"
+            " ~80-ctor theory (kind_of/size/projectors/lemmas/irlist/iropt) is"
+            " dropped to keep every VC's SMT context small (~4x faster proof);"
+            " sound because each mirror is proven against its OWN emit_ir."
+            " Gated by an explicit class-name allow-list (corpus-inert by"
+            " construction). See preamble.py::_emit_minimal_emit_ir_theory. *)",
+            "  type ir_num = INum int | IReal real",
+            "  type emit_ir = IrOther string",
+            "  type sharedvar = { sv_name: string; sv_mutex: string }",
+            "",
+        ]
+
+    def _record_default_literal(self, record_name: str, _seen=None,
+                                _pins=None) -> str:
+        """parser-primitives-wall-impl-2.md Gate S: a default WhyML record-literal for
+        `record_name` (an already-declared record in `_record_types`), used as the
+        ELEMENT witness of an `array <record>` field's `by` clause. Each field takes a
+        type-appropriate zero (int→0, str→"", real→0.0, array→empty, map→empty), so the
+        literal type-checks against the pure element record. Field labels are qualified
+        the same way the record decl qualifies them (`_field_label`)."""
+        rec = self._record_types[record_name]
+        # W8/W1: a record-typed FIELD (the token `start`/`end` `Tuple[int, int]` slots,
+        # which synthesize their own `pytuple_int_int` record) needs a NESTED record
+        # literal, not the scalar `0` — otherwise the `by` witness of an
+        # `array <record>` field does not type-check. `_seen` breaks a (self-)recursive
+        # record chain: such a field falls back to the pre-existing scalar default.
+        _seen = set(_seen or ())
+        _seen.add(record_name)
+        parts: List[str] = []
+        for fld in rec["fields"]:
+            ft = rec["field_types"].get(fld, "int")
+            label = self._field_label(rec["whyml_name"], fld)
+            if ft in getattr(self, "_record_types", {}) and ft not in _seen:
+                v = self._record_default_literal(ft, _seen)
+            elif ft in ("str", "string"):
+                # Contract self-field subscript projection: a class invariant
+                # `self.<f>[i].<sub> == "<lit>"` PINS this element field, so the
+                # `by` witness must carry `<lit>` rather than `""` — otherwise the
+                # (real) invariant has no exhibited inhabitant. `_pins` is empty
+                # for every class without such an invariant -> byte-inert.
+                # The contract names the element field by its WhyML LABEL (the
+                # reserved-word-mangled `py_type` for a Python `type` field), so
+                # match on the label as well as the raw Python name.
+                _pd = _pins or {}
+                _p = _pd.get(fld, _pd.get(label))
+                v = ('"%s"' % _p) if isinstance(_p, str) else '""'
+            elif ft in ("real", "float"):
+                v = "0.0"
+            elif ft in ("list", "tuple") or ft.startswith("array "):
+                v = "(Array.make 0 0)"
+            elif ft in ("dict", "set", "frozenset") or ft.startswith("map "):
+                v = "(const (None: option int))"
+            else:
+                v = str(rec.get("defaults", {}).get(fld, 0))
+            parts.append(f"{label} = {v}")
+        return "{ " + "; ".join(parts) + " }"
 
     def _emit_type_decls(self, type_decls: List[Dict[str, Any]]) -> Tuple[List[str], Set[str]]:
         """Emit record type declarations. Returns (lines, declared_types)."""
         out: List[str] = []
         declared_types: Set[str] = set()
+        # K1 (seq-hval self-field append): the `seq hval` self-fields + their
+        # mangled append-target names (`self__field`), populated by the list-field
+        # branch below and consumed at the statements.py append site + shadow-local
+        # loop. Empty for the corpus (no `List[Dict[str, PyVal]]` field) -> byte-inert.
+        self._pyval_seq_fields = set()
+        self._pyval_seq_append_targets = set()
         # WhyML record field labels are global within a scope, so a field name
         # used by more than one record (e.g. an inherited field present in both
         # `base` and `sub`) collides. Qualify only those ambiguous names as
@@ -3039,21 +8558,105 @@ class PreambleEmissionMixin:
                 for _f in _td["fields"]:
                     _field_counts[_f["name"]] = _field_counts.get(_f["name"], 0) + 1
         self._ambiguous_fields = {fn for fn, c in _field_counts.items() if c > 1}
+        # W8/W1: purity of a `List[<record>]` element is TRANSITIVE. A pinned element
+        # record whose own field is itself a record (the token's `Tuple[int, int]`
+        # `start`/`end` slots → the synthesized `pytuple_int_int`) stays MUTABLE, which
+        # re-infects the element record ("instantiates pure type variable 'a with a
+        # mutable type"). Close `_list_element_record_types` under record-typed fields
+        # so the whole reachable record subtree is emitted pure. Empty in ⇒ empty out,
+        # so a module with no `List[<record>]` element is untouched.
+        _lert = set(getattr(self, "_list_element_record_types", set()))
+        if _lert:
+            _rec_names = {_td["name"] for _td in type_decls
+                          if _td.get("kind") == "record"}
+            _by_name = {_td["name"]: _td for _td in type_decls
+                        if _td.get("kind") == "record"}
+            _work = list(_lert)
+            while _work:
+                _cur = _work.pop()
+                for _f in _by_name.get(_cur, {}).get("fields", []):
+                    _ft = _f.get("type")
+                    if _ft in _rec_names and _ft not in _lert:
+                        _lert.add(_ft)
+                        _work.append(_ft)
+            self._list_element_record_types = _lert
         # typed-ir-for-b-ceiling.md §18: a record field whose name ALSO names a local
         # var in some method collides in Why3 — `stmt.ghost_type` resolves to the local
         # `ghost_type` ref ("ref int … cannot be applied"), not the field. Qualify those
         # fields (`<record>_<field>`) too, in both the decl and the access. Gated on
         # @mutable_state (the emitter model) → byte-identical for the corpus.
-        if getattr(self, "_mutable_state_classes", None):
+        #
+        # self-tcb-reduction (_canonical_preservation_ensures): the field-vs-theory-symbol
+        # collision (line below, `_reserved_exprir_symbols`) also bites whenever the emit_ir
+        # ADT theory is emitted for a NON-@mutable_state reason — an IR-node-typed param OR a
+        # `-> ExprIR` return (`_uses_ir_node_param`), the stmt_ir theory, the Call-kw theory,
+        # or the tparam theory — because that theory declares `size`/`kind_of`/... which a
+        # record field (`boundedintdecl.size`) then shadows. Fire the qualification under the
+        # SAME disjunction `_emit_exprir_theory()` fires under (Module6_WhyMLTranspiler). All
+        # of these flags are False for the whole corpus → the theory is never emitted there →
+        # no collision → the qualification never fires → byte-identical.
+        _exprir_theory_present = bool(
+            getattr(self, "_mutable_state_classes", None)
+            or getattr(self, "_uses_ir_node_param", False)
+            or self._uses_stmt_ir()
+            or self._uses_call_kw()
+            or self._uses_tparam())
+        if _exprir_theory_present:
             _local_names: Set[str] = set()
             for _fn in self.ir.get("functions", []):
                 _local_names |= set(IRScanner.find_assigned_vars(_fn.get("body", [])))
+                # cursor-nest `_Parser.expect`: a FORMAL PARAMETER shadows a record field
+                # label exactly as a local does — `def expect(self, kind: str)` makes the
+                # emitted `_v.kind` resolve to the `string` param, and Why3 answers
+                # `This expression has type string, it cannot be applied`. The §18
+                # mechanism directly above already fixes this for LOCALS and already
+                # names the hazard; formal params were simply not in its input set.
+                #
+                # But the param rule must be PER-FUNCTION and READ-ONLY, not whole-file
+                # like the local rule. Measured in Why3 directly (scratch `shadow2.mlw`):
+                #     let mk (self: parser) (toks: array tok) = self.toks <- toks   (* OK *)
+                #     let rd (self: parser) (toks: array tok) = self.toks[self.i]   (* FAILS *)
+                # An assignment TARGET `self.f <- …` is fine even with `f` in scope; only
+                # an rvalue PROJECTION `e.f` breaks. Applying the whole-file local rule to
+                # params instead renamed `parser.toks` in FOUR corpus programs
+                # (0925/0926/0927/0928 — each has `__init__(self, toks)` writing
+                # `self.toks`, plus a SEPARATE method reading `self.toks[self.i]`), i.e.
+                # it FAILED byte-inertness while fixing nothing. Requiring the same
+                # function to both bind the name AND read the projection makes those four
+                # inert again and still catches `expect`, where `kind` is a param of the
+                # very function whose body reads `t.kind`.
+                _fparams = set(_fn.get("formal_params", []) or [])
+                if _fparams:
+                    _local_names |= (_fparams
+                                     & self._projected_field_reads(_fn.get("body", []) or []))
             _rec_fields = {f["name"] for td in type_decls
                            if td.get("kind") == "record" for f in td.get("fields", [])}
             self._ambiguous_fields |= (_rec_fields & _local_names)
+            # ghost-assign-bc6: a record field whose name matches a top-level
+            # symbol the `emit_ir` ADT theory declares (`size`, `kind_of`,
+            # `is_*`, `*_of`, …) collides in Why3's shared module namespace —
+            # qualify it the same way. Gated on `_mutable_state_classes` (the
+            # SAME condition `_emit_exprir_theory()` fires under), so a
+            # non-@mutable_state corpus program — which never emits the theory
+            # — never has this collision and the qualification never fires
+            # (byte-identical for the corpus).
+            self._ambiguous_fields |= (_rec_fields & self._reserved_exprir_symbols())
         n = len(type_decls)
         i = 0
-        _VPAY = {"int": "int", "bool": "int", "str": "string", "float": "real"}
+        _VPAY = {"int": "int", "bool": "int", "str": "string", "float": "real",
+                 # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
+                 # carries the already-lowered emit_ir sub-node (`Arm_i_0 emit_ir`).
+                 "emit_ir": "emit_ir",
+                 # set/frozenset union-arm payload: the faithful StrSet model
+                 # `map string bool` (matches the frozenset-RETURN model and the
+                 # `_union_arm_whyml_type` inj/proj goal), NOT the int default that
+                 # int-hashed a string key at a `k in <set>` membership site. No
+                 # corpus program has an `Optional[set]`/`Union[..., set]` arm; the
+                 # sole mirror consumer is `predicate_definitions.needed` -> inert.
+                 # Parenthesized: the payload is a single ctor-argument position
+                 # (`Arm_i_0 (map string bool)`), so the multi-token type needs its
+                 # own parens or Why3 reads it as `map` applied to `string`/`bool`.
+                 "set": "(map string bool)", "frozenset": "(map string bool)"}
         # no-more-int-3 A5a: declared `#@ datatype` names, so a constructor
         # payload that NAMES a datatype (a self-reference `Node(Tree, Tree)` or
         # another variant) resolves to that variant's Why3 type instead of the
@@ -3061,6 +8664,13 @@ class PreambleEmissionMixin:
         # (`type tree = Leaf | Node tree tree`); Why3 handles the self-reference.
         _variant_names = {td["name"] for td in type_decls
                           if td.get("kind") == "variant"}
+        # W8 capability (v): a constructor payload naming a declared RECORD type
+        # (`Optional[_Tok]` -> `Arm_i_0 tok | Arm_i_None`) resolves to that
+        # record's Why3 type, exactly as a payload naming another VARIANT
+        # resolves to the variant's. Without it the payload fell to the `int`
+        # default and every `return <record>` mistyped against the arm.
+        _record_payload_types = {td["name"]: whyml_ident(td["name"].lower())
+                                 for td in type_decls if td.get("kind") == "record"}
 
         def _fmt_variant(vtd: Dict[str, Any]) -> str:
             """Register a variant's WhyML mapping + constructors and return its
@@ -3084,7 +8694,8 @@ class PreambleEmissionMixin:
                 pay = " ".join(
                     _tpvar[t] if t in _tpvar
                     else _VPAY[t] if t in _VPAY
-                    else (t.lower() if t in _variant_names else "int")
+                    else t.lower() if t in _variant_names
+                    else _record_payload_types.get(t, "int")
                     for t in c.get("payload", []))
                 self._constructors[c["name"]] = {
                     "type": vtd["name"], "whyml_type": tn,
@@ -3174,6 +8785,40 @@ class PreambleEmissionMixin:
                     # base_op.md Tier A — parametrized construction C(a, b)
                     "init_params": td.get("init_params", []),
                     "init_body": td.get("init_body", []),
+                    # (#49) ROUTE #82 — the KEYWORD-ONLY constructor parameters, carried
+                    # apart from `init_params` because that list is the POSITIONAL binding
+                    # list (`args[i]` binds `init_params[i]`) and Python never binds a
+                    # keyword-only parameter from a positional argument. Absent from the IR
+                    # for every constructor without keyword-only parameters, so this reads
+                    # back as `[]`/`{}` there and the emission is byte-identical.
+                    "init_kwonly_params": td.get("init_kwonly_params", []),
+                    "init_kwonly_defaults": td.get("init_kwonly_defaults", {}),
+                    # (#49) ROUTE #149 — copied here FIRST, before the consumer (route #82's
+                    # lesson: a key absent from this hand-written copy is a silent no-op).
+                    "init_param_defaults": td.get("init_param_defaults", {}),
+                    "init_default_unknown": td.get("init_default_unknown", []),
+                    # (#49) ROUTE #83 — copied here BECAUSE OF ROUTE #82's LESSON: Module 6
+                    # does not read the IR `type_decl`, it reads THIS hand-written copy, and
+                    # a key absent from it reads back as its default, making the repair a
+                    # silent no-op that still passes every gate.
+                    "init_unknown_fields": td.get("init_unknown_fields", []),
+                    # (#49) ROUTE #89 — the control-flow-only subset, copied here for the
+                    # SAME reason as every key around it: Module 6 reads THIS hand-written
+                    # copy, NOT the IR `type_decl`, so a key omitted here is a SILENT NO-OP
+                    # that still passes every gate. Added here FIRST, before the consumer.
+                    "init_unknown_cf_fields": td.get("init_unknown_cf_fields", []),
+                    # (#49) ROUTE #85 — copied here for the SAME reason as the line above:
+                    # Module 6 reads THIS hand-written copy, not the IR `type_decl`, so a
+                    # key omitted here is a SILENT NO-OP that still passes every gate.
+                    "field_map_literals": td.get("field_map_literals", {}),
+                    "field_map_unknown": td.get("field_map_unknown", []),
+                    # (#49) ROUTE #87 — same reason again: Module 6 reads THIS copy.
+                    "field_list_literals": td.get("field_list_literals", {}),
+                    "field_list_unknown": td.get("field_list_unknown", []),
+                    # (#49) finding-0700 — same hand-written-copy trap as the keys above.
+                    "field_str_defaults": td.get("field_str_defaults", {}),
+                    # (#49) ROUTE #183 — same hand-written-copy trap as the keys above.
+                    "field_none_defaults": td.get("field_none_defaults", []),
                     # fresh-globals.md — the constructor's `#@ ensures` (post-state),
                     # consumed by `_emit_module_globals` (proven-of-the-literal GOAL)
                     # and `#@ fresh_globals` (assumed-at-driver-entry fact).
@@ -3189,18 +8834,63 @@ class PreambleEmissionMixin:
                     # (byte-identical fallback).
                     "is_namedtuple": bool(td.get("is_namedtuple", False)),
                 }
+                # hval-retype (self-tcb-reduction Tier-5): the emitter's own
+                # `_record_types` field (`Dict[str, Any]` class->metadata registry) is
+                # modelled as the faithful heterogeneous `map string (option hval)`, so
+                # the metadata that drives BODY lowering must agree with the preamble
+                # field decl: value_type "hval" (`_self_field_dict_nu` -> "hval", so
+                # `info.get(...)` uses the real K7 pairs_get projection) and key_type
+                # "string" (native string key). Name-keyed on the emitter-internal,
+                # corpus-absent field -> reference corpus + every other mirror byte-inert.
+                if "_record_types" in self._record_types[td["name"]]["field_types"]:
+                    self._record_types[td["name"]]["field_types"]["_record_types"] = "dict"
+                    self._record_types[td["name"]]["field_value_types"]["_record_types"] = "hval"
+                    self._record_types[td["name"]]["field_key_types"]["_record_types"] = "string"
                 # Class-body integer constants (e.g. `CAP = 64`) — resolved to
                 # literals when referenced as `self.CONST` in a method/contract.
                 consts = td.get("constants", {})
                 if consts:
                     self._class_constants[type_name] = dict(consts)
+                # 7b (self-tcb-reduction L4b): class-body string-SET constants
+                # (`_GENERIC_BASE_NAMES = {"Generic"}`) — a `<x> in self.<CONST>`
+                # membership lowers to a faithful `str_eq_op` disjunction over these.
+                _ssc = td.get("str_set_constants", {})
+                if _ssc:
+                    if not hasattr(self, "_class_str_set_constants"):
+                        self._class_str_set_constants = {}
+                    self._class_str_set_constants[type_name] = {
+                        k: list(v) for k, v in _ssc.items()}
                 field_strs = []
                 fields = td["fields"]
                 nf = len(fields)
+                # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): a record
+                # used as a flat `List[<record>]` ELEMENT is emitted PURE (immutable
+                # fields) — Why3 forbids a MUTABLE element inside `array` (the same
+                # constraint the nested `array (seq τ)` model met). Module5 records
+                # such names in `list_element_record_types`; only they drop `mutable`
+                # (byte-identical for every record NOT used as a list element). A
+                # record so pinned that is ALSO field-mutated in the body fails closed
+                # at Why3 type-check (never a silent unsound update). Read-only at the
+                # element position: tuples/NamedTuples are immutable; a projected
+                # `List[<dataclass>]` reads its fields only.
+                _list_elem_pure = td["name"] in getattr(
+                    self, "_list_element_record_types", set())
                 j = 0
                 while j < nf:
                     f = fields[j]
-                    prefix = "mutable " if f.get("mutable") else ""
+                    prefix = "" if _list_elem_pure else (
+                        "mutable " if f.get("mutable") else "")
+                    # class-variant-impl.md §OUTCOME-TS RESIDUAL (record⇄variant
+                    # bridge, part a): a recognized term-ctor's recursive field
+                    # emits the VARIANT field type (`list term`/`term`/`list string`)
+                    # so the record→variant injection typechecks. Gated on the pp
+                    # family (ir.py only) -> corpus + other mirrors byte-identical.
+                    _tpp = self._term_pp_field_override(td.get("name"), f.get("name"))
+                    if _tpp is not None:
+                        field_strs.append(
+                            f"{prefix}{self._field_label(type_name, f['name'])}: {_tpp}")
+                        j += 1
+                        continue
                     ftype = f['type']
                     # Map Python-level type tags to WhyML types.
                     # `set`/`dict`/`frozenset` → `map int (option int)`
@@ -3215,9 +8905,29 @@ class PreambleEmissionMixin:
                         # field-dict op site reads the RAW string key (no str_hash_op).
                         # Absent key_type → the legacy `map int` (byte-identical).
                         _vt = f.get("value_type")
+                        # hval-retype (self-tcb-reduction Tier-5): the emitter's own
+                        # `_record_types` field (`Dict[str, Any]`, class->metadata registry)
+                        # is retyped to the faithful heterogeneous `map string (option hval)`
+                        # so `_field_type_for`/`_field_type_of` read `info.get("whyml_name")`
+                        # / `info.get("field_types").get(field)` as REAL hval projections
+                        # (pairs_get over the hpairs carrier), not the int-erased facade.
+                        # Name-keyed (the field is emitter-internal + corpus-absent) -> the
+                        # reference corpus + every other mirror stay byte-identical.
+                        if f.get("name") == "_record_types":
+                            _vt = "hval"
                         _kt = "string" if f.get("key_type") == "string" else "int"
                         if _vt == "string":
                             ftype = f"map {_kt} (option string)"
+                        elif _vt == "hval":
+                            # K6 (map-pyval self-field read, self-tcb-reduction Tier-5): a
+                            # `Dict[str, PyVal]` self-field is the faithful heterogeneous
+                            # `map {_kt} (option hval)` — so `self.f.get(k)` reads a real
+                            # `option hval` (`Some v_ -> v_ | None -> (HInt 0)`) instead of
+                            # the int-erased `map int (option int)` facade. The `pyval`
+                            # theory is already pulled in by the `_uses_pyval` gate (it fires
+                            # on any type_decl field value_type == "hval"), so NO new cert
+                            # (ledger 3). `PyVal` is a corpus-absent sentinel -> byte-inert.
+                            ftype = f"map {_kt} (option hval)"
                         elif isinstance(_vt, str) and _vt.startswith(("map ", "seq ", "array ")):
                             # nested-map.md: a NESTED collection value (`Dict[str, Dict[str,int]]`
                             # → value_type `map int (option int)`; `Dict[str, List[int]]` → `seq int`)
@@ -3231,20 +8941,180 @@ class PreambleEmissionMixin:
                         # elements) in a @mutable_state module (the emitter model + its
                         # imported IR records); the corpus has no such module → `array int`,
                         # byte-identical.
-                        if (f.get("value_type") in ("string", "emit_ir")
-                                and getattr(self, "_mutable_state_classes", None)):
-                            ftype = f"array {f.get('value_type')}"
+                        # variadic content-law comprehension (FABLE-sanctioned): a
+                        # `List[ExprIR]` field (value_type "emit_ir" — MkTupleExpr.elts /
+                        # the harvested pure_ast Tuple.elts) is `array emit_ir`. The gate is
+                        # widened to match the SCALAR ExprIR->emit_ir mapping below (and the
+                        # emit_ir-theory-emission gate): any @mutable_state module OR any
+                        # IR-node-typed param (`_uses_ir_node_param`) — the Module5 mirror
+                        # imports its IR records via the latter, not @mutable_state. Both
+                        # gates are False for the corpus → `array int`, byte-identical.
+                        if (f.get("value_type") == "hval"
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
+                            # K1 (seq-pyval self-field append, self-tcb-reduction Tier-5):
+                            # a `List[PyVal]` / `List[Dict[str, PyVal]]` field is the
+                            # faithful growable `seq hval` (the fable-proven
+                            # `getting-better/setenv_faithful.mlw` shape, element carrier
+                            # `pyval`), so `self.f.append(x)` writes back a REAL
+                            # `self.f <- Seq.snoc self.f (<pyval-wrap x>)` instead of the
+                            # int-erased `array int` + `Array.make 1024 0` shadow-local
+                            # facade (Bug 3). Record the field + its mangled append-target
+                            # name so the statements.py append site + shadow-local loop
+                            # gate to the write-back. Gated on `_mutable_state`/IR-node
+                            # param AND the `pyval` element sentinel (absent from the
+                            # corpus) -> byte-identical for every other mirror + corpus.
+                            ftype = "seq hval"
+                            self._pyval_seq_fields.add(f["name"])
+                            self._pyval_seq_append_targets.add(
+                                ("self." + f["name"]).replace(".", "_"))
+                        # i-feel-good.md I-E, WIDENED (relaunch #16): a `List[str]` field is
+                        # `array string` in EVERY module, not only a @mutable_state /
+                        # IR-node one. The narrower gate left `StructFormat.slots`
+                        # (`List[str]`, the per-slot WhyML TYPE NAMES) as `array int`, so
+                        # `_short_type(self.slots[0])` was an int applied to a `string`
+                        # parameter — an L3-tc error that blocked the whole class. Measured
+                        # CORPUS-INERT (0 of 813): no reference program declares a
+                        # string-element list FIELD. `emit_ir` keeps its original gate.
+                        elif (f.get("value_type") in ("string", "emit_ir")
+                                and (f.get("value_type") == "string"
+                                     or getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
+                            if td.get("name") in getattr(
+                                    self, "_list_element_record_types", set()):
+                                # PURITY IS TRANSITIVE THROUGH A LIST FIELD TOO. The W8/W1
+                                # closure above pins a `List[<record>]` element record and
+                                # every record REACHABLE from it, dropping `mutable` — but
+                                # `array` is itself a MUTABLE type, so a pinned record with
+                                # an `array emit_ir` field is still rejected ("instantiates
+                                # pure type variable 'a with a mutable type"). For a PINNED
+                                # record the faithful pure carrier is `seq` — the same
+                                # element type, the same contents, and the shape the list
+                                # LOCAL that fills it already has (`Seq.snoc`), so the
+                                # binding needs no `Init.init` reconciliation at all. Gated
+                                # on the pin, which is empty unless some function returns
+                                # `List[<record>]` -> byte-inert for the corpus and for
+                                # every mirror without one.
+                                ftype = f"seq {f.get('value_type')}"
+                            else:
+                                ftype = f"array {f.get('value_type')}"
+                                if f.get("value_type") == "string":
+                                    # relaunch #16: remember the STRING-ELEMENT list
+                                    # fields so `len(self.<f>)` lowers to `Array.length`
+                                    # and an element read is a `string`, instead of the
+                                    # opaque `iter_length : int -> int` (which mistypes
+                                    # against `array string`). Empty for every file with
+                                    # no such field -> corpus byte-inert.
+                                    if not hasattr(self, "_str_array_record_fields"):
+                                        self._str_array_record_fields = set()
+                                    self._str_array_record_fields.add(f["name"])
+                        elif (f.get("value_type") in self._record_types
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False)
+                                     # (#49) W-IPM S-C3: WIDENED (as I-E was for
+                                     # `List[str]`) to every module whose element
+                                     # record is PINNED PURE — the only condition
+                                     # under which Why3 accepts it as an `array`
+                                     # element. Was the element-erased `array int`.
+                                     or f.get("value_type") in getattr(
+                                         self, "_list_element_record_types", set()))):
+                            # parser-primitives-wall-impl-2.md Gate S: a
+                            # `List[<record>]` field (value_type = the element record's
+                            # class name, e.g. `_Tok`) is the faithful `array <record>`
+                            # — was the element-erased `array int`, which made a
+                            # record-returning field read (`self.toks[self.i] : _Tok`)
+                            # mistype as int. The element record is emitted PURE
+                            # (Why3 forbids a mutable element inside `array`;
+                            # `list_element_record_types` pins it, dropping `mutable`).
+                            # Same @mutable_state/IR-node gate as the string/emit_ir
+                            # element branch above -> byte-inert for the corpus (no
+                            # corpus record has a `List[<record>]` field).
+                            ftype = f"array {self._record_types[f['value_type']]['whyml_name']}"
                         else:
                             ftype = "array int"
+                    elif ftype == "option":
+                        # optional-field builder (monomorphic-option ADTs): an
+                        # `Optional[str]` / `Optional[ExprIR]` record field
+                        # (Forall/Exists `binder_type`/`domain`) is a faithful
+                        # `option string` / `option emit_ir` — read + converted to
+                        # the monomorphic `iropt_str`/`iropt_ir` at the ctor arg
+                        # (expressions.py `_lower_irnode_construction`). GATED on
+                        # @mutable_state OR an IR-node-typed param (the same gate
+                        # as the ExprIR->emit_ir field mapping below and the
+                        # emit_ir-theory-emission gate): the Module5 mirror imports
+                        # its IR records via the latter. Both gates are False for
+                        # the corpus → the historical `int` collapse, byte-identical
+                        # (only 3 corpus files carry any `Optional[...]` field, all
+                        # non-@mutable_state → int).
+                        _ov = f.get("value_type")
+                        if _ov == "opaque_term":
+                            # crosscheck_ir.py self-state carrier
+                            # (class-variant-impl.md §OUTCOME-CC / §F3): an
+                            # `Optional[Term]` canon field. When the certified
+                            # `term` inductive is available in this file (the mirror
+                            # imports the full 9-ctor Term union -> `_term_adt_spec`
+                            # is derived, `type term` is emitted), the field is the
+                            # FAITHFUL `option term` — so `isinstance(c, Unsupported)`
+                            # / `c == d` (term_eq) over the canon fields lower onto
+                            # the real inductive (F3/F4). Absent the inductive it
+                            # degrades to an inhabitable `option int` (presence-only,
+                            # the §OUTCOME-CC `registry_skipped` path). value_type
+                            # "opaque_term" arises ONLY from the (class,field)
+                            # allow-list in Module5 -> corpus/other-mirror byte-inert.
+                            if getattr(self, "_term_adt_spec", None):
+                                ftype = "option term"
+                            else:
+                                ftype = "option int"
+                        elif (_ov in ("string", "emit_ir")
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
+                            ftype = f"option {_ov}"
+                        else:
+                            ftype = "int"
                     elif ftype in ("string", "str"):
                         # 07-2333-rev2 TP-3 (Gap 6): a `str`-annotated field is a faithful
                         # Why3 `string` (was collapsed to `int`) — the class counterpart of
                         # the TP-1 str local / str param lowering.
                         ftype = "string"
-                    elif ftype in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+                    elif ftype in ("real", "float"):
+                        # wrong-lowering-to-fix.md §WL-03b: a `float`-annotated field (a
+                        # `@dataclass`/`NamedTuple`/`self.f: float` field, or a synthesized
+                        # `Tuple[int, float]` slot) is the faithful Why3 `real` (τ(float)=
+                        # real, no-more-int Stage D) — was collapsed to `int`, truncating a
+                        # fractional slot read. The record projection `p.f` / `a[i].f` /
+                        # `t[1]` then reads a `real`. `real` is a PURE type, so such a record
+                        # is legal as an `array` element (WL-04b PURE-element constraint).
+                        ftype = "real"
+                    elif (ftype in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")
+                          and (getattr(self, "_mutable_state_classes", None)
+                               or getattr(self, "_uses_ir_node_param", False))):
                         # typed-ir-for-b-ceiling.md B-C2: an ExprIR-valued field is the
-                        # typed IR-node sum `emit_ir`. Only in a @mutable_state mirror.
+                        # typed IR-node sum `emit_ir` — but ONLY when the `emit_ir` theory
+                        # is actually emitted (same gate as Module6_WhyMLTranspiler's
+                        # theory-emission at :519). A file that merely DEFINES/imports an
+                        # ExprIR-field record without being @mutable_state (e.g. the
+                        # Module2_Parser / Module3_Weaver mirrors, which own the CSL-AST
+                        # dataclasses whose fields were retyped CSLNode->ExprIR for the
+                        # Module5 construction build) does NOT emit the theory, so mapping
+                        # the field to `emit_ir` there yields an `unbound type symbol
+                        # 'emit_ir'`. Gate it: non-theory files fall through to the int
+                        # default below (their pre-build behavior). Corpus-inert (no corpus
+                        # record uses an ExprIR field).
                         ftype = "emit_ir"
+                    elif (ftype == "PyConstVal"
+                          and (getattr(self, "_mutable_state_classes", None)
+                               or getattr(self, "_uses_ir_node_param", False))):
+                        # pyconst_val value-variant ADT (self-tcb-reduction M5, B-bucket):
+                        # a `.value`-of-`ast.Constant` field (harvested from the pure_ast
+                        # Constant node, ir_resolve.py `_PURE_AST_FIELD_TABLE`) is the
+                        # discriminated union of Python constant scalar kinds `pyconst_val`
+                        # (preamble.py `_emit_exprir_theory`). GATED identically to the
+                        # ExprIR->emit_ir mapping above (@mutable_state OR an IR-node-typed
+                        # param — the Module5 mirror imports its pure_ast records via the
+                        # latter), so the type is bound exactly where the theory is emitted.
+                        # Both gates are False for the corpus -> falls through to the int
+                        # default below, byte-identical.
+                        ftype = "pyconst_val"
                     elif ftype in self._record_types:
                         # wrong-lowering.md §WL-03: a field whose type is another
                         # (already-declared) record — a synthesized `Tuple[T1, ...]`
@@ -3262,8 +9132,55 @@ class PreambleEmissionMixin:
                         f"{prefix}{self._field_label(type_name, f['name'])}: {ftype}")
                     j += 1
                 out.append(f"  type {type_name} = {{ {'; '.join(field_strs)} }}")
+                # DRIVER FRAME-SOUNDNESS FIX (2026-08-26): record the field LABELS
+                # this record actually emits, so a `writes { self.<f> }` frame can be
+                # filtered to existing labels. Module5's `#@ assigns` list can name a
+                # field the record does NOT emit (e.g. Module5_IREmitter's
+                # `_cur_func_symtab`, a dict field dropped from the record), which
+                # would produce an unbound symbol at L3-tc. Read-only bookkeeping: it
+                # changes no emitted byte by itself.
+                if not hasattr(self, "_emitted_record_field_labels"):
+                    self._emitted_record_field_labels = {}
+                self._emitted_record_field_labels[type_name] = {
+                    fs.split(":")[0].replace("mutable ", "").strip()
+                    for fs in field_strs}
+                # (#49) gen #35, backlog #75: …and which of them are MUTABLE, because a
+                # `writes { self.f }` naming an immutable label is a Why3 error. Read-only
+                # bookkeeping, no emitted byte.
+                if not hasattr(self, "_emitted_record_mutable_labels"):
+                    self._emitted_record_mutable_labels = {}
+                self._emitted_record_mutable_labels[type_name] = {
+                    fs.split(":")[0].replace("mutable ", "").strip()
+                    for fs in field_strs if fs.startswith("mutable ")}
+                # (#34) …and their TYPES, so the FRAME-PRESERVATION ensures below can be
+                # restricted to SCALAR labels (an `array int` field needs an element-wise
+                # preservation the scalar equality cannot express).
+                if not hasattr(self, "_emitted_record_field_types"):
+                    self._emitted_record_field_types = {}
+                self._emitted_record_field_types[type_name] = {
+                    fs.split(":")[0].replace("mutable ", "").strip():
+                        fs.split(":", 1)[1].strip()
+                    for fs in field_strs}
                 class_invs = td.get("class_invariants", [])
                 if class_invs:
+                    # PRE-PASS (contract self-field subscript projection): register
+                    # `field -> element record class` BEFORE the invariants are
+                    # lowered, so a class invariant `self.<f>[i].<sub>` reaches the
+                    # self-field array-read projector (`expressions.py` W8 (iii))
+                    # instead of the unbound `get_<sub>` getter. The witness loop
+                    # below re-registers the SAME entries (idempotent); the gate is
+                    # byte-for-byte the one used there, so this is inert wherever no
+                    # `List[<record>]` field on a `@mutable_state`/IR-node class has a
+                    # class invariant.
+                    for _f in td["fields"]:
+                        _vt0 = _f.get("value_type")
+                        if (_f.get("type") in ("list", "tuple")
+                                and _vt0 in self._record_types
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
+                            if not hasattr(self, "_record_array_fields"):
+                                self._record_array_fields = {}
+                            self._record_array_fields[_f["name"]] = _vt0
                     self._in_spec = True
                     self._emit_record_ctx = type_name
                     # L0′ (challenging-the-plan §4.1): set the self-type so a `self.<field>[i]` access
@@ -3303,9 +9220,214 @@ class PreambleEmissionMixin:
                                 witness_vals = combo
                                 break
                             ic += 1
+                    # parser-primitives-wall-impl-2.md Gate S: an `array <record>`
+                    # field (`List[<record>]`, value_type = the element record name)
+                    # needs a record-LITERAL witness element, not the int `0` — else
+                    # `Array.make N 0` mistypes against `array <record>`. Build a
+                    # default record literal from the element record's field defaults.
+                    array_elem_witnesses: Dict[str, str] = {}
+                    # Contract self-field subscript projection: `{field: {sub: lit}}`
+                    # pins read off `self.<f>[i].<sub> == "<lit>"` class invariants.
+                    _elem_pins = self._extract_elem_field_pins(class_invs)
+                    for _f in td["fields"]:
+                        _vt = _f.get("value_type")
+                        if (_f.get("type") in ("list", "tuple")
+                                and _vt in self._record_types
+                                and (getattr(self, "_mutable_state_classes", None)
+                                     or getattr(self, "_uses_ir_node_param", False))):
+                            array_elem_witnesses[_f["name"]] = \
+                                self._record_default_literal(
+                                    _vt, None, _elem_pins.get(_f["name"]))
+                            # W8/W1: remember `field -> element record` so a local
+                            # bound to `self.<field>[i]` (the token cursor's
+                            # `t = self.toks[self.i]`) pre-declares a record ref
+                            # instead of the int `ref 0`, and `len(self.<field>)`
+                            # lowers to `Array.length`.
+                            if not hasattr(self, "_record_array_fields"):
+                                self._record_array_fields = {}
+                            self._record_array_fields[_f["name"]] = _vt
                     # Qualify ambiguous field names in the witness too.
                     _q = lambda fn: self._field_label(type_name, fn)
-                    out.append(f"    by {{ {self._build_witness_str([_q(fn) for fn in field_names], {_q(fn): v for fn, v in witness_vals.items()}, {_q(fn): t for fn, t in field_types.items()}, {_q(fn): l for fn, l in array_lengths.items()})} }}")
+                    out.append(f"    by {{ {self._build_witness_str([_q(fn) for fn in field_names], {_q(fn): v for fn, v in witness_vals.items()}, {_q(fn): t for fn, t in field_types.items()}, {_q(fn): l for fn, l in array_lengths.items()}, {_q(fn): w for fn, w in array_elem_witnesses.items()})} }}")
+                    # (#49) gen #31, ROUTE #226 — THE CONSTRUCTOR'S OBLIGATION.
+                    #
+                    # A `#@ class invariant` becomes a Why3 TYPE invariant, and Why3 asks
+                    # only that the type be INHABITED. The `by { … }` witness above
+                    # discharges that — and it is SYNTHESIZED FROM THE INVARIANT, so it is
+                    # satisfiable whatever the invariant says. `__init__` is not emitted at
+                    # all, so nothing checked that the REAL constructor establishes the
+                    # invariant, while every method got it as a free assumption. Measured:
+                    # `self.n = 0` under `invariant self.n >= 5` certified
+                    # `ensures \result >= 5`; CPython answers 0.
+                    #
+                    # The obligation is a pure-logic question about the constructor's
+                    # literals, so it is stated the way `#@ mutex_invariant`'s initial-state
+                    # check is (`goal _check_initial_<m>`), NOT by reusing
+                    # `_build_witness_str`: that builder takes its array lengths from
+                    # `_extract_array_lengths(class_invs)`, i.e. from the invariant, and
+                    # widening it later would quietly re-derive the value from the very
+                    # thing under test and re-open this route.
+                    #
+                    # SCOPED to what the goal can say exactly: every field int-typed AND
+                    # literal-initialised, and the invariant naming nothing but those
+                    # fields. Outside that (an array/record/string field, a computed
+                    # `__init__`, an invariant citing a module constant or a predicate) NO
+                    # goal is emitted and the old behaviour is kept unchanged — that debt is
+                    # recorded in the route file, not silently closed.
+                    # `defaults` IS NOT THE CONSTRUCTOR'S DEFAULTS. Module 5 stores
+                    # `field_witness = {f: field_defaults.get(f, 0) for f in fields}` under
+                    # the key `field_defaults`, so a field the constructor never gives a
+                    # literal — `self.n = n` from a parameter, `self.n = three()`, a store
+                    # inside an `if` — reads back as the DEFINITE literal 0. Measured: the
+                    # first cut of this repair emitted `n = 0 -> (n >= 5)` for
+                    # `def __init__(self, n: int): self.n = n`, which is the right verdict
+                    # written for a reason the source does not support.
+                    #
+                    # The three shapes are distinguishable without touching Module 5:
+                    #   · parameter        -> `init_params` non-empty
+                    #   · computed         -> `init_unknown_fields` carries the field
+                    #   · control flow     -> `init_unknown_cf_fields` too
+                    # and a paramless constructor with no unknown field is exactly the case
+                    # where `field_witness` IS `field_defaults`. CENSUS: all 113 in-scope
+                    # corpus classes already satisfy this, so the honesty costs nothing.
+                    _ci_labels = [_q(fn) for fn in field_names]
+                    _ci_unk = (set(td.get("init_unknown_fields") or [])
+                               | set(td.get("init_unknown_cf_fields") or []))
+                    # (#49) gen #31, ROUTE #226 INCREMENT 2 — A PARAMETERISED `__init__`.
+                    # Increment 1 required `init_params` to be empty, because there was no
+                    # literal to state the goal about. There does not have to be: the
+                    # constructor's binding can be a PREMISE instead of a substitution, and
+                    # the parameter quantified. `init_body` carries the bindings
+                    # (`{'field': 'n', 'value': {'type': 'Var', 'name': 'n'}}`) and route
+                    # #15's `init_contract_check` already carries the parameter TYPES and
+                    # the `#@ requires` IR, so Module 5 needs no change.
+                    #
+                    # IN SCOPE: every parameter int-annotated, and every field bound either
+                    # to an int literal or DIRECTLY to one of those parameters. Anything
+                    # computed stays out — `init_unknown_fields` already carries it.
+                    _icc_ci = td.get("init_contract_check") or {}
+                    _ci_ptypes = _icc_ci.get("param_types") or {}
+                    _ci_params = list(td.get("init_params") or [])
+                    _ci_bind = {}
+                    for _b_ci in (td.get("init_body") or []):
+                        if isinstance(_b_ci, dict) and _b_ci.get("field"):
+                            _ci_bind[_b_ci["field"]] = _b_ci.get("value")
+                    _ci_used = []
+
+                    _ci_ok = bool(field_names) and all(
+                        field_types.get(fn, "int") == "int"
+                        and fn not in _ci_unk
+                        for fn in field_names)
+                    if _ci_ok and _ci_params:
+                        # every parameter must be int-annotated, or a field could be bound
+                        # to a collection and the `: int` binder would be a lie
+                        _ci_ok = all(_ci_ptypes.get(_p, "") in ("", "int", "bool")
+                                     for _p in _ci_params)
+                    # What `__init__` gives each field: a literal, or the name of the
+                    # int parameter it is bound to. Written INLINE rather than as a nested
+                    # helper because `bin/check-mirror-coverage.py` counts every live `def`
+                    # with no mirror counterpart, and a closure inside the emitter is one
+                    # (measured: the ratchet went 549 -> 550 when this was a function).
+                    _ci_vals = {}
+                    if _ci_ok:
+                        for fn in field_names:
+                            _v_ci = _ci_bind.get(fn)
+                            _val_ci = None
+                            if isinstance(_v_ci, dict) and _v_ci.get("type") == "Var":
+                                _nm_ci = _v_ci.get("name")
+                                if (_nm_ci in _ci_params
+                                        and _ci_ptypes.get(_nm_ci, "") in ("", "int", "bool")):
+                                    _val_ci = whyml_ident(_nm_ci)
+                                    if _val_ci not in _ci_used:
+                                        _ci_used.append(_val_ci)
+                            elif isinstance(_v_ci, dict) and _v_ci.get("type") in (
+                                    "Num", "Number", "Int", "Constant"):
+                                _n_ci = _v_ci.get("value", _v_ci.get("n"))
+                                if not isinstance(_n_ci, bool) and isinstance(_n_ci, int):
+                                    _val_ci = ("(%d)" % _n_ci) if _n_ci < 0 else str(_n_ci)
+                            elif _v_ci is None and fn in defaults:
+                                _d_ci = defaults[fn]
+                                _val_ci = ("(%d)" % _d_ci) if _d_ci < 0 else str(_d_ci)
+                            if _val_ci is None:
+                                _ci_ok = False
+                                break
+                            _ci_vals[fn] = _val_ci
+                    if _ci_ok:
+                        _ci_allowed = set(_ci_labels) | {"true", "false", "not"}
+                        _ci_strs = []
+                        self._in_spec = True
+                        self._emit_record_ctx = type_name
+                        _prev_ci = getattr(self, "_current_self_type", None)
+                        self._current_self_type = type_name
+                        for _inv_ci in class_invs:
+                            _ci_strs.append(
+                                self._expr_to_whyml(_inv_ci, set(), invariant_ctx=True))
+                        self._current_self_type = _prev_ci
+                        self._emit_record_ctx = None
+                        self._in_spec = False
+                        for _s_ci in _ci_strs:
+                            for _id_ci in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _s_ci):
+                                if _id_ci not in _ci_allowed:
+                                    _ci_ok = False
+                        # `__init__`'s own `#@ requires`, lowered and appended as premises
+                        # AFTER the field bindings. Route #15 normalises `requires True`
+                        # away, so a trivial clause adds nothing. CENSUS: no PARAMLESS
+                        # constructor in the tree carries a non-trivial one, so increment
+                        # 1's emission is byte-identical.
+                        # THE PARAMETER CONTEXT IS NOT OPTIONAL, and it is the one
+                        # `_emit_init_contract_checks` already establishes for the same
+                        # clauses. Lowering a `#@ requires n >= 5` with no context emits
+                        # `val constant n : int` as an abstract operation, which then
+                        # COLLIDES with the record field label of the same name ("Symbol n
+                        # is already defined in the current scope" — measured). Passing the
+                        # parameters as `lr` instead makes them REFS and the clause lowers
+                        # to `!n >= 5` — also measured, also wrong. The symbol table plus
+                        # `_formal_params`/`_current_params` is the form a real function's
+                        # signature gets, and it is what produces `(n >= 5)`.
+                        _ci_reqs = []
+                        if _ci_ok and (_icc_ci.get("requires") or []):
+                            _prev_st_ci = getattr(self, "_current_symbol_table", None)
+                            _prev_fp_ci = getattr(self, "_formal_params", None)
+                            _prev_cp_ci = getattr(self, "_current_params", None)
+                            self._current_symbol_table = {_p: "int" for _p in _ci_params}
+                            self._formal_params = list(_ci_params)
+                            self._current_params = set(_ci_params)
+                            self._in_spec = True
+                            # NO `finally` HERE: `bin/check-dropped-mutation.py` ratchets on
+                            # the number of `try/finally` blocks in the emitter (TRYFINAL
+                            # 5), because Python runs a `finally` on every exit path and a
+                            # DROPPED one is a fail-open. The only statement between the
+                            # save and the restore is the lowering, and its exception is
+                            # caught right here — so an explicit restore is equivalent and
+                            # does not move a ratchet that exists for a different reason.
+                            try:
+                                for _r_ci in (_icc_ci.get("requires") or []):
+                                    _ci_reqs.append(self._expr_to_whyml(_r_ci, set()))
+                            except Exception:
+                                _ci_ok = False
+                            self._in_spec = False
+                            self._current_symbol_table = _prev_st_ci
+                            self._formal_params = _prev_fp_ci
+                            self._current_params = _prev_cp_ci
+                        for _s_ci in _ci_reqs:
+                            for _id_ci in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _s_ci):
+                                if _id_ci not in (_ci_allowed | set(_ci_used)):
+                                    _ci_ok = False
+                        if _ci_ok and _ci_strs:
+                            _ci_prem = " -> ".join(
+                                ["%s = %s" % (_q(fn), _ci_vals[fn]) for fn in field_names]
+                                + _ci_reqs)
+                            _ci_binders = list(_ci_labels)
+                            for _u_ci in _ci_used:
+                                if _u_ci not in _ci_binders:
+                                    _ci_binders.append(_u_ci)
+                            _ci_body = " /\\ ".join("(%s)" % _s for _s in _ci_strs)
+                            _ci_gname = whyml_ident(type_name)
+                            out.append("")
+                            out.append(
+                                f"  goal _check_class_inv_{_ci_gname} : "
+                                f"forall {' '.join(_ci_binders)} : int. "
+                                f"{_ci_prem} -> {_ci_body}")
                 out.append("")
                 # UB-7.2 — hash/eq consistency. Module 5 marks classes
                 # whose `__hash__` and `__eq__` are both defined.
@@ -3313,6 +9435,26 @@ class PreambleEmissionMixin:
                 # skips dunders for body emission, so we declare them
                 # as abstract `val` functions here and emit the
                 # consistency relationship.
+                #
+                # (#49) gen #31 — THAT JUSTIFICATION IS NO LONGER TRUE, AND SAYING SO IS
+                # THE POINT. Module 5 now EMITS `__hash__` and `__eq__` as ordinary
+                # methods (route #219: dropping them switched off every check that
+                # iterates `ir_data["functions"]`). The symbols below are still declared
+                # and still uninterpreted, and there is NO double declaration — the
+                # emitted bodies are `<cls>____hash__` / `<cls>____eq__` while these are
+                # `<cls>_hash_` / `<cls>_eq_`, measured on the emission by the independent
+                # reviewer of the emit-dunders report (oracle O10).
+                #
+                # WHAT THAT LEAVES, STATED PLAINLY RATHER THAN LEFT IMPLICIT: the axiom
+                # (and, under `--strict-hash-eq-consistency`, the GOAL) relates the two
+                # UNINTERPRETED symbols, which the program now never uses, and NOT the two
+                # emitted bodies, which it does. That is NOT a new unsoundness — an axiom
+                # over symbols nothing applies constrains nothing — but strict mode LOOKS
+                # like it checks the real methods and does not. Tying the goal to the
+                # emitted bodies is a follow-on build, recorded in
+                # `getting-better/emit-dunders-impl.md` §3.5 rather than done here, because
+                # it is a change to what the UB-7.2 perimeter MEANS and deserves its own
+                # spike. Corpus 0411-0414 pin the current behaviour and keep their verdicts.
                 #
                 # Default mode emits an *axiom* — the user is on the
                 # hook to keep hash and eq consistent; the axiom
@@ -3340,7 +9482,236 @@ class PreambleEmissionMixin:
                                f"without __hash__: unhashable, do not use as dict/set key *)")
                     out.append("")
             i += 1
+        # L2 DISPATCH-EXPANSION (pyast_expr): the input-side expression-node ADT the
+        # `_PY_EXPR_HANDLERS` dispatcher matches on. MUST be appended here, at the END of
+        # `_emit_type_decls`, because its arm payloads are the handler param RECORD types
+        # (`name`, `binop`, `py_constant`, ...) which only exist in `self._record_types`
+        # once the loop above has run. Fail-closed: emits nothing unless the file carries a
+        # complete handler table (`_pyx_dispatch_tables`), so the reference corpus and every
+        # other mirror are byte-identical.
+        self._emit_pyx_expr_adt(out, declared_types)
         return out, declared_types
+
+    # L2 DISPATCH-EXPANSION (pyast_expr): the AST classes whose `_py_expr_*` handler takes a
+    # BESPOKE OPAQUE node type rather than a structurally-harvested record — the eight
+    # hand-written whole-body lowerings in functions.py (`_emit_py_expr_boolop_bespoke` and
+    # its siblings) and the opaque `type py_*_node` declarations in `_emit_exprir_theory`.
+    # `_PURE_AST_FIELD_TABLE` cannot harvest these (their fields are lists of `cmpop` /
+    # `comprehension`), so the ADT arm carries the same opaque type the handler's signature
+    # already names. Kept in ONE place; a mismatch with the handler signature is a LOUD Why3
+    # type error at L3-tc, never a silent bad lowering.
+    # L2 DISPATCH-EXPANSION: the ADT NAMING for each dispatch table the expansion supports.
+    # `{table name: (adt type, ctor prefix, view val, kind reflector, tag val)}`.
+    # EXPLICIT rather than derived, and it is what makes the capability fail-closed: a class
+    # may hold SEVERAL tables that all pass the "every value names a method of this class"
+    # predicate (`PyCSLToJSONEmitter` holds three), and only the ones listed here get an ADT.
+    # `_PY_STMT_HANDLERS` is deliberately ABSENT — its dispatcher consumes the table inside a
+    # loop over `stmts`, with four weave-attr sub-loops and handlers that MUTATE an
+    # accumulator instead of returning, so the expansion does not apply to it (see the
+    # backlog). Prefixes are pairwise disjoint and disjoint from the Ir*/S*/PS*/C* families.
+    _PYX_TABLE_ADT: Dict[str, Tuple[str, str, str, str, str]] = {
+        "_PY_EXPR_HANDLERS": ("pyast_expr", "PEx_", "pyx_view", "pyx_kind_of",
+                              "pyx_type_name_of"),
+        "_CSL_HANDLERS": ("csl_node", "PCsl_", "cslx_view", "cslx_kind_of",
+                          "cslx_type_name_of"),
+    }
+
+    _PYX_OPAQUE_NODE_TYPES: Dict[str, str] = {
+        "BoolOp": "py_boolop_node",
+        "Compare": "py_compare_node",
+        "Dict": "py_dict_node",
+        "DictComp": "py_dictcomp_node",
+        "GeneratorExp": "py_genexp_node",
+        "ListComp": "py_listcomp_node",
+        "SetComp": "py_setcomp_node",
+        "Lambda": "py_lambda_node",
+    }
+
+    def _pyx_dispatch_tables(self) -> List[Tuple[str, str, List[List[str]]]]:
+        """L2 DISPATCH-EXPANSION: every `type -> handler-method-name` dispatch table in the
+        program that the expansion supports, as `(class_name, table_name, entries)` with the
+        entries IN SOURCE ORDER.
+
+        The tables themselves are collected by Module 5 (`_collect_class_type_str_constants`,
+        the `_PY_OP_MAP` capability) into `class_type_str_constants`. What distinguishes a
+        HANDLER table — and what this predicate tests — is that every value NAMES A METHOD OF
+        THE SAME CLASS: that is the table the live body consumes through
+        `getattr(self, handler_name)(node)`.
+
+        FAIL-CLOSED on every axis: the table name must be one this emitter knows how to name
+        an ADT for (`_PYX_TABLE_ADT` — an EXPLICIT allowlist, because a class may hold several
+        tables that all pass the method-name predicate and `PyCSLToJSONEmitter` holds three),
+        the table must be non-empty, its keys must be DISTINCT (duplicate keys would emit
+        shadowed match arms), and every value must resolve to a method of that class.
+        Anything else is skipped and the file emits exactly as before — the reference corpus
+        has no such table, so it is byte-identical."""
+        tables = (self.ir.get("class_type_str_constants") or {})
+        if not tables:
+            return []
+        methods_by_cls: Dict[str, Set[str]] = {}
+        for f in (self.ir.get("functions") or []):
+            if f.get("kind") != "method":
+                continue
+            _st = f.get("self_type")
+            if not _st:
+                continue
+            methods_by_cls.setdefault(_st, set()).add(str(f.get("name", "")))
+        out: List[Tuple[str, str, List[List[str]]]] = []
+        for cls_name in sorted(tables):
+            own = methods_by_cls.get(cls_name, set())
+            if not own:
+                continue
+            for tbl_name in sorted(tables[cls_name]):
+                if tbl_name not in self._PYX_TABLE_ADT:
+                    continue
+                entries = tables[cls_name][tbl_name]
+                if not entries:
+                    continue
+                keys = [str(e[0]) for e in entries]
+                if len(set(keys)) != len(keys):
+                    continue
+                ok = True
+                for e in entries:
+                    handler = str(e[1])
+                    if not any(m == handler or m.endswith("_" + handler) or
+                               m.endswith(handler) for m in own):
+                        ok = False
+                        break
+                if not ok:
+                    continue
+                out.append((cls_name, tbl_name,
+                            [[str(a), str(b)] for a, b in entries]))
+        return out
+
+    def _pyx_dispatch_table_named(self, cls_name: str, tbl_name: str
+                                  ) -> Optional[List[List[str]]]:
+        """L2 DISPATCH-EXPANSION: the certified entries of ONE named handler table, or None.
+        Used by the body recognizer, which must confirm that the table the DISPATCHER BODY
+        names is the one an ADT was actually emitted for."""
+        for c, t, entries in self._pyx_dispatch_tables():
+            if c == cls_name and t == tbl_name:
+                return entries
+        return None
+
+    def _pyx_handler_param_class(self, handler: str, self_type: str) -> Optional[str]:
+        """L2 DISPATCH-EXPANSION: the CLASS NAME a dispatch handler declares for its first
+        non-self parameter, read off the function IR's symbol table.
+
+        This — not the table KEY — is what decides the ADT arm's payload type, because the
+        two can legitimately differ. `_CSL_HANDLERS` maps FOUR ContractWrapper SUBCLASSES
+        (`Requires`/`Ensures`/`LoopInvariant`/`LoopVariant`) to the single handler
+        `_csl_contract_wrapper(node: ContractWrapper)`: Python passes the subclass instance
+        to a base-typed parameter, and the handler reads only base fields, so the faithful
+        arm payload is the BASE record. Keying on the table entry instead would emit
+        `PCsl_Requires requires` against a `contractwrapper` parameter — a type error.
+        Returns None when the symbol table has no usable entry (the caller then falls back
+        to the AST-class-keyed routes)."""
+        for f in (self.ir.get("functions") or []):
+            if f.get("kind") != "method" or f.get("self_type") != self_type:
+                continue
+            nm = str(f.get("name", ""))
+            if not (nm == handler or nm.endswith("_" + handler) or nm.endswith(handler)):
+                continue
+            st = f.get("symbol_table") or {}
+            for pname, pty in st.items():
+                if pname == "self":
+                    continue
+                if isinstance(pty, str) and pty and pty != "Any":
+                    return pty
+                break
+            return None
+        return None
+
+    def _pyx_arm_payload_type(self, ast_cls: str, handler: str,
+                              self_type: str = "") -> str:
+        """L2 DISPATCH-EXPANSION: the WhyML type of the ADT arm for class `ast_cls`, which
+        MUST equal the emitted parameter type of its handler.
+
+        Four sources, in order: the HANDLER's own declared parameter class resolved through
+        `self._record_types` (the authoritative one — see `_pyx_handler_param_class` for why
+        it can differ from the table key); the table key resolved the same way (`Name`->
+        `name`, `Constant`->`py_constant`, `Forall`->`py_forall` — the emitter prefixes
+        names that collide with Why3 keywords); the bespoke OPAQUE node type
+        (`_PYX_OPAQUE_NODE_TYPES`); and `int` for a handler whose parameter never got a
+        structural type at all (`Call`, `JoinedStr` — both still `\trusted` stubs).
+        A wrong answer here is a LOUD Why3 type error at L3-tc, never a silent bad
+        lowering."""
+        rt = getattr(self, "_record_types", {}) or {}
+        pcls = self._pyx_handler_param_class(handler, self_type) if self_type else None
+        if pcls and pcls in rt:
+            return str(rt[pcls].get("whyml_name") or pcls.lower())
+        if ast_cls in rt:
+            return str(rt[ast_cls].get("whyml_name") or ast_cls.lower())
+        opq = self._PYX_OPAQUE_NODE_TYPES.get(ast_cls)
+        if opq is not None:
+            return opq
+        return "int"
+
+    def _emit_pyx_expr_adt(self, out: List[str], declared_types: Set[str]) -> None:
+        """L2 DISPATCH-EXPANSION (pyast_expr): declare the INPUT-side expression-node ADT
+        that `_py_expr_to_ir`'s `getattr(self, self._PY_EXPR_HANDLERS[type(expr)])(expr)`
+        dispatch matches on, plus its kind reflector and the node view.
+
+            type pyast_expr = PEx_Name name | PEx_BinOp binop | ... | PEx_Unknown
+            let function pyx_kind_of (e: pyast_expr) : string = ...      (* total, concrete *)
+            val function pyx_type_name_of (e: emit_ir) : string
+            val function pyx_view (e: emit_ir) : pyast_expr
+              ensures { pyx_kind_of result = pyx_type_name_of e }
+
+        WHAT IS ASSUMED AND WHAT IS PROVED. Before this, `_py_expr_to_ir` was a
+        `\trusted` stub: BOTH the table and the dispatch were assumed, and the result was
+        a completely unconstrained `emit_ir`. After it, only the NODE VIEW is assumed —
+        `pyx_view` is the total uninterpreted "which of the 23 expression classes is this
+        node, and what is its payload", the same synthetic runtime-class device
+        `py_type_name_of` already is for `_py_op_to_str` — and it is pinned to the node's
+        runtime class by the `pyx_kind_of` law, which is CONCRETE (a total match over the
+        arms). The DISPATCH is now proved content: for a node whose class is "Name" the
+        result is provably `_py_expr_name` applied to a `name`, hence one of that handler's
+        three real constructors. NO axiom, NO certificate, ledger unchanged.
+
+        The arms are derived from the SOURCE table, not hard-coded, so a change to
+        `_PY_EXPR_HANDLERS` changes the emission. `pyast_expr` is deliberately NOT
+        recursive at this stage: its arms carry the handler param types exactly as they are
+        (mutable records, `array` fields, opaque node types), which Why3 permits only for a
+        NON-recursive datatype. Making it recursive — the structural `pyx_size` variant that
+        would let the handlers recurse into the real dispatcher instead of the abstract
+        `self__py_expr_to_ir_1` val — additionally requires every payload to be pure
+        (immutable records, cons-lists instead of arrays) and is the named next stage."""
+        for _cls, _tname, entries in self._pyx_dispatch_tables():
+            adt, pfx, view, kind_of, tag = self._PYX_TABLE_ADT[_tname]
+            arms = [(k, self._pyx_arm_payload_type(k, h, _cls)) for k, h in entries]
+            out.append("")
+            out.append(
+                "  (* L2 dispatch-expansion (self-tcb-reduction): the INPUT-side node ADT"
+                " the `%s` table dispatches over, one arm per class IN SOURCE ORDER, each"
+                " carrying THAT CLASS'S HANDLER PARAMETER TYPE (which is not always the"
+                " class's own record — several `_CSL_HANDLERS` subclasses share one"
+                " base-typed handler). `%s` is total and CONCRETE; `%s` is the"
+                " uninterpreted node view, pinned to the node's runtime class by the `%s`"
+                " law (the `py_type_name_of` device of the `_PY_OP_MAP` expansion, lifted"
+                " from a tag to a payload). NOT recursive at this stage — the arms carry the"
+                " handler param types verbatim, which Why3 allows only for a non-recursive"
+                " datatype. Certified axiom-free in"
+                " src/formal-semantics/rocq/Phase2l_PyAstExpr.v +"
+                " lean/PyCSL/PyAstExpr.lean (ADT well-formedness + kind exactness/totality +"
+                " the VIEW-LAW CONSISTENCY obligation + dispatch non-vacuity). Gated on"
+                " `_pyx_dispatch_tables` -> reference corpus + every other mirror"
+                " byte-identical. *)" % (_tname, kind_of, view, kind_of))
+            out.append(f"  type {adt} =")
+            for k, payload in arms:
+                out.append(f"    | {pfx}{k} {payload}")
+            out.append(f"    | {pfx}Unknown")
+            out.append(f"  let function {kind_of} (e: {adt}) : string =")
+            out.append("    match e with")
+            for k, _payload in arms:
+                out.append(f"    | {pfx}{k} _ -> \"{k}\"")
+            out.append(f"    | {pfx}Unknown -> \"\"")
+            out.append("    end")
+            out.append(f"  val function {tag} (e: emit_ir) : string")
+            out.append(f"  val function {view} (e: emit_ir) : {adt}")
+            out.append(f"    ensures {{ {kind_of} result = {tag} e }}")
+            out.append("")
+            declared_types.add(adt)
 
     def _emit_opaque_class_aliases(self, functions: List[Dict[str, Any]],
                                     out: List[str], declared_types: Set[str]) -> None:

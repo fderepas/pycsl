@@ -1,0 +1,46 @@
+(* wrong-lowering-to-fix.md §WL-05c (T7) — SMT feasibility spike for the
+   `del d[k]` fix.
+
+   TWO claims:
+   (1) FAITHFUL local-dict deletion via `map_update_none` (= Map.set m k None):
+       after `del d[k]` a read `d[k]` is ABSENT (None -> 0 under the ghost-dict
+       convention), so a write-del-read-back yields 0 and a FALSE "still has the
+       old value" claim FAILS. This is the model the fixed LOCAL path emits.
+   (2) The PARAM case is a caller-visible mutation with no `writes {d}` frame on a
+       by-value `map` param, which is exactly the WL-05 boundary -> REJECTED in the
+       tool (no WhyML emitted). Nothing to discharge here; (1) is the dischargeable
+       law the fix relies on.
+
+   Discharged on Alt-Ergo AND Z3, NO new axiom (map_update_none = Map.set _ _ None). *)
+module WL05cDel
+  use int.Int
+  use map.Map
+  use ref.Ref
+  use map.Const
+  use option.Option
+
+  (* the exact abstract op the fixed emitter reuses (already in the corpus). *)
+  val map_update_none (m: map 'k (option 'v)) (k: 'k) : map 'k (option 'v)
+    ensures { result = Map.set m k None }
+  val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) : map 'k (option 'v)
+    ensures { result = Map.set m k (Some v) }
+
+  (* d = {}; d["a"] = 7; del d["a"]; the read-back is ABSENT (0). *)
+  let ghost faithful_local_del () : int
+    ensures { result = 0 }
+  =
+    let d = ref (const (None: option int)) in
+    d := map_update_some !d "a" 7;
+    d := map_update_none !d "a";
+    match Map.get !d "a" with Some v -> v | None -> 0 end
+
+  (* FALSE twin: claiming the deleted key still holds 7 must NOT be provable.
+     Encoded as a positive law about absence — the negation of the false claim. *)
+  let ghost del_removes_key () : bool
+    ensures { result = true }
+  =
+    let d = ref (const (None: option int)) in
+    d := map_update_some !d "a" 7;
+    d := map_update_none !d "a";
+    match Map.get !d "a" with Some _ -> false | None -> true end
+end

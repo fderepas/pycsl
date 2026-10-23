@@ -25,12 +25,21 @@ def apply_monomorphization(ir_data: int, validated_ast: Any=None) -> None:
 def _collect_generic_decls(ir_data: int) -> int:
     return {}
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _check_gt3_schema_only(generics: int) -> None:
-    pass
+def _check_gt3_schema_only(generics: Dict[str, Dict[str, Any]]) -> None:
+    for gname, info in generics.items():
+        for tp in info["type_params"]:
+            kind = tp.get("kind", "TypeVar")
+            if kind != "TypeVar":
+                raise PyCSLSemanticError(
+                    f"monomorphization: generic {gname!r} declares a {kind} "
+                    f"({tp.get('name')!r}) — GT3: ParamSpec/TypeVarTuple are "
+                    f"schema-only and not interpreted (typing-global-overview.md "
+                    f"§5 GT3). Use a plain TypeVar `T`.",
+                    stage="monomorphize", code="PYCSL-TY3-GT3",
+                )
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -39,53 +48,163 @@ def _check_gt3_schema_only(generics: int) -> None:
 def _collect_instantiations(ir_data: int, generics: int) -> int:
     return set()
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _find_subscript_calls(body: List[int], generic_names: int) -> List[int]:
-    return []
+def _find_subscript_calls(
+    body: List[Dict[str, Any]], generic_names: Set[str]
+) -> List[Tuple[str, str]]:
+    """Walk IR statements for `Call(func=Subscript(value=Name(g), slice=<type>))`
+    patterns — the constructor `Stack[int]()` form. Returns the instantiation
+    pairs."""
+    out: List[Tuple[str, str]] = []
+    for stmt in body:
+        out.extend(_scan_node_for_subscript_calls(stmt, generic_names))
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _scan_node_for_subscript_calls(node: Any, generic_names: int) -> List[int]:
-    return []
+def _scan_node_for_subscript_calls(
+    node: Any, generic_names: Set[str]
+) -> List[Tuple[str, str]]:
+    """Recursively scan an IR node (dict or list) for subscript-call sites."""
+    out: List[Tuple[str, str]] = []
+    if isinstance(node, dict):
+        # The IR shape for `C[int]()` is:
+        # {"stmt": "Call", "func": {"type": "Subscript", "value": <Name>,
+        #  "slice": <type-str>}, ...} OR a Call whose func is a Subscript.
+        # The exact key varies; we look for any dict carrying a Subscript on a
+        # generic name.
+        if node.get("type") == "Subscript" or node.get("stmt") == "Subscript":
+            val = node.get("value")
+            slice_node = node.get("slice")
+            if isinstance(val, dict) and val.get("type") == "Var":
+                gname = val.get("name", "")
+                if gname in generic_names:
+                    ct = _type_str(slice_node)
+                    if ct is not None:
+                        out.append((gname, ct))
+        # A Call wrapping a Subscript (the `C[int]()` constructor).
+        if node.get("stmt") == "Call" or node.get("type") == "Call":
+            fnode = node.get("func")
+            sub = _scan_node_for_subscript_calls(fnode, generic_names)
+            out.extend(sub)
+        for v in node.values():
+            out.extend(_scan_node_for_subscript_calls(v, generic_names))
+    elif isinstance(node, list):
+        for item in node:
+            out.extend(_scan_node_for_subscript_calls(item, generic_names))
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _type_str(node: Any) -> Optional[str]:
+    """Render an IR type node (a Name/Subscript slice) as a concrete type
+    string we can substitute. Returns None for non-concrete / unrecognized."""
+    if node is None:
+        return None
+    if isinstance(node, str):
+        # Some IR shapes carry the slice as a bare string (the type name).
+        return _sanitize_type_name(node)
+    if isinstance(node, dict):
+        t = node.get("type")
+        if t == "Var":
+            return _sanitize_type_name(node.get("name", ""))
+        if t == "Subscript":
+            # nested generic instantiation — not supported in this delivery.
+            return None
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _sanitize_type_name(name: str) -> Optional[str]:
-    return None
+    """Normalize a concrete type name to one of the PyCSL primitive tags or a
+    user class name. Returns None for Any/unrecognized."""
+    if not name:
+        return None
+    if name == "Any":
+        return "Any"  # caught by GT1 in the caller
+    # PyCSL primitive tags.
+    if name in ("int", "bool", "str", "bytes", "float", "list", "dict", "set"):
+        # bool is modeled as int in PyCSL; keep the source name for clarity,
+        # the substitution maps both to WhyML int.
+        return name
+    return name
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _match_generic_annotation(type_str: Any, generic_names: int) -> int:
+def _match_generic_annotation(
+    type_str: Any, generic_names: Set[str]
+) -> Optional[Tuple[str, str]]:
+    """Match a symbol_table/return_annotation string like `Stack[int]` against
+    the generic names. Returns `(generic_name, concrete_type)` or None."""
+    if not isinstance(type_str, str):
+        return None
+    # Match `Generic[Type]` — the annotation recorded the subscription text.
+    m = re.match(r"^([A-Za-z_][A-Za-z0-9_]*)\[([A-Za-z_][A-Za-z0-9_]*)\]$", type_str)
+    if m:
+        gname, ct = m.group(1), m.group(2)
+        if gname in generic_names:
+            return (gname, ct)
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _collect_instantiations_ast(tree: Any, generics: int) -> int:
-    return set()
+    found: Set[Tuple[str, str]] = set()
+    generic_names = set(generics)
+    for node in _ast.walk(tree):
+        # `C[int]()` constructor call: Call(func=Subscript(value=Name(C),
+        # slice=Name(int))).
+        if isinstance(node, _ast.Call):
+            sub = _extract_ast_subscript(node.func, generic_names)
+            if sub is not None:
+                found.add(sub)
+        # `x: C[int]` annotation on an AnnAssign / function arg.
+        if isinstance(node, _ast.AnnAssign):
+            sub = _extract_ast_subscript(node.annotation, generic_names)
+            if sub is not None:
+                found.add(sub)
+        # `def f(x: C[int]) -> C[int]` arg/return annotations.
+        if isinstance(node, (_ast.FunctionDef, _ast.AsyncFunctionDef)):
+            for arg in (node.args.args + node.args.posonlyargs
+                        + node.args.kwonlyargs):
+                sub = _extract_ast_subscript(arg.annotation, generic_names)
+                if sub is not None:
+                    found.add(sub)
+            if node.returns is not None:
+                sub = _extract_ast_subscript(node.returns, generic_names)
+                if sub is not None:
+                    found.add(sub)
+    return found
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _extract_ast_subscript(node: Any, generic_names: int) -> int:
+def _extract_ast_subscript(node: Any, generic_names: Set[str]) -> Optional[Tuple[str, str]]:
+    """If `node` is `Generic[<concrete-type>]` on a generic name, return the
+    `(generic_name, concrete_type)` pair; else None. Recognizes:
+      - `Subscript(value=Name(C), slice=Name(int))` — the `C[int]` form.
+    Only the bare-Name concrete type is recognized (a nested generic
+    instantiation is not supported in this delivery)."""
+    if not isinstance(node, _ast.Subscript):
+        return None
+    val = node.value
+    if not isinstance(val, _ast.Name):
+        return None
+    gname = val.id
+    if gname not in generic_names:
+        return None
+    slice_node = node.slice
+    if isinstance(slice_node, _ast.Name):
+        ct = _sanitize_type_name(slice_node.id)
+        if ct is not None:
+            return (gname, ct)
     return None
 
 #@ \trusted reviewer: pycsl-self-annotate
@@ -95,12 +214,35 @@ def _extract_ast_subscript(node: Any, generic_names: int) -> int:
 def _check_gt4_polymorphic_recursion(ir_data: int, generics: int, instantiations: int, validated_ast: Any=None) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _check_bounds(generics: int, instantiations: int) -> None:
-    pass
+def _check_bounds(
+    generics: Dict[str, Dict[str, Any]],
+    instantiations: Set[Tuple[str, str]],
+) -> None:
+    """For each (generic, concrete_type) with a bound B on the TypeVar, the
+    concrete type must satisfy B. Today: exact match (invariant checking, GT2).
+    A bound that is None admits any concrete type."""
+    for (gname, ct) in instantiations:
+        info = generics.get(gname)
+        if info is None:
+            continue
+        for tp in info["type_params"]:
+            bound = tp.get("bound")
+            if bound is None:
+                continue
+            # Invariant checking (GT2): the concrete type must be EXACTLY the
+            # bound. Stricter than S1 (which admits subtyping); legitimate
+            # divergence-by-strictness.
+            if ct != bound:
+                raise PyCSLSemanticError(
+                    f"monomorphization: generic {gname!r} instantiated with "
+                    f"{ct!r} but its TypeVar {tp.get('name')!r} is bound to "
+                    f"{bound!r} — invariant check (GT2: variance deferred) "
+                    f"requires the concrete type to be exactly the bound.",
+                    stage="monomorphize", code="PYCSL-TY3-BOUND",
+                )
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -109,12 +251,13 @@ def _check_bounds(generics: int, instantiations: int) -> None:
 def _emit_specializations(ir_data: int, generics: int, instantiations: int) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _mangled_name(generic_name: str, concrete_type: str) -> str:
-    return ""
+    """`Stack` + `int` -> `Stack_int`. Non-alnum concrete chars -> `_`."""
+    safe = re.sub(r"[^A-Za-z0-9_]", "_", concrete_type)
+    return f"{generic_name}_{safe}"
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -130,19 +273,45 @@ def _specialize_decl(decl: int, tvar: str, concrete: str, new_name: str) -> int:
 def _specialize_function(func: int, tvar: str, concrete: str, new_class_name: str, new_self_type: Optional[str]=None) -> int:
     return {}
 
-#@ \trusted reviewer: pycsl-self-annotate
-#@ requires True
-#@ ensures True
+#@ requires wf_ir_deep(node)
+#@ requires in_emitted_fragment(node)
+#@ ensures size(\result) > 0
+#@ ensures wf_ir_deep(\result)
+#@ ensures in_emitted_fragment(\result)
 #@ assigns \nothing
 def _subst_type_in_ir(node: Any, tvar: str, concrete: str) -> Any:
-    return None
+    if isinstance(node, dict):
+        new = {}
+        for k, v in node.items():
+            if k == "name" and v == tvar and node.get("type") == "Var":
+                new[k] = concrete
+            elif k == "return_annotation" and v == tvar:
+                new[k] = concrete
+            else:
+                new[k] = _subst_type_in_ir(v, tvar, concrete)
+        # Also handle field-type strings and annotation strings.
+        if "type" in new and new["type"] == tvar:
+            new["type"] = concrete
+        return new
+    if isinstance(node, list):
+        return [_subst_type_in_ir(item, tvar, concrete) for item in node]
+    return node
 
 #@ \trusted reviewer: pycsl-self-annotate
+# (#49) gen #31 — RE-TRUSTED. `bin/check-emitted-vacuity.py`:
+#     _rewrite_call_sites  erased=['ir_data', 'rename_map'] of ['ir_data', 'rename_map']
+# BOTH parameters erased — the emitted body mentions neither the IR it rewrites nor the
+# renaming it applies. This is the widest of the five erasures the unrun vacuity plane
+# found on this session's conversions.
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _rewrite_call_sites(ir_data: int, rename_map: int) -> None:
-    pass
+    for func in ir_data.get("functions", []):
+        func["body"] = [
+            _rewrite_subscript_calls_in_stmt(s, rename_map)
+            for s in func.get("body", [])
+        ]
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True

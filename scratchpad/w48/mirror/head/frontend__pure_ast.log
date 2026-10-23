@@ -1,0 +1,6 @@
+[*] Parsing and Semantic Analysis for '/tmp/pycsl-w48-head/src/self-annotate/src/frontend/pure_ast.py'...
+[*] Memory model: hoare
+[*] Import 'typing.List': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'typing.Tuple': external module, no local source found — skipping (add \trusted stub if verification of callers needs its contract)
+[*] Import 'inspect.cleandoc': external module, no local source found — skipping
+[+] Verification SUCCESS (--no-proof --no-typecheck: WhyML generated [emit-only, typecheck skipped]).

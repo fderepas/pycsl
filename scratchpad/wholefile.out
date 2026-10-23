@@ -1,0 +1,3855 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/ir_scanner.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_48hppima.mlw", line 81, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 17247 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 82, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 17166 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 79, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.26s, 629260 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 86, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 86, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5217 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 85, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 16925 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 89, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4514 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 89, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5578 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 88, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 18160 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 96, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5660 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 92, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 25056 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 123, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 8074 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 123, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30628 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 119, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.65s, 700666 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 164, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8232 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 175, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 185, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8252 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 186, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8524 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 182, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.02s, 30846 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 190, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 28826 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 190, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.15s, 433134 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 190, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.12s, 281686 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 209, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/home/fabrice.derepas@canonical.com/.opam/coq-4.14/share/why3/stdlib/set.mlw", line 538, characters 14-30:
+Sub-goal postcondition of goal eq'refn'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 234, characters 24-56:
+Sub-goal variant decrease of goal irscanner___check__get_type'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 234, characters 24-56:
+Sub-goal variant decrease of goal irscanner___check__get_type'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 243, characters 24-54:
+Sub-goal variant decrease of goal irscanner___check__get_op'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 243, characters 24-54:
+Sub-goal variant decrease of goal irscanner___check__get_op'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 251, characters 171-193:
+Sub-goal variant decrease of goal irscanner___check'vc.
+Prover result is: Valid (0.03s, 57881 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 251, characters 171-193:
+Sub-goal precondition of goal irscanner___check'vc.
+Prover result is: Valid (0.01s, 4836 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 252, characters 18-41:
+Sub-goal variant decrease of goal irscanner___check'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 252, characters 18-41:
+Sub-goal precondition of goal irscanner___check'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 249, characters 32-36:
+Sub-goal postcondition of goal irscanner___check'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 256, characters 51-70:
+Sub-goal variant decrease of goal irscanner___check__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 256, characters 51-70:
+Sub-goal precondition of goal irscanner___check__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 256, characters 74-99:
+Sub-goal variant decrease of goal irscanner___check__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 256, characters 74-99:
+Sub-goal precondition of goal irscanner___check__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 255, characters 32-36:
+Sub-goal postcondition of goal irscanner___check__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 259, characters 45-64:
+Sub-goal variant decrease of goal irscanner___check__l'vc.
+Prover result is: Valid (0.02s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 259, characters 45-64:
+Sub-goal precondition of goal irscanner___check__l'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 259, characters 68-90:
+Sub-goal variant decrease of goal irscanner___check__l'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 259, characters 68-90:
+Sub-goal precondition of goal irscanner___check__l'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 258, characters 32-36:
+Sub-goal postcondition of goal irscanner___check__l'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 266, characters 70-111:
+Sub-goal variant decrease of goal irscanner___collect_mutations__gstmt'vc.
+Prover result is: Valid (0.02s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 267, characters 24-65:
+Sub-goal variant decrease of goal irscanner___collect_mutations__gstmt'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 271, characters 71-113:
+Sub-goal variant decrease of goal irscanner___collect_mutations__garray'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 272, characters 24-66:
+Sub-goal variant decrease of goal irscanner___collect_mutations__garray'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 277, characters 24-67:
+Sub-goal variant decrease of goal irscanner___collect_mutations__gtarget'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 282, characters 24-65:
+Sub-goal variant decrease of goal irscanner___collect_mutations__gtype'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 287, characters 24-65:
+Sub-goal variant decrease of goal irscanner___collect_mutations__gname'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 292, characters 24-66:
+Sub-goal variant decrease of goal irscanner___collect_mutations__gvalue'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 297, characters 24-65:
+Sub-goal variant decrease of goal irscanner___collect_mutations__gfunc'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 304, characters 84-123:
+Sub-goal variant decrease of goal irscanner___collect_mutations__Lb0'vc.
+Prover result is: Valid (0.01s, 13822 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 299, characters 14-45:
+Sub-goal postcondition of goal irscanner___collect_mutations__Lb0'vc.
+Prover result is: Timeout (30.00s, 26130298 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 312, characters 86-125:
+Sub-goal variant decrease of goal irscanner___collect_mutations__Lb1'vc.
+Prover result is: Valid (0.01s, 13822 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 307, characters 14-45:
+Sub-goal postcondition of goal irscanner___collect_mutations__Lb1'vc.
+Prover result is: Timeout (30.00s, 27954812 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 320, characters 114-153:
+Sub-goal variant decrease of goal irscanner___collect_mutations__Lb2'vc.
+Prover result is: Valid (0.01s, 13538 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 320, characters 161-200:
+Sub-goal variant decrease of goal irscanner___collect_mutations__Lb2'vc.
+Prover result is: Valid (0.01s, 13810 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 315, characters 14-45:
+Sub-goal postcondition of goal irscanner___collect_mutations__Lb2'vc.
+Prover result is: Timeout (30.00s, 27437981 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 328, characters 84-125:
+Sub-goal variant decrease of goal irscanner___collect_mutations__Lcase'vc.
+Prover result is: Valid (0.02s, 13822 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 323, characters 14-45:
+Sub-goal postcondition of goal irscanner___collect_mutations__Lcase'vc.
+Prover result is: Timeout (30.00s, 27994869 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4700 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 366, characters 48-110:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 53663 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 366, characters 48-110:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4756 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 53943 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4765 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54223 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54503 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54291 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 53691 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4765 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 53971 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.02s, 54251 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 366, characters 48-110:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.04s, 53691 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 366, characters 48-110:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4765 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 53971 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54251 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54531 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4792 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.02s, 54319 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4792 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4792 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.02s, 53719 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 53999 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54279 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4792 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54100 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4792 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4792 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 366, characters 48-110:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.02s, 53720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 366, characters 48-110:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4775 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54000 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4784 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.04s, 54280 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4793 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54560 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4802 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54348 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4802 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4802 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 53748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4784 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54028 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4793 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54308 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4802 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54129 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4802 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4802 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 366, characters 48-110:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 55791 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 366, characters 48-110:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4794 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.02s, 56075 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4803 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 56359 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4812 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 56643 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4821 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 56433 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4821 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4821 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 55821 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4803 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 56105 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4812 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 56389 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4821 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 56212 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4821 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4821 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54238 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4825 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54518 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4834 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54798 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4843 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54619 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4843 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4843 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 53663 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 368, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4756 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 53943 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 369, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4765 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.02s, 54223 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 370, characters 13-91:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.03s, 54044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal variant decrease of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.02s, 49548 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 373, characters 8-52:
+Sub-goal precondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4799 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 351, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__f'vc.
+Prover result is: Valid (0.01s, 4799 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 376, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__cf'vc.
+Prover result is: Valid (0.01s, 4700 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 379, characters 103-184:
+Sub-goal variant decrease of goal irscanner___collect_mutations__cf'vc.
+Prover result is: Valid (0.03s, 53663 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 379, characters 103-184:
+Sub-goal precondition of goal irscanner___collect_mutations__cf'vc.
+Prover result is: Valid (0.01s, 4756 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 379, characters 201-246:
+Sub-goal variant decrease of goal irscanner___collect_mutations__cf'vc.
+Prover result is: Valid (0.03s, 53550 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 379, characters 201-246:
+Sub-goal precondition of goal irscanner___collect_mutations__cf'vc.
+Prover result is: Valid (0.01s, 4756 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 376, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__cf'vc.
+Prover result is: Valid (0.01s, 4756 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 379, characters 201-246:
+Sub-goal variant decrease of goal irscanner___collect_mutations__cf'vc.
+Prover result is: Valid (0.03s, 49548 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 379, characters 201-246:
+Sub-goal precondition of goal irscanner___collect_mutations__cf'vc.
+Prover result is: Valid (0.01s, 4799 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 376, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations__cf'vc.
+Prover result is: Valid (0.01s, 4799 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 382, characters 4-49:
+Sub-goal precondition of goal irscanner___collect_mutations'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 381, characters 32-36:
+Sub-goal postcondition of goal irscanner___collect_mutations'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 386, characters 77-114:
+Sub-goal variant decrease of goal irscanner___has_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 387, characters 24-61:
+Sub-goal variant decrease of goal irscanner___has_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 387, characters 24-61:
+Sub-goal variant decrease of goal irscanner___has_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 394, characters 48-75:
+Sub-goal variant decrease of goal irscanner___has_return'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 394, characters 48-75:
+Sub-goal precondition of goal irscanner___has_return'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 394, characters 79-103:
+Sub-goal variant decrease of goal irscanner___has_return'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 394, characters 79-103:
+Sub-goal precondition of goal irscanner___has_return'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 393, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 398, characters 63-90:
+Sub-goal variant decrease of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.02s, 50127 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 398, characters 63-90:
+Sub-goal precondition of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 399, characters 18-43:
+Sub-goal variant decrease of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 399, characters 18-43:
+Sub-goal precondition of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 396, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 404, characters 24-51:
+Sub-goal variant decrease of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 404, characters 24-51:
+Sub-goal precondition of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 404, characters 55-85:
+Sub-goal variant decrease of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 404, characters 55-85:
+Sub-goal precondition of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 402, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 408, characters 77-125:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 409, characters 24-72:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 409, characters 24-72:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__get_stmt'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 416, characters 48-86:
+Sub-goal variant decrease of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 416, characters 48-86:
+Sub-goal precondition of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 416, characters 90-125:
+Sub-goal variant decrease of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 416, characters 90-125:
+Sub-goal precondition of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 415, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return_with_value'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 420, characters 74-112:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.03s, 50127 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 420, characters 74-112:
+Sub-goal precondition of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 421, characters 18-54:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 421, characters 18-54:
+Sub-goal precondition of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 418, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return_with_value__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 426, characters 24-62:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 426, characters 24-62:
+Sub-goal precondition of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 426, characters 66-107:
+Sub-goal variant decrease of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 426, characters 66-107:
+Sub-goal precondition of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 424, characters 32-36:
+Sub-goal postcondition of goal irscanner___has_return_with_value__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 435, characters 70-123:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 436, characters 24-77:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 442, characters 74-131:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__get_dyn_exc_type'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 443, characters 24-81:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__get_dyn_exc_type'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 459, characters 70-108:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.02s, 53044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 459, characters 70-108:
+Sub-goal precondition of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 459, characters 28-69:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.03s, 54145 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 459, characters 28-69:
+Sub-goal precondition of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 455, characters 32-36:
+Sub-goal postcondition of goal irscanner__collect_user_exceptions'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 463, characters 71-112:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 463, characters 71-112:
+Sub-goal precondition of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 464, characters 18-55:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 464, characters 18-55:
+Sub-goal precondition of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 461, characters 32-36:
+Sub-goal postcondition of goal irscanner__collect_user_exceptions__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 469, characters 76-120:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.02s, 54838 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 469, characters 76-120:
+Sub-goal precondition of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 469, characters 34-75:
+Sub-goal variant decrease of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.03s, 55915 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 469, characters 34-75:
+Sub-goal precondition of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 467, characters 32-36:
+Sub-goal postcondition of goal irscanner__collect_user_exceptions__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 483, characters 77-137:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__get_dyn_binder_type'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 484, characters 24-84:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__get_dyn_binder_type'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 494, characters 71-115:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 494, characters 71-115:
+Sub-goal precondition of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 495, characters 18-61:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 495, characters 18-61:
+Sub-goal precondition of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 491, characters 32-63:
+Sub-goal postcondition of goal irscanner__collection_binder_kinds'vc.
+Prover result is: Valid (0.07s, 186 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 502, characters 73-120:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.03s, 54838 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 502, characters 73-120:
+Sub-goal precondition of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 502, characters 34-72:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.03s, 55915 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 502, characters 34-72:
+Sub-goal precondition of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 498, characters 32-36:
+Sub-goal postcondition of goal irscanner__collection_binder_kinds__dict'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 508, characters 67-111:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.02s, 53044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 508, characters 67-111:
+Sub-goal precondition of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 508, characters 28-66:
+Sub-goal variant decrease of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.03s, 54145 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 508, characters 28-66:
+Sub-goal precondition of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 505, characters 32-36:
+Sub-goal postcondition of goal irscanner__collection_binder_kinds__list'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 512, characters 77-119:
+Sub-goal variant decrease of goal irscanner__ends_with_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 513, characters 24-66:
+Sub-goal variant decrease of goal irscanner__ends_with_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 513, characters 24-66:
+Sub-goal variant decrease of goal irscanner__ends_with_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 520, characters 48-80:
+Sub-goal variant decrease of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 520, characters 48-80:
+Sub-goal precondition of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 520, characters 84-113:
+Sub-goal variant decrease of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 520, characters 84-113:
+Sub-goal precondition of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 519, characters 32-36:
+Sub-goal postcondition of goal irscanner__ends_with_return'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 524, characters 115-147:
+Sub-goal variant decrease of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.03s, 50383 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 524, characters 115-147:
+Sub-goal precondition of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.01s, 4787 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 525, characters 18-48:
+Sub-goal variant decrease of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 525, characters 18-48:
+Sub-goal precondition of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 522, characters 32-36:
+Sub-goal postcondition of goal irscanner__ends_with_return__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 530, characters 24-56:
+Sub-goal variant decrease of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.02s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 530, characters 24-56:
+Sub-goal precondition of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 530, characters 60-95:
+Sub-goal variant decrease of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 530, characters 60-95:
+Sub-goal precondition of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 528, characters 32-36:
+Sub-goal postcondition of goal irscanner__ends_with_return__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 535, characters 70-119:
+Sub-goal variant decrease of goal irscanner__find_append_targets__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 536, characters 24-73:
+Sub-goal variant decrease of goal irscanner__find_append_targets__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 543, characters 24-72:
+Sub-goal variant decrease of goal irscanner__find_append_targets__get_K_value'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 550, characters 24-71:
+Sub-goal variant decrease of goal irscanner__find_append_targets__get_K_func'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 569, characters 66-100:
+Sub-goal variant decrease of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.03s, 53044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 569, characters 66-100:
+Sub-goal precondition of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 569, characters 28-65:
+Sub-goal variant decrease of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.03s, 54145 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 569, characters 28-65:
+Sub-goal precondition of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 565, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_append_targets'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 573, characters 67-104:
+Sub-goal variant decrease of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 573, characters 67-104:
+Sub-goal precondition of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 574, characters 18-51:
+Sub-goal variant decrease of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 574, characters 18-51:
+Sub-goal precondition of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 571, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_append_targets__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 579, characters 72-112:
+Sub-goal variant decrease of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.02s, 54838 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 579, characters 72-112:
+Sub-goal precondition of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 579, characters 34-71:
+Sub-goal variant decrease of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.03s, 55915 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 579, characters 34-71:
+Sub-goal precondition of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 577, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_append_targets__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 587, characters 70-111:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__gstmt'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 588, characters 24-65:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__gstmt'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 593, characters 24-64:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__gtgt'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 598, characters 24-65:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__gtype'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 605, characters 84-125:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__Lbody'vc.
+Prover result is: Valid (0.01s, 13822 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 600, characters 14-45:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__Lbody'vc.
+Prover result is: Timeout (30.00s, 28238293 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 613, characters 86-129:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__Lorelse'vc.
+Prover result is: Valid (0.01s, 13822 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 608, characters 14-45:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__Lorelse'vc.
+Prover result is: Timeout (30.00s, 27728295 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.03s, 55244 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 5178 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 616, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 5178 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.03s, 56176 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4839 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 616, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4839 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.03s, 55601 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.02s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 616, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.03s, 55629 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4779 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 616, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4779 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.03s, 56176 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4839 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 616, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4839 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.03s, 55601 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 624, characters 8-52:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 616, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 625, characters 18-63:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.02s, 55601 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 625, characters 18-63:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 616, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 616, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nx'vc.
+Prover result is: Valid (0.01s, 4814 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 628, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 4757 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 632, characters 8-55:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.02s, 53861 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 632, characters 8-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 4765 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 628, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 4765 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 631, characters 67-110:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.03s, 53909 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 631, characters 67-110:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 632, characters 8-55:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.02s, 53889 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 632, characters 8-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 628, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 631, characters 118-161:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.03s, 55447 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 631, characters 118-161:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 4846 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 632, characters 8-55:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.03s, 55488 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 632, characters 8-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 4846 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 628, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxd'vc.
+Prover result is: Valid (0.01s, 4846 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 634, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.01s, 4700 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 635, characters 42-85:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 635, characters 42-85:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 635, characters 87-131:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.03s, 53044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 635, characters 87-131:
+Sub-goal precondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 634, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__nxl'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4709 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 5126 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 58498 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 5126 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 5126 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4787 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 54950 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4787 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4787 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4718 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 54375 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4718 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4718 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 647, characters 58-119:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55591 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 647, characters 58-119:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 55497 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4750 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 648, characters 52-129:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55621 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 648, characters 52-129:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4759 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4759 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55527 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4759 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4759 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 649, characters 50-127:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55651 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 649, characters 50-127:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4768 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 649, characters 129-208:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 55913 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 649, characters 129-208:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4779 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4779 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55819 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4779 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4779 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 650, characters 156-233:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 60908 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 650, characters 156-233:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 5185 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 5185 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 60818 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 5185 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 5185 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 650, characters 156-233:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 56284 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 650, characters 156-233:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4846 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4846 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 56190 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4846 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4846 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 650, characters 156-233:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55681 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 650, characters 156-233:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4777 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4777 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55587 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4777 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4777 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 651, characters 51-128:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55711 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 651, characters 51-128:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4786 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 651, characters 130-192:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55973 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 651, characters 130-192:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55879 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 652, characters 52-111:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 55741 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 652, characters 52-111:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.02s, 55647 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4795 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4791 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 56608 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4791 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4791 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4786 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 54949 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4786 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4786 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 655, characters 13-55:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4717 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 54374 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4717 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4717 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.03s, 54761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 657, characters 8-49:
+Sub-goal precondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4782 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 637, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__f'vc.
+Prover result is: Valid (0.01s, 4782 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 660, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.01s, 4709 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 662, characters 83-125:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.03s, 58296 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 662, characters 83-125:
+Sub-goal precondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.01s, 5125 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 660, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.01s, 5125 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 662, characters 83-125:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.03s, 54761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 662, characters 83-125:
+Sub-goal precondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.01s, 4782 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 660, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__tf'vc.
+Prover result is: Valid (0.01s, 4782 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 664, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 4700 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 666, characters 47-125:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.02s, 53307 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 666, characters 47-125:
+Sub-goal precondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 666, characters 142-184:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.03s, 53215 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 666, characters 142-184:
+Sub-goal precondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 664, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 666, characters 142-184:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.03s, 49535 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 666, characters 142-184:
+Sub-goal precondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 4773 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 664, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__hf'vc.
+Prover result is: Valid (0.01s, 4773 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 668, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 4700 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 670, characters 47-125:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.03s, 53307 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 670, characters 47-125:
+Sub-goal precondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 670, characters 142-184:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.03s, 53215 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 670, characters 142-184:
+Sub-goal precondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 668, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 4721 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 670, characters 142-184:
+Sub-goal variant decrease of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.03s, 49535 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 670, characters 142-184:
+Sub-goal precondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 4773 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 668, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars__cf'vc.
+Prover result is: Valid (0.01s, 4773 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 674, characters 4-46:
+Sub-goal precondition of goal irscanner__find_assigned_vars'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 672, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_assigned_vars'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 680, characters 70-115:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 681, characters 24-69:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 688, characters 24-69:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__get_K_target'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 704, characters 62-92:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.02s, 53044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 704, characters 62-92:
+Sub-goal precondition of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 704, characters 28-61:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.03s, 54145 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 704, characters 28-61:
+Sub-goal precondition of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 700, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_ghost_vars'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 708, characters 63-96:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 708, characters 63-96:
+Sub-goal precondition of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 709, characters 18-47:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 709, characters 18-47:
+Sub-goal precondition of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 706, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_ghost_vars__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 714, characters 68-104:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.03s, 54838 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 714, characters 68-104:
+Sub-goal precondition of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 714, characters 34-67:
+Sub-goal variant decrease of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.03s, 55915 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 714, characters 34-67:
+Sub-goal precondition of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 712, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_ghost_vars__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 723, characters 70-116:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 724, characters 24-70:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 731, characters 24-69:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__get_K_value'vc.
+Prover result is: Valid (0.02s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 738, characters 24-68:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__get_K_type'vc.
+Prover result is: Valid (0.02s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 745, characters 24-70:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__get_K_target'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 767, characters 63-94:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.03s, 53044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 767, characters 63-94:
+Sub-goal precondition of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 767, characters 28-62:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.02s, 54145 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 767, characters 28-62:
+Sub-goal precondition of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 763, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_lambda_vars'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 771, characters 64-98:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 771, characters 64-98:
+Sub-goal precondition of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 772, characters 18-48:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 772, characters 18-48:
+Sub-goal precondition of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 769, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_lambda_vars__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 777, characters 69-106:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.03s, 54838 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 777, characters 69-106:
+Sub-goal precondition of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 777, characters 34-68:
+Sub-goal variant decrease of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.02s, 55915 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 777, characters 34-68:
+Sub-goal precondition of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 775, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_lambda_vars__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 783, characters 24-75:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__get_K_type'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 790, characters 24-77:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__get_K_target'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 808, characters 68-118:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 808, characters 68-118:
+Sub-goal precondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 805, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 809, characters 18-69:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 809, characters 18-69:
+Sub-goal precondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 805, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 805, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets'vc.
+Prover result is: Valid (0.01s, 4805 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 812, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 4757 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 818, characters 8-61:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.03s, 53890 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 818, characters 8-61:
+Sub-goal precondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.00s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 812, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 817, characters 68-112:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.02s, 56862 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 817, characters 68-112:
+Sub-goal precondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 818, characters 8-61:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.03s, 56903 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 818, characters 8-61:
+Sub-goal precondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 812, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets__dict'vc.
+Prover result is: Valid (0.01s, 4783 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 821, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.01s, 4700 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 823, characters 42-86:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.02s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 823, characters 42-86:
+Sub-goal precondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 823, characters 88-138:
+Sub-goal variant decrease of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.03s, 53044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 823, characters 88-138:
+Sub-goal precondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 821, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_named_expr_targets__list'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 828, characters 70-123:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 829, characters 24-77:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 836, characters 24-77:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__get_K_target'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 843, characters 24-76:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__get_K_value'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 850, characters 24-75:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__get_K_func'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 872, characters 83-134:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.03s, 53044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 872, characters 83-134:
+Sub-goal precondition of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 872, characters 26-82:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.02s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 872, characters 26-82:
+Sub-goal precondition of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 868, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_var_classes'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 878, characters 82-139:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 878, characters 82-139:
+Sub-goal precondition of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 879, characters 18-68:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 879, characters 18-68:
+Sub-goal precondition of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 875, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_var_classes__val'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 887, characters 89-149:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.03s, 54838 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 887, characters 89-149:
+Sub-goal precondition of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 887, characters 32-88:
+Sub-goal variant decrease of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 887, characters 32-88:
+Sub-goal precondition of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 883, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_var_classes__dict'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 893, characters 70-116:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13448 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 894, characters 24-70:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_dyn_stmt'vc.
+Prover result is: Valid (0.01s, 13720 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 901, characters 24-69:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_K_value'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 908, characters 24-68:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_K_type'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 915, characters 24-68:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_K_func'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 922, characters 24-70:
+Sub-goal variant decrease of goal irscanner__find_record_vars__get_K_target'vc.
+Prover result is: Valid (0.02s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 947, characters 76-120:
+Sub-goal variant decrease of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.03s, 53044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 947, characters 76-120:
+Sub-goal precondition of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 947, characters 28-75:
+Sub-goal variant decrease of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.03s, 54145 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 947, characters 28-75:
+Sub-goal precondition of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 943, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_vars'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 951, characters 77-124:
+Sub-goal variant decrease of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 951, characters 77-124:
+Sub-goal precondition of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 952, characters 18-61:
+Sub-goal variant decrease of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 952, characters 18-61:
+Sub-goal precondition of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 949, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_vars__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 957, characters 82-132:
+Sub-goal variant decrease of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.03s, 54838 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 957, characters 82-132:
+Sub-goal precondition of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 957, characters 34-81:
+Sub-goal variant decrease of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.03s, 55915 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 957, characters 34-81:
+Sub-goal precondition of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 955, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_record_vars__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 961, characters 77-119:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 962, characters 24-66:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_stmt'vc.
+Prover result is: Valid (0.02s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 962, characters 24-66:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_stmt'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 970, characters 24-67:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_value'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 974, characters 51-93:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_type'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 974, characters 51-93:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_type'vc.
+Prover result is: Valid (0.01s, 13930 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 978, characters 75-117:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_elts'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 979, characters 24-66:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_elts'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 979, characters 24-66:
+Sub-goal variant decrease of goal irscanner__find_return_type__get_elts'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 982, characters 45-80:
+Sub-goal variant decrease of goal irscanner__find_return_type__llen'vc.
+Prover result is: Valid (0.01s, 13193 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 981, characters 14-25:
+Sub-goal postcondition of goal irscanner__find_return_type__llen'vc.
+Prover result is: Valid (0.02s, 48297 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 995, characters 80-101:
+Sub-goal array creation size of goal irscanner__find_return_type__value_tail'vc.
+Prover result is: Valid (0.01s, 4779 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1004, characters 11-41:
+Sub-goal precondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1005, characters 16-57:
+Sub-goal precondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1006, characters 9-50:
+Sub-goal variant decrease of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.01s, 4772 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1006, characters 9-50:
+Sub-goal precondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1003, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_return_type'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1014, characters 20-59:
+Sub-goal variant decrease of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.03s, 52967 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1014, characters 20-59:
+Sub-goal precondition of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1015, characters 79-119:
+Sub-goal variant decrease of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.03s, 53019 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1015, characters 79-119:
+Sub-goal precondition of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.01s, 4722 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1008, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_return_type__search'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1021, characters 17-55:
+Sub-goal variant decrease of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1021, characters 17-55:
+Sub-goal precondition of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1022, characters 18-48:
+Sub-goal variant decrease of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.03s, 50419 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1022, characters 18-48:
+Sub-goal precondition of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1019, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_return_type__child'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1028, characters 16-52:
+Sub-goal variant decrease of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1028, characters 16-52:
+Sub-goal precondition of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1029, characters 75-116:
+Sub-goal variant decrease of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.03s, 54910 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1029, characters 75-116:
+Sub-goal precondition of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1025, characters 32-36:
+Sub-goal postcondition of goal irscanner__find_return_type__child_d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1033, characters 77-115:
+Sub-goal variant decrease of goal irscanner__has_continue__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1034, characters 24-62:
+Sub-goal variant decrease of goal irscanner__has_continue__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1034, characters 24-62:
+Sub-goal variant decrease of goal irscanner__has_continue__get_stmt'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1041, characters 48-76:
+Sub-goal variant decrease of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1041, characters 48-76:
+Sub-goal precondition of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1041, characters 80-105:
+Sub-goal variant decrease of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1041, characters 80-105:
+Sub-goal precondition of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1040, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_continue'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1045, characters 66-94:
+Sub-goal variant decrease of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.03s, 50230 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1045, characters 66-94:
+Sub-goal precondition of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1046, characters 18-44:
+Sub-goal variant decrease of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1046, characters 18-44:
+Sub-goal precondition of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1043, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_continue__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1051, characters 24-52:
+Sub-goal variant decrease of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.02s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1051, characters 24-52:
+Sub-goal precondition of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1051, characters 56-87:
+Sub-goal variant decrease of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1051, characters 56-87:
+Sub-goal precondition of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1049, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_continue__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1055, characters 77-120:
+Sub-goal variant decrease of goal irscanner__has_direct_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1056, characters 24-67:
+Sub-goal variant decrease of goal irscanner__has_direct_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1056, characters 24-67:
+Sub-goal variant decrease of goal irscanner__has_direct_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1063, characters 48-81:
+Sub-goal variant decrease of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1063, characters 48-81:
+Sub-goal precondition of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1063, characters 85-115:
+Sub-goal variant decrease of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1063, characters 85-115:
+Sub-goal precondition of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1062, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_direct_return'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1067, characters 166-199:
+Sub-goal variant decrease of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.03s, 50659 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1067, characters 166-199:
+Sub-goal precondition of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.01s, 4800 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1068, characters 18-49:
+Sub-goal variant decrease of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1068, characters 18-49:
+Sub-goal precondition of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1065, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_direct_return__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1073, characters 24-57:
+Sub-goal variant decrease of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1073, characters 24-57:
+Sub-goal precondition of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1073, characters 61-97:
+Sub-goal variant decrease of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1073, characters 61-97:
+Sub-goal precondition of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1071, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_direct_return__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1077, characters 77-119:
+Sub-goal variant decrease of goal irscanner__has_early_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1078, characters 24-66:
+Sub-goal variant decrease of goal irscanner__has_early_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1078, characters 24-66:
+Sub-goal variant decrease of goal irscanner__has_early_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1085, characters 48-80:
+Sub-goal variant decrease of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1085, characters 48-80:
+Sub-goal precondition of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1085, characters 84-113:
+Sub-goal variant decrease of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1085, characters 84-113:
+Sub-goal precondition of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1084, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_early_return'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1089, characters 210-242:
+Sub-goal variant decrease of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.03s, 50915 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1089, characters 210-242:
+Sub-goal precondition of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.01s, 4813 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1090, characters 18-48:
+Sub-goal variant decrease of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1090, characters 18-48:
+Sub-goal precondition of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1087, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_early_return__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1095, characters 24-56:
+Sub-goal variant decrease of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.02s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1095, characters 24-56:
+Sub-goal precondition of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1095, characters 60-95:
+Sub-goal variant decrease of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1095, characters 60-95:
+Sub-goal precondition of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1093, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_early_return__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1099, characters 77-121:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1100, characters 24-68:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1100, characters 24-68:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__get_stmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1107, characters 48-82:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1107, characters 48-82:
+Sub-goal precondition of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1107, characters 86-117:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1107, characters 86-117:
+Sub-goal precondition of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1106, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_in_loop_return'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1111, characters 218-252:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.03s, 50915 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1111, characters 218-252:
+Sub-goal precondition of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.01s, 4813 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1112, characters 18-50:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1112, characters 18-50:
+Sub-goal precondition of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1109, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_in_loop_return__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1117, characters 24-58:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1117, characters 24-58:
+Sub-goal precondition of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1117, characters 62-99:
+Sub-goal variant decrease of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1117, characters 62-99:
+Sub-goal precondition of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1115, characters 32-36:
+Sub-goal postcondition of goal irscanner__has_in_loop_return__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1122, characters 24-62:
+Sub-goal variant decrease of goal irscanner__is_recursive__get_type'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1122, characters 24-62:
+Sub-goal variant decrease of goal irscanner__is_recursive__get_type'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1131, characters 24-62:
+Sub-goal variant decrease of goal irscanner__is_recursive__get_func'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1131, characters 24-62:
+Sub-goal variant decrease of goal irscanner__is_recursive__get_func'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1139, characters 109-142:
+Sub-goal variant decrease of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.03s, 57043 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1139, characters 109-142:
+Sub-goal precondition of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.01s, 4796 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1140, characters 18-52:
+Sub-goal variant decrease of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1140, characters 18-52:
+Sub-goal precondition of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1137, characters 32-36:
+Sub-goal postcondition of goal irscanner__is_recursive'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1144, characters 51-81:
+Sub-goal variant decrease of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1144, characters 51-81:
+Sub-goal precondition of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1144, characters 85-121:
+Sub-goal variant decrease of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1144, characters 85-121:
+Sub-goal precondition of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1143, characters 32-36:
+Sub-goal postcondition of goal irscanner__is_recursive__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1147, characters 45-75:
+Sub-goal variant decrease of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1147, characters 45-75:
+Sub-goal precondition of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1147, characters 79-112:
+Sub-goal variant decrease of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1147, characters 79-112:
+Sub-goal precondition of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1146, characters 32-36:
+Sub-goal postcondition of goal irscanner__is_recursive__l'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1152, characters 24-64:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__get_type'vc.
+Prover result is: Valid (0.02s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1152, characters 24-64:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__get_type'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1161, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__get_op'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1161, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__get_op'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1170, characters 24-65:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__getp_left'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1178, characters 233-263:
+Sub-goal variant decrease of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.03s, 53301 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1178, characters 233-263:
+Sub-goal precondition of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.01s, 4829 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1179, characters 18-49:
+Sub-goal variant decrease of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1179, characters 18-49:
+Sub-goal precondition of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1176, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_array_lit'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1183, characters 51-78:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1183, characters 51-78:
+Sub-goal precondition of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1183, characters 82-115:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1183, characters 82-115:
+Sub-goal precondition of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1182, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_array_lit__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1186, characters 45-72:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1186, characters 45-72:
+Sub-goal precondition of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1186, characters 76-106:
+Sub-goal variant decrease of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1186, characters 76-106:
+Sub-goal precondition of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1185, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_array_lit__l'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1190, characters 77-116:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1191, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1191, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__get_stmt'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1198, characters 48-77:
+Sub-goal variant decrease of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.02s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1198, characters 48-77:
+Sub-goal precondition of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1198, characters 81-107:
+Sub-goal variant decrease of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1198, characters 81-107:
+Sub-goal precondition of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1197, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_arrayset'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1202, characters 67-96:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.03s, 50230 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1202, characters 67-96:
+Sub-goal precondition of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1203, characters 18-45:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1203, characters 18-45:
+Sub-goal precondition of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1200, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_arrayset__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1208, characters 24-53:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1208, characters 24-53:
+Sub-goal precondition of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1208, characters 57-89:
+Sub-goal variant decrease of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.02s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1208, characters 57-89:
+Sub-goal precondition of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1206, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_arrayset__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1212, characters 77-113:
+Sub-goal variant decrease of goal irscanner__uses_break__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1213, characters 24-60:
+Sub-goal variant decrease of goal irscanner__uses_break__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1213, characters 24-60:
+Sub-goal variant decrease of goal irscanner__uses_break__get_stmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1220, characters 48-74:
+Sub-goal variant decrease of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1220, characters 48-74:
+Sub-goal precondition of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1220, characters 78-101:
+Sub-goal variant decrease of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1220, characters 78-101:
+Sub-goal precondition of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1219, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_break'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1224, characters 61-87:
+Sub-goal variant decrease of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.02s, 50044 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1224, characters 61-87:
+Sub-goal precondition of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1225, characters 18-42:
+Sub-goal variant decrease of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1225, characters 18-42:
+Sub-goal precondition of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1222, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_break__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1230, characters 24-50:
+Sub-goal variant decrease of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1230, characters 24-50:
+Sub-goal precondition of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1230, characters 54-83:
+Sub-goal variant decrease of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1230, characters 54-83:
+Sub-goal precondition of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1228, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_break__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1234, characters 77-116:
+Sub-goal variant decrease of goal irscanner__uses_continue__get_stmt'vc.
+Prover result is: Valid (0.02s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1235, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_continue__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1235, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_continue__get_stmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1242, characters 48-77:
+Sub-goal variant decrease of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1242, characters 48-77:
+Sub-goal precondition of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1242, characters 81-107:
+Sub-goal variant decrease of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1242, characters 81-107:
+Sub-goal precondition of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1241, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_continue'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1246, characters 67-96:
+Sub-goal variant decrease of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.03s, 50230 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1246, characters 67-96:
+Sub-goal precondition of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1247, characters 18-45:
+Sub-goal variant decrease of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1247, characters 18-45:
+Sub-goal precondition of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1244, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_continue__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1252, characters 24-53:
+Sub-goal variant decrease of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1252, characters 24-53:
+Sub-goal precondition of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1252, characters 57-89:
+Sub-goal variant decrease of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1252, characters 57-89:
+Sub-goal precondition of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1250, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_continue__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1255, characters 15-19:
+Sub-goal postcondition of goal irscanner__uses_divmod'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1262, characters 77-111:
+Sub-goal variant decrease of goal irscanner__uses_for__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1263, characters 24-58:
+Sub-goal variant decrease of goal irscanner__uses_for__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1263, characters 24-58:
+Sub-goal variant decrease of goal irscanner__uses_for__get_stmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1270, characters 48-72:
+Sub-goal variant decrease of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.02s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1270, characters 48-72:
+Sub-goal precondition of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.02s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1270, characters 76-97:
+Sub-goal variant decrease of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1270, characters 76-97:
+Sub-goal precondition of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1269, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_for'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1274, characters 57-81:
+Sub-goal variant decrease of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.02s, 49878 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1274, characters 57-81:
+Sub-goal precondition of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1275, characters 18-40:
+Sub-goal variant decrease of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1275, characters 18-40:
+Sub-goal precondition of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1272, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_for__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1280, characters 24-48:
+Sub-goal variant decrease of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1280, characters 24-48:
+Sub-goal precondition of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1280, characters 52-79:
+Sub-goal variant decrease of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.02s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1280, characters 52-79:
+Sub-goal precondition of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1278, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_for__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1284, characters 77-118:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__get_stmt'vc.
+Prover result is: Valid (0.01s, 13464 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1285, characters 24-65:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__get_stmt'vc.
+Prover result is: Valid (0.01s, 13736 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1285, characters 24-65:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__get_stmt'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1292, characters 48-85:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1292, characters 48-85:
+Sub-goal precondition of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1292, characters 89-123:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1292, characters 89-123:
+Sub-goal precondition of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1291, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ghost_type'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1296, characters 72-109:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.03s, 50416 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1296, characters 72-109:
+Sub-goal precondition of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1297, characters 18-53:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1297, characters 18-53:
+Sub-goal precondition of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1294, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ghost_type__v'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1302, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1302, characters 24-61:
+Sub-goal precondition of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1302, characters 65-105:
+Sub-goal variant decrease of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1302, characters 65-105:
+Sub-goal precondition of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1300, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ghost_type__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1309, characters 24-77:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__g_K_type'vc.
+Prover result is: Valid (0.01s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1316, characters 24-77:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__g_K_func'vc.
+Prover result is: Valid (0.02s, 13732 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1327, characters 67-113:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.03s, 50415 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1327, characters 67-113:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1328, characters 18-65:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1328, characters 18-65:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1324, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_inline_set_or_dict_ops'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1335, characters 24-64:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.02s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1335, characters 24-64:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1335, characters 68-117:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1335, characters 68-117:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1331, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_inline_set_or_dict_ops__dict'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1341, characters 18-58:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1341, characters 18-58:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1341, characters 62-108:
+Sub-goal variant decrease of goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1341, characters 62-108:
+Sub-goal precondition of goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1338, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_inline_set_or_dict_ops__list'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1346, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_minmax__get_type'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1346, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_minmax__get_type'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1355, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_minmax__get_func'vc.
+Prover result is: Valid (0.02s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1355, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_minmax__get_func'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1363, characters 155-182:
+Sub-goal variant decrease of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.03s, 57609 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1363, characters 155-182:
+Sub-goal precondition of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.01s, 4818 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1364, characters 18-46:
+Sub-goal variant decrease of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.02s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1364, characters 18-46:
+Sub-goal precondition of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1361, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_minmax'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1368, characters 51-75:
+Sub-goal variant decrease of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1368, characters 51-75:
+Sub-goal precondition of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1368, characters 79-109:
+Sub-goal variant decrease of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1368, characters 79-109:
+Sub-goal precondition of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1367, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_minmax__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1371, characters 45-69:
+Sub-goal variant decrease of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1371, characters 45-69:
+Sub-goal precondition of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1371, characters 73-100:
+Sub-goal variant decrease of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1371, characters 73-100:
+Sub-goal precondition of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1370, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_minmax__l'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1376, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__get_type'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1376, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__get_type'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1385, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__get_func'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1385, characters 24-62:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__get_func'vc.
+Prover result is: Valid (0.02s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1393, characters 158-186:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.02s, 57672 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1393, characters 158-186:
+Sub-goal precondition of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.01s, 4818 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1394, characters 18-47:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1394, characters 18-47:
+Sub-goal precondition of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1391, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ord_chr'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1398, characters 51-76:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1398, characters 51-76:
+Sub-goal precondition of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1398, characters 80-111:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1398, characters 80-111:
+Sub-goal precondition of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1397, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ord_chr__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1401, characters 45-70:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1401, characters 45-70:
+Sub-goal precondition of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1401, characters 74-102:
+Sub-goal variant decrease of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1401, characters 74-102:
+Sub-goal precondition of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1400, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_ord_chr__l'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1406, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_set_card__get_type'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1406, characters 24-63:
+Sub-goal variant decrease of goal irscanner__uses_set_card__get_type'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1414, characters 68-97:
+Sub-goal variant decrease of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.03s, 50210 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1414, characters 68-97:
+Sub-goal precondition of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1415, characters 18-48:
+Sub-goal variant decrease of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1415, characters 18-48:
+Sub-goal precondition of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1412, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_set_card'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1419, characters 51-77:
+Sub-goal variant decrease of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1419, characters 51-77:
+Sub-goal precondition of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1419, characters 81-113:
+Sub-goal variant decrease of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1419, characters 81-113:
+Sub-goal precondition of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1418, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_set_card__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1422, characters 45-71:
+Sub-goal variant decrease of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1422, characters 45-71:
+Sub-goal precondition of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1422, characters 75-104:
+Sub-goal variant decrease of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1422, characters 75-104:
+Sub-goal precondition of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1421, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_set_card__l'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1427, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_string__get_type'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1427, characters 24-61:
+Sub-goal variant decrease of goal irscanner__uses_string__get_type'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1435, characters 65-92:
+Sub-goal variant decrease of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.03s, 50127 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1435, characters 65-92:
+Sub-goal precondition of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1436, characters 18-46:
+Sub-goal variant decrease of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1436, characters 18-46:
+Sub-goal precondition of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1433, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_string'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1440, characters 51-75:
+Sub-goal variant decrease of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1440, characters 51-75:
+Sub-goal precondition of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1440, characters 79-109:
+Sub-goal variant decrease of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1440, characters 79-109:
+Sub-goal precondition of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1439, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_string__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1443, characters 45-69:
+Sub-goal variant decrease of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1443, characters 45-69:
+Sub-goal precondition of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1443, characters 73-100:
+Sub-goal variant decrease of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1443, characters 73-100:
+Sub-goal precondition of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1442, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_string__l'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1448, characters 24-64:
+Sub-goal variant decrease of goal irscanner__uses_subscript__get_type'vc.
+Prover result is: Valid (0.02s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1448, characters 24-64:
+Sub-goal variant decrease of goal irscanner__uses_subscript__get_type'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1456, characters 71-101:
+Sub-goal variant decrease of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.03s, 50376 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1456, characters 71-101:
+Sub-goal precondition of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1457, characters 18-49:
+Sub-goal variant decrease of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1457, characters 18-49:
+Sub-goal precondition of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1454, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_subscript'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1461, characters 51-78:
+Sub-goal variant decrease of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.02s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1461, characters 51-78:
+Sub-goal precondition of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1461, characters 82-115:
+Sub-goal variant decrease of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.03s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1461, characters 82-115:
+Sub-goal precondition of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1460, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_subscript__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1464, characters 45-72:
+Sub-goal variant decrease of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1464, characters 45-72:
+Sub-goal precondition of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1464, characters 76-106:
+Sub-goal variant decrease of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.03s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1464, characters 76-106:
+Sub-goal precondition of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1463, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_subscript__l'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1469, characters 24-58:
+Sub-goal variant decrease of goal irscanner__uses_sum__get_type'vc.
+Prover result is: Valid (0.01s, 13748 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1469, characters 24-58:
+Sub-goal variant decrease of goal irscanner__uses_sum__get_type'vc.
+Prover result is: Valid (0.01s, 13600 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1477, characters 59-83:
+Sub-goal variant decrease of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.03s, 49878 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1477, characters 59-83:
+Sub-goal precondition of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.01s, 4774 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1478, characters 18-43:
+Sub-goal variant decrease of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.03s, 50387 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1478, characters 18-43:
+Sub-goal precondition of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1475, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_sum'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1482, characters 51-72:
+Sub-goal variant decrease of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.03s, 54797 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1482, characters 51-72:
+Sub-goal precondition of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.01s, 4761 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1482, characters 76-103:
+Sub-goal variant decrease of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.02s, 54866 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1482, characters 76-103:
+Sub-goal precondition of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.01s, 4770 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1481, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_sum__d'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1485, characters 45-66:
+Sub-goal variant decrease of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.03s, 53003 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1485, characters 45-66:
+Sub-goal precondition of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.01s, 4704 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1485, characters 70-94:
+Sub-goal variant decrease of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.02s, 53072 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1485, characters 70-94:
+Sub-goal precondition of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.01s, 4713 steps).
+
+File "/tmp/.pycsl_48hppima.mlw", line 1484, characters 32-36:
+Sub-goal postcondition of goal irscanner__uses_sum__l'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 227, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 227, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 233, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 242, characters 26-30: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 258, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 255, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 249, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 402, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 396, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 393, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 424, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 418, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 415, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 427, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 427, characters 64-69: unused variable stmts
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 429, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 467, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 461, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 455, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 505, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 498, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 528, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 522, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 519, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 577, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 571, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 565, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 580, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 580, characters 61-66: unused variable stmts
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 582, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 672, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 712, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 706, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 700, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 715, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 715, characters 61-66: unused variable stmts
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 717, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 775, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 769, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 763, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 883, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 875, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 868, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 955, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 949, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 943, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1025, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1019, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1008, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1003, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1049, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1043, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1040, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1071, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1065, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1062, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1093, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1087, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1084, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1115, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1109, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1106, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1121, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1130, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1146, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1143, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1137, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1151, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1160, characters 26-30: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1169, characters 21-25: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1185, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1182, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1176, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1206, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1200, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1197, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1228, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1222, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1219, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1250, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1244, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1241, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1253, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1255, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1278, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1272, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1269, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1300, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1294, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1291, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1338, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1331, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1324, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1345, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1354, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1370, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1367, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1361, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1375, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1384, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1400, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1397, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1391, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1405, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1421, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1418, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1412, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1426, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1442, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1439, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1433, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1447, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1463, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1460, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1454, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1468, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1484, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1481, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1475, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 227, characters 20-23: unused variable sep
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 227, characters 34-36: unused variable xs
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 233, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 242, characters 26-30: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 258, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 255, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 249, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 402, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 396, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 393, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 424, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 418, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 415, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 427, characters 46-50: unused variable self
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 427, characters 64-69: unused variable stmts
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 429, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 467, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 461, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 455, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 505, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 498, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 528, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 522, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 519, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 577, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 571, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 565, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 580, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 580, characters 61-66: unused variable stmts
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 582, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 672, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 712, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 706, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 700, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 715, characters 43-47: unused variable self
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 715, characters 61-66: unused variable stmts
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 717, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 775, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 769, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 763, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 883, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 875, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 868, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 955, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 949, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 943, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1025, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1019, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1008, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1003, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1049, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1043, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1040, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1071, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1065, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1062, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1093, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1087, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1084, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1115, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1109, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1106, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1121, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1130, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1146, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1143, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1137, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1151, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1160, characters 26-30: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1169, characters 21-25: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1185, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1182, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1176, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1206, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1200, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1197, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1228, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1222, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1219, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1250, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1244, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1241, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1253, characters 30-34: unused variable self
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1255, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1278, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1272, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1269, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1300, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1294, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1291, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1338, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1331, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1324, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1345, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1354, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1370, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1367, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1361, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1375, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1384, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1400, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1397, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1391, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1405, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1421, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1418, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1412, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1426, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1442, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1439, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1433, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1447, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1463, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1460, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1454, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1468, characters 28-32: unused variable rest
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1484, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1481, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_48hppima.mlw", line 1475, characters 32-36: unused variable result
+
+[-] 6 goal(s) remain unproven after all provers:
+    Prover result is: Timeout (30.00s, 26130298 steps).
+    Prover result is: Timeout (30.00s, 27954812 steps).
+    Prover result is: Timeout (30.00s, 27437981 steps).
+    Prover result is: Timeout (30.00s, 27994869 steps).
+    Prover result is: Timeout (30.00s, 28238293 steps).
+    Prover result is: Timeout (30.00s, 27728295 steps).
+
+[-] Verification FAILED or INCOMPLETE. Check the solver output.
+EXIT=1

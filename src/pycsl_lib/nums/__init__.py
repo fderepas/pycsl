@@ -32,8 +32,14 @@ def floordiv(x: int, y: int) -> int:
     return x // y
 
 
+# (#49) gen #30: `requires gcd(num, den) == 1` is the guard this claim always needed.
+# MEASURED: `Fraction(2, 4).numerator` is 1, NOT 2 — `Rational` NORMALISES, and the old
+# guards `num >= 0` / `den > 0` do not imply coprimality. The clause was therefore false
+# of the cited property for every un-reduced pair. `gcd` is the module's own fully-proven
+# Euclidean function, whose contract already names `gcd(a, b)` in its own `ensures`.
 #@ requires num >= 0
 #@ requires den > 0
+#@ requires gcd(num, den) == 1
 #@ ensures \result >= 0
 #@ ensures \result == num
 def rational_num(num: int, den: int) -> int:
@@ -41,8 +47,11 @@ def rational_num(num: int, den: int) -> int:
     return num
 
 
+# (#49) gen #30: same normalisation guard as `rational_num` —
+# `Fraction(2, 4).denominator` is 2, not 4.
 #@ requires num >= 0
 #@ requires den > 0
+#@ requires gcd(num, den) == 1
 #@ ensures \result > 0
 #@ ensures \result == den
 def rational_den(num: int, den: int) -> int:

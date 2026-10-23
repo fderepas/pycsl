@@ -1,0 +1,60 @@
+(* Oracle for parser-primitives-wall.md §7.
+   Model: a _tok RECORD + a `seq _tok` token stream + int index.
+   Primitives lowered to Seq.get / record projectors / str-eq disjunction / index-increment.
+   NO axiom, NO abstract val beyond seq.Seq / string stdlib. *)
+
+module ParserOracle
+  use int.Int
+  use seq.Seq
+  use string.String  (* for the string type + literals + equality *)
+
+  (* ---- 1. the token record ---- *)
+  type tok = {
+    tok_type   : int;
+    tok_string : string;
+    tok_start  : int;
+    tok_end    : int;
+  }
+
+  (* the OP / NAME token-kind constants (real tokenize codes; concrete => distinctness
+     is PROVABLE, no axiom, no abstract val => ledger-clean) *)
+  constant op_const   : int = 54
+  constant name_const : int = 1
+
+  (* ---- 2. a concrete built stream:  index0 = OP "(" , index1 = NAME "x" ---- *)
+  function built_stream : seq tok =
+    Seq.cons { tok_type = op_const;   tok_string = "("; tok_start = 0; tok_end = 1 }
+   (Seq.cons { tok_type = name_const; tok_string = "x"; tok_start = 1; tok_end = 2 }
+    (Seq.empty : seq tok))
+
+  (* ---- 3a. LOGIC primitives ---- *)
+  function cur (toks: seq tok) (i: int) : tok = Seq.get toks i
+
+  (* str membership modelled as a str-eq disjunction over 1-2 literals *)
+  predicate str_mem1 (s: string) (v0: string) = (s = v0)
+
+  predicate at_op1 (toks: seq tok) (i: int) (v0: string) =
+    (tok_type (Seq.get toks i) = op_const) /\ str_mem1 (tok_string (Seq.get toks i)) v0
+
+  (* ---- 4. LOGIC goals ---- *)
+  goal cur_field    : tok_string (cur built_stream 0) = "("
+  goal at_op_true   : at_op1 built_stream 0 "("
+  goal at_op_false  : not (at_op1 built_stream 1 "(")
+  goal evil_twin    : tok_string (cur built_stream 0) = "wrong"   (* MUST be Unknown/invalid *)
+
+  (* ---- 3b/6b. PROGRAM `let` primitives — THE OOB QUESTION ----
+     fixed contract shape: requires True / ensures True.
+     Does Seq.get in program position force 0 <= i < length toks ? *)
+
+  let cur_prog (toks: seq tok) (i: int) : tok
+    requires { true }
+    ensures  { true }
+  = Seq.get toks i
+
+  let peek_prog (toks: seq tok) (i: int) (k: int) : tok
+    requires { true }
+    ensures  { true }
+  = if i + k < Seq.length toks then Seq.get toks (i + k)
+    else Seq.get toks (Seq.length toks - 1)
+
+end

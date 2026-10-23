@@ -1,0 +1,33 @@
+FOUND(#43): ROUTE #21 — the TRYFINAL-9 residue is exploitable; `finally` is dropped whenever handlers are present
+
+The second ratchet in a row whose green number had never been probed (route #20 was the
+first, CTXBIND-50).
+
+    #@ ensures \result == 2                    <-- FALSE OF THE PROGRAM
+    def f() -> int:
+        x: int = 1
+        try:
+            x = 2
+        except ValueError:
+            x = 9
+        finally:
+            x = 3
+        return x
+
+    [+] Verification SUCCESS! All contracts formally proven.
+
+Python returns 3. Module 6's `_handle_try_stmt` reads `stmt.body` and `stmt.handlers` and
+neither `finalbody` nor `orelse`; #33 emits the `finally` in the ONE case it could — no
+handlers, and no jump out of the lowered body — and `check-dropped-mutation.py` has counted
+the rest as `TRYFINAL = 9` ever since, without anyone probing them.
+
+THE CONTROLS LOCALISE IT PRECISELY, which is what makes it a defect rather than a known
+limitation:
+  · the same file WITHOUT handlers correctly FAILS — that is #33's fixed case working;
+  · the `try/except/else` form also correctly FAILS.
+So the live gap is exactly `finally` PLUS handlers.
+
+Nothing is changed by this commit; it records the reproduction. Probes under
+`scratchpad/w8/probes/r21/`.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

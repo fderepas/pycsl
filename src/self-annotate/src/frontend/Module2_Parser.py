@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import List, Union, Any, Optional
+from typing import List, Union, Any, Optional, NoReturn
 from errors import PyCSLParseError
 ""  # pycsl
 @dataclass
@@ -43,9 +43,9 @@ class Act(CSLNode):
 class ForExpand(CSLNode):
     '`#@ for VAR in range(lo, hi):` (sugar-for-spec.md) — bounded macro-expansion.\n    Desugared in Module3 to ground requires/ensures: for each integer m in\n    [lo, hi), each body clause with VAR substituted by the literal m. lo/hi are\n    bound exprs (Number for v1); clauses are Requires/Ensures.'
     var: str
-    lo: CSLNode
-    hi: CSLNode
-    clauses: List[CSLNode]
+    lo: "ExprIR"
+    hi: "ExprIR"
+    clauses: List["ExprIR"]
 
 @dataclass
 class Complete(CSLNode):
@@ -66,8 +66,8 @@ class HappyProperty(CSLNode):
     "A module-level HAPPY (High-level Assertion-Producing PYthon requirement):\n    `#@ happy NAME: region LO .. HI writes self.FIELD outside region except f, g`.\n    Declares one cross-cutting region-disjointness property; Module3's meta-pass\n    expands it into a per-site `#@ check` (a `CheckPoint`) at every write site of\n    `self.FIELD` in every method other than the exempt set. Desugars entirely to\n    the Stage-A check primitive — no new IR/backend. See `meta.md` Stage B."
     name: str
     field: str
-    region_lo: CSLNode
-    region_hi: CSLNode
+    region_lo: "ExprIR"
+    region_hi: "ExprIR"
     except_set: List[str]
     context: str = 'writing'
     protects: Optional[List[str]] = None
@@ -92,14 +92,21 @@ class LoopVariant(ContractWrapper):
 
 @dataclass
 class BinOp(CSLNode):
-    left: CSLNode
+    # self-tcb-reduction spike (csl-ast-as-emit_ir): retyped left/right from `CSLNode`
+    # to the forward-ref `"ExprIR"` so Module5's `_field_type_from_annotation_inst`
+    # (via `_irnode_ann_name`) lowers the record fields to `emit_ir` instead of the
+    # opaque-tag `int` fallback — the SAME recognized mechanism `_e(self, ir:
+    # "ExprIR", ...)` already uses for params (expr_ghost_collections.py). Mirror-only
+    # (self-annotate-mirror-check.sh compares signatures by (kind,name,n_params), not
+    # annotations — corpus-inert by construction).
+    left: "ExprIR"
     op: str
-    right: CSLNode
+    right: "ExprIR"
 
 @dataclass
 class UnaryOp(SingleExprNode):
     op: str
-    expr: CSLNode
+    expr: 'ExprIR'
 
 @dataclass
 class Var(CSLNode):
@@ -119,7 +126,14 @@ class Result(CSLNode):
 
 @dataclass
 class Old(SingleExprNode):
-    expr: CSLNode
+    # isinstance-on-CSL-class recognizer (self-tcb-reduction M5): retyped `expr` from
+    # `CSLNode` to the forward-ref `"ExprIR"` so Module5's `_field_type_from_annotation_inst`
+    # lowers the record field to `emit_ir` — letting `_csl_old` read `node.expr` as an
+    # emit_ir node (the `isinstance(node.expr, CSLFieldAccess)` guard + `.object`/`.field`
+    # projections). Mirror-only (self-annotate-mirror-check compares signatures by
+    # (kind,name,n_params), not annotations — corpus-inert by construction), the BinOp
+    # left/right precedent verbatim.
+    expr: "ExprIR"
 
 @dataclass
 class Nothing(CSLNode):
@@ -134,14 +148,14 @@ class FieldAccess(CSLNode):
 class FieldSubscript(CSLNode):
     'Represents `self.<field>[i]` — subscript of an instance ARRAY field in a\n    contract. Enables region-preservation postconditions such as\n    `\\forall i; (lo <= i and i < hi) ==> self.disk[i] == \\old(self.disk[i])`\n    on a `\\trusted`/`\\abstract` writer (meta.md Stage B, option C).'
     field: str
-    index: CSLNode
+    index: 'ExprIR'
 
 @dataclass
 class GlobalFieldSubscript(CSLNode):
     "Represents `<global>.<field>[expr]` — subscript of a module-global record's\n    ARRAY field in a contract (spec-15 / gap-15 Wall B), e.g. `_filesystem.fd_inode[fd]`.\n    The sibling of `FieldSubscript` (`self.<field>[i]`) with a module-global instance\n    as the base instead of `self`. Lowers to `Subscript(Attribute(Var(obj), field), index)`,\n    riding the existing gap-10 global-field projection + spec-context `Array.get` machinery."
     obj: str
     field: str
-    index: CSLNode
+    index: 'ExprIR'
 
 @dataclass
 class ClassInvariant(CSLNode):
@@ -150,21 +164,25 @@ class ClassInvariant(CSLNode):
 @dataclass
 class SubscriptAccess(CSLNode):
     array: str
-    index: CSLNode
+    index: 'ExprIR'
 
 @dataclass
 class Forall(QuantifierNode):
     var: str
-    body: CSLNode
+    # optional-field builder (monomorphic-option ADTs): `body` retyped `CSLNode`
+    # -> `"ExprIR"` (record field `emit_ir`); `domain` retyped `Optional[CSLNode]`
+    # -> `Optional["ExprIR"]` (record field `option emit_ir`). `binder_type` stays
+    # `Optional[str]` -> `option string`. See live Module2_Parser.py.
+    body: "ExprIR"
     binder_type: Optional[str] = None
-    domain: Optional[CSLNode] = None
+    domain: Optional["ExprIR"] = None
 
 @dataclass
 class Exists(QuantifierNode):
     var: str
-    body: CSLNode
+    body: "ExprIR"
     binder_type: Optional[str] = None
-    domain: Optional[CSLNode] = None
+    domain: Optional["ExprIR"] = None
 
 @dataclass
 class ArrayLength(CSLNode):
@@ -184,22 +202,22 @@ class InScope(CSLNode):
 class AssignsRegion(CSLNode):
     'Represents `arr[lo..hi]` inside an assigns clause (frame condition region).'
     base: str
-    low: CSLNode
-    high: CSLNode
+    low: 'ExprIR'
+    high: 'ExprIR'
 
 @dataclass
 class Valid(CSLNode):
     'Represents `\\valid(arr, n)` — memory region [arr, arr+n) is allocated.'
     base: str
-    length: CSLNode
+    length: 'ExprIR'
 
 @dataclass
 class Separated(CSLNode):
     "Represents `\\separated(a, na, b, nb)` — regions [a,a+na) and [b,b+nb) don't overlap."
     base1: str
-    length1: CSLNode
+    length1: 'ExprIR'
     base2: str
-    length2: CSLNode
+    length2: 'ExprIR'
 
 @dataclass
 class Label(CSLNode):
@@ -216,27 +234,27 @@ class CheckPoint(CSLNode):
 @dataclass
 class At(CSLNode):
     'Represents `\\at(expr, L)` — value of expr at program point L.'
-    expr: CSLNode
+    expr: 'ExprIR'
     label: str
 
 @dataclass
 class Length2D(CSLNode):
     'Represents `\\length2d(arr, m, n)` — arr has m rows each of length n.'
     base: str
-    rows: CSLNode
-    cols: CSLNode
+    rows: 'ExprIR'
+    cols: 'ExprIR'
 
 @dataclass
 class Valid2D(CSLNode):
     'Represents `\\valid2d(arr, i, j)` — (i,j) is a valid 2D index into arr.'
     base: str
-    row: CSLNode
-    col: CSLNode
+    row: 'ExprIR'
+    col: 'ExprIR'
 
 @dataclass
 class FunctionVariant(CSLNode):
     'Represents `#@ \\variant <expr>` or `#@ \\variant (<expr>, <ordering>)`.'
-    expr: CSLNode
+    expr: 'ExprIR'
     ordering: Optional[str] = None
 
 @dataclass
@@ -311,8 +329,8 @@ class CSLIn(CSLNode):
 @dataclass
 class CSLNotIn(CSLNode):
     'Represents `x not in arr` negated membership test in contracts.'
-    element: CSLNode
-    collection: CSLNode
+    element: 'ExprIR'
+    collection: 'ExprIR'
 
 @dataclass
 class DictView(CSLNode):
@@ -326,53 +344,63 @@ class ForallItems(QuantifierNode):
     key: str
     val: str
     coll: str
-    body: CSLNode
+    body: 'ExprIR'
 
 @dataclass
 class CSLSlice(CSLNode):
     'Represents `arr[lo:hi]` slice notation in contracts.'
     collection: str
-    low: CSLNode
-    high: CSLNode
+    low: 'ExprIR'
+    high: 'ExprIR'
 
 @dataclass
 class ChainedSubscript(CSLNode):
     'Represents `arr[i][j]` chained subscript access (2D array element).'
     array: str
-    index1: CSLNode
-    index2: CSLNode
+    index1: 'ExprIR'
+    index2: 'ExprIR'
 
 @dataclass
 class CallExpr(CSLNode):
     'Represents a function call in a contract expression.'
     func: str
-    args: List[CSLNode]
+    # variadic content-law comprehension (FABLE-sanctioned): `args` is a list of
+    # already-lowered ExprIR children (the emitter's `_csl_call_expr` maps
+    # `self._csl_to_ir` over them). Retyped `List[CSLNode]` -> `List["ExprIR"]` so the
+    # imported record field is `array emit_ir` (value_type "emit_ir", the
+    # `_m5_get_list_elem_type` forward-ref path — same as `MkTupleExpr.elts`), letting
+    # the emit_ir dispatcher comprehension `[self._csl_to_ir(a) for a in node.args]`
+    # lower with both a length law and a per-index content law over the shared
+    # `emit_ir_disp__csl_to_ir`, then build the `IrCallN string irlist` ctor. Signature-
+    # only retype (string forward-ref, no runtime effect); the parser still fills `args`
+    # with CSL AST nodes, which the emitter lowers.
+    args: List["ExprIR"]
 
 @dataclass
 class IsSorted(CSLNode):
     'Represents `\\is_sorted(a, lo, hi)` — array is sorted in range.'
     base: str
-    lo: CSLNode
-    hi: CSLNode
+    lo: 'ExprIR'
+    hi: 'ExprIR'
 
 @dataclass
 class ArrayEq(CSLNode):
     'Represents `\\array_eq(a, b)` — two arrays have equal length and\n    equal elements at every index (extensional content equality).'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class Permutation(CSLNode):
     'Represents `\\permutation(a, b)` — `a` is a permutation of `b` (same\n    multiset of elements). Unlike `\\array_eq` it does NOT unfold to a\n    first-order formula; it lowers to an uninterpreted Why3 `predicate permut`\n    that a proof-assistant-imported axiom constrains (no-more-int A2b Gap 1).'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class Sum(CSLNode):
     'Represents `\\sum(a, lo, hi)` — sum of array elements in range.'
     base: str
-    lo: CSLNode
-    hi: CSLNode
+    lo: 'ExprIR'
+    hi: 'ExprIR'
 
 @dataclass
 class GhostAssignDecl(CSLNode):
@@ -385,22 +413,31 @@ class GhostAssignDecl(CSLNode):
 @dataclass
 class MkTupleExpr(CSLNode):
     '\\mktuple(a, b[, c[, d]]) — construct a ghost tuple.'
-    elts: List[CSLNode]
+    # variadic content-law comprehension (FABLE-sanctioned): `elts` is a list of
+    # already-lowered ExprIR children (the emitter's `_csl_mktuple` maps
+    # `self._csl_to_ir` over them). Retyped `List[CSLNode]` -> `List["ExprIR"]` so
+    # the imported record field is `array emit_ir` (value_type "emit_ir", the
+    # `_m5_get_list_elem_type` forward-ref path), letting the emit_ir dispatcher
+    # comprehension `[self._csl_to_ir(e) for e in node.elts]` lower with both a
+    # length law and a per-index content law over the shared `emit_ir_disp__csl_to_ir`.
+    # Signature-only retype (matches the `_csl_to_ir` param's own `"ExprIR"`); the
+    # parser still fills `elts` with CSL AST nodes, which the emitter lowers.
+    elts: List["ExprIR"]
 
 @dataclass
 class FstExpr(CSLNode):
     '\\fst(t) — first component of a ghost tuple.'
-    tuple_expr: CSLNode
+    tuple_expr: 'ExprIR'
 
 @dataclass
 class SndExpr(CSLNode):
     '\\snd(t) — second component of a ghost tuple.'
-    tuple_expr: CSLNode
+    tuple_expr: 'ExprIR'
 
 @dataclass
 class ProjExpr(CSLNode):
     '\\proj(t, i) — ith component of a ghost tuple (i must be a literal).'
-    tuple_expr: CSLNode
+    tuple_expr: 'ExprIR'
     index: CSLNode
 
 @dataclass
@@ -419,20 +456,20 @@ class CtorPayload(CSLNode):
 @dataclass
 class StrConcatExpr(CSLNode):
     's ^ t — string concatenation in ghost / contract context.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class StrLengthExpr(CSLNode):
     '\\str_length(s) — length of a ghost string variable.'
-    string: CSLNode
+    string: 'ExprIR'
 
 @dataclass
 class StrSubExpr(CSLNode):
     '\\str_sub(s, lo, hi) — substring of ghost string s from lo to hi.'
-    string: CSLNode
-    lo: CSLNode
-    hi: CSLNode
+    string: 'ExprIR'
+    lo: 'ExprIR'
+    hi: 'ExprIR'
 
 @dataclass
 class GhostCopyExpr(CSLNode):
@@ -443,14 +480,14 @@ class GhostCopyExpr(CSLNode):
 class GhostCopyRangeExpr(CSLNode):
     '\\copy_range(arr, lo, hi) — bounded snapshot: arr[lo..hi-1] into a new ghost array.'
     arr: str
-    lo: CSLNode
-    hi: CSLNode
+    lo: 'ExprIR'
+    hi: 'ExprIR'
 
 @dataclass
 class GhostMakeExpr(CSLNode):
     '\\make(n, v) — create a ghost array of length n filled with v.'
-    size: CSLNode
-    default: CSLNode
+    size: 'ExprIR'
+    default: 'ExprIR'
 
 @dataclass
 class MapEmptyExpr(CSLNode):
@@ -459,33 +496,33 @@ class MapEmptyExpr(CSLNode):
 @dataclass
 class MapGetExpr(CSLNode):
     '\\map_get(d, k) — look up key k in ghost dict d.'
-    dict_expr: CSLNode
-    key: CSLNode
+    dict_expr: 'ExprIR'
+    key: 'ExprIR'
 
 @dataclass
 class MapSetExpr(CSLNode):
     '\\map_set(d, k, v) — return ghost dict d with d[k] := v.'
-    dict_expr: CSLNode
-    key: CSLNode
-    value: CSLNode
+    dict_expr: 'ExprIR'
+    key: 'ExprIR'
+    value: 'ExprIR'
 
 @dataclass
 class MapEqExpr(CSLNode):
     '\\map_eq(d1, d2) — extensional equality of two ghost dicts.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class HasKeyExpr(CSLNode):
     '\\has_key(d, k) — true iff ghost dict d has a present (non-None) value at key k.'
-    dict_expr: CSLNode
-    key: CSLNode
+    dict_expr: 'ExprIR'
+    key: 'ExprIR'
 
 @dataclass
 class MapRemoveExpr(CSLNode):
     '\\map_remove(d, k) — return ghost dict d with key k removed (set to None/absent).'
-    dict_expr: CSLNode
-    key: CSLNode
+    dict_expr: 'ExprIR'
+    key: 'ExprIR'
 
 @dataclass
 class SetEmptyExpr(CSLNode):
@@ -494,57 +531,57 @@ class SetEmptyExpr(CSLNode):
 @dataclass
 class SetAddExpr(CSLNode):
     '\\set_add(s, x) — ghost set with x added.'
-    set_expr: CSLNode
-    elem: CSLNode
+    set_expr: 'ExprIR'
+    elem: 'ExprIR'
 
 @dataclass
 class SetRemoveExpr(CSLNode):
     '\\set_remove(s, x) — ghost set with x removed.'
-    set_expr: CSLNode
-    elem: CSLNode
+    set_expr: 'ExprIR'
+    elem: 'ExprIR'
 
 @dataclass
 class SetMemExpr(CSLNode):
     '\\set_mem(x, s) — x is a member of ghost set s.'
-    elem: CSLNode
-    set_expr: CSLNode
+    elem: 'ExprIR'
+    set_expr: 'ExprIR'
 
 @dataclass
 class SetUnionExpr(CSLNode):
     '\\set_union(s1, s2) — union of two ghost sets.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class SetInterExpr(CSLNode):
     '\\set_inter(s1, s2) — intersection of two ghost sets.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class SetDiffExpr(CSLNode):
     '\\set_diff(s1, s2) — set difference s1 \\ s2.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class SetCardExpr(CSLNode):
     '\\set_card(s, lo, hi) — cardinality of s restricted to [lo, hi).'
-    set_expr: CSLNode
-    lo: CSLNode
-    hi: CSLNode
+    set_expr: 'ExprIR'
+    lo: 'ExprIR'
+    hi: 'ExprIR'
 
 @dataclass
 class SetSubsetExpr(CSLNode):
     '\\set_subset(s1, s2) — s1 is a subset of s2.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class SetEqExpr(CSLNode):
     '\\set_eq(s1, s2) — extensional equality of two ghost sets.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class NilExpr(CSLNode):
@@ -553,41 +590,41 @@ class NilExpr(CSLNode):
 @dataclass
 class ConsExpr(CSLNode):
     '\\cons(x, l) — prepend x to ghost list l.'
-    head: CSLNode
-    tail: CSLNode
+    head: 'ExprIR'
+    tail: 'ExprIR'
 
 @dataclass
 class HdExpr(CSLNode):
     '\\hd(l) — head of ghost list l (requires l non-empty).'
-    list_expr: CSLNode
+    list_expr: 'ExprIR'
 
 @dataclass
 class TlExpr(CSLNode):
     '\\tl(l) — tail of ghost list l (requires l non-empty).'
-    list_expr: CSLNode
+    list_expr: 'ExprIR'
 
 @dataclass
 class ListLengthExpr(CSLNode):
     '\\list_length(l) — length of ghost list l.'
-    list_expr: CSLNode
+    list_expr: 'ExprIR'
 
 @dataclass
 class NthExpr(CSLNode):
     '\\nth(l, i) — ith element of ghost list l (requires 0 <= i < length).'
-    list_expr: CSLNode
-    index: CSLNode
+    list_expr: 'ExprIR'
+    index: 'ExprIR'
 
 @dataclass
 class MemExpr(CSLNode):
     '\\mem(x, l) — x appears in ghost list l.'
-    elem: CSLNode
-    list_expr: CSLNode
+    elem: 'ExprIR'
+    list_expr: 'ExprIR'
 
 @dataclass
 class AppendExpr(CSLNode):
     '\\append(l1, l2) — concatenation of two ghost lists.'
-    left: CSLNode
-    right: CSLNode
+    left: 'ExprIR'
+    right: 'ExprIR'
 
 @dataclass
 class GhostArraySetDecl(CSLNode):
@@ -716,33 +753,52 @@ class LockOrder(CSLNode):
     'Represents `lock_order M1, M2, ...` — total order on mutex acquisition to prevent deadlock.'
     order: List[str]
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _csl_to_str(node: CSLNode) -> str:
-    return ""
+def _csl_to_str(node: "ExprIR") -> str:
+    if isinstance(node, Var):
+        return node.name
+    if isinstance(node, Number):
+        return str(int(node.value))
+    if isinstance(node, BinOp):
+        return f"{_csl_to_str(node.left)}{node.op}{_csl_to_str(node.right)}"
+    return "?"
 
 import os as _os
 import re as _re
 class _ContractSyntaxError(Exception):
     'Internal syntax error raised by `_ContractParser`; converted to\n    `PyCSLParseError` at the `Module2_Parser` boundary.'
 
+# Mirror-only infra shim (see bin/self-annotate-mirror-check.sh MIRROR_ONLY): marks the
+# token-cursor `_ContractParser` as a stateful record so its `toks`/`i` fields lower to
+# `mutable toks: array _tok` / `mutable i: int`.
+def mutable_state(cls):
+    return cls
+
+
 class _Tok:
     __slots__ = ('type', 'string', 'start')
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, type_, string, start):
-        pass
+        self.type: str = type_
+        self.string: str = string
+        self.start: int = start
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def __repr__(self):
-        pass
+    # (#49) gen #31 — THE MARKER IS RETIRED. It was added the day dunders first became
+    # emittable and was never a proof failure: the def had no return annotation, the
+    # emitter typed it `int`, and the body returns an f-string (`This expression has type
+    # string, but is expected to have type int`). Backlog item #51 named the retiring
+    # capability exactly — "annotate the LIVE twin `-> str`" — and that is what happened:
+    # `src/pycsl/frontend/Module2_Parser.py` now says `def __repr__(self) -> str:`, this
+    # mirror twin matches it verbatim, and the method PROVES.
+    def __repr__(self) -> str:
+        return f"_Tok({self.type}, {self.string!r})"
 
 
 _OP_ALTERNATIVES = ['==>', '<==>', '//', '..', '+=', '-=', '*=', '->', '==', '!=', '>=', '<=', '+', '-', '*', '/', '%', '^', ':', ',', ';', '(', ')', '[', ']', '=', '.', '<', '>', '|']
@@ -759,563 +815,996 @@ _EQ_OPS = ('==', '!=')
 _COMP_OPS = ('>', '<', '>=', '<=')
 _ADD_OPS = ('+', '-')
 _MUL_OPS = ('*', '//', '/', '%')
+#@ class invariant 0 <= self.i
+#@ class invariant self.i < \length(self.toks)
+#@ class invariant \length(self.toks) >= 1
+# The lexer's EOF SENTINEL, read straight off `_lex_contract`: its last act is
+# `toks.append(_Tok("EOF", "", n))`, so the final token is ALWAYS EOF. It is the
+# property that makes the cursor's `while self.at_op(...)` loops TERMINATE — the
+# sentinel is not an OP and not a NAME, so a true loop guard forces
+# `self.i < \length(self.toks) - 1`, hence `advance` really increments and the
+# variant `\length(self.toks) - self.i` strictly decreases. Not a narrowing: the
+# live lexer establishes it unconditionally on every path that returns.
+#@ class invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+@mutable_state
 class _ContractParser:
     'Recursive-descent parser over `_Tok` producing `CSLNode` trees.\n\n    One method per grammar rule; each builds the SAME `CSLNode` the\n    corresponding `PyCSLTransformer` method built. Dispatch is on the leading\n    keyword / backslash-name of the contract.\n    '
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i, self.source, self.toks
     def __init__(self, source: str):
-        pass
+        toks, raw = _lex_contract(source)
+        self.toks: List[_Tok] = toks
+        self.i: int = 0
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures \result == self.toks[self.i]
+    #@ assigns \nothing
+    def cur(self) -> _Tok:
+        return self.toks[self.i]
+
+    # `k >= 0` is a genuine PARTIALITY boundary, read off the live body: the in-range
+    # read `self.toks[j]` is guarded ONLY from above (`j < len(self.toks)`), so a
+    # negative `k` makes `j` negative and Python silently reads from the END of the
+    # list — a different token than "the one `k` ahead". The live call site passes the
+    # default `1`. Not a convenience narrowing.
+    #@ requires k >= 0
+    #@ ensures True
+    #@ assigns \nothing
+    def peek(self, k=1) -> _Tok:
+        j = self.i + k
+        return self.toks[j] if j < len(self.toks) else self.toks[-1]
+
+    #@ requires True
+    #@ ensures \old(self.i) < \length(self.toks) - 1 ==> self.i == \old(self.i) + 1
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def advance(self) -> _Tok:
+        t = self.toks[self.i]
+        if self.i < len(self.toks) - 1:
+            self.i += 1
+        return t
+
+    #@ requires True
+    #@ ensures \result != False ==> self.toks[self.i].py_type == "OP"
+    #@ assigns \nothing
+    def at_op(self, *vals: str) -> bool:
+        t = self.cur()
+        return t.type == 'OP' and (not vals or t.string in vals)
+
+    #@ requires True
+    #@ ensures \result != False ==> self.toks[self.i].py_type == "NAME"
+    #@ assigns \nothing
+    def at_name(self, *vals: str) -> bool:
+        t = self.cur()
+        return t.type == 'NAME' and (not vals or t.string in vals)
+
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def cur(self):
-        pass
+    def at_bs(self, *vals: str) -> bool:
+        t = self.cur()
+        return t.type == 'BSNAME' and (not vals or t.string in vals)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def peek(self, k=1):
-        pass
+    def at_eof(self) -> bool:
+        return self.cur().type == 'EOF'
+
+    #@ requires True
+    #@ ensures \result != None ==> self.i > \old(self.i)
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def accept_op(self, val: str) -> Optional[_Tok]:
+        if self.at_op(val):
+            return self.advance()
+        return None
+
+    #@ requires True
+    # FAITHFUL MONOTONICITY (was `ensures True`): `expect_op` moves `self.i` only
+    # through `advance` (`self.i >= \old(self.i)`) on the success path; the failure
+    # path is `self._err(...)` which is `-> NoReturn` (diverges, never returns
+    # normally). So `self.i >= \old(self.i)` is a REAL property of the live body —
+    # the same monotonicity `expect_name`/`accept_op`/`advance` already export. It
+    # lets a converted caller whose live body ends in `self.expect_op(...)` (e.g.
+    # `_parse_mixin_type`'s `expect_op("]")` tail) discharge its own monotonicity
+    # postcondition across this sibling call.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def expect_op(self, val: str) -> _Tok:
+        if not self.at_op(val):
+            self._err(f"expected {val!r}")
+        return self.advance()
+
+    #@ requires True
+    # Monotonicity is a REAL property of the token cursor: `expect_name` moves
+    # `self.i` only through `advance` (`self.i >= \old(self.i)`); `_err` is
+    # `assigns \nothing`, `at_name` is `assigns \nothing`. This is what lets the
+    # `while self.accept_op("."): … self.expect_name()` loops (`_parse_qualname`,
+    # `_parse_dotted_path`) discharge their `\length(self.toks) - self.i` variant,
+    # exactly as the expression-chain RHS helpers (`_parse_impl_rhs`, …) do.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def expect_name(self, val: str = None) -> str:
+        if not self.at_name() or (val is not None and not self.at_name(val)):
+            self._err(f"expected name {val!r}" if val else "expected name")
+        return self.advance().string
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def expect_bs(self, val: str) -> str:
+        if not self.at_bs(val):
+            self._err(f"expected {val!r}")
+        return self.advance().string
 
     #@ \trusted reviewer: pycsl-self-annotate
+    # (#49) gen #31 — RE-TRUSTED. `bin/check-emitted-vacuity.py`:
+    #     _contractparser___err  erased=['msg'] of ['msg']   -- INPUT-BLIND
+    # and `bin/check-shadowed-selfcalls.py` adds that 7 call sites still route through the
+    # abstract `val self__err_1`. The conversion was proved, sound and invisible: no caller
+    # sees the body and the body sees nothing of its argument.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def advance(self):
-        pass
+    # DIVERGENCE MODEL (_err-divergence run): the LIVE `_err` body is
+    # `t = self.cur(); raise _ContractSyntaxError(...)` — an UNCONDITIONAL raise, so it
+    # NEVER returns normally. The `-> NoReturn` annotation records that faithfully: Module5
+    # sets is_noreturn (NR1), Module6 gives the abstract op `ensures { false }` and lowers a
+    # `self._err(...)` call to `(let _ = <call> in absurd)` (continuation UNREACHABLE). This
+    # is what lets a clause parser whose live body ends in a trailing `self._err(...)` with
+    # no following return (e.g. `_parse_loop`) type-check as `-> ExprIR` — the raising path
+    # yields the branch's emit_ir type via the divergence, not a spurious `unit`.
+    # STAYS `\trusted` — and #31 measured exactly WHY, which the earlier record did not.
+    # With the signature-preserving probe the body DOES type-check and emit as a real
+    # `let ... : unit ensures { false } raises { ContractSyntaxError }`. It was converted,
+    # then REVERTED by two planes in succession:
+    #   (1) SHADOWED-SELFCALLS: all seven `self._err(...)` sites routed through
+    #       `val self__err_1` (14 -> 15). The documented repair `#@ sibling_concrete`
+    #       works — it needed an emitter fix so the concrete route carries the `-> NoReturn`
+    #       divergence wrapper, and a 32-method `#@ raises ContractSyntaxError` fixpoint —
+    #       and then
+    #   (2) NON-VACUITY refuted it outright: `erased=['msg'] of ['msg']`. The whole body is
+    #       `raise _ContractSyntaxError(f"{msg} ...")`, the exception payload is not
+    #       modelled, so the emitted body IGNORES ITS ONLY ARGUMENT. A conversion that
+    #       computes nothing from its input is a facade however well it type-checks.
+    # REOPENING CAPABILITY: an exception PAYLOAD in the model (the raise would then consume
+    # `msg`). The `#@ sibling_concrete` + noreturn + raises machinery is already built and
+    # landed, so only the payload is missing.
+    def _err(self, msg: str) -> NoReturn:
+        t = self.cur()
+        raise _ContractSyntaxError(f"{msg} (got {t.type} {t.string!r})")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
+    # FAITHFUL FRAME (was `assigns \nothing`, which the live body contradicts — the
+    # `except _ContractSyntaxError` path does `self.i = saved`).
+    # HIGHER-ORDER LIMITATION: `_try(fn)` calls `fn()`, so its true frame is
+    # `self.i` UNION whatever `fn` writes. The frame below is exact only because the
+    # live class has a SINGLE `_try` call site — `self._try(self._parse_assigns_region)`
+    # — and `_parse_assigns_region`'s transitive frame is itself `{self.i}` (in the
+    # live `_ContractParser`, only `__init__`, `advance`, `_try` and `_grab_reviewer_id`
+    # write a self field, and all four write only `self.i`; `self.toks` is written
+    # exclusively by `__init__`). It is NOT a frame valid for an arbitrary `fn`; a new
+    # `_try` call site with a wider callee INVALIDATES it.
+    # NO monotonicity `ensures` here: `self.i = saved` can DECREASE `self.i`. `_try` is
+    # precisely the backtracking site the expression chain's monotonicity relies on
+    # being unreachable.
     #@ ensures True
-    #@ assigns \nothing
-    def at_op(self, *vals):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def at_name(self, *vals):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def at_bs(self, *vals):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def at_eof(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def accept_op(self, val):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def expect_op(self, val):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def expect_name(self, val=None):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def expect_bs(self, val):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _err(self, msg):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _try(self, fn):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def parse(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_contract(self):
         pass
 
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_loop(self) -> "ExprIR":
+        self.expect_name("loop")
+        if self.at_name("invariant"):
+            self.advance(); return LoopInvariant(self._parse_expr())
+        if self.at_name("variant"):
+            self.advance(); return LoopVariant(self._parse_expr())
+        self._err("expected 'invariant' or 'variant' after 'loop'")
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_class_invariant(self) -> "ExprIR":
+        self.expect_name("class")
+        self.expect_name("invariant")
+        return ClassInvariant(self._parse_expr())
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_function_variant(self) -> "ExprIR":
+        self.expect_bs("\\variant")
+        if self.at_op("("):
+            self.advance()
+            e = self._parse_expr()
+            self.expect_op(",")
+            ordering = self.expect_name()
+            self.expect_op(")")
+            return FunctionVariant(e, ordering)
+        return FunctionVariant(self._parse_expr())
+
+    # CONVERTED (gen #36 ch7). Verbatim live body; no emitter change. Same shape as
+    # `_parse_assumes`: the live `def` is unannotated, so the stub typed it `unit`; the mirror's
+    # `-> Trusted` is the record every path returns. Its one blocker was the STILL-TRUSTED
+    # sibling below, whose `pass` body typed `reviewer = self._grab_reviewer_id()` as `()`
+    # against the string local; that stub's interface now says `-> str` (the live body returns
+    # `m.group(0)`), and it stays `\trusted`.
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_trusted(self) -> Trusted:
+        self.expect_bs("\\trusted")
+        reviewer = ""
+        if self.at_name("reviewer"):
+            self.advance()
+            self.expect_op(":")
+            reviewer = self._grab_reviewer_id()
+        return Trusted(reviewer=reviewer)
+
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _parse_loop(self):
+    #@ assigns self.i
+    def _grab_reviewer_id(self) -> str:
+        pass
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_ghost(self) -> "ExprIR":
+        self.expect_name("ghost")
+        name = self.expect_name()
+        if self.accept_op(":"):
+            gtype = self.expect_name()  # GHOST_TYPE
+            self.expect_op("=")
+            return GhostAssignDecl(name, self._parse_expr(), "=", declared_type=gtype)
+        if self.at_op("+=") or self.at_op("-=") or self.at_op("*="):
+            op = self.advance().string
+            return GhostAssignDecl(name, self._parse_expr(), op)
+        if self.at_op("["):
+            self.advance()
+            index = self._parse_expr()
+            self.expect_op("]")
+            self.expect_op("=")
+            return GhostArraySetDecl(name, index, self._parse_expr())
+        self.expect_op("=")
+        return GhostAssignDecl(name, self._parse_expr(), "=")
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_raises(self) -> "ExprIR":
+        self.expect_name("raises")
+        exc = self.expect_name()
+        self.expect_name("when")
+        return RaisesDecl(exc, self._parse_expr())
+
+    # CONVERTED (gen #36 ch9). Verbatim live body. Blocked at base by the EARLY RETURN OF A
+    # RECORD (`raise (Return <noexceptiondecl>)` against `exception Return int`: L3-tc), now
+    # lowered by the 811f401f seam to an if-then-else expression (every return is in tail
+    # position). The live `def` is unannotated; the mirror's `-> NoExceptionDecl` is the
+    # record both paths return (the fidelity plane de-annotates).
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_no_exception(self) -> NoExceptionDecl:
+        self.expect_name("no_exception")
+        if self.at_bs("\\all"):
+            self.advance()
+            return NoExceptionDecl(exceptions=[], all_form=True)
+        names = [self.expect_name()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            names.append(self.expect_name())
+        return NoExceptionDecl(exceptions=names, all_form=False)
+
+    # CONVERTED (gen #36 ch7). Verbatim live body. The live `def` is unannotated, so the
+    # `\trusted` stub's `pass` body typed it `unit` and the verbatim port returned a
+    # `boundedintdecl` record against an `int` return (the census L3TC-FAIL). The mirror's
+    # `-> BoundedIntDecl` is the modelling layer (the fidelity plane de-annotates) and is
+    # exactly what the body returns; no emitter change.
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_assumes(self) -> BoundedIntDecl:
+        self.expect_name("assumes")
+        self.expect_name("bounded_int")
+        self.expect_op("(")
+        size_tok = self.cur()
+        if size_tok.type != "NUMBER":
+            self._err("expected NUMBER in bounded_int(...)")
+        self.advance()
+        self.expect_op(")")
+        return BoundedIntDecl(int(size_tok.string))
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_proof(self) -> "ExprIR":
+        self.expect_name("proof")
+        prover = self.expect_name()  # PROVER_ID: rocq | lean
+        qualname = self._parse_qualname()
+        return ProofDecl(prover=prover, qualname=qualname)
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_qualname(self) -> str:
+        name = self.expect_name()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op("."):
+            name += "." + self.expect_name()
+        return name
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_interface(self) -> "ExprIR":
+        self.expect_name("interface")
+        if self.at_name("ensures"):
+            self.advance(); return InterfaceClause("ensures", Ensures(self._parse_expr()))
+        if self.at_name("requires"):
+            self.advance(); return InterfaceClause("requires", Requires(self._parse_expr()))
+        if self.at_name("assigns"):
+            self.advance(); return InterfaceClause("assigns", self._parse_assigns())
+        self._err("expected ensures/requires/assigns after 'interface'")
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    # Returns an `Assigns` contract-AST node; the `-> "ExprIR"` return annotation lets a
+    # converted caller (`_parse_interface`) bind it as an emit_ir payload (GAP #2 typed
+    # trusted-return, the `_parse_expr` precedent). Stays `\trusted` (builds an assigns
+    # target list — family-B list boundary); the annotation only makes the interface precise.
+    def _parse_assigns(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _parse_class_invariant(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_function_variant(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_trusted(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _grab_reviewer_id(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_ghost(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_raises(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_no_exception(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_assumes(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_proof(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_qualname(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_interface(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_assigns(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_assigns_target(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _parse_assigns_region(self):
-        pass
+    #@ assigns self.i
+    def _parse_assigns_region(self) -> "ExprIR":
+        name = self.expect_name()
+        self.expect_op("[")
+        lo = self._parse_expr()
+        self.expect_op("..")
+        hi = self._parse_expr()
+        self.expect_op("]")
+        return AssignsRegion(name, lo, hi)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_act_block(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _parse_for_block(self):
-        pass
+    #@ assigns self.i
+    def _parse_for_block(self) -> ForExpand:
+        self.expect_name("for")
+        var = self.expect_name()
+        self.expect_name("in")
+        self.expect_name("range")
+        self.expect_op("(")
+        e1 = self._parse_expr()
+        if self.accept_op(","):
+            lo, hi = e1, self._parse_expr()
+        else:
+            lo, hi = Number(0), e1
+        self.expect_op(")")
+        self.expect_op(":")
+        clauses = []
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_name("requires") or self.at_name("ensures"):
+            if self.at_name("requires"):
+                self.advance(); clauses.append(Requires(self._parse_expr()))
+            else:
+                self.advance(); clauses.append(Ensures(self._parse_expr()))
+        if not clauses:
+            self._err("for block requires at least one clause")
+        return ForExpand(var, lo, hi, clauses)
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_act_names(self) -> List[str]:
+        names = [self.expect_name()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            names.append(self.expect_name())
+        return names
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _parse_act_names(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_happy(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _parse_happy_region(self, name):
-        pass
+    #@ assigns self.i
+    def _parse_happy_region(self, name: str) -> HappyProperty:
+        self.expect_name("region")
+        lo = self._parse_expr()
+        self.expect_op("..")
+        hi = self._parse_expr()
+        if self.at_name("writes"):
+            mode = "writing"
+        elif self.at_name("reads"):
+            mode = "reading"
+        else:
+            self._err("expected 'writes' or 'reads' in happy region decl")
+        self.advance()
+        self.expect_name("self")
+        self.expect_op(".")
+        field = self.expect_name()
+        self.expect_name("outside")
+        self.expect_name("region")
+        except_set = self._parse_opt_except()
+        return HappyProperty(name, field, lo, hi, except_set, context=mode)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_happy_targets(self, name):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_opt_except(self) -> List[str]:
+        if self.at_name("except"):
+            self.advance()
+            return self._parse_act_names()
+        return []
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_dotted_path(self) -> str:
+        path = self.expect_name()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op("."):
+            path += "." + self.expect_name()
+        return path
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_dotted_path_list(self) -> List[str]:
+        paths = [self._parse_dotted_path()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            paths.append(self._parse_dotted_path())
+        return paths
+
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _parse_opt_except(self):
-        pass
+    #@ assigns self.i
+    def _parse_footprint(self) -> "ExprIR":
+        self.expect_name("footprint")
+        happy_name = self.expect_name()
+        self.expect_op("(")
+        arg = self._parse_expr()
+        self.expect_op(")")
+        return Footprint(happy_name, arg)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _parse_dotted_path(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_dotted_path_list(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_footprint(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_datatype(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_variant_def(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_inductive(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_inductive_rules(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _parse_shared_state(self):
-        pass
+    #@ assigns self.i
+    def _parse_shared_state(self) -> "ExprIR":
+        self.expect_name("shared_state")
+        name = self.expect_name()
+        self.expect_op(":")
+        ty = self._parse_mixin_type()
+        return SharedStateDecl(name, ty)
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_touches_field(self) -> "ExprIR":
+        self.expect_name("touches_field")
+        name = self.expect_name()
+        self.expect_op(":")
+        ty = self._parse_mixin_type()
+        return TouchesFieldDecl(name, ty)
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_depends_method(self, kind: str) -> "ExprIR":
+        self.advance()  # depends_method / requires_method
+        method = self.expect_name()
+        self.expect_op(":")
+        sig = self._parse_mixin_method_sig()
+        return MethodDependencyDecl(method, sig, kind)
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_compose_from(self) -> "ExprIR":
+        self.expect_name("compose_from")
+        names = [self.expect_name()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            names.append(self.expect_name())
+        return ComposeFromDecl(names)
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_conforms_to(self) -> "ExprIR":
+        self.expect_name("conforms_to")
+        names = [self.expect_name()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            names.append(self.expect_name())
+        return ConformsToDecl(names)
+
+    #@ requires True
+    # FAITHFUL MONOTONICITY: `_parse_mixin_type` is a recursive-descent rule over
+    # the token stream whose only cursor effect is `expect_name`/`advance`/
+    # `accept_op`/`expect_op` — all monotone (never backtrack; `_try` is not
+    # reachable from a mixin-type rule). So `self.i >= \old(self.i)` is a REAL
+    # structural property of the live body (what lets the converted
+    # `_parse_mixin_params`/`_parse_mixin_param` callers discharge their loop
+    # variant across this sibling call). CONVERTED via the banked `#@ \variant`
+    # recursive-descent key: the mandatory `expect_name` + `advance` under the
+    # `at_op("[")` guard strictly increments `self.i` before the FIRST recursive
+    # call (the token at `self.i` is an OP, the EOF sentinel is the last token, so
+    # `self.i < \length - 1` and `advance` gives `+1`), so the variant is
+    # well-founded; the string result is built by the banked `', '.join`
+    # (str_join_seq) over a `list string`.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    #@ \variant \length(self.toks) - self.i
+    def _parse_mixin_type(self) -> str:
+        name = self.expect_name()
+        if self.at_op("["):
+            self.advance()
+            args = [self._parse_mixin_type()]
+            #@ loop invariant self.i > \old(self.i)
+            #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+            #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+            #@ loop variant \length(self.toks) - self.i
+            while self.accept_op(","):
+                args.append(self._parse_mixin_type())
+            self.expect_op("]")
+            return f"{name}[{', '.join(args)}]"
+        return str(name)
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_mixin_param(self) -> str:
+        name = self.expect_name()
+        if self.accept_op(":"):
+            return f"{name}: {self._parse_mixin_type()}"
+        return str(name)
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_mixin_params(self) -> str:
+        params = [self._parse_mixin_param()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            params.append(self._parse_mixin_param())
+        return ", ".join(params)
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_mixin_method_sig(self) -> str:
+        self.expect_op("(")
+        params = None
+        if not self.at_op(")"):
+            params = self._parse_mixin_params()
+        self.expect_op(")")
+        self.expect_op("->")
+        ret = self._parse_mixin_type()
+        if params is not None:
+            return f"({params}) -> {ret}"
+        return f"() -> {ret}"
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_shared(self) -> "ExprIR":
+        self.expect_name("shared")
+        name = self.expect_name()
+        if self.at_name("protected_by"):
+            self.advance()
+            mutex = self._parse_mutex_expr_str()
+            return SharedDecl(name, mutex)
+        return SharedDecl(name, None)
+
+    #@ requires True
+    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
+    #@ ensures self.i < \length(self.toks)
+    #@ assigns self.i
+    # Returns the mutex-expression STRING (`NAME` or `NAME[<idx>]`); the `-> str` return
+    # annotation lets a converted caller (`_parse_mutex_invariant`) bind it as the leaf
+    # `mutex` field. Stays `\trusted` — its `f"{name}[{_csl_to_str(index)}]"` body threads
+    # a value through the `_parse_expr`/`_csl_to_str` pair.
+    # CONVERTED (#31). The record above said CERTIFIED BOUNDARY
+    # (parser-tokenstream-impl.md GAP #2) on a "two-trusted-stub type mismatch". Re-measured
+    # with the signature-preserving probe it emits a real
+    # `let ... : string` building `str_concat_op !name "[" (_csl_to_str !index) "]"` —
+    # the mismatch was the probe discarding this stub's own `-> str`, not the model.
+    def _parse_mutex_expr_str(self) -> str:
+        name = self.expect_name()
+        if self.at_op("["):
+            self.advance()
+            index = self._parse_expr()
+            self.expect_op("]")
+            return f"{name}[{_csl_to_str(index)}]"
+        return name
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.i
+    def _parse_mutex_invariant(self) -> "ExprIR":
+        self.expect_name("mutex_invariant")
+        mutex = self._parse_mutex_expr_str()
+        self.expect_op(":")
+        return MutexInvariant(mutex, self._parse_expr())
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_lock_order(self) -> "ExprIR":
+        self.expect_name("lock_order")
+        names = [self._parse_mutex_expr_str()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            names.append(self._parse_mutex_expr_str())
+        return LockOrder(names)
+
+    #@ requires True
+    # FAITHFUL MONOTONICITY (the `_parse_impl_rhs`/`advance`/`accept_op` precedent):
+    # `self.i` is only ever incremented (via `advance`); the sole backtracking site,
+    # `_try`, is used exclusively by `_parse_assigns_region` and is UNREACHABLE from any
+    # expression rule (`_parse_expr` -> `_parse_quantifier`/`_parse_implication` -> the
+    # precedence chain, none of which call `_try`). This is what lets the already-converted
+    # clause callers (`_parse_class_invariant`/`_parse_raises`/`_parse_loop`/`_parse_interface`)
+    # prove their own `self.i >= \old(self.i)` compositionally from this contract.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_expr(self) -> "ExprIR":
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_implication()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_touches_field(self):
+    # FAITHFUL MONOTONICITY (the `_parse_impl_rhs` precedent): the quantifier rule only
+    # advances the cursor (`advance`); it never calls the backtracking `_try`. Stays
+    # `\trusted` (builds Forall/Exists/ForallItems nodes = family-B); the monotonicity
+    # ensures makes the trusted interface precise so `_parse_expr` proves its own frame.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_quantifier(self) -> "ExprIR":
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_depends_method(self, kind):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_compose_from(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_conforms_to(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_mixin_type(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_mixin_param(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_mixin_params(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_mixin_method_sig(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_shared(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_mutex_expr_str(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_mutex_invariant(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_lock_order(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_expr(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_quantifier(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _mk_in(var, domain, body, is_exists):
+    def _mk_in(var: str, domain: "ExprIR", body: "ExprIR", is_exists: bool) -> "ExprIR":
+        # quantification.md P3 desugar: ∀x in S; P ≡ ∀x; (x in S) ==> P ;
+        # ∃x in S; P ≡ ∃x; (x in S) and P.
+        op = "and" if is_exists else "==>"
+        return BinOp(CSLIn(Var(var), domain), op, body)
+
+    #@ requires True
+    # FAITHFUL FRAME: monotonicity is a real property of the expression chain —
+    # `self.i` is only ever incremented (`advance`); the sole backtracking site,
+    # `_try`, is used exclusively by `_parse_assigns_region` and is not reachable
+    # from any expression rule. Pure dispatch: both branches return an emit_ir node
+    # via a callee (`_parse_quantifier` / `_parse_logical_or`) that itself carries
+    # `ensures self.i >= \old(self.i)`, so the frame + monotonicity discharge.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_impl_rhs(self) -> "ExprIR":
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_logical_or()
+
+    #@ requires True
+    # FAITHFUL FRAME: `self.i` is only ever incremented in the expression chain; the
+    # sole backtracking site `_try` is unreachable from any expression rule. Pure
+    # dispatch — both branches return an emit_ir node via a monotone callee.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_or_rhs(self) -> "ExprIR":
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_logical_and()
+
+    #@ requires True
+    # FAITHFUL FRAME: `self.i` is only ever incremented in the expression chain; the
+    # sole backtracking site `_try` is unreachable from any expression rule. Pure
+    # dispatch — both branches return an emit_ir node via a monotone callee.
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_and_rhs(self) -> "ExprIR":
+        if self.at_bs("\\forall") or self.at_bs("\\exists") or self.at_bs("\\exist"):
+            return self._parse_quantifier()
+        return self._parse_equality()
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_implication(self) -> "ExprIR":
+        left = self._parse_logical_or()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op('==>', '<==>'):
+            op = self.advance().string
+            right = self._parse_impl_rhs()
+            left = BinOp(left, op, right)
+        return left
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_logical_or(self) -> "ExprIR":
+        left = self._parse_logical_and()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_name('or'):
+            self.advance()
+            right = self._parse_or_rhs()
+            left = BinOp(left, 'or', right)
+        return left
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_logical_and(self) -> "ExprIR":
+        left = self._parse_equality()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_name('and'):
+            self.advance()
+            right = self._parse_and_rhs()
+            left = BinOp(left, 'and', right)
+        return left
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_equality(self) -> "ExprIR":
+        left = self._parse_comparison()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op('==', '!='):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_comparison())
+        return left
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_comparison(self) -> "ExprIR":
+        left = self._parse_membership()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op('>', '<', '>=', '<='):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_membership())
+        return left
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_membership(self) -> "ExprIR":
+        left = self._parse_term()
+        if self.at_name("in"):
+            self.advance()
+            return CSLIn(left, self._parse_term())
+        if self.at_name("not") and self.peek().type == "NAME" and self.peek().string == "in":
+            self.advance(); self.advance()
+            return CSLNotIn(left, self._parse_term())
+        return left
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_term(self) -> "ExprIR":
+        left = self._parse_factor()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op('+', '-'):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_factor())
+        return left
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_factor(self) -> "ExprIR":
+        left = self._parse_unary()
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.at_op('*', '//', '/', '%'):
+            op = self.advance().string
+            left = BinOp(left, op, self._parse_unary())
+        return left
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    #@ \variant \length(self.toks) - self.i
+    def _parse_unary(self) -> "ExprIR":
+        if self.at_name("not") or self.at_op("-", "+"):
+            op = self.advance().string
+            return UnaryOp(op, self._parse_unary())
+        return self._parse_atom()
+
+    #@ requires True
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    #@ \variant \length(self.toks) - self.i
+    def _parse_atom(self) -> "ExprIR":
+        node = self._parse_atom_primary()
+        if self.at_op("^"):
+            self.advance()
+            right = self._parse_atom()        # right-assoc (Lark LALR shifts)
+            return StrConcatExpr(node, right)
+        return node
+
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    # FAITHFUL MONOTONICITY (was `ensures True`): the atom-primary rule only ADVANCES
+    # the cursor. Its live body calls `cur`/`advance`/`_parse_atom_bs`/`_parse_atom_name`/
+    # `_parse_expr`/`expect_op`/`_err` — every one monotone (or diverging); it NEVER
+    # calls `_try` (sole backtracking site is `_parse_assigns_region`, line 1481 live)
+    # and NEVER assigns `self.i` directly. Verified against the live body — the
+    # `_parse_atom` monotonicity precedent (its converted caller discharges its frame).
+    #@ ensures self.i >= \old(self.i)
+    #@ assigns self.i
+    def _parse_atom_primary(self) -> "ExprIR":
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _parse_impl_rhs(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_or_rhs(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_and_rhs(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_implication(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_logical_or(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_logical_and(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_equality(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_comparison(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_membership(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_term(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_factor(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_unary(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_atom(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _parse_atom_primary(self):
-        pass
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_atom_name(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_atom_bs(self):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.i
     def _parse_expr_list(self):
         pass
 
 
 class Module2_Parser:
     'Parses raw PyCSL string contracts into Contract AST objects.\n\n    A pure-Python recursive-descent parser (`_ContractParser`) — no 3rd-party\n    deps. Replaces the former Lark LALR engine; the 1:1 grammar→CSLNode map is\n    preserved (differential-tested against the legacy engine in\n    `bin/diff_parser.py`).\n    '
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, use_rdp=None) -> None:
+        # `use_rdp` is accepted (and ignored) for backward compatibility with
+        # callers that passed it during the migration; the rdp engine is now
+        # the only engine.
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -1325,11 +1814,22 @@ class Module2_Parser:
     def parse_contract(self, contract_str: str, line_number: int) -> CSLNode:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CONTRACT-LIST LOOP (self-tcb-reduction, relaunch #17): CONVERTED, and FAITHFUL
+    # at its own level. The `val` it replaces returned an UNCONSTRAINED `array int` for
+    # a real `array string` input. The emitted `let` iterates the REAL `raw_contracts`
+    # array, applies the sibling `module2_parser__parse_contract self <str> <line>`
+    # with BOTH arguments carried (not a receiver-less oracle), snocs each result onto
+    # a real `seq` and materializes it. The element type stays `int` because a parsed
+    # CSLNode is not modelled — that is HONEST OPACITY, not erasure: nothing is claimed
+    # about the nodes, only that there is exactly one per input string, in order.
+    # `parse_contract` itself stays trusted (its own body is a facade — measured).
+    # Verbatim body port of the LIVE `parse_node_contracts`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def parse_node_contracts(self, raw_contracts: List[str], line_number: int) -> List[CSLNode]:
-        return []
-
+        parsed_nodes = []
+        for contract_str in raw_contracts:
+            parsed_nodes.append(self.parse_contract(contract_str, line_number))
+        return parsed_nodes
 

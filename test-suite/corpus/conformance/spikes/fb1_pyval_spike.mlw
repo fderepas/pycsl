@@ -1,0 +1,271 @@
+(* F-B1 — faithful Dict[str,Any] / heterogeneous-value model — Phase-0 spike.
+
+   The census (getting-better/tier3/tier5-value-model-census.md) puts F-B1 as
+   the single highest-fan-out lever behind ~119 trusted stubs, but flags it as
+   "not a bounded feature". This spike tests the make-or-break WhyML piece: a
+   PURE heterogeneous `pyval` with
+
+     - discriminant / dispatch,
+     - key read-back (pdict_get),
+     - a GENERIC `.values()`-style structural walk whose TERMINATION is the crux
+       (recursion over a heterogeneous tree),
+
+   proven on Alt-Ergo AND Z3 (best-of-N union), NO new axiom, with FALSE twins
+   that must stay UNPROVEN. Template: tier3_ir_node_adt_spike.mlw.
+
+   Two dict realizations are tried:
+     Module PyValListDict  — PDict as `list (string*pyval)`  (structural, walkable)
+     Module PyValMapDict   — PDict as `map string pyval`     (NO structural size)
+   The contrast is itself a finding: only the list form admits a terminating
+   generic `.values()` walk. *)
+
+(* ===================================================================== *)
+(*  S1a — list-backed PDict: PURE, structurally recursive, walkable        *)
+(* ===================================================================== *)
+module PyValListDict
+
+  use int.Int
+  use list.List
+  use list.Mem
+  use list.Append
+  use option.Option
+  use string.String
+
+  (* The heterogeneous Python value. PURE: no mutable field; `list`, never
+     `array`. PDict is an association list so that a key read and the generic
+     `.values()` walk are both structurally recursive. *)
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict (list (string, pyval))
+
+  (* ---- discriminants ---- *)
+  let function is_pdict (v: pyval) : bool =
+    match v with PDict _ -> true | _ -> false end
+  let function is_plist (v: pyval) : bool =
+    match v with PList _ -> true | _ -> false end
+  let function is_pstr (v: pyval) : bool =
+    match v with PStr _ -> true | _ -> false end
+  let function is_pint (v: pyval) : bool =
+    match v with PInt _ -> true | _ -> false end
+
+  (* ---- key read (`d.get("k")`) over the association list ----
+     Pure logic `function`: the string key test `k = g` is LOGIC equality.
+     (A program `let function` has only int's program `=` in scope — string
+     dispatch would need a separate bool string-eq val; the read-back law is a
+     pure fact, so a logic function is the faithful home.  Termination is
+     structural over `rest` and auto-checked at definition.) *)
+  function assoc_get (fs: list (string, pyval)) (k: string) : option pyval
+  = match fs with
+    | Nil -> None
+    | Cons (g, v) rest -> if k = g then Some v else assoc_get rest k
+    end
+
+  function pdict_get (v: pyval) (k: string) : option pyval =
+    match v with PDict fs -> assoc_get fs k | _ -> None end
+
+  (* ---- `.values()` : the raw value list of a dict ---- *)
+  function assoc_values (fs: list (string, pyval)) : list pyval
+  = match fs with
+    | Nil -> Nil
+    | Cons (_, v) rest -> Cons v (assoc_values rest)
+    end
+
+  function pdict_values (v: pyval) : list pyval =
+    match v with PDict fs -> assoc_values fs | _ -> Nil end
+
+  (* =========================================================
+     LAW 1 — discriminant / dispatch.
+     ========================================================= *)
+  goal g1_pdict_pos : is_pdict (PDict (Cons ("a", PInt 1) Nil))
+  goal g1_plist_pos : is_plist (PList (Cons (PInt 1) Nil))
+  goal g1_disjoint  : forall v: pyval. not (is_pdict v /\ is_plist v)
+  goal g1_int_not_dict : not (is_pdict (PInt 3))
+
+  (* =========================================================
+     LAW 2 — key read-back (`d.get("a") = Some (PInt 1)`).
+
+     >>> FRICTION FINDING (recorded verbatim in the verdict doc) <<<
+     The FIRST-KEY hit `g2_read_hit` needs only reflexivity ("a" = "a") and is
+     Valid on Alt-Ergo. But a SECOND-KEY hit or a MISS forces the recursive
+     `assoc_get` to take its `else` branch, which needs a string DISEQUALITY
+     ("b"<>"a", "z"<>"a") to fire UNDER the recursive definitional unfold. The
+     BARE goals `assoc_get [("a",1)] "z" = None` and the 2nd-key read TIME OUT
+     on BOTH provers, EVEN THOUGH `("z" = "a") = False` is Valid on Z3 in
+     0.01s standalone: the SMT solvers will not combine recursive-function
+     unfolding with string-theory disequality automatically. They discharge
+     ONLY with an explicit unfold (lemma-function `assert`-chain) OR a fed
+     disequality hypothesis. This is the string-keyed-dispatch tax — the exact
+     move every real emitter `stmt.get("type") == "assign"` dispatch performs.
+     ========================================================= *)
+  (* first-key hit: needs only reflexivity — Valid on Alt-Ergo *)
+  goal g2_read_hit  :
+    pdict_get (PDict (Cons ("a", PInt 1) Nil)) "a" = Some (PInt 1)
+
+  (* MISS, stated GUARDED with the string disequality fed as a hypothesis:
+     THIS is Valid (Alt-Ergo) — the read-back law holds once the solver is
+     handed the disequality. *)
+  goal g2_read_miss_guarded :
+    "z" <> "a" -> pdict_get (PDict (Cons ("a", PInt 1) Nil)) "z" = None
+
+  (* the SAME miss stated BARE — a documented FRICTION WITNESS (like the false
+     twins, this is EXPECTED to stay UNPROVEN on both provers within 10s):
+     it is TRUE, but the SMT solvers will not derive "z" <> "a" UNDER the
+     recursive `assoc_get` unfold automatically, even though `("z"="a")=False`
+     is Valid on Z3 in 0.01s standalone. This is the string-keyed-dispatch tax
+     that every real emitter `d.get("type")` performs. NOT a false twin. *)
+  goal g2_read_miss_bare_FRICTION_WITNESS :
+    pdict_get (PDict (Cons ("a", PInt 1) Nil)) "z" = None
+
+  (* false twin: the value under "a" is NOT PInt 2 — must stay UNPROVEN *)
+  goal g2_false_twin :
+    pdict_get (PDict (Cons ("a", PInt 1) Nil)) "a" = Some (PInt 2)
+
+  (* =========================================================
+     LAW 3 — structural recursion + termination (the CRUX).
+     A mutually-recursive `size` over the heterogeneous tree, walking BOTH
+     the PList element list AND the PDict pair list. This is the exact shape a
+     generic `.values()` walk needs: the recursion descends through
+     `list pyval` AND `list (string, pyval)`; the type-alternation
+     (pyval / list pyval / list (string, pyval)) is what makes termination
+     non-obvious.
+
+     TERMINATION IS ESTABLISHED BY WHY3's SYNTACTIC STRUCTURAL CHECKER (pure
+     logic `function`s): Why3 ACCEPTS the definition — no `Admitted`, no axiom.
+
+     >>> FRICTION FINDING (recorded verbatim in the verdict doc) <<<
+     The `let rec function ... variant { v/l }` PROGRAM form of the SAME three
+     functions is ALSO accepted by Why3, but its generated `size_pairs'vc`
+     decrease obligation TIMES OUT on BOTH Alt-Ergo and Z3 (10s): the well-
+     founded-order VC for the DOUBLY-nested subterm `v` in
+     `Cons (_, v) t` (list -> pair -> pyval) is not SMT-dischargeable, whereas
+     the singly-nested `size_list` (list -> pyval, `Cons h t -> size h`) VC IS.
+     So termination of the heterogeneous walk is sound (syntactic checker) but
+     the explicit-variant SMT route does NOT scale to the pair-nested walk. *)
+  function size (v: pyval) : int
+  = match v with
+    | PInt  _  -> 1
+    | PStr  _  -> 1
+    | PBool _  -> 1
+    | PNone    -> 1
+    | PList xs -> 1 + size_list xs
+    | PDict fs -> 1 + size_pairs fs
+    end
+  with size_list (l: list pyval) : int
+  = match l with
+    | Nil       -> 0
+    | Cons h t  -> size h + size_list t
+    end
+  with size_pairs (l: list (string, pyval)) : int
+  = match l with
+    | Nil            -> 0
+    | Cons (_, v) t  -> size v + size_pairs t
+    end
+
+  (* the recursion laws *)
+  goal g3_dict_law : forall fs: list (string, pyval).
+    size (PDict fs) = 1 + size_pairs fs
+  goal g3_list_law : forall xs: list pyval.
+    size (PList xs) = 1 + size_list xs
+  (* a nested concrete size: {"a": [1, 2]} = PDict[("a", PList[1;2])] *)
+  goal g3_nested :
+    size (PDict (Cons ("a", PList (Cons (PInt 1) (Cons (PInt 2) Nil))) Nil)) = 4
+  (* false twin: wrong arithmetic — must stay UNPROVEN *)
+  goal g3_false_twin : forall fs: list (string, pyval).
+    size (PDict fs) = size_pairs fs
+
+  (* =========================================================
+     LAW 4 — a GENERIC-WALK law: collect all PStr leaves of the value tree.
+     This is the model of the emitter's `for v in obj.values(): ...` walk —
+     a full structural fold over the heterogeneous tree. Prove it TERMINATES
+     (variant accepted) and a MEMBERSHIP law: a PStr sitting directly under a
+     dict key is collected.
+     ========================================================= *)
+  function str_leaves (v: pyval) : list string
+  = match v with
+    | PStr s   -> Cons s Nil
+    | PInt  _  -> Nil
+    | PBool _  -> Nil
+    | PNone    -> Nil
+    | PList xs -> str_leaves_list xs
+    | PDict fs -> str_leaves_pairs fs
+    end
+  with str_leaves_list (l: list pyval) : list string
+  = match l with
+    | Nil      -> Nil
+    | Cons h t -> (str_leaves h) ++ (str_leaves_list t)
+    end
+  with str_leaves_pairs (l: list (string, pyval)) : list string
+  = match l with
+    | Nil           -> Nil
+    | Cons (_, v) t -> (str_leaves v) ++ (str_leaves_pairs t)
+    end
+
+  (* membership: a string under a dict key is among the collected leaves *)
+  goal g4_collect_hit :
+    mem "hello" (str_leaves (PDict (Cons ("k", PStr "hello") Nil)))
+  (* a nested-in-list string is collected too *)
+  goal g4_collect_nested :
+    mem "deep"
+      (str_leaves (PList (Cons (PInt 0) (Cons (PStr "deep") Nil))))
+  (* an int-only tree collects NO string leaves *)
+  goal g4_collect_none :
+    str_leaves (PDict (Cons ("a", PInt 1) Nil)) = Nil
+  (* false twin: a string NOT present is NOT collected — must stay UNPROVEN *)
+  goal g4_false_twin :
+    mem "absent" (str_leaves (PDict (Cons ("k", PStr "hello") Nil)))
+
+end
+
+(* ===================================================================== *)
+(*  S1b — map-backed PDict: shows the TERMINATION wall for a map dict      *)
+(*  A `map string pyval` PDict admits key read-back, but NO structural     *)
+(*  `size`/`.values()` walk — a map has no finite structure to recurse on. *)
+(*  This module deliberately proves ONLY what a map supports and documents *)
+(*  (in comments) the walk it CANNOT express. It is the negative control.  *)
+(* ===================================================================== *)
+module PyValMapDict
+
+  use int.Int
+  use option.Option
+  use string.String
+  use map.Map
+  use map.Const
+
+  (* Same value tree, but PDict is a total map string -> pyval.  A total map
+     has no `keys`/domain in Why3's `map.Map`, so `.values()` is NOT
+     expressible and a structural `size` is impossible (a map is not an
+     inductive with finitely many children).  This is the finding. *)
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PDictM (map string pyval)
+
+  let function is_pdictm (v: pyval) : bool =
+    match v with PDictM _ -> true | _ -> false end
+
+  (* key read-back still works (Map.get is total; models Python dict-with-
+     default, NOT the faithful KeyError-raising read). *)
+  let function pdictm_get (v: pyval) (k: string) : pyval =
+    match v with PDictM m -> m[k] | _ -> PNone end
+
+  goal gm_read_hit :
+    pdictm_get (PDictM ((const PNone)["a" <- PInt 1])) "a" = PInt 1
+  goal gm_read_default :
+    pdictm_get (PDictM (const PNone)) "z" = PNone
+  (* false twin *)
+  goal gm_false_twin :
+    pdictm_get (PDictM ((const PNone)["a" <- PInt 1])) "a" = PInt 2
+
+  (* NO `size`/`.values()`/`str_leaves` here: a total map is not structurally
+     recursive, so the generic heterogeneous walk that the F-B1 emitter stubs
+     perform (`for v in d.values()`) has NO terminating WhyML realization over
+     `map string pyval`. Only the `list (string*pyval)` form (module
+     PyValListDict) admits it. Recorded as the map-form termination wall. *)
+
+end

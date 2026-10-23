@@ -1,0 +1,27 @@
+emitted 1210 of 1500 source file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitN/corpus_cand (6 jobs)
+emitted 2199 of 2217 python-reference file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitN/corpus_cand/pyref (6 jobs)
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitN/mirror_cand
+    Compare with: bin/byte-diff-compare.py <baseline> /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitN/mirror_cand --min-files 45
+== COMPARE corpus
+[!]   MOVED 0452.mlw
+[!]   MOVED 0522.mlw
+[!]   MOVED 0721.mlw
+[!]   MOVED 0722.mlw
+[!]   MOVED 0967_property_getter_supported.mlw
+[!]   MOVED 1169_route70_dotted_stub_drops_requires.mlw
+[!]   MOVED 1285_route100_no_exception_dropped_for_a_self_method_call.mlw
+[!]   MOVED 1286_route100_ctl_guarded_method_no_exception_still_proves.mlw
+[!]   MOVED 1292_route104_self_field_subscript_assigns_dropped_the_method_frame.mlw
+[!]   MOVED 1293_route104_ctl_a_declared_caller_frame_still_proves.mlw
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 1204 baseline / 1209 candidate .mlw; 10 MOVED, 0 GONE (0 unexpected), 0 APPEARED, 5 new source file(s) ignored.
+rc=1
+== COMPARE pyref
+[*] byte-diff-compare: 2199 baseline / 2199 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+== COMPARE mirrors
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+EMISSION-DONE 03:26:29Z

@@ -1,0 +1,18 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.588153930963017,
+  "qualname_results": [
+    [
+      "Pycsl.Struct.Std.round_trip_s4",
+      true,
+      []
+    ],
+    [
+      "Pycsl.Struct.Std.round_trip_s4",
+      true,
+      []
+    ]
+  ]
+}

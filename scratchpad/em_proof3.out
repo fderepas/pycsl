@@ -1,0 +1,156 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/exception_model.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.2, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_wr4ypoci.mlw", line 83, characters 18-37:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 17247 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 84, characters 18-36:
+Sub-goal variant decrease of goal size_pos'vc.
+Prover result is: Valid (0.02s, 17166 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 81, characters 14-27:
+Sub-goal postcondition of goal size_pos'vc.
+Prover result is: Valid (0.23s, 629260 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 88, characters 41-51:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 88, characters 53-71:
+Sub-goal variant decrease of goal size_list_nonneg'vc.
+Prover result is: Valid (0.01s, 5217 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 87, characters 14-30:
+Sub-goal postcondition of goal size_list_nonneg'vc.
+Prover result is: Valid (0.02s, 16925 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 91, characters 48-58:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 4514 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 91, characters 60-81:
+Sub-goal variant decrease of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 5578 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 90, characters 14-30:
+Sub-goal postcondition of goal size_dict_nonneg'vc.
+Prover result is: Valid (0.01s, 18160 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 98, characters 48-68:
+Sub-goal variant decrease of goal size_dict_mem'vc.
+Prover result is: Valid (0.01s, 5660 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 94, characters 29-49:
+Sub-goal postcondition of goal size_dict_mem'vc.
+Prover result is: Valid (0.02s, 25056 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 125, characters 24-42:
+Sub-goal variant decrease of goal wf_ir_binds'vc.
+Prover result is: Valid (0.01s, 8074 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 125, characters 24-42:
+Sub-goal precondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.02s, 30628 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 121, characters 52-62:
+Sub-goal postcondition of goal wf_ir_binds'vc.
+Prover result is: Valid (0.57s, 700666 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 166, characters 59-73:
+Sub-goal variant decrease of goal slookup'vc.
+Prover result is: Valid (0.01s, 8232 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 177, characters 34-50:
+Sub-goal variant decrease of goal sappend'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 187, characters 68-86:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8252 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 188, characters 24-42:
+Sub-goal variant decrease of goal pget_dyn'vc.
+Prover result is: Valid (0.01s, 8524 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 184, characters 14-85:
+Sub-goal postcondition of goal pget_dyn'vc.
+Prover result is: Valid (0.02s, 30846 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 192, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.02s, 28826 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 192, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.16s, 433134 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 192, characters 14-45:
+Sub-goal postcondition of goal pget_list'vc.
+Prover result is: Valid (0.10s, 281686 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 211, characters 52-73:
+Sub-goal variant decrease of goal pdict_to_sdict'vc.
+Prover result is: Valid (0.01s, 8206 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 236, characters 32-36:
+Sub-goal postcondition of goal handler_catches'vc.
+Prover result is: Valid (0.02s, 3128 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 240, characters 15-19:
+Sub-goal postcondition of goal predicate_definitions'vc.
+Prover result is: Valid (0.01s, 4571 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 240, characters 15-19:
+Sub-goal postcondition of goal predicate_definitions'vc.
+Prover result is: Valid (0.01s, 4633 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 253, characters 31-86:
+Sub-goal goal of goal predicate_definitions__union_arm_Arm_0_0_inj.
+Prover result is: Valid (0.01s, 3142 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 255, characters 74-79:
+Sub-goal goal of goal predicate_definitions__union_arm_Arm_0_0_proj.
+Prover result is: Valid (0.01s, 3137 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 260, characters 55-77:
+Sub-goal precondition of goal subclasses_of__fold'vc.
+Prover result is: Valid (0.01s, 3146 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 260, characters 21-111:
+Sub-goal variant decrease of goal subclasses_of__fold'vc.
+Prover result is: Valid (0.01s, 8787 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 260, characters 21-111:
+Sub-goal precondition of goal subclasses_of__fold'vc.
+Prover result is: Valid (0.01s, 3149 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 258, characters 32-36:
+Sub-goal postcondition of goal subclasses_of__fold'vc.
+Prover result is: Valid (0.01s, 3146 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 263, characters 4-53:
+Sub-goal precondition of goal subclasses_of'vc.
+Prover result is: Valid (0.01s, 3128 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 262, characters 32-36:
+Sub-goal postcondition of goal subclasses_of'vc.
+Prover result is: Valid (0.01s, 3137 steps).
+
+File "/tmp/.pycsl_wr4ypoci.mlw", line 266, characters 15-19:
+Sub-goal postcondition of goal triggers_for'vc.
+Prover result is: Valid (0.01s, 3135 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_wr4ypoci.mlw", line 228, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_wr4ypoci.mlw", line 230, characters 21-24: unused variable exc
+Warning, file "/tmp/.pycsl_wr4ypoci.mlw", line 232, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_wr4ypoci.mlw", line 236, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_wr4ypoci.mlw", line 240, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_wr4ypoci.mlw", line 258, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_wr4ypoci.mlw", line 262, characters 32-36: unused variable result
+Warning, file "/tmp/.pycsl_wr4ypoci.mlw", line 266, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -1,0 +1,220 @@
+(* ==========================================================================
+   sr2-values-spike.mlw — FALSIFIER SPIKE for R2 core of `_field_type_of`
+   (src/pycsl/module6_whyml/types.py, lines ~283-289 / ~348-350).
+
+   HAND-WRITTEN WhyML. NO PyCSL source edited. NO commit.
+
+   Live Python shape modeled:
+
+       # (a) keyed lookup by class-key
+       gcls_info = self._record_types[gcls]
+       cls = gcls_info.get("whyml_name")
+
+       # (b) linear search over ALL VALUES of the dict
+       for info in self._record_types.values():
+           if info.get("whyml_name") == cls:
+               return info.get("field_types", {}).get(field_name)
+       return None
+
+   `self._record_types : Dict[str, <record-info-dict>]`.  The natural WhyML
+   model of a `Dict[str, X]` in PyCSL's own emitter is `map string (option X)`
+   (see e.g. cleared-hash-int-opaque.mlw: `map int (option int)`).
+
+   NOTE on string/option equality in EXECUTABLE (program, non-ghost) code,
+   discovered while writing this spike (not previously in my working
+   knowledge, verified empirically against why3 1.8.2):
+     - `int.Int` exports an executable `val (=) (x y:int):bool`, so `=` on
+       `int` works in program code.
+     - `string.String`, `option.Option`, and any user record/variant type
+       have NO such executable `(=)` — Why3 rejects bare `=` in a non-ghost
+       position with "Logical symbol (=) is used in a non-ghost context".
+       `option` values must be discriminated by `match`; STRING equality
+       specifically has no executable primitive at all (SMT string theory
+       is logic-only).  This is exactly why PyCSL's OWN emitter declares an
+       opaque `val pystr_eq (a b: string) : bool` (preamble.py, used by
+       every executable string-keyed lookup, e.g. `slookup`/`sappend`) and
+       routes every runtime string-equality test through it.  This spike
+       follows the SAME discipline PyCSL's real emitter uses, so the
+       (i)/(ii)/(iii) verdict below is not an artifact of a naive encoding.
+
+   QUESTION: can part (b) — `for info in d.values(): ...` — be written
+   EXECUTABLY over a Why3 `map`?  Why3's `map 'a 'b` (stdlib map.mlw,
+   module Map) is LITERALLY `type map 'a 'b = 'a -> 'b`: a total function.
+   It has no domain/key-set, no `.values()`, no iteration primitive at all
+   (checked against $(opam var lib)/why3/stdlib/map.mlw, modules Map/
+   MapExt/MapSorted/MapEq/MapExchange/MapSum/Occ/MapPermut/MapInjection —
+   NONE of them expose enumeration; every `for`/`sum`/`occ` construct there
+   is indexed by an EXTERNALLY supplied `int` range [l,u), not by the map's
+   own structure).
+   ========================================================================== *)
+
+module SR2Values
+
+  use int.Int
+  use string.String
+  use option.Option
+  use map.Map
+  use map.Const
+  use array.Array
+
+  (* PyCSL's own discipline for executable string equality (preamble.py):
+     an opaque, uninterpreted program-level predicate. *)
+  val pystr_eq (a b: string) : bool
+
+  (* ------------------------------------------------------------------
+     1. The record-info shape + the map-typed field-store.
+     ------------------------------------------------------------------ *)
+  type recordinfoview = {
+    whyml_name  : string;
+    field_types : map string (option string);
+  }
+
+  let function field_types_get (info: recordinfoview) (field_name: string) : option string
+  = info.field_types field_name
+
+  (* `self._record_types : Dict[str, <record-info-dict>]`
+     ~> `map string (option recordinfoview)` (the standard PyCSL Dict model) *)
+  type rt_map = map string (option recordinfoview)
+
+  (* ------------------------------------------------------------------
+     2. PART (a) — keyed lookup `self._record_types[gcls].whyml_name`.
+        Executable, total, a direct function application: no search,
+        no equality primitive needed at all (pure pattern match + field
+        projection). PROVES.
+     ------------------------------------------------------------------ *)
+  let get_whyml_name_of (rt: rt_map) (gcls: string) : option string
+    ensures { match rt gcls with
+              | None -> result = None
+              | Some info -> result = Some info.whyml_name
+              end }
+  = match rt gcls with
+    | None -> None
+    | Some info -> Some info.whyml_name
+    end
+
+  (* ------------------------------------------------------------------
+     3(i). PART (b) ATTEMPT over the PLAIN `map string (option
+     recordinfoview)` — i.e. WITHOUT changing the representation used
+     by part (a).
+
+     The live Python does `for info in self._record_types.values(): ...`.
+     To write this as executable WhyML we need SOME way to enumerate the
+     (finite, in practice) set of values a `map string (option X)` was
+     populated with. Why3's `map` gives us NONE of:
+       - a domain / key-set,
+       - a cardinality,
+       - a `.values()` / `.items()` iterator,
+       - any `for x in m` binder — WhyML's `for` keyword accepts ONLY
+         `for <ident> = <expr> (to|downto) <expr> do .. done` (an int
+         range) at the syntax level; there is no `for x in <expr>` form
+         in WhyML at all (confirmed against the Why3 1.8.2 manual
+         grammar — that sugar exists in the *source* languages PyCSL
+         translates FROM, not in the WhyML target language itself).
+         Iteration over a *collection* (array/list/seq) is written by
+         hand as an int-indexed `for`/`while` over `0 .. length-1`,
+         which needs a `length`; a `map` has none.
+
+     There is consequently NO closed-form int bound, NO array/seq/list
+     backing store, and NO iteration construct whatsoever to loop over.
+     The only way to "search a map" in Why3 is to already know the
+     finite set of candidate keys ahead of time from OUTSIDE the map's
+     own type (e.g. a separately-tracked `list string` of keys) — but
+     the live Python object is a bare `dict`, and PyCSL's `map` lowering
+     (see cleared-hash-int-opaque.mlw, call-subscript-witness.mlw,
+     pycsl-wp-spec.mlw) carries no such side-channel key-list anywhere
+     in the codebase. This cell is intentionally LEFT UNWRITTEN below:
+     there is no legal WhyML program to put here over `rt_map`.
+     ------------------------------------------------------------------ *)
+
+  (* Deliberately absent / NOT EXPRESSIBLE over `rt_map`:
+       let find_field_type_via_map (rt: rt_map) (cls field_name: string)
+       : option string
+       = for info in rt.values() do ... done         (* <- no such syntax *)
+       = for i = 0 to ??? do ... rt[?key_of_i?] ...   (* <- no `n`, no `i->key` map *)
+     Both forms are syntactically/semantically unavailable; `map string
+     (option recordinfoview)` supplies neither a length nor an
+     enumeration order. *)
+
+  (* ------------------------------------------------------------------
+     3(ii). Switch the representation to make (b) executable: model
+     `_record_types` as an ITERABLE `array recordinfoview` instead.
+     Now the length-bounded `while` loop IS expressible and PROVES.
+     ------------------------------------------------------------------ *)
+  type rt_arr = array recordinfoview
+
+  let find_field_type_via_array (rt: rt_arr) (cls field_name: string) : option string
+  = let n = Array.length rt in
+    let ref i = 0 in
+    let ref result : option string = None in
+    let ref keep_going = true in
+    while i < n && keep_going do
+      variant { n - i }
+      invariant { 0 <= i <= n }
+      if pystr_eq (rt[i]).whyml_name cls then begin
+        result <- field_types_get rt[i] field_name;
+        keep_going <- false
+      end;
+      i <- i + 1
+    done;
+    result
+
+  (* ------------------------------------------------------------------
+     3(ii) continued — does PART (a)'s keyed lookup `_record_types[gcls]`
+     still work against `rt_arr`?  An `array` is INT-indexed only; it has
+     no string-keyed subscript.  The only way to answer "what is the info
+     for class-key `gcls`" is ALSO a linear scan — comparing a stored key
+     field against `gcls` for every element — which is a DIFFERENT
+     algorithm (and different absence semantics: Python's `d[gcls]`
+     raises KeyError / here we return via a sentinel found only after an
+     O(n) scan) from the map's direct `rt gcls` function application. To
+     even attempt this we must ALSO add a `class_key : string` field the
+     live `recordinfoview`/Python info-dict does not have as a first-
+     class member of the VALUE (it is the DICT KEY in the live shape,
+     not a field of the record's value).
+     ------------------------------------------------------------------ *)
+  type recordinfoview_keyed = {
+    class_key    : string;   (* <- had to invent this; not in the live value shape *)
+    kw_name      : string;
+    kw_fieldtypes: map string (option string);
+  }
+
+  let get_whyml_name_via_array_linear_scan (rt: array recordinfoview_keyed) (gcls: string) : option string
+  = let n = Array.length rt in
+    let ref i = 0 in
+    let ref result : option string = None in
+    let ref keep_going = true in
+    while i < n && keep_going do
+      variant { n - i }
+      invariant { 0 <= i <= n }
+      if pystr_eq (rt[i]).class_key gcls then begin
+        result <- Some (rt[i]).kw_name;
+        keep_going <- false
+      end;
+      i <- i + 1
+    done;
+    result
+  (* This TYPE-CHECKS AND PROVES (it's a trivial linear scan) but it is
+     NOT the same operation as part (a) in the live code: the live
+     `self._record_types[gcls]` is a single dict subscript (semantically
+     O(1), KeyError-raising on miss); this is an O(n) scan that also
+     required smuggling the key into the record as an extra field
+     (`class_key`) that does not exist on the live info-dict's VALUE — it
+     only exists as the dict's KEY. So (ii) confirms: making (b)
+     executable by switching to `array` breaks the fidelity of (a). *)
+
+  (* ------------------------------------------------------------------
+     4. Sanity goals — everything above that IS claimed executable
+     actually verifies (why3 prove target).
+     ------------------------------------------------------------------ *)
+  let ghost sample () : unit
+    ensures { true }
+  = let m0 : rt_map = Const.const None in
+    let _ = get_whyml_name_of m0 "Foo" in
+    let a0 : array recordinfoview = Array.make 0 { whyml_name = ""; field_types = Const.const None } in
+    let _ = find_field_type_via_array a0 "Foo" "bar" in
+    let a1 : array recordinfoview_keyed =
+      Array.make 0 { class_key = ""; kw_name = ""; kw_fieldtypes = Const.const None } in
+    let _ = get_whyml_name_via_array_linear_scan a1 "Foo" in
+    ()
+
+end

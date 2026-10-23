@@ -24,53 +24,83 @@ class ConcurrencyWarning:
 
 class ConcurrencyChecker:
     'Walk the annotated AST and emit ConcurrencyWarning objects.'
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, tree: ast.AST, *, strict_mode: bool=False, filename: str='<input>') -> None:
-        pass
+        self.tree = tree
+        self.warnings: List[ConcurrencyWarning] = []
+        self.strict_mode = bool(strict_mode)
+        self.filename = filename
+        self._shared_vars: Dict[str, Optional[str]] = {}
+        self._lock_order: Optional[List[str]] = None
+        self._thread_entries: Set[str] = set()
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ raises PyCSLSemanticError when True
+    #@ assigns self._lock_order, self._shared_vars, self._thread_entries, self.warnings
     def check(self) -> List[ConcurrencyWarning]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.warnings
     def _check_function(self, func: ast.FunctionDef) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # (#34) HONEST FRAME. This declared `\nothing` while its only statement calls
+    # `self._walk_stmt`, which declares `#@ assigns self.warnings` — and `warnings` IS a
+    # label of this file's emitted record, so the under-claim was MODEL-VISIBLE: every
+    # caller-side abstract `val` minted from this contract asserted that `warnings` is
+    # unchanged across the call. Found twice independently: by putting the declared frame
+    # on the concrete `let` (Why3: "this expression produces an unlisted write effect")
+    # and by widening `check-trusted-frame-honesty.py`'s MODEL-VISIBLE predicate from
+    # "`@mutable_state` class" to "the EMITTED record declares the field".
+    #@ assigns self.warnings
     def _walk_body(self, stmts: list, held: int, func_name: str) -> None:
-        pass
+        for stmt in stmts:
+            self._walk_stmt(stmt, held, func_name)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.warnings
     def _walk_stmt(self, node: ast.AST, held: int, func_name: str) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.warnings
     def _warn_if_unprotected(self, var: str, held: int, func_name: str, line: int, write: bool) -> None:
-        pass
+        if var not in self._shared_vars:
+            return
+        req_mutex = self._shared_vars[var]
+        if req_mutex is None:
+            return  # already warned at declaration level
+        if req_mutex not in held:
+            action = "write to" if write else "read of"
+            self.warnings.append(ConcurrencyWarning(
+                kind="unprotected_shared",
+                message=_ERR_UNPROTECTED_WRITE % (action, var, req_mutex),
+                function=func_name,
+                line=line,
+            ))
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def summary(self) -> str:
-        return ""
+        if not self.warnings:
+            return ""
+        lines = ["[*] ConcurrencyChecker warnings:"]
+        for w in self.warnings:
+            loc = f" [{w.function}:{w.line}]" if w.function else ""
+            lines.append(f"    [{w.kind}]{loc} {w.message}")
+        return "\n".join(lines)
 
 

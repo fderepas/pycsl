@@ -1,0 +1,57 @@
+  val function find_self_method_calls__lower (s: string) : string
+  val function find_self_method_calls__concat (a: string) (b: string) : string
+  val function find_self_method_calls__drop (s: string) (p: string) : string
+  val function find_self_method_calls__starts (s: string) (p: string) : bool
+  val function find_self_method_calls__emptyset (m: map string bool) : bool
+  let rec find_self_method_calls__get_K_type (d: pydict) : option pyval
+    variant { d }
+  = match d with
+    | DNil -> None
+    | DCons K_type v _ -> Some v
+    | DCons _ _ rest -> find_self_method_calls__get_K_type rest
+    end
+  let rec find_self_method_calls__get_K_func (d: pydict) : option pyval
+    variant { d }
+  = match d with
+    | DNil -> None
+    | DCons K_func v _ -> Some v
+    | DCons _ _ rest -> find_self_method_calls__get_K_func rest
+    end
+  let find_self_method_calls__pre (d: pydict) (self_type: string) (func_names_set: map string bool) (concrete_set: map string bool) : map string bool
+  = match find_self_method_calls__get_K_type d with
+    | Some (PStr ty) ->
+        if pystr_eq ty "Call" then
+          (match find_self_method_calls__get_K_func d with
+           | Some (PStr fp) ->
+               if find_self_method_calls__starts fp "self." then
+                 (let resolved = find_self_method_calls__concat (find_self_method_calls__concat (find_self_method_calls__lower self_type) "._") (find_self_method_calls__drop fp "self.") in
+                  if (Map.get func_names_set resolved) && (Map.get concrete_set resolved)
+                  then set_add (const false) resolved
+                  else const false)
+               else const false
+           | _ -> const false end)
+        else const false
+    | _ -> const false end
+  let rec find_self_method_calls (obj: pyval) (self_type: string) (func_names_set: map string bool) (concrete_set: map string bool) : map string bool
+    requires { true } ensures { true }
+    variant { pv_size obj }
+  = if (pystr_eq self_type "") || (find_self_method_calls__emptyset concrete_set) then (const false)
+    else match obj with
+      | PDict d -> set_union (find_self_method_calls__pre d self_type func_names_set concrete_set) (find_self_method_calls__dict d self_type func_names_set concrete_set)
+      | PList xs -> find_self_method_calls__list xs self_type func_names_set concrete_set
+      | _ -> const false end
+  with find_self_method_calls__dict (d: pydict) (self_type: string) (func_names_set: map string bool) (concrete_set: map string bool) : map string bool
+    requires { true } ensures { true }
+    variant { size_dict d }
+  = match d with
+    | DNil -> const false
+    | DCons _ v rest -> set_union (find_self_method_calls v self_type func_names_set concrete_set) (find_self_method_calls__dict rest self_type func_names_set concrete_set)
+    end
+  with find_self_method_calls__list (xs: list pyval) (self_type: string) (func_names_set: map string bool) (concrete_set: map string bool) : map string bool
+    requires { true } ensures { true }
+    variant { size_list xs }
+  = match xs with Nil -> const false
+    | Cons h t -> set_union (find_self_method_calls h self_type func_names_set concrete_set) (find_self_method_calls__list t self_type func_names_set concrete_set) end
+  val sort_functions_by_scc (functions: array int) : (array int, map int (option int))
+    requires { true }
+    ensures  { true }

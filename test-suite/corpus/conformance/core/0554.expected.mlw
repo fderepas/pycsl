@@ -9,6 +9,8 @@ module PyCSL_Program
     invariant { (service_count >= 0) }
     by { service_count = 0 }
 
+  goal _check_class_inv_service : forall service_count : int. service_count = 0 -> ((service_count >= 0))
+
   let counter__bump (self: counter) : unit
     requires { (self.counter_count >= 0) }
     ensures  { (self.counter_count = ((old self.counter_count) + 1)) }

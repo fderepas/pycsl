@@ -1,0 +1,501 @@
+{
+ "dep_free": {
+  "json/__init__.py": {},
+  "src/pycsl_lib/__init__.py": {},
+  "src/pycsl_lib/json/__init__.py": {},
+  "src/pycsl_lib/json/decoder.py": null,
+  "src/pycsl_lib/json/encoder.py": null,
+  "src/pycsl_lib/nums/__init__.py": {
+   "gcd": [
+    "gcd",
+    "k"
+   ]
+  },
+  "src/pycsl_lib/os/UnixInodeFileSystem.py": {
+   "_pad_name": [
+    "i",
+    "len",
+    "ord"
+   ],
+   "_build_direntry": [
+    "i",
+    "ord"
+   ],
+   "unixinodefilesystem___poke": [
+    "i",
+    "k",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem___set_bitmap": [
+    "b"
+   ],
+   "unixinodefilesystem___alloc_fd": [
+    "k"
+   ],
+   "unixinodefilesystem___read_inode": [
+    "inode_size"
+   ],
+   "unixinodefilesystem___write_inode": [
+    "k",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem___block_roundtrip": [
+    "k",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem___content_compose": [
+    "block_content_eq"
+   ],
+   "unixinodefilesystem___dir_lookup": [
+    "dir_lookup"
+   ],
+   "unixinodefilesystem___dir_find_slot": [
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem___dir_find_free": [
+    "slot_inode"
+   ],
+   "unixinodefilesystem___blit_dir_entry": [
+    "b",
+    "i",
+    "ord"
+   ],
+   "unixinodefilesystem___write_dir_entry": [
+    "i",
+    "k",
+    "ord",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem___blit_disk_entry": [
+    "b",
+    "i",
+    "ord"
+   ],
+   "unixinodefilesystem___write_entry": [
+    "i",
+    "k",
+    "ord",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem___zero_entry": [
+    "k",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem__sys_open": [
+    "dir_lookup",
+    "k"
+   ],
+   "unixinodefilesystem___write_block_at": [
+    "i",
+    "j"
+   ],
+   "unixinodefilesystem__sys_write": [
+    "block_content_eq"
+   ],
+   "unixinodefilesystem__sys_read": [
+    "inode_size"
+   ],
+   "unixinodefilesystem__sys_pread": [
+    "block_content_eq",
+    "i"
+   ],
+   "unixinodefilesystem__sys_link": [
+    "dir_lookup"
+   ],
+   "unixinodefilesystem___free_inode_blocks": [
+    "dir_lookup"
+   ],
+   "unixinodefilesystem__sys_unlink": [
+    "dir_lookup"
+   ],
+   "unixinodefilesystem__sys_stat": [
+    "dir_lookup"
+   ],
+   "unixinodefilesystem__sys_lstat": [
+    "dir_lookup"
+   ],
+   "unixinodefilesystem__sys_mkdir": [
+    "dir_lookup"
+   ],
+   "unixinodefilesystem__sys_rmdir": [
+    "dir_lookup"
+   ],
+   "unixinodefilesystem__sys_chmod": [
+    "k",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem__sys_chown": [
+    "k",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem__sys_utimensat": [
+    "k",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem__sys_rename": [
+    "dir_lookup"
+   ],
+   "unixinodefilesystem__sys_symlink": [
+    "dir_lookup"
+   ],
+   "unixinodefilesystem__sys_dup": [
+    "k"
+   ],
+   "unixinodefilesystem__sys_truncate": [
+    "k",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem__sys_ftruncate": [
+    "k",
+    "slot_inode",
+    "slot_name"
+   ],
+   "unixinodefilesystem__sys_access": [
+    "dir_lookup"
+   ]
+  },
+  "src/pycsl_lib/os/__init__.py": {
+   "access": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "chmod": [
+    "_filesystem"
+   ],
+   "close": [
+    "_filesystem"
+   ],
+   "dup": [
+    "_filesystem",
+    "k"
+   ],
+   "fstat": [
+    "_filesystem"
+   ],
+   "link": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "lseek": [
+    "_filesystem"
+   ],
+   "makedirs": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "remove": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "unlink": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "open": [
+    "_filesystem",
+    "dir_lookup",
+    "k"
+   ],
+   "read": [
+    "_filesystem",
+    "inode_size"
+   ],
+   "write": [
+    "_filesystem",
+    "block_content_eq"
+   ],
+   "pread": [
+    "_filesystem",
+    "block_content_eq",
+    "i"
+   ],
+   "rename": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "mkdir": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "rmdir": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "stat": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "lstat": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "symlink": [
+    "_filesystem",
+    "dir_lookup"
+   ],
+   "truncate": [
+    "_filesystem"
+   ]
+  },
+  "src/pycsl_lib/proc/__init__.py": {},
+  "src/pycsl_lib/re/_engine.py": {},
+  "src/pycsl_lib/tm/__init__.py": {},
+  "src/self-annotate/src/Module6_WhyMLTranspiler.py": {},
+  "src/self-annotate/src/audit_proof.py": {},
+  "src/self-annotate/src/audit_proof_reverify.py": {},
+  "src/self-annotate/src/core_ir_semantic.py": {},
+  "src/self-annotate/src/errors.py": {},
+  "src/self-annotate/src/exception_model.py": {},
+  "src/self-annotate/src/frontend/ConcurrencyChecker.py": {},
+  "src/self-annotate/src/frontend/Module1_Ingestor.py": {},
+  "src/self-annotate/src/frontend/Module2_Parser.py": {},
+  "src/self-annotate/src/frontend/Module3_Weaver.py": {},
+  "src/self-annotate/src/frontend/Module5_IREmitter.py": {},
+  "src/self-annotate/src/frontend/__init__.py": {},
+  "src/self-annotate/src/frontend/exec_splice.py": {},
+  "src/self-annotate/src/frontend/import_classifier.py": {},
+  "src/self-annotate/src/frontend/ir_resolve.py": {},
+  "src/self-annotate/src/ir_schema.py": {},
+  "src/self-annotate/src/module6_whyml/abstract_ops.py": {},
+  "src/self-annotate/src/module6_whyml/auto_trust.py": {},
+  "src/self-annotate/src/module6_whyml/expressions.py": {},
+  "src/self-annotate/src/module6_whyml/functions.py": {},
+  "src/self-annotate/src/module6_whyml/identifiers.py": {},
+  "src/self-annotate/src/module6_whyml/ir_scanner.py": {
+   "irscanner__collection_binder_kinds": [
+    "setfold_leaf_empty"
+   ]
+  },
+  "src/self-annotate/src/module6_whyml/preamble.py": {},
+  "src/self-annotate/src/module6_whyml/scc.py": {},
+  "src/self-annotate/src/module6_whyml/statements.py": {},
+  "src/self-annotate/src/module6_whyml/types.py": {},
+  "src/self-annotate/src/proof_axiom_allowlist.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/arith.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/base_counter.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/base_store.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/circ_a.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/classmod_stub.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/deep_mid.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/fieldless_stub.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/inductive_fs.py": {
+   "mkdir": [
+    "present"
+   ],
+   "access": [
+    "present"
+   ]
+  },
+  "test-suite/corpus/pycsl-reference/multi_file_lib/r1111_stub.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/r119_plainlib.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/r119_rebindlib.py": null,
+  "test-suite/corpus/pycsl-reference/multi_file_lib/r124_starlib.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/r135_aliaslib.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/r147_ctorbase.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/rel_helper.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/strmod_stub.py": {},
+  "test-suite/corpus/pycsl-reference/multi_file_lib/visitor_base.py": {}
+ },
+ "hits": [
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "access",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "chmod",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "close",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "dup",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "fstat",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "link",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "lseek",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "makedirs",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "remove",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "unlink",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "open",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "read",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "write",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "pread",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "rename",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "mkdir",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "rmdir",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "stat",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "lstat",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "symlink",
+   [
+    "_filesystem"
+   ]
+  ],
+  [
+   "src/pycsl_lib/os/__init__.py",
+   "src/pycsl_lib/os/__init__.py",
+   "from",
+   "truncate",
+   [
+    "_filesystem"
+   ]
+  ]
+ ]
+}

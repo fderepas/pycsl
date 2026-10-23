@@ -6,7 +6,11 @@ construction proceeds via `__init__`, so `Holder(k)` builds `{x = k}` and `.x` d
 rejected under UB-7.6 — see the negative 0497."""
 _ = 0  # anchor
 class Holder:
-    def __new__(cls):
+    # (#49) gen #31 — `__new__` MUST accept what `__init__` requires. `Holder(k)` is
+    # `type.__call__`, which passes the arguments to BOTH, so `def __new__(cls)`
+    # beside `def __init__(self, n)` made every construction a TypeError in CPython
+    # while `\result == k` verified — a contract over a function with no run at all.
+    def __new__(cls, n: int):
         return super().__new__(cls)
 
     def __init__(self, n: int):

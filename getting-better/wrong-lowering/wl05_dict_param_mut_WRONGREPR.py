@@ -1,4 +1,7 @@
-"""WL-05 WRONG-REPR — item-assignment to a PARAMETER dict emits WhyML that treats the
+"""WL-05b FIXED (was WL-05 WRONG-REPR) — now PROVEN: an item-assignment to a PARAMETER
+dict is modelled as a caller-visible mutable `ref (map …)` with a `writes {d}` frame, so
+`d[k]=v` write-read-back proves faithfully. Historical bug (kept for the repro record):
+item-assignment to a PARAMETER dict USED TO emit WhyML that treats the
 by-value param as a mutable `ref` inconsistently:
     d := map_update_some !d "a" 5;          (* d :=/!d on a non-ref value *)
     (match Map.get d "a" ...)               (* and reads `d`, not `!d` *)

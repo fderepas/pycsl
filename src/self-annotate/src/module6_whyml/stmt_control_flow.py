@@ -1,10 +1,23 @@
 from __future__ import annotations
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple, TypedDict
 from dataclasses import dataclass
 from module6_whyml.identifiers import whyml_ident, safe_exc_name
 from module6_whyml.ir_scanner import IRScanner
 from ir_schema import ReturnStmt, IfStmt, WhileStmt, ForStmt, TryStmt, MatchStmt
 def mutable_state(cls): return cls
+
+
+class BoolWrapIRView(TypedDict):
+    """Closed-key view of the three IR-expression keys `_bool_ir_to_int_wrap`
+    reads (`type`, `op`, `func` — all `str`). Runtime-inert (a TypedDict IS a
+    dict); `Optional[BoolWrapIRView]` monomorphizes to `option <record>` (the
+    boundary-1 G1 option-of-record projection), so — after the `if val_ir is
+    None` guard — `val_ir.get("type")` projects the field from the `Some` arm
+    (`match val_ir with Some _r -> _r.py_type | None -> ""`) and the literal
+    comparisons route through `str_eq_op`, not an opaque int-hash op."""
+    type: str
+    op: str
+    func: str
 ""  # pycsl
 
 
@@ -16,41 +29,162 @@ def mutable_state(cls): return cls
 @dataclass
 class ControlFlowStmtMixin:
     _has_early_ret: int = 0
+    # (#49) gen #35, backlog #77 batch 4 — fields this class's `#@ assigns` clauses name and
+    # it never declared; annotations COPIED from Expression/StatementEmissionMixin's
+    # declarations of the same live emitter fields. `_abstract_ops` / `_obj_state_written` are
+    # deliberately NOT declared here: several CONVERTED handlers reach their writers only
+    # through RECEIVER-LESS abstract ops, so the model body performs no such write and Why3
+    # rejects the honest `writes` ("this write effect does not happen") — measured. Declaring
+    # them needs those calls given receivers first (the `_materialize_if_seq` repair shape).
+    _frame_trigger_active: bool = False
+    _comp_content_counter: int = 0
+    _needs_array_init: bool = False
+    _todict_arg_wants_pymap: bool = False
+    _current_params: Set[str] = None
+    _current_self_type: str = ""
+    _string_local_vars: Set[str] = None
+    _dict_locals: Set[str] = None
+    _quant_record_binders: Dict[str, str] = None
+    _quant_scalar_binders: Set[str] = None
     _func_return_type: str = ""
     _current_tuple_arity: int = 0
     _havoc_counter: int = 0
     _seq_locals: Set[str] = None
     _array_locals: Set[str] = None
+    # W8 capability (v) / nested-string-map local: `_union_arm_whyml_type` reads
+    # `self._record_types.get(tag)` (a `Dict[str, str]` record-metadata sub-dict, e.g.
+    # `{"whyml_name": ...}`) then projects `_rt.get("whyml_name")` (a string). Annotated
+    # `Dict[str, Dict[str, str]]` (NOT `Any`) so the emitter models it as
+    # `map string (option (map string (option string)))` and the `_rt` local is a
+    # nested-string-map (`map string (option string)`), not the int-erased `ref 0`.
+    # Live: Module6_WhyMLTranspiler.__init__ (`self._record_types: Dict[str, Any] = {}`).
+    _record_types: Dict[str, Dict[str, str]] = None
+    # self-tcb-reduction Tier-5 (union/match cluster): the emitter's
+    # `_current_symbol_table` (name -> type-string) is a native `Dict[str, str]` ->
+    # `map string (option string)`; `_variant_types` (symtype -> variant-metadata sub-
+    # dict, a heterogeneous `Dict[str, Any]`) is annotated `Dict[str, Dict[str, PyVal]]`
+    # so `_m5_get_dict_value_type` types it as the faithful nested `map string (option
+    # (map string (option hval)))` — thus `_variant_types.get(symtype)` reads a real
+    # `map string (option hval)` vinfo (the exact param type of `_union_ctor_for_arm_tag`),
+    # NOT the int-erased facade. Both are emitter-internal, corpus-absent -> reference
+    # corpus + every other mirror byte-identical. Live: Module6_WhyMLTranspiler.__init__.
+    _current_symbol_table: Dict[str, str] = None
+    _variant_types: Dict[str, Dict[str, PyVal]] = None
+    # self-tcb-reduction Tier-5 (union/match cluster): the set of MUTABLE Optional
+    # locals (`x: Optional[τ] = None` → a `ref _union_*`), consulted by
+    # `_try_union_is_none_match` (`var_name in self._optional_union_locals`) to skip
+    # the value-narrowing match for a reassignable ref. A native `Set[str]` →
+    # `map string (option ...)` so membership is a faithful RAW-string-key map read,
+    # NOT the int-hashed `contains_check` facade. Live: Module6_WhyMLTranspiler /
+    # statements.py `self._optional_union_locals = _union_locals`.
+    _optional_union_locals: Set[str] = None
+    # SOUNDNESS (frame audit): `_in_spec` is WRITTEN by the ported bodies
+    # (`self._in_spec = True/False` around the invariant/variant emission in
+    # `_handle_while_stmt` / `_handle_for_stmt`) but was undeclared, so no `assigns`
+    # frame could name it. The header note above ("all reads (no writes) → assigns
+    # \nothing") was FALSE for this field. Live: Module6_WhyMLTranspiler.__init__.
+    _in_spec: int = 0
+    # SOUNDNESS (frame audit, HIGH — the last open item): `_for_idx_init` is WRITTEN by
+    # `_classify_iterable`'s LIVE body (`= start` / `= "0"` / the slice-lower expression)
+    # and READ BACK by `_handle_for_stmt` (`idx_init = self._for_idx_init`). It was
+    # undeclared on this mirror class, so no `assigns` frame could name it and the stub
+    # carried `assigns \nothing` — a FALSE premise every caller inherited. Live:
+    # Module6_WhyMLTranspiler.__init__ (`self._for_idx_init: str = "0"`).
+    _for_idx_init: str = "0"
     "Control-flow statement handlers — `while` / `for` / `if` / `try` / `match`\n    / `return` — plus their private helpers (`_classify_iterable`,\n    `_first_assign_value_ir`, `_try_local_decl_kind`).\n\n    Extracted verbatim from `StatementEmissionMixin` (Part B move 3e, mirroring\n    the expressions.py split). `StatementEmissionMixin` inherits this mixin, so\n    the handlers resolve via MRO through the facade's `_STMT_HANDLERS` table and\n    recurse back into the core `self._stmts_to_whyml` / `self._expr_to_whyml`\n    (which stay in `StatementEmissionMixin`)."
+    # (#33) CROSS-MIXIN PROTOCOL STUB — the `statements.py`/`expressions.py` precedent.
+    # `_is_string_expr` is DEFINED in `module6_whyml/expressions.py` and merely INHERITED here, so this file's
+    # `_module_method_writes` has no entry and the caller-side avatar was minted
+    # FRAMELESS: Why3 then infers NO effect and every converted caller may claim it
+    # changes nothing. Measured by `bin/check-avatar-frame-parity.py`. Declaring the
+    # honest frame LOCALLY is the only route: the emitter resolves imports against the
+    # LIVE `src/pycsl` tree, which carries no `#@` contracts at all, so no import-based
+    # lookup can ever recover it.
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache
+    def _is_string_expr(self, ir: "ExprIR") -> bool:
+        pass
+
 
     # item34.md CF0.3: cross-file recursion-leaf / bridge sibling stubs (defined in the
     # StatementEmissionMixin / expressions.py files the mixin composes with at runtime). Typed
     # `-> str` so the ported control-flow bodies compose their strings; effect-free registrar
     # helpers (`*_bridge`) are `assigns \nothing`.
+    # (#33) CROSS-MIXIN PROTOCOL STUB, the `statements.py`/`expressions.py` precedent.
+    # `_add_abstract_op` is DEFINED in `expressions.py` and merely INHERITED here, so this
+    # file's `_module_method_writes` has no entry for it and its caller-side avatar was
+    # minted FRAMELESS — `val self__add_abstract_op_1 (x0: int) : int`, no receiver, no
+    # `writes` — while the SAME method in `statements.mlw` carries
+    # `writes { self._abstract_ops }`. A frameless avatar makes Why3 infer NO effect, so
+    # every converted caller here may claim it changes nothing. Measured by
+    # `bin/check-avatar-frame-parity.py`. Declaring the honest frame LOCALLY is the only
+    # route that works: the emitter resolves imports against the LIVE `src/pycsl` tree,
+    # which carries no `#@` contracts at all, so no import-based lookup can ever recover it.
     #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
+    def _add_abstract_op(self, decl: str) -> None:
+        pass
+
+    #@ sibling_concrete
+    #@ requires True
+    #@ ensures True
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _materialize_bridge(self) -> None:
-        return
+        """07-1705-rev4 P4: emit the faithful seq→array bridge val (fresh result, no
+        region link), used where a seq-modelled value crosses into `array int` code."""
+        self._add_abstract_op(
+            "val materialize (s: seq int) : array int\n"
+            "    ensures { Array.length result = Seq.length s }\n"
+            "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ sibling_concrete
+    #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _materialize_str_bridge(self) -> None:
-        return
+        """str-list-elements: the STRING analogue of `_materialize_bridge` — bridges a
+        `seq string` (a growable string list) to a fresh `array string` at the return
+        slot, so a list of strings returns as `array string`."""
+        self._add_abstract_op(
+            "val materialize_str (s: seq string) : array string\n"
+            "    ensures { Array.length result = Seq.length s }\n"
+            "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _seq_init_expr(self, val_ir: "ExprIR", local_refs: Set[str]) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
     #@ ensures True
-    def _bool_ir_to_int_wrap(self, val: str, val_ir: "ExprIR") -> str:
-        return ""
+    #@ assigns \nothing
+    def _bool_ir_to_int_wrap(self, val: str, val_ir: Optional[BoolWrapIRView]) -> str:
+        if val_ir is None:
+            return val
+        t = val_ir.get("type", "")
+        op = val_ir.get("op", "")
+        is_bool_source = (
+            (t == "Compare")
+            or (t == "BoolOp" and op in ("and", "or"))
+            or (t == "UnaryOp" and op == "not")
+            or (t == "BinOp" and op in ("==", "!=", "<", ">", "<=", ">=", "in", "not in"))
+            or (t == "Call" and val_ir.get("func", "") in (
+                "isinstance", "hasattr", "any", "all"))
+            or (t in ("Exists", "Forall", "SetMem", "SetSubset", "SetEq",
+                      "MapEq", "HasKey"))
+        )
+        if is_bool_source:
+            return f"(if {val} then 1 else 0)"
+        return val
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _expr_to_whyml(self, expr: "ExprIR", local_refs: Set[str]) -> str:
         return ""
 
@@ -61,24 +195,49 @@ class ControlFlowStmtMixin:
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _to_bool(self, whyml_str: str, ir_expr: "ExprIR") -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    # SOUNDNESS (relocated-stub frame audit): this stub carried NO `assigns` clause at all,
+    # so it was emitted as an effect-FREE `val` — while its live body (which lives in
+    # `statements.py`, a different file, which is why the same-file frame audit did not see
+    # it) writes `self._in_spec` twice around its spec-context expression emission. A missing
+    # frame is not "unspecified", it is the FALSE claim `\nothing`.
     #@ ensures True
+    #@ assigns self._in_spec
     def _stmts_to_whyml(self, rest: List[Dict[str, Any]], local_refs: Set[str],
                         declared_refs: Set[str], indent: str, in_loop: bool) -> str:
         return ""
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_while_stmt(self, stmt: WhileStmt, rest: List[Dict[str, Any]],
                             local_refs: Set[str], declared_refs: Set[str],
                             indent: str, in_loop: bool) -> str:
         _test_d = stmt.test.to_dict()
         test = self._expr_to_whyml(_test_d, local_refs)
         test = self._to_bool(test, _test_d)
+        # (#49) gen #36 — A MIXED `and`/`or` CONDITION WITH A STRING OPERAND. The value
+        # form of `a and s` selects an OPERAND (route #35), and an int `a` and a string
+        # `s` have no common Why3 type, so `while i < n and lines[i].strip():` never
+        # type-checked. In a CONDITION only truthiness is observed, and Python's
+        # `bool(a and b)` is exactly `bool(a) && bool(b)` (`or`: `||`), short-circuit
+        # included (Why3's `&&`/`||` are lazy). Gated on a direct string operand of a
+        # non-string `and`/`or`, so every shape that type-checks today is untouched.
+        _tl36 = _test_d.get("left")
+        _tr36 = _test_d.get("right")
+        if (_test_d.get("type") == "BinOp" and _test_d.get("op") in ("and", "or")
+                and isinstance(_tl36, dict) and isinstance(_tr36, dict)
+                and not self._is_string_expr(_test_d)
+                and (self._is_string_expr(_tl36) or self._is_string_expr(_tr36))):
+            _tj36 = " && " if _test_d.get("op") == "and" else " || "
+            test = ("(" + self._to_bool(self._expr_to_whyml(_tl36, local_refs), _tl36)
+                    + _tj36
+                    + self._to_bool(self._expr_to_whyml(_tr36, local_refs), _tr36) + ")")
         _body_d = [s.to_dict() for s in stmt.body]
         has_cont = IRScanner.has_continue(_body_d)
         has_direct_ret = IRScanner.has_direct_return(_body_d)
@@ -144,14 +303,25 @@ class ControlFlowStmtMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # FRAME REPAIRED (frame audit, HIGH — was KNOWN-FALSE). The live body WRITES
+    # `self._for_idx_init` (`= start` / `= "0"` / the slice-lower expression) and
+    # `_handle_for_stmt` READS it back, so the former `assigns \nothing` was a lie every
+    # caller inherited. The emitter defect that blocked the widening — the tuple-unpack
+    # rewrite in `module6_whyml/statements.py::_handle_tuple_unpack_stmt` dropping the
+    # `(self: <class>)` receiver binder and the `writes` clause from the abstract val that
+    # `_handle_dotted_call` had registered, while the call site still passed `self` — is
+    # fixed at source (`_abstract_val_receiver_and_tail`).
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._pyast_loop_variant_len, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _classify_iterable(self, iter_ir: "ExprIR", local_refs: Set[str],
                            idx: str) -> Tuple[str, str, bool]:
         return ("", "", False)
 
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # Frame completed: `self._classify_iterable(...)` (above) writes `_for_idx_init`, which
+    # this body reads back as `idx_init`; the callee's effect propagates into this frame.
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._in_loop_spec, self._in_spec, self._keyword_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyval_locals, self._quant_record_binders, self._quant_scalar_binders, self._str_slice_loop_len, self._string_local_vars, self._todict_arg_wants_pymap, self._tparam_locals, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
@@ -253,26 +423,84 @@ class ControlFlowStmtMixin:
                 return full_code + ";\n" + rest_code
             return full_code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _first_assign_value_ir(self, var: str, stmts: List[int]) -> int:
+    def _first_assign_value_ir(self, var: str, stmts: List["ExprIR"]) -> "ExprIR":
+        for stmt in stmts:
+            if stmt.get("stmt") == "Assign" and stmt.get("target") == var:
+                return stmt.get("value", {}) or {}
+            for key in ("body", "orelse", "finalbody"):
+                if isinstance(stmt.get(key), list):
+                    r = self._first_assign_value_ir(var, stmt[key])
+                    if r:
+                        return r
+            for h in stmt.get("handlers", []):
+                r = self._first_assign_value_ir(var, h.get("body", []))
+                if r:
+                    return r
         return {}
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._try_local_decl_kind(...)` call site in this file went through the receiver-less abstract
+    # `val self___try_local_decl_kind_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _try_local_decl_kind(self, val_ir: int) -> str:
-        return ""
+    def _try_local_decl_kind(self, val_ir: "ExprIR") -> str:
+        """Reduced `_first_assign_kind` (IR-only, no val-string side effects)
+        for a try-body local's pre-declaration: `record` | `dict` | `array_string`
+        | `default`."""
+        vt = val_ir.get("type", "")
+        # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): a try-body local
+        # first-assigned a list COMPREHENSION (`slots = [_infer_tuple_slot_type(…) for e
+        # in elts]`) is a `seq string` — pre-declare `ref (Seq.empty : seq string)`, not the
+        # integer `ref 0` (which int-clashes the `:=`). An immutable `seq` (not a mutable
+        # `array`) so the ref is freely reassignable (no Why3 region alias). Method-gated.
+        if vt == "ListComp" and self._emitting_refine_tuple_return_type():
+            return "seq_string"
+        if vt == "Call" and val_ir.get("func", "") in self._record_types:
+            return "record"
+        if (vt in ("DictLit", "SetLit")
+                or (vt == "Call" and val_ir.get("func") in ("dict", "set", "frozenset"))
+                or self._rhs_yields_map(val_ir)):
+            return "dict"
+        return "default"
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _callee_raised_direct(self, node: Any) -> int:
-        return set()
+    def _callee_raised_direct(self, node: Any) -> Set[str]:
+        """Exceptions that calls anywhere within `node` may raise via the
+        callee's declared `#@ raises` contracts, WITHOUT regard to any
+        enclosing try/except in `node`. Walks every `Call`, looks the
+        function up in the module raises registry, unions declared names."""
+        registry = getattr(self, "_module_func_raises", {}) or {}
+        out: Set[str] = set()
+
+        def walk(n: Any) -> None:
+            if isinstance(n, dict):
+                if n.get("type") == "Call":
+                    fn = n.get("func", "")
+                    for rc in registry.get(fn, []):
+                        exc = rc.get("exc_type")
+                        if exc:
+                            out.add(exc)
+                for v in n.values():
+                    walk(v)
+            elif isinstance(n, (list, tuple)):
+                for v in n:
+                    walk(v)
+
+        walk(node)
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -283,13 +511,64 @@ class ControlFlowStmtMixin:
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # Inherited from `_stmts_to_whyml` (see its frame note).
+    #@ assigns self._in_spec
     def _handle_try_stmt(self, stmt: TryStmt, rest: List[Dict[str, Any]],
                           local_refs: Set[str], declared_refs: Set[str],
                           indent: str, in_loop: bool) -> str:
         body_stmts = [s.to_dict() for s in stmt.body]
         handlers = stmt.handlers
+        # (#43) ROUTE #21 — THE `TRYFINAL` RESIDUE IS EXPLOITABLE. This handler reads
+        # `stmt.body` and `stmt.handlers` and neither `finalbody` nor `orelse`. #33 emits
+        # the `finally` in the ONE case it could — no handlers, and no jump out of the
+        # lowered body — and `bin/check-dropped-mutation.py` has counted the rest as
+        # `TRYFINAL = 9` ever since, green, unprobed. MEASURED (corpus 0990):
+        #     x: int = 1
+        #     try:     x = 2
+        #     except ValueError:  x = 9
+        #     finally: x = 3
+        #     return x
+        #     #@ ensures \result == 2      <-- FALSE OF THE PROGRAM (Python returns 3)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # THE CONTROLS LOCALISE IT: the same file WITHOUT handlers correctly FAILS (that is
+        # #33's fixed case working), and the `try/except/else` form correctly FAILS too. So
+        # the live gap is exactly `finally` PLUS handlers.
+        # Refused HERE, in Module 6's statement lowering, so a `\trusted`/`\abstract`
+        # function — whose body is never lowered — stays exempt. CENSUS: 4 sites in the
+        # whole tree; the one in the mirror (`pycsl._run_proofs`) is `\trusted`, so this is
+        # byte-inert.
+        # (#44) ROUTE #22 MADE THIS GUARD REAL, AND THAT IS WHY IT IS SPELLED THIS WAY.
+        # It used to read `if getattr(stmt, "finalbody", None) and handlers:`, and
+        # `_lower_getattr` erased that read to the literal `0` in the self-annotation
+        # model — so the refusal lowered to `if (0 <> 0) && true`, DEAD CODE, and the
+        # mirror's whole-file proof was verifying a `_handle_try_stmt` in which this very
+        # refusal could not fire. With the declared-field guard in `_lower_getattr` the
+        # read is faithful, and the TRUTHINESS TEST then has to be spelled the way the
+        # `orelse` block below already spells its own: bind the statement list with the
+        # `to_dict()` comprehension first, and test THAT. `finalbody` is an
+        # `array emit_ir` in the model, so the int-truthiness form `x <> 0` and
+        # `iter_length` (which takes `array int`) are both L3-tc rejections on it —
+        # WL-02 fail-closed, a type disagreement surfaces rather than being coerced.
+        # `finalbody` is a REQUIRED dataclass field of `TryStmt`, so the old `getattr`
+        # default was pure defensiveness and is not lost. Computed once and reused by
+        # the `finally` emission at the end of the method.
+        _final = [s.to_dict() for s in stmt.finalbody]
+        if _final and handlers:
+            raise PyCSLIRError(
+                "a `try ... except ... finally:` is not modelled: this lowering reads the "
+                "try BODY and the HANDLERS and neither the `finally` nor the `else` block, "
+                "so the `finally` would be silently DROPPED while the run still reported "
+                "'All contracts formally proven'. Measured: `try: x = 2 / except "
+                "ValueError: x = 9 / finally: x = 3 / return x` proved `\\result == 2` "
+                "while Python returns 3. A `try ... finally:` with NO handlers IS modelled "
+                "— split the statement, or move the cleanup after the `try`.")
+        # (ROUTES #107 + #108) the `else` block is lowered OUTSIDE the try (below), so a
+        # local it assigns must be pre-declared as an outer ref exactly like a body or a
+        # handler local -- otherwise its `let` would be scoped inside the guarded `if` and
+        # the value would not survive to the statements after the `try`.
+        _else = [s.to_dict() for s in stmt.orelse]
         try_assigned = IRScanner.find_assigned_vars(body_stmts)
+        try_assigned |= IRScanner.find_assigned_vars(_else)
         n_ha = len(handlers)
         i_ha = 0
         #@ loop invariant 0 <= i_ha and i_ha <= n_ha
@@ -327,6 +606,13 @@ class ControlFlowStmtMixin:
                         var, [s for h in handlers for s in h.get("body", [])]))
                 if kind == "record":
                     pass  # let-bound inside the body; no outer ref
+                elif kind == "seq_string":
+                    # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): a `seq string`
+                    # comprehension local pre-declares the empty string seq so its `:=` (from
+                    # `list_comp_refine_string`) type-checks and stays reassignable.
+                    pre_decls += (f"{indent}let {safe_var} = "
+                                  f"ref (Seq.empty : seq string) in\n")
+                    declared_refs.add(safe_var)
                 elif kind == "dict":
                     pre_decls += (f"{indent}let {safe_var} = "
                                   f"ref (const (None: option int)) in\n")
@@ -338,6 +624,50 @@ class ControlFlowStmtMixin:
         body_str = self._stmts_to_whyml(body_stmts, local_refs, declared_refs.copy(), indent + "  ", in_loop)
         if not body_str:
             body_str = f"{indent}  ()"
+        # (#33, then ROUTES #107 + #108) `try ... except ... else:`.
+        #
+        # #33 appended the lowered `else` to the TRY BODY when `"raise" not in <lowered
+        # else>`. That single line was wrong in BOTH directions at once:
+        #
+        #   #107 (the block DELETED). The test is a SUBSTRING test over GENERATED TEXT, so
+        #   it is keyed on SPELLING, and the spelling is attacker-chosen the moment a user
+        #   names a variable. A dead local named `praiseworthy` in the `else` made the test
+        #   false and the whole block was dropped -- silently, no refusal, no warning.
+        #   MEASURED: `y = 0 / try: y = 1 / except ValueError: y = 9 / else: y = 5;
+        #   praiseworthy = 0 / return y` PROVED `ensures \result == 1` while CPython
+        #   returns 5, and the emitted `let f ()` had no else branch at all. The control,
+        #   identical minus that one dead local, correctly FAILED.
+        #
+        #   #108 (the block SPLICED WHERE PYTHON DOES NOT PUT IT). Appending to the try
+        #   body puts the `else` INSIDE the try, so this statement's own handlers catch
+        #   what it raises. Python never does that: an exception raised in an `else:` is
+        #   NOT caught by that try's `except:` clauses. A raise arriving through a callee's
+        #   `#@ raises` leaves no literal `raise` in the lowered text, so the substring
+        #   test PERMITTED the unsound splice. MEASURED: a `#@ no_exception ValueError`
+        #   caller over such a wrapper PROVED while CPython raises.
+        #
+        # The repair is STRUCTURAL and it is the same repair for both directions: lower the
+        # `else` as a SIBLING of the try/except, guarded by a completion flag, so Python's
+        # scoping IS the emitted scoping. The block is now ALWAYS emitted -- there is no
+        # surviving case in which it is dropped, so there is nothing left to test a string
+        # for. A `return`/`raise`/`break`/`continue` in the `else` lowers to a raise that is
+        # now raised OUTSIDE the try and propagates correctly; pycsl.py's PYCSL-R37 fence
+        # still refuses those shapes upstream, which is now a conservative POLICY rather
+        # than a load-bearing soundness prop.
+        _else_str = ""
+        _has_else = False
+        if _else:
+            _else_str = self._stmts_to_whyml(_else, local_refs, declared_refs.copy(),
+                                             indent + "  ", in_loop)
+            if _else_str.strip():
+                _has_else = True
+        # The flag's name carries a PRIME, which `whyml_ident` can NEVER produce: a Python
+        # identifier cannot contain `'`, and the non-ASCII sanitiser maps to letters or to
+        # `u<ord>`. So no user-chosen spelling can collide with it. That guarantee is
+        # STRUCTURAL, not a hope about spelling, which is the entire lesson of #107. The
+        # depth suffix keeps a NESTED try's flag distinct from its parent's; sibling trys at
+        # the same depth shadow harmlessly, each one's `if` having already run.
+        _else_ok = f"try_else_ok'{len(indent)}"
         if handlers:
             from exception_model import handler_catches
             # Concrete exception tags that can actually escape the try body
@@ -357,7 +687,12 @@ class ControlFlowStmtMixin:
             body_raised |= self._callee_raised_in(body_stmts)
             body_raised = sorted(body_raised)
 
-            code = f"{pre_decls}{indent}try\n{body_str}\n"
+            if _has_else:
+                code = (f"{pre_decls}{indent}let {_else_ok} = ref False in\n"
+                        f"{indent}try\n{body_str};\n"
+                        f"{indent}  {_else_ok} := True\n")
+            else:
+                code = f"{pre_decls}{indent}try\n{body_str}\n"
             n_h = len(handlers)
             i_h = 0
             first_handler = True
@@ -407,24 +742,202 @@ class ControlFlowStmtMixin:
                 already_matched |= seen_local
                 i_h += 1
             code += f"{indent}end"
+            if _has_else:
+                # The flag is set by the LAST statement of the try region, so it is true
+                # exactly when the body completed without raising. A handler that ran
+                # leaves it false, and a `return` out of the body never reaches it.
+                code += (f";\n{indent}if !{_else_ok} then begin\n"
+                         f"{_else_str}\n{indent}end")
         else:
+            # No handlers: nothing is caught here, so the `else` runs exactly when the body
+            # completed and appending it is already faithful -- no flag needed.
             code = f"{pre_decls}{body_str}"
+            if _has_else:
+                code = code + ";\n" + _else_str
+        # (#33) `finally:` WAS DROPPED ENTIRELY, and that PROVED A FALSE POSTCONDITION.
+        # `_handle_try_stmt` read `stmt.body` and `stmt.handlers` and never `stmt.finalbody`,
+        # so the cleanup block was absent from the model. Measured, before this:
+        #     try:  self.v = 1;  return          #@ ensures self.v == 1   <-- FALSE
+        #     finally:  self.v = 2
+        # emitted `self.v <- 1; ()` and reported `Verification SUCCESS`, while Python leaves
+        # `self.v == 2` (the `finally` runs before the return completes).
+        # THE SAFE CASE IS EMITTED, THE REST IS COUNTED, NOT GUESSED. Python runs `finally`
+        # on EVERY exit path — normal completion, a caught exception, an uncaught one, and
+        # `return`/`break`/`continue` — and only the FIRST of those is expressible by
+        # appending the block. So it is appended exactly when the other paths cannot arise:
+        # no handlers (nothing is caught here) and no `raise` anywhere in the EMITTED body
+        # (a `return`/`break`/`continue` inside the try lowers to a `raise`, and so does any
+        # exception, so ONE string test covers every jump-out at once — it is a test of the
+        # LOWERED body, not of the source, so it cannot miss a nested one).
+        # Everything else keeps today's behaviour and is COUNTED by
+        # `bin/check-dropped-mutation.py`'s TRYFINAL category with its own ratchet, so the
+        # residue is measured rather than invisible. REOPENING CAPABILITY: run the block on
+        # the handler arms and on a `Return_t` re-raise arm, which needs the function's
+        # return-exception name at this point in the emitter.
+        if _final and not handlers and "raise" not in body_str:
+            _final_str = self._stmts_to_whyml(_final, local_refs, declared_refs,
+                                              indent, in_loop)
+            if _final_str.strip():
+                code += ";\n" + _final_str
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._try_union_is_none_match(...)` call site in this file went through the receiver-less abstract
+    # `val self___try_union_is_none_match_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
+    # `self._in_spec`, so this caller's `\nothing` was false too.
+    #@ assigns self._in_spec
     def _try_union_is_none_match(self, stmt: "ExprIR", rest: List[Dict[str, Any]],
                                  local_refs: Set[str], declared_refs: Set[str],
-                                 indent: str, in_loop: bool) -> str:
-        return ""
+                                 indent: str, in_loop: bool) -> Optional[str]:
+        """typing-engagement ty1 C5 — detect `if x is None:` / `if x is not None:`
+        where `x` is a Union-typed variable, and lower to a constructor-pattern
+        `match` (Why3 forbids `=` on algebraic types in a program `if`). Returns
+        the match code string, or None if the pattern does not apply (caller falls
+        back to the normal `if` lowering)."""
+        test = stmt.get("test", {})
+        if not isinstance(test, dict) or test.get("type") != "BinOp":
+            return None
+        op = test.get("op")
+        if op not in ("==", "!="):
+            return None
+        left, right = test.get("left", {}), test.get("right", {})
+        var_node = None
+        is_none = False
+        if left.get("type") == "None" and right.get("type") == "Var":
+            var_node = right
+            is_none = True
+        elif right.get("type") == "None" and left.get("type") == "Var":
+            var_node = left
+            is_none = True
+        if not is_none or not var_node:
+            return None
+        var_name = var_node.get("name")
+        symtype = getattr(self, "_current_symbol_table", {}).get(var_name)
+        if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        # tool-feature-5: a MUTABLE Optional local (`x: Optional[τ] = None`) is a
+        # `ref _union_*`. The value-narrowing match here (which SHADOWS `x` with the
+        # projected carrier) is for immutable union PARAMS — it is both ill-typed
+        # (`match x` vs the ref `match !x`) and unsound (narrowing a reassignable ref)
+        # for a mutable local. Fall through to the ordinary `if` lowering, whose test
+        # lowers to the match-boolean discriminant `(match !x with Arm_i_None -> true |
+        # _ -> false)` (expressions.py) with `x` staying a ref in both branches.
+        if var_name in getattr(self, "_optional_union_locals", set()):
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        none_ctor = None
+        other_ctors = []
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            if ctor.get("arity") == 0 and "None" in ctor_name:
+                none_ctor = ctor_name
+            else:
+                other_ctors.append(ctor_name)
+        if none_ctor is None:
+            return None
+        body = stmt.get("body", []) or []
+        orelse = stmt.get("orelse", []) or []
+        body_str = self._stmts_to_whyml(body, local_refs, declared_refs.copy(),
+                                        indent + "    ", in_loop)
+        if not body_str.strip():
+            body_str = f"{indent}    ()"
+        orelse_str = self._stmts_to_whyml(orelse, local_refs, declared_refs.copy(),
+                                          indent + "    ", in_loop) if orelse else ""
+        if not orelse_str.strip():
+            orelse_str = f"{indent}    ()"
+        var_safe = whyml_ident(var_name)
+        if op == "==":
+            true_body, false_body = body_str, orelse_str
+            true_is_none = True   # `if x is None:` — True branch is the None arm
+        else:
+            true_body, false_body = orelse_str, body_str
+            true_is_none = False  # `if x is not None:` — True branch is non-None
+        # C5 (GAP-001): on the False branch of `if x is None:` the variable
+        # `x` narrows from `Union[A, None]` to the non-None arm's carrier type
+        # `A`. Why3 has no path-condition narrowing, so we lower the False
+        # branch as a constructor match that binds the carrier value and
+        # SHADOWS `x` with it: `| Arm_0_0 v -> let x = v in <false_body> end`.
+        # The match has exactly one arm per non-None constructor (no wildcard)
+        # so Why3's exhaustiveness check confirms the narrowing is total.
+        #
+        # `rest` handling: when the True branch returns (so `rest` is
+        # unreachable there), `rest` is inlined into the FALSE arm(s) so the
+        # narrowed `x` is in scope. When the True branch does not return,
+        # `rest` runs on both branches and is appended after the match.
+        true_branch_stmts = body if true_is_none else orelse
+        true_returns = bool(true_branch_stmts) and IRScanner.ends_with_return(
+            true_branch_stmts)
+        # Build the None arm.
+        none_arm = f"{indent}  | {none_ctor} ->\n{true_body}"
+        # Build the non-None arms (with carrier projection).
+        non_none_arms: List[str] = []
+        for i, ctor_name in enumerate(other_ctors):
+            ctor_info = vinfo["constructors"][ctor_name]
+            ctor_payload = ctor_info.get("payload", [])
+            # The bound carrier variable. Reuse the original variable name
+            # so a downstream `return x` resolves to the projected carrier.
+            bind = var_safe if len(other_ctors) == 1 else f"{var_safe}_{i}"
+            arm_pat = f"{ctor_name} {bind}" if ctor_payload else ctor_name
+            # Project `x` to the carrier on EVERY non-None arm so `x` is
+            # narrowed to `A` (C5). `let x = bind in <false_body>`.
+            if ctor_payload:
+                non_none_arms.append(
+                    f"{indent}  | {arm_pat} ->\n"
+                    f"{indent}    let {var_safe} = {bind} in\n"
+                    f"{false_body}")
+            else:
+                non_none_arms.append(f"{indent}  | {arm_pat} ->\n{false_body}")
+        # Decide where `rest` goes.
+        if true_returns and rest:
+            rest_str = self._stmts_to_whyml(
+                rest, local_refs, declared_refs,
+                indent + "    ", in_loop)
+            if true_is_none:
+                # `==`: True (None) returns → `rest` runs on the False
+                # (non-None) branch. Inline `rest` into the LAST non-None
+                # arm (after the projected body). Earlier non-None arms
+                # must return independently or the match is non-exhaustive.
+                if non_none_arms:
+                    last = non_none_arms[-1]
+                    non_none_arms[-1] = last + f";\n{rest_str}"
+            else:
+                # `!=`: True (non-None) returns → `rest` runs on the False
+                # (None) branch. Inline `rest` into the None arm. `x` is the
+                # variant on this arm (no projection — it IS None).
+                none_arm = f"{indent}  | {none_ctor} ->\n{true_body};\n{rest_str}"
+            arms = [none_arm] + non_none_arms
+            code = (f"{indent}match {var_safe} with\n" + "\n".join(arms) +
+                    f"\n{indent}  end")
+            return code
+        # True branch does not return (or no rest): `rest` runs on both
+        # branches — append after the match. The non-None arms still project
+        # `x` to the carrier for the False-branch body.
+        arms = [none_arm] + non_none_arms
+        code = (f"{indent}match {var_safe} with\n" + "\n".join(arms) +
+                f"\n{indent}  end")
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs,
+                                                indent, in_loop)
+        return code
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # Inherited from `_stmts_to_whyml`, whose frame this audit corrected: the callee writes
+    # `self._in_spec`, so this caller's `\nothing` was false too.
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_if_stmt(self, stmt: IfStmt, rest: List[Dict[str, Any]],
                         local_refs: Set[str], declared_refs: Set[str],
                         indent: str, in_loop: bool) -> str:
@@ -468,6 +981,14 @@ class ControlFlowStmtMixin:
             body_returns_value = (last_line.startswith("(") and
                                   not last_line.startswith("()") and
                                   "raise " not in last_line and
+                                  # self-tcb-reduction (_err-divergence): a body ending in
+                                  # `absurd` (a `-> NoReturn` `self._err(...)` call, lowered
+                                  # to `(let _ = <call> in absurd)`) DIVERGES — like a
+                                  # `raise` it is not a value-returning arm. Route it to the
+                                  # no-else `if test then begin <body> end` form (the `'a`
+                                  # of `absurd` unifies with the implicit `()`), NOT the
+                                  # value-if whose `else 0` would force an `int` type.
+                                  not last_line.endswith("absurd)") and
                                   "<-" not in last_line and
                                   ":=" not in last_line and
                                   "subscript_set" not in last_line)
@@ -480,11 +1001,18 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _pattern_has_constructor(self, pat: "ExprIR") -> bool:
+    def _pattern_has_constructor(self, pat) -> bool:
+        """True if `pat` is a constructor pattern, or an `Or` whose alternatives
+        include one — the signal to use Why3's native `match` (A5c)."""
+        p = pat.get("pattern")
+        if p == "Constructor":
+            return True
+        if p == "Or":
+            return any(self._pattern_has_constructor(a)
+                       for a in pat.get("alternatives", []))
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
@@ -497,27 +1025,41 @@ class ControlFlowStmtMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _render_match_pattern(self, pat: "ExprIR", top: bool=False) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _match_subject_union_info(self, stmt: "ExprIR") -> Tuple[str, "ExprIR"]:
-        return ("", stmt)
+    def _match_subject_union_info(self, stmt: Dict[str, PyVal]) -> Optional[Tuple[str, PyVal]]:
+        subj = stmt.get("subject", {})
+        if not isinstance(subj, dict) or subj.get("type") != "Var":
+            return None
+        var_name = subj.get("name")
+        symtype = getattr(self, "_current_symbol_table", {}).get(var_name)
+        if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
+            return None
+        vinfo = getattr(self, "_variant_types", {}).get(symtype)
+        if not vinfo:
+            return None
+        return var_name, vinfo
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _union_ctor_for_arm_tag(self, vinfo: "ExprIR", arm_tag: str) -> Tuple[str, "ExprIR"]:
-        return ("", vinfo)
+    def _union_ctor_for_arm_tag(self, vinfo: Dict[str, PyVal], arm_tag: str) -> Optional[Tuple[str, PyVal]]:
+        for ctor_name, ctor in vinfo.get("constructors", {}).items():
+            payload = ctor.get("payload", [])
+            if payload and payload[0] == arm_tag:
+                return ctor_name, ctor
+        return None
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes
+    # `self._in_spec`, so this caller's `\nothing` was false too.
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_match_stmt(self, stmt: MatchStmt, rest: List[Dict[str, Any]],
                            local_refs: Set[str], declared_refs: Set[str],
                            indent: str, in_loop: bool) -> str:
@@ -554,9 +1096,17 @@ class ControlFlowStmtMixin:
                         bind_name = f"_u_{arm_ctor}"
                     # Rewrite the pattern to the variant constructor with the
                     # bound carrier. The carrier is positional.
-                    new_pat = {"pattern": "Constructor", "ctor": arm_ctor,
-                               "captures": [{"pattern": "Capture",
-                                             "name": bind_name}]}
+                    # self-tcb-reduction Tier-5: the rewritten pattern is a
+                    # HETEROGENEOUS `Dict[str, Any]` (two string values + a list of
+                    # nested dicts), so it is annotated with the `PyVal` (~Any)
+                    # sentinel and lowers to the faithful `map string (option hval)`
+                    # with `HStr`/`HArr`/`HMap`-tagged values — never the int-erased
+                    # `map string (option int)` (which int-hashes "Constructor" and
+                    # type-rejects the string `arm_ctor`).
+                    new_pat: Dict[str, PyVal] = {
+                        "pattern": "Constructor", "ctor": arm_ctor,
+                        "captures": [{"pattern": "Capture",
+                                      "name": bind_name}]}
                     c["pattern"] = new_pat
         # sum-types: a constructor-pattern match over a `#@ datatype` lowers to a real Why3
         # `match … with` (so Why3 checks exhaustiveness), not the value-pattern if-chain.
@@ -633,30 +1183,172 @@ class ControlFlowStmtMixin:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._maybe_inject_union_return(...)` call site in this file went through the receiver-less abstract
+    # `val self___maybe_inject_union_return_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _maybe_inject_union_return(self, val: str, val_ir: "ExprIR") -> str:
-        return ""
+        """typing-engagement ty1 §0/§2.2 C2 — if the function's return type is a
+        synthesized `_union_*` variant, auto-inject the return value into the
+        first arm whose payload type matches the value's type. If the value is
+        already a constructor application (starts with `Arm_`), leave it. If no
+        arm matches, leave the value (Why3 will flag the type error)."""
+        func_ret = getattr(self, "_func_return_type", "")
+        if not func_ret or not func_ret.startswith("_union_"):
+            return val
+        vinfo = getattr(self, "_variant_types", {}).get(func_ret)
+        if not vinfo:
+            return val
+        constructors = vinfo.get("constructors", {})
+        if not constructors:
+            return val
+        # If the value is already a constructor application, don't re-wrap.
+        for ctor_name in constructors:
+            if val.startswith(ctor_name):
+                return val
+        # GAP-004 (O3): `return None` from a function whose declared return type
+        # is a synthesized `_union_*` variant (= `Optional[X]` = `Union[X, None]`)
+        # must inject into the variant's nullary `Arm_*_None` constructor. None is
+        # always assignable to Optional[X] (spec clause O3, optional-twoplane-spec
+        # §1.1); without this arm the bare `0` (the Python-None singleton model)
+        # type-clashes against the variant. Symmetric to the int-arm injection
+        # below; fires BEFORE the type-based arm search so a None-typed return
+        # never falls through to the lossy `int` fallback.
+        if isinstance(val_ir, dict) and val_ir.get("type") == "None":
+            for ctor_name, ctor in constructors.items():
+                if ctor.get("arity") == 0 and "None" in ctor_name:
+                    return ctor_name
+        # Determine the value's WhyML type and find a matching arm.
+        val_type = self._infer_return_value_type(val_ir)
+        if val_type is None:
+            return val
+        for ctor_name, ctor in constructors.items():
+            if ctor.get("arity") == 0:
+                continue
+            payload = ctor.get("payload", [])
+            if not payload:
+                continue
+            arm_type = self._union_arm_whyml_type(payload[0])
+            if arm_type == val_type:
+                return f"({ctor_name} {val})"
+        return val
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _infer_return_value_type(self, val_ir: Any) -> Optional[str]:
+    #@ assigns self._abstract_ops, self._obj_state_written
+    def _infer_return_value_type(self, val_ir: "ExprIR") -> Optional[str]:
+        """Infer the WhyML type of a return value IR node for Union injection."""
+        if not isinstance(val_ir, dict):
+            return None
+        # W8 capability (v): a RECORD-VALUED return (`return self.toks[idx]` /
+        # `return self.advance()` / a record-typed local) resolves to the record's
+        # Why3 type, so it is injected into the Optional variant's RECORD arm.
+        # Gated on the `List[<record>]`-field machinery -> None (byte-inert)
+        # everywhere else, so it may run first without perturbing any other shape.
+        _rec = self._record_valued_expr_whyml_type(val_ir)
+        if _rec is not None:
+            return _rec
+        t = val_ir.get("type")
+        if t in ("Number", "BinOp") or t == "UnaryOp":
+            # self-tcb-reduction _typeddict_record_literal (cap-6/7 completion): a string
+            # `+` concatenation return (`return "{ " + "; ".join(parts) + " }"`) is a
+            # STRING value — it must wrap into the Optional variant's string arm
+            # (`Arm_N_0 <concat>`), not fall through as int (no int arm exists -> the bare
+            # string type-clashes the `_union_*`). Mirrors the FString/`_is_string_expr`
+            # path; only BinOp is re-checked (Number/UnaryOp are always int). Byte-inert:
+            # a corpus union function with an unwrapped string-BinOp return would already
+            # fail L3-tc, so none exists (the wrap fires for no corpus program).
+            if t == "BinOp" and self._is_string_expr(val_ir):
+                return "string"
+            return "int"
+        if t == "String":
+            return "string"
+        if t == "Bool":
+            return "int"
+        if t == "Var":
+            name = val_ir.get("name", "")
+            symtab = getattr(self, "_current_symbol_table", {})
+            symtype = symtab.get(name)
+            if symtype:
+                return self._union_arm_whyml_type(symtype) \
+                    if not symtype.startswith("_union_") else symtype
+            return "int"
+        if t == "Call":
+            func = val_ir.get("func", "")
+            if isinstance(func, str):
+                if func in ("len", "int", "abs", "ord"):
+                    return "int"
+                if func in ("str",):
+                    return "string"
+                # value-model campaign incr5 (Optional-return-of-CALL wrapping): a string-
+                # returning METHOD call (`self._m5_get_type_name_legacy(...)`) resolves to
+                # "string" via the callee's declared signature, so `return self._m(...)` from
+                # an Optional[str] function wraps into the variant's string-arm ctor (`Arm_N_0
+                # <call>`), like a string LITERAL — previously it fell through to None
+                # (unwrapped) and Why3 rejected the bare string against the `_union_*` variant.
+                # Only the string case is added; int/other calls are unperturbed.
+                if self._resolve_dotted_signature(func)[0] == "string":
+                    return "string"
+        # value-model campaign incr7 (primitive #1 — generalized string-return wrapping): ANY
+        # string-typed return VALUE (a `name_of` attribute read `return elt.id`, a string
+        # ternary `return "a" if c else elt.id`, an f-string / string concat) wraps into the
+        # Optional-variant string-arm (`Arm_N_0 <val>`), mirroring the literal/String case and
+        # the incr5 string-CALL case. Reuses `_is_string_expr` (the emitter's string-typedness
+        # oracle). Reached ONLY for a union-returning function (via `_maybe_inject_union_return`)
+        # and only wraps when a matching string arm exists, so non-union / non-string returns
+        # (and every corpus function) are unperturbed. Placed last so the explicit int/Var/Call
+        # cases above still win (e.g. a `+` string-concat is FString/handled there, not here).
+        if self._is_string_expr(val_ir):
+            return "string"
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
+    # `self._union_arm_whyml_type(...)` call site in this file went through the receiver-less abstract
+    # `val self___union_arm_whyml_type_<n>`, whose result is UNCONSTRAINED — so no caller saw anything
+    # this body computes. The opt-in marker is the SECOND admission route into the
+    # concrete lowering; the first (`_record_array_fields`) is a PROXY that holds only
+    # for the parser-cursor shape and is empty for this file. Sound: the callee is a
+    # same-file VERIFIED method in `_module_func_names`, and `scc.find_self_method_calls`
+    # already supplies the callee-before-caller ordering edge for a marked callee.
+    # Corpus byte-inert BY CONSTRUCTION — no corpus program writes the directive.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _union_arm_whyml_type(self, tag: str) -> str:
-        return ""
+        """Map a Union arm IR type tag to its WhyML type string."""
+        m = {"int": "int", "bool": "int", "str": "string", "float": "real",
+             "list": "array int", "bytes": "array int", "bytearray": "array int",
+             # set/frozenset: faithful StrSet `map string bool` (see the twin in
+             # functions.py / preamble._VPAY) — was the int-keyed map that
+             # int-hashed a string membership key. `dict` stays on the int model.
+             "dict": "map int (option int)", "set": "map string bool",
+             "frozenset": "map string bool", "tuple": "array int",
+             # self-tcb-reduction giants: an `Optional[ast.expr]` local's Some-arm
+             # carries the already-lowered emit_ir sub-node.
+             "emit_ir": "emit_ir"}
+        if tag in m:
+            return m[tag]
+        # W8 capability (v): a RECORD-class arm tag (`Optional[_Tok]` -> the arm
+        # tag `_Tok`) resolves to that record's Why3 type, so the return-value
+        # injection below can match a record-valued `return` against the arm.
+        _rt = getattr(self, "_record_types", {}).get(tag)
+        if _rt and _rt.get("whyml_name"):
+            return _rt["whyml_name"]
+        return "int"
 
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_return_stmt(
         self,
         stmt: ReturnStmt,
@@ -673,6 +1365,14 @@ class ControlFlowStmtMixin:
         if val_ir is None:
             val = "()"
         elif (val_ir.get("type") == "Var"
+              and val_ir.get("name") in getattr(self, "_pyval_seq_locals", set())):
+            # K4 (local/return-position seq-pyval, self-tcb-reduction Tier-5): the
+            # function's declared return is `seq hval`, so a `return fields` where
+            # `fields` is the `seq hval` local returns the seq DIRECTLY (`!fields`) —
+            # NOT the `materialize` (seq int -> array int) bridge, which drops the pyval
+            # carrier. Gated on `_pyval_seq_locals` -> byte-inert.
+            val = f"!{whyml_ident(val_ir['name'])}"
+        elif (val_ir.get("type") == "Var"
               and val_ir.get("name") in getattr(self, "_seq_locals", set())):
             # 07-1705-rev4 P4: returning a seq-modelled (growable) list local where the
             # function's declared return is `array int` (a `list`) crosses the seq→array
@@ -688,6 +1388,28 @@ class ControlFlowStmtMixin:
             if self._func_return_type == "array string":
                 self._materialize_str_bridge()
                 val = f"(materialize_str !{whyml_ident(val_ir['name'])})"
+            elif (self._func_return_type.startswith("array ")
+                  and self._func_return_type != "array int"
+                  and self._func_return_type != "array real"
+                  and " " not in self._func_return_type[len("array "):]):
+                # RECORD-ELEMENT FIDELITY (the third bridge, beside `materialize` and
+                # `materialize_str`): a `-> List[<record>]` function whose only normal exit
+                # is the tail return of a seq-modelled accumulator
+                # (`names.append(_N("alias")(...)); return names`) crosses the same
+                # seq->array boundary with a RECORD payload, and the int bridge type-clashes
+                # (`seq py_alias` vs `seq int`) exactly as it does for the string payload.
+                # The bridge is emitted per ELEMENT TYPE, with the same fresh-result /
+                # no-region-link shape and the same two pointwise postconditions as the two
+                # existing bridges, so the array is EQUAL to the seq and nothing is erased.
+                # Gated on a declared `array <single-token-non-scalar>`: `array int`,
+                # `array real` and `array string` (handled above) all keep their existing
+                # emission, so every corpus driver is byte-identical.
+                # The bridge VAL itself is declared by `_emit_function` (it cannot be
+                # declared from here: this body's own mirror models `_add_abstract_op`'s
+                # argument as a hashed int, so a COMPUTED declaration string cannot be
+                # passed). Here we only name it.
+                _elem = self._func_return_type[len("array "):]
+                val = "(materialize_" + _elem + " !" + whyml_ident(val_ir["name"]) + ")"
             else:
                 self._materialize_bridge()
                 val = f"(materialize !{whyml_ident(val_ir['name'])})"
@@ -700,9 +1422,42 @@ class ControlFlowStmtMixin:
                 # function level (no raise), the array variable IS the
                 # value — keep its name.
                 if use_raise and func_ret_peek != "array int":
-                    val = "0"
+                    # (#49) ROUTE #117: UNKNOWN, not the literal `0` (a list is never `0`).
+                    val = "(any int)"
                 else:
                     val = whyml_ident(val_ir["name"])
+            elif (val_ir.get("type") == "Tuple" and not use_raise
+                  and func_ret_peek.startswith("(") and "array " in func_ret_peek):
+                # (#49) gen #36: the TAIL return of a tuple carrying a seq-promoted list
+                # local (`return clauses, i`). The slot is declared `array int`/`array
+                # string`, the local is a `seq`, so the slot crosses the same seq->array
+                # boundary as `return clauses` alone and takes the same faithful bridge
+                # (`materialize`/`materialize_str`: a fresh array EQUAL to the seq; the
+                # local is dead after the return). The bridge is picked from the declared
+                # return type and only when it is unambiguous (one array element type);
+                # a wrong pick cannot hide -- Why3 rejects it. Every other element lowers
+                # exactly as in the generic tuple, so a tuple without such a local is
+                # unchanged; a raise-path return is untouched.
+                _elts = val_ir.get("elts", [])
+                _parts = []
+                _k = 0
+                #@ loop invariant 0 <= _k
+                #@ loop variant len(_elts) - _k
+                while _k < len(_elts):
+                    _p = self._expr_to_whyml(_elts[_k], local_refs)
+                    if (_elts[_k].get("type") == "Var"
+                            and _elts[_k].get("name") in getattr(self, "_seq_locals", set())):
+                        if ("array string" in func_ret_peek
+                                and "array int" not in func_ret_peek):
+                            self._materialize_str_bridge()
+                            _p = "(materialize_str " + _p + ")"
+                        elif ("array int" in func_ret_peek
+                              and "array string" not in func_ret_peek):
+                            self._materialize_bridge()
+                            _p = "(materialize " + _p + ")"
+                    _parts.append(_p)
+                    _k += 1
+                val = "(" + ", ".join(_parts) + ")"
             else:
                 val = self._expr_to_whyml(val_ir, local_refs)
         # typing-engagement ty1 / 25-1700-typing-spec-1 §0/§2.2 C2: if the
@@ -711,11 +1466,40 @@ class ControlFlowStmtMixin:
         # it into the first arm whose payload type matches (the injection
         # wrapper per arm). This lets `def f() -> Optional[int]: return x+x`
         # type-check (the int return is wrapped as `Arm_<idx>_0 (x+x)`).
-        val = self._maybe_inject_union_return(val, val_ir)
+        # LEVER F2: thread an `option string` value (`.get(k)` / None / IfExpr thereof)
+        # into the Optional[str] union arms BEFORE the generic arm injection — the raw
+        # option preserves None-propagation instead of the scalar `None -> 0` default.
+        _threaded = self._thread_optional_return(val_ir, local_refs)
+        if _threaded is not None:
+            val = _threaded
+        else:
+            val = self._maybe_inject_union_return(val, val_ir)
         if use_raise:
             func_ret = self._func_return_type
+            if func_ret.startswith("option ("):
+                # Optional-tuple return: the built-in `option (τ...)` carries either
+                # `Some (a,b,c)` (a `return (a,b,c)`) or `None` (a `return None`),
+                # through the dedicated `Return_opttuple_<arity>` exception. Faithful
+                # to Python's `Optional[Tuple]` — `None` and `(0,…)` stay DISTINCT
+                # (the raw-tuple `Return_<arity>` path had to collapse `None` to a bare
+                # int and could not represent the absent case). The tuple value is
+                # lowered directly from `val_ir` (no `_coerce_to_int`, no union arm).
+                suffix = func_ret[len("option "):].replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+                if val_ir is not None and val_ir.get("type") == "Tuple":
+                    tup = self._expr_to_whyml(val_ir, local_refs)
+                    return f"{indent}raise (Return_opttuple_{suffix} (Some {tup}))"
+                return f"{indent}raise (Return_opttuple_{suffix} None)"
             if func_ret == "unit":
                 return f"{indent}raise Return_void"
+            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return whose refined
+            # type carries a `pyconst_val` slot uses a DEDICATED payload-typed exception
+            # `Return_tup_<slots>` (never the shared `Return_<arity>`); the MIDDLE slot is coerced
+            # to its pyconst_val value. Emits a WhyML-SOURCE STRING (no pyconst_val value handled
+            # in Python) -> dead-code / inert in the giants.
+            if func_ret.startswith("(") and "pyconst_val" in func_ret:
+                _suffix = (func_ret.replace("(", "").replace(")", "")
+                           .replace(" ", "").replace(",", "_"))
+                return f"{indent}raise (Return_tup_{_suffix} {val})"
             arity = self._current_tuple_arity
             if arity > 0:
                 # Tuple return: use the dedicated Return_<arity> exception
@@ -750,12 +1534,79 @@ class ControlFlowStmtMixin:
                     seq_val = f"!{whyml_ident(val_ir['name'])}"
                 else:
                     seq_val = self._seq_init_expr(val_ir, local_refs)
+                    # (#49) gen #36: a split comprehension (`[p.strip() for p in
+                    # s.split(",")]`) lowers to the `array string` `str_split_op`, and the
+                    # generic bridge wraps it in `snapshot`, which outside @mutable_state is
+                    # monomorphic `array int -> seq int` -- an L3-tc rejection against the
+                    # `seq string` carrier. Use its STRING twin `snapshot_str` (length- and
+                    # element-preserving, fresh seq). Keyed on the exact text the bridge
+                    # itself produced, so every other return keeps its lowering.
+                    if (val_ir.get("type") == "ListComp"
+                            and not getattr(self, "_mutable_state_classes", None)
+                            and seq_val.startswith("(snapshot (str_split_op ")):
+                        self._add_abstract_op(
+                            "val snapshot_str (a: array string) : seq string\n"
+                            "    ensures { Seq.length result = Array.length a }\n"
+                            "    ensures { forall i:int. 0 <= i < Array.length a ->"
+                            " Seq.get result i = a[i] }")
+                        seq_val = "(snapshot_str " + seq_val[len("(snapshot "):]
                 return f"{indent}raise (Return_seq_str {seq_val})"
+            if func_ret == "array emit_ir":
+                # THE STATEMENT-LIST CARRIER: an `array emit_ir` return travels as an
+                # immutable `seq emit_ir` through `Return_seq_ir`; the catch materializes
+                # it back. An empty-list return (`return []`) carries `Seq.empty`, which is
+                # the FAITHFUL empty statement list — not a dropped child.
+                if val_ir is None:
+                    seq_val = "Seq.empty"
+                elif (val_ir.get("type") == "Var"
+                      and val_ir.get("name") in getattr(self, "_seq_locals", set())):
+                    seq_val = f"!{whyml_ident(val_ir['name'])}"
+                elif (isinstance(val_ir, dict)
+                      and val_ir.get("type") in ("ArrayLit", "ListLit")
+                      and not val_ir.get("elts")):
+                    seq_val = "Seq.empty"
+                else:
+                    # `_seq_init_expr`, NOT `_seq_operand` — matching the two sibling arms
+                    # exactly. Measured (lesson (ww)): `_seq_operand` is not modelled in
+                    # this method's own MIRROR, so calling it introduced an abstract
+                    # `self__seq_operand_2 (x0: emit_ir) (x1: int) : int` whose int return
+                    # ill-typed against the string being built — a clean-looking byte diff
+                    # that failed L3-tc.
+                    seq_val = self._seq_init_expr(val_ir, local_refs)
+                return f"{indent}raise (Return_seq_ir {seq_val})"
             if func_ret == "string":
                 # 10-1732-gap Gap 1: a `string`-returning function with an early/in-loop
                 # return raises `Return_str <string>` (caught by the `with Return_str r -> r`
                 # arm). `val` is already the lowered string expression — no int coercion.
+                # self-tcb-reduction (union/match cluster): a `return None` in a `string`-
+                # returning function (the sentinel `_try_union_is_none_match` uses to signal
+                # "pattern does not apply") lowers to the empty string `Return_str ""` — the
+                # None-singleton `0` (an int) type-clashes with the `string` payload. Byte-
+                # inert: a corpus `-> str` function that `return None` would already FAIL
+                # L3-tc on the old `Return_str 0`, so none exists in the passing corpus.
+                if val_ir is None or (isinstance(val_ir, dict)
+                                      and val_ir.get("type") == "None"):
+                    return f'{indent}raise (Return_str "")'
                 return f"{indent}raise (Return_str {val})"
+            if func_ret == "emit_ir":
+                # Return_emit_ir infra: an emit_ir-returning function's early/in-loop
+                # return raises `Return_emit_ir <emit_ir>` (caught by the `with
+                # Return_emit_ir r -> r` arm, statements.py::_wrap_body_with_return_catch).
+                # `val` is already the lowered emit_ir constructor expression (e.g. `(IrAttr
+                # ... ...)`) — no int coercion, mirroring the Return_str arm above.
+                return f"{indent}raise (Return_emit_ir {val})"
+            if func_ret == "term":
+                # TERM CARRIER (L13 cursor-nest): a `term`-returning method's early/in-loop
+                # return raises the dedicated `Return_term <term>`; `val` is already the
+                # lowered term expression, so no int coercion — the `Return_emit_ir` shape.
+                return f"{indent}raise (Return_term {val})"
+            if func_ret.startswith("_union_"):
+                # value-model campaign incr5 (primitive c): a synthesized-union (`Optional[X]`)
+                # early/in-loop return raises its dedicated `Return_<variant>` exception
+                # (caught by `_wrap_body_with_return_catch`). `val` is already the injected
+                # variant value (`_maybe_inject_union_return` wrapped it as `Arm_N_0 <v>` /
+                # `Arm_N_None`) — no int coercion, mirroring the Return_str/Return_emit_ir arms.
+                return f"{indent}raise (Return_{func_ret} {val})"
             # Array-returning functions with early returns CANNOT use the
             # straightforward `raise (Return arr)` shape — Why3 forbids
             # `array int` in exception payloads (mutable types), and the
@@ -771,9 +1622,25 @@ class ControlFlowStmtMixin:
             # (matches the pre-existing lossy behaviour).
             if (val_ir and val_ir.get("type") == "Var"
                     and val_ir.get("name") in self._array_locals):
-                val = "0"
+                # (#49) ROUTE #117 — this was the LITERAL `0`: an unannotated
+                # `if x > 0: return xs` PROVED `\result == 0` while CPython returned
+                # `[x, 1]`. The value cannot be carried by `Return int`; it is UNKNOWN.
+                val = "(any int)"
             elif val == "()":
-                val = "0"
+                # (#49) ROUTE #198 — this was the LITERAL `0`. `val == "()"` here is a
+                # BARE `return` (`val_ir is None`) in an int-returning function, and a
+                # bare `return` IS `return None` in Python. The two spellings lowered to
+                # two different values: `return None` reads back as route #191's opaque
+                # `pycsl_none` and correctly REFUSES `\result == 0`, while the bare
+                # `return` PROVED it — `#@ requires x > 0` / `#@ ensures \result == 0`
+                # over `def f(x: int) -> int: if x > 0: return` was VALID while CPython
+                # answers `None`, and the TRUE twin `\result != 0` was REFUSED. Emitting
+                # the SAME opaque for the SAME statement closes it; `(any int)` would also
+                # be sound but is fresh at every evaluation and could not keep two `None`s
+                # equal. The `unit`-returning function is unaffected — it left above via
+                # `raise Return_void`.
+                self._add_abstract_op("val function pycsl_none : int")
+                val = "pycsl_none"
             elif val == "true":
                 val = "1"
             elif val == "false":
@@ -782,6 +1649,37 @@ class ControlFlowStmtMixin:
                 val = self._bool_ir_to_int_wrap(val, val_ir)
             val = self._coerce_to_int(val)
             return f"{indent}raise (Return {val})"
+        # Optional-tuple TAIL (non-raise) return: mirror the raise-path option wrap
+        # for a function whose only exits are tail returns (`Some (a,b,c)` / `None`).
+        if self._func_return_type.startswith("option ("):
+            if val_ir is not None and val_ir.get("type") == "Tuple":
+                return f"{indent}(Some {self._expr_to_whyml(val_ir, local_refs)})"
+            if val_ir is None or val_ir.get("type") == "None":
+                return f"{indent}None"
+        # W8 (vii): TAIL-return bool→int coercion. A `-> bool` Python function lowers to
+        # a WhyML `int`-returning `let` (Python `bool` is modelled as `int` throughout —
+        # `bool` params, `bool` fields and the early/in-loop `raise (Return …)` path above
+        # all coerce). The tail (non-raise) return was the ONE position that did not, so
+        # `def f(x: int) -> bool: return x == 55` emitted `let f (x: int) : int = (x = 55)`
+        # and failed L3 type-check. Applies the SAME normalization as the raise path
+        # (literal True/False → 1/0, bool-source IR → `if … then 1 else 0`) and only when
+        # the function's WhyML return type is `int`, so unit/string/array/record/union
+        # returns are untouched. Byte-inert on the corpus: no corpus or pycsl_lib function
+        # declares `-> bool`, and an int-returning function whose tail value is a bool-source
+        # expression was ill-typed WhyML before this (it could not have been emitting).
+        # IDEMPOTENCE GUARD: some Compare lowerings (the string relational ops
+        # `str_lt_op`/`str_le_op`, corpus 0477-0480) already emit the int form
+        # `(if … then 1 else 0)`; re-wrapping would produce `(if (if … then 1 else 0)
+        # then 1 else 0)` (ill-typed AND a corpus byte-diff). Skip when the lowered
+        # value is already an int-coerced conditional.
+        if (self._func_return_type == "int"
+                and not (val.startswith("(if ") and val.endswith(" then 1 else 0)"))):
+            if val == "true":
+                val = "1"
+            elif val == "false":
+                val = "0"
+            else:
+                val = self._bool_ir_to_int_wrap(val, val_ir)
         return f"{indent}{val}"
 
 

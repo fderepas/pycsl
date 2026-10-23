@@ -1,0 +1,200 @@
+(* stmt-walker-spike.mlw — INDEPENDENT REVIEWER SPIKE for stmt-walker-wall.md §8.
+   Hand-written; tests whether a total, structurally-terminating recursive
+   statement-tree READER is expressible + provable in WhyML with NO new axiom,
+   under a type-safety-shaped contract.
+
+   Fault lines under test (report §4):
+     (L) list-child recursion — the reader recurses into `body : list stmtir`
+         children with `variant { size s }` / `variant { size_list l }`;
+     (multi-field / handler shape) — STry carries FOUR stmt-list children
+         (body, handlers, orelse, finalbody), and each handler is a separate
+         record-like constructor carrying its OWN `list stmtir` body — the
+         hardest schema breadth the report names;
+     (T) termination — the element-of-list-child decrease is a PROVED
+         `let rec lemma` (NOT an axiom); the reader's int variants discharge.
+
+   NO `axiom` keyword appears in this file (grep -c '^axiom ' = 0).
+
+   Module StmtWalkerSpike        : must be ALL Valid.
+   Module NegativeControl        : must FAIL (non-vacuity of the setup —
+                                   a non-decreasing self-call whose variant
+                                   VC the provers must NOT discharge).
+
+   Prove: why3 prove -P alt-ergo getting-better/composition-wall/stmt-walker-spike.mlw
+          why3 prove -P z3       getting-better/composition-wall/stmt-walker-spike.mlw *)
+
+module StmtWalkerSpike
+
+  use int.Int
+  use list.List
+  use list.Mem
+
+  (* The statement ADT. Leaves + an If with TWO stmt-list children +
+     a While with one + a Try with FOUR list children, one of which is a
+     list of `handler` — a mutually-recursive record-like sum whose single
+     constructor carries its own `list stmtir` body (the report's
+     "each handler has its own body" shape, taken at full strength). *)
+  type stmtir =
+    | SReturn
+    | SPass
+    | SExpr
+    | SIf (list stmtir) (list stmtir)                              (* body, orelse *)
+    | SWhile (list stmtir)                                          (* body *)
+    | STry (list stmtir) (list handler) (list stmtir) (list stmtir) (* body, handlers, orelse, finalbody *)
+  with handler =
+    | EHandler (list stmtir)                                        (* the handler's body *)
+
+  (* Structural size measure, mutually recursive across the FOUR sorts
+     (node / node-list / handler / handler-list). Counts cons cells
+     (`1 +` per element) — the STRICT measure the report demands, so the
+     element lemma below is a strict `<`, not a lax `<=`. *)
+  let rec function size (s: stmtir) : int
+    ensures { result >= 1 }
+    variant { s }
+  = match s with
+    | SReturn -> 1
+    | SPass -> 1
+    | SExpr -> 1
+    | SIf body orelse -> 1 + size_list body + size_list orelse
+    | SWhile body -> 1 + size_list body
+    | STry body handlers orelse finalbody ->
+        1 + size_list body + size_hlist handlers
+          + size_list orelse + size_list finalbody
+    end
+  with function size_list (l: list stmtir) : int
+    ensures { result >= 0 }
+    variant { l }
+  = match l with
+    | Nil -> 0
+    | Cons x rest -> 1 + size x + size_list rest
+    end
+  with function size_handler (h: handler) : int
+    ensures { result >= 1 }
+    variant { h }
+  = match h with
+    | EHandler body -> 1 + size_list body
+    end
+  with function size_hlist (l: list handler) : int
+    ensures { result >= 0 }
+    variant { l }
+  = match l with
+    | Nil -> 0
+    | Cons h rest -> 1 + size_handler h + size_hlist rest
+    end
+
+  (* Report §8's exact demand: the element-of-list-child decrease as a
+     PROVED `let rec lemma` (NOT an axiom) — each element of a stmt-list
+     child is strictly smaller than the list's measure ... *)
+  let rec lemma size_mem (x: stmtir) (l: list stmtir)
+    ensures { mem x l -> size x < size_list l }
+    variant { l }
+  = match l with
+    | Nil -> ()
+    | Cons _ rest -> size_mem x rest
+    end
+
+  (* ... and the same for the handler-list child. *)
+  let rec lemma size_mem_h (h: handler) (l: list handler)
+    ensures { mem h l -> size_handler h < size_hlist l }
+    variant { l }
+  = match l with
+    | Nil -> ()
+    | Cons _ rest -> size_mem_h h rest
+    end
+
+  (* Corollaries: each element of EACH of the parent node's list children is
+     strictly smaller than the parent node itself — including all FOUR
+     children of the multi-list STry, and the body of a handler inside its
+     handler list (two levels of list-child). Plain `lemma`s, discharged by
+     SMT from the definitions + the lemma-functions above. *)
+  lemma size_if_child:
+    forall body orelse: list stmtir, x: stmtir.
+      mem x body \/ mem x orelse -> size x < size (SIf body orelse)
+
+  lemma size_try_child:
+    forall body orelse finalbody: list stmtir, handlers: list handler, x: stmtir.
+      mem x body \/ mem x orelse \/ mem x finalbody ->
+        size x < size (STry body handlers orelse finalbody)
+
+  lemma size_try_handler_body:
+    forall body orelse finalbody hbody: list stmtir, handlers: list handler.
+      mem (EHandler hbody) handlers ->
+        size_list hbody < size (STry body handlers orelse finalbody)
+
+  (* THE READER — the report §2 witness `_ends_with_return`, mirrored:
+     a stmt-list ends with a return iff its LAST element does; a Return
+     leaf does; an If does iff BOTH branches do; a Try does iff its body
+     AND ALL its handlers do. READ-ONLY: returns a bool, constructs no
+     tree. Termination = the int measure over the input subtree (T),
+     spanning THREE mutually-recursive functions over the three sorts. *)
+  let rec ends_with_return (s: stmtir) : bool
+    requires { true }
+    ensures  { true }
+    variant  { size s }
+  = match s with
+    | SReturn -> true
+    | SPass -> false
+    | SExpr -> false
+    | SWhile _ -> false
+    | SIf body orelse ->
+        ends_with_return_list body && ends_with_return_list orelse
+    | STry body handlers _ _ ->
+        ends_with_return_list body && all_handlers_return handlers
+    end
+  with ends_with_return_list (l: list stmtir) : bool
+    requires { true }
+    ensures  { true }
+    variant  { size_list l }
+  = match l with
+    | Nil -> false
+    | Cons x Nil -> ends_with_return x        (* the witness's stmts[-1] *)
+    | Cons _ rest -> ends_with_return_list rest
+    end
+  with all_handlers_return (hs: list handler) : bool
+    requires { true }
+    ensures  { true }
+    variant  { size_hlist hs }
+  = match hs with
+    | Nil -> true
+    | Cons (EHandler hbody) rest ->
+        ends_with_return_list hbody && all_handlers_return rest
+    end
+
+end
+
+(* NON-VACUITY CONTROL: the same setup, but the walker makes a
+   NON-decreasing recursive self-call (it re-passes the SAME node it
+   matched). Its variant-decrease VC is FALSE; every prover MUST fail it.
+   If a prover reported this Valid, the whole spike would be vacuous. *)
+module NegativeControl
+
+  use int.Int
+  use list.List
+
+  type stmtir =
+    | SReturn
+    | SIf (list stmtir) (list stmtir)
+
+  let rec function size (s: stmtir) : int
+    ensures { result >= 1 }
+    variant { s }
+  = match s with
+    | SReturn -> 1
+    | SIf body orelse -> 1 + size_list body + size_list orelse
+    end
+  with function size_list (l: list stmtir) : int
+    ensures { result >= 0 }
+    variant { l }
+  = match l with
+    | Nil -> 0
+    | Cons x rest -> 1 + size x + size_list rest
+    end
+
+  let rec bad_walk (s: stmtir) : bool
+    variant { size s }
+  = match s with
+    | SReturn -> true
+    | SIf body orelse -> bad_walk (SIf body orelse)   (* SAME size: must FAIL *)
+    end
+
+end

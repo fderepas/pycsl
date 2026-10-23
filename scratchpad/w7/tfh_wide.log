@@ -1,0 +1,3 @@
+[*] trusted-frame-honesty: 252 method(s) declare `#@ assigns \nothing`; 0 stand for a live body that transitively writes `self` state (0 write DIRECTLY); 0 of those are MODEL-VISIBLE (`@mutable_state` class).
+[*] converted-frame-honesty: 500 method(s) declare `#@ assigns \nothing`; 96 stand for a live body that transitively writes `self` state (12 write DIRECTLY); 1 of those are MODEL-VISIBLE (`@mutable_state` class).
+[!] converted-frame-honesty: model-visible RATCHET BROKEN — 1 > 0. A CONVERTED method's `writes {  }` is checked against the EMITTED body, which is an ERASURE of the live one — and every OTHER file's caller-side abstract `val` is minted from the same declared `assigns`, so it inherits the false frame UNCHECKED.

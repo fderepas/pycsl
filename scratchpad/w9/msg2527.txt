@@ -1,0 +1,61 @@
+CLOSED(#44): ROUTES #25/#26/#27 — one refusal for three shapes of one defect, byte-inert by census
+
+A local whose initialiser the model cannot represent is bound to the
+LITERAL `0` (or, for a set literal, left as `ref 0` with no store at all).
+READING such a local is harmless — every projection off it is abstract.
+CONSUMING IT AS A BOOLEAN is not: `0` is decidably FALSE while the Python
+object it stands for is ALWAYS truthy, so the model takes a branch the
+program cannot.
+
+Each of these proved `\result == 0` where Python returns 7:
+
+    g = (i for i in [1,2,3]);  if g:    #25   witness 0997
+    s = {1, 2, 3};             if s:    #26   witness 0998   (no store at all)
+    x = (1, 2);                if x:    #27   witness 0999
+
+THE SOUND SIBLINGS ARE AS INFORMATIVE AS THE UNSOUND ONES. Probed in the
+same sweep and all correctly FAILING: dict literal, list literal, str
+literal, list comprehension, `zip`, `enumerate`, `range`, `.keys()`. So
+are every non-truthiness CONTROL — `if 1 in s`, `if x[0] == 1` — which
+localises the defect to the guard rather than to the value.
+
+FIXED as ONE refusal in `_to_bool`, placed FIRST so no later recognizer can
+quietly coerce an erased local. `_handle_assign_stmt` records the binding
+kind; re-binding the name to anything else clears it, so
+`x = (1,2); x = 5; if x:` is unaffected. The diagnostic names the local,
+says what it is bound to, states that reading it is fine, and points at
+`len(...) > 0` / a membership / an element.
+
+REFUSED RATHER THAN MADE OPAQUE, deliberately: an opaque binding is better
+behaviour, but it moves every one of the 261 non-empty set literals and
+every tuple binding in the tree, while the unsoundness lives entirely at
+the guard.
+
+BOTH HOOK METHODS ARE `\trusted` IN THE MIRROR, so this is mirror-inert:
+no sync obligation, no emission change, NO RE-PROOF OWED. The new
+`_erased_truthy_locals` field was added to `_handle_assign_stmt`'s mirror
+`#@ assigns` anyway, for frame honesty; the mirror emission is
+byte-identical with it.
+
+GATES:
+  census             `scratchpad/w9/census_erased_guard.py` — an AST scan of
+                     both corpora, src/pycsl, src/self-annotate/src,
+                     src/pycsl_lib and tests/ finds ZERO locals of these
+                     kinds used as a boolean anywhere in the tree
+  pycsl-reference    820/820 BYTE-IDENTICAL (+ the 3 new witnesses)
+  python-reference   2142/2142 BYTE-IDENTICAL, refusal set identical (75)
+  mirror emission    all 53 BYTE-IDENTICAL
+  fidelity           2 DIVERGED, the pre-existing pair
+  conformance        core 38/0, front-end 38/0, determinism 10/10
+  frame-honesty      0 model-visible / 1 trusted, 0 / 94 converted
+  dropped-mutation   0 / 51 / 10 / 0
+  metric             UNCHANGED — markers 456 / grep 481
+  witnesses          0997/0998/0999 all three negative-tested against a
+                     worktree at the parent: all three PROVED there
+
+RECORDED, not acted on: `check-dropped-mutation.py` classifies an
+assignment by its TARGET shape, so `s = {1,2,3}` counts as HANDLED
+("Assign -> Name") even though the store never happens. That gate cannot
+see a mutation dropped because of its RHS.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

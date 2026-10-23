@@ -1,0 +1,5 @@
+L3TC-FAIL            <module>.normalize_prover_output  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            <module>._nat_to_int_with_sidecond  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            <module>._expand_anon_binders  ['This expression has type int -> string, but is expected to have type int']
+L3TC-FAIL            <module>._alpha_rename  ['This expression has type string, but is expected to have type int']
+L3TC-FAIL            <module>.normalize_whyml_axiom  ['This expression has type int, but is expected to have type string']

@@ -1,0 +1,28 @@
+audit(#43): metric-integrity check — the headline number has no uncounted escape hatch inside its scope
+
+A TCB-reduction campaign whose metric is a marker count is only as good as the claim that no
+OTHER directive grants the same power uncounted. That had not been checked.
+
+`#@ \abstract` is the real candidate: `test-suite/annotations.md` says outright "Does **not**
+count as `\trusted`", and it emits a bodyless `val` defined SOLELY by its contract — which,
+for a function that HAS a meaningful body, is precisely what `\trusted` is. Measured: 14 real
+`\abstract` directives exist tree-wide, ALL of them in `src/pycsl_lib/strmod/__init__.py`,
+and **ZERO in `src/self-annotate/src`**. Since `bin/count-trusted-directives.py` scans only
+the mirror (`MIRROR = src/self-annotate/src`, line 59), the 456 figure is complete for its
+scope.
+
+The other candidates are not trust-equivalent, each checked rather than assumed:
+  · `#@ assume` is not a recognized keyword at all — `#@ assume 1 == 2` is refused with
+    "unrecognized contract keyword". (It appears in Module 3's statement-level exemption
+    list, which is a harmless inconsistency, not a hole.)
+  · `#@ assumes bounded_int(N)` is a type directive.
+  · `#@ fresh_globals` is proof-backed and Module4-enforced.
+  · `#@ no_inline`, `#@ sibling_concrete`, `#@ verify_module` all keep the body a verified
+    `let`.
+
+The residual uncounted trust is the emitted abstract `val` declarations themselves — and
+routes #13/#14 are exactly the demonstration that one of those can hide an EFFECT rather
+than merely an unconstrained value. That is why `check-avatar-frame-parity.py` has to exist
+alongside the marker count, and why its ratchet was worth tightening this relaunch.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

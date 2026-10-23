@@ -1,0 +1,2589 @@
+# HANDOFF — #32 (2026-09-02, WINDOW 3): **446 -> 447 markers (ONE honest re-trust) and
+# `check-trusted-frame-honesty` 82 -> 19 — because the probe reported only THREE CLEAN
+# candidates in the whole tree, TWO of them were hollow in ways no marker could see, and
+# the honest ladder turned out to be the FRAME plane, where a `\trusted` stub's
+# `#@ assigns` was not merely assumed but UNOBSERVABLE.**
+
+## THE LAST TWO INCREMENTS (and the one the FIDELITY plane refused)
+
+- **FAITHFUL MAP TRUTHINESS, and it revived two DEAD BRANCHES.** `_to_bool` had been
+  returning the CONSTANT `true` for an hval-map local, so `if not vinfo:` lowered to
+  `not true` = false and the guarded path was UNREACHABLE IN THE MODEL — an
+  under-approximation of the program's own behaviour, in two proved files. Python's
+  `if <dict-or-set>:` is NON-EMPTINESS and a Why3 `map k (option v)` states it EXACTLY, so
+  the fix is one `val function map_nonempty` with the DEFINITIONAL postcondition
+  `result <-> (exists k. Map.get m k <> None)` — no over-approximation and NO AXIOM
+  (ledger stays 3). `expressions.py` and `stmt_control_flow.py` both move.
+- **THE `dict`/`set` HALF OF THE `getattr` CAPABILITY WAS BUILT, MEASURED GREEN, AND THEN
+  REVERTED BY THE FIDELITY PLANE.** It works — 52/52 mirrors L3-tc, corpus byte-diff 0,
+  `computed-rhs-erasure` 5 -> 3 — but one of its three rules has to live in
+  `types._rhs_yields_map`, which is a CONVERTED mirror method, so the live change must be
+  copied into the mirror verbatim, and the copied body does NOT type-check there (the
+  mirror's refined `val_ir: "ExprIR"` signature reflects `.get("args")` to
+  `args_of : array emit_ir`, so the element index yields an `emit_ir` where an `int` is
+  wanted). DIVERGED went 2 -> 3, which is a FAILURE, not a ratchet. Reverted; the
+  reopening capability is recorded beside the gate constant: **host the recognizer where
+  the mirror can carry it — a `\trusted` helper, or a reflection-safe spelling.**
+  This is lesson (cf): **a capability's cost includes WHICH FUNCTION it has to live in.**
+  Check the host's trust status BEFORE writing the rule.
+
+## VERIFICATION STATE AT WINDOW END — COMPLETE
+
+**EVERY mirror `.mlw` that moved this window was re-proved, `Verification SUCCESS`, 0
+non-Valid.** Fourteen whole-file proofs, all detached under `setsid`, all on the FINAL tree
+content:
+
+| mirror | goals | verdict |
+|---|---|---|
+| `frontend/pure_ast.py` | 3097 | SUCCESS |
+| `module6_whyml/stmt_control_flow.py` (honest frames, then map truthiness) | 1874 | SUCCESS x2 |
+| `frontend/Module5_IREmitter.py` | 1499 | SUCCESS |
+| `module6_whyml/functions.py` | 1199 | SUCCESS |
+| `module6_whyml/expressions.py` (getattr-scalar; then avatar frame + honest frames + drift + getattr-str + map truthiness) | 1069 | SUCCESS x2 |
+| `module6_whyml/statements.py` (getattr-scalar; then honest frames + drift) | 922 / 923 | SUCCESS x2 |
+| `frontend/ir_resolve.py` | 793 | SUCCESS |
+| `Module6_WhyMLTranspiler.py` | 706 | SUCCESS |
+| `module6_whyml/auto_trust.py` | 280 | SUCCESS |
+| `module6_whyml/expr_ghost_spec_ops.py` (honest frames, then drift) | 123 | SUCCESS x2 |
+| `module6_whyml/scc.py` | 50 | SUCCESS |
+| `frontend/ConcurrencyChecker.py` | 5 | SUCCESS |
+
+`module6_whyml/stmt_control_flow.py` is the one that mattered most: it proved WITH the
+previously-dead branch made reachable by faithful map truthiness.
+| `pycsl.py` | 735 | SUCCESS |
+
+| `frontend/pure_ast.py` (again, the zero-frame pass) | 3103 | SUCCESS |
+| `module6_whyml/functions.py` (again, the zero-frame pass) | 1199 | SUCCESS |
+
+**SEVENTEEN whole-file runs, rc=0 and `Verification SUCCESS` on every single one, and NO
+PROVER PROCESS LEFT RUNNING.** Nothing this window is banked on an unproved tree. Logs and exit codes are in `scratchpad/w5/proofs/`, and
+`scratchpad/w5/proofs/superseded/` holds three runs that were KILLED (rc 137/15) because a
+later increment superseded their content — those are not failures, and one of them
+(`module6_whyml_statements_2.log`) had already reported SUCCESS before the kill.
+
+THE FULL BATTERY, driver-verified fresh at window end, `why3` ON PATH:
+  · markers **447**, stable over 3 samples · grep 472 · offset 25 · unattached 0
+  · corpus byte-diff **0** — 814/814 identical to the window-start tree (the 815th file is
+    this window's own new corpus test `0968`)
+  · all **52/52** mirrors L3-tc GREEN
+  · fidelity DIVERGED **2** on both scripts (the documented baseline pair)
+  · non-vacuity (`--emit`): no NEW erasure, 8 known gated, **0 input-blind**
+  · shadowed-selfcalls **14 / 121** (ratchet 14)
+  · untrusted-emitted 862 un-trusted, 846 definitions, **0 re-abstracted**, 0 absent
+  · frame-honesty **0/0 trusted (was 0/82 — THE PLANE IS AT ZERO), 1/99 converted
+    (was 4/133)**
+  · yield-erasure **0 value-erasing / 2 suspension (ratchet 2) / 1 modelled**
+  · computed-rhs-erasure (NEW PLANE) **5 / 0**
+  · mirror-signature-drift **0 (ratchet now a HARD 0, was 16)**
+  · ledger **3** — no axiom added by any capability this window (`map_nonempty` is a
+    `val function` with a DEFINITIONAL postcondition, not an axiom)
+  · tree clean
+
+## WHAT LANDED AFTER THE FIRST DRAFT OF THIS SECTION (same window, later)
+
+| plane | at first draft | at window end |
+|---|---|---|
+| trusted-frame-honesty | 19 / 0 | **19 / 0** |
+| converted-frame-honesty | 125 / 1 | **125 / 1** |
+| **mirror-signature-drift** | 16 (ratchet 16) | **0 (ratchet now a HARD 0)** |
+
+- **THE MIRROR-SIGNATURE-DRIFT PLANE IS AT ZERO.** All sixteen repaired: ten stubs MISSING
+  a live parameter (`_handle_dotted_call` +`arg_irs`, `_handle_join_call`
+  +`local_refs`/`invariant_ctx`/`subst`, `_handle_isinstance` +`local_refs`,
+  `_call_record_constructor` +`kwargs_map`/`kwargs_ir`, `_emit_first_assign` +`local_refs`,
+  `scc.sort_functions_by_scc` +`extra_concrete`, `ir_resolve.resolve` +`import_paths`,
+  `auto_trust._build_witness_str` +`array_elem_witnesses`, and both Module5_IREmitter
+  `dedup` stubs) and six pure RENAMES. The renames matter because they BLOCKED the
+  signature-preserving port: those six stubs could not be MEASURED at all. They now can be,
+  and the first measurement is recorded — all eight probe as L3TC-FAIL, four of them on
+  `int` vs `emit_ir`, confirming #31's spike. Ratchet 16 -> 0 and 0 is a HARD FLOOR.
+- **`getattr(self, "<str field>", …)` is STRING-TYPED** (`_is_string_expr`), fixing a third
+  wrong lowering: an `int_to_string (if (0 <> 0) || …)` where the alias name belonged. The
+  `dict`/`set` extension was MEASURED AND REFUSED in the same spike (breaks three files, on
+  the two residues already named).
+- **A `depends_method`/`requires_method` WINDOW MAY NOW DECLARE THE DEPENDENCY'S FRAME.**
+  The window accepted `requires`/`ensures` only, so a declared dependency was FRAMELESS BY
+  CONSTRUCTION and every method calling it could claim `assigns \nothing`. Wired through
+  weaver -> Module5 IR -> `_mixin_dep_pseudo_functions`, three doc surfaces, and corpus
+  witness `0968_requires_method_frame.py` with BOTH halves negative-tested.
+  **It is deliberately NOT yet used by the mirror, and the reason is a CERTIFIED
+  BOUNDARY:** annotating the `_seq_operand` requirement does give its avatar
+  `writes { _pyobj_state }` and Why3 then correctly rejects `_ifexpr_seq_arm`'s `\nothing`
+  — but the caller cannot then state an honest frame, because Why3 requires the declared
+  `writes` to be EXACTLY the model's effect while the live closure names ~20 fields the
+  model erases. Over-claim is rejected, under-claim is the direction #31 refused.
+  **REOPENING CAPABILITY: lower a declared `#@ assigns` to `writes { _pyobj_state }` PLUS
+  only the labels the model actually writes, decided as a FIXPOINT against Why3 rather
+  than read off the declaration.** That single rule closes the last model-visible offender
+  and is the natural successor to everything this window built.
+
+## THE PLANE THAT WENT TO ZERO
+
+**`check-trusted-frame-honesty` is at 0, from 82 at window start.** Every `\trusted` stub
+in the mirror now declares a frame that is TRUE of its live body. A `\trusted` stub's
+`assigns` is ASSUMED and never checked, so a false one is an unsoundness no proof plane can
+see — that is the plane's whole reason to exist, and it is now at its floor. `82 -> 28 ->
+19 -> 0`, and the converted population came with it: `133 -> 99`, model-visible `4 -> 1`.
+
+Together with `mirror-signature-drift` `16 -> 0`, TWO WHOLE PLANES CLOSED this window.
+
+The last step needed one more emitter rule, and its absence is exactly what had stalled the
+`pure_ast.py` pass after three fixpoint iterations: **a CONCRETE callee's `_pyobj_state`
+effect reaches its caller too.** `_obj_state_written` was set when a body registered a
+`setattr_*` op or minted an avatar with the coarse cell, but a caller can inherit the effect
+from an already-emitted concrete sibling (`let <callee> … writes { _pyobj_state }`) and that
+route set no flag — so the caller emitted `writes { }` and Why3 rejected it with no
+source-level knob to fix it. `_emit_function` now RECORDS every symbol it emits with the
+cell in its frame and re-arms the flag when the emitted body applies one. Precise in both
+directions, which matters: the cruder "always emit the coarse cell when the filtered set is
+empty" rule was tried first and REFUSED, because Why3 then says *"variable `_pyobj_state`
+does not occur in this expression"* for every method that really writes nothing.
+
+**HONEST CAVEAT, written beside the constant: the closure can still UNDER-approximate (the
+#31 `_walk_body` blind spot), so 0 means "nothing KNOWN false", not "every declaration
+proven true".** Sharpening the closure again — as #31 did when it found `self.xs.append(v)`
+— is the way to test that, and it should be expected to push the number back up. That would
+be a better instrument, not a regression.
+
+## THE HEADLINE, STATED PLAINLY
+**There are no free conversions left.** The repaired whole-tree probe, re-run twice at
+HEAD, reports **1 CLEAN out of 446** — and that one is `_ContractParser._err`, which #31
+already refuted on the non-vacuity plane. Every remaining marker needs a NEW CAPABILITY;
+none is one port away. That is the single most important state fact for the next relaunch,
+and it is why this window's yield is honesty and capability rather than count.
+
+## THE NUMBERS
+
+| | markers | grep | offset | ledger |
+|---|---|---|---|---|
+| #32 start (`b2764659`) | 446 | 471 | 25 | 3 |
+| **#32 (this section)** | **447** | **472** | **25** | **3** |
+
+| plane | #32 start | now |
+|---|---|---|
+| trusted-frame-honesty (total / model-visible) | 82 / 0 | **19 / 0** |
+| converted-frame-honesty (total / model-visible) | 133 / 4 | **125 / 1** |
+| computed-rhs-erasure (NEW plane) | — | **5 / 0** |
+| yield-erasure | 0 / 2 / 1 | 0 / 2 / 1 |
+| mirror-signature-drift | 16 (0 converted) | 16 (0 converted) |
+| corpus byte-diff | 0 | **0** (814/814, re-measured for EVERY increment) |
+| fidelity (both scripts) | DIVERGED 2 | DIVERGED 2 (the baseline pair) |
+| mirrors L3-tc | 52/52 | **52/52** |
+
++1 marker is the RIGHT direction here: `pure_ast.copy_location` was a hollow conversion and
+is now honestly `\trusted`.
+
+## FIVE INSTRUMENT FINDINGS, AND ONE IS ABOUT THE SHELL YOU RUN IN
+
+### (bl) **`why3` IS NOT ON THE DEFAULT PATH, AND `pycsl.py` PRINTS `L3-tc ✓` WHEN IT IS ABSENT**
+`_why3_typecheck` returns `(True, "(why3 not found — typecheck skipped)")` by design — a
+missing prover must not be reported as a typecheck failure. The consequence is that **any
+L3-tc sweep run from a shell without `/home/fabrice/.opam/framac-coq8/bin` on PATH is a
+FALSE GREEN**, and this session wrote one and believed it for three increments. It was
+caught only because `bin/probe-conversion-candidates.py` sets that PATH itself and
+disagreed with a hand-rolled sweep on the same file.
+**EVERY L3-tc sweep must `export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH`.**
+`scratchpad/w5/l3sweep.sh` does; use it. Corollary: `--keep-mlw` keeps the `.mlw` even when
+the run FAILS, so "a .mlw appeared" is not evidence of anything.
+
+### (bm) The probe read the EMITTER'S OWN PROGRESS LINE as a why3 diagnosis
+`_DIAG_RE` carries an `Unsupported` alternative; `proof2why3/ir.py` declares a class
+literally NAMED `Unsupported`, so the emitter prints
+`[*] Imported class from 'proof2why3.ir': Unsupported (record + 0 method stub(s) …)` above
+every real message and `_idx[0]` picked it. **25 of 378 L3TC-FAIL verdicts — the ENTIRE
+`proof2why3` subtree — recorded that line instead of a blocker.** The ranked census the
+ladder navigates by was blind to that subtree, whose real shape is one homogeneous family
+(`term` vs `int`, 9 stubs). Fixed: a line with a pipeline prefix is never a diagnosis.
+
+### (bm2) The probe's FALLBACK read STDERR
+`tail = _ls[-1:]` over stdout+stderr; `core_ir_semantic`'s C8 Union warning prints its own
+SOURCE LINE to stderr and is physically last, so 8 candidates recorded `], union_vars,
+fname)` as their blocker. Their real blocker is the pipeline's `[!] PIPELINE ERROR:` —
+the HETEROGENEOUS LIST LITERAL refusal — which merges them into a 15-stub family.
+
+### (bn) TWO NEW FACADE CLASSES the marker list could not see — and a new gate plane
+Both were found on the same whole-tree census, both were reported **CLEAN**:
+- **PARAM-FIELD MATERIALIZED AS A FRESH CONSTANT ARRAY.** `PyCSLWeaver._attach_loop_contracts`'s
+  entire body is three `node.<listfield>.append(c)`; `node` is an int-typed parameter, so
+  the emitter binds `let node_csl_invariants = Array.make 1024 0 in` and every read AND
+  every append lands in that empty local. Reported CLEAN because the parameter name `node`
+  DOES appear — inside the fresh local's own name.
+- **COMPUTED RHS ERASED TO 0.** `Module3_Weaver._region_bound_str`'s
+  `v = getattr(node, "value", None)` emitted `v := 0`, so `!v <> 0` is false on every path
+  and the whole method collapses to `return "<expr>"`. Not abstracted to an opaque op —
+  replaced by a LITERAL — which is why no marker fires.
+Both are probe markers now (negative-tested), and both are a standing gate:
+**`bin/check-computed-rhs-erasure.py`**, which audits the CONVERTED population the probe
+never looks at. It found SIX there; one (`copy_location`) is re-trusted, ratchet is now 5/0.
+
+## THE CAPABILITIES (every one corpus byte-diff 0)
+
+1. **`getattr(self, "<field>", <default>)` reads the MODELLED FIELD for a SCALAR field.**
+   `_lower_getattr` already did this — but only when the DEFAULT was a STRING literal, so
+   `None` and `{}`, the two commonest spellings of the same idiom (1224 sites in the live
+   emitter), fell through to "emit the default" and became the literal `0`. The license is
+   carried by the `_all_record_fields` test that already guards the branch: a field the
+   model DECLARES is present, so the default is unreachable. **Two WRONG LOWERINGS fixed:**
+   `tmp_count := (0 + 1)` -> `tmp_count := (self._slice_set_tmp_counter + 1)` (a slice-temp
+   counter restarting from 0 on every call) and `not (0 <> 0)` -> `not (self._scope_dyn_exec
+   <> 0)` (a guard that was unconditionally TRUE). Both re-proved: statements.py 922 goals
+   SUCCESS, expressions.py 1069 goals SUCCESS.
+   **The BLANKET relaxation was MEASURED AND REFUSED** — fail-closed but blocking, with
+   three named residues, each an ADJACENT mechanism that has not met this shape:
+   local first-assign kind inference not seeing through `getattr`; map-typed field
+   TRUTHINESS; string-typed field TRUTHINESS (`_to_bool` has the exact rule already).
+2. **A list literal is `array string` when every element is STRING-TYPED**, not only when
+   every element is a string LITERAL (`_is_string_expr` instead of `type == "String"`).
+   Unblocks the 15-stub heterogeneous-list family and closes a LATENT UNSOUNDNESS: an
+   all-VAR literal `[s1, s2]` carried no string literal, so the WL-04g guard let it through
+   and the int-coercion fallback HASHED both elements into an `array int`.
+3. **The TERM CARRIER reaches aliased locals and `Term`-annotated PARAMETERS.**
+   `_term_alias_fixpoint` (a local bound from another term local is term-typed, iterated);
+   and a `Term` parameter joins `_term_local_vars` so `t.body` projects through the
+   inductive's arm instead of the opaque `get_body : int -> int`.
+4. **THE AVATAR CARRIES THE CALLEE'S FRAME.** See below — the most consequential one.
+
+## THE STRUCTURAL FINDING: A `\trusted` STUB'S `#@ assigns` WAS UNOBSERVABLE
+
+`_writes_filtered_to_labels` keeps only `#@ assigns` targets the emitted record carries as
+a field LABEL. When the filter empties the set, `field_spec` stayed None and the
+caller-side avatar was minted as a bare `val self__<m>_<n> (x0: …) : unit` — no receiver,
+no frame. **MEASURED EXACTLY:** giving `expressions.py`'s `_add_abstract_op` protocol stub
+its honest `#@ assigns` left `module6_whyml_expressions.mlw` BYTE-IDENTICAL, while the same
+edit in `statements.py` (where the label IS emitted) produced
+```
+val self__add_abstract_op_1 (self: statementemissionmixin) (x0: string) : unit
+  writes { self._abstract_ops }
+```
+and forced six callers to tell the truth. So repairing the 82 declarations would have
+changed NOTHING wherever the named field is not an emitted label.
+
+**THE RULE BUILT (the caller-side twin of what `functions._emit_function` already applies
+to a method's OWN definition — "the source names ANY assigns target -> add `_pyobj_state`
+to the frame"): when the callee DECLARES a non-empty `#@ assigns` and the label filter
+empties it, the avatar declares `writes { _pyobj_state }` and the caller's emission is
+flagged `_obj_state_written`, so the caller's own definition inherits the cell.** The
+coarse single cell over-approximates what may change and never claims a preservation the
+source does not guarantee.
+**BLAST RADIUS, MEASURED AND FAR SMALLER THAN THE FINDING SUGGESTED: 51 of 52 mirrors
+byte-identical; only `expressions.py` rejected, with exactly the honest message.** The
+fixpoint closed in 5 iterations.
+
+With that in place the honest-frames pass became meaningful:
+- **54 `\trusted` stubs given their honest `#@ assigns`**, derived PER STUB from the SAME
+  live transitive closure `bin/check-trusted-frame-honesty.py` computes
+  (`scratchpad/w5/honest_trusted_frames.py`), with the caller fixpoint closed by
+  `scratchpad/w5/framefix3.py` (per-method derived field sets, NOT #31's blanket 17).
+  **82 -> 28.**
+- **Both label filters now FAIL CLOSED when the class has no record in the file**
+  (`type functionemissionmixin = int` — `hasattr(self, "_emitted_record_field_labels")` is
+  literally False). "Absent registry -> filter nothing" is safe only when the absence means
+  "we did not build it"; here it means "there are NO labels", so every name is unbound.
+  `functions._emit_function` fails closed AND sets a coarse flag so the effect is still
+  SAID against `_pyobj_state`. **28 -> 19.**
+**The entire residue 19 is `pure_ast.py`**, left alone only because its whole-file proof
+was in flight. Finishing it is the first item for the next relaunch and needs no new idea.
+
+**HONEST CAVEAT, recorded beside the ratchet:** the closure can still UNDER-approximate
+(the #31 `_walk_body` blind spot), so 19 is a floor on what is KNOWN false, not a proof
+that the other 271 are true.
+
+## WHERE THE LADDER STANDS FOR #33
+
+0. **Finish the frame-honesty pass on `pure_ast.py`** — 19 -> ~0, mechanical, tools written
+   (`scratchpad/w5/honest_trusted_frames.py` + `scratchpad/w5/framefix3.py`), one pure_ast
+   re-proof. Do it FIRST; it is the cheapest remaining honesty win in the tree. It was left
+   out of #32's pass for one reason only: its whole-file proof was in flight.
+0b. **Re-host the `dict`/`set` half of the `getattr` capability.** It is BUILT and MEASURED
+   (52/52 L3-tc, corpus byte-diff 0, `computed-rhs-erasure` 5 -> 3); it was reverted purely
+   because one rule lives in `types._rhs_yields_map`, a CONVERTED method whose mirrored body
+   does not type-check. Move that one recognizer into a `\trusted` host or write it in a
+   reflection-safe spelling and the increment lands as-is. The exact diff is recoverable
+   from this window's REFUTED-AND-NARROWED commit.
+1. **The last model-visible converted offender**, `expressions._ifexpr_seq_arm`: its
+   callee's now-declared frame is still an UNDER-claim of the live closure. One level
+   deeper than what this window fixed.
+2. **The three named residues of capability 1** (map/string field truthiness in `_to_bool`;
+   first-assign local kind inference seeing through `getattr`). Each is a one-rule addition
+   with an ADJACENT mechanism that already exists, and together they close the remaining
+   FIVE `computed-rhs-erasure` offenders.
+3. **The `proof2why3` `term` family (9 stubs) is a genuine COST/SCALE boundary**, now
+   correctly characterised for the first time. These are IMPERATIVE passes over the
+   certified `term` inductive; converting them needs a GENERAL ADT-value lowering —
+   constructor CALLS (`Forall(b, ty, body)` currently emits a RECORD LITERAL where a `term`
+   is expected), `list term` locals, `Var(...)`-vs-`term` — not the spec-driven generator
+   that produced the already-proved `_flip_comparisons`. Multi-session; NOT a floor.
+4. **The heterogeneous-list-literal family, 15 stubs** — capability 2 moved its first
+   blocker; the residue is literals genuinely mixing a string with a non-string.
+5. `<x> or []` — **DEMOTED, and this is a measurement, not an opinion.** It IS a wrong
+   lowering, but a fresh emission of all 52 mirrors contains **ZERO** occurrences of the
+   boolean-collapse shape: all 56 converted methods containing `or []` already route
+   through the pyval / emit_ir / closed-key recognizers. So it is a BLOCKER for 58 trusted
+   stubs, NOT a live defect in the proved population — and #31's own note stands that the
+   residue needs the empty-collection value-type inference anyway.
+6. The 16 mirror-signature drifts and the `TypedDict`-view device — unchanged from #31.
+
+## OPERATIONAL FACT #32 PAID FOR
+**Do not run more than TWO whole-file mirror proofs concurrently on this machine.** Each
+`pycsl.py --provers …` run ends with an internal VACUITY phase that re-proves every goal
+individually at `--timelimit 5`, and that phase is itself parallel — so four concurrent
+whole-file proofs put the 12-core box at load average 20 and every one of them slowed to a
+crawl (`pure_ast.py` sat in its vacuity phase for over two hours). Queue them
+sequentially in one detached `setsid` script, or at most two scripts.
+
+## INSTRUMENT FACTS #32 ADDS
+1. `scratchpad/w5/l3sweep.sh <outdir>` — the ONLY L3-tc sweep to use (it exports the opam
+   PATH; see lesson (bl)). Writes every mirror `.mlw` into `<outdir>` for byte-diffing.
+2. `scratchpad/w5/diag.sh <mirror-rel> <Class:name>` — port, emit with the right PATH,
+   print the why3 error plus the surrounding emitted WhyML, restore the tree.
+3. `scratchpad/w5/honest_trusted_frames.py` — rewrite every `\trusted` stub's
+   `#@ assigns` from the live transitive closure. `scratchpad/w5/framefix3.py` — the
+   caller fixpoint with PER-METHOD derived fields (env vars `FF_REL`, `FF_MAX`).
+4. A git WORKTREE (`git worktree add`) is the right place to measure an emitter change
+   while a whole-file proof is running in the main tree; symlink `.venv` into it so
+   `bin/byte-diff-sweep.sh` works.
+5. A backgrounded probe killed by a tool timeout does NOT run its `finally`: it leaves the
+   ported mirror file DIRTY. Check `git status` after any interrupted sweep.
+
+---
+
+# HANDOFF — #31 (2026-09-02, WINDOW 3): **455 -> 446, seven emitter capabilities, two NEW
+# GATE PLANES, and eleven conversions of which the GATES REVERTED TWO — but the findings
+# that matter are that the CANDIDATE PROBE was measuring the wrong function for 40% of the
+# tree, that a CONVERTED GENERATOR's `yield`ed values are dropped on the floor, and that
+# `check-trusted-frame-honesty` could not see `self.xs.append(v)`.**
+
+## VERIFICATION STATE — COMPLETE, NOTHING PENDING
+**TWENTY mirror `.mlw` files moved this window and EVERY ONE was re-proved**, `Verification
+SUCCESS` / 0 non-Valid: `pure_ast.py` (**3105 goals**) · `expressions.py` · `statements.py` ·
+`stmt_control_flow.py` · `Module2_Parser.py` (proved three times as the gates walked it
+back) · `pycsl.py` · `monomorphize.py` · `normalize.py` · `ConcurrencyChecker.py` ·
+`audit_proof.py` · `audit_proof_reverify.py` · `frontend/__init__.py` ·
+`import_classifier.py` · `ir_resolve.py` · `crosscheck.py` · `crosscheck_ir.py` ·
+`extract.py` · `extract_lean_meta.py` · `sertop.py` · `Module6_WhyMLTranspiler.mlw`.
+
+THE FULL BATTERY, driver-verified fresh at HEAD:
+  · markers **446**, stable over 3 samples · grep 471 · offset 25 · unattached 0
+  · corpus byte-diff **0** — 814/814 identical to the window-start tree
+  · all **52/52** mirrors L3-tc GREEN (full sweep)
+  · fidelity DIVERGED **2** on both scripts (the documented baseline pair)
+  · non-vacuity (`--emit`): no NEW erasure, 8 known gated, **0 input-blind**
+  · shadowed-selfcalls **14 / 121** (ratchet 14)
+  · frame-honesty **0/82 trusted, 4/133 converted** — against the RE-BASELINED ratchets,
+    see lesson (bk) below for why they rose and why that is not a regression
+  · untrusted-emitted 863 un-trusted, **0 re-abstracted**, 0 unexpectedly absent
+  · yield-erasure **0 value-erasing / 2 suspension (ratchet 2) / 1 genuinely modelled**
+  · mirror-signature-drift **16 (ratchet 16), 0 converted**
+  · ledger **3** — no axiom added by any of this window's seven capabilities
+  · tree clean; **no prover process running**
+
+## THE NUMBERS
+
+| | markers | grep | offset | unattached | ledger |
+|---|---|---|---|---|---|
+| #31 start (`b3ad0507`) | 455 | 480 | 25 | 0 | 3 |
+| **#31 end** | **446** | **471** | **25** | **0** | **3** |
+
+Net -9 = ELEVEN conversions minus TWO gate-driven RE-TRUSTS (`iter_child_nodes`, refuted by
+the NEW yield-erasure plane; `_ContractParser._err`, refuted by NON-VACUITY —
+`erased=['msg'] of ['msg']`, its whole body being a `raise` whose payload is unmodelled).
+**Both reverts are the right outcome and both were found by a plane, not by inspection.**
+
+| # | commit | markers | what |
+|---|---|---|---|
+| 0 | `93dffbb0` | — | INSTRUMENT: probe recorded the CONTINUATION of a wrapped why3 diagnosis |
+| 1 | `24a11bcc` | 455 -> 454 | `re.sub`/`re.escape` string model + `_strip_all_parens` |
+| 2 | `a36de8ca` + `1639cd79` | 454 -> 452 | `pathlib.Path` model + `_default_lean_dir` / `_default_rocq_dir` |
+| 3 | `a05185f6` | 452 -> 451 | EVERY-RHS-STRING local fixpoint + `_mangled_name` |
+| 4 | `27ab0c3f` | — | STRING SUBSCRIPT `s[i]` |
+| 5 | (yield gate) | 451 -> 452 | `iter_child_nodes` RE-TRUSTED — an honest +1 |
+| 6 | (os.path) | 452 -> 450 | `os.path` model + `_proof_reference_mlw_name` / `_find_why3_coq_lib` |
+| 7 | `9dec2e15` + `592c753f` | 450 -> 447 | probe SIGNATURE-PRESERVING port + `_err` / `_parse_mutex_expr_str` / `_walk_body` |
+| 8 | `7121d1a7` | — | a REFLECTED NODE LIST is a real `array`, not an opaque iterable |
+| 9 | `ec12c362` | 447 -> 445 | the CROSS-MIXIN PROTOCOL-STUB FRAME FIXPOINT + `_emit_array_local_reassign` / `_seq_operand` |
+| 10 | `004f9ed7` | — | the SIBLING-CONCRETE route now carries the `-> NoReturn` divergence + a 32-method `#@ raises` fixpoint |
+| 11 | `5dac35df` | 445 -> **446** | NON-VACUITY reverts `_err` — `erased=['msg'] of ['msg']` |
+
+### THE `_err` SEQUENCE IS THE CLEANEST DEMONSTRATION OF LESSON (bf) THIS CAMPAIGN HAS
+Five planes spoke on ONE method, each rejecting something the previous could not see:
+1. the CANDIDATE PROBE (repaired, signature-preserving) said **CLEAN**;
+2. SHADOWED-SELFCALLS said **14 -> 15**: all seven `self._err(...)` sites still routed
+   through `val self__err_1`, so the converted body was invisible to every caller;
+3. `#@ sibling_concrete` (the documented repair) then failed L3-tc — and the cause was a
+   REAL EMITTER DEFECT: the concrete route never carried the `-> NoReturn` divergence
+   wrapper that the abstract route has, so `if c then self._err(x) else 0` had a `unit` arm
+   against an `int` one. `#@ sibling_concrete` and `-> NoReturn` had never met. **FIXED AND
+   KEPT** (byte-inert: it fires only for a method that is both);
+4. that exposed the unlisted `ContractSyntaxError` — exactly the reopening #30 recorded for
+   `_write_fstring_inner`. BUILT with relaunch #19's device again, a fixpoint against Why3's
+   own error text (`scratchpad/w4/raisesfix.py`): **converged in 32 iterations over 32
+   methods**;
+5. NON-VACUITY refuted the whole thing: `erased=['msg'] of ['msg']`. `_err`'s body is
+   `raise _ContractSyntaxError(f"{msg} ...")`, the exception PAYLOAD is not modelled, so the
+   emitted body ignores its only argument.
+REVERTED to `\trusted` with the measurement written into the mirror in place of the old
+guess. **REOPENING CAPABILITY: an exception payload in the model** — at which point the
+raise consumes `msg` and every other piece this window built for it is already landed.
+
+## THE TWO FINDINGS THAT MATTER
+
+### 1. LESSON (bi): THE PROBE PORTED THE LIVE `def` LINE, DISCARDING THE MIRROR'S SIGNATURE
+
+`bin/probe-conversion-candidates.py` spliced the live def AND body over the mirror stub.
+The mirror's signature is not decoration: **188 of the 466 `\trusted` stubs that have a
+live counterpart — 40% — carry a REFINED model annotation the live source does not have.**
+
+    mirror  def _emit_array_local_reassign(..., val_ir: "ExprIR", ...)
+    live    def _emit_array_local_reassign(..., val_ir: Dict[str, Any], ...)
+    mirror  def statement(self) -> "List[ExprIR]"
+    live    def statement(self)                       # no return annotation at all
+
+Those annotations are what SELECT the emit_ir reflection (`val_ir.get("type")` ->
+`kind_of val_ir`), the record projection, the pyval carrier and the typed return. A real
+conversion KEEPS them — it deletes the `#@ \trusted` line and swaps the BODY. So the probe
+was measuring the un-annotated, int-erased twin of each stub: systematically HARDER than
+the thing a conversion actually produces.
+
+**Whole-tree re-census after the repair: CLEAN 2 -> 8.** `Module2_Parser`, which #30
+measured as **25 stubs / 25 L3TC-FAIL / 0 CLEAN** and recorded as REFUTED, yields two —
+and one of them, `_parse_mutex_expr_str`, carried an explicit *CERTIFIED BOUNDARY
+(parser-tokenstream-impl.md GAP #2)* comment in the mirror. Its stale comment is now
+corrected in place (lesson (az)).
+
+The repair is guarded on the two PARAMETER LISTS agreeing; when they do not it falls back
+to the legacy port and FLAGS `PARAM-LIST DIVERGES`, which is how gate plane #2 below was
+found.
+
+### 2. LESSON (bj): A `yield` LOWERS TO `let _ = 0 in ()` — AND NO PLANE COULD SEE IT
+
+Module 6 has no generator model. `yield <v>` emits `let _ = 0 in ()` and the `def` becomes
+an ordinary function. `frontend/pure_ast.iter_child_nodes` was CONVERTED AND PROVED in
+relaunch #30 in exactly that state:
+
+    def iter_child_nodes(node):            let iter_child_nodes (node: int) : unit
+        for _name, field in ...:      =>     ...
+            if isinstance(field, AST):       if (py_isinstance_AST_int_op field) then
+                yield field                    let _ = 0 in ()      <-- the whole method
+
+Every plane was green: L3-tc passes (a `unit` body is well typed); `check-untrusted-emitted`
+passes (it IS a definition); `check-emitted-vacuity` passes (the body still reads `node` via
+`iter_fields node`, and that probe is documented as a LOWER BOUND); shadowed-selfcalls
+passes; the mirror byte-diff and both fidelity scripts are indifferent. The proof was real
+and it established **nothing about what the generator yields**, which is its entire meaning.
+
+`iter_child_nodes` is RE-TRUSTED (451 -> 452, and the count going UP for this reason is the
+right outcome). `bin/check-yield-erasure.py` now makes the class unbankable.
+
+## THE TWO NEW GATE PLANES
+
+### `bin/check-yield-erasure.py`
+A converted mirror function whose body contains a VALUE-carrying `yield` must be emitted in
+a form that can carry the values. Two mechanical symptoms, either of which fails: the
+emitted definition returns `unit`, or its body contains `let _ = 0 in ()`.
+State: **0 value-erasing · 2 suspension-dropping (ratchet 2) · 1 genuinely modelled.**
+- MODELLED: `ir_inline._walk_dicts` — a real recognizer emits
+  `let rec _walk_dicts (obj: pyval) : list pyval` with a genuine `Cons`.
+- SUSPENSION (ratchet, not a failure): `_Unparser.block` / `_Unparser.delimit` are
+  `@contextmanager`s whose VALUELESS `yield` drops no value but does drop the suspension —
+  the emitted body runs the pre- and post-yield effects back to back with the caller's
+  `with`-body nowhere. Lowering that ratchet needs a context-manager model.
+NEGATIVE-TESTED (lesson (bg)): re-converting `iter_child_nodes` makes it exit 1.
+
+### `bin/check-mirror-signature-drift.py`
+The fidelity scripts compare the BODY of every UN-TRUSTED method. A `\trusted` stub has no
+body — and its INTERFACE is its entire content. Nothing checked it.
+**16 `\trusted` stubs disagree with the live parameter list; 0 converted methods do.**
+- **10 MISSING a live parameter**: `_handle_dotted_call` declares `(self, func_name, args)`
+  while the live signature has been `(self, func_name, args, arg_irs)` since #29 added
+  `arg_irs`; `ir_resolve.resolve` is missing `import_paths`; `_m5_get_type_name` and
+  `_normalize_union_annotation` are missing `dedup`; `_emit_first_assign` is missing
+  `local_refs`; also `_handle_join_call`, `_handle_isinstance`, `_call_record_constructor`,
+  `scc.sort_functions_by_scc`, `auto_trust._build_witness_str`.
+- **6 pure RENAMES** (`expr` where the live binder is `node`): `_handle_binop`,
+  `_handle_call_expr`, `_handle_subscript`, `_handle_attribute_expr`, `_handle_proj_expr`,
+  `_handle_ctor_payload_expr`. Harmless to the model, but they BLOCK the
+  signature-preserving port, so those six cannot be measured at all.
+  **MEASURED (worktree spike, not landed): renaming all six makes them measurable and NONE
+  of them becomes CLEAN** — the rename buys measurement, not markers. Their real blockers
+  are `int` vs `PyCSL_Program.<record>` (three of them) and `_check_union_gt1`.
+A CONVERTED method that drifts is a HARD failure, not a ratchet. Negative-tested.
+
+## THE FIVE CAPABILITIES (all fail-closed; corpus byte-diff 0 for every one)
+
+1. **`re.sub` / `re.escape` -> faithful `string` ops.** `re_sub_op` is a `val function`
+   (deterministic — exactly what Python guarantees for default `count`/`flags`); NO content
+   law. `re_escape_op` adds `length result >= length s` (escaping only inserts backslashes).
+   Fail-closed on a keyword arg, a wrong arity, a compiled-pattern receiver, and — the
+   important one — a CALLABLE `repl`, whose result is not a function of the argument values
+   the model can see. Three of `normalize.py`'s own `re.sub` sites take a lambda and stay
+   opaque BY DESIGN.
+2. **The `pathlib.Path` value model.** `Path` (bare / dotted / quoted / `Optional[Path]`)
+   resolves to the SAME `"str"` tag as `str` in Module5 (`_m5_path_ann_tag`), so every
+   existing string mechanism applies for free. `p / q` -> `path_join_op`; `.parent`/`.stem`/
+   `.name`/`.suffix` -> `path_*_op`. **Both rules are licensed by a fail-closed argument:
+   `str / str` is a TypeError in Python and a Python `str` has none of those attributes, so
+   a string-typed operand can only be a `Path`.** NO length or prefix law: an ABSOLUTE right
+   operand discards the left (`Path("a") / "/b" == "/b"`).
+   **This fixed a WRONG LOWERING**: path composition was going through the WL-02
+   true-division rule and emitting `float_truediv_op (a b: int) : real`.
+   Also landed here: the TYPING half of #30's capability 11 (an f-string in a function
+   DECLARED `-> str` is string-typed in `_is_string_expr`, not only in the lowering).
+3. **EVERY-RHS-STRING-TYPED local, as a FIXPOINT.** `_collect_string_literal_locals` marked
+   a local `string` only when every assignment RHS was a plain `String` LITERAL. Generalised
+   to `_is_string_expr`, iterated (marking one local makes another's RHS string-typed).
+   Conservative in the same way: any non-string RHS anywhere excludes the local.
+4. **STRING SUBSCRIPT.** `s[i]` on a string receiver is a one-character string
+   (`str_sub_op s i 1`, the same op and law the `for c in <str>` element read already used).
+   Fail-closed on a negative literal index.
+5. **The `os.path` string model**, split by DETERMINISM, which is all that is claimed:
+   `basename`/`dirname`/`normpath`/`relpath`/`join` are `val function`; `abspath`/`realpath`/
+   `expanduser` read cwd/`$HOME` so they are plain `val` (equal arguments need not agree);
+   `exists`/`isfile`/`isdir`/`islink`/`isabs` are filesystem predicates -> `int`. Plus a
+   SLOT recognizer at the subscript for `os.path.splitext(p)[k]` / `split` / `splitdrive`
+   (only a LITERAL 0/1 index).
+
+## A FALSE `CLEAN` THE SIGNATURE REPAIR EXPOSED — and the marker that now catches it
+With the mirror signature preserved, `proof2why3.from_sexp._find_construct_idx` scored
+CLEAN. Its emitted body: `any_1 (Array.make 1 0)` — `any(<genexpr>)` has no lowering, so
+the whole generator and every variable it reads are replaced by a FRESH CONSTANT ARRAY. It
+also lowers `return None` to `raise (Return 0)`, conflating "not found" with index 0.
+NOT CONVERTED. New probe marker: an ARITY-SUFFIXED abstract op applied to `(Array.make n 0)`
+— keyed so the legitimate `let a = (Array.make 1024 0) in` initialiser is untouched.
+
+### 3. LESSON (bk): `check-trusted-frame-honesty` SAW `self.x = ...` AND NOTHING ELSE
+
+The gate whose whole purpose is to find `#@ assigns \nothing` frames that the live body
+contradicts walked for an `ast.Attribute` in a STORE context. It did not see
+`self.xs.append(v)`, `self.s.add(v)`, `self.d.update(m)`, `self.xs.sort()`,
+`del self.d[k]`, or `self.d[k] = v` (a Subscript target, not an Attribute one) — which is
+how the emitter mutates most of its state.
+
+ON THE SAME TREE, sharper detector, nothing else changed:
+
+| | before | after |
+|---|---|---|
+| trusted total | 63 | **82** (direct writers 23 -> 32) |
+| converted total | 68 | **133** |
+| converted MODEL-VISIBLE | 2 | **4** |
+
+The four model-visible converted offenders — `expressions._ifexpr_seq_arm`,
+`statements._materialize_bridge`, `._materialize_str_bridge`,
+`._wrap_body_with_return_catch` — all reach `_add_abstract_op`, whose
+`self._abstract_ops[k] = ...` is exactly the subscript store the old walk could not see.
+
+**The most instructive offender is `pure_ast._Unparser.write`, the 97-call-site output
+hub.** Its entire body is `self._source.extend(text)` and it emits as
+
+    let _unparser__write (self: _unparser) (text: seq int) : unit
+      writes {  }
+    = let _ = (self__source_extend_1 text) in ()
+
+a RECEIVER-LESS opaque op with no effect, under a frame saying the method changes nothing —
+while a CONVERTED sibling reads that field through `getattr__unparser`, i.e. through
+`_pyobj_state`, which `writes { }` asserts is unchanged. **CHECKED EXACTLY, not inferred:**
+`stable_hash("_source") == 1975084088`, and the emitted `_unparser__maybe_newline` is
+
+    let _unparser__maybe_newline (self: _unparser) : unit
+      writes {  }
+    = if ((getattr__unparser self 1975084088) <> 0) then
+        let _ = (_unparser__write self (Seq.cons 1470490902 (Seq.empty: seq int))) in ()
+
+so the model can prove `self._source` INVARIANT across any number of `write` calls, which is
+false of the program. Both methods are CONVERTED and PROVED. **That is an
+under-approximation of effects in the converted population.** Every plane was green on it. Ratchets re-baselined to 82/133/4 with the derivation written beside the
+constants; raising a ratchet is legitimate ONLY when the analysis got sharper and the tree
+did not get worse, the same condition under which shadowed-selfcalls went 13 -> 14 at #30.
+
+**THE REPAIR IS ON THE LADDER AND OPTION (b) IS THE RIGHT ONE:**
+  (a) re-trust `write` AND give it `#@ assigns self._source` — a trusted stub's frame is
+      assumed, so the honest one costs nothing to discharge. +1 marker, one `pure_ast`
+      re-proof. Available immediately.
+  (b) **build the read-modify-write lowering**: under `@mutable_state`, an in-place
+      collection mutation on a self field IS `self.f = <mutate>(self.f, args)`, i.e.
+      `setattr__unparser self <f> (self__source_extend_1 (getattr__unparser self <f>) text)`.
+      That makes the write MODEL-VISIBLE, lets the honest `#@ assigns self._source`
+      DISCHARGE on the converted body, and fixes the whole 18-method class instead of one
+      method. The emitter already owns both halves (`getattr__unparser` /
+      `setattr__unparser ... writes { _pyobj_state }`).
+  Do NOT simply re-trust without the honest `#@ assigns`: that only MOVES the false frame
+  into the assumed population.
+
+## THE FRAME FIXPOINT — a boundary found and broken in the same window
+
+Why3 REJECTS an OVER-claimed `writes` ("this write effect does not happen in the
+expression"). A converted method whose live body writes emitter state ONLY THROUGH a
+`\trusted` cross-mixin protocol stub therefore could not state its honest frame: the stub's
+`val` declared no writes, so the converted body wrote nothing in the MODEL while its
+`#@ assigns` — correctly derived from the LIVE transitive closure — listed seventeen fields.
+Measured on `statements._emit_array_local_reassign`, otherwise CLEAN.
+
+Narrowing the CALLER to `#@ assigns \nothing` also makes it CLEAN — measured — and was
+REFUSED: `assigns` is an upper bound on effects, so UNDER-claiming is the direction that
+misleads a caller, and it would move an existing dishonesty out of the counted trusted-63
+and into the converted population.
+
+THE FIX went the other way. `StatementEmissionMixin._expr_to_whyml` /
+`ControlFlowStmtMixin._expr_to_whyml` are cross-mixin PROTOCOL STUBS (`return ""`, no live
+counterpart in that file) and carried NO `#@ assigns` clause at all — an IMPLICIT
+`writes {}`, which is false. They now declare the frame. Every converted caller then has to
+list it EXACTLY (Why3 rejects both directions), so this is a FIXPOINT — and relaunch #19
+already built the device: drive `#@ assigns` against Why3's OWN ERROR TEXT as a LOOP rather
+than an analysis. `scratchpad/w4/framefix_loop.py` does it; it **converged in ONE iteration
+per file** across `statements.py` (6 callers), `stmt_control_flow.py` (1) and
+`expressions.py` (3). Corpus byte-diff 0.
+
+**MEASURED AND NOT LANDED:** doing the same for the OTHER TWELVE no-`#@ assigns` protocol
+stubs converges too (2 more iterations) and yields **ZERO** additional conversions — an
+honesty-only change at the price of three whole-file re-proofs, and the field set must then
+be DERIVED PER STUB rather than the blanket 17 used for the spike.
+
+## WHERE THE LADDER STANDS
+
+0. **The FOURTEEN `\trusted` stubs with NO `#@ assigns` clause** — an implicit `writes {}`
+   the frame-honesty counter cannot see (it counts stubs that declare `\nothing`
+   explicitly). Twelve are cross-mixin protocol stubs. Method: the same fixpoint loop.
+   Priced above: honesty-only, 0 markers, 3 re-proofs, per-stub derived frames.
+1. **Repair the 16 mirror-signature drifts** (gate above). The 10 MISSING-parameter stubs
+   are a live fidelity hole — `_handle_dotted_call`'s trusted interface is for a function
+   that has not existed since #29. Each repair changes that mirror's emission and costs a
+   whole-file re-proof. The 6 renames are measured to buy measurement only.
+1b. **`<x> or []` IS A WRONG LOWERING, and it is the LARGEST identified family in the tree:
+   54 `\trusted` stubs.** Python's `or` returns a VALUE; the emitter lowers it as a BOOLEAN.
+   `for ens in (rec.get("ensures") or []):` emits
+   `iter_length (if (rec_get_2 … <> 0) || ((Array.make 1024 0) <> 0) then 1 else 0)` — a
+   `1` or `0` where a list belongs. The correct rule is
+   `A or D` => `(if <truthy A> then A else D)` in a VALUE position, gated on a type
+   agreement the emitter can DECIDE (both string / both array / both emit_ir) and failing
+   closed to the boolean form otherwise. `_handle_binop` ALREADY carries a CLOSED-KEY
+   special case of exactly this (`<emit_ir>.get(k) or []` for the seven node-list keys), so
+   the emit_ir slice is already covered and the residue is the DICT slice, where `or []`
+   has to be read as EVIDENCE that the map's value type is a list — i.e. it meets backlog
+   item 1b-B (empty-collection-literal value-type inference). MEASURE THE CORPUS BYTE-DIFF
+   FIRST: this touches a general operator, and a corpus `x or []` in a BOOLEAN position
+   must stay byte-identical.
+2. **The `int` <-> `string` boundary is still the biggest family** — 51 `int`-into-`string`
+   and 30 `string`-into-`int` on the REPAIRED census. This window took five bites out of it
+   (re, Path, os.path, string subscript, string locals) for 8 markers; the residue is
+   dominated by opaque `\trusted`-callee returns and heterogeneous `Dict[str, Any]` reads.
+3. **The heterogeneous `Dict[str, Any]` parameter.** ~13 emitter-mixin stubs whose first
+   blocker is `match Map.get <ir> "type" ... None -> 0` compared with `str_eq_op`. The
+   device that fixes it EXISTS and is used exactly twice: a closed-key `TypedDict` VIEW in
+   the mirror (`ValIRBoolView`), which monomorphizes to a WhyML record. Untried at scale.
+4. **The recursive node ADT / structural measure** — unchanged, still the reopening
+   capability for `traverse`'s 88 shadowed call sites and `visit_If`.
+5. `interleave` monomorphisation, `option string` record-field reads — unchanged from #30.
+
+## A POSSIBLE BLIND SPOT IN `check-trusted-frame-honesty` (recorded, not acted on)
+`ConcurrencyChecker._walk_body` was converted with `#@ assigns \nothing`. Live, it calls
+`_walk_stmt` -> `_warn_if_unprotected` -> `self.warnings.append(...)`. The gate's transitive
+closure follows DECLARED frames and `_walk_stmt`'s trusted stub declares `\nothing`, so the
+write is invisible — and `_warn_if_unprotected` itself is not in the gate's 63 either. Two
+readings: the closure stopping at a declared frame is by design (the falseness is counted at
+the stub that declares it), or `<list-field>.append` is not recognised as a self-write.
+**Check which, before trusting the 63.**
+
+## THE DEFINITIVE RANKED CENSUS AT WINDOW END (repaired probe, all #31 capabilities)
+Every census taken BEFORE the signature repair is unreliable; this is the first honest one.
+
+    39  int -> string        28  int -> array        15  string -> int
+    14  int -> emit_ir       10  () -> int            9  int -> map ('mu -> option int)
+     8  array int -> int      7  array string -> int  5  syntax error / 5 py_classdef_node
+     4  tuple pattern         4  ref 'mu @rho         4  PARAM-LIST DIVERGES
+
+**`int` vs `emit_ir` (14) LOOKS cheapest and is NOT uniform** — SPIKED: `pure_ast._Parser.node`
+needs a `**kw` dynamic-construction model, not an annotation (`_fin` gaining a truthful
+`-> "ExprIR"` was measured byte-safe and did not move it). Check each member individually.
+The family: `statements._handle_assign_stmt` `._typed_local_vars` · `expressions._e`
+`._to_bool` `._match_pattern_cond` `._handle_sum_call` `._content_string_method` ·
+`Module5_IREmitter._get_mutex_invariant_ir` `._csl_in` `._csl_list_to_ir` `._py_expr_fstring`
+`._py_stmts_to_ir` `._normalize_union_annotation` · `Module3_Weaver._desugar_acts` ·
+`pure_ast._Parser.node`.
+
+## INSTRUMENT FACTS #31 ADDS
+1. `scratchpad/w4/port_sig.py` — the SIGNATURE-PRESERVING port, matching the repaired probe.
+   Use it, not the older `port*.py`, for any stub whose mirror signature is refined.
+2. **Match the `#@ \trusted` marker ANCHORED (`^#@\s*\\trusted\b`).** A loose
+   `"\trusted" in line` test also matches a PROSE comment that mentions the directive — the
+   mirror has several — and then deletes the wrong line while leaving the marker in place,
+   so the "conversion" silently does nothing. Cost: one wasted cycle on `_err`.
+3. **Resolve an emitted WhyML name by `<class>__<method>`, never by a suffix match.**
+   `_Unparser.block` matches `_fin_block` under `endswith("_block")`, and a gate that
+   misidentifies its subject issues a clean bill of health.
+4. `scratchpad/w4/diag_any.py <mirror-relpath> <Class:name>` prints the WhyML around the
+   first type error and restores the tree. NOTE: it still ports the LIVE header — use the
+   probe for a verdict, this only for reading the emitted text.
+
+---
+
+# HANDOFF — #30 FINAL (2026-09-02, WINDOW 3): **462 -> 455, seven markers, four verified
+# increments — and the finding that matters most is that `check-shadowed-selfcalls.py`
+# had been BLIND TO EVERY PUBLIC METHOD for the whole campaign.**
+
+## THE NUMBERS
+
+| | markers | grep | offset | unattached | ledger |
+|---|---|---|---|---|---|
+| #30 start | 462 | 487 | 25 | 0 | 3 |
+| **#30 end** | **455** | **480** | **25** | **0** | **3** |
+
+| increment | commit | markers | whole-file proof |
+|---|---|---|---|
+| 1 `@mutable_state` + 4 capabilities + `fill` | `d626dd39` | 462 -> 458 | pure_ast 3097/3097 Valid |
+| 2 INSTRUMENT repair + 5 `sibling_concrete` hubs | `39c576c5` | — | (folded into 1's proof) |
+| 3 `setattr`/`hasattr`/generator return type | `e37eca32` | 458 -> 456 | pure_ast 3118/3118 Valid |
+| 4 four string-model capabilities + `_Inliner._fresh` | `c21486e7` | 456 -> 455 | ir_inline 358/358 Valid |
+| 5 `_decl_arity` fix (byte-inert, no proof needed) | `cd223597` | — | emission unchanged |
+| 6 trusted frame-honesty ratchet 68 -> 63 | `55b02c7a` | — | — |
+
+**FINAL VERIFICATION at HEAD, run after every commit:** 52/52 mirrors L3-tc GREEN and
+their `.mlw` md5s are IDENTICAL to the tree that proved 3118/358 — so both whole-file
+proofs still stand. Corpus: exactly `0482`/`0483` differ from the window-start tree, both
+re-verified `Verification SUCCESS`. No prover process left running; tree clean.
+
+CONVERTED this window: `visit_FormattedValue`, `_function_helper`, `_type_params_helper`,
+`fill`, `iter_child_nodes`, `copy_location`, `_Inliner._fresh`.
+
+| plane | at #30 end |
+|---|---|
+| mirrors | **52/52 L3-tc GREEN**; only `pure_ast.mlw` and `ir_inline.mlw` differ from window start |
+| corpus byte-diff | **812/814 identical**; `0482`/`0483` deliberate (see `str_repeat_op`), both re-verified `Verification SUCCESS` |
+| fidelity | DIVERGED 2 (`_handle_var_expr`, `_handle_for_stmt` — the baseline pair) |
+| shadowed-selfcalls | **14 / 121**, REPAIRED instrument (19 / 257 at window start, reported as 13 / 33) |
+| non-vacuity (`--emit`) | no NEW erasure, 0 input-blind |
+| frame-honesty | trusted **63/63** (ratchet LOWERED 68 -> 63) · converted 68/68 · model-visible 0 and 2 |
+| ledger | 3, no axiom added |
+
+## THE FIVE THINGS THE NEXT RELAUNCH MUST KNOW
+
+### 1. LESSON (bg): AN INSTRUMENT'S BLIND SPOT IS SHAPED LIKE ITS REGEX
+`check-shadowed-selfcalls.py` matched `^  val (self__([A-Za-z_0-9]+)_(\d+)) ` — **two
+underscores**. The avatar mangling is `self_` + <name> + `_` + <arity>, so two underscores
+occur only when the METHOD'S OWN NAME starts with `_`. Every PUBLIC-named method was
+invisible — precisely what a visitor class is made of. On the window-start tree the
+repaired regex reports **19 methods and 257 bypassing call sites, not 13 and 33**:
+`self_write_1` (97 uses) and `self_traverse_1` (88) had been converted AND PROVED in
+earlier windows with no caller able to see one thing their bodies compute.
+Five of the six take `#@ sibling_concrete`; the ratchet is re-baselined to **14 / 121**.
+**Before trusting a gate that reports a small number, feed it a case you KNOW is bad and
+check that it fires.** The tell needed no domain knowledge: the mirror emits
+`val self_fill_1` and the gate's own message says it looks for `val self__<m>_<n>`.
+
+### 2. LESSON (bh): WHEN ONE GOAL IN A 3000-GOAL FILE WILL NOT DISCHARGE, READ THE CONTRACT
+`val str_repeat_op` declared `requires { n >= 0 }`. Python has no such precondition —
+`"ab" * -1` is `""`. It was an over-restriction of the model AND load-bearing: `fill`
+lowers `"    " * self._indent + text` and `self._indent` is an opaque getattr read, so
+`n >= 0` was unprovable at the call site and that ONE precondition was the only unproven
+goal in two successive full proofs. Now a total contract (`n >= 0 -> length = n*|s|`,
+`n < 0 -> length = 0`): strictly weaker as a requirement, strictly more informative as a
+postcondition. **#29 reverted `fill` at the fourth link after three fixes to the CALLER.
+The defect was one clause in a `val` declaration.**
+
+### 3. A "DO NOT ATTEMPT AGAIN" RECORD IS A CLAIM — CHECK *WHICH* REPAIR WAS TRIED
+`_function_helper`, `_type_params_helper`, `_write_fstring_inner` were refuted by
+shadowed-selfcalls in #27, #28 and #29, and #29 wrote "do not attempt a fourth time". The
+directive that fixes exactly that failure — `#@ sibling_concrete`, lesson (ay) — had never
+been tried on them. Two of the three convert with the ratchet unchanged.
+
+### 4. TWO NEW CERTIFIED BOUNDARIES, both found by the PROOF plane
+- **`traverse` cannot be `#@ sibling_concrete`.** Concrete routing makes `traverse` /
+  `visit` / every `visit_<Node>` ONE mutually recursive group and Why3 demands a measure
+  the int model cannot supply. Measured: **124 unproven goals, every one `Sub-goal
+  termination`**, over 30 visitors. REOPENING: a structural measure on the node handle,
+  i.e. the recursive node ADT — now with a second independent reason to want it.
+  **88 bypassing call sites ride on this one.** Do not retry without the measure.
+- **`visit_If`** now TYPECHECKS under `@mutable_state` (it did not before) and is still
+  not provable — its genuine `while` walks `node.orelse[0]` down the AST with no measure.
+  **Type-checking is not provability; a green `tc.sh` is not a conversion.**
+
+### 5. THE `int`/`string` MODEL BOUNDARY IS THE REAL REMAINING WALL — measured, not guessed
+Four capabilities were built for it this window (below) and they are **completely
+byte-inert**: corpus 814/814 identical AND all 52 mirror `.mlw` md5s unchanged. The
+honest yield was ONE marker. Re-censused with them in place, the mirror-wide ranking
+moved `string`-vs-`int` 46 -> 32 but `int`-vs-`string` 38 -> 56: **for most of that
+population the blocker MOVED rather than cleared, because a body crosses the int/string
+model boundary more than once.** Anyone attacking it should plan a model change, not more
+per-site coercions.
+
+## THE CAPABILITIES THIS WINDOW ADDED (11, all fail-closed, all corpus-audited)
+
+**From `@mutable_state` on `_Unparser`** (ladder item 1, priced by #27 and untried by five
+relaunches — its predicted cost, "~7 false frames flip to model-visible against a hard-0
+ratchet", was WRONG: model-visible stayed 0/2):
+1. a COMPUTED string into the int model at `_handle_call_expr`'s unannotated-callee arm;
+2. a STRING actual into an int FORMAL in `_handle_dotted_call` — the same loop and the same
+   `param_types[i] == "int"` gate as #29's bool-actual coercion;
+3. #29's hoisted loop bound: its `@mutable_state` blast-radius gate now lifts **only when
+   the length term's head is a PROGRAM `val`**, asked of the emitter's own `_abstract_ops`
+   registry. `iter_length` is; the ADT's `let rec function irlen` is not, and stays
+   byte-identical. Without the discriminator the hoist rewrote a `Module5_IREmitter`
+   variant that already discharged;
+4. `_coerce_str_arg` folds only a string LITERAL, so a COMPUTED string operand still met an
+   int inside `val str_concat (x y: int) : int`. That gap was the whole of `fill`.
+
+**Increment 3:**
+5. DYNAMIC `setattr`. `setattr(o, <literal>, v)` is recognised by `_handle_fieldassign_stmt`;
+   `setattr(o, <computed name>, v)` fell to the generic arm and minted a SECOND `setattr_3`
+   with a different signature — two declarations of one Why3 symbol, module rejected. The
+   generic arm now emits the recognised op.
+6. A COMPUTED `hasattr` NAME (`hasattr(node, attr)` with `attr` a loop variable).
+7. THE GENERATOR RETURN TYPE: `iter_fields` / `iter_child_nodes` / `walk` are Python
+   generators; their stub is `pass` with no annotation so the `val` announced `: unit`.
+   They now carry the MODEL annotation `-> int` — an iterable IS an opaque int handle here
+   (it is what `iter_length`/`iter_get` consume), the same kind of model-truthful
+   declaration as the `-> bool` stubs that emit `: int`. **Census: that was the LAST
+   un-annotated generator stub in the tree bar `_Unparser.buffered`.**
+
+**Increment 4 (the four byte-inert string-model capabilities):**
+8. `_handle_call_expr` generic arm — hash from the ARGUMENT IR (`_is_string_expr`), not from
+   the emitted text's head, so a string-typed VARIABLE is covered;
+9. `_handle_dotted_call` int-formal loop — same generalisation (this reaches
+   `re.sub(..., !s)` and `unicodedata.normalize`);
+10. the INT-MODEL F-STRING JOINER — `f"{base}_{self.counter}"` put a `string` into
+    `val str_concat (x y: int) : int`;
+11. an f-string in a function DECLARED `-> str` now lowers in the STRING model. That branch
+    was gated on `@mutable_state` membership, which a plain module function can never
+    satisfy, so `_mangled_name` / `_fresh` / `_strip_all_parens` returned an int-hash from
+    a `string`-typed function.
+
+## THE STANDING DISCIPLINE THAT CAUGHT REAL BUGS THIS WINDOW
+
+- **Lesson (be), three separate times.** `visit_If` and `_function_helper` (`with
+  self.block():` -> `#@ assigns self._indent`), `copy_location` (`setattr` -> `#@ assigns
+  new_node`), `_Inliner._fresh` (`self.counter += 1` -> `#@ assigns self.counter`). A port
+  never inherits its stub's frame.
+- **A converted method must not call `_add_abstract_op`.** It writes
+  `self._obj_state_written`, so registering an operator from inside a CONVERTED method
+  under `#@ assigns \nothing` makes that frame false and breaks the converted ratchet
+  (measured). `val str_hash_op` is therefore recovered LATE, from the emitted text, in
+  `abstract_ops._insert_abstract_val_block` — a `\trusted` mirror stub.
+- **`_coerce_to_int` IS NOT THE PLACE for a string coercion.** It is called from positions
+  whose formal is `string` (`whyml_ident`, a `seq string` element, an assignment); putting
+  the coercion there moved FOUR already-typechecking mirrors off byte-identity. Coerce at
+  the site that KNOWS the formal is `int`.
+
+## MEASURED AND REFUTED — do not re-derive these
+
+| target | verdict |
+|---|---|
+| `Module1_Ingestor` / `Module2_Parser` (#29's ranked next place to look) | **REFUTED.** Re-probed with the repaired harness AND all 11 new capabilities: Module2 25 stubs / 25 L3TC-FAIL / 0 CLEAN; Module1 12 stubs / 11 L3TC-FAIL + 1 ERASURE / 0 CLEAN. Twenty distinct blocker shapes, not one family. `_match_block_hdr` returns `(kw, name) \| None` over compiled regexes — a value-model build. |
+| the whole tree outside `pure_ast.py` | **2 CLEAN candidates only** (`Module3_Weaver._attach_loop_contracts`, `_region_bound_str`), both still refuted by non-vacuity. Unchanged from #29 even with 11 new capabilities. |
+| the 13 remaining shadowed methods | **ALL REFUTED for `#@ sibling_concrete`** — each fails L3-tc on a record/union/pyval type (`pyval`, `_union_*`, `boolwrapirview @rho`, `option string`). `_py_expr_to_ir` ALREADY carries the marker and is still shadowed at 17 of 45 sites. This seam is closed without a value-model change. |
+| `walk` | ERASURE — `while todo:` emits `while true` (guard erased) and no variant |
+| `iter_fields` | ERASURE — opaque attribute getter for `node._fields` |
+| `NodeVisitor.generic_visit` | VAL — re-abstracted by the auto-trust valve |
+| `fix_missing_locations` | nested `def _fix` — body-blocked |
+| `_write_fstring_inner` + `sibling_concrete` | concrete routing exposes an unlisted `ValueError` at `_fstring_Constant`. Reopening: an exception clause on the callers. |
+| mirror stubs missing their LIVE return annotation | **ZERO tree-wide** — that cheap seam does not exist. |
+
+## A REAL EMITTER BUG, diagnosed and MEASURED, deliberately NOT landed — `_decl_arity`
+`abstract_ops._add_abstract_op` disambiguates a same-name collision by arity and computes
+arity as **`decl.count("(x")`** — parameter groups whose first binder is NAMED `x`. So
+`val setattr_3 (x: int) (f: int) (v: int) : unit` reads as arity ONE. A correct
+`_decl_arity` (count binder names per `(names : type)` group) is **corpus-byte-inert,
+814/814** — but the tie-break underneath is wrong either way:
+- with the existing "keep the LONGER": the `: int` mint of `setattr_3` survives and a
+  statement-position call reads `type int, but is expected to have type ()`. One line in
+  the statement emitter (`let _ = … in ()`) closes it.
+- with "keep the FIRST": **REFUTED** — breaks `Module3_Weaver.mlw`
+  (`unbound function or predicate symbol 'get_value'`) and moves `expressions.mlw` off
+  byte-identity (`val str_eq_op (a: string) (b: string)` -> `(a b: string)`).
+Increment 3's `setattr` unification removes its only known victim WITHOUT depending on it,
+so the defect is now latent rather than blocking. Nothing is in the tree; re-derive here.
+
+## WHERE THE LADDER STANDS
+
+1. **The recursive node ADT / a structural measure on the node handle.** It is now the
+   reopening capability for TWO independent boundaries (`traverse`'s 88 shadowed call
+   sites, and the nine `iter_length` loop bodies #29 recorded). Biggest single item left.
+2. **The `int`/`string` model boundary** (see §5) — a model change, not more coercions.
+3. `_decl_arity` + the statement-position `let _ = … in ()` (above).
+4. The closure FORMAL for `interleave` / `items_view` — #29's ladder item 2. **NO LONGER
+   UNTRIED: spiked end-to-end at the close of #30 and RECORDED AS A CERTIFIED BOUNDARY.
+   Every step below was measured; do not re-derive it.**
+   - A `_prescan_callable_params` (formals APPLIED in the body -> their arity) plus one
+     branch in `functions._param_type_str` rendering `int -> unit` / `unit -> unit` makes
+     **`interleave` TYPECHECK and score CLEAN on the probe.** Corpus byte-inert (814/814);
+     it moves exactly ONE line in two mirrors (`val _contractparser___try (fn: int)` ->
+     `(fn: unit -> unit)`, which is the truthful type — `fn` is a thunk `_try` calls).
+   - **But converting it is a LOST CONVERSION**: 11 call sites still route through
+     `val self_interleave_3`, so shadowed-selfcalls goes 14 -> 15 and the gate rejects it.
+   - `#@ sibling_concrete` on `interleave` then fails, because
+     `self.interleave(lambda: …, self.traverse, node.elts)` passes a BOUND METHOD as a
+     value and the attribute lowering emits the opaque `getattr__unparser self <hash>`.
+   - A bound-method eta-expansion was built (`self.<m>` in a function-formal position ->
+     `(fun x0 -> <cls>__<m> self x0)` when concrete, else onto the receiver-less avatar
+     `self_<m>_<n>` the file already uses). It gets one level further and then hits the
+     REAL obstacle: **the family is POLYMORPHIC in the argument type.** `interleave` is
+     handed `self.traverse` (`int -> unit`) at one call site and `self._write_constant` /
+     `self.write` (`seq int -> unit`) at another, so one avatar cannot carry both.
+   - Typing the formal `'c0 -> unit` was tried and REFUTED: `interleave`'s own body
+     applies `f` to `next(seq)`, an int, so the type variable cannot be universally
+     quantified inside the definition (`This expression has type int, but is expected to
+     have type 'c0`).
+   **REOPENING CAPABILITY: per-call-site MONOMORPHISATION of a higher-order self-method
+   (one avatar/definition per argument type), or a value model in which `traverse` and
+   `write` share an argument type.** Nothing from this spike is in the tree.
+5. `option string` record-field reads — still unbuilt, still priced (#29).
+
+## HELPERS LEFT IN THE TREE (`scratchpad/`)
+`tc.sh` · `port.py` / `port2.py` / **`port_any.py <Class:name|name>` (NEW, any mirror
+file)** · `restub.py` · `tryport.sh` · `diag.sh` · **`sibcon.py add|del <names>` (NEW,
+`_Unparser`)** · **`sibcon_any.py <mirror.py> <Class:name>` (NEW)** · `mirror_md5.sh`.
+
+## INSTRUMENT FACTS #30 ADDS
+1. **`bin/byte-diff-sweep.sh` needs `$ROOT/.venv`.** In a detached worktree it silently
+   emits ZERO files and `diff -rq` then reports every file as "only in" — which looks like
+   a catastrophic byte-diff. `ln -s /home/fabrice/git/pycsl/.venv <worktree>/.venv` first.
+2. **The Bash tool caps at 600 s AND the background-task harness kills long jobs.** A
+   `pure_ast.py` proof (up to ~1 h) was killed twice. Run it DETACHED —
+   `setsid nohup <script> </dev/null >/dev/null 2>&1 &` writing a `.done` sentinel — and
+   poll from the foreground. A proof is READ-ONLY, so this does not violate the
+   ownerless-writer rule; a port/prove/REVERT sweep still does.
+3. **Proof cost scales with what is concrete.** `pure_ast.py`: 9 min with the hubs
+   abstract, >1 h with `write`/`traverse`/`fill` concrete, ~25 min with `traverse` reverted.
+   Budget for it; a long Z3 phase is not a hang.
+4. **Use a second detached worktree for all probing** (`git worktree add --detach`). It
+   keeps the census completely off the main tree while a proof reads it, and it is the only
+   way to run a port/emit sweep without becoming the ownerless writer the prompt forbids.
+
+---
+
+# HANDOFF — #30 (2026-09-02, WINDOW 3): **462 -> 458, and the more important number is
+# 257 -> 33. `check-shadowed-selfcalls.py` was BLIND TO EVERY PUBLIC METHOD, and the
+# `_Unparser` hubs `write` (97 call sites) and `traverse` (88) had been converted and
+# proved in earlier windows with no caller able to see one thing their bodies compute.**
+
+## THE NUMBERS
+
+| | markers | grep | offset | unattached | ledger |
+|---|---|---|---|---|---|
+| window-3 relaunch start | 462 | 487 | 25 | 0 | 3 |
+| **#30 end** | **458** | **483** | **25** | **0** | **3** |
+
+**`pure_ast.py` whole-file proof: `Verification SUCCESS`, 3097 goals, 0 non-Valid.**
+
+| plane | before | after |
+|---|---|---|
+| shadowed-selfcalls (methods / bypassing call sites) | 13 / 33 *as measured by a broken regex*; **19 / 257 under the repaired one** | **14 / 121**, repaired instrument, ratchet re-baselined 13 -> 14 |
+| frame-honesty trusted total | 65 | 64 (ratchet 68) |
+| frame-honesty converted total | 68 | 68 (ratchet 68) |
+| corpus byte-diff | 0 | **812/814 identical**; 0482/0483 deliberate (see `str_repeat_op` below), both re-verified SUCCESS |
+| mirrors L3-tc | 52/52 | **52/52**, and only `pure_ast.mlw` differs from the window start |
+| fidelity DIVERGED | 2 | 2 (baseline) |
+
+## THE THREE THINGS THAT MATTER
+
+### 1. LADDER ITEM 1 IS DONE: `@mutable_state` on `_Unparser` LANDED
+
+It was priced by #27 and left untried by five relaunches, with the warning "it will flip
+~7 currently-false frames to MODEL-VISIBLE against a hard-0 ratchet". **That prediction
+was wrong.** Measured: model-visible stayed at 0/trusted and 2/converted, and the
+converted TOTAL moved only because two ported bodies use `with self.block():`
+(re-declared `#@ assigns self._indent`, lesson (be) applied by hand).
+
+The real cost was FOUR one-line emitter gaps, every one of them the adjacent case of a
+mechanism the emitter already owned — **lesson (bb) for the third window running**:
+
+1. a COMPUTED string into the int model at `_handle_call_expr`'s unannotated-callee arm;
+2. a STRING actual into an `int` FORMAL in `_handle_dotted_call` — literally the same loop
+   and the same `param_types[i] == "int"` gate as #29's bool-actual coercion;
+3. #29's hoisted loop bound: its `@mutable_state` blast-radius gate now lifts **only when
+   the length term's head is a PROGRAM `val`**, asked of the emitter's own `_abstract_ops`
+   registry. `iter_length` is one; the IR-node ADT's `let rec function irlen` is not, and
+   stays byte-identical. Without that discriminator the hoist rewrote a
+   `Module5_IREmitter` variant that already discharged;
+4. `_coerce_str_arg` folds only a string LITERAL, so a COMPUTED string operand still met an
+   int inside `val str_concat (x y: int) : int`. That one gap was the whole of `fill`.
+
+**AND ONE THING NOT TO DO, learned the expensive way.** The obvious home for (1)+(2) is
+`_coerce_to_int`. Putting it there is WRONG TWICE: `_coerce_to_int` is called from
+positions whose formal is `string` (`whyml_ident`, a `seq string` element, an assignment)
+— it moved FOUR already-typechecking mirrors off byte-identity — and it must not call
+`_add_abstract_op` at all, because that writes `self._obj_state_written` and
+`_coerce_to_int` is a CONVERTED mirror method under `#@ assigns \nothing`; registering
+from there breaks the converted frame-honesty ratchet (measured, not predicted).
+The `val str_hash_op` declaration is therefore recovered LATE, from the emitted text, in
+`abstract_ops._insert_abstract_val_block` — a `\trusted` mirror stub where no frame is claimed.
+
+### 2. `#@ sibling_concrete` BREAKS A THRICE-REFUTED WALL
+
+`_function_helper`, `_type_params_helper` and `_write_fstring_inner` were rejected by
+shadowed-selfcalls in #27, #28 and #29, and #29's handoff wrote "do not attempt them a
+fourth time". **The directive that fixes exactly that failure had never been tried on
+them.** Two of the three convert with the ratchet unchanged. (`_write_fstring_inner`
+still refuses: concrete routing exposes an unlisted `ValueError` at `_fstring_Constant`
+— reopening is an exception clause on its callers.)
+
+**A "do not attempt again" record is a claim like any other. Check WHICH repair was tried.**
+
+### 3. THE INSTRUMENT FINDING — and it is the biggest thing in this window
+
+`check-shadowed-selfcalls.py` matched `^  val (self__([A-Za-z_0-9]+)_(\d+)) ` — **two
+underscores**. The avatar mangling is `self_` + <name> + `_` + <arity>, so two underscores
+only occur when the METHOD'S OWN NAME starts with `_`. Every PUBLIC-named method was
+invisible — which is precisely what a visitor class is made of.
+
+On the same tree the repaired regex reports **19 shadowed methods and 257 bypassing call
+sites, not 13 and 33**. In `frontend/pure_ast.mlw` alone it had been hiding
+`self_write_1` (97 bypassing uses), `self_traverse_1` (88), `self_fill_1` (33),
+`self_maybe_newline_0`, `self_do_visit_try_1` and `self_visit_FormattedValue_1`.
+`write`, `traverse`, `maybe_newline` and `do_visit_try` were converted AND PROVED in
+earlier windows while no caller could see a single thing their bodies computed.
+
+All six take `#@ sibling_concrete`, and the count returns to 13 / 33 under the sharper
+measurement — **224 call sites moved from an unconstrained abstract result to the real
+body.** Two of the six (`fill`, `visit_FormattedValue`) were converted EARLIER IN THIS
+WINDOW; without the repair this window would have banked two conversions no caller could see.
+
+**LESSON (bg): an instrument's blind spot is shaped like its regex.** Before trusting a
+gate that reports a small number, feed it a case you KNOW is bad and check it fires. The
+tell here needed no domain knowledge: the mirror emits `val self_fill_1` and the gate's
+own message says it looks for `val self__<m>_<n>`.
+
+## WHAT THIS WINDOW MEASURED AND DID NOT ACT ON — all of it fresh, none of it inherited
+
+### `Module1_Ingestor.py` and `Module2_Parser.py`: ladder item 3 is REFUTED as stated
+#29 ranked these as the next place to look because their top two blocker families were
+the ones it had just fixed twice. Re-probed with the repaired harness AND this window's
+four new capabilities: **Module2_Parser 25 stubs, 25 L3TC-FAIL, 0 CLEAN. Module1_Ingestor
+12 stubs, 11 L3TC-FAIL + 1 ERASURE, 0 CLEAN.** The blockers are not one family repeated;
+they are twenty distinct shapes (`()` vs int, tuple patterns, `array int @rho`, regex
+match objects, heterogeneous list literals, unlisted exceptions). `_match_block_hdr`,
+the single module-level entry point, returns `(keyword, name) | None` over a list of
+compiled regexes — a value-model build, not an inference.
+
+### `pure_ast.py`'s remaining 63 markers, ranked by BLOCKER (full census in this window)
+`()`-vs-`int` (**10**: `generic_visit`, `visit_Constant`, `_build_nodes`,
+`_decode_fstring_middle`, `iter_child_nodes`, `walk`, `fix_missing_locations`,
+`increment_lineno`, `_self_test`, `_fin_block`, `delimit_if`) · `int`-vs-`string` (6) ·
+`array int @rho` (5) · tuple pattern (3, the `visit_Match*` family) · unbound symbol (4).
+
+**THE `()`-vs-`int` FAMILY IS A GENERATOR-TYPING GAP, PRICED.** `iter_child_nodes` and
+`walk` are Python GENERATORS. Their mirror stub is `pass` with no return annotation, so
+`find_return_type` says `unit` and the `val` announces `: unit`; every caller that uses
+the result is an L3-tc error. #29's `-> str` / `-> int` / `-> bool` disjuncts in
+`_compute_return_type` are all gated on an ANNOTATION, and these stubs have none.
+REOPENING, two shapes: (a) annotate the mirror stubs (a signature the live source does not
+carry — decide whether that is a fidelity divergence before doing it), or (b) a
+`generator -> int` (opaque iterable handle) inference. **NOTE BEFORE SPENDING ON IT:
+`walk` is not convertible anyway — `while todo:` emits `while true`, the guard erased.
+Check each member individually.**
+
+### A REAL EMITTER BUG, found, diagnosed, NOT fixed — `_decl_arity`
+`abstract_ops._add_abstract_op` disambiguates a same-name collision by arity, and computes
+arity as **`decl.count("(x")`** — a count of parameter groups whose first binder is NAMED
+`x`. So `val setattr_3 (x: int) (f: int) (v: int) : unit` reads as arity ONE and
+`val setattr_3 (x0: int) (x1: int) (x2: int) : int` as arity THREE; they are filed under
+different KEYS and **both are emitted under the same Why3 symbol** — "Symbol setattr_3 is
+already defined in the current scope". That is the entire blocker for `copy_location` and
+`NodeTransformer.generic_visit`.
+
+A correct `_decl_arity` (count binder NAMES inside each `(names : type)` group) was written
+and MEASURED in an isolated worktree. **The arity fix alone is CORPUS-BYTE-INERT — 814/814
+identical.** What it exposes is the layer underneath, and both tie-breaks were measured:
+
+- **`_decl_arity` + the existing "keep the LONGER" tie-break**: only the `: int` mint of
+  `setattr_3` survives, and the statement-position call in `_Parser._fin_pos` then reads
+  `This expression has type int, but is expected to have type ()`. The fix is one line in
+  the statement emitter — wrap a non-`unit` call in statement position as `let _ = … in ()`,
+  which it already does elsewhere.
+- **`_decl_arity` + "keep the FIRST"**: REFUTED, do not take this route. It breaks
+  `Module3_Weaver.mlw` outright (`unbound function or predicate symbol 'get_value'` — the
+  longer decl was the one carrying the needed symbol) and it moves `expressions.mlw` off
+  byte-identity (`val str_eq_op (a: string) (b: string)` -> `(a b: string)`, two spellings
+  of the same signature that the OLD arity miscount had been resolving by length).
+  With it, `copy_location` gets one level further and fails at
+  `setattr_3 new_node !attr value` — `!attr` is a `string` from a `seq string` loop where
+  the formal is `int`, i.e. this window's own string->int family, one call shape further out.
+
+**Priced at three linked mechanical fixes; not started because the window'"'"'s proof was in
+flight.** No part of it is in the tree — re-derive from this paragraph.
+
+### `visit_If` — the ONE boundary #29 recorded, re-tested and CONFIRMED
+It now TYPECHECKS under `@mutable_state` (it did not before). It is still not provable:
+the emitted body carries `while <cond> do … done` with **no `variant`**, because the
+source `while` walks `node.orelse[0]` down the AST and the int model has no measure for
+that. **Type-checking is not provability — do not read a green `tc.sh` as a conversion.**
+
+## THE HELPERS LEFT IN THE TREE (all under `scratchpad/`, all still current)
+`tc.sh` (emit+typecheck pure_ast, 1.8 s) · `port.py` / `port2.py` (live body -> mirror) ·
+`restub.py` · `tryport.sh` (port-test-KEEP) · `diag.sh` (port-test-REVERT-and-report) ·
+**`sibcon.py add|del <names>` (NEW: add/remove `#@ sibling_concrete` on `_Unparser`
+methods)** · `mirror_md5.sh`.
+
+## INSTRUMENT FACTS #30 ADDS
+1. **`bin/byte-diff-sweep.sh` needs `$ROOT/.venv`.** In a detached worktree it silently
+   emits ZERO files and `diff -rq` then reports every file as "only in", which looks like
+   a catastrophic byte-diff. `ln -s /home/fabrice/git/pycsl/.venv <worktree>/.venv` first.
+2. **The Bash tool caps at 600 s.** The `pure_ast.py` whole-file proof does not fit;
+   run it with `run_in_background` writing a `.done` sentinel and poll. A proof is
+   READ-ONLY, so backgrounding it does not violate the ownerless-writer rule — a
+   port/prove/REVERT sweep still does.
+3. **The proof cost of `sibling_concrete` on the hubs is large.** `pure_ast.py` proved in
+   **9 minutes** with the hubs abstract; with `write`/`traverse`/`fill` concrete the Z3
+   phase alone ran past 30 minutes. That is lesson (bc)'s cost curve, and it is the price
+   of the fidelity — budget for it, do not read it as a hang.
+
+## THE PROOF PLANE DID ITS JOB TWICE, AND BOTH FINDINGS ARE LOAD-BEARING
+
+### `traverse` CANNOT be `#@ sibling_concrete` — a REAL boundary, newly found
+Routing `self.traverse(...)` concretely makes `traverse` / `visit` / every `visit_<Node>`
+ONE MUTUALLY RECURSIVE GROUP, and Why3 then demands a termination measure for it. There
+is none in the int model: `traverse` descends `AST | list[AST]` and the argument is an
+opaque int. **Measured: 124 unproven goals, EVERY ONE of them `Sub-goal termination`**,
+spread over 30 visitors. Reverted `traverse` alone; the other five hubs stay concrete.
+REOPENING CAPABILITY: a structural measure on the node handle — i.e. the same recursive
+node ADT the campaign has repeatedly declined, now with a second, independent reason to
+want it. **Do not retry `sibling_concrete` on `traverse` without one.**
+
+### `val str_repeat_op` carried a PRECONDITION PYTHON DOES NOT HAVE
+It declared `requires { n >= 0 }`. In Python `"ab" * -1` is `""` — repetition by a
+non-positive count is TOTAL. The guard was an over-restriction of the model AND it was
+load-bearing: `_Unparser.fill` lowers `"    " * self._indent + text`, `self._indent` is an
+opaque `getattr__unparser` read, so `n >= 0` is not provable at the call site — and that
+single precondition was **the ONE unproven goal in the whole 3097-goal file**, in two
+successive full proofs.
+
+Replaced with the faithful total contract:
+```
+ensures { n >= 0 -> String.length result = n * String.length s }
+ensures { n < 0  -> String.length result = 0 }
+```
+Strictly WEAKER as a requirement, strictly MORE INFORMATIVE as a postcondition, so nothing
+that proved before can stop proving. Corpus cost: exactly 2 files (`0482`, `0483` — the
+`s * n` / `n * s` reference tests), each diff exactly those three lines, both re-verified
+`Verification SUCCESS`. **This is M1 discipline, not drift. Do not "fix" it back; the
+byte-diff baseline for the next worker is HEAD.**
+
+**LESSON (bh): when one goal in a 3000-goal file will not discharge, read the CONTRACT it
+comes from before touching the code that calls it.** Two windows of effort had gone into
+the caller (`fill` was reverted at the fourth link by #29). The defect was one clause in a
+`val` declaration, and it was not modelling Python.
+
+## WHERE THE LADDER STANDS FOR THE NEXT RELAUNCH
+
+1. **The `_decl_arity` chain** (three linked mechanical fixes, fully diagnosed above,
+   nothing in the tree). Buys `copy_location` and `NodeTransformer.generic_visit` directly
+   and removes a duplicate-symbol emitter defect that can bite any file.
+2. **The `()`-vs-`int` GENERATOR family in `pure_ast.py`** — the largest single blocker
+   family left in the file (10 stubs). Decide the generator return-type question first;
+   check each member individually, several are not convertible for other reasons.
+3. **The remaining 14 shadowed methods / 121 bypassing sites.** `traverse` (88 sites) is
+   now a recorded boundary. The other 13 are `_`-named, in `Module5_IREmitter`,
+   `stmt_control_flow`, `auto_trust`, `expressions`, `functions`, `statements` — none has
+   been tried with `#@ sibling_concrete`, and the directive has now worked on five hubs in
+   one increment. **Cheapest remaining fidelity win in the tree.** It buys no markers.
+4. `Module1_Ingestor` / `Module2_Parser`: refuted as a cheap-inference target (measured
+   above). Do not re-rank them without new evidence.
+5. `visit_If` (real boundary, re-confirmed), `_write_fstring_inner` (unlisted `ValueError`),
+   `visit_MatchClass`/`visit_Dict`/`visit_MatchMapping` (tuple patterns),
+   `visit_arguments`/`__init__`/`_str_literal_helper` (`array int @rho`),
+   `interleave`/`items_view` (the closure FORMAL, still untried — #29's ladder item 2).
+
+---
+
+# HANDOFF — #29 FINAL ENTRY (2026-09-01, WINDOW 3): **491 -> 462. TWENTY-NINE MARKERS
+# in one window — more than the previous three windows combined — and not one of them
+# needed a new value model. Every unlock was a ONE-LINE gap in the emitter that an
+# earlier relaunch had recorded as a value-model boundary.**
+
+## THE NUMBER
+
+| | markers | grep | offset | unattached | ledger |
+|---|---|---|---|---|---|
+| window start | 491 | 516 | 25 | 0 | 3 |
+| **window end** | **462** | **487** | **25** | **0** | **3** |
+
+Seven commits, every one gated on all planes, tree clean, no prover process left running.
+
+| commit | markers | what unlocked it |
+|---|---|---|
+| `6f059995` | — | ITEM 0: the `csl_to_ir_op` "live unsoundness" REFUTED (a stale comment) |
+| `772cad82` | — | the `_Unparser` boundary REOPENED (`_PURE_AST_FIELD_TABLE` already exists) |
+| `e2a9a35b` | 491 | `visit_Name` record + `str_hash_op` for computed string vararg elements |
+| `c633e7e1` | **488** | bool-actual coercion + the `-> int` trusted-stub disjunct, BOTH producers |
+| `430f6ca5` | **477** | `unit -> unit` closure formal — the "higher-order formals" block |
+| `8a5803e0` | — | INSTRUMENT: `probe-conversion-candidates.py` repaired (3 bugs, 38% of the tree) |
+| `50c7bba6` | **469** | HOISTED loop bound — for-over-collection termination, with NO purity claim |
+| `034227cf` | **464** | mixed string/int `+` was emitting a raw Why3 `+` |
+| `abda560f` | **462** | `-> int` on a `unit` stub + the `s * n` string-repetition recognizer |
+
+## THE SEVEN EMITTER CAPABILITIES THIS WINDOW ADDED — all fail-closed, all corpus-audited
+
+1. `str_hash_op` coercion for a COMPUTED string actual packed into a `seq int` vararg
+   (`expressions.py::_handle_dotted_call`, which now receives the source arg IRs). String
+   LITERALS deliberately stay on `_coerce_to_int` so every existing literal write is
+   byte-identical.
+2. BOOL ACTUAL INTO AN INT FORMAL — reuses the emitter's own `_bool_ir_to_int_wrap`.
+   Fires only where the formal is `int` AND the actual is a bool-source IR, i.e. only
+   where the emitted file was ALREADY ill-typed: byte-inert by construction.
+3. The `-> int` `\trusted`-stub return-type disjunct, in **both** producers
+   (`_compute_return_type` AND `_build_method_return_type_map`).
+4. `unit -> unit` inference for a ZERO-ARGUMENT closure actual (`(fun () -> …)`).
+5. HOISTED PROGRAM LOOP BOUND: `let _len<idx> = <program length call> in` before the loop,
+   used in the guard AND the variant. Two gates: **no mutable deref in the length term**
+   (SOUNDNESS — hoisting freezes the bound) and not an `@mutable_state` class (blast radius).
+6. MIXED STRING/INT `+` routed to the int-model `str_concat` the f-string path already uses.
+7. `s * n` STRING-REPETITION recognized as string in `_is_string_expr` (the lowering
+   already emitted `str_repeat_op … : string`).
+
+## THE LESSONS — read these before touching anything
+
+**(bb) In a mature emitter, "the value model cannot express this" is far more often a
+MISSING ONE-LINE INFERENCE than a missing model.** Five separate boundaries recorded by
+#23/#24/#27 were each one line. The discriminator is mechanical: **read the L3-tc error,
+then grep the emitter for the mechanism that already handles the ADJACENT case.** The
+`array int` inference sat three lines above the missing `unit -> unit` one. The `-> str`
+disjunct sat one line above the missing `-> int` one. `_bool_ir_to_int_wrap` was already
+imported into the same file.
+
+**(bc) Re-prove the WHOLE file, never just the new goals.** A 20-port batch produced 20
+non-Valid goals — ten were the new loop bodies and **ten were `get_docstring`, which had
+been Valid at 0.00 s one increment earlier**. Unknown / Out-of-memory / Timeout, never
+Invalid. Reverting the one genuinely-unprovable body restored it to 0.00 s. **A conversion
+batch has a context cost that lands on goals it never mentions, and the cost is
+proportional to how much UNPROVABLE material is in the file — so a failing goal elsewhere
+is a signal to find and remove the one bad body, not to shrink the batch.**
+
+**(bd) A MEASUREMENT INSTRUMENT IS A CLAIM LIKE ANY OTHER**, and its failure mode is the
+worst kind: it reports a HARNESS bug in the vocabulary of a REAL boundary, so every reader
+downstream inherits a fabricated wall. `probe-conversion-candidates.py` had three bugs; one
+of them turned a Python `SyntaxError` (its own bad dedent of module-level bodies) into
+`L3TC-FAIL ['expected an indented block']` for **133 of 352 verdicts, 38% of the tree**.
+The tell needed no domain knowledge at all: 133 "type errors" that were word-for-word the
+same SyntaxError. **Aggregate an instrument's output and look at the SHAPE of the
+distribution before acting on any single verdict.**
+
+**(be) A PORT DOES NOT INHERIT ITS STUB'S FRAME.** `#@ assigns \nothing` is harmless on a
+`\trusted` stub (whose emitted `val` has no body) and becomes a FALSE FRAME the instant the
+method enters the converted population, where `writes { }` is checked against an ERASURE of
+the live body. Seven `_Unparser` ports used `with self.block():` (which writes
+`self._indent`) and had to re-declare `#@ assigns self._indent`. Re-derive the frame on
+every port.
+
+**(bf) The gate planes are NOT redundant — each one caught a different bad port, three
+separate times this window.** NON-VACUITY caught `get_type_comment` INPUT-BLIND (twice).
+SHADOWED-SELFCALLS caught `_type_params_helper` / `_write_fstring_inner` / `_function_helper`
+(three times — do not attempt them a fourth). FRAME-HONESTY caught the `block()` family.
+The PROOF caught `visit_If`'s termination and the context blowup. **The candidate filter's
+CLEAN verdict was refuted 2 out of 2 times by non-vacuity** (`Module3_Weaver`
+`_attach_loop_contracts` / `_region_bound_str` — both erase an input). CLEAN is a filter,
+never a gate.
+
+## WHAT REMAINS ON `_Unparser` — every entry with its MEASURED reason
+
+Reproduce any of these in ~4 seconds: `python3 scratchpad/port.py <name>` then
+`./scratchpad/tc.sh`. Helpers left in the tree: `port.py` / `port2.py` (port a live body
+into the mirror), `restub.py` (put it back as a `\trusted` stub), `tryport.sh` (port, test,
+KEEP on green), `diag.sh` (port, test, REVERT and report), `tc.sh` (emit + typecheck, 1.8 s),
+`mirror_md5.sh <root>` (52-mirror md5 sweep, 6.5 s).
+
+| method | measured blocker |
+|---|---|
+| `visit_If` | `Sub-goal termination` — a genuine `while node.orelse and len(node.orelse)==1 and isinstance(…)`, not a for-over-collection, so no auto-variant applies and the source supplies no measure. **A REAL boundary.** |
+| `_function_helper`, `_type_params_helper`, `_write_fstring_inner` | SHADOWED — call sites route through `val self__<m>_<n>`. Rejected three times. |
+| `get_type_comment` | INPUT-BLIND (non-vacuity), twice. |
+| `visit_BoolOp` | `This function is stateful, it cannot be used as pure` |
+| `visit_Dict`, `visit_MatchMapping` | nested `def` (a local function) |
+| `visit_MatchClass` | `This pattern has type ('mu, 'mu1)` — a tuple pattern |
+| `visit_arguments`, `__init__` | `array int @rho` — a mutable list literal |
+| `visit_MatchStar` | `string` vs `int` at an f-string over an optional name |
+| `visit_JoinedStr`, `visit_FormattedValue` | nested `def` / `seq` clash |
+| `interleave`, `items_view` | `This expression has type int, it cannot be applied` — a function-VALUED FORMAL (`f`, `traverser`) called inside the body. The dual of capability 4: that one types a closure ACTUAL, this needs a closure FORMAL. |
+| `set_precedence` | `seq int` vs `int` — `self._precedences[node] = precedence`, a dict keyed by a NODE |
+| `fill` | the string-literal TERNARY `"except*" if self._in_try_star else "except"` lowers to int hashes, because the `IfExpr`-is-string rule in `_is_string_expr` is gated on `@mutable_state` and `_Unparser` is not one |
+| `buffered`, `delimit_if`, `_str_literal_helper`, `_write_docstring_and_traverse_body` | array/int clashes |
+
+### THE TWO NAMED, PRICED, NOT-YET-TRIED CAPABILITIES
+
+**(A) `@mutable_state` on `_Unparser`.** It genuinely has mutable state (`_source`,
+`_indent`, `_precedences`), so the annotation is TRUE, and it turns on the whole typed-local
+pre-decl family plus the `IfExpr`-is-string rule for the class at once — which is what
+`fill` (a 14-use hub) needs. **WARNING, measured: it will also flip ~7 currently
+"unmodelled" false frames to MODEL-VISIBLE, and the model-visible ratchet is a hard 0.**
+Every one of those `#@ assigns` would have to become truthful first. That is the increment's
+real cost and it is the honest one — those frames are false today either way.
+
+**(B) A closure FORMAL.** `interleave(self, inter, f, seq)` and `items_view(self, traverser,
+items)` take a function and CALL it. Capability 4 types a closure ACTUAL as `unit -> unit`;
+the formal side needs the same treatment plus an effect story for the call. Two hub markers,
+and it is what the whole `interleave` family's remaining depth rests on.
+
+### `option string` RECORD-FIELD READS — still unbuilt, still priced
+`MatchAs.name`, `ExceptHandler.name`, `keyword.arg`, `MatchStar.name` are `OptStr` ->
+`option string` and the emitter has no read path for an option-typed record field.
+REOPENING: a truthiness form (`<> None`) and a value form
+(`match f with Some v -> v | None -> "" end`). Note `visit_alias` converted WITHOUT it, via
+capability 6 — so the option path is now worth less than it was.
+
+## THE REST OF THE TREE — probed, and it is genuinely harder
+
+Every mirror was probed with the REPAIRED harness. Outside `pure_ast.py` there are exactly
+**two** CLEAN candidates in the whole tree (`Module3_Weaver._attach_loop_contracts` and
+`Module3_Weaver._region_bound_str`) and **both were refuted by non-vacuity** — each erases an
+input. Everything else is L3TC-FAIL or ERASURE. The ranked blocker census across the tree,
+now that the harness reports real reasons: `string`-actual-into-`int`-formal (50),
+`unit`-returning-callee-used-as-a-value (20), `int`-actual-into-`string`-formal (17),
+`array int @rho` (16), unbound symbol (12), array/int (7), tuple pattern (6). **The first
+two are the SAME families this window already fixed twice** — they are the next place to
+look, in `Module1_Ingestor.py` and `Module2_Parser.py`, which hold most of them.
+
+## INSTRUMENT FACTS (carry forward)
+
+1. **`export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH` ON EVERY GATE.**
+   `_why3_typecheck` returns `(True, "(why3 not found — typecheck skipped)")` on
+   `FileNotFoundError` and the caller prints `L3-tc ✓` + `Verification SUCCESS` without ever
+   printing the skip reason. #29 hit this in its first hour on a file why3 rejects outright.
+2. emit+typecheck `pure_ast.py`: **1.8 s**. 52-mirror md5 sweep: **6.5 s**. corpus
+   byte-diff sweep: **31 s** per side. whole-file proof of `pure_ast.py`: **~50-60 min**.
+3. **`check-self-annotate-sync.sh` is a LIVE PLANE FOR EMITTER EDITS.** Editing
+   `module6_whyml/functions.py` took DIVERGED 2 -> 4 because `_compute_return_type` and
+   `_build_method_return_type_map` are UN-trusted in the mirror. `_handle_dotted_call` needed
+   nothing — it is a `\trusted` stub there. That asymmetry is the plane working.
+4. The corpus byte-diff is **NOT 0** any more, by design and with M1 justification: exactly
+   3 files (0418, 0884, 0886) carry the hoisted loop bound. 0418/0886 are `--no-proof` and
+   re-emit L3-tc ✓; 0884 is `# pycsl-expected: FAIL` and still FAILS. **Use
+   `scratchpad/corpus_head` semantics carefully: a future worker's "byte-diff 0" baseline is
+   now HEAD, not the window-start tree.**
+5. The trusted frame-honesty TOTAL ratchet was lowered **70 -> 68** this window.
+
+---
+
+# HANDOFF — #29 THIRD ENTRY (2026-09-01, WINDOW 3): **491 -> 477. FOURTEEN MARKERS.
+# The `_Unparser` "CERTIFIED-BOUNDARY" was not a boundary at all — it was five separate
+# ONE-LINE gaps in the emitter, each recorded by an earlier relaunch as a body block.**
+
+## THE HEADLINE, AND THE LESSON UNDER IT
+
+Three relaunches (#24, #25, #26, #27, #28) worked this wall and recorded it as a value-model
+CERTIFIED-BOUNDARY needing a 76-arm recursive node ADT. What actually unblocked it:
+
+| what #24/#27 recorded | what it actually was | size |
+|---|---|---|
+| "higher-order formals" body-block (8 of 13 leaves) | the emitter ALREADY lowers `lambda: self.write(", ")` to a real Why3 closure `(fun () -> …)`; only the FORMAL was missing, because an abstract self-call avatar default-types every parameter `int` | **one line** in `_handle_dotted_call`'s param-type loop |
+| "a bool actual is a LOUD type error" (`require_parens`, #23) | the emitter already OWNS the coercion — `_bool_ir_to_int_wrap` in types.py, the same detector `return isinstance(...)` uses — it was just never applied at an argument position | **one loop** |
+| "computed string element into `seq int`" (`visit_TypeVarTuple`/`ParamSpec`, #24) | `_coerce_to_int` hashes string LITERALS only; a computed string needed the same `str_hash_op` | **one branch** |
+| "per-(node-type,field) projector typing = the pyx_view node ADT" (#27) | `_PURE_AST_FIELD_TABLE` + a `node: "<Class>"` param annotation, in production since #19 | **one table row** |
+| a `\trusted` `-> int` stub's caller fails with `()` vs `int` | the `-> str` / `-> bool` disjunct already existed; `int` was simply missing, in BOTH producers | **two branches** |
+
+**LESSON (bb): in a mature emitter, a "the value model cannot express this" verdict is far more
+often a MISSING ONE-LINE INFERENCE than a missing model.** The five above were all recorded as
+capability-level boundaries by workers who had just measured the failure. The discriminator is
+cheap and mechanical, and it is the same one every time: **read the L3-tc error, then grep the
+emitter for the mechanism that already handles the ADJACENT case.** `array int` inference sat
+three lines above the missing `unit -> unit` inference. The `-> str` disjunct sat one line above
+the missing `-> int` disjunct. `_bool_ir_to_int_wrap` was already imported into the same file.
+None of it needed a new model; it needed someone to look at the line next door.
+
+## WHAT LANDED (three commits, all gated on every plane, all clean)
+
+| # | commit | markers | what |
+|---|---|---|---|
+| 1 | `e2a9a35b` | 491 (neutral) | `visit_Name(node: "Name")` — first per-node RECORD in the emitted mirror; `val get_id` GONE, payload is `str_hash_op node.id`. Plus the `str_hash_op` coercion for computed string vararg elements. |
+| 2 | `c633e7e1` | 491 -> **488** | `visit_TypeVarTuple`, `visit_ParamSpec`, `require_parens`. Plus the bool-actual coercion and the `-> int` trusted-stub disjunct in BOTH producers. |
+| 3 | `430f6ca5` | 488 -> **477** | eleven `interleave(lambda: …)` visitors. Plus the `unit -> unit` closure-formal inference. |
+
+Final state, driver-verified fresh: **markers 477 · grep 502 · offset 25 · unattached 0 ·
+ledger 3.** pure_ast.py 2873/2873 Valid SUCCESS; functions.py 1199/1199 Valid SUCCESS;
+corpus byte-diff 0 (814/814); fidelity 2 DIVERGED / 3 drifted (baseline); non-vacuity no NEW
+erasure; shadowed-selfcalls 13; frame-honesty trusted 0/68 + converted 2/68 (the trusted TOTAL
+ratchet was LOWERED 70 -> 68 in commit 3). No prover process left running.
+
+## THE THREE GATE PLANES EACH CAUGHT A DIFFERENT BAD PORT — keep every one of them
+
+This batch is the clearest demonstration in the campaign that the planes are not redundant:
+
+- **NON-VACUITY** caught `get_type_comment` as INPUT-BLIND (`erased=['node'] of ['node']`) — a
+  conversion whose emitted body ignores its only argument. Nothing else would have seen it.
+- **SHADOWED-SELFCALLS** caught `_type_params_helper` and `_write_fstring_inner` (15 > ratchet
+  13): the call sites still route through `val self__<m>_1`, so the marker would have gone while
+  the body stayed invisible to every caller.
+- **FRAME-HONESTY** caught five ports at once and was fixed HONESTLY, not by reverting:
+  `do_visit_try`/`visit_If`/`visit_With`/`visit_AsyncWith`/`visit_Match` use `with self.block():`,
+  which writes `self._indent`. `#@ assigns \nothing` is harmless on a `\trusted` stub and becomes
+  a FALSE FRAME the instant the method enters the converted population. They now declare
+  `#@ assigns self._indent`. **A port must re-derive its own frame; it does not inherit the
+  stub's.**
+- **THE PROOF PLANE** caught the rest — see the next section, which is the finding to keep.
+
+## THE PROOF FINDING — a batch can break a goal it does not touch
+
+The first battery on the full 20-port batch FAILED: 2904 goals, 2884 Valid, **20 non-Valid**.
+Ten were `Sub-goal termination` of the newly ported LOOP bodies. **The other ten were
+`get_docstring` postcondition sub-goals that had been Valid at 2862/2862 one increment
+earlier** — Unknown / Out-of-memory / Timeout, never Invalid. Reverting the nine loop-carrying
+ports restored `get_docstring` to Valid in **0.00 s**, which is the proof that the cause was
+those bodies and nothing else.
+
+**LESSON (bc): re-prove the WHOLE file, never just the new goals — and read a previously-Valid
+goal turning Unknown as a SIZE signal, not a correctness signal.** A conversion batch has a
+context cost that lands on goals it never mentions.
+
+## THE ONE REAL BOUNDARY THIS WINDOW HIT, and it was already written down
+
+`for gen in node.generators:` lowers to `while !_idx_gen < (iter_length (get_generators node))`
+with NO variant. `module6_whyml/stmt_control_flow.py:1166-1180` already documents why: the
+auto-variant is admitted only when the length term is a pure LOGIC term (`Array.length` /
+`Seq.length` / `String.length`), and `iter_length (get_generators node)` is a PROGRAM call,
+which a Why3 `variant` term cannot mention at all.
+
+**REOPENING CAPABILITY, PRICED, DELIBERATELY NOT TAKEN: promote `iter_length` and the node-field
+projector in the length term to pure `val function`s.** NOT taken because it is a DETERMINISM
+CLAIM on `iter_length` — `len` of an int-collapsed handle is constant only if the underlying list
+is never mutated — and that is exactly the class of claim this campaign has twice caught as a
+live unsoundness (see the `csl_to_ir` / `m5_current_class_present` repairs). It needs its own
+increment with its own soundness argument, scoped to receivers that are provably immutable AST
+nodes. **NINE markers ride on it**: `visit_Call`, `do_visit_try`, `visit_DictComp`,
+`visit_GeneratorExp`, `visit_If`, `visit_ListComp`, `visit_Match`, `visit_SetComp`,
+`visit_comprehension`.
+
+## THE REMAINING `_Unparser` TRUSTED SURFACE — each with its MEASURED L3-tc error
+
+Reproduce any of these in ~4 seconds: `python3 scratchpad/port.py <name>` then
+`./scratchpad/tc.sh` (both left in the tree; `port.py` copies the LIVE body into the mirror and
+drops the `#@ \trusted` line, `tc.sh` emits + typechecks with PATH set — 1.8 s per cycle).
+
+| method | measured L3-tc error | shape of the fix |
+|---|---|---|
+| the 9 loop bodies above | `Sub-goal termination` (proof, not tc) | the `iter_length` variant capability |
+| `visit_AugAssign`, `visit_Compare` | `has type string, but is expected to have type int` | `self.binop[<k>]` / `self.cmpops[<k>]` — a CLASS-level `str -> str` const dict, subscripted. `_is_string_expr` does not recognize `self.<table>[k]`, so `" " + <lookup> + "= "` emits a RAW Why3 `+` between two strings instead of `str_concat_op`. Same two-producer shape as the `s * n` repetition below. |
+| `visit_BoolOp` | `This function is stateful, it cannot be used as pure` | a closure capturing mutable state used in a pure position |
+| `visit_MatchClass` | `This pattern has type ('mu, 'mu1), but is expected to have type int` | a tuple pattern |
+| `visit_Assign` | `has type (), but is expected to have type int` | another `unit`-returning trusted callee whose result is used |
+| `visit_ImportFrom` | `seq int` vs `seq string` | the `"." * (node.level or 0)` repetition |
+| `visit_alias`, `visit_MatchStar` | `option string` record-field READ | see below |
+| `visit_Dict`, `visit_MatchMapping` | nested `def` (a local function) | body-blocked |
+| `visit_arguments`, `__init__` | `array int @rho` (a mutable list literal) | |
+| `visit_ClassDef`, `_function_helper` | `int` vs `array` | |
+| `visit_JoinedStr`, `visit_FormattedValue` | nested `def` / `seq` clash | |
+| `items_view`, `interleave`, `traverse`, `set_precedence`, `buffered`, `fill`, `_str_literal_helper` | hubs — see below | |
+
+### `option string` RECORD-FIELD READS — priced, not built
+`alias.asname`, `MatchAs.name`, `ExceptHandler.name`, `keyword.arg`, `MatchStar.name` are all
+`OptStr` -> `option string`, and the emitter has NO read path for an option-typed record field:
+`if node.asname:` emits the raw option against an int, and `" as " + node.asname` has no unwrap.
+**REOPENING: a truthiness form (`<> None`) and a value form (`match f with Some v -> v | None ->
+"" end`) for an option-typed record field.** Buys ~2 markers directly (`visit_alias`,
+`visit_MatchStar`) plus real fidelity in three already-converted visitors.
+
+### `fill` (a 14-use hub) — got THREE fixes deep and was reverted at the fourth
+`text: str` annotation, `_for_helper(fill: str, …)` annotation, and a `_is_string_expr`
+recognizer for the `s * n` repetition (whose LOWERING already emits
+`str_repeat_op … : string` — a genuine two-producer disagreement, character-for-character the
+same shape as the `binop[k]` one above). Its body then emitted correctly as
+`str_hash_op (str_concat_op (str_repeat_op "    " indent) text)`. Reverted at the NEXT link:
+`self.fill("except*" if self._in_try_star else "except")` — a string-literal TERNARY lowers to
+int hashes because the `IfExpr`-is-string rule in `_is_string_expr` is gated on
+`_current_self_type in _mutable_state_classes` and `_Unparser` is not a `@mutable_state` class.
+**REOPENING, PRICED, NOT TRIED: put `@mutable_state` on `_Unparser`.** It genuinely has mutable
+state (`_source`, `_indent`, `_precedences`), so the annotation is TRUE, and it would turn on the
+whole typed-local pre-decl family for the class at once. It is a large single-step emission
+change and needs its own increment.
+
+### The `traverse` polymorphism — the reason the record model is not per-visitor incremental
+`traverse(self, node)` is `if isinstance(node, list): for item in node: self.traverse(item) else:
+super().visit(node)`, i.e. `AST | list[AST]`, so its formal is `(x0: int)`. The moment a
+`_PURE_AST_FIELD_TABLE` row gives a field the `emit_ir` type, `self.traverse(node.<child>)` is a
+type error, and `set_precedence`'s `seq int` vararg fails one line earlier. MEASURED on
+`visit_Attribute`, `visit_arg` and `visit_TypeVar` — all three typecheck their own bodies and
+fail at the first hub call. **Only visitors whose fields are ALL scalars can be annotated one at
+a time** (which is exactly `Name`, `TypeVarTuple`, `ParamSpec`). NAMED CHEAP ROUTE, NOT TRIED:
+tag every LIST-valued field as `ExprIR` (ONE opaque `emit_ir` standing for the whole list)
+instead of `StmtIRList` — exactly as faithful as today's opaque `int`, and it makes `traverse`'s
+formal uniform across the family.
+
+## INSTRUMENT FACTS #29 ADDS
+
+1. **`export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH` ON EVERY GATE.** `_why3_typecheck`
+   (`src/pycsl/pycsl.py`) returns `(True, "(why3 not found — typecheck skipped)")` on
+   `FileNotFoundError` and the caller prints `L3-tc ✓` and `Verification SUCCESS` WITHOUT ever
+   printing the skip reason. #29 hit this in its first hour on a file why3 rejects outright.
+2. **The emit+typecheck loop on `pure_ast.py` is 1.8 seconds.** `scratchpad/tc.sh` wraps it.
+   Reach for it instead of reasoning about what the emitter will do.
+3. **A full 52-mirror md5 sweep is 6.5 seconds** (`scratchpad/mirror_md5.sh <root>`); run it
+   against a detached worktree at HEAD to get the sibling-emission set exactly.
+4. **The corpus byte-diff sweep is 31 seconds** per side (`bin/byte-diff-sweep.sh <dir>`).
+5. `scratchpad/port.py <names>` ports live bodies into the mirror; `scratchpad/restub.py <names>`
+   puts them back as `\trusted` stubs; `scratchpad/tryport.sh` / `scratchpad/diag.sh` do
+   port-test-keep and port-test-revert-and-report respectively.
+6. **`check-self-annotate-sync.sh` is a LIVE PLANE FOR EMITTER EDITS.** Editing
+   `module6_whyml/functions.py` took DIVERGED from 2 to 4 because `_compute_return_type` and
+   `_build_method_return_type_map` are UN-trusted in the mirror; the hunks had to be copied into
+   `src/self-annotate/src/module6_whyml/functions.py`. `_handle_dotted_call` needed nothing —
+   it is a `\trusted` stub in the mirror. That asymmetry is the plane working.
+
+---
+
+# HANDOFF — #29 SECOND ENTRY (2026-09-01, WINDOW 3): **THE `_Unparser` CERTIFIED-BOUNDARY IS
+# REOPENED. #27's named reopening capability — per-(receiver-node-type, field) projector typing —
+# ALREADY EXISTS IN-TREE AND HAS SINCE RELAUNCH #19. It is `_PURE_AST_FIELD_TABLE` +
+# a param annotation. PROVED BY BUILDING IT: `get_name`/`get_attr`/`get_id`/`get_arg` are GONE
+# from four converted visitors and replaced by REAL `string` record fields.**
+
+## WHAT WAS ACTUALLY TRIED (not scoped — run, with the emitted artifact inspected)
+
+Probe, ~6 minutes, emission is **1.8 s** per cycle (`--no-proof --keep-mlw`), so this loop is
+almost free — use it:
+
+1. Added ONE entry to `_PURE_AST_FIELD_TABLE` (`src/pycsl/frontend/ir_resolve.py:688`):
+   `"TypeVar": [("name", "string"), ("bound", "OptExprIR")]`.
+2. Annotated ONE parameter: `def visit_TypeVar(self, node: "TypeVar")` (mirror AND live).
+
+Emitted diff — 19 lines, and it is exactly the capability #27 declared missing:
+
+```
++  type typevar = { mutable typevar_name: string; mutable typevar_bound: option emit_ir }
+-  val get_bound (x: int) : int
+-  let _unparser__visit_TypeVar (self: _unparser) (node: int) : unit
++  let _unparser__visit_TypeVar (self: _unparser) (node: typevar) : unit
+-    self_write_1 (Seq.cons (get_name node) ...)
++    self_write_1 (Seq.cons node.typevar_name ...)      <-- a REAL `string`
+-    if ((get_bound node) <> 0)         +    if (node.typevar_bound <> 0)
+-    self_traverse_1 (get_bound node)   +    self_traverse_1 node.typevar_bound
+```
+
+Then `Attribute` / `Name` / `arg` — already IN the table, needing only the annotation — likewise
+lost their `get_attr` / `get_id` / `get_arg` projectors for real `string` fields, AND their
+`value` children became `emit_ir`, so `isinstance(node.value, Constant)` now lowers to the
+ADT discriminant `py_isinstance_Constant_emit_ir_op node.attribute_value` instead of an int test.
+
+## WHY FOUR WINDOWS MISSED IT — the lesson, and it is lesson (p) exactly
+
+#27 traced `get_name` to its declaration site (`expressions.py:11918`), proved NO UNIFORM
+per-attribute return type exists (correct, still correct), and named the reopening capability
+"per-(receiver-node-type, field) projector typing = the node ADT (`pyx_view`)". #28 then SIZED
+`pyx_view`. **Neither asked the census-FIRST question: does a mechanism for this already exist?**
+It does, three of them, all in production:
+
+| mechanism | where | keys on |
+|---|---|---|
+| `_PURE_AST_FIELD_TABLE` (28 entries) + `_harvest_node_spec_records` | `frontend/ir_resolve.py:688` | the node CLASS, per field: `string`/`int`/`ExprIR`/`OptStr`/`OptExprIR`/`ExprIRList`/`StmtIRList`/`RecList:R` |
+| `_EMIT_IR_STR_ATTRS` / `_EMIT_IR_NODE_ATTRS` | `module6_whyml/expressions.py` | the ATTRIBUTE, on an `emit_ir` receiver |
+| `_EMIT_IR_HANDLER_ATTR_PROJ` | same | the ENCLOSING HANDLER (`_current_emitting_func`) |
+
+And `pure_ast.py:5010-5017` — the file's OWN comment, 20 lines above the `\trusted` stub — says
+so in plain words: *"The node typing is FIXABLE and was fixed: annotate the parameter with the
+harvested `_NODE_SPEC` record and the body emits ... reading the REAL fields."* Relaunch #19
+wrote that. #24, #25, #26, #27 and #28 all worked inside this file and none of them applied it.
+
+**LESSON (ba): `pyx_view` was never the blocker — it was the WRONG NAME for the blocker.** A
+recorded reopening capability is a CLAIM, and the most expensive way for it to be wrong is to
+name a capability you would have to BUILD when an equivalent one is already installed. #27's
+refutation was sound and its conclusion ("no per-attribute type exists") is still true; only its
+PRICE was wrong, by roughly two orders of magnitude — a 76-arm recursive ADT with a structural
+variant, versus one table row and one `: "ClassName"` annotation. The campaign already has the
+rule for this (lesson (p): census existing certified constructs BEFORE scoping a new one); what
+this adds is **where to run that census: not over the model, over the EMITTER'S OWN TABLES.**
+Corollary, and it is the sharper half: **the obstacle recorded against item 4 — "pure_ast's node
+classes are synthesized at import by `type(name,(base,),body)`, so there is no static class
+surface" — is TRUE AND IRRELEVANT.** The types never came from the classes. They come from the
+`_NODE_SPEC` DICT LITERAL, harvested structurally from the source text, plus a hand-curated
+per-field type table. A true obstacle guarding the wrong door blocks nothing.
+
+## THE FULL PHASE-1 WORK LIST — MEASURED, NOT ESTIMATED
+
+The record model and the `seq string` vararg must land TOGETHER (a `string` field cannot enter a
+`seq int` write, and an int-sourced arg cannot enter a `seq string` write). With
+`def write(self, *text: str)` the file has **74 write/fill call lines and exactly 16 non-literal
+arguments**; every other write argument is already a real Why3 string literal. The 16, each with
+its enclosing emitted function, its fix class, and whether it is TRIED:
+
+| # | emitted line | function | argument | fix | status |
+|---|---|---|---|---|---|
+| 1 | 4318 | `visit_Attribute` | `get_attr node` | annotate param (`Attribute` already in table) | **DONE, works** |
+| 2 | 4587 | `visit_Name` | `get_id node` | annotate param (`Name` already in table) | **DONE, works** |
+| 3 | 4805 | `visit_arg` | `get_arg node` | annotate param (`arg` already in table) | **DONE, works** |
+| 4 | — | `visit_TypeVar` | `get_name node` | table row + annotate | **DONE, works** |
+| 5 | 4429 | `visit_ExceptHandler` | `get_name node` | NEW row `ExceptHandler: [type OptExprIR, name OptStr, body StmtIRList]` + annotate | not yet |
+| 6,7 | 4534, 4538 | `visit_MatchAs` | `get_name node`, `str_concat 1174530543 (get_name node)` | NEW row `MatchAs: [pattern OptExprIR, name OptStr]` + annotate | not yet |
+| 8 | 4821 | `visit_keyword` | `get_arg node` | NEW row `keyword: [arg OptStr, value ExprIR]` + annotate | not yet |
+| 9 | 4155 | `block` | `extra` | annotate `def block(self, *, extra: str = None)` | not yet |
+| 10,11 | 4169, 4171 | `delimit` | `start`, `py_end` | annotate `def delimit(self, start: str, end: str)` | not yet |
+| 12 | 4504 | `visit_Lambda` | `buffer` | a buffered-list local — needs its source typed | not yet |
+| 13,14 | 4746, 4349 | `visit_UnaryOp`, `visit_BinOp` | `!operator` | local from the `self.unop[...]` / `self.binop[...]` string-table lookup | not yet |
+| 15 | 4126 | `_write_constant` | `repr_conv value` | `repr()` returns `str`; `repr_conv` is an int-returning abstract op | not yet |
+| 16 | 4119 | `_write_str_avoiding_backslashes` | `str_concat (str_concat !quote_type !string) !quote_type` | needs `_str_literal_helper -> Tuple[str, List[str]]` | **TRIED, blocked — see below** |
+
+### #16 is the only one with a MEASURED obstacle, and it is small and named
+
+`def _write_str_avoiding_backslashes(self, string: str, ...)` works immediately — the param
+retypes to `string`. The blocker is one slot type: `_str_literal_helper` (a `\trusted` stub, so
+its DECLARED annotation is the only authority on its return) needs
+`-> "Tuple[str, List[str]]"`, and `ir_resolve`'s per-slot table (the `_SLOT_WHYML` dict,
+~line 1395) recognises `str`/`bool`/`int`/`PyConstVal`/`ExprIR`/`StmtIR`/`IRNode`/
+`ContractExprIR` and `List[<node type>] -> seq emit_ir`, but **NOT `List[str]`**, so the whole
+annotation is refused fail-closed and the return stays `(int, int)`.
+**REOPENING CAPABILITY, PRICED: one row — `List[str] -> "seq string"` in `_SLOT_WHYML` — plus
+whatever `subscript_get` needs to project a `seq string` element (`quote_types[0]`).** The table
+is CLOSED and unrecognised slots already break out to the int-erased form, so widening it is
+a pure widening. NOT YET TRIED — that is the next move.
+
+## STATE OF THE TREE AT THIS ENTRY
+
+The probe is IN FLIGHT and is NOT committed to `src/`. It is saved verbatim at
+`getting-better/interrupted/2026-09-01-29-unparser-record-model.patch` (124 lines, 3 files:
+`ir_resolve.py` table row, and the `pure_ast.py` annotations in BOTH the live and mirror copies).
+It currently FAILS L3-tc at item #16 — that is expected and is the frontier, not a regression.
+Metric unchanged: markers 491 · grep 516 · offset 25 · ledger 3.
+
+## INSTRUMENT WARNING #29 PAID FOR — read this before you trust any `L3-tc ✓`
+
+`_why3_typecheck` (`src/pycsl/pycsl.py`) does `subprocess.run(["why3", ...])` and, on
+`FileNotFoundError`, **`return True, "(why3 not found — typecheck skipped)"`** — and the caller
+prints `[level] L1 ✓ L2 ✓ L3-tc ✓` and `Verification SUCCESS`. The skip reason is returned but
+NEVER PRINTED on the success path. `why3` is NOT on the default PATH here (it is only in
+`/home/fabrice/.opam/framac-coq8/bin`, and there is no `default` opam switch, so
+`bin/run-rocq-proofs.sh`'s `$HOME/.opam/default/bin` export points at a directory that does not
+exist). #29 hit this within the first hour: a run reported `L3-tc ✓` on a file `why3` rejects
+with a hard type error two lines long. `export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH`
+on EVERY gate — the handoff's instrument-fact #1 has said so for windows and it is still the
+easiest way to fabricate a green in this repo.
+
+---
+
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #29 worker — WINDOW 3 START)
+
+## #29 ITEM 0 IN ONE LINE: **`csl_to_ir_op` is NOT a live unsoundness. It was FIXED in the same
+## increment that fixed its sibling (#19), and the "KNOWN-LIVE" record was a STALE PYTHON COMMENT
+## quoted forward through four relaunches. The #19 CLOSED entry is the true one.**
+
+### THE EVIDENCE (source + all 53 emitted mirrors, read-only, ~3 minutes, zero prover time)
+
+| check | command | result |
+|---|---|---|
+| pure symbol exists anywhere? | `grep -rn "val function csl_to_ir_op" src/` | **ZERO hits** |
+| logic-level fold exists? | `grep -rn "function synth_overload_clauses\b" src/ \| grep -v _prog` | **ZERO code hits** (2 prose hits, both in `preamble.py` comments) |
+| declaration as emitted | `src/pycsl/module6_whyml/preamble.py:6754` | `"  val csl_to_ir_op (e: emit_ir) : emit_ir"` — a **PROGRAM** `val` |
+| the consuming fold | `preamble.py:6755-6765` | `let rec synth_overload_clauses_prog … variant { ens }` — **PROGRAM code**, structural descent on `list ens_node`, no `diverges`, no pinning `ensures` law |
+| what actually landed in the mirrors | `grep -rn csl_to_ir_op --include=*.mlw` | 4 mirrors (`ir_resolve`, `pycsl`, `frontend/__init__`, `Module5_IREmitter`), 2 code lines each: the program `val` and its one program-context application |
+| any spec-context use? | same grep filtered to `requires\|ensures\|invariant\|variant\|assert` | **NONE** |
+
+So on both planes — the emitter source AND the emitted artifact — the symbol is a program `val`
+applied only in program contexts. **There is no determinism claim to violate. The defect is CLOSED.**
+
+### WHERE THE FALSE RECORD CAME FROM — this is the reusable finding
+
+`preamble.py:6397-6409` is the SOUNDNESS comment for the *sibling* symbol `csl_to_ir`. Its last
+three lines read (verbatim, before this commit):
+
+> `# SIBLING csl_to_ir_op below CANNOT be demoted the same way — it is applied inside the`
+> `# LOGIC-level function synth_overload_clauses fold, so removing its purity requires`
+> `# redesigning that fold; recorded, not silently kept.`
+
+That was TRUE when written and FALSE ~350 lines later in the same file, because the very same
+increment (#19) then went and did the redesign: it rewrote the fold to `synth_overload_clauses_prog`
+and demoted the symbol. **The comment outlived the fix by one edit.** Nobody re-read the code it
+described; four consecutive handoffs quoted the comment's conclusion forward, each time with
+*higher* confidence than the last ("recorded, not silently kept" -> "STILL OPEN, UNFIXED" ->
+"KNOWN-LIVE UNSOUNDNESS"). Meanwhile `driver-backlog.md:5536` had the correct verdict the whole
+time ("Two offenders were repaired: `csl_to_ir_op` … and `m5_current_class_present`") — the record
+contradicted itself across two files and the LOUDER file won.
+
+**The comment is now corrected in place** (`preamble.py`), and it carries the disconfirming
+evidence with it so the next reader cannot re-derive the false claim. It is a Python `#` comment,
+never emitted — grep confirms `"CANNOT be demoted"` appears in ZERO `.mlw`, so this edit is
+byte-inert BY CONSTRUCTION, not merely by measurement. `_emit_exprir_theory` is absent from the
+mirror's `preamble.py` (408 lines vs the live 9177), so the fidelity plane has nothing to say
+about it either.
+
+### LESSON (az) — THE ONE THIS BANKS
+
+**A stale comment is more dangerous than a stale record, because it sits at the scene of the crime
+and therefore reads as primary evidence.** The five lessons so far all say "re-derive the claim
+from the source." This one adds the trap: a code comment *is* source, and a reader who dutifully
+"checks the source" can land on the comment and stop, feeling rigorous. The discriminator is cheap
+and mechanical: **a claim about a SYMBOL must be settled by grepping the SYMBOL, never by reading
+prose that mentions it.** One `grep "val function csl_to_ir_op"` — four seconds — beat four
+relaunches of careful documentation. Corollary: when two records disagree, the one that cites a
+COMMAND beats the one that cites a NARRATIVE, regardless of which is more recent or more emphatic.
+
+Corollary for this campaign specifically: whenever a comment says "X CANNOT be done, recorded not
+silently kept", check whether a LATER hunk in the SAME FILE does X. That is exactly the edit
+sequence that produces this failure.
+
+### STATE AT #29 WINDOW START (verified fresh)
+
+markers **491** · grep-substring 516 · offset 25 · attached 491 · unattached 0 · ledger 3 ·
+tree clean (tracked) · HEAD was `b2c3a6d6`.
+
+### LADDER FOR THE REST OF WINDOW 3 (unchanged below item 0)
+
+1. Backlog item 4 — `pyx_view` node ADT / per-(receiver-node-type, field) projector typing.
+   SIZED by #28: a `pure_ast`-LOCAL lever (144 of 172 `get_<attr>` use sites), not a campaign-wide
+   unblocker. Obstacle: `pure_ast` node classes are synthesized at import by `type(name,(base,),body)`
+   from `_NODE_SPEC`. Precedent: the `_optional_union_locals` / `_term_local_vars` carrier-field
+   projections immediately above `expressions.py:11918`.
+2. `ControlFlowStmtMixin._handle_return_stmt` (the converted-population frame residue).
+3. `scratchpad/w3/fix_assigns.py` re-tests.
+
+**Item 5 of #28's ladder ("STILL OPEN, UNFIXED: `val function csl_to_ir_op`") is DELETED, not
+demoted. Do not re-open it. If you see it quoted again, the quote is from a pre-#29 handoff.**
+
+---
+
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #28 worker — WINDOW END)
+
+## #28 IN ONE LINE: **the `pyx_view` node-ADT capability is now SIZED, and it is SMALLER than it
+## reads: the generic `get_<attr>` fallback is declared in only 7 of 53 emitted mirrors, and
+## 144 of its 172 use sites (84%) are in `pure_ast.mlw` alone. It is a pure_ast-LOCAL lever,
+## not a campaign-wide unblocker.**
+
+#28 got the final ~5 minutes of the 96h window (last relaunch). Per the supervisor it started no
+prover run, attempted no port, made ZERO edits to `src/`. It spent the sliver on the read-only
+census #27 queued: how much of the remaining 491 routes through the same generic `get_<attr>`
+emitter fallback that #27 refuted a `string` return model for. Pure `python` over the 53 already-
+emitted `.mlw` on disk (all mtime 2026-09-01, i.e. fresh), ~20 s, no emission needed.
+
+Metric verified fresh at window end: **markers 491 · grep 516 · offset 25 · attached 491 ·
+unattached 0 · ledger 3.** Tree clean (tracked), no prover process started. HEAD was `c9e08136`.
+
+### THE SIZING (measured; do not re-derive)
+
+Declarations matched as `val [function] get_<attr> (x: int) : int` — the fallback #27 traced to
+`src/pycsl/module6_whyml/expressions.py:11918`. Use sites = occurrences of the symbol minus its
+declaration.
+
+| emitted mirror | use sites | distinct attrs declared | that file's `\trusted` markers |
+|---|---|---|---|
+| **`pure_ast.mlw`** | **144** | 45 | 96 |
+| `Module3_Weaver.mlw` | 15 | 10 | 27 |
+| `module_collect.mlw` | 5 | 6 | 3 |
+| `exec_splice.mlw` | 3 | 7 | 2 |
+| `audit_proof.mlw` | 3 | 3 | 12 |
+| `Module5_IREmitter.mlw` | 1 | 14 | 30 |
+| `pycsl.mlw` | 1 | 1 | 33 |
+| **all other 46 mirrors** | **0** | **0** | — |
+| TOTAL | **172** | 86 | 203 markers live in these 7 files |
+
+Hottest attrs in `pure_ast.mlw`: `value`:34, `body`:13, `name`:7, `ATOM`:6, `orelse`:6, `target`:5.
+
+### WHAT THIS CHANGES FOR THE LADDER
+
+**Favourable read:** the node ADT is not a sprawling cross-mirror redesign. 84% of its demand is
+one file, and that file is the one holding the 54-marker `_Unparser` lever. Build it *for*
+`pure_ast` and you have essentially built all of today's demand.
+
+**Unfavourable read, and it is the honest one:** the ADT therefore does NOT unblock a broad slice
+of the remaining 491. Nothing outside these 7 files touches the fallback at all. Whoever prices
+item 4 next must price it as "buys `pure_ast`'s residue", not "buys the value-model frontier".
+
+### THE CAVEAT THAT MUST TRAVEL WITH THE NUMBER (lesson (ay), below)
+
+**172 is a LOWER BOUND on post-port demand, not the true demand.** A `\trusted` stub has an
+elided body, so it reads no attributes and generates no projector uses. The 144 uses in
+`pure_ast.mlw` come from its ALREADY-CONVERTED methods; the 51 still-trusted `_Unparser` bodies
+contribute zero today and will contribute more once ported. `Module5_IREmitter.mlw` is the visible
+proof of the effect from the other side: it declares **14** distinct attr projectors but has only
+**1** use site — declaration also happens in spec contexts, so declaration count and use count
+measure different things. **Do not quote 172 as "the size of the ADT job." Quote it as "the size
+of the demand the currently-converted surface already places on it."**
+
+### THE LESSON #28 BANKS — (ay)
+
+The three prior lessons were about not trusting a record. This one is about not trusting your own
+fresh measurement's SCOPE: **a census of an emitted artifact measures the CONVERTED surface only.**
+In a campaign whose entire purpose is converting stubs, every artifact-side census is systematically
+biased toward zero on exactly the stubs still to be done. State the direction of the bias next to
+the number, every time. Corollary: declaration counts and use counts are different instruments —
+`Module5_IREmitter` reads 14 vs 1 depending which you pick.
+
+### THE THREE LESSONS FROM THE PRIOR HOUR — carried forward verbatim, they are the campaign's core
+
+- **A boundary that has not been TRIED is not a boundary**, even when the worker naming it had just
+  measured the failure it predicts (#25 overturned #24's conditional floor in two minutes).
+- **A re-measured number does not re-measure the mechanism** — when a census shrinks a residue,
+  trace the SURVIVORS to their source; they are usually the hard core the easy cause was hiding
+  (#26 overturned #25). Corollary: read the mirror's own comments near the failing construct —
+  #20 had documented this exact failure at `pure_ast.py:5030-5044` and two later workers edited
+  within 50 lines without reading it.
+- **Trace survivors to the DECLARATION site, not the mirror source** (#27). #26 stopped at "an
+  int-modelled projector," which made a string return look like a local choice; one
+  `grep 'val get_'` showed it is a generic attr-keyed emitter fallback and the refutation followed
+  with zero edits. **A symbol's type is a property of where it is DECLARED — in an emitter, that is
+  a line of Python, not a line of the mirror.**
+
+### WHERE THE LADDER STANDS FOR #29 (first worker of the NEXT window)
+
+1. `_Unparser` (54 markers) is **CERTIFIED-BOUNDARY on the value model**. Both halves settled by
+   trying: projector `string` return REFUTED with zero edits (#27); `_str_literal_helper` still
+   body-blocked (#24). Do NOT re-open without the node ADT.
+2. **Backlog item 4 — `pyx_view` node ADT / per-(receiver-node-type, field) projector typing** —
+   is the named reopening capability, now SIZED by #28 (above). Its recorded obstacle stands:
+   `pure_ast`'s node classes are synthesized at import by `type(name, (base,), body)` from
+   `_NODE_SPEC`, so there is no static class surface to read a field type off. Existing in-tree
+   precedent for the machinery: the `_optional_union_locals` / `_term_local_vars` carrier-field
+   projections immediately ABOVE `expressions.py:11918` already bypass `get_<attr>` when the
+   receiver's type is known. That is the shape to extend.
+3. `ControlFlowStmtMixin._handle_return_stmt` (item 2) — the one non-constructor model-visible
+   false frame left, ~1846 goals / ~45 min.
+4. `scratchpad/w3/fix_assigns.py` re-tests of every "effect summary cannot be made exact" wall.
+5. **[SUPERSEDED BY #29 — THIS ENTRY IS FALSE; SEE THE #29 SECTION AT THE TOP. The symbol is a
+   PROGRAM `val` in the source and in all 53 mirrors; `grep "val function csl_to_ir_op"` returns
+   zero hits. It was fixed by #19; this line quotes a stale code comment, not the code.]**
+   ~~STILL OPEN, UNFIXED, HONESTLY RECORDED: `val function csl_to_ir_op`~~ — a KNOWN-LIVE
+   unsoundness, a pure logic symbol standing for a state-dependent method, inside the logic-level
+   `synth_overload_clauses` fold in `preamble.py`. (Note the conflict with the older "#19 CLOSED it"
+   line further down this file: the live-unsoundness record is the current one.)
+
+Reproduce #28's census in 20 s, no emission, no edits:
+`python3` over `glob('src/self-annotate/**/*.mlw')`, match `^\s*val (?:function )?get_(\w+) \(x: int\) : int`,
+count `\bget_<attr>\b` occurrences minus 1 per declaration.
+
+---
+
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #27 worker)
+
+## #27 IN ONE LINE: **the projector probe is REFUTED — `get_name` is ONE global abstract symbol
+## shared across ALL node types and it is used as a NODE, as a NONE-TEST and as a STRING in the
+## SAME emitted file. A `string` return model is not merely ill-typed, it is semantically wrong.**
+
+#27 got the final ~7 minutes and ran exactly the one probe #26 queued. NO edit was made to `src/`
+(the probe is read-only: emit `pure_ast.mlw` at `--no-proof --keep-mlw`, 1.8 s, and census the
+projector uses). Metric verified fresh at window end: **markers 491 · grep 516 · offset 25 ·
+attached 491 · unattached 0 · ledger 3.** Tree clean, no prover process started.
+
+### THE MECHANISM (measured, do not re-derive)
+
+The projectors are NOT per-field emitter symbols. `src/pycsl/module6_whyml/expressions.py:11918`
+is a single generic fallback for ANY attribute read off an int-modelled object:
+
+```python
+self._add_abstract_op(f"val get_{attr} (x: int) : int")     # or `val function …` in a spec ctx
+```
+
+So there is exactly ONE `val get_name (x: int) : int` per emitted file (`pure_ast.mlw:543`),
+keyed on the ATTRIBUTE NAME ONLY — never on the receiver's node type. Its 7 uses in
+`pure_ast.mlw` are mutually incompatible:
+
+| line | use | required return type |
+|---|---|---|
+| 4425 | `self_traverse_1 (get_name node)` | **a NODE (int handle)** — `node.name` on this arm is an AST node, and it is fed to `traverse`'s `int` formal |
+| 4426 | `if ((get_name node) <> 0)` | **int** — a lowered `is None` test |
+| 4428 / 4533 / 4727 / 4586(`get_id`) / 4312(`get_attr`) / 4799,4820(`get_arg`) | `Seq.cons (get_name node) …` | element of the write vararg — string under `*text: str` |
+| 4537 | `str_concat 1174530543 (get_name node)` | the #25/#26 clash site |
+| 4817 | `if ((get_arg node) = 0)` | **int** — another `is None` test |
+
+`get_arg` shows the same split by itself: two write-element uses and one `= 0` None-test.
+
+**Therefore: no uniform per-attribute return type exists.** Giving `get_name` a `string` return
+breaks the traverse feed and both None-tests; leaving it `int` keeps the clash. This is not a
+lowering selection and not a signature tweak — it is the ABSENCE OF A TYPED NODE MODEL.
+
+### VERDICT — CERTIFIED-BOUNDARY, and now it is a legitimately EARNED one
+
+Both halves of #26's corrected capability are now settled:
+
+1. **projectors -> `string`: REFUTED (this window, tried, not assumed).**
+2. `_str_literal_helper`: still a body-blocked leaf (#24's classification, unchanged).
+
+So the 54-marker `_Unparser` lever's residue is **not 1-2 sites reachable by a cheap move**. Its
+reopening capability is now precise and it is the campaign's ALREADY-RECORDED value-model floor:
+
+**REOPENING CAPABILITY: per-(receiver-node-type, field) projector typing — i.e. the node ADT /
+record AST model (`pyx_view`, carried-forward item 4).** Only a typed node model can let
+`ParamSpec.name : string` and `ClassDef.name : node` coexist. The `_optional_union_locals` /
+`_term_local_vars` carrier-field projections right above line 11918 in `expressions.py` are the
+EXISTING precedent for exactly this move — they bypass `get_<attr>` when the receiver's type is
+known — so the capability is not novel, it is that machinery extended to `_Unparser`'s `node`
+formals, which today are bare `(node: int)`.
+
+This converges with the independently-recorded obstacle at item 4: `pure_ast`'s node classes are
+SYNTHESIZED AT IMPORT by `type(name, (base,), body)` from `_NODE_SPEC`, so there is no static
+class surface for the emitter to read a field type off. That is the same wall, reached from a
+second direction — the third such convergence this campaign.
+
+### THE LESSON #27 BANKS
+
+#26's lesson said: when a census shrinks a residue, trace the SURVIVORS to their source. #27 adds
+the next step: **trace them to the DECLARATION SITE, not just to the mirror source.** #26 traced
+`get_name` back to "an int-modelled node-field projector" and stopped there, which made a string
+return model look like a local choice. One `grep 'val get_'` (one command) shows it is a single
+generic emitter fallback keyed on the attribute name alone — at which point the refutation is
+immediate and needs no edit at all. **A symbol's TYPE is a property of where it is DECLARED, and
+in an emitter that is a line of Python, not a line of the mirror.**
+
+Corollary for the metric: the probe cost ~4 minutes and closed a question that had been open for
+three windows, without touching `src/`. Read-only emit-and-census is the cheapest instrument in
+this campaign — reach for it before any port probe.
+
+### #27's #1 ITEM FOR #28
+
+The `_Unparser` lever is CERTIFIED-BOUNDARY on the value model (node ADT). Do NOT re-open it
+without that capability. The live ladder is unchanged below it:
+`ControlFlowStmtMixin._handle_return_stmt` (item 2), then `scratchpad/w3/fix_assigns.py` re-tests
+of "effect summary cannot be made exact" walls (item 3). [SUPERSEDED BY #29: the following
+sentence is FALSE — `csl_to_ir_op` is a program `val`, closed by #19.] ~~`val function csl_to_ir_op` remains a
+KNOWN-LIVE unsoundness in `synth_overload_clauses` (preamble.py) — still open, still unfixed.
+
+---
+
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #26 worker)
+
+## #26 IN ONE LINE: **#25's 4-site "cost-shaped lowering selection" IS NOT ONE. Three of the four
+## clash sites are INT-SOURCED, so `str_concat_op` cannot take them — the residue is a VALUE-MODEL
+## capability (string-model the node-field projectors / `_str_literal_helper` returns), not a gate.**
+
+#26 got the final ~10 minutes of the 96h window. Per the supervisor it started no prover run and
+attempted no port. It spent the sliver locating the ROOT CAUSE of #25's four sites, and the answer
+CORRECTS #25's reopening capability in the unfavourable direction (the first time in nine windows
+that a re-pricing went the wrong way — record it as such, it is the counter-example to the streak).
+
+### WHAT #25 CLAIMED, AND WHERE IT IS WRONG
+
+#25 wrote: "under a `string` vararg element type, a computed string argument must lower through
+`str_concat_op`/`+` rather than the hash-int `str_concat`; both symbols already exist; this is a
+lowering SELECTION driven by `_vararg_elem_type`, COST-shaped." **The selection premise is false.**
+
+`str_concat_op` has signature `(a: string) (b: string) : string`. Selecting it only helps if the
+OPERANDS are Why3 `string`s. #26 read the four sites back to their mirror sources:
+
+| emitted line | mirror source | operands |
+|---|---|---|
+| 4113 | `pure_ast.py:5087` `self.write(f"{quote_type}{string}{quote_type}")` | `quote_type`, `string` are **ints** — they are unpacked from `self._str_literal_helper(...)`, **which is still a `\trusted` stub returning ints** |
+| 4120 | `_write_constant` inf/nan `repr` chain | `repr_conv`/`replace_3` results, int-modelled |
+| 4348 | `(str_concat (str_concat 1376817993 !operator) 1376817993)` | `!operator` is an **int-typed local**; only the two literals are string-able |
+| 4537 | `(str_concat 1174530543 (get_name node))` | `get_name` is one of the **int-modelled node-field projectors** |
+
+So exactly ONE of the four (the literal halves of 4348) is a selection question. The other three are
+int VALUES. Routing them through `str_concat_op` produces the *mirror-image* type error.
+
+### THIS IS ALREADY RECORDED IN THE TREE, BY #20, AND IT WAS READ PAST TWICE
+
+`src/self-annotate/src/frontend/pure_ast.py:5030-5044` (a comment #20 left in the mirror) states it
+outright, and names the same first failure #25 rediscovered:
+
+> "The remaining 16 come from INT-MODELLED sources — the `get_name` / `get_id` / `get_attr` /
+> `get_arg` node-field projectors, `str_concat` over int-typed locals, and int-typed parameters
+> (`extra`, `start`, `py_end`, `!operator`) … **L3-tc FAILS on the first one
+> (`_write_str_avoiding_backslashes`, whose `quote_type`/`string` locals are ints because
+> `_str_literal_helper` is still a stub returning ints)**. There is no int->string direction
+> available: `str_hash_op` goes the other way and is not invertible, so no coercion can bridge it
+> without a fiction."
+
+#25 measured the residue as 4 sites (down from #20's 16 — that part of the re-pricing STANDS and is
+a genuine gain: `seq string` really does clear 54 of 58) but attributed those 4 to the wrong
+mechanism. **The count was re-measured; the CAUSE was not.**
+
+### THE CORRECTED REOPENING CAPABILITY (for #27)
+
+Not a lowering selection. It is: **the int-modelled node-field projectors (`get_name`/`get_id`/
+`get_attr`/`get_arg`) and the tuple return of the still-`\trusted` `_str_literal_helper` must
+produce Why3 `string`s.** Two independent sub-moves, either of which shrinks the 4:
+
+1. **`_str_literal_helper` is one of #24's body-blocked leaves** (nested `def`, `map`, `lambda`,
+   list comps, tuple return, `repr`). Porting it is what makes 4113 a string site. Body-blocked
+   still, so this is NOT the cheap half.
+2. **`get_name` & friends** are emitter-side projectors, not mirror bodies. Whether they can carry a
+   `string` return model is UNMEASURED and is the ~2-minute probe #27 should open with. If they can,
+   4537 (and the `!operator` half of 4348) go string and the residue may reach 1-2 sites.
+
+**Per the standing lesson, #26 did NOT try either and therefore files NEITHER as a boundary.** What
+is established here is only that the WORK IS NOT the work #25 named. `*text: str` still cannot land
+until the residue is 0, because all 58 sites share the one `write` formal.
+
+### THE LESSON — the streak's counter-example, and it is the more useful half
+
+Eight windows re-priced a recorded boundary FAVOURABLY. #26 is the ninth and it went the other way:
+**a re-measured NUMBER does not re-measure the MECHANISM.** #25 correctly recensused 16 -> 4 and then
+inferred the cause of the 4 from the emitted symbol name (`str_concat` vs `str_concat_op`) instead of
+from the operands' provenance. One `grep` back to the mirror source — 60 seconds — would have shown
+that three of the four operands are values, not spellings. **When a census shrinks a residue, trace
+the SURVIVORS to their source; do not assume they are small instances of the same cause as the ones
+that went away.** They are usually the hard core that the easy cause was hiding.
+
+Corollary, and it stings: **the answer was in a comment in the file under edit.** #20 wrote it, #24
+and #25 both edited within 50 lines of it. Before pricing a blocker in a mirror, read the mirror's
+own comments near the failing construct.
+
+### #26 hygiene
+
+No edit was made to `src/` at all — this window bought a diagnosis, not a build, so there was nothing
+to revert. Metric verified fresh at window end: **markers 491 · grep 516 · offset 25 · attached 491 ·
+unattached 0 · ledger 3.** No prover process started, none left running. Tracked `src/` clean.
+
+### #27's #1 ITEM
+
+Probe (2 min) whether the node-field projectors `get_name`/`get_id`/`get_attr`/`get_arg` can carry a
+`string` return model. That is the cheap half of the corrected capability and it is the gate on the
+54-marker `_Unparser` lever. If it clears, re-census the residue; if it refutes, the lever's residue
+is `_str_literal_helper` alone and the question becomes whether that body-blocked leaf is portable —
+which is the value-model floor, and THEN it may be recorded as one.
+
+---
+
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #25 worker)
+
+## #25 IN ONE LINE: **`seq string` CLEARS #24's blocker. The 54-marker `_Unparser` lever is LIVE
+## again — it is NOT a value-model boundary. Residue is FOUR int-model call sites, not fifty-eight.**
+
+#25 got the final ~13 minutes and ran exactly the probe #24 queued: exercise degree of freedom 1
+(`vararg_elem_type` as a PER-FUNCTION choice) on `_Unparser.write`, then re-run #24's port probe.
+
+### HOW YOU SET IT (the mechanism, measured — do not re-derive)
+
+`vararg_elem_type` is NOT a knob you pass; it is selected in
+`src/pycsl/frontend/Module5_IREmitter.py:4979-5000` **from the vararg's own annotation**:
+`*text: str` -> `"string"`, unannotated `*text` -> `"int"` (ladder 1a), star-forwarded -> dropped.
+So the per-function choice is made **in the mirror source**, one annotation:
+
+```python
+def write(self, *text: str):      # was: def write(self, *text):
+    self._source.extend(text)
+```
+
+`fill` needs nothing — its `text=''` is a plain default arg, not a vararg.
+
+### RESULT — L3-tc gets MUCH further, and the two ported bodies are CORRECT
+
+With `*text: str`, `let _unparser__write (self: _unparser) (text: seq string)` (line 4851), and
+#24's two ported leaves lower exactly as wanted:
+
+```
+let _unparser__visit_ParamSpec   … = self_write_1 (Seq.cons ("**" + (get_name node)) (Seq.empty: seq string))
+let _unparser__visit_TypeVarTuple… = self_write_1 (Seq.cons ("*"  + (get_name node)) (Seq.empty: seq string))
+```
+
+**A COMPUTED STRING IS NOW A FIRST-CLASS ELEMENT.** #24's decisive failure ("computed string cannot
+be an element of `seq int`", old line 4605) is GONE. All 58 write/fill call sites re-materialize as
+`seq string`, and the literals become REAL Why3 strings (`" in "`, `":"`, `"\n"`) instead of
+`str_hash_op` ints — the fidelity gain #20 predicted.
+
+### THE NEW BLOCKER IS SMALL AND IT IS IN THE *ALREADY-CONVERTED* BODIES, NOT THE PORT
+
+L3-tc now fails at `pure_ast.mlw:4113`:
+
+```
+self_write_1 (Seq.cons (str_concat (str_concat !quote_type !string) !quote_type) (Seq.empty: seq string))
+  This expression has type seq.Seq.seq string, but is expected to have type seq.Seq.seq int
+```
+
+because `val str_concat (x: int) (y: int) : int` (line 628) is the **hash-int** concat, while
+`str_concat_op (a: string) (b: string) : string` (line 629) is the string one. The element is an
+int, so `Seq.cons` fixes the sequence to `seq int` and the annotated `seq string` tail clashes.
+
+**#25 CENSUSED THE WHOLE SURFACE (python over the emitted .mlw, not grep):**
+
+| write/fill argument sites in `pure_ast.mlw` | **58** |
+|---|---|
+| already fine under `seq string` | **54** |
+| int-model, would clash | **4** |
+
+The four, with line numbers in the `seq string` emission:
+
+```
+4113  (str_concat (str_concat !quote_type !string) !quote_type)          _write_str_avoiding_backslashes
+4120  (replace_3 (replace_3 (repr_conv value) …) … (str_concat …))       _write_constant (inf/nan repr)
+4348  (str_concat (str_concat 1376817993 !operator) 1376817993)          visit_BinOp-family
+4537  (str_concat 1174530543 (get_name node))                            a visit_* name write
+```
+
+### VERDICT — RE-PRICE, DO NOT RECORD A BOUNDARY
+
+#24 asked for a two-way answer and this is the favourable one. **The 54-marker `_Unparser` lever is
+NOT a value-model CERTIFIED-BOUNDARY.** It is gated on a bounded, named, 4-site capability:
+
+**REOPENING CAPABILITY (precise, and it is a COST item, not a correctness one): under a `string`
+vararg element type, a computed string argument must lower through the STRING concat
+(`str_concat_op`/`+`) rather than the hash-int `str_concat`.** Both symbols already exist in the
+preamble — this is a lowering *selection* in `module6_whyml/expressions.py`, driven by the same
+`_vararg_elem_type` that already gates `seq_mem_str` (expressions.py:1088) and the abstract
+self-call param typing (expressions.py:5675). It is the identical gating idiom, one call site over.
+
+**#1 ITEM FOR THE NEXT WINDOW:** make those 4 sites string-model under `_vararg_elem_type ==
+"string"`, land `*text: str` on the mirror's `write`, re-run L3-tc, then port the leaf batch —
+which #24 showed is at most ~5 bodies (`fill`, `visit_TypeVarTuple`, `visit_ParamSpec`,
+`visit_alias`, `visit_MatchStar`), all of them computed-string writes and hence all of them
+unblocked by exactly this change. The other 8 of #24's 13 stay body-blocked (dict / generator /
+higher-order / `super().visit`) — that finding stands unchanged.
+
+### THE LESSON, NOW SEVEN TIMES IN SIX HOURS
+
+**#24 wrote a conditional record ("if it does not clear, this is a value-model boundary"). The probe
+cleared it. A boundary that has not been TRIED is not a boundary even when the worker who named it
+had just measured the failure it predicts.** #24's measurement was correct *for `seq int`*; the axis
+it did not measure was the element type it had itself identified as free. Two minutes bought back an
+11.0%-of-campaign lever that was one sentence from being filed as a floor.
+
+Corollary for the census habit: **census the emitted `.mlw`, not the plan.** "Computed writes break"
+sounded like it covered most of 58 sites. It covered 4.
+
+### #25 hygiene
+
+Probe FULLY REVERTED (mirror byte-restored, 134 markers in file). Metric re-verified after revert:
+**markers 491 · grep 516 · offset 25 · attached 491 · unattached 0 · ledger 3.** `src/` clean.
+No prover process started, none left running. Nothing banked as a conversion — this window bought a
+re-pricing, which is what the supervisor asked for.
+
+---
+
+# HANDOFF — read this FIRST on relaunch (prepended 2026-09-01, RELAUNCH #24 worker)
+
+## #24 IN ONE LINE: **the 13-leaf batch is NOT 13 — the `seq int` element type of ladder 1a blocks
+## every body that writes a COMPUTED string, and only ~3 of the 13 leaves are body-portable at all.**
+
+#24 got the last ~16 minutes of the 96h window. Per the supervisor's instruction it did NOT start the
+port batch; it ran ONE cheap probe against the port plan #23 wrote an hour earlier. The probe
+corrected the plan again — the fifth consecutive window in which a record's claim failed on first
+contact.
+
+### FINDING 1 — LEAF-NESS IS A CALL-GRAPH PROPERTY. PORTABILITY NEEDS A SECOND, INDEPENDENT GATE.
+
+#23's "13 leaves are portable now" was measured purely on the call graph (calls no still-trusted
+sibling). #24 read the 13 LIVE BODIES (`src/pycsl/frontend/pure_ast.py`, `ast` census, 1 min) and
+classified what each body actually needs. **Most of them are blocked by a body feature that has
+nothing to do with the call graph:**
+
+| leaf | live body needs | portable? |
+|---|---|---|
+| `set_precedence` | `self._precedences[node] = precedence` — **dict store keyed by an AST node** | NO — the object-identity / value-model floor |
+| `__init__` | `{}` / `[]` dict+list field init | NO — dict model |
+| `get_type_comment` | `dict.get` + dynamic `getattr` + f-string | NO |
+| `interleave` | `iter()`/`next()`/`StopIteration` + **higher-order callable formals `f`, `inter`** | NO |
+| `buffered` | `@contextmanager` with `yield` — a generator | NO |
+| `delimit_if` | **returns a context-manager object** (`self.delimit(...)` / `_nullcontext()`) | NO |
+| `traverse` | `isinstance(node, list)` + recursion + **`super().visit(node)`** | NO |
+| `_str_literal_helper` | nested `def`, `map`, `lambda`, list comps, tuple return, `repr` | NO |
+| `fill` | `self.write("    " * self._indent + text)` — computed string | see FINDING 2 |
+| `visit_TypeVarTuple` | `self.write("*" + node.name)` | see FINDING 2 |
+| `visit_ParamSpec` | `self.write("**" + node.name)` | see FINDING 2 |
+| `visit_alias` | `self.write(node.name)` + `" as " + node.asname` | see FINDING 2 |
+| `visit_MatchStar` | f-string `f"*{name}"` + None-default | see FINDING 2 |
+
+**So the top hubs `traverse`, `interleave`, `set_precedence` — the three that #23 counted on to
+unblock 23+18+8 dependents — are ALL body-blocked.** The DAG analysis is correct and still useful,
+but it is a NECESSARY condition for porting, not a sufficient one. Batch 1 is at most the 5 rows in
+the bottom group, and FINDING 2 cuts that further.
+
+### FINDING 2 — THE `seq int` ELEMENT TYPE OF LADDER 1a IS A HARD BLOCKER FOR COMPUTED WRITES
+
+#24 ported the two smallest candidate leaves (`visit_TypeVarTuple`, `visit_ParamSpec`, 1 line each)
+into the mirror and emitted (`--no-proof --keep-mlw`, 134 -> 132 markers). **L3-tc FAILS:**
+
+```
+let _unparser__visit_ParamSpec (self: _unparser) (node: int) : unit =
+  let _ = (self_write_1 (Seq.cons ("**" + (get_name node)) (Seq.empty: seq int))) in ()
+File "…/pure_ast.mlw", line 4605: This expression has type string, but is expected to have type int
+```
+
+`write`'s formal is `let _unparser__write (self: _unparser) (text: seq int)` (line 4851). A **string
+LITERAL** write lowers fine — it becomes a `str_hash_op` int (`self_fill_1 2128406761` in an
+already-converted caller right below the failure). A **COMPUTED** string (`"**" + node.name`, `"    "
+* self._indent + text`, an f-string) is a genuine Why3 `string` and cannot be an element of
+`seq int`. The failure is again LOUD (a type error at L3-tc), never a silent mis-lowering.
+
+**This is the decisive fact for the whole 54-marker lever.** Ladder 1a's uniform `seq int` was gated
+on all four planes against the mirror AS IT STANDS — where every `_Unparser` body is an empty stub
+and every live write call site passes a literal. The moment real bodies are ported, the overwhelming
+majority of `_Unparser` writes are computed strings. **1a is proved, and 1a is still not the element
+type the port needs.**
+
+### CONSEQUENCE — THE #1 ITEM FOR THE NEXT WINDOW HAS CHANGED
+
+Do **NOT** open the next window by porting leaves. Open it by exercising **degree of freedom 1,
+which has now been sitting unused for four windows**: `vararg_elem_type` makes the element type a
+PER-FUNCTION choice (#21's infrastructure carries it; #20 measured `seq string` turning 40 of 56
+write sites into real Why3 string literals). Set `_Unparser.write` (and `fill`) to `seq string` and
+re-run the probe above. That is the gate on batch 1, and it is a ~2-minute probe, not a scope.
+If `seq string` clears it, re-price the batch; if it does not, the 54-marker lever is a
+CERTIFIED-BOUNDARY on the value model and should be recorded as one.
+
+The 3 starred-blocked bodies (`visit_Compare`, `visit_comprehension`, `visit_MatchOr`) are now moot
+for batch 1 — their target `set_precedence` is body-blocked on the dict model anyway.
+
+### #24 hygiene
+
+Probe fully REVERTED; mirror byte-restored (134 markers, re-confirmed). Metric UNCHANGED:
+**markers 491 · grep 516 · offset 25 · ledger 3.** No prover process left running. Tree clean.
+Nothing was banked as an increment — this window bought a plan correction, which is what the
+supervisor asked for.
+
+### The method note #24 paid for
+
+**A DEPENDENCY ANALYSIS IS A CLAIM ABOUT ONE AXIS ONLY.** #23's DAG was measured correctly and
+answers "may I port X before Y?" It silently got read as "X is portable." Whenever a plan is built
+on a structural census, ask which axis it measured and which axes it did NOT — then spend two
+minutes reading the actual artifacts along the unmeasured axis. Here the unmeasured axis (what the
+body's Python features require of the value model) knocked out 8 of 13 outright and the element-type
+axis knocked out most of the rest.
+
+---
+
+## #23 IN ONE LINE: the vacuity plane on `pure_ast.py` is CLOSED, GREEN. Ladder 1a is fully paid for.
+
+#23 got a ~20-minute window and the supervisor named exactly one job: finish the per-goal
+NON-VACUITY gate that #22 had to kill at window end. It is done, and it did not need the slow
+per-goal `why3 prove -g` loop at all — `bin/check-emitted-vacuity.py --emit` is the same plane
+and it runs in well under a minute:
+
+```
+export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH
+export TMPDIR=/home/fabrice/git/pycsl/scratchpad
+python3 bin/check-emitted-vacuity.py --emit      # EXIT 0
+```
+
+**VERDICT: `[+] emitted-vacuity: no NEW erasure (8 known param-erasures gated; 0 input-blind).`**
+Evidence: `scratchpad/r23/vacuity.log`.
+
+Read the 8 gated rows carefully, because two of them are in this very file and they are NOT a
+finding against 1a:
+
+- `pure_ast.mlw::_parser___dict_rest` (erases `t`) and `pure_ast.mlw::_parser___sequence_pattern`
+  (erases `t`) are **PRE-EXISTING, already in `KNOWN_ERASURES`, banked in commit `87f9cdb9` in an
+  earlier window.** They sit in `_Parser`, not `_Unparser`. `bin/check-emitted-vacuity.py` is
+  byte-unmodified in this tree — #23 added no entry to the ledger to make the gate pass.
+- The other 6 are the long-standing `core_ir_semantic` / `Module3_Weaver` / `expr_ghost_spec_ops`
+  / `statements` rows, unchanged.
+
+### LADDER ITEM 1a IS NOW GATED ON ALL FOUR PLANES — nothing is left owing on it
+
+| plane | verdict | who |
+|---|---|---|
+| fidelity (`check-self-annotate-sync.sh` + mirror-check) | green (2-DIVERGED baseline) | #21, inherited — tracked tree unchanged since `44150508` |
+| whole-file proof | **2857 / 2857 Valid, 0 non-Valid** | #22, `scratchpad/r22/pure_ast_proof.log` |
+| byte-inertness | 3/3 | #21, inherited |
+| **non-vacuity** | **0 NEW erasures, 0 input-blind** | **#23, `scratchpad/r23/vacuity.log`** |
+
+Plus: **`src/self-annotate/src/frontend/pure_ast.mlw` declares ZERO `axiom`s** (re-measured by #23
+on the freshly emitted file). Ledger stays 3. `#22`'s caveat — "the vacuity plane is UNFINISHED,
+not failed" — is now RESOLVED as FINISHED and GREEN. Do not re-run it as a precondition for step 3.
+
+Metric re-verified fresh by #23, UNCHANGED by this window:
+**markers 491 · grep-substring 516 · offset 25 · attached 491 · unattached 0 · ledger 3.**
+
+### The instrument note #23 paid for
+
+**Instrument fact 3 says `check-emitted-vacuity.py` is a false green without `--emit`. The
+converse is the useful half: WITH `--emit` it is CHEAP.** It re-emits every mirror at
+`-P 7 --no-proof --no-typecheck --keep-mlw` and finishes in under a minute — i.e. the whole
+vacuity plane for the entire mirror surface costs less than one `--fun` probe. #22 spent its
+window's tail inside pycsl.py's per-goal `why3 prove -g` vacuity loop, which was ~200 goals in
+after many minutes. **Those are not two speeds of the same check to choose between on time
+budget; the standalone probe is the one to reach for, and it covers all 52 mirrors, not one file.**
+Generalization worth carrying: when a gate is embedded in a slow driver AND exists as a standalone
+`bin/` probe, price the standalone one before assuming the plane is expensive.
+
+---
+
+
+## #23's SECOND FINDING — **PORT ORDER, not body length, is what gates step 3**
+
+With the vacuity plane closed, #23 spent its remaining minutes on ONE cheap probe (2 min, fully
+reverted, tree clean) rather than starting the port: it ported the single SHORTEST live body,
+`_Unparser.require_parens` (1 line), into the mirror and emitted with `--no-proof --keep-mlw`.
+
+**It FAILED L3-tc — and not for the starred reason.**
+
+```
+    (self_delimit_if_3 747334986 1226926668 ((_unparser__get_precedence self node) > precedence))
+File "…/pure_ast.mlw", line 4242: This expression has type bool, but is expected to have type int
+```
+
+because the *callee is still a stub*:
+
+```
+val _unparser__delimit_if (self: _unparser) (start: int) (py_end: int) (condition: int) : unit
+```
+
+**A `\trusted` stub has a `pass` body, so its formals get the default `int` type. Port a CALLER
+before its CALLEE and any non-int actual (here a `bool` comparison) is a hard type error.** As with
+the starred residue, the failure is LOUD, never a silent mis-lowering — but it means the port is
+not a flat batch.
+
+### THE DEPENDENCY STRUCTURE (measured, `ast`, 30 s)
+
+Of the 51 trusted `_Unparser` methods, counting `self.X(...)` calls in the LIVE body where `X` is
+also still `\trusted`:
+
+- **13 are LEAVES** — they call no still-trusted sibling: `__init__`, `_str_literal_helper`,
+  `buffered`, `delimit_if`, `fill`, `get_type_comment`, `interleave`, `set_precedence`, `traverse`,
+  `visit_MatchStar`, `visit_ParamSpec`, `visit_TypeVarTuple`, `visit_alias`.
+- **38 depend on at least one** still-trusted sibling.
+- The hubs are `traverse` (23 dependents), `interleave` (18), `fill` (14), `set_precedence` (8),
+  `get_type_comment` (4), `require_parens` (3), `delimit_if` (2). **All the top hubs are themselves
+  LEAVES**, so the 13-leaf batch is both portable now and unblocks nearly all of the 38.
+
+**PORT ORDER FOR THE NEXT WINDOW: the 13 leaves first, then re-emit and take the 38 in topological
+order.** This SUPERSEDES #22's "start with the 23 shortest bodies" — `require_parens` is the
+shortest body in the class and it is *not* portable first. **Shortest != portable-first.** Note the
+happy accident: `set_precedence` is a leaf, so it ports in batch 1; the 3 starred-blocked bodies
+(`visit_Compare`, `visit_comprehension`, `visit_MatchOr`) are its CALLERS and stay deferred.
+
+---
+
+## WHAT #22 ESTABLISHED (all still valid; its vacuity caveat is now closed by #23 above)
+
+A **~55-minute** window against the same deadline (`.driver-deadline` = 1788251064). The window was
+too short to start a build, and the supervisor named exactly one job: **run a prover on ladder item
+1a**, which #21 built and gated only to `L3-tc`. Lesson (hh) — *type-check success is not a
+conversion criterion* — is the whole reason this had to happen before anything was banked on 1a.
+
+## THE JOB: whole-file proof of `src/self-annotate/src/frontend/pure_ast.py`
+
+Launched at T-53min, detached (`nohup`, so it survives a turn ending — instrument fact 8 is about
+watchers, not about the proof process itself):
+
+```
+export PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH
+export TMPDIR=/home/fabrice/git/pycsl/scratchpad
+PYTHONHASHSEED=0 python3 -u src/pycsl/pycsl.py \
+  src/self-annotate/src/frontend/pure_ast.py \
+  --import-path src/pycsl --provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,' \
+  > scratchpad/r22/pure_ast_proof.log 2>&1 &
+```
+
+## PROOF VERDICT — **GREEN. 2857 / 2857 Valid, 0 non-Valid.**
+
+**Ladder item 1a STANDS.** The unannotated-vararg -> `seq int` pyval lowering is not merely
+type-checking; the whole of `pure_ast.py` proves under it.
+
+| | |
+|---|---|
+| proof obligations | **2857** |
+| `Valid` | **2857** |
+| `Unknown` / `Timeout` / `Failure` / `Invalid` | **0** |
+| provers | Alt-Ergo 2.6.3, Z3 4.13.3 (`--timelimit 5`, `-a split_vc`) |
+| wall clock to full flush | ~13 min (the proof engine phase) |
+
+Evidence: `scratchpad/r22/pure_ast_proof.log` (2857 `Prover result is: Valid` lines, zero
+non-Valid; tally it with a python heredoc, NOT `grep` — instrument fact 14).
+
+**This retires lesson (hh)'s open exposure on 1a.** #21 landed 1a on `L3-tc` alone and the campaign's
+own rule is that a type-check is not a conversion criterion. It has now been paid: the criterion was
+applied, and 1a passed it. Nothing built on top of 1a is resting on an unproved emitter change.
+
+**Caveat, stated precisely so nobody over-reads the green.** The run had, at window end, moved past
+the proof engine into pycsl.py's **per-goal non-vacuity phase** (one `why3 prove -g` per goal against
+`scratchpad/.pycsl_vac_*.mlw`; it was ~200 goals in and still going). That phase is a SEPARATE gate
+from the proof and it had NOT finished. **The proof plane is green; the vacuity plane is UNFINISHED,
+not failed.** First action next window: re-run and let it finish, or run
+`bin/check-emitted-vacuity.py --emit` (remember: a false green without `--emit`, instrument fact 3).
+
+**One more fact worth having: the emitted `pure_ast.mlw` declares ZERO `axiom`s.** So those 2857
+goals are discharged without the module contributing anything to the ledger. The campaign ledger
+stays at 3 and this file adds nothing to it.
+
+**The other two L-planes are INHERITED, not re-run.** The tracked tree has not changed since #21
+gated them at `44150508` (this window's commits touch `getting-better/` only), so #21's fidelity
+(2-DIVERGED baseline) and byte-inertness (3/3) results carry over unchanged. #22 re-verified the
+metric itself fresh: **markers 491 · grep 516 · offset 25 · unattached 0 · ledger 3.**
+
+
+## What #22 VERIFIED about 1a independently (all fresh, from the emitted `.mlw`)
+
+`--no-proof --keep-mlw` on `pure_ast.py` (1.8 s, instrument fact 7) leaves
+`src/self-annotate/src/frontend/pure_ast.mlw` on disk (gitignored, so it never dirties the tree).
+In it, **the 1a capability is really present** — this is not a no-op emission:
+
+- `let _unparser__write (self: _unparser) (text: seq int) : unit` at line 4847 — a **real
+  parameterized `let`**, not a `val`, and not a zero-parameter facade.
+- `val _unparser__set_precedence (self: _unparser) (precedence: int) (nodes: seq int) : unit`
+  at line 4241 — the vararg is a formal here too.
+- **58 `write` call sites**, every one materialized as `Seq.cons … (Seq.empty: seq int)`
+  (266 `Seq.cons` occurrences file-wide). Element values are the same `str_hash_op` ints the
+  drop-behaviour used: `self_write_1 (Seq.cons 260070937 (Seq.empty: seq int))`.
+- `L1 ✓ L2 ✓ L3-tc ✓` reproduced independently of #21.
+
+## THE RECORDED PRICE OF THE NEXT LEVER WAS WRONG (again) — and it is BIGGER, not smaller
+
+Applying #21's own lesson (*a recorded price is a claim too*) to the price #21 itself recorded:
+
+| record | recorded | **measured by #22** |
+|---|---|---|
+| markers in `pure_ast.py` | 96 | **95** |
+| `_Unparser` family lever | 51 | **54 markers** (51 of them attach to `_Unparser` methods; 1 sits behind an `@_contextmanager` decorator; the rest are nested/decorated defs) |
+
+Per-class marker census of `pure_ast.py` (95 total):
+`_Unparser` **54** · `_Parser` 24 · `AST` 5 · `Comment` 3 · `NodeVisitor` 3 · `_Tok` 2 ·
+`_ABC`/`Ellipsis`/`NodeTransformer`/`_Precedence` 1 each.
+
+So `_Unparser` is **54 of 491 = 11.0%** of the whole campaign's remaining metric in ONE class in ONE
+file. It is by a wide margin the largest single lever left, and the recorded figure understated it.
+
+**Also measured, and it matters for how step 3 is planned:** all 51 trusted `_Unparser` methods are
+`\trusted` *stubs with elided bodies* — an `ast.walk` over the mirror finds **zero** `self.write`
+calls and **zero** starred forwarding inside them, because there is nothing inside them. The 58
+`Seq.cons` call sites above are in the ALREADY-CONVERTED methods. Step 3 is therefore a *porting*
+job (bring each real body into the mirror), not a *repair* job, and the `write` signature it must
+target is the one now verified above.
+
+## THE #1 ITEM FOR THE NEXT WINDOW
+
+**Un-trust the `_Unparser.write` family — 54 of the 491 markers.** It is the campaign's largest
+remaining single lever and, as of this window, the emitter capability under it is proved-or-refuted
+(see the verdict) rather than merely type-checked.
+
+Two live degrees of freedom, both opened in the last two windows and **neither one used yet**:
+
+1. **`vararg_elem_type` makes the element type a PER-FUNCTION choice.** #20 measured that
+   `seq string` turns **40 of 56** write call sites into real Why3 string literals (a fidelity gain)
+   while 16 int-sourced sites are unbridgeable; #21's `seq int` is uniform and annotation-free.
+   These were believed mutually exclusive. They are not, since #21's infrastructure carries the
+   element type per function. Worth ONE probe, not a scope.
+2. **STARRED-ARGUMENT FORWARDING (`g(*args)`) is deliberately still gated out** (Module5 `ast.walk`
+   for `Starred(Name(vararg))`; a starred arg lowers to its bare inner value at
+   `expressions._expr_to_whyml` `"Starred"` ~14613). It keeps the historical drop behaviour.
+   Reopening capability: positional re-binding of an unknown-length sequence against the callee's
+   arity. **It affects `_new` / `Ellipsis.__new__` / `Constant.__init__` ONLY — `_Unparser.write`
+   and `set_precedence` are NOT affected, so the 54-marker lever is unblocked by it.**
+   Per lesson (#20): the first move against this capability is to TRY it, not to scope it.
+
+## STEP 3 IS FULLY SCOPED BY #22 — it is 503 lines of PORTING, and 48/51 are unblocked
+
+`src/pycsl/frontend/pure_ast.py` is the live counterpart of the mirror (note the path: it is under
+`frontend/`, NOT `src/pycsl/pure_ast.py`). Measured by AST diff against it:
+
+- **All 51** trusted `_Unparser` stubs have a live body available. **Zero missing.**
+- **Total live body lines to port: 503.** Size distribution: **23 bodies are <=5 lines**,
+  19 are 6-15, only 9 are 16+. Largest five: `visit_arguments` 50, `_str_literal_helper` 38,
+  `visit_JoinedStr` 32, `visit_ClassDef` 23, `visit_MatchClass` 22. Smallest are 2-3 lines
+  (`require_parens`, `visit_ParamSpec`, `visit_TypeVarTuple`, `fill`, `set_precedence`,
+  `visit_Delete`, `visit_Global`, `visit_Import`).
+- **Start with the 23 <=5-line bodies.** They are a natural first batch and, at ~0.45 markers per
+  line ported, the cheapest markers left anywhere in the campaign.
+
+### THE STARRED BLOCKER IS REAL FOR THIS FAMILY — but it is NOT the shape the record names
+
+The record (and `Module5_IREmitter.py:4986-4999`) says star-forwarding "affects `_new` /
+`Ellipsis.__new__` / `Constant.__init__` only" and that "`_Unparser.write` and `set_precedence` are
+NOT affected". **The first half is right about the GATE; the second half is wrong about the FAMILY.**
+
+Read the gate: it walks the *defining* function and drops the vararg only when that function's OWN
+vararg NAME is star-forwarded (`isinstance(_n.value, ast.Name) and _n.value.id == _va0.arg`).
+`set_precedence`'s own 3-line body forwards nothing, so it correctly keeps its `seq int` formal —
+confirmed in the `.mlw`. **But three of the 51 live bodies to be ported are CALLERS that pass a
+starred actual INTO that vararg formal:**
+
+```
+visit_comprehension : self.set_precedence(_Precedence.TEST.next(), node.iter, *node.ifs)
+visit_Compare       : self.set_precedence(_Precedence.CMP.next(),  node.left, *node.comparators)
+visit_MatchOr       : self.set_precedence(_Precedence.BOR.next(),  *node.patterns)
+```
+
+This is a **different capability** from the recorded one: not `g(*args)` forwarding of an enclosing
+vararg, but **MIXED positional-plus-starred packing at a call site into a `seq int` formal**
+(`f(a, *b)` — concat a materialized prefix onto an existing sequence). Nothing in the tree gates it
+today, so its behaviour on port is UNKNOWN and must be probed, not assumed. Two of the three even
+have a non-starred positional *before* the star, which is the hard sub-case.
+
+**#22 RAN THAT PROBE.** Isolated it in a 15-line standalone file (`scratchpad/r22/star_probe.py`,
+a `sink(self, p, *nodes)` plus a star-only caller and a mixed caller) rather than editing the mirror
+— zero risk, ~2 s. **The result is unambiguous, and it is the same for BOTH shapes:**
+
+```
+let p__caller_star_only (self: p) (xs: array int) : unit =
+  let _ = (self_sink_2 1 (Seq.cons xs (Seq.empty: seq int))) in ()
+let p__caller_mixed (self: p) (a: int) (xs: array int) : unit =
+  let _ = (self_sink_2 1 (Seq.cons a (Seq.cons xs (Seq.empty: seq int)))) in ()
+```
+
+A `Starred` actual in a vararg position is packed **as a single ELEMENT** — `Seq.cons xs …` — so the
+whole sequence lands where one element belongs. It does not splat. `L3-tc ✗`:
+
+> `This expression has type seq.Seq.seq int, but is expected to have type seq.Seq.seq (array.Array.array int @rho)`
+
+**Two things follow, and the second is the important one:**
+
+1. The 3 bodies are genuinely blocked. Star-only (`visit_MatchOr`) is blocked exactly as hard as
+   mixed (`visit_Compare`, `visit_comprehension`) — the prefix is not the hard part; the splat is.
+2. **The failure is LOUD, not silent.** It is a Why3 TYPE error at L3-tc, not a mis-typed-but-
+   accepted lowering. So this residue can never quietly produce a wrong proof — porting one of the
+   3 by accident fails the gate immediately. That makes "port the 48 now" safe to do without first
+   solving the 3.
+
+**PRECISE REOPENING CAPABILITY (supersedes the vaguer `g(*args)` wording):** at a call site, a
+`Starred` actual in a vararg position must lower to a sequence **CONCATENATION** of its inner value
+(coerced to `seq elem`) onto the materialized prefix — `Seq.(++) (Seq.cons a Seq.empty) (to_seq xs)`
+— instead of today's `Seq.cons xs`. That is a call-site packing change in the same materialization
+code #21 added, not the "positional re-binding against the callee's arity" the record describes;
+re-binding is only needed when a starred actual feeds NON-vararg formals, which is the
+`_new`/`__new__`/`Constant.__init__` case, not this one. **These are two different capabilities and
+the record conflates them.**
+
+**Consequence for the plan: port the 48 unblocked bodies now — do not let the 3 hold up 94% of the
+lever.** The 3 are a bounded, well-typed follow-on.
+
+## Then, in this order (carried forward, still valid)
+
+2. **`ControlFlowStmtMixin._handle_return_stmt`** — the ONE non-constructor model-visible false
+   frame left (18 fields via-callee). `module6_whyml/stmt_control_flow` is 1846 goals, ~45 min.
+3. **`scratchpad/w3/fix_assigns.py` IS THE REUSABLE TOOL.** It converges `#@ assigns` / `#@ raises`
+   / `#@ \diverges` against Why3's own error text. Point its `MIR` constant at another mirror.
+   **Every wall whose recorded reason is "the effect summary cannot be made exact" should be
+   re-tested with it FIRST.**
+4. **The `pyx_view` ADT redesign / record AST model** remains the soundness floor under the
+   object-identity question. Obstacle: `pure_ast`'s node classes are SYNTHESIZED AT IMPORT by
+   `type(name, (base,), body)` from `_NODE_SPEC`.
+5. `val function csl_to_ir_op` is **CLOSED** (relaunch #19). Do not re-open it.
+
+## Recorded boundaries carried forward — do not re-grind without the named capability
+
+- `_csl_to_ir` is **BROKEN**; strike it from any ladder that still lists it.
+- **The attribute-store third horn** works and is axiom-free; blocked on OBJECT-IDENTITY INJECTIVITY.
+- **`crosscheck_ir.pairwise`** — spiked and working, demand NIL.
+- **The shadowed TCFAIL residue — [PYVAL / ARRAY-INT MODEL SPLIT]** (33 sites / 13 methods).
+  Same disease as the `_Unparser` finding, one type-family over.
+- `_fin` / `_max_end` / `_fin_block` — [ERASURE-LEDGER]; `node(self, name, start_tok, **kw)` —
+  [MODEL]; `_slice`; **`Module2_Parser`'s contract-expression cluster** (TERMINUS);
+  `_decode_escapes` / `_decode_string`; `identifiers.whyml_ident` / `stable_hash`;
+  `struct_format.parse_format` / `calcsize`; `proof2why3/normalize`'s whole file (regex).
+- `pure_ast._Parser.error` / `.unsupported` — they DO convert (491→489) but
+  `bin/check-emitted-vacuity.py --emit` reports 2 NEW erasures. **REOPENING: a modelled message
+  payload on the raise** — the same decision `_fin` needs.
+- **`exception_model.bases_closure`** — the wall is the VALUE MODEL, not termination.
+
+## Instrument facts — unchanged and still load-bearing
+
+1. **`why3` is NOT on the default PATH** (`/home/fabrice/.opam/framac-coq8/bin`). Without it
+   `pycsl.py` errors AND EXITS 0. `export PATH=...` on every gate.
+2. `--import-path src/pycsl` is the canonical mirror path.
+3. `check-emitted-vacuity.py` is a false green without `--emit` — but WITH `--emit` it is CHEAP
+   (re-emits all 52 mirrors `-P 7 --no-proof --no-typecheck --keep-mlw`, **under a minute**, and it
+   IS the vacuity plane). Prefer it over pycsl.py's slow embedded per-goal `why3 prove -g` loop.
+4. `.gitignore` has `*.mlw` — `git add -A` SILENTLY SKIPS evidence files.
+5. `bin/check-untrusted-emitted.py` reports 0/0/0/0 — a FALSE GREEN — with no PATH export.
+6. `python3 -u` on every proof. A run can sit at ZERO prover results for 50 minutes and then
+   flush 1500 — do NOT conclude "stuck"; check for live `alt-ergo`/`z3` children.
+   **#22 confirms this directly: `pure_ast.py` produced 0 `Prover result` lines for its entire
+   first 20 minutes with exactly one live prover child throughout.**
+7. A FAILING `pycsl.py` run is much FASTER than a passing one. **Emitting `pure_ast.py` alone
+   with `--no-proof --keep-mlw` takes 1.8 SECONDS** — a vastly cheaper probe than a sweep.
+8. BACKGROUND WATCHERS DO NOT SURVIVE YOUR TURN ENDING. **But a `nohup … &` proof process DOES**
+   (#22 relied on this). `scratchpad/w3/prove.sh` / `prove_wt.sh` prove a list sequentially;
+   `bin/byte-diff-sweep.sh` runs `--no-typecheck`.
+9. `scratchpad/w2/sweep.sh <abs-root> <abs-outdir>` emits all 52 mirrors WITH L3-tc in ~35 s
+   and writes an md5 manifest. **PASS ABSOLUTE PATHS.**
+10. `--fun` CANNOT probe `Module5_IREmitter` at all — whole-file or nothing.
+11. A git worktree is the right place for a spike. Sync with
+    `git checkout --detach $(git -C <main> rev-parse HEAD)`.
+12. A PROOF TRANSFERS BETWEEN TREES WHEN THE EMISSION MANIFEST IS IDENTICAL.
+13. The Alt-Ergo pin at `pycsl.py:1318` is stale. Pass `--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'`
+    EXPLICITLY; do NOT edit the pin.
+14. `grep` here is ugrep and MISBEHAVES on `driver-progress.log`. Use python, via a
+    `python3 - <<'PYEOF'` heredoc, never inline `-c`.
+15. `cd` PERSISTS ACROSS A COMPOUND BASH COMMAND. Use absolute paths after any `cd`.
+16. **NEVER put a `\trusted` marker LITERAL in a mirror comment** — it counts as a MARKER.
+17. `TMPDIR=/home/fabrice/git/pycsl/scratchpad` for `bin/check-shadowed-selfcalls.py`.
+
+## The method note THIS session paid for (#22)
+
+**THE PRICE LESSON IS NOT A ONE-OFF — IT REPEATS ON THE VERY NEXT RECORD YOU READ.** #21 discovered
+that a recorded price is a claim and corrected #20's. #22 then applied the same five-minute
+`ast`-and-`grep` census to the price #21 itself had just written down, and it was wrong too — in the
+*favourable* direction (54, not 51). Both directions matter: an overstated price stops a build that
+should happen, and an understated one under-funds it. **The census that corrects a price costs
+minutes; the record it corrects has stood for windows.** Run it as reflex on any figure you are
+about to plan against, including one written an hour ago by the immediately preceding worker.
+
+Corollary specific to this metric: **counting `\trusted` markers is not the same as counting
+convertible methods.** In `pure_ast._Unparser` those numbers are 54 and 51 — the gap is markers on
+decorated and nested defs. Quote the marker count for the metric, the method count for the plan,
+and never silently substitute one for the other.
+
+## The method notes #20 and #21 paid for (still the operating rule)
+
+**A REOPENING CAPABILITY IS A CLAIM, AND SO IS A RECORDED PRICE.** This campaign has now found a
+recorded boundary's *reason* wrong seven times, a recorded *price* wrong twice, and a named
+*capability* already-built-and-working once. The standing rule: **verify every part of a record —
+reason, capability, AND price — against the emitted `.mlw` and the actual tree**, before you spend
+a window on it. `check-self-annotate-sync.sh` is a live plane for EMITTER edits too, not only
+mirror edits; run it after ANY `src/pycsl/` change.

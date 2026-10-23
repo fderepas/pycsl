@@ -32,7 +32,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 5 | Structural variant | `#@ \variant (<expr>, <ordering>)` | Function/method | Termination via well-founded ordering |
 | 6 | Diverges | `#@ \diverges` | Function/method | Function may not terminate (no termination proof required) |
 | 7 | Trusted | `#@ \trusted` or `#@ \trusted reviewer: <REVIEWER_ID>` | Function/method | Body is not verified; contracts are assumed (axiom). The optional `reviewer:` clause names a human or process accountable for the trust assumption. See §2.1.7 below. |
-| 8 | Bounded integers | `#@ assumes bounded_int(N)` | Function/method | Use `mach.int.IntN` types; auto-generates overflow VCs on `+`, `-`, `*` |
+| 8 | Bounded integers | `#@ assumes bounded_int(N)`, **N in {16, 31, 32, 63, 64}** | Function/method | Use `mach.int.IntN` types; auto-generates overflow VCs on `+`, `-`, `*`. The width set is Why3's, not PyCSL's: `mach/int.mlw` defines Int16/Int31/Int32/Int63/Int64 and NOTHING ELSE — in particular there is no `Int8`. Any other N is REFUSED (`PYCSL-SEM-BOUNDED-INT-WIDTH`); before gen #31 it emitted `use mach.int.Int<N>` and the run ended on a why3 LIBRARY error (`Module Int8 not found in library mach.int`) for a directive PyCSL had accepted. |
 | 9 | Raises | `#@ raises ExcType when <cond>` | Function/method | Exceptional postcondition: exception raised only when `cond` holds |
 | 10 | Thread entry | `#@ thread_entry` | Function/method | Marks function as a concurrent thread entry point; used with `--memory-model concurrent` |
 | 11 | _(reserved — `proof` directive removed 2026-05-27)_ | | | |
@@ -41,7 +41,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 14 | Abstract | `#@ \abstract` | Function/method | Function is emitted as a **bodyless** WhyML `val` defined SOLELY by its contract (+ any `#@ proof` axioms). Unlike `\trusted` (a present-but-unchecked body), `\abstract` asserts there is no meaningful body — the contract IS the definition. Sound (uninterpreted `val`). Does **not** count as `\trusted`; the canonical 0-`\trusted` model for irreducibly-opaque ops (e.g. `ast.literal_eval`). See §2.1.14 below. |
 | 15 | Guarded case | `#@ act <name>:` (with a 4-space-indented body of `#@ given` / `#@ requires` / `#@ ensures`) | Function/method | A named case guarded by its `given`. Desugars to ordinary `ensures \old(<given>) ==> <post>` / `requires <given> ==> <pre>` (no new IR node, 0 `\trusted`). See §2.1.15 below. |
 | 16 | Lemma | `#@ lemma` | Function/method (`-> None`) | The function is a PROVED logical fact. Lowers to `let [rec] lemma name (params) : unit requires {H} ensures {C} [variant {m}] = <proof body>`: Why3 verifies the body, then `forall params. H -> C` is usable by later goals. A recursive lemma's self-calls are the induction hypotheses; `#@ \variant` is optional (Why3 infers a structural variant and rejects ill-founded recursion). Must be `-> None` / `assigns \nothing`; may not rest on a `\trusted` fact. Introduces NO axiom that isn't itself checked. See §2.1.16 below. |
-| 17 | Uses | `#@ uses <lemma>` | Function/method | Cites a `#@ lemma` whose general fact this function's proof relies on but does not *name* (e.g. a `\forall`-over-a-recursive-datatype goal discharged by the lemma). Forces the lemma to be emitted before this function so its fact is in scope. Ordering-only — emits no WhyML. See §2.1.17 below. |
+| 17 | Uses | `#@ uses <lemma>` | Function/method | Cites a `#@ lemma` whose general fact this function's proof relies on but does not *name* (e.g. a `\forall`-over-a-recursive-datatype goal discharged by the lemma). Forces the lemma to be emitted before this function so its fact is in scope. Ordering-only — emits no WhyML. **The cited name must be a `#@ lemma` IN THIS EMISSION**; one that resolves to nothing used to be dropped in silence (the file still reported success while the fact it was meant to bring into scope was never there) and is now refused with `PYCSL-SEM-USES-UNKNOWN-LEMMA` (witness `1880`, control `1881`). NOTE that a lemma in an IMPORTED module does not count: an imported cited lemma is not emitted at all today, so citing one is the same no-op — measured, and recorded as an open capability. See §2.1.17 below. |
 | 16 | Case guard | `#@ given <expr>` | Inside an `act` | The case's pre-state guard (ACSL's `assumes`); only valid inside an `act` block. `\result` is not allowed here. |
 | 17 | Complete cases | `#@ complete <name>, ...` | Function/method | Proof obligation that the named acts' guards cover every input — `ensures \old(g1) \|\| ... \|\| \old(gn)`. |
 | 18 | Disjoint cases | `#@ disjoint <name>, ...` | Function/method | Proof obligation that at most one guard holds — per pair `ensures not(\old(gi) && \old(gj))`. |
@@ -49,7 +49,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 26 | Sibling concrete | `#@ sibling_concrete` | Method | **Opt-in concrete sibling-call (allocator-frame §2.7).** An intra-class `self.<m>()` call to a method marked `#@ sibling_concrete` is lowered to a CONCRETE call `(<class>__<m> self args)` — so the caller gets the callee's full contract AND its type/class-invariant guarantee on the post-state — instead of the default abstract `val` stub (which conveys neither). Use ONLY on cheap-to-maintain leaf writers whose guarantee the caller can absorb as an atom (e.g. the os bitmap leaves `_set_bitmap`/`_poke`, letting the allocators inherit the disk class invariant). Decoupled from `no_inline`: affects sibling-call lowering only, NOT wrapper inlining. Default off → every existing self-call keeps its abstract-stub lowering (byte-identical). Sound: a concrete call to a verified `let` is the method's real semantics. |
 | 27 | Propagate frame | `#@ propagate_frame` | Method | **Opt-in quantified-frame propagation across the call/import boundary (os-roadmap M4).** A method's `#@ assigns self.f` only frames `self.f` as a WHOLE on the abstract boundary `val` — so a caller sees the whole field havoced (only the result-pinned cell survives). With `#@ propagate_frame`, THIS method's QUANTIFIED single-cell self-field FRAME `ensures` (`\forall k. guard -> self.f[k] == \old(self.f[k])`) is carried onto its boundary `val`, letting a caller prove every *other* cell is preserved by the call. Two frame shapes are propagated: param-referencing frames (e.g. the os `_zero_entry` slot frame, trigger pinned on the post-state decode application) and `\result`-referencing single-cell frames (`\forall k != \result. self.f[k] == \old(self.f[k])`, where `\result` lowers to the val's `result` keyword = the call's return value — e.g. the os `sys_open`/`sys_dup` `fd_open` allocator frame, letting "the table is not full" survive a prior open). Opt-in ON PURPOSE: a broad frame trigger can E-match-poison term-rich sibling callers, so mark ONLY methods whose callers need *and* can absorb the frame. Default off → byte-identical emission. Sound: the propagated `\forall` is the SAME frame the callee's body verifies, never a fabricated or broadened one. |
 | 28 | Fresh globals | `#@ fresh_globals` | Top-level driver (NOT a method, NOT a callee) | **Opt-in, CONFINED constructor-post-state surfacing for a standalone formal-test driver (fresh-globals.md).** Why3 verifies every importer function with each shared mutable module-global in an ARBITRARY (havoc'd) state — so an internals-blind driver cannot establish the global's freshly-imported initial state (e.g. the os `_filesystem` fd table being ALL-FREE at entry). `#@ fresh_globals` re-establishes, at the driver's body entry, each module-global singleton's CONSTRUCTOR post-state — the class `__init__`'s `#@ ensures` with `self` rewritten to the global — as an ASSUMED fact (`assume { \forall k. (0<=k<64) -> g.fd_open[k] == 0 }`). The assumed fact is NOT an arbitrary literal: it is the constructor's `#@ ensures`, which the transpiler ALSO emits as a checked function (`let g_fresh_init () : C ensures { … } = <constructor literal>`) PROVING the post-state holds of the freshly constructed global — so the assume is proof-backed. **SOUNDNESS (Module4-enforced):** sound ONLY for an independent entry point that runs on a freshly-imported global and is NEVER entered with a pre-mutated one. Module4 REJECTS `#@ fresh_globals` on a method (`self`-receiver) and on any function CALLED by another (a callee inherits its caller's possibly-mutated global) — error `PYCSL-SEM-FRESH-GLOBALS`. It RETIRES a reviewer trust (the os `fd-resolution-fidelity` unconditioned no-ENFILE `\result>=3` — FALSE at table-full) by replacing the false unconditioned body theorem with a free-slot-conditioned one whose side-condition this sound, confined, constructor-backed entry fact establishes. |
-| 29 | Verify module | `#@ verify_module <name>` | Method | **Opt-in axiom isolation via separate Why3 modules (module-emission.md).** A method tagged `#@ verify_module <name>` is emitted into its OWN top-level Why3 `module` (shared infra — record type, val-functions, predicates, witness/class-invariant axioms — re-declared per module, the concrete record type shared via a common base `module` `use`d everywhere), so that ONLY the `#@ proof` axioms cited by the functions in that group are in scope for its goals. Methods sharing the same `<name>` co-reside in one module. A cross-module `self.<m>(...)` call (a sibling in a different `verify_module` group, or the flat default module) is lowered to the **proven** contract of the callee via Why3 module **`clone`-refinement** (the interface `module` declares the callee's contract; the owning provider `module` proves the real `let` *implements* it — Why3's synthetic `<fn>'refn'vc`, validated non-vacuous), i.e. a PROVEN cross-module interface, **never** an assumed-`val` boundary, a new `\trusted`, or a new axiom (the net TCB is unchanged — every function proved once, against a proven contract). Resolves the os read+write `field_to_str`/`dir_blit_marker` axiom co-residence that OOMs `_zero_entry` at ~9.5 M steps and blocks the `_dir_lookup` read-side de-trust. Default (untagged) → the single flat `module PyCSL_Program` is emitted unchanged → corpus byte-identical. (Why3 `scope` does NOT isolate axioms — a scope is a namespace; only separate `module`s do.) See §2.1.29 below. |
+| 29 | Verify module | `#@ verify_module <name>` | Method | **Opt-in axiom isolation via separate Why3 modules (module-emission.md).** A method tagged `#@ verify_module <name>` is emitted into its OWN top-level Why3 `module` (shared infra — record type, val-functions, predicates, witness/class-invariant axioms — re-declared per module, the concrete record type shared via a common base `module` `use`d everywhere), so that ONLY the `#@ proof` axioms cited by the functions in that group are in scope for its goals. Methods sharing the same `<name>` co-reside in one module. A cross-module `self.<m>(...)` call (a sibling in a different `verify_module` group, or the flat default module) is lowered to the **proven** contract of the callee via Why3 module **`clone`-refinement** (the interface `module` declares the callee's contract; the owning provider `module` proves the real `let` *implements* it — Why3's synthetic `<fn>'refn'vc`, validated non-vacuous), i.e. a PROVEN cross-module interface, **never** an assumed-`val` boundary, a new `\trusted`, or a new axiom (the net TCB is unchanged — every function proved once, against a proven contract). Resolves the os read+write `field_to_str`/`dir_blit_marker` axiom co-residence that OOMs `_zero_entry` at ~9.5 M steps and blocks the `_dir_lookup` read-side de-trust. Default (untagged) → the single flat `module PyCSL_Program` is emitted unchanged → corpus byte-identical. (Why3 `scope` does NOT isolate axioms — a scope is a namespace; only separate `module`s do.) See §2.1.29 below.  **`<name>` must be a CAPITALIZED identifier** — it is lowered to a Why3 `module <name>` (plus a synthesized `<name>Sig` interface module) and Why3 requires module names to be capitalized; a lowercase name is refused with `PYCSL-SEM-VERIFY-MODULE-NAME-NOT-CAPITALIZED` rather than left to produce a Why3 syntax error naming the synthesized `<name>Sig` (witness `1842`, control `1843`). Cross-group calls: every `<G>Sig` is emitted BEFORE every provider module and each provider `use`s every other group's `Sig`, so two groups may call each other freely (`1844` cross-group, `1845` its negative twin — the boundary conveys the CONTRACT and not the body, `1846` mutually-recursive groups). |
 
 Multiple `requires`/`ensures` lines are conjuncted (all must hold).
 
@@ -138,7 +138,14 @@ the bare `\trusted` form;
 ```
 
 Imports a Rocq or Lean theorem as a **Why3 axiom** in the generated WhyML
-preamble. `#@ proof` has real semantic effect: Alt-Ergo/Z3 may use
+preamble. **The prover must be `rocq` or `lean`** — anything else is refused with
+`PYCSL-SEM-PROOF-UNKNOWN-PROVER` (witness `1888`). Until gen #31 the keyword was
+not read at all: `#@ proof rocqq <qualname>` emitted a BYTE-IDENTICAL `.mlw`, so
+the axiom entered the proof while `proof2why3/crosscheck_ir.py` — which selects
+citations with `d.prover == "rocq"` / `"lean"` — could not see the citation at
+all. A typo therefore hid a citation from the 3-way cross-check. (The axiom BODY
+still comes from `_AXIOM_REGISTRY` and an unregistered qualname is refused, so the
+reachable outcome was a hidden citation, never an arbitrary axiom.) `#@ proof` has real semantic effect: Alt-Ergo/Z3 may use
 the imported axiom to discharge obligations that SMT alone cannot handle.
 
 **Cross-validation.** When both a `rocq` and a `lean` directive reference
@@ -325,7 +332,10 @@ def to_int_nonneg(n: Nat) -> None:
   introduces no axiom that isn't itself checked.
 - **Well-formedness (Module 4 rejects, hard error).** A lemma must be `-> None` and
   `assigns \nothing` (ghost discipline — erased at extraction, computes nothing), must
-  state ≥1 `#@ ensures`, and is not `#@ \diverges`. A plain lemma may **not** call a
+  state ≥1 `#@ ensures`, and is not `#@ \diverges`. The `assigns` rule covers the ABSENT
+  clause as well as a wrong one: a lemma with no `#@ assigns` at all is refused with
+  `PYCSL-SEM-LEMMA-NO-ASSIGNS` (witness `1847`, control `1848`) — until gen #31 the rule
+  was enforced only for a lemma that DECLARED a frame, so omitting it was the way past it. A plain lemma may **not** call a
   `\trusted` function (it would smuggle an *unverified* fact into a checked lemma — Why3
   cannot catch this). **Termination is Why3's job, not a PyCSL check:** `#@ \variant`
   on a recursive lemma is *optional* — Why3 infers a structural variant and rejects
@@ -417,7 +427,7 @@ opt-in proves).
 
 | # | Directive | Syntax | Scope | Semantics |
 |---|---|---|---|---|
-| 1 | Class invariant | `#@ class invariant <expr>` | `class` | Must hold at every method boundary |
+| 1 | Class invariant | `#@ class invariant <expr>` | `class` | Assumed at every method boundary, and CHECKED where an instance is CONSTRUCTED. **The constructor's own obligation is emitted as `goal _check_class_inv_<C>`** whenever it can be stated exactly (route #226). Every field must be an `int`, and each must be bound either to a literal or DIRECTLY to an int `__init__` parameter; the goal quantifies over the field labels and those parameters, makes each binding a premise, and carries `__init__`'s own `#@ requires` as further premises — so a constructor whose precondition is what establishes the invariant still verifies (witness 1901). This covers the paramless-literal shape (1890/1891), the `__init__`-parameter shape (1892) and `@dataclass`, whose synthesized `__init__` takes every field (1900). **NOT covered: a COMPUTED or control-flow store** (`self.n = three()`, or a store inside an `if`) — Module 5 marks those fields unknown, and the honest obligation there needs the callee's postcondition rather than a value. Such a class is still not asked whether its invariant is establishable. |
 | 2 | Allow finalizer | `#@ allow_finalizer` | `class` | Opts the class out of UB-7.5 (`__del__` rejection). See §2.3.2. |
 
 Placed on leading lines **before** the `class` keyword.
@@ -504,10 +514,10 @@ Written as a Python-style block (like `act`, §2.1.15): `#@ happy <name>:` follo
 | 2 | Preserves | `#@ \preserves` | Function/method | Opts a `\trusted`/`\abstract` (bodyless) method into the HAPPY trust boundary. The meta-pass synthesizes and attaches `ensures \forall i; (LO <= i and i < HI) ==> self.<field>[i] == \old(self.<field>[i])` (assumed at the boundary). A non-exempt `\trusted`/`\abstract` method **without** `#@ \preserves` is a hard error. |
 | 3 | HAPPY (protects) | `#@ happy <name>: protects <path>, … [except m1, …]` (07-1143 R1/R2) | Module-level | Subsystem ownership: no method outside `except` may DIRECTLY write any protected (possibly dotted/nested, e.g. `world.fs.disk`) path. Expands to a per-site `#@ check False` at each non-exempt direct write. Aliasing a protected base into a non-exempt local (`x = world.fs`) is a hard error (it would evade the check). A non-exempt `\trusted`/`\abstract` method whose `assigns` names a protected path needs `#@ \preserves`, else hard error. |
 | 4 | HAPPY (parametric) | `#@ happy <name>(<p>): protects <path>[LO : HI] [except …]` (07-1143 R3) | Module-level | Per-object confinement: `LO`/`HI` may use the bound `<p>`. A method binds it with `#@ footprint <name>(arg)`; each write `<path>[i]=v` gets `#@ check (LO[p:=arg] <= i and i < HI[p:=arg])` (CONTAINMENT — composed with an indexed `assigns` frame this gives per-object preservation). A non-exempt method with no `footprint` writing the path is forbidden (`check False`). |
-| 5 | Footprint | `#@ footprint <name>(<arg>)` | Function/method | Binds the parameter of the parametric HAPPY `<name>` to the method's own argument `<arg>`, so the per-site region check (row 4) is specialised to the object this method operates on. |
+| 5 | Footprint | `#@ footprint <name>(<arg>)` | Function/method | Binds the parameter of the parametric HAPPY `<name>` to the method's own argument `<arg>`, so the per-site region check (row 4) is specialised to the object this method operates on. **`<name>` must be a declared parametric HAPPY** — a typo would silently confine nothing, since the method would appear constrained and get no per-site check. That validation always existed; until gen #31 it sat below an early return and so never ran in a file that declares NO `#@ happy` at all, which is exactly where the user is most likely to be mistaken about what they have (witness `1884`, control `1885`). |
 | 6 | HAPPY (reads / H-I1) | `#@ happy <name>:` block (`region LO .. HI` / `reads self.<field> outside region` / optional `except m1, …`) | Module-level | **Read confinement** (the read mirror of row 1). Every READ `self.<field>[i]` (point or slice) in any method **not** in `except` must lie outside `[LO, HI)`. Expands to a per-READ-site `#@ check ({i}) < LO or ({i}) >= HI`. Aliasing the protected field into a non-exempt local (`x = self.<field>`) is a hard error (a read through the alias would evade the check); a non-exempt `\trusted`/`\abstract` method (no checkable body) must be in `except`. The C sibling (macsl) expresses this as `\context(\reading)`. Drivers `0715` (positive) / `0716`–`0718` (negatives). |
 | 7 | HAPPY (targets/postcond) | `#@ happy <name>:` block (`targets <method>` / `postcond <expr>`) | Module-level | The general **named-postcondition** form (macsl's `\targets(<m>), \context(\postcond)`). Attaches `<expr>` to `<method>` as an `ensures`, verified in the method's own body. Powers **H-R** (`nonrepud_complete`/`_append_only`) and **H-E** (`priv_monotonic`). A missing `targets` method is a hard error. Drivers `0719` (positive) / `0720` (negative). |
-| 8 | HAPPY (targets/precond / H-S) | `#@ happy <name>:` block (`targets <method>` / `precond <expr>`) | Module-level | **Check-before-use capability** (macsl's `\targets(<m>), \context(\precond)`). The target ASSUMES `<expr>` (a precondition on its body); every **call site** must PROVE it — the meta-pass injects `#@ check <expr>` before each `self.<method>(…)` (PyCSL has no WP-style automatic call rule for the abstract self-call stub, so the obligation is injected, equivalent to macsl's WP call-site precondition). A caller that skipped the grant fails IN THE CALLER. Powers **H-S** (`authn`). Drivers `0721` (positive) / `0722` (negative). *Currently injected at `self.<method>(…)` self-call sites; receiver-var call sites are a follow-up.* |
+| 8 | HAPPY (targets/precond / H-S) | `#@ happy <name>:` block (`targets <method>` / `precond <expr>`) | Module-level | **Check-before-use capability** (macsl's `\targets(<m>), \context(\precond)`). The target ASSUMES `<expr>` (a precondition on its body); every **call site** must PROVE it — the meta-pass injects `#@ check <expr>` before each `self.<method>(…)` (PyCSL has no WP-style automatic call rule for the abstract self-call stub, so the obligation is injected, equivalent to macsl's WP call-site precondition). A caller that skipped the grant fails IN THE CALLER. Powers **H-S** (`authn`). Drivers `0721` (positive) / `0722` (negative). *Injected at `self.<method>(…)` self-call sites. A call through ANY OTHER RECEIVER (`b.transfer(…)`) is REFUSED rather than left unchecked — the guarding formula speaks about `self`, so it cannot be proved at a foreign receiver, and a silent skip would be the whole policy bypassed by a spelling. Measured gen #31: the self-call form without the grant FAILS on the injected check, the receiver-var form is refused by name.* |
 | 9 | HAPPY (targets/total / H-D) | `#@ happy <name>:` block (`targets <method>` / `total`) | Module-level | **Totality / availability** (macsl's `\context(	otal)`). Names PyCSL's default-on termination guarantee (Why3 emits a termination VC; each loop needs a `#@ loop variant`) and forbids the only opt-out: `#@ \diverges` on the target is a hard error. An unbounded (variant-less) loop fails its termination VC — the non-termination/DoS the policy excludes. Powers **H-D** (`availability`). Drivers `0726` (positive) / `0727`–`0728` (negatives). |
 | 10 | HAPPY (noninterference / H-I2) | `#@ happy <name>:` block (`targets <method>` / `noninterference secret <p1>, …`) | Module-level | **Noninterference** (macsl's `\context(
 oninterference)`). The meta-pass SYNTHESIZES a self-composition twin `<method>__selfcomp` that calls `<method>` twice — public params shared, the listed `secret` params split `_a`/`_b` — and asserts the two results are equal. Discharged modularly from `<method>`'s result-`ensures`: a result that depends on a secret makes `ra == rb` unprovable (a leak). Not a new relational WP mechanism — a synthesized 1-safety driver, exactly macsl's `emit_selfcomp`. Powers **H-I2**. Drivers `0729` (positive) / `0730` (negative). |
@@ -574,12 +584,12 @@ composer's record.
 
 | # | Directive | Syntax | Scope | Semantics |
 |---|---|---|---|---|
-| 1 | Mixin | `#@ mixin` | `class` | Marks the class as a composable mixin (not instantiated directly). See §2.7.1. |
+| 1 | Mixin | `#@ mixin` | `class` | Marks the class as a composable mixin. **A name in a `#@ compose_from` list MUST carry it** — `PYCSL-SEM-COMPOSE-FROM-NOT-A-MIXIN` (witness `1857`, control `1858`); until gen #31 the marker had no enforced consequence at all and the flagship `0549` with it deleted composed and verified unchanged. A `#@ mixin` class must ALSO not be **instantiated directly** — `PYCSL-SEM-MIXIN-INSTANTIATED` (witness `1861`, control `1862`); a mixin's methods are verified against the COMPOSER's record, so a direct construction produces an object whose own methods were never proved over it. Only the callee position counts: `isinstance(x, MixinCls)` is not a construction. See §2.7.1. |
 | 2 | Provides | `#@ provides <m>` | method | Declares the method `<m>` is a provider satisfying a sibling's dependency. |
 | 3 | Shared state | `#@ shared_state <name>: <type>` | method | Declares `<name>` as **deliberately shared** facade state (multiple mixins may read/write it — not a conflict). D1. |
 | 4 | Touches field | `#@ touches_field <name>: <type>` | method | Declares `<name>` as an **owned** field the method may touch (at most one owner; two owners → conflict, Tier 2). D1. |
-| 5 | Depends method | `#@ depends_method <m>: <sig>` (+ indented `#@ ensures`) | method | A **concrete** dependency on a sibling/core method `<m>`; the provider's contract must refine the declared one. D2. |
-| 6 | Requires method | `#@ requires_method <m>: <sig>` (+ indented `#@ ensures`) | method | An **abstract** operation the composing class must supply (verified once against an abstract `val`). D2. |
+| 5 | Depends method | `#@ depends_method <m>: <sig>` (+ indented `#@ requires` / `#@ ensures` / `#@ assigns`) | method | A **concrete** dependency on a sibling/core method `<m>`; the provider's contract must refine the declared one. D2. |
+| 6 | Requires method | `#@ requires_method <m>: <sig>` (+ indented `#@ requires` / `#@ ensures` / `#@ assigns`) | method | An **abstract** operation the composing class must supply (verified once against an abstract `val`). D2. |
 | 7 | Compose from | `#@ compose_from <M1>, <M2>, …` | `class` | Composes the named mixins: unique-provider + field-classification check, then flatten. |
 
 Placed on leading lines before the `class`/`def` keyword, as with the other class/method directives.
@@ -735,7 +745,7 @@ def _pack_uint16_be(v: int) -> list: ...
 | # | Directive | Syntax | Scope | Semantics |
 |---|---|---|---|---|
 | 1 | Interface | `#@ interface ensures <expr>` / `#@ interface requires <expr>` / `#@ interface assigns <target>` | Function/method | The narrow contract callers/importers see; the rich `#@ requires`/`ensures`/`assigns` is the *definition*. The interface must be a sound **weakening** of the definition — the **narrowing VC** (Module 6, owning unit) emits Why3 goals proving `definition ⟹ interface` for `ensures` and `interface ⟹ definition` for `requires`; an interface claiming *more* than the definition proves is **rejected** (unprovable goal). Absent ⇒ interface = definition (fully transparent; existing code byte-identical). |
-| 2 | Reveal | `#@ reveal <fn>` | Statement (at a call site) | This caller opts into `<fn>`'s rich definition contract at this site (its facts are otherwise hidden behind the interface). Within the owning unit it is a no-op (the definition is the visible `let`); across modules it cites the exported definition-fact. |
+| 2 | Reveal | `#@ reveal <fn>` | Function (on the revealing caller) | Opts into `<fn>`'s rich definition contract (its facts are otherwise hidden behind the interface). Within the owning unit it is a no-op (the definition is the visible `let`); across modules it cites the exported definition-fact. **SCOPE IS THE IMPORTING MODULE, not the single call site**: the `val` stub for an imported function is emitted once per module, so if ANY function in the module reveals `<fn>` the stub shows the definition. That is strictly more information than the interface and sound for the same reason the narrowing VC is. Until gen #31 the directive was parsed, woven and written into the IR and read by NO Module-6 consumer — both halves of a reveal/no-reveal pair failed and their emitted `.mlw` were byte-identical, so `#@ interface` was a trapdoor. Drivers `1867` (no reveal, FAIL) / `1868` (reveal, PASS). **The name must resolve to a function in this emission** — `#@ reveal no_such_function` used to verify in silence and is now refused with `PYCSL-SEM-REVEAL-UNKNOWN-NAME` (witness `1882`, control `1883`); within the owning unit the directive is still a no-op, but the NAME still has to resolve. |
 
 - **Soundness.** Opacity adds no trust: the narrowing VC proves the exported interface is implied by the
   verified definition, so a caller relying on the interface relies on a fact the definition established.
@@ -756,6 +766,7 @@ def _pack_uint16_be(v: int) -> list: ...
 | 3b | `self.field[i]` | `FieldSubscript` | Element of an instance ARRAY field (e.g. for region-preservation: `self.disk[i] == \old(self.disk[i])`). Lowers to a subscript of the record field in the hoare model. |
 | 4 | `arr[i]` | `SubscriptAccess` | Array element access |
 | 4c | `arr[i].field` / `\result[i].field` | `SubscriptFieldAccess` | Field PROJECTION off a subscripted element (cleared-array.md S2). Lowers to `Attribute(Subscript(…), field)` — the consumer of a projection-comprehension content law `\result[k] == a[k].x`. |
+| 4d | `self.field[i].sub` | `SubscriptFieldAccess` | Field PROJECTION off an element of an instance ARRAY field — the SELF-FIELD base of §4c (its third base after a `CNAME` and `\result`, not a new operator). Lowers to `Attribute(Subscript(FieldGet(self, field), index), sub)`, the same IR the body path produces for `self.toks[self.i].py_type`, so a `List[<record>]` field projects the real record field instead of the unbound abstract getter `get_<sub>`. Enables the lexer-sentinel class invariant `self.toks[\length(self.toks) - 1].py_type == "EOF"` that a token-cursor `while self.at_op(...)` loop needs for TERMINATION; a `== "<literal>"` invariant of this shape also PINS the record's `by {}` inhabitance witness. Reference corpus: 0900 (positive) / 0901 (negative twin). |
 | 5 | `\result` | `Result` | Return value (only in `ensures`) |
 | 6 | `\old(<expr>)` | `Old` | Value of expression at function entry |
 | 7 | `\at(<expr>, L)` | `At` | Value of expression at label `L` |
@@ -795,10 +806,13 @@ def _pack_uint16_be(v: int) -> list: ...
 
 **Note (`/` is TRUE division — WL-02, FIXED):** `/` in a body **and** in a
 contract is Python's TRUE division and ALWAYS yields a `float` (`real`), even on
-integer operands (`5 / 2 == 2.5`). It lowers to a real division — int operands
-lifted via `real.FromInt` (`from_int`) and divided with `real.RealInfix` (`/.`);
-a body `/` bridges through `val float_truediv_op (a b: int) : real ensures
-{ result = from_int a /. from_int b }`. A `/` result used at `int` type is a
+integer operands (`5 / 2 == 2.5`). Two INT LITERALS are FOLDED to the binary64
+quotient CPython computes, rendered by the same `repr` normalization a float
+literal uses (`5 / 2` emits `2.5`); every other operand shape lowers to one
+UNINTERPRETED DETERMINISTIC `val function float_truediv_op (a b: int) : real`
+(route #58 — dividing over the EXACT reals decided `1 / 3 > 0.3333333333333333`,
+which is False in Python because the two are the same binary64 value). A `/`
+result used at `int` type is a
 real-vs-int **type error** (fail-closed) — never a silent integer truncation. To
 assert an integer quotient, use `//` (floored integer division). Previously `/`
 mapped to the floored integer `div`, which unsoundly proved `5 / 2 == 2`.
@@ -887,12 +901,22 @@ The following Python constructs are **not valid** in `#@` expressions:
 
 | # | Construct | Reason |
 |---|---|---|
-| 1 | `len(...)` | Use `\length(arr)` instead |
+| 1 | ~~`len(...)`~~ | **Now supported** — see below |
 | 2 | ~~Function calls~~ | **Now supported** for pure functions (see Section 4.1) |
 | 3 | List comprehensions | Not in grammar |
 | 4 | `if`/`else` ternary | Not in grammar |
 
+Rows 3 and 4 were re-measured in gen #31 and HOLD (`[x for x in a]` in a `#@ assert` →
+`unexpected token in expression (got OP '[')`; `(1 if True else 2)` in an `#@ ensures` →
+`expected ')' (got NAME 'if')`).
+
 **Formerly unsupported, now supported:**
+- `len(arr)` — accepted in `#@` expressions and FAITHFUL: it is the SAME symbol as
+  `\length(arr)`, not an uninterpreted stand-in. Measured gen #31 — `#@ requires
+  \length(a) == 3` discharges `#@ ensures len(a) == 3`, `#@ requires len(a) == 3`
+  discharges `#@ ensures \result == 3` over `return len(a)`, and the false twin
+  (`\result == 4`) FAILS. `\length` remains the spelling the grammar documents and the
+  one to prefer; `len` is no longer an error.
 - `//` (floor division) and `%` (modulo) — added to grammar (see §3.2 row 8)
 - `True` / `False` / `None` — added as atoms (see §3.1 rows 18–19)
 - `in`, `not in` — added as membership operators (see §3.2 row 6b)
@@ -960,6 +984,19 @@ PyCSL supports three memory models, selected via `--memory-model`:
 ### Hoare model
 Arrays are independent value-typed entities. `arr[i] <- v` mutates only `arr`.
 No aliasing is possible. `\separated` is trivially true.
+
+**SCOPE — THIS IS A STATEMENT ABOUT `array`, NOT ABOUT COLLECTIONS IN GENERAL (route #63,
+relaunch #55).** The barrier behind it is Why3's REGION TYPING, which rejects an aliased
+array application outright (`This application creates an illegal alias`). Measured: it
+fires for lists — `f(xs, xs)` on two `List[int]` parameters really is refused — and it
+CANNOT fire for a `dict`/`set`, which lowers to a PURE `map`. A pure value has no region,
+so nothing rejects the aliased call. A `@mutable_state` helper mutating one set argument
+and reading the other proved `\result == 0` for a call that returns 7 in CPython, with the
+aliasing entirely inside the proven unit (`u: Set[int] = set(); return self.helper(u, u)`).
+Passing the SAME dict/set in two or more argument positions of one call is now REFUSED;
+negative witness `1147`, positive control `1148`. Read the sentence above as: arrays are
+separated because Why3 enforces it, and for a dict/set the separation is enforced by that
+refusal rather than by the model.
 
 ### Typed model
 Arrays are references (locations) into a global typed heap `int_mem : ref (map loc int)`.
@@ -1333,14 +1370,14 @@ The following Python constructs in function bodies are transpiled to WhyML:
 assert x > 0, "x must be positive"
 ```
 
-Transpiles to:
-
-```whyml
-check { [@expl:x must be positive] (x > 0) }
-```
-
-The message string (if present) becomes a WhyML `@expl:` attribute.
-If no message, `"assertion"` is used as default.
+Is **not** a proof obligation: a Python `assert` lowers to `()` (translational
+reference §T.5.8). Outside a handler that can catch `AssertionError` this is sound
+for partial correctness — a failing assert aborts, and contracts speak about normal
+return — so a false Python `assert` does not make verification fail. Inside such a
+handler the program is refused (static semantics, route 16). To state a fact the
+prover must establish, write `#@ assert P` (proved and assumed downstream) or
+`#@ check P` (proved only). (Corrected gen #29: this section previously claimed a
+`check { ... }` lowering that the emitter has never produced.)
 
 ### 7.2 Tuple Unpacking
 
@@ -1435,7 +1472,7 @@ section annotations).
 |---|---|---|---|
 | 1 | Protected shared variable | `#@ shared <var> protected_by <mutex>` | `<var>` is a shared global; every read/write must be inside a `#@ critical <mutex>` block (Module4 enforces this) |
 | 2 | Unprotected shared variable | `#@ shared <var>` | `<var>` is shared but unprotected; ConcurrencyChecker warns, Module4 is lenient |
-| 3 | Mutex invariant | `#@ mutex_invariant <mutex>: <expr>` | `<expr>` must hold whenever `<mutex>` is free; checked at critical section exit (`assert { mutex_inv }`) |
+| 3 | Mutex invariant | `#@ mutex_invariant <mutex>: <expr>` | `<expr>` must hold whenever `<mutex>` is free; checked at critical section exit (`assert { mutex_inv }`)  The INITIAL-state obligation is emitted as `goal _check_initial_<mutex> : <mutex>_inv <module-level initial values>` when every shared variable the invariant mentions has an int-literal module binding (and the shared ref itself is then `let v = ref <init>` rather than an unconstrained `val v : ref int`). Until gen #31 it was an `assert` inside a program function reading the mutable global, which Why3 quantifies over every reachable state — so it was unprovable for any non-vacuous invariant IN EVERY PROGRAM, which is why all 19 corpus drivers that declared one passed `--no-proof`. Drivers `1863` (discharged, prover on) / `1864` (initial state violates it). |
 | 4 | Lock order | `#@ lock_order <m1>, <m2>, ...` | Total order on mutex acquisition; required when any function holds one mutex while acquiring another |
 
 Module-level `#@ shared` and `#@ mutex_invariant` declarations must be placed
@@ -1455,6 +1492,18 @@ statement for leading-line module annotations.
   havoc+assume/assert invariant pairs.
 - `#@ releases <mutex>` is stored on the `with` node but does not currently generate
   extra WhyML. It is informational (documents the release point for manual protocols).
+- **The NAME is checked, in all three.** A `#@ critical` / `#@ acquires` / `#@ releases`
+  whose mutex is bound nowhere in the file is refused with `PYCSL-SEM-MUTEX-UNKNOWN-NAME`
+  (witness `1893`, control `1894`, and `1895` for the `#@ critical` case). Before this,
+  all three verified silently, and `#@ releases` could never have been caught by anything
+  downstream because nothing reads `csl_releases`. The rule is deliberately the WEAKEST
+  one that catches the typo — bound SOMEWHERE in the file, not "in the mutex registry" —
+  because a lock protecting an invariant PyCSL does not model is legitimately annotated
+  and legitimately absent from the registry. A file with a star import is exempt.
+  NOTE what this is NOT: an unknown name in a block that WRITES a protected shared
+  variable was already refused, by the protection analysis ("held mutexes are
+  ['no_such_lock']") — a statement about protection, not about the name. Take the shared
+  access out of the block and the old behaviour was silence.
 
 ### 10.3 Minimal Example
 
@@ -1488,6 +1537,12 @@ Use typed declarations to control the WhyML type of a ghost variable:
 ```
 
 Untyped ghost declarations (`#@ ghost <name> = <expr>`) default to `int`.
+**A TYPE KEYWORD THAT IS NOT IN THE TABLE BELOW IS REFUSED** with
+`PYCSL-SEM-GHOST-UNKNOWN-TYPE` (witness `1886`, controls `1887` and `1889`). Until
+gen #31 an unrecognised keyword fell through to that same `int` default in silence,
+so a mistyped `ghost_dict` gave an int ghost and no message; the DEFAULT is
+documented, the fallback from a misspelling was not. The UNTYPED form is unaffected
+— it is `int` by design, and `1889` is the control that says so.
 
 > **Terminology**: For definitions of *ghost code*, *ghost state*, *witness*, *ghost lowering*,
 > and related concepts, see [`docs/glossary/`](../docs/glossary/README.md).
@@ -1808,11 +1863,22 @@ body type-checks under Why3 and SMT can discharge non-trivial properties.
 | `d[k]` (Subscript) | `(match Map.get !d k with \| Some v_ -> v_ \| None -> 0 end)` | Absent keys read as `0` (matching the ghost-dict convention) |
 | `k in d` (BinOp) | `(match Map.get !d k with \| Some _ -> true \| None -> false end)` | Why3 program code lacks decidable `=` on `option int`, so match is used |
 | `k not in d` | same with arms swapped | |
+| `del d[k]` (DelSubscript) | `d := map_update_none !d k` | Wrapper `val` whose `ensures` equals `Map.set m k None` (key cleared). **LOCAL** dict/set only; on a **STANDALONE** dict/set PARAMETER the same op runs on the caller-visible `ref (map …)` (WL-05c, seeded like `d[k]=v`). On a dict/set **METHOD** parameter `del d[k]` is REJECTED — the WL-05 caller-visible-mutation boundary (see §7.9 / wrong-lowering §WL-05c) |
 
-**Forbidden** (still): `d.items()`, `d.keys()`, `d.values()`, `d.get(k, default)`,
-`del d[k]` as statement (use `s.discard(k)` on sets), iteration over `for k in d:`.
+**Forbidden** (still): `d.items()`, `d.keys()`, `d.values()`, iteration over
+`for k in d:`. (`d.get(k, default)` was listed here and is NOT forbidden — it has been
+interpreted, and FAITHFULLY, for some time: measured on `{1: 10, 2: 20}`,
+`d.get(3, 99)` proves `== 99` and refuses `== 0`, `d.get(1, 99)` proves `== 10` and
+refuses `== 99`, matching CPython in all four. Fifteen corpus files already use it. The
+line is corrected rather than the behaviour: a `Forbidden` list that names a working
+construct sends a reader to write around something that works, and it is the same class of
+staleness as the `del d[k]` entry the sentence below records.) (`del d[k]` was previously listed here as a blanket
+no-op; WL-05c made it FAITHFUL for a local/standalone-param dict/set — `map_update_none`
+— and a clean REJECTION on a method param. It used to be a silent no-op that unsoundly
+proved a deleted key survived.)
 
-**Tests**: 0345 (round-trip), 0346 (in / not in).
+**Tests**: 0345 (round-trip), 0346 (in / not in), 0854/0855 (WL-05c `del` faithful
+local + standalone-param), 0856/0857 (WL-05c `del` method-param rejection + false-twin).
 
 ### §12.2 Body `set`
 
@@ -2217,7 +2283,11 @@ totality) is **lowered at the front-end normalization seam** to a record
 rule (`typing-global-impl.md` §5, TY2): a TypedDict class synthesizes a WhyML
 record `type td = { x: int; y: int }`, field access `p["x"]` becomes
 record-field access `p.x`, and construction `{"x": 1, "y": 2}` becomes a
-record literal.
+record literal — in EVERY position: a `return` in a `-> Pt` function, a
+`Pt`-typed parameter, and (since gen #31) an ANNOTATED LOCAL `p: Pt = {…}`.
+The local form used to be BUILT as a generic body dict and READ as a record, so
+the two halves of one variable disagreed about its type and Why3 rejected the
+file; drivers `1865` (local, verifies) / `1866` (its false twin).
 
 **Normalization** (`Module5_IREmitter._emit_typeddict_record`): the
 `visit_ClassDef` seam recognizes `class X(TypedDict)` (a base name `TypedDict`)
@@ -2387,9 +2457,14 @@ refinement VCs.
 `abstract: True` function (a bodyless `val` with its contract — the refinement target,
 P1a). The `#@ ensures/requires/assigns` on a member is the refinement TARGET. Conformance
 `C conforms to P` (declared via `#@ conforms_to P`) populates the EXISTING `overrides` IR
-list with `(C__m, P__m)` pairs; `--check-behavioral-subtyping` emits the per-method
-refinement goal `((pre_P -> pre_C) /\\ (post_C -> post_P))` (P2/P4 — per-method
-behavioural refinement, NOT attribute presence). A class missing a member raises a static
+list with `(C__m, P__m)` pairs, TAGGED `from_conforms_to`; the per-method refinement
+goal `((pre_P -> pre_C) /\\ (post_C -> post_P))` (P2/P4 — per-method behavioural
+refinement, NOT attribute presence) is emitted for those pairs **whether or not
+`--check-behavioral-subtyping` is passed**: the DIRECTIVE carries its own obligation.
+Until gen #31 the goal was flag-gated, so a declared conformance whose contract did
+NOT refine the protocol's reported `All contracts formally proven` by default with no
+warning (route #224, CLOSED; witness `1855`, control `1856`). The flag still governs
+the IMPLICIT inheritance overrides, which nobody wrote down and which stay opt-in. A class missing a member raises a static
 error (P3); a non-refining contract makes the goal unprovable (P3). PEP 544 conformance is
 structural/implicit; PyCSL's TY2 scope requires the explicit `#@ conforms_to` directive
 (divergence-by-strictness — an implicit structural search is outside the per-module
@@ -2467,7 +2542,13 @@ drivers (authored by the conformance-agent, never the core-agent).
 
 **Surface** (PEP 484 + PEP 695 / S2, resolved by S1): `class C[T]: ...`, `def
 f[T](): ...`, `T = TypeVar("T", bound=B)` + `class C(Generic[T])`. A generic
-class/function parameterized by a type variable `T`.
+class/function parameterized by a type variable `T`. **Both class spellings are
+monomorphized identically and subject to the same GT1–GT4 loud-fails** — until gen #31 the
+legacy `Generic[T]` form produced no IR `type_params` (the recogniser existed but its call
+site was guarded on the PEP 695 attribute, so its legacy branch was dead code), the
+monomorphization pass early-returned, and `T` was silently modelled as `int`. Drivers:
+`1849` (legacy + `Any` → GT1), `1850` (legacy + a violated bound → GT2), `1851` (legacy,
+un-instantiated → still verifies, GT8).
 
 **Static plane** (Interpreted): whole-module monomorphization. The
 `frontend/monomorphize.py` step-5 IR-resolution pass COLLECTs concrete
@@ -2516,7 +2597,21 @@ value `ensures` on the enclosing function is correctly unprovable, NOT a
 `\trusted` shortcut). Scope limit (C5): only `int`/`bool`/`str`/`float` and
 record/variant names are admissible as arg/return types (stricter than S1,
 sound; `bytes`/`list`/`dict`/`set`/`Any`/nested-`Callable`/ellipsis rejected
-with `PYCSL-TY3-CALLABLE-SCOPE`).
+with `PYCSL-TY3-CALLABLE-SCOPE`). The collection names are refused in their BARE
+spelling too (`Callable[[bytes], int]`, `Callable[[list], int]`, …), not only when
+written as a subscript — until gen #31 a bare collection name fell through to the
+class-name branch, no record or variant matched, and the arrow domain silently became
+`int`, so `Callable[[bytes], R]` and `Callable[[int], R]` emitted the same arrow
+(witness `1852`, controls `1853` scalar / `1854` record). **AND THE UNKNOWN-CLASS HALF
+IS CLOSED TOO (gen #31):** a name that is neither a primitive tag nor a class, `#@ datatype`
+or TypeVar declared or imported into this module was ALSO silently `int` — so
+`Callable[[Rekt], int]` for a `Rekt` that does not exist verified, emitting `int -> int`,
+and the only backstop was Why3 rejecting the APPLICATION, a type error about the argument
+naming nothing the user wrote. Now refused with the same `PYCSL-TY3-CALLABLE-SCOPE`
+(witness `1877`, control `1878`). The admissible set is the four primitive tags plus every
+`type_decls` name (records, variants, and IMPORTED classes — import resolution puts them
+there) plus TypeVars (`typevar_registry` and PEP 695 `type_params`), because
+`Callable[[T], int]` over a TypeVar verifies and a narrower set would have forbidden it.
 
 **Runtime plane** (Shimmed): `Callable[[...], R]` constructs an introspectable
 alias object (R1); `callable(x)` / `isinstance(x, Callable)` is a PRESENCE

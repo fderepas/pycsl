@@ -10,36 +10,135 @@ from frontend.Module1_Ingestor import PyCSLContract
 ""  # pycsl
 class PyCSLWeaver(ast.NodeVisitor):
     '\n    Traverses the standard Python AST and injects parsed contract nodes \n    directly into the AST objects.\n    '
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, contracts_map: Dict[int, List[CSLNode]]) -> None:
-        pass
+        self.contracts_map = contracts_map
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # MEASURED HONESTY GAP (relaunch #17), recorded here because this method is its
+    # WORST instance. This method is CONVERTED and PROVEN — and its emitted body is
+    # THIRTY-ONE applications of `setattr_3 node <hashed-attr-name> 0`, every one of them
+    # a NO-OP in the model (lesson (bq)). So `#@ assigns \nothing` is TRUE OF THE MODEL
+    # and FALSE OF THE SOURCE: in Python this mutates its argument's 31 attributes.
+    # A mirror-wide census of `setattr*` inside CONVERTED (`let`) bodies found ELEVEN such
+    # methods across FOUR mirrors — `PyCSLWeaver._init_function_csl_fields` (31, no
+    # `writes`), `_Parser._fin_pos` (4, `writes {  }`), `_Unparser.block`/`visit`/
+    # `visit_Module`/`visit_Try`/`visit_TryStar` (1-2 each, no `writes`),
+    # `FunctionEmissionMixin._refine_tuple_return_type` (4) and `_build_param_list` (2),
+    # and `StatementEmissionMixin._handle_fieldassign_stmt`/`_handle_fieldaugassign_stmt`
+    # (2 each, which DO declare a large `writes` set — so their frame is real, just not
+    # for the setattr'd attribute). Eight of the eleven declare NO `writes` at all.
+    # THIS IS NOT AN ARGUMENT TO REVERT THEM: each body is otherwise faithful and the
+    # frame claim is the ONLY part that overstates. It is a standing, quantified
+    # limitation of the frame plane. Until it is closed, an `assigns \nothing` on a
+    # method that setattrs is a MODEL statement, not a source guarantee.
+    #
+    # AND THE OBVIOUS FIX — "a global attribute store relating `setattr` to the
+    # `get_<attr>` projectors" — WAS SPIKED DIRECTLY ON THE EMITTED `.mlw` AND IS
+    # STRUCTURALLY IMPOSSIBLE IN WHY3 AS STATED. Three shapes were tried against
+    # `why3 prove --type-only` (seconds each; the last is kept at
+    # `scratchpad/w2/attr_store_spike.mlw`):
+    #   (a) `val _attr_store : ref (map (int,int) int)` + `setattr` assigning into it —
+    #       "This expression makes a ghost modification in the non-ghost variable
+    #       _attr_store". `map.Map` is a LOGIC type, so a program ref holding one is
+    #       inherently ghost, and ghost attribute values cannot flow into the non-ghost
+    #       computation the emitted bodies actually do with them.
+    #   (b) the same with a concrete `let _attr_store = ref (Const.const 0)` — identical
+    #       ghostness error, for the identical reason.
+    #   (c) `val _attr_store : array int` (a PROGRAM value) with
+    #       `let function get_<attr> x = _attr_store[_attr_slot x k]` — "This function
+    #       depends on external variables, it cannot be used as pure".
+    # The two horns are exclusive and exhaustive: EITHER `get_<attr>` stays PURE and is
+    # usable in `ensures` (the status quo, so `setattr` must be a no-op and the frame
+    # claim overstates), OR the store is real and `get_<attr>` becomes state-dependent,
+    # hence illegal in ANY contract clause — which would break the two clauses that
+    # already mention one (measured: exactly 2 mirror-wide, both `get_value`) and would
+    # mean no contract could ever again mention an attribute value.
+    # THE REAL CAPABILITY IS THEREFORE NOT A STORE. It is to model these AST nodes as
+    # WHY3 RECORDS WITH MUTABLE FIELDS, so `node.<attr>` is a native field access and the
+    # frame is a native `writes { node.<field> }` — closing the gap BY CONSTRUCTION, with
+    # no store, no ghostness, and no loss of spec usability.
+    # AND BE PRECISE ABOUT WHAT ALREADY EXISTS — checked against the emitted `.mlw`, not
+    # assumed. The Module5 handler family's `py_with_node` / `py_match_node` /
+    # `py_ghost_node` are NOT records: they are `type py_with_node` — ABSTRACT types with
+    # pure `val` PROJECTORS (`with_body_ast`, `csl_mutex_ast`). They carry the same frame
+    # problem this note describes, because a `setattr` on an abstract type is still a
+    # no-op. What DOES already exist is the `@dataclass` RECORD model with mutable fields
+    # (`type app = { mutable head: string; mutable args: list term }` in `proof2why3/ir`,
+    # `type _tok = { py_type: string; … }` in `Module2_Parser`). THE BUILD IS TO ROUTE THE
+    # AST NODE CLASSES ONTO THAT RECORD MODEL rather than onto the typed-opaque one.
+    # Cost note in its favour: the corpus uses `setattr` in ZERO of 814 files and declares
+    # exactly ONE `get_<attr>` projector, so this whole area is very nearly CORPUS-INERT —
+    # a mirror-only build. And `frontend/Module3_Weaver` proves in ~8 minutes, which is
+    # the fastest iteration loop available for it.
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns node
     @staticmethod
     def _init_function_csl_fields(node: ast.FunctionDef) -> None:
-        pass
+        """Initialize the custom PyCSL fields on a function-def AST node.
+        Proof attributions (§2.1.11) are informational/bridge-emitted only
+        with no semantic effect. Axiom-from directives (§2.1.12) emit Why3
+        axioms in the preamble; see docs/cross-validated-spec-sources.md."""
+        node.csl_requires = []
+        node.csl_ensures = []
+        node.csl_assigns = []
+        node.csl_function_variants = []
+        node.csl_diverges = False
+        node.csl_no_inline = False
+        node.csl_sibling_concrete = False
+        node.csl_verify_module = ""        # `#@ verify_module <name>` (module-emission.md) — opt-in axiom-isolation group; "" = flat default
+        node.csl_propagate_frame = False
+        node.csl_fresh_globals = False
+        node.csl_trusted = False
+        node.csl_abstract = False
+        node.csl_lemma = False            # `#@ lemma` (lemma.md) — proved logical fact
+        node.csl_uses = []                # `#@ uses <lemma>` (scc2.md) — ordering citations
+        node.csl_iface_requires = []      # `#@ interface requires` (b-spec) — narrow interface
+        node.csl_iface_ensures = []       # `#@ interface ensures`  (b-spec) — narrow interface
+        node.csl_iface_assigns = []       # `#@ interface assigns`  (b-spec) — narrow interface
+        node.csl_reveal = []              # `#@ reveal <fn>` (b-spec) — opt into <fn>'s definition
+        node.csl_preserves = False        # `#@ \preserves` — HAPPY trust-boundary opt-in
+        node.csl_reviewer = ""
+        node.csl_raises = []
+        node.csl_no_exception = []        # list of exception-name strings
+        node.csl_no_exception_all = False # set by `no_exception \all` form
+        node.csl_bounded_int = None
+        node.csl_thread_entry = False
+        node.csl_proof = []
+        node.csl_acts = []                # pre-desugar Act/Complete/Disjoint (for Module4)
+        # Mixin composition (mixin.md / mixin-ready.md, Tier 1) — populated below.
+        node.csl_provides = []            # method names this method is a provider for
+        node.csl_method_deps = []         # MethodDependencyDecl (depends/requires) + their contract
+        node.csl_mixin_shared_state = []  # SharedStateDecl attached at this method
+        node.csl_touches_field = []       # TouchesFieldDecl attached at this method
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _act_guard(act: Act) -> CSLNode:
-        return None
+    def _act_guard(act: Act) -> "ExprIR":
+        """The act's guard: the conjunction of its `given` clauses (`True` if none)."""
+        givens = [cl.expr for cl in act.clauses if isinstance(cl, Given)]
+        if not givens:
+            return CSLBool(True)
+        g = givens[0]
+        for extra in givens[1:]:
+            g = BinOp(g, "and", extra)
+        return g
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures \result == node.value
     #@ assigns \nothing
     @staticmethod
     def _const_int(node: Any, var: str) -> int:
-        return 0
+        if isinstance(node, Number) and float(node.value).is_integer():
+            return int(node.value)
+        raise PyCSLSemanticError(
+            f"`for {var} in range(...)`: range bound must be an integer literal "
+            f"(got {type(node).__name__}); named-constant bounds are not yet supported",
+            stage="Module3")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -49,13 +148,72 @@ class PyCSLWeaver(ast.NodeVisitor):
     def _subst_var(node: Any, var: str, m: int) -> Any:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # CERTIFIED-BOUNDARY (relaunch #17) — [FOR-OVER-OPAQUE-ITERABLE TERMINATION], and
+    # the recorded boundary "`for`-over-array termination — the SOURCE cannot supply a
+    # variant" is now located EXACTLY. The emitter DOES auto-emit
+    # `invariant { 0 <= !idx } / variant { <len> - !idx }` for a `for`-over-collection
+    # loop; this session un-gated that from `@mutable_state` to ANY loop whose length
+    # term is already pure LOGIC (`Array.length` / `Seq.length` / `String.length`), which
+    # is what let `Module2_Parser.parse_node_contracts` convert. `_desugar_for` has TWO
+    # loops: the OUTER one over `contracts` DOES get its variant (`Array.length
+    # contracts`), but the INNER `for clause in c.clauses` iterates an OPAQUE attribute
+    # whose length is the PROGRAM `val iter_length (get_clauses !c)` — illegal in a Why3
+    # `variant` term (measured: emitting it anyway gives `unbound function or predicate
+    # symbol 'get_clauses'` at L3-tc). Whole-file proof with the outer variant in place:
+    # 266 Valid, 3 unproven, and ALL THREE are `Sub-goal termination of goal
+    # pycslweaver___desugar_for'vc`. The body itself is FAITHFUL (spiked and read: a real
+    # array walk, the receiver-carrying `py_isinstance_ForExpand_int_op`, a concrete
+    # `_const_int` sibling application with BOTH arguments, the real `PyCSLSemanticError`
+    # on an empty body, and the real nested range/clauses expansion) — ONLY termination
+    # blocks it. Unlike its `visit_*` siblings it also RETURNS its result instead of
+    # mutating node attributes, so it does not hit lesson (bq) at all.
+    # THE REOPENING CAPABILITY WAS THEN BUILT, MEASURED END-TO-END, AND DECLINED FOR A
+    # SOUNDNESS PRICE — not for cost. The full chain is FOUR steps and it WORKS: declare
+    # `val function iter_length` and `val function get_<attr>`; admit `iter_length` and
+    # RANGE loops to the auto-variant gate; and suppress the `0 <= !idx` invariant for a
+    # RANGE loop (its index starts at `start`, which need not be >= 0 — measured as
+    # `Sub-goal loop invariant init`). With all four, `_desugar_for` CONVERTS and the
+    # whole file proves **270 / 270 Valid, 0 non-Valid** (patch kept at
+    # `scratchpad/w2/opaque_iterable_variant.spike.patch`, proof log at
+    # `scratchpad/w2/opaque_iterable_variant.proof.log`; corpus blast radius measured at
+    # 6 of 814, mirrors 8 of 52, TC_FAIL 0 — all affordable). BOTH REVERTED.
+    # WHY IT WAS DECLINED: `val function get_<attr>` asserts that ATTRIBUTE READS ARE
+    # DETERMINISTIC. A program `val f (x: int) : int` gives no relation between two
+    # applications; a `val function` says they are EQUAL. That is true of Python for an
+    # UNMUTATED object — but this model already treats `setattr` as a NO-OP (lesson (bq)),
+    # so with pure projectors a mutate-then-read body could PROVE `node.x ==
+    # \old(node.x)` immediately after `node.x = 1`, which is FALSE. The assumption is
+    # GLOBAL (every getattr projector in every emitted file) and its consumer here is ONE
+    # marker. Declined under lesson (ca): a conversion must not buy a marker with a model
+    # that claims something false. THE TWO SOUND HALVES ARE SEPARABLE and are available
+    # whenever a consumer appears: `iter_length` purity (a length query on a collection
+    # VALUE, not on mutable object state) and the range-loop variant.
+    # WHAT WOULD MAKE IT SOUND: relate `setattr` to the projectors (a real object-state
+    # model), or emit the projectors as pure ONLY in a file with no `setattr` at all.
+    #@ \diverges
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _desugar_for(contracts: List[Any]) -> List[Any]:
-        return []
+        """Expand each `ForExpand` (`#@ for VAR in range(lo,hi):`) into ground
+        requires/ensures: for each m in [lo, hi) (upper-exclusive), each body
+        clause with VAR substituted by the literal m. Meaning-preserving — the
+        output is exactly the hand-written clause sequence (sugar-for-spec.md §4)."""
+        out: List[Any] = []
+        for c in contracts:
+            if not isinstance(c, ForExpand):
+                out.append(c)
+                continue
+            lo = PyCSLWeaver._const_int(c.lo, c.var)
+            hi = PyCSLWeaver._const_int(c.hi, c.var)
+            if not c.clauses:
+                raise PyCSLSemanticError(
+                    f"`for {c.var} in range(...)`: empty body", stage="Module3")
+            for m in range(lo, hi):
+                for clause in c.clauses:
+                    out.append(PyCSLWeaver._subst_var(clause, c.var, m))
+        return out
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -92,36 +250,50 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._csl_bound_names, self._csl_star_import, self._source
     def visit_Module(self, node: ast.Module) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ raises PyCSLSemanticError when True
+    #@ assigns self._source
     def visit_With(self, node: ast.With) -> Any:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _is_trivial_new(fn: ast.FunctionDef) -> bool:
+        body = [s for s in fn.body
+                if not (isinstance(s, ast.Expr) and isinstance(s.value, ast.Constant))]
+        if len(body) != 1 or not isinstance(body[0], ast.Return):
+            return False
+        val = body[0].value
+        if not (isinstance(val, ast.Call) and isinstance(val.func, ast.Attribute)
+                and val.func.attr == "__new__"):
+            return False
+        recv = val.func.value
+        if (isinstance(recv, ast.Call) and isinstance(recv.func, ast.Name)
+                and recv.func.id == "super"):
+            return True
+        if isinstance(recv, ast.Name) and recv.id == "object":
+            return True
         return False
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         return None
 
@@ -136,26 +308,27 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_While(self, node: ast.While) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._source
     def visit_For(self, node: ast.For) -> Any:
         return None
 
 
 class Module3_Weaver:
     '\n    Coordinates the standard AST generation and the injection of contracts.\n    '
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, source_code: str, extracted_data: List[PyCSLContract], parser_module: Any) -> None:
-        pass
+        self.source_code = source_code
+        self.extracted_data = extracted_data
+        self.parser_module = parser_module
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -183,7 +356,7 @@ class Module3_Weaver:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns contracts_map
     @staticmethod
     def _extract_happy_properties(contracts_map: Dict[int, List[CSLNode]]) -> List[HappyProperty]:
         return []
@@ -218,35 +391,69 @@ class Module3_Weaver:
     def _region_bound_str(node: CSLNode) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _canonical_preservation_ensures(hp: HappyProperty) -> Ensures:
-        return None
+    def _canonical_preservation_ensures(hp: HappyProperty) -> "ExprIR":
+        v = "__happy_i"
+        guard = BinOp(BinOp(copy.deepcopy(hp.region_lo), "<=", Var(v)),
+                      "and",
+                      BinOp(Var(v), "<", copy.deepcopy(hp.region_hi)))
+        eq = BinOp(FieldSubscript(hp.field, Var(v)),
+                   "==",
+                   Old(FieldSubscript(hp.field, Var(v))))
+        return Ensures(Forall(v, BinOp(guard, "==>", eq)))
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _target_dotted_path(target: ast.AST):
-        pass
+        """07-1143 R2: the dotted base path of a write target, stripping a trailing
+        subscript: `world.fs.disk[i]` → "world.fs.disk", `world.proc.umask` →
+        "world.proc.umask", `self.disk[i]` → "self.disk". None if not a Name-rooted
+        attribute/subscript chain."""
+        if isinstance(target, ast.Subscript):
+            return Module3_Weaver._target_dotted_path(target.value)
+        if isinstance(target, ast.Attribute):
+            base = Module3_Weaver._target_dotted_path(target.value)
+            return f"{base}.{target.attr}" if base else None
+        if isinstance(target, ast.Name):
+            return target.id
+        return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns out
     def _collect_protect_sites(self, node: ast.AST, protected: set, cur_func, out: List[tuple]) -> None:
-        pass
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                tgts = child.targets if isinstance(child, ast.Assign) else [child.target]
+                for tgt in tgts:
+                    p = self._target_dotted_path(tgt)
+                    if p in protected:
+                        out.append((child, cur_func, p))
+            inner = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            self._collect_protect_sites(child, protected, inner, out)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns out
     def _collect_protect_index_sites(self, node: ast.AST, path: str, cur_func, out: List[tuple]) -> None:
-        pass
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                tgts = child.targets if isinstance(child, ast.Assign) else [child.target]
+                for tgt in tgts:
+                    if isinstance(tgt, ast.Subscript) and \
+                            self._target_dotted_path(tgt.value) == path:
+                        sl = tgt.slice
+                        if isinstance(sl, ast.Index):
+                            sl = sl.value
+                        if not isinstance(sl, ast.Slice):
+                            out.append((child, cur_func, sl))
+            inner = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            self._collect_protect_index_sites(child, path, inner, out)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -263,12 +470,17 @@ class Module3_Weaver:
     def _check_protect_aliasing(self, node: ast.AST, protected: set, except_set: set, cur_func, hp_name: str) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns out
     def _collect_field_sites(self, node: ast.AST, field: str, cur_func, out: List[tuple]) -> None:
-        pass
+        for child in ast.iter_child_nodes(node):
+            if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                site = self._field_write_site(child, field)
+                if site is not None:
+                    out.append((child, site, cur_func))
+            inner_func = child.name if isinstance(child, ast.FunctionDef) else cur_func
+            self._collect_field_sites(child, field, inner_func, out)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

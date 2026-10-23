@@ -24,12 +24,11 @@ def normalize_surface(s: str) -> str:
 class Token:
     kind: str
     value: str
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __repr__(self) -> str:
-        return ""
+        return f"{self.kind}({self.value!r})"
 
 
 _OP_TOKENS = ['->', '>=', '<=', '<>', '==', '!=', '\\/', '/\\\\', '=', '>', '<', '+', '-', '*']
@@ -46,104 +45,463 @@ _COMPARISON_OPS = {'=', '>=', '<=', '>', '<', '<>', '!=', '=='}
 _ARITH_ADD_OPS = {'+', '-'}
 _ARITH_MUL_OPS = {'*'}
 _KNOWN_FN_HEADS = {'gcd', 'mod', 'add', 'mul', 'sub', 'DecidableEq', 'bit_and', 'struct_pack_i1a1', 'struct_unpack_i1a1', 'struct_pack_i2', 'struct_unpack_i2', 'struct_pack_i18', 'struct_unpack_i18'}
+# Mirror-only infra shim (see bin/self-annotate-mirror-check.sh MIRROR_ONLY): marks the
+# token-cursor `_Parser` as a stateful record so its `toks`/`pos` fields lower to
+# `mutable toks: array token` / `mutable pos: int`.
+def mutable_state(cls):
+    return cls
+
+
+# NOTE the invariant is `0 <= self.pos` ONLY. Unlike the two frontend cursors, the live
+# `take` steps `self.pos` UNGUARDED, so `self.pos < \length(self.toks)` is genuinely NOT
+# an invariant of this class — the bound is `take`'s PRECONDITION instead (the live
+# method is partial: it raises IndexError past the end).
+#@ class invariant 0 <= self.pos
+# ... but `self.pos <= \length(self.toks)` IS one, and the nest's termination measure needs
+# it: with the whole descent chain converted, every member's variant is the encoded pair
+# `16 * (\length(self.toks) - self.pos) + <level>`, whose well-foundedness obligation is
+# `variant >= 0` — i.e. exactly `self.pos <= \length(self.toks)`. It holds because `take` is
+# PARTIAL: its `#@ requires self.pos < \length(self.toks)` means the unguarded `self.pos += 1`
+# can only ever land ON the end, never past it; and `__init__` sets `self.pos = 0` with
+# `\length(self.toks) >= 0`. Note this is strictly WEAKER than the `self.pos < \length(...)`
+# the comment above rejects — that one is genuinely false at end-of-input, this one is not.
+#@ class invariant self.pos <= \length(self.toks)
+@mutable_state
 class _Parser:
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.toks, self.pos
     def __init__(self, tokens: List[Token]) -> None:
-        pass
+        self.toks: List[Token] = tokens
+        self.pos: int = 0
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    # `offset >= 0` is a genuine PARTIALITY boundary, read off the live body: the read
+    # `self.toks[idx]` is guarded ONLY from above (`idx < len(self.toks)`), so a negative
+    # `offset` makes `idx` negative and Python silently reads from the END of the list —
+    # a different token than "the one `offset` ahead". Every live call site in this file
+    # passes the default `0`. Not a convenience narrowing.
+    #@ requires offset >= 0
     #@ ensures True
+    # CURSOR INTERFACE (L13): the Some arm is returned ONLY from inside the
+    # `idx < len(self.toks)` guard, so a non-None result WITNESSES that the cursor
+    # (plus offset) is in range. This is what lets a caller that has tested
+    # `t is not None` discharge `take`'s `requires self.pos < \length(self.toks)`.
+    # PROVED here (peek is converted), so it costs no TCB.
+    #@ ensures \result != None ==> self.pos + offset < \length(self.toks)
     #@ assigns \nothing
-    def peek(self, offset: int=0) -> Optional[Token]:
+    def peek(self, offset: int = 0) -> Optional[Token]:
+        idx = self.pos + offset
+        if idx < len(self.toks):
+            return self.toks[idx]
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    #@ requires self.pos < \length(self.toks)
     #@ ensures True
-    #@ assigns \nothing
+    # CURSOR INTERFACE (L13): `take` steps the cursor by EXACTLY one (unguarded
+    # `self.pos += 1`), which is the strict progress every loop variant in the nest
+    # needs. With the precondition it also gives `self.pos <= \length(self.toks)`.
+    # PROVED (take is converted) -> zero TCB.
+    #@ ensures self.pos == \old(self.pos) + 1
+    #@ assigns self.pos
     def take(self) -> Token:
-        return None
+        t = self.toks[self.pos]
+        self.pos += 1
+        return t
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    #@ assigns self.pos
     def expect(self, kind: str, value: Optional[str]=None) -> Token:
-        return None
+        t = self.peek()
+        if t is None or t.kind != kind or (value is not None and t.value != value):
+            raise SyntaxError(
+                f"expected {kind}({value}) at pos {self.pos}, got {t}"
+            )
+        return self.take()
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION (L13 all-or-nothing): the descent chain consumes NO token, so
+    # `\length(self.toks) - self.pos` alone does not decrease along it. Encode the
+    # (tokens-left, precedence-level) PAIR as ONE integer — 16 dominates the 9 levels,
+    # so consuming a token always outweighs a level rise. Every member of the mutual
+    # group must carry the SAME well-founded order (Why3 requires it).
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 9
+    # TRANSITIVE RAISE (L13 all-or-nothing): now that the whole descent chain is
+    # CONVERTED, the `raise SyntaxError` in `parse_atom` / `expect` is reachable from
+    # every member — exactly as in the live Python. Declared, not suppressed.
+    #@ raises SyntaxError when True
+    #@ assigns self.pos
     def parse_expr(self) -> Term:
-        return None
+        t = self.peek()
+        if t is not None and t.kind == "IDENT" and t.value in ("forall", "exists"):
+            return self.parse_quant()
+        return self.parse_implication()
 
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
+    # PARTIALITY, read off the live body: the very first statement is an UNGUARDED
+    # `self.take()`, so the cursor must be in range on entry. Dischargeable at the ONLY
+    # call site — `parse_expr` reaches here only after `t = self.peek()` returned
+    # non-None, which by `peek`'s own postcondition IS `self.pos < \length(self.toks)`.
+    # Same carve-out as `take` itself, not a convenience narrowing.
+    #@ requires self.pos < \length(self.toks)
     #@ ensures True
-    #@ assigns \nothing
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION: level 0 — the deepest, because `parse_quant` consumes a token
+    # (`kind_tok = self.take()`) BEFORE it recurses into `parse_expr`, so the token term
+    # already dominates and the level only has to be below `parse_expr`'s 9.
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 0
+    #@ raises SyntaxError when True
+    #@ assigns self.pos
     def parse_quant(self) -> Term:
-        return None
+        kind_tok = self.take()
+        binders: List[str] = []
+        #@ loop invariant self.pos > \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None:
+                raise SyntaxError("unexpected EOF in quantifier binders")
+            if t.kind == "COLON":
+                break
+            if t.kind == "IDENT":
+                binders.append(self.take().value)
+            else:
+                raise SyntaxError(f"unexpected token {t} in quantifier binders")
+        self.expect("COLON")
+        ty_parts: List[str] = []
+        #@ loop invariant self.pos > \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None:
+                raise SyntaxError("unexpected EOF in quantifier type")
+            if t.kind == "COMMA":
+                break
+            if t.kind == "IDENT":
+                ty_parts.append(self.take().value)
+            else:
+                raise SyntaxError(f"unexpected token {t} in quantifier type")
+        ty = " ".join(ty_parts)
+        self.expect("COMMA")
+        body = self.parse_expr()
+        if kind_tok.value == "forall":
+            return Forall(binders=tuple(binders), ty=ty, body=body)
+        return Exists(binders=tuple(binders), ty=ty, body=body)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION (L13 all-or-nothing): the descent chain consumes NO token, so
+    # `\length(self.toks) - self.pos` alone does not decrease along it. Encode the
+    # (tokens-left, precedence-level) PAIR as ONE integer — 16 dominates the 9 levels,
+    # so consuming a token always outweighs a level rise. Every member of the mutual
+    # group must carry the SAME well-founded order (Why3 requires it).
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 8
+    # TRANSITIVE RAISE (L13 all-or-nothing): now that the whole descent chain is
+    # CONVERTED, the `raise SyntaxError` in `parse_atom` / `expect` is reachable from
+    # every member — exactly as in the live Python. Declared, not suppressed.
+    #@ raises SyntaxError when True
+    #@ assigns self.pos
     def parse_implication(self) -> Term:
-        return None
+        lhs = self.parse_disjunction()
+        t = self.peek()
+        if t is not None and t.kind == "OP" and t.value == "->":
+            self.take()
+            rhs = self.parse_implication()
+            return BinOp("->", lhs, rhs)
+        return lhs
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION (L13 all-or-nothing): the descent chain consumes NO token, so
+    # `\length(self.toks) - self.pos` alone does not decrease along it. Encode the
+    # (tokens-left, precedence-level) PAIR as ONE integer — 16 dominates the 9 levels,
+    # so consuming a token always outweighs a level rise. Every member of the mutual
+    # group must carry the SAME well-founded order (Why3 requires it).
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 7
+    # TRANSITIVE RAISE (L13 all-or-nothing): now that the whole descent chain is
+    # CONVERTED, the `raise SyntaxError` in `parse_atom` / `expect` is reachable from
+    # every member — exactly as in the live Python. Declared, not suppressed.
+    #@ raises SyntaxError when True
+    #@ assigns self.pos
     def parse_disjunction(self) -> Term:
-        return None
+        out = self.parse_conjunction()
+        # The RANGE invariant alone is not enough: the function's own
+        # `ensures self.pos >= \old(self.pos)` has to survive the loop, and a loop
+        # invariant is the only place to carry a relation back to function entry.
+        #@ loop invariant self.pos >= \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None or t.kind != "OP" or t.value not in _LOGICAL_DISJ_OPS:
+                break
+            op = self.take().value
+            rhs = self.parse_conjunction()
+            out = BinOp(op, out, rhs)
+        return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION (L13 all-or-nothing): the descent chain consumes NO token, so
+    # `\length(self.toks) - self.pos` alone does not decrease along it. Encode the
+    # (tokens-left, precedence-level) PAIR as ONE integer — 16 dominates the 9 levels,
+    # so consuming a token always outweighs a level rise. Every member of the mutual
+    # group must carry the SAME well-founded order (Why3 requires it).
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 6
+    # TRANSITIVE RAISE (L13 all-or-nothing): now that the whole descent chain is
+    # CONVERTED, the `raise SyntaxError` in `parse_atom` / `expect` is reachable from
+    # every member — exactly as in the live Python. Declared, not suppressed.
+    #@ raises SyntaxError when True
+    #@ assigns self.pos
     def parse_conjunction(self) -> Term:
-        return None
+        out = self.parse_comparison()
+        # The RANGE invariant alone is not enough: the function's own
+        # `ensures self.pos >= \old(self.pos)` has to survive the loop, and a loop
+        # invariant is the only place to carry a relation back to function entry.
+        #@ loop invariant self.pos >= \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None or t.kind != "OP" or t.value not in _LOGICAL_CONJ_OPS:
+                break
+            op = self.take().value
+            rhs = self.parse_comparison()
+            out = BinOp(op, out, rhs)
+        return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION (L13 all-or-nothing): the descent chain consumes NO token, so
+    # `\length(self.toks) - self.pos` alone does not decrease along it. Encode the
+    # (tokens-left, precedence-level) PAIR as ONE integer — 16 dominates the 9 levels,
+    # so consuming a token always outweighs a level rise. Every member of the mutual
+    # group must carry the SAME well-founded order (Why3 requires it).
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 5
+    # TRANSITIVE RAISE (L13 all-or-nothing): now that the whole descent chain is
+    # CONVERTED, the `raise SyntaxError` in `parse_atom` / `expect` is reachable from
+    # every member — exactly as in the live Python. Declared, not suppressed.
+    #@ raises SyntaxError when True
+    #@ assigns self.pos
     def parse_comparison(self) -> Term:
-        return None
+        lhs = self.parse_arith_add()
+        t = self.peek()
+        if t is not None and t.kind == "OP" and t.value in _COMPARISON_OPS:
+            op = self.take().value
+            mid = self.parse_arith_add()
+            t2 = self.peek()
+            if t2 is not None and t2.kind == "OP" and t2.value in _COMPARISON_OPS:
+                op2 = self.take().value
+                rhs = self.parse_arith_add()
+                return BinOp(r"/\\", BinOp(op, lhs, mid), BinOp(op2, mid, rhs))
+            return BinOp(op, lhs, mid)
+        return lhs
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB — unlike the same clause on a `\trusted`
+    # stub, which would be an assumed reviewer assertion.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION (L13 all-or-nothing): the descent chain consumes NO token, so
+    # `\length(self.toks) - self.pos` alone does not decrease along it. Encode the
+    # (tokens-left, precedence-level) PAIR as ONE integer — 16 dominates the 9 levels,
+    # so consuming a token always outweighs a level rise. Every member of the mutual
+    # group must carry the SAME well-founded order (Why3 requires it).
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 4
+    # TRANSITIVE RAISE (L13 all-or-nothing): now that the whole descent chain is
+    # CONVERTED, the `raise SyntaxError` in `parse_atom` / `expect` is reachable from
+    # every member — exactly as in the live Python. Declared, not suppressed.
+    #@ raises SyntaxError when True
+    #@ assigns self.pos
     def parse_arith_add(self) -> Term:
-        return None
+        out = self.parse_arith_mul()
+        # The RANGE invariant alone is not enough: the function's own
+        # `ensures self.pos >= \old(self.pos)` has to survive the loop, and a loop
+        # invariant is the only place to carry a relation back to function entry.
+        #@ loop invariant self.pos >= \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None or t.kind != "OP" or t.value not in _ARITH_ADD_OPS:
+                break
+            op = self.take().value
+            rhs = self.parse_arith_mul()
+            out = BinOp(op, out, rhs)
+        return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    # CURSOR INTERFACE (L13): monotone + in-range. PROVED here (the member is
+    # converted), so it costs ZERO TCB.
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION (L13 all-or-nothing): the descent chain consumes NO token, so
+    # `\length(self.toks) - self.pos` alone does not decrease along it. Encode the
+    # (tokens-left, precedence-level) PAIR as ONE integer — 16 dominates the 9 levels,
+    # so consuming a token always outweighs a level rise. Every member of the mutual
+    # group must carry the SAME well-founded order (Why3 requires it).
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 3
+    # TRANSITIVE RAISE (L13 all-or-nothing): now that the whole descent chain is
+    # CONVERTED, the `raise SyntaxError` in `parse_atom` / `expect` is reachable from
+    # every member — exactly as in the live Python. Declared, not suppressed.
+    #@ raises SyntaxError when True
+    #@ assigns self.pos
     def parse_arith_mul(self) -> Term:
-        return None
+        out = self.parse_atom_application()
+        #@ loop invariant self.pos >= \old(self.pos)
+        #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+        #@ loop variant \length(self.toks) - self.pos
+        while True:
+            t = self.peek()
+            if t is None:
+                break
+            if t.kind == "OP" and t.value in _ARITH_MUL_OPS:
+                op = self.take().value
+                rhs = self.parse_atom_application()
+                out = BinOp(op, out, rhs)
+                continue
+            # `mod` as identifier-infix (Lean-style `a mod b` after
+            # `%` → `mod` normalization). Folded into App(mod, ...)
+            # for shape parity with Rocq's `mod a b` prefix form.
+            if t.kind == "IDENT" and t.value == "mod":
+                self.take()
+                rhs = self.parse_atom_application()
+                out = App(head="mod", args=(out, rhs))
+                continue
+            break
+        return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION (L13 all-or-nothing): the descent chain consumes NO token, so
+    # `\length(self.toks) - self.pos` alone does not decrease along it. Encode the
+    # (tokens-left, precedence-level) PAIR as ONE integer — 16 dominates the 9 levels,
+    # so consuming a token always outweighs a level rise. Every member of the mutual
+    # group must carry the SAME well-founded order (Why3 requires it).
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 2
+    # TRANSITIVE RAISE (L13 all-or-nothing): now that the whole descent chain is
+    # CONVERTED, the `raise SyntaxError` in `parse_atom` / `expect` is reachable from
+    # every member — exactly as in the live Python. Declared, not suppressed.
+    #@ raises SyntaxError when True
+    #@ assigns self.pos
     def parse_atom_application(self) -> Term:
-        return None
+        atom = self.parse_atom()
+        if isinstance(atom, Var) and atom.name in _KNOWN_FN_HEADS:
+            args: List[Term] = []
+            #@ loop invariant self.pos >= \old(self.pos)
+            #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+            #@ loop variant \length(self.toks) - self.pos
+            while True:
+                t = self.peek()
+                if t is None:
+                    break
+                if t.kind == "IDENT":
+                    args.append(self.parse_atom())
+                    continue
+                if t.kind == "INT":
+                    args.append(self.parse_atom())
+                    continue
+                if t.kind == "LPAREN":
+                    args.append(self.parse_atom())
+                    continue
+                break
+            return App(head=atom.name, args=tuple(args))
+        return atom
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ ensures self.pos >= \old(self.pos)
+    #@ ensures self.pos <= \length(self.toks)
+    # SCC TERMINATION (L13 all-or-nothing): the descent chain consumes NO token, so
+    # `\length(self.toks) - self.pos` alone does not decrease along it. Encode the
+    # (tokens-left, precedence-level) PAIR as ONE integer — 16 dominates the 9 levels,
+    # so consuming a token always outweighs a level rise. Every member of the mutual
+    # group must carry the SAME well-founded order (Why3 requires it).
+    #@ \variant 16 * (\length(self.toks) - self.pos) + 1
+    # STRICT PROGRESS. Every NORMAL-return path of `parse_atom` calls `take` at least once
+    # (INT / LPAREN / IDENT / unary `-`), and the only path with no `take` RAISES. So the
+    # cursor genuinely advances — and `parse_atom_application`'s loop needs exactly this to
+    # discharge its own `#@ loop variant`: with only the monotone `>=` the loop body could
+    # in principle stand still. PROVED here (the member is converted), so zero TCB.
+    #@ ensures self.pos > \old(self.pos)
+    #@ assigns self.pos
     def parse_atom(self) -> Term:
-        return None
+        t = self.peek()
+        if t is None:
+            raise SyntaxError("unexpected EOF in atom")
+        if t.kind == "INT":
+            self.take()
+            return IntLit(int(t.value))
+        if t.kind == "LPAREN":
+            self.take()
+            inner = self.parse_expr()
+            if self.peek() is not None and self.peek().kind == "COMMA":
+                elts = [inner]
+                # STRICTLY `>`, not `>=`: the loop is entered only AFTER the LPAREN
+                # `self.take()`, so the cursor is already past function entry, and the
+                # method's own `#@ ensures self.pos > \old(self.pos)` has no other way to
+                # survive this branch (a loop invariant is the only place to carry a
+                # relation back to entry, and `>=` would lose the strictness `take` won).
+                #@ loop invariant self.pos > \old(self.pos)
+                #@ loop invariant 0 <= self.pos and self.pos <= \length(self.toks)
+                #@ loop variant \length(self.toks) - self.pos
+                while self.peek() is not None and self.peek().kind == "COMMA":
+                    self.take()
+                    elts.append(self.parse_expr())
+                self.expect("RPAREN")
+                return App(head="tuple", args=tuple(elts))
+            self.expect("RPAREN")
+            return inner
+        if t.kind == "IDENT":
+            ident = self.take().value
+            if ident == "true":
+                return BoolLit(True)
+            if ident == "false":
+                return BoolLit(False)
+            if ident == "not":
+                arg = self.parse_atom()
+                return UnaryOp("not", arg)
+            return Var(name=ident)
+        if t.kind == "OP" and t.value == "-":
+            self.take()
+            arg = self.parse_atom()
+            return UnaryOp("-", arg)
+        raise SyntaxError(f"parse_atom: unexpected {t}")
 
 
 #@ \trusted reviewer: pycsl-self-annotate

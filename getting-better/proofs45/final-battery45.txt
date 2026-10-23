@@ -1,0 +1,22 @@
+# FINAL BATTERY — relaunch #45, on the committed tree
+Sat Sep  5 03:57:38 UTC 2026
+[*] getattr-erasure: 26 fall-through site(s) over 60 file(s) — DECLARED 0 · ABSENT 7 · UNKNOWN 19
+[*] avatar-frame-parity: 83 abstract `self__` avatar(s) scanned across 53 emitted mirror(s); 0 SAME-FILE frameless-yet-declared, 7 INHERITED frameless-yet-declared.
+[*] ir-field-coverage: 101 StmtIR/ExprIR subclass(es), 224 declared field(s); 41 skipped as too generic to search for; 25 class(es) with NO identifiable handler; 4 field(s) never mentioned by their own handler.
+[*] trusted-raises-honesty: 70 `\trusted` stub(s) whose LIVE counterpart contains a `raise`; 2 declare `#@ raises`, 68 are SILENT (the emitted `val` tells Why3 the call CANNOT raise).
+[*] mirror-coverage: 1820 live def(s) across the 53 MIRRORED file(s); 550 have NO mirror counterpart (30.2%). 41 live file(s) have no mirror at all.
+[*] refusal-reachability: 0 `raise PyCSL*Error` site(s) whose exception name is UNBOUND where it is raised.
+[*] yield-erasure: scanned 53 emitted mirror(s); 3 CONVERTED generator(s).
+[*] clause-survival: 847 corpus file(s) compared; 2 carry a DEFICIT (an emitted clause count below the source count).
+[*] dropped-mutation: 30991 statement(s) scanned — 30849 HANDLED, 75 NORMALIZED, 5 REFUSED, 0 DROPPED, 51 CTXBIND, 11 TRYFINAL, 0 DANGLING.
+[*] internal-crash-free: 960 pycsl-reference driver(s) run through the front end + Module 6 (emission only); 0 produced an INTERNAL CRASH.
+[*] trusted-frame-honesty: 254 method(s) declare `#@ assigns \nothing`; 1 stand for a live body that transitively writes `self` state (1 write DIRECTLY); 0 of those are MODEL-VISIBLE (`@mutable_state` class).
+[*] converted-frame-honesty: 498 method(s) declare `#@ assigns \nothing`; 94 stand for a live body that transitively writes `self` state (11 write DIRECTLY); 0 of those are MODEL-VISIBLE (`@mutable_state` class).
+[*] mirror-signature-drift: 0 function(s) whose mirror parameter list differs from the live one (0 renamed, 0 missing a live parameter, 0 with a parameter the live function does not have; 0 of them CONVERTED rather than `\trusted`).
+[*] bespoke-model-drift: 27 mirror method(s) whose WhyML model is HAND-SYNTHESIZED, across 24 `_emit_..._bespoke` function(s).
+[*] mirror-field-parity: 335 class-level annotated field(s) compared; 7 known drift, 0 NEW drift.
+[*] shadowed-selfcalls: scanned 53 emitted mirror(s); 14 CONVERTED method(s) whose call sites go through an abstract `val self__<m>_<n>`; 119 bypassing call site(s).
+[*] computed-rhs-erasure: 1 converted method(s) with a COMPUTED RHS erased to 0; 0 with a PARAM-FIELD materialised as a fresh constant array.
+[*] swallowed-exceptions: 137 broad swallowing handler(s) in src/pycsl, across 133 function(s).
+[*] swallowed-exceptions: 14 (file, function, exception) pair(s) actually CAUGHT during a full 53-mirror emission.
+[*] statement-block-coverage: 12 compound statement kind(s), 19 sub-block field(s) checked; 4 kind(s) with NO Module 5 handler; 3 sub-block(s) the handler never names.

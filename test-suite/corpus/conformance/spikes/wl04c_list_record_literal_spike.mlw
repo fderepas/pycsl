@@ -1,0 +1,87 @@
+(* WL-04c SMT-feasibility spike: prove that a `List[<record>]` LITERAL — e.g.
+   `a = [Point(1, 2), Point(3, 4)]` or `return [Point(1, 2), Point(3, 4)]` — built
+   as an `array <record>` whose elements are RECORD LITERALS with the constructor
+   args threaded into the fields, reads its element at the faithful RECORD type, so
+   a projected field read `a[i].field` denotes the faithful field value.
+
+   This is the CONSTRUCTION analog of WL-04b (the flat `List[<record>]` PARAMETER
+   element), the record-leaf twin of WL-04a (the str/float LIST-LITERAL local /
+   return). PyCSL previously ran every element of a list literal through
+   `_coerce_to_int`, so a record-constructor element collapsed to a hashed/opaque
+   int and `a[i].field` on the local / `\result[i].field` on the return was either
+   content-opaque (`get_field` over an int) or ill-typed against the record use
+   site (TYPEERR). The faithful lowering (wrong-lowering-to-fix.md §WL-04 record
+   literal residual) threads the record CONSTRUCTOR into the list-literal seam so
+   the literal builds `array <record>` with each element the faithful record
+   literal `{ x = 1; y = 2 }`, and `a[i].field` projects the real field natively.
+
+   Constructor faithfulness is REQUIRED: a NamedTuple / recognized `Tuple[...]` /
+   an explicit-`__init__` positional class captures its args into the fields
+   (`{ x = 1; y = 2 }`), so the literal is content-faithful. A `@dataclass` with no
+   explicit `__init__` DROPS its ctor args (a separate pre-existing gap), so its
+   literal element would be `{ x = 0; y = 0 }` — NOT content-faithful — and stays
+   fail-closed (opaque / TYPEERR), never a silent unsound `a[0].x == 0` proof.
+
+   Why3 FORBIDS a MUTABLE element inside `array` (`array` instantiates a PURE type
+   variable), so the record used at array-element position is PURE (immutable
+   fields) — exactly the WL-04b constraint. The record read + field projection are
+   native.
+
+   This fixture is the ground-truth that a record-list-LITERAL element field read
+   reasons CLEANLY on BOTH Alt-Ergo AND Z3 — no cited lemma needed (a native
+   `array` build composed with a native record projection). *)
+
+module WL04cSpikeLiteralLocal
+  use int.Int
+  use array.Array
+
+  (* the PURE record lowering of a NamedTuple `Point: x: int; y: int`
+     (immutable fields — mandatory for use as an `array` element) *)
+  type point = { px: int; py: int }
+
+  (* the faithful lowering of
+     `def f() -> int: a = [Point(1, 2), Point(3, 4)]; return a[0].x`
+     — the literal builds `array point` with the ctor args threaded into the
+     record fields, so `a[0]` reads a real `point` and `a[0].x` projects `px`. *)
+  let f () : int
+    ensures { result = 1 }
+  = let a = (let _alit = Array.make 2 { px = 1; py = 2 } in
+             _alit[1] <- { px = 3; py = 4 }; _alit) in
+    (a[0]).px
+
+  (* the target law `a[0].x == 1 && a[1].y == 4` (distinct elements, distinct
+     fields), and read independence of the untouched fields. *)
+  let test_literal_read () =
+    let a = (let _alit = Array.make 2 { px = 1; py = 2 } in
+             _alit[1] <- { px = 3; py = 4 }; _alit) in
+    assert { (a[0]).px = 1 };
+    assert { (a[0]).py = 2 };
+    assert { (a[1]).px = 3 };
+    assert { (a[1]).py = 4 }
+
+  (* NEGATIVE make-or-break: distinct constructor args land in distinct slots, so a
+     false cross-element field conflation `a[0].x == a[1].x` is REFUTED (the
+     int-coercion collapse would have conflated the elements). *)
+  let test_elements_not_conflated () =
+    let a = (let _alit = Array.make 2 { px = 1; py = 2 } in
+             _alit[1] <- { px = 3; py = 4 }; _alit) in
+    assert { (a[0]).px <> (a[1]).px }
+end
+
+module WL04cSpikeLiteralReturn
+  use int.Int
+  use array.Array
+
+  type point = { px: int; py: int }
+
+  (* the faithful lowering of
+     `def g() -> List[Point]: return [Point(1, 2), Point(3, 4)]`
+     with a caller/contract reading `\result[i].field` — the return type is
+     `array point`, `\result[i]` is a native `Array.get`, and `\result[i].field`
+     a native record projection. *)
+  let g () : array point
+    ensures { (result[0]).px = 1 }
+    ensures { (result[1]).py = 4 }
+  = (let _alit = Array.make 2 { px = 1; py = 2 } in
+     _alit[1] <- { px = 3; py = 4 }; _alit)
+end

@@ -1,0 +1,1 @@
+[{"file": "proof2why3/parser.py", "cls": null, "name": "parse_type_expr", "tc": false}, {"file": "proof2why3/parser.py", "cls": null, "name": "lex", "tc": false}, {"file": "proof2why3/parser.py", "cls": "Token", "name": "__repr__", "tc": true, "score": null, "why": "no-let-found"}, {"file": "proof2why3/parser.py", "cls": null, "name": "normalize_surface", "tc": false}]

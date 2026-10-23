@@ -1,0 +1,13 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.2363789639202878,
+  "qualname_results": [
+    [
+      "Pycsl.Reference.Json.mirror_involution",
+      true,
+      []
+    ]
+  ]
+}

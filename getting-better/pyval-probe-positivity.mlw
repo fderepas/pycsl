@@ -1,0 +1,35 @@
+(* Probe: which recursive arm shapes pass Why3 strict-positivity? *)
+
+(* A: PArr through abstract `seq` — expected REJECT *)
+module A_seq
+  use int.Int
+  use seq.Seq
+  use string.String
+  type pyval = PStr string | PInt int | PArr (seq pyval)
+end
+
+(* B: PArr through a bespoke cons-list — expected ACCEPT *)
+module B_cons
+  use int.Int
+  use string.String
+  type pyval = PStr string | PInt int | PArr pyval_list
+  with pyval_list = PNil | PCons pyval pyval_list
+end
+
+(* C: PMap through abstract `map` — expected REJECT *)
+module C_map
+  use int.Int
+  use option.Option
+  use map.Map
+  use string.String
+  type pyval = PStr string | PInt int | PMap (map string (option pyval))
+end
+
+(* D: PMap through an association cons-list (bespoke) — expected ACCEPT *)
+module D_assoc
+  use int.Int
+  use option.Option
+  use string.String
+  type pyval = PStr string | PInt int | PMap assoc
+  with assoc = ANil | ACons string pyval assoc
+end

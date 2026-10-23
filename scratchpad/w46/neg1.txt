@@ -1,0 +1,1 @@
+[!] constant-fallthrough: src/pycsl/module6_whyml/irx.py:100 `_negtest_fallthrough` falls through to the Why3 constant `true`, and no entry in this gate's baseline says why that is not a decision the model gets to make. Add a classification (with a probe that consumes it in a GUARD) or make the answer opaque.

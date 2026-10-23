@@ -1,0 +1,12 @@
+L3TC-FAIL            <module>._extract_directives  ['This expression has type int, but is expected to have type array.Array.array']
+L3TC-FAIL            <module>._parse_rocq_file  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            <module>._parse_lean_file  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            <module>._index_proofs_dir  ['This expression has type PyCSL_Program.StrSet.set, but is expected to have type int']
+L3TC-FAIL            <module>._audit_one_prover  ['This expression has type array.Array.array int @rho, but is expected to have type array.Array.array string @rho1']
+L3TC-FAIL            <module>._index_proofs_dir_by_file  ["This expression has type 'mu -> option.Option.option int, but is expected to have type int"]
+CLEAN                <module>._default_rocq_dir  
+CLEAN                <module>._default_lean_dir  
+L3TC-FAIL            <module>.audit_rocq  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            <module>.audit_lean  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            <module>.audit_both  ['This expression has type array.Array.array int @rho, but is expected to have type array.Array.array string @rho1']
+L3TC-FAIL            <module>.print_report  ['This expression has type array.Array.array string @rho, but is expected to have type int']

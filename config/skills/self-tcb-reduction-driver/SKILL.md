@@ -1,0 +1,769 @@
+---
+name: self-tcb-reduction-driver
+description: >-
+  Drives (monitors) the self-tcb-reduction Squeeze Loop: when the base loop hits a WALL
+  (a `\trusted` stub it cannot convert and that is not a cheap win), this meta-loop runs
+  the review-and-break workflow — write a self-contained state-of-the-art report `XXX.md`,
+  get an INDEPENDENT `XXX-response.md` from a fable reviewer that never sees the sub-loop's
+  contents, synthesize `XXX-impl.md`, then execute it spike-gated with every agent claim
+  verified against the base loop's three L-planes. It is an SL monitoring an SL (per
+  sl-monitoring-sl). Use when the user says "run the self-tcb-reduction driver", "drive the
+  tcb reduction", "automate breaking the walls", "monitor self-tcb-reduction", or asks to
+  break a named wall XXX end-to-end. Add a DURATION ("... for 2 hours", "... for 90 min")
+  to run AUTONOMOUS time-boxed mode — iterate walls back-to-back with NO per-iteration
+  prompting until the wall-clock deadline, committing each increment (see §A). Companion:
+  self-tcb-reduction (the base loop), sl-monitoring-sl (the meta-pattern), sl-builder.
+---
+
+# self-tcb-reduction-driver — a squeeze loop that drives the self-tcb-reduction squeeze loop
+
+This meta-loop watches the **base loop** (`self-tcb-reduction`, which converts the emitter
+mirror's `\trusted` stubs to verified bodies) and, when the base loop hits a **wall** —
+a stub it cannot convert with its normal recognizers and that measurement shows is not a
+cheap win — runs the **wall-breaking workflow** end-to-end. It is a *monitor of a monitor*
+(`sl-monitoring-sl`): the driver squeezes the wall — a *soft, sub-loop-authored claim that
+"X cannot be done"* — against the base loop's own bounds, from an evidence base the
+sub-loop's actors do not share. The workflow it automates is exactly the one run manually
+and validated on the `_field_type_of` wall (report → independent review → impl plan →
+spike-gated execute → conversion OR sanctioned refutation).
+
+## P. Priority — DRAIN CHEAP WINS FIRST; break walls only when nothing cheap remains
+
+**The default order is cheap-first, walls-last, and it is not negotiable per iteration.** Wall-breaking (the
+report → fable review → impl → execute cycle) is EXPENSIVE (a fable review + spikes + multi-agent execute)
+and yields at most one stub; a cheap conversion is one gate battery and yields one stub too — so *every*
+remaining cheap win is converted BEFORE *any* wall is escalated. Concretely:
+
+- **Phase 1 (DEFAULT) — drain.** Repeatedly ask the base loop for the *next cheap stub* (`cheap_win == true`
+  under its measure-before-build triage) and convert it (full base-loop gate battery, driver-verified,
+  committed). Stay in Phase 1 as long as the base loop returns a cheap stub. This is where the driver spends
+  its time by default.
+- **Phase 2 — break walls.** ONLY when the base loop reports **no cheap stub remains** (every residual is a
+  wall or already CERTIFIED-BOUNDARY) does the driver escalate ONE wall through the full cycle (§4 steps
+  3–8). After a wall resolves — whether BROKEN (which may unlock *new* cheap stubs, e.g. a leaf that
+  un-blocks its callers) or CERTIFIED-BOUNDARY — **return to Phase 1** and re-drain before touching the next
+  wall. A BROKEN wall often creates cheap follow-ons; take them before the next expensive cycle.
+
+So the loop is: *drain all cheap → break one wall → drain all cheap again → break the next wall → …*, and it
+terminates at floor (no cheap stub AND every wall BROKEN or CERTIFIED-BOUNDARY). Gate W is the per-stub
+discriminator that implements this: it escalates a wall ONLY after confirming the cheap queue is empty.
+
+## A. Modes — interactive vs AUTONOMOUS time-boxed
+
+- **Interactive (no duration).** "Run the self-tcb-reduction-driver SL loop" → run ONE driver iteration
+  (§4), present the outcome, and STOP (the user drives the cadence — as runs #1/#2 did). Gate W may
+  present its escalate/decline decision.
+- **Autonomous time-boxed (a duration is given).** "... **for 2 hours**" / "... **for 90 min**" / "...
+  **for 45m**" → iterate walls **back-to-back with NO per-iteration prompting** until a wall-clock
+  deadline. This is the mode this section governs.
+
+### A.1 Setup (once, at invocation)
+1. Parse the duration to seconds. Compute the deadline and PERSIST it to a file (so it survives context
+   summarization across a long run — do NOT hold it only in context):
+   ```bash
+   SECS=7200   # 2h; 90 min -> 5400; 45m -> 2700
+   date -d "+${SECS} seconds" +%s > getting-better/.driver-deadline
+   date +%s > getting-better/.driver-started
+   ```
+2. Announce: "Autonomous driver: running until <deadline>. Iterating walls; committing each increment; no
+   prompts until the deadline or you interrupt."
+2a. **LOAD THE BACKLOG (§A.6).** Read `getting-better/driver-backlog.md` — the standing, pre-authorized
+    escalation ladder that makes the run self-sustaining across the WHOLE window (no mid-run "which wall?"
+    stops). If it is missing, seed it from the measured walls in the impl docs + `wall-lessons.md`. This is
+    the authorization queue: Phase 2 (A.2.3) escalates through it, and the run stops early ONLY when it is
+    empty (A.3), never merely because cheap work drained.
+3. **ARM THE HEARTBEAT — do this at setup, before any work.** Without it the run WILL stall (see A.5 for
+   why). Launch with `run_in_background: true`:
+   ```bash
+   sleep 900; NOW=$(date +%s); DL=$(cat getting-better/.driver-deadline 2>/dev/null || echo 0)
+   if [ "$NOW" -lt "$DL" ]; then echo "HEARTBEAT — $(( (DL-NOW)/60 )) min left; resume the driver loop at A.2"
+   else echo "HEARTBEAT — deadline passed; finish per A.3"; fi
+   ```
+   Exactly ONE heartbeat may be in flight at a time (two produce a notification storm). It self-limits: once
+   the deadline passes it says so and A.3 runs instead of re-arming.
+
+### A.2 The autonomous loop (repeat until the deadline)
+Each iteration, in order, WITHOUT asking the user:
+1. **Clock check.** `NOW=$(date +%s); DL=$(cat getting-better/.driver-deadline)`. If `NOW >= DL` → go to A.3
+   (finish). Reserve headroom: if `DL - NOW` is less than the estimated cost of the next step (a full cycle
+   needs ~1 fable review + spike; an inline conversion needs ~1 gate battery), do only what fits — prefer a
+   cheap inline conversion or a measurement over starting a full cycle that can't finish before the deadline.
+2. **Phase 1 — run the base loop as a SUB-AGENT, NON-INTERACTIVELY, to CONVERT the next CHEAP stub.** It
+   must NOT present its §11 menu; its task is "convert the next stub your measure-before-build triage rates
+   `cheap_win == true` (full base-loop gate battery), OR — if NONE remains — return the signal
+   `no_cheap_remaining` plus the list of residual wall stubs `{stub, first_blocker}` (never its rationale —
+   the barrier)." If it converted a cheap stub → the driver-verifier re-checks the three L-planes, COMMIT,
+   **stay in Phase 1** (next iteration, drain more). Repeat until `no_cheap_remaining`.
+   - **THE SUB-AGENT MUST PROVE/SWEEP IN THE FOREGROUND OF ITS OWN TURN AND RETURN A CONCRETE VERDICT
+     (per lesson (n)).** Its task prompt must say so explicitly: *do all census/proof work in the foreground;
+     NEVER launch a `run_in_background` sweep and then stop.* A backgrounded census that outlives the agent
+     becomes an **ownerless writer**: a measure-before-build census does port → prove → REVERT per file, so
+     it mutates the working tree in real time AFTER the agent reports "completed", racing the driver and
+     corrupting increments (run #7: an ownerless `sweep.py` bounced the count 943→938 and flickered
+     `ir.py`/`monomorphize.py`/`parser.py` dirty with `*.py.bak` backups; killed mid-cycle it left ~5 files
+     stuck in the ported state, a phantom "−5"). Commit each conversion inside the agent's own turn.
+3. **Phase 2 — escalate to the BACKLOG (only reached when Phase 1 returns `no_cheap_remaining`).** Pick the
+   TOP unresolved item from `getting-better/driver-backlog.md` — the standing, user-pre-authorized escalation
+   ladder — and escalate the full cycle (§4 steps 3–8: report → fable review [Gate R] → impl plan [Gate P] →
+   spike [Gate S] → BROKEN build [Gate B/C] or CERTIFIED-BOUNDARY). The backlog is FULL-authority (§A.6): every
+   item, INCLUDING session-scale and certificate-touching builds, is pre-authorized — do NOT stop to ask which
+   wall to pursue or whether to pursue it. Commit the outcome, drop a checkpoint (A.2.6), then **return to
+   Phase 1** and re-drain (a BROKEN wall may unlock cheap follow-ons; a CERTIFIED-BOUNDARY item is marked
+   resolved in the backlog so the next escalation skips it). Do NOT escalate while any cheap stub remains.
+   - **"Bounded work ran out" is NOT a stop condition — escalate to the next backlog item (§A.6).** The old
+     A.3 "stop early at floor" reflex was the bug the user hit repeatedly: it halted a long authorized run the
+     moment CHEAP work drained, forcing a mid-run authorization prompt for the session-scale work that was the
+     whole point of the window. The backlog moves that authorization to run-START (standing), so escalation is
+     automatic. You STOP only at the deadline or a genuinely EMPTY ladder (every item BROKEN/CERTIFIED-BOUNDARY
+     for the current tree).
+   - Per-item discipline is unchanged and non-negotiable: spike-first + refutation-exit (a wall that walls is
+     CERTIFIED-BOUNDARY, recorded with the reopening capability, NOT ground on); **lesson (p) census-FIRST**
+     (enumerate the existing certified value models / recognizers — "does one already do this?" — before
+     scoping any new certified construct; R3 was avoidable because this was skipped); the full driver-verified
+     gate battery; ledger 3; foreground-only sub-agents (lesson n).
+4. **Commit EVERY increment immediately** (a conversion, a CERTIFIED-BOUNDARY record, a lesson) so an
+   interruption at any point loses nothing. NEVER leave a dirty tree between iterations; revert a
+   sprawling/refuted build to clean before committing its finding.
+   - **ON EVERY SUB-AGENT RETURN, VERIFY NO REPO-WRITING PROCESS SURVIVED IT, BEFORE trusting any number
+     (per lesson (n)).** A sub-agent that reports "completed" may have left a `run_in_background` census
+     still walking the tree. Two checks, in order: (a) confirm no writer is alive — trace the PARENT CHAIN of
+     any live `pycsl.py`/`sweep`/`python` proc (`ps -o pid,ppid,cmd`, walk `ppid` up to its root) rather than
+     trusting `pgrep`, because the orphan is parented by THIS session and looks legitimate; (b) treat the
+     `\trusted` count as UNTRUSTED until it is STABLE across ≥3 samples several seconds apart — a single read
+     taken during a live port→prove→REVERT census is a phantom. If an ownerless writer is found: kill it +
+     its shell + its proof child (and any stale orphan), then `git checkout -- src/self-annotate/` (SANCTIONED
+     here — the working-tree churn is a dead census's garbage, HEAD is the verified state) + `find
+     src/self-annotate -name '*.py.bak' -delete` (checkout leaves UNTRACKED `.bak` backups behind), then
+     re-confirm the count is stable and fidelity is green before continuing.
+5. **Gate S-lesson** on any consolidated lesson → `wall-lessons.md`. A lesson general enough to change how
+   the DRIVER or its SUB-AGENTS must behave (not a per-wall finding) also gets a CARVE-OUT into THIS skill in
+   the same increment — the ledger holds the evidence, the skill holds the enforceable rule; a behavioral
+   rule that lives only in `wall-lessons.md` does not bind the next run (that is why lesson (n) is also A.2.2
+   + A.2.4, and why the heartbeat fix went into A.1/A.2/A.5 rather than the ledger).
+   - **CHECKPOINT, don't STOP, at each backlog transition (§A.6).** When an item resolves (BROKEN or
+     CERTIFIED-BOUNDARY), append ONE line to `getting-better/driver-progress.log` (`<ts-from-args-or-commit>
+     item<N> <BROKEN|BOUNDARY> — <count delta / reopening-capability>`) and mark it in the backlog. This is a
+     DURABLE, NON-BLOCKING breadcrumb the user skims asynchronously and can interrupt on — it REPLACES the
+     mid-run hand-back. Never end the run to report a transition; the run ends only per A.3.
+6. **BEFORE ENDING THE TURN, CHECK THE WAKE SOURCE — this is what makes the run autonomous.**
+   The turn is about to end. Ask: *is there a pending background task that will notify me?*
+   - **Yes** (a whole-file proof, a sub-agent, a sweep) → that notification resumes the loop. Do not
+     arm a second heartbeat; it would double-fire.
+   - **No** → **RE-ARM THE HEARTBEAT NOW** (the A.1.3 command). A turn that ends with no pending
+     notification ends the RUN, silently, with hours left on the clock.
+   Then go to A.2.1 on the next invocation. Do not write a status summary as a substitute for
+   continuing — narration is not an iteration, and stopping to narrate is the most common way this
+   loop dies.
+
+### A.3 Finish (deadline reached, or the backlog is TRULY exhausted — every non-BROKEN item a CORRECTNESS boundary)
+- Stop iterating. **Do NOT re-arm the heartbeat**, and `rm getting-better/.driver-deadline
+  getting-better/.driver-started` (an in-flight heartbeat then reports "deadline passed" and dies, since
+  it reads the deadline file at wake time — so removing the file is also how you kill an early stop).
+- Emit ONE summary: walls RESOLVED this run (BROKEN vs CERTIFIED-BOUNDARY), conversions + count delta,
+  lessons banked, and the unpushed-commit count. Do NOT auto-push (the standing rule holds: push only on
+  an explicit "push"/"push it") — list what is ready to push.
+- **The ONLY early-stop condition is a TRULY-EXHAUSTED BACKLOG — and a CERTIFIED-BOUNDARY does NOT by
+  itself make an item exhausted.** Before ANY early stop you MUST re-read `getting-better/driver-backlog.md`
+  from disk (never from memory/summary — memory drift is what caused the 2026-07-24 false stop, run below)
+  and CLASSIFY every non-BROKEN item's boundary as one of two kinds:
+  - **CORRECTNESS / SOUNDNESS boundary** — the make-or-break spike proved the build IMPOSSIBLE or UNSOUND for
+    reasons a bigger budget cannot fix: Why3 TYPE-REJECTS the shape (e.g. mutable elem in a pure type var), it
+    would need a NEW AXIOM (ledger would exceed 3), or the value model genuinely cannot express the semantics.
+    This is a real floor. Counts toward STOP.
+  - **COST / SCALE boundary** — the spike proved only that the build is LARGE, EXPENSIVE, multi-feature,
+    session-scale, cyclic-but-tractable, or "N new features for M stubs". This is NOT a floor: **a funded long
+    window IS the budget that pays this cost.** It does NOT count toward STOP. PROMOTE its named reopening
+    capability to a live backlog item and BUILD it (spike-first, refutation-exit, full gate battery). The
+    sexp recognizer ("3 features, session-scale") and the R1 I4 cross-mixin/method κ fixpoint (unblocks R1's
+    count payoff AND I6's 19 stubs) are COST/SCALE boundaries — exactly the work an 18h window funds.
+  **You may STOP early ONLY if every non-BROKEN item is a CORRECTNESS boundary.** If even one is COST/SCALE,
+  you are NOT at floor — escalate to it; stopping is a bug. And NEVER present a "which should I do / needs
+  fresh authorization" menu for a capability the Full-authority backlog already names as a reopening path:
+  under Full authority the funded window IS the authorization, so that menu is the forbidden mid-run stop this
+  design removed. (When you genuinely reach an all-CORRECTNESS-boundary floor, STOP, say so, and list each
+  boundary's reopening capability + WHY a bigger budget cannot fix it.)
+
+### A.6 The standing backlog — pre-authorized escalation (removes mid-run authorization stops)
+`getting-better/driver-backlog.md` is a user-curated, priority-ordered ladder of walls/directions the loop may
+pursue AUTONOMOUSLY, including session-scale and certificate-touching builds. It exists because the run kept
+stopping mid-window to ask "which wall / may I do the session-scale thing?" — authorization belongs at run
+START (standing), not as an interrupt. Rules:
+- **Full authority (current setting):** auto-pursue every item; the ONLY per-instance gates left are
+  IRREVERSIBLE / OUTWARD actions — `git push`, anything destructive or externally-visible — never the
+  build/verify. (If the user later narrows this, note the carve-out at the top of the backlog file.)
+- **CORPUS-AFFECTING VALUE-MODEL builds are IN SCOPE and AUTO-AUTHORIZED (2026-08-08 directive).** A build
+  whose spike shows it is *not byte-inert* — it changes global type-inference/lowering the corpus shares
+  (e.g. the `Set[str]` model + set ops, empty-collection-literal value-type inference, list-slice/concat
+  inference) — is NO LONGER a "flag for user authorization + hold" item. It is a normal backlog item pursued
+  autonomously under the **M1 discipline**: the corpus byte-diff is allowed to be non-zero PROVIDED (a) the
+  diff is EXACTLY the intended semantic correction (inspected, nothing incidental), AND (b) EVERY affected
+  corpus program still whole-file-proves 0 non-Valid (re-prove the changed set, no regression). A co-landing
+  axiom-free cert is still required for any genuinely new value shape; if the shape can't be certified
+  axiom-free, THAT (not the byte-diff) is the CERTIFIED-BOUNDARY. So a "spike PASSES → this is a big
+  corpus-affecting build" verdict now ESCALATES into the campaign (build → M1 byte-diff gate → control), it
+  does not stop the loop to ask. The floor is reached only when the backlog is truly exhausted (§A.3 / the
+  Exhaustion section of the backlog) — a not-yet-built corpus-affecting value-model item is NOT floor.
+- **MODULAR VERIFICATION via `#@ no_inline` is IN SCOPE and AUTO-AUTHORIZED (2026-08-11 user directive).** The
+  general heterogeneous `Dict[str,Any]` E-matching *proof-scale* wall — and ANY whole-file-proof-SATURATION wall,
+  where a stub's body proves in ISOLATION (`--fun`) but the whole-file proof times out on cross-function
+  E-matching — is NO LONGER a review-gated hold. Its reopening capability is now an authorized autonomous
+  campaign: convert the stub with the `#@ no_inline` directive so its verified body proves MODULARLY (in
+  isolation, so the whole-file proof no longer inlines it and no longer saturates). **Why it is SOUND — the
+  soundness review that gated it, now discharged:** the target is a currently-`\trusted` stub, so it ALREADY
+  emits as an abstract `val` with `ensures True` and every caller ALREADY consumes that vacuous contract, NOT
+  an inlined body. Converting it to `#@ no_inline` + a verified body therefore changes NOTHING on the caller
+  side (ZERO caller regression by construction) while upgrading the body from ASSUMED (trusted) to PROVED — a
+  STRICT soundness improvement over the trusted baseline, never a weakening. **The full battery is UNCHANGED
+  and applies in full:** the body must (a) prove 0 non-Valid MODULARLY (`--fun`), (b) leave its home file's
+  whole-file proof at 0 non-Valid (now tractable — the saturation is gone), (c) pass Gate-C NON-VACUITY (the
+  emitted body descends REAL modeled structure, mutation-sensitive — a `no_inline` abstract-`val` FACADE that
+  proves vacuously is REJECTED, exactly as any facade is), (d) hold fidelity (verbatim body), (e) hold the
+  corpus byte-diff (a `#@ no_inline` on a mirror method is corpus-inert; verify it), and (f) keep LEDGER == 3
+  (no new axiom — `no_inline` is a proof-modularity directive, not an assumption). **FORBIDDEN (the one real
+  soundness edge):** never add `#@ no_inline` to a method that is NOT currently `\trusted` and whose callers'
+  proofs DEPEND on its inlined body — that would strip those callers of information and regress them. Because
+  the campaign only ever targets currently-`\trusted` stubs (already non-inlined), this is satisfied by
+  construction; the NO-sibling-regression plane (prove EVERY mirror file whose emission the change alters)
+  enforces it as a hard gate regardless. So a "whole-file E-matching saturation / review-gated modular
+  verification" verdict now ESCALATES into the `#@ no_inline` campaign — it does NOT hold the loop, and it is
+  NOT a CERTIFIED-BOUNDARY (the value model is expressive; only the whole-file proof-scale was the obstacle,
+  and modular verification is its sanctioned, sound resolution).
+- **LEVERS — GATHER, PICK ONE, WORK IT; NEVER IDLE (2026-08-11 directive, strengthened).** The driver NEVER sits
+  idle while any lever remains un-BUILT — not even the big session-scale ones. The standing rule is exactly three
+  words: **gather the possible levers, pick one, then work.** When the cheap spike-and-land backlog is drained and
+  only *session-scale not-yet-BUILT levers* remain (a new value-model ADT + co-landing cert, a cited-proof de-trust,
+  a multi-surface / multi-feature emitter build, a large corpus-affecting value-model build), the driver does NOT
+  hold and does NOT surface a "which lever / shall I launch?" decision to the user. Each idle heartbeat:
+  (1) **GATHER / auto-list** the current levers — the ranked **LEVERS ledger** at the top of the backlog's
+  Exhaustion section (`getting-better/driver-backlog.md`), one entry per lever {what, unblocks (stub cluster), cost
+  (new cert / cited-proof / emitter-only), gate/risk}; refresh from the latest measurements each time a lever
+  resolves or a new one is discovered; (2) **RANK** by ROI = (expected stubs unblocked × landing-confidence) ÷
+  build-cost, ties → *no-new-cert* over *new-cert*, *proven-feasible* over *unproven*; (3) **PICK the top lever and
+  WORK IT — end to end**: spike-first (make-or-break), and IF the spike does NOT refute on CORRECTNESS grounds,
+  BUILD it to completion through the full three-plane battery + M1 byte-diff + independent control, across as many
+  heartbeats as it takes. A session-scale / multi-feature build is NORMAL WORK carried over successive heartbeats
+  (drive it like any WIP: spike this heartbeat, build next, battery-gate, commit), NOT a reason to defer. No user
+  confirmation.
+  **CRITICAL — what does and does NOT strike a lever (do not conflate):** ONLY a **CORRECTNESS/SOUNDNESS** boundary
+  removes a lever — a spike that proves the build IMPOSSIBLE/UNSOUND: the new value shape cannot be certified
+  axiom-free; it needs a forbidden contract (e.g. KeyError-freedom under `requires True`); Why3 type-rejection. A
+  **COST/SCALE** verdict — "multi-surface", "session-scale", "N features for M stubs", "ROI-gated", "review-gated",
+  "needs a funded window", "converts only 1 stub", "multi-session" — is **NOT a boundary, does NOT strike the lever,
+  and is NEVER a reason to hold** ([[feedback_cost_scale_not_floor]]); the funded window IS the budget that pays it,
+  so PICK it and BUILD it. A lever refuted on CORRECTNESS → CERTIFIED-BOUNDARY, struck, auto-advance to the
+  next-ranked lever the SAME turn. The user picking a lever manually overrides; absent that, the ROI ranking IS the
+  pick.
+  **HOLDING is the true floor ONLY when EVERY lever is a CORRECTNESS CERTIFIED-BOUNDARY** — i.e. not one remains
+  that a build could complete. A single not-yet-BUILT lever — however session-scale, however low its per-stub ROI —
+  means the driver is WORKING it, not holding. "I measured it and it's ROI-gated / needs-a-session, so I hold" is a
+  BUG, not a floor.
+- **The backlog is the escalation queue for Phase 2** (A.2.3): always take the top UNRESOLVED item. Mark items
+  BROKEN / CERTIFIED-BOUNDARY as they resolve; a boundary records the capability that would reopen it.
+- **Seed + maintain it:** if the file is missing at A.1, create it from the measured walls in the impl docs +
+  `wall-lessons.md`; keep it current as walls resolve and new ones are discovered. It is the single source of
+  truth for "what may I work on without asking."
+- Per-item discipline (spike-first, refutation-exit, lesson-(p) census-first, gate battery, ledger 3,
+  foreground sub-agents) is unchanged — full authority speeds up WHICH walls, never HOW rigorously.
+
+### A.4 Autonomy discipline (non-negotiable — speed never relaxes rigor)
+- **The gate battery is unchanged.** Autonomous mode runs FASTER by not prompting, never by skipping a
+  gate: fidelity ∧ whole-file Why3 ∧ byte-diff-0 (or sanctioned reset) ∧ ledger==3 ∧ non-vacuity, and every
+  agent claim re-verified by the driver-verifier (§2). A speed-motivated `--fun`-only accept is forbidden.
+- **Cross-turn continuation.** A single turn's context is finite; when it fills before the deadline, the
+  harness summarizes and continues — the persisted `.driver-deadline` file is how the next context window
+  knows to keep going and when to stop (re-read it each iteration; do not re-ask the user). The deadline
+  file is the single source of truth for WHEN to stop; the heartbeat (A.1.3 / A.2.6 / A.5) is the
+  mechanism for STAYING ALIVE until then. Both are required — neither substitutes for the other.
+- **Interruptibility.** A user message mid-run is honored immediately (answer it, then resume or stop per
+  their instruction). Each increment being committed means an interrupt is always at a clean boundary.
+- **CARVE-OUT (lesson (a4), gen #31) — DO NOT EXTRACT A HELPER METHOD IN A MIRRORED FILE.**
+  Ordinary refactoring instinct says put ~30 new lines in a private method. In
+  `src/pycsl/**` that costs two planes at once and both are structural: (1)
+  `check-mirror-coverage.py`'s ratchet moves (a live def with NO mirror counterpart is not
+  `\trusted`, it is ABSENT — it carries no marker, so the headline count cannot see it);
+  and (2) every mirror that IMPORTS the module gains an unused abstract
+  `val <cls>___<method> ...` in its emission, which by lesson (r) owes a whole-file
+  re-proof of exactly those mirrors. Measured on route #218: ratchet 549 -> 550 and two
+  mirror emissions moved, both of which vanished when the block was written INLINE at the
+  site that runs it — and the inline is safe precisely when the enclosing method's mirror
+  twin is `\trusted`, so check that first. Write the block where it runs; extract only
+  when the extraction is itself the point.
+- **CARVE-OUT (lesson (b4), gen #31) — A ZERO BYTE-DIFF DOES NOT CLEAR A FRONT-END CHANGE.**
+  The byte-diff compares EMISSIONS; `frontend-only-conformance.py` / `core-only-conformance.py`
+  compare the INTERMEDIATE IR against frozen goldens. A Module 1-5 change can be
+  emission-inert today and still alter the IR — route #218 added one optional top-level key,
+  swept 0 MOVED across 1310 + 2199 files, and turned 13 goldens red. Run the FAST BATTERY,
+  not just the sweep, before calling a front-end increment inert; and when goldens must be
+  refreshed, PROVE the per-golden delta is only the intended key
+  (`only-new=[...] missing=[] changed=[]`) before rewriting any of them.
+- **CARVE-OUT (lesson (u6), gen #31) — DIFF THE BATTERY AGAINST THE GATES THE DOCUMENTS
+  DECLARE, AND PERTURB A MEMBER OUTSIDE EVERY "ALL N ARE GREEN" POPULATION.**
+  Two independent ways a gate battery lies, both measured by adding ONE line to a gate script:
+  (1) `bin/self-annotate-mirror-check.sh` is declared as half of the fidelity plane by
+  `self-tcb-reduction.md`, `triage-ranked-tcb.md`, `README.md` and four impl docs, exits 1 on
+  drift, and is in NEITHER `bin/run-soundness-planes.sh` NOR `bin/run-reference-tests.sh`. It
+  had been red for an unknown number of generations while every gate reported fidelity green.
+  The existing discipline — diff `ls bin/` against the plane array — could not find it, because
+  the gate is declared in PROSE. **So the list to diff the battery against is the set of gates
+  the DOCUMENTS claim, not the set of files that look like planes.** Do this once per window,
+  early: it is a `grep` over the skill + `triage-ranked-tcb.md` + `README.md`, and it found a
+  standing red in minutes. (2) `check-self-annotate-sync.sh` prints "all 896 un-trusted mirror
+  functions are verbatim copies of the live source" while pairing mirror defs with live defs IN
+  THE SAME FILE ONLY — so the 17 `#@ sibling_concrete` CROSS-FILE relocations are not in the
+  896, and perturbing one left the plane green at exit 0. Three had already drifted.
+  **Before quoting any plane's count, ask what its POPULATION is and perturb a member OUTSIDE
+  it. Every plane whose message begins "all" owes that test**, and the test costs one scratch
+  tree and one edit. This is the sixth instrument failure of one shape in a single generation,
+  and the first whose wrong scope produced a false ALARM rather than a false all-clear — which
+  is why the rule is about SCOPE, not about polarity.
+- **CARVE-OUT (lesson (c4), gen #32) — INVOKE THE BYTE-DIFF COMPARATOR ONCE PER EMITTED TREE,
+  AND ASSERT BOTH FILE COUNTS.** `bin/byte-diff-sweep.sh` emits the pycsl corpus into `<out>` and
+  the python-reference corpus into `<out>/pyref`. `bin/byte-diff-compare.py` builds its file set
+  from `os.listdir(d)` filtered to `.mlw` — **FLAT, it does not recurse.** A gate that calls it
+  once on the two root directories emits 2199 python-reference files, pays for them, and never
+  compares them, while printing a confident three-direction green. Measured on gen #32's route-#227
+  gate; caught only by diffing this gate's summary line against gate U's, which reads
+  "1378/1378 **+ 2199/2199**" — TWO comparisons. (`diff -rq`, the recipe in §5, DOES recurse; the
+  comparator is the one that does not, and it is the one that classifies MOVED / GONE / APPEARED
+  and honours `--expect-gone`/`--new-source`, so it is the one you actually want — twice.) A
+  sweep's output-directory count is not its comparison count.
+- **CARVE-OUT (lesson (d4), gen #32) — TEE EVERY GATE LEG IN FULL AND CAPTURE ITS `rc`; NEVER
+  `tail -N` A LEG YOU WILL LATER BE ASKED TO QUOTE.** `bin/run-reference-tests.sh` reports an XPASS
+  with a `[XPASS]` line and folds it into `failed`, and its confirmed-FAIL RE-RUN rebuilds the
+  failure list WITHOUT the `(XPASS)` tag — so a `tail -40` of that leg cannot establish ZERO XPASS,
+  which is a standing acceptance condition. When it happens, the argument that rescues you is the
+  **0-MOVED byte-diff**: every pre-existing file's emission being byte-identical means no
+  pre-existing file can flip its verdict on account of the change, leaving only the NEW files, each
+  of which should have been measured individually already. Keep that argument — and fix the script,
+  because the next gate may not have a 0-MOVED sweep to fall back on.
+- **CARVE-OUT (lesson (a5), gen #33) — GREP EVERY GATE'S BASELINE FOR A DEFERRED ACTION, ONCE PER
+  WINDOW, EARLY.** A gate's allowlist/BASELINE prose is read exactly once — when it is written —
+  and from then on the gate prints OK. So a deferral parked in a baseline is strictly LESS visible
+  than the same deferral parked in `driver-backlog.md`, and it is disguised as a passing check.
+  MEASURED: `bin/check-hashed-literal-purity.py` (gen #30) baselines 22 rows and its comment ends
+  "searching for one is recorded as the follow-up rather than done here". It had named the collision,
+  the discriminator and the exposed destination correctly, and left ONE seconds-long search undone.
+  It stayed green for THREE generations; doing the search produced route #228, a proved false
+  postcondition. The sweep is a grep over `bin/` for `follow-up`, `not done here`, `rather than
+  done`, `left for`, `the shape to look for`, `recorded as`, `TODO`, `unprobed`, `not yet`. Two
+  riders: (i) **search the PROPERTY the gate names, not the EXAMPLE its comment pictures** — gen
+  #30's recorded shape (two formats differing in endianness) was narrower than the real family (pad
+  runs, because `slot_id` ignores pad), and searching only the recorded shape would have found
+  nothing and "confirmed" the baseline; (ii) **a discharged deferral must stop reading like a
+  deferral IN THE PLACE IT WAS WRITTEN**, or the next generation re-derives it from scratch — which
+  is exactly what gen #33 did for an hour before noticing the plane.
+- **CARVE-OUT (lesson (b5), gen #33) — A PROBABILITY IN A JUSTIFICATION IS A CHECK NOBODY WROTE.**
+  `stable_hash` justified itself with "distinct strings -> distinct ints **w.h.p.**". A probabilistic
+  premise cannot be load-bearing in a DEDUCTIVE verifier's TCB, and the tell is that the premise was
+  DECIDABLE all along — injectivity over the strings ONE EMISSION folds is a dict and a comparison
+  (measured population: 91 at the largest). Grep the TCB for `w.h.p.`, `with high probability`,
+  `unlikely`, `in practice`, `should not happen`, `virtually never`, `collision-resistant`, and ask
+  what the check would cost. **And never answer it with more bits:** widening lowers the probability
+  and keeps the premise probabilistic, which is route #227's lesson in a new costume. Also check the
+  **MODULUS** — a `% 100000` applied after the hash is four orders of magnitude more collidable per
+  pair than the hash itself.
+- **CARVE-OUT (lesson (c5), gen #33) — "LIVE-SIDE ONLY" IS NOT "MIRROR-INERT"; THE MIRROR IS
+  TYPE-CHECKED AGAINST THE **LIVE** CALLEE.** The mirror is emitted with
+  `--import-path src/pycsl`, so a mirror's call to a helper resolves to the LIVE definition and
+  NEVER reads the mirror's own `\trusted` copy. Adding a `raise` to a shared leaf is therefore
+  inherited by every mirror that CALLS it — arriving through the EXCEPTION SET, not through the
+  fidelity plane, which compares bodies. Measured: route #228's guard in
+  `identifiers.py::stable_hash` made emitted `statements.mlw` fail `--type-only` outright
+  ("this expression raises unlisted exception PyCSLSemanticError"), and 3 mirror files call that
+  helper. **`grep -rln '<helper>' src/self-annotate/src/` before calling any live-only edit free.**
+  Two riders: (i) **verify BOTH ends** — a plane that is RED now is only YOURS if it was GREEN
+  then, and a worktree at the pre-change commit makes that a measurement; (ii) **the fix for a
+  mis-placed guard is to NARROW ITS HOME, not to weaken it** — and check what ALREADY covers the
+  residue (here an existing plane did) before widening it back out.
+- **CARVE-OUT (lesson (d5), gen #33) — PREDICT THE **LEDGERS**, NOT ONLY THE EMISSION.** Five
+  plane REDs in one generation, all mine, none predicted, one predicted GREEN — and every one was a
+  LEDGER that indexes what was touched rather than the code that runs it, while the EMISSION
+  predictions (both byte-diffs 0 MOVED, the suite total) were exact three batteries running. Before
+  any gate, ask which ledgers index the change: a **corpus file** touches the vacuity CEILINGS
+  (`ensures True`, `requires True`), the hashed-literal-purity BASELINE and the suite TOTALS; a
+  refusal **added, EDITED or MOVED** touches the witness census (keyed on MESSAGE TEXT, so an edit
+  breaks it exactly as a move does) and the advice audit; a `\trusted` marker touches
+  `trusted-reasons.tsv` and the headline count; an emitted DECLARATION touches the purity baseline.
+  **Re-measure a stale ledger row, never hand-edit it** (delete + `--append-new`, which records by
+  RUNNING the witness). And **a new refusal whose population is empty still owes its debt** — the
+  honest currency is a GATE behind the exclusion, with a control, never an exemption.
+  **(d5, extended by the SIXTH red)**: a **`raise`** added to a method with a `\trusted` mirror
+  stub touches the raises ledger ONCE PER MIRROR FILE that stubs it — one raise took SILENT
+  62 -> 65 because `_add_abstract_op` is stubbed in three mirrors. **When a ratchet objects, ask
+  first whether the RATCHET IS RIGHT.** Here it was: declaring `#@ raises` would have put a
+  `raises` clause on the emitted abstract `val` and cascaded into every mirror caller, which is
+  lesson (c5) by the declared route. **A runtime guard over a population only YOUR OWN SOURCE can
+  create belongs in a GATE, not in the emitter** — it costs no ledger and owes no witness. And
+  **check whether an improvement is YOURS before banking it**: a worktree at the pre-change commit
+  showed the "win" of silent 61 < ratchet 62 had been true for generations, with the plane's own
+  "lower the constant" line going unread.
+- **CARVE-OUT (lesson (e5), gen #33) — PRE-CHECK THE FAILING LEG ALONE, AND TREAT A REDUNDANT
+  ADDITION AS A REGRESSION.** A nine-line "pull the dependency" predicate was refused by the corpus
+  byte-diff THREE times, each for a different reason and each correctly: it matched a NAME rather
+  than a use (`str_concat` is not `concat`); it scanned the wrong GRANULARITY (`abs_lines` holds
+  whole multi-line decls, so nothing "starts with `ensures`"); and it ignored what ALREADY SATISFIED
+  the dependency (`use string.Char` re-exports `String`). **A dependency predicate has those three
+  independent failure modes and the witness passing checks only the first.** Two rules: (i) the
+  corpus byte-diff is **6 MINUTES MEASURED** and a full battery ~3 h — **after the FIRST unexpected mover, iterate
+  against the sweep alone**, never against the whole battery; (ii) iterations 1 and 3 produced files
+  that still type-checked and were still correct, and the byte-diff was RIGHT to reject them —
+  **"it is harmless" is not the standard, "I declared it" is.**
+- **CARVE-OUT (lesson (f5), gen #33) — WHEN A REPAIR MAKES ONE RATCHET GREEN AND ANOTHER RED, DO
+  NOT PICK A SIDE: FIND THE STATE THAT SATISFIES BOTH.** Two planes can bracket one invariant from
+  opposite ends and be ANTI-CORRELATED. Measured: `check-assigns-writes-survival` counts
+  DECLARED-but-not-EMITTED (TRAP 2989, "may only SHRINK") and `check-assigns-underdeclaration` counts
+  WRITTEN-but-not-DECLARED (TRAP 18). For a field written but not class-declared, omitting it from
+  the clause raises the second and naming it raises the first — repairing all 18 clauses was
+  byte-inert and took 18 -> 0 while taking 2989 -> **3000**. **Only declaring the field on its CLASS
+  drives both to zero**, which is why that ratchet has never shrunk. The tension is INFORMATION: it
+  says the repair was half of something. And a **"may only SHRINK" declaration is part of the gate**
+  — the no-re-baselining rule applies hardest when the cause reads well, because that is what makes
+  re-baselining feel earned. **Before pricing a frame change, grep the plane array for the other
+  planes watching the same nouns** (`assigns`, `writes`, `frame`).
+- **CARVE-OUT (lesson (f5) EXTENDED + (g5), gen #34) — THE FRAME BRACKET IS A CHAIN OF THREE, AND
+  THE CLAUSE AND THE DECLARATION ARE TWO DIFFERENT REPAIRS.** (f5) named two anti-correlated ratchets;
+  there is a THIRD side and it is the ratcheted one. `check-assigns-underdeclaration --transitive`
+  has ceiling **HOLE-T 0**, and **declaring a field switches ON the HOLE arm for every OTHER clause
+  that omits it** — 32 of 148 TRAP-T rows carried one of option 3's 13 fields and only 13 were the
+  direct rows the plan repaired, so **19 would have fired**. Measuring that BEFORE touching a line is
+  the only reason no plane went red. **Before declaring anything into a record, enumerate every other
+  clause that mentions — or transitively ought to mention — that field.**
+  Two riders, both measured and both load-bearing:
+  (i) **THE CLAUSE IS WHAT THE UNDERDECLARATION PLANE MEASURES AND WHAT EVERY CALLER CONSUMES; THE
+  DECLARATION IS WHAT THE SURVIVAL PLANE NEEDS, AND ONLY WHERE IT REACHES THE RECORD.** A class-level
+  annotation reaches the record for `TypeInferenceMixin`/`StatementEmissionMixin` and NOT for
+  `FunctionEmissionMixin` (no record fields at all), NOT for `PyCSLWeaver` (record from `__init__`),
+  and NOT at class level for `PyCSLToJSONEmitter` (its class-body AnnAssign path is gated
+  `if not fields and self._is_dataclass_decorated(node)`, so the annotation is collected for a
+  `@dataclass` and is otherwise SILENTLY INERT — declare it in the `\trusted` `__init__` stub
+  instead). Where it does not reach the record the declaration is inert AND makes the HOLE arms
+  accountable: liability for no honesty. Pairing them one-for-one is what made gen #33's patch raise
+  2989 -> 3000.
+  (ii) **A RATCHET WHOSE POPULATION IS GATED ON THE PROPERTY IT MEASURES CAN RISE ON AN HONEST
+  REPAIR.** `check-assigns-writes-survival` skips a symbol with no `writes` clause, so a clause that
+  is 100% dropped is INVISIBLE — its worst case. Fixing one field admits the method and the count
+  rises by the rest (measured 2989 -> 2996). Do NOT re-baseline: pay for the whole method and put the
+  widened population behind its OWN ratchet. And **the declared frame of a `\trusted` stub IS the
+  caller-side assumption, verbatim** — `assigns self.x` gives the abstract op `writes { self.x }` and
+  the caller's false postcondition is Unknown; `assigns \nothing` collapses it to a receiver-less
+  `val` and the same postcondition is **Valid**. So an under-declared clause is SOUNDNESS debt while
+  the survival TRAP is AUDIT debt; they are not one thing.
+- **CARVE-OUT (lesson (g5), gen #34) — A REPAIR'S PATTERN MUST BE NO BROADER THAN THE ACTION IT
+  REPAIRS, EXACTLY AS A VERIFICATION'S MUST BE NO NARROWER.** `git log --diff-filter=A <commit>` walks
+  the WHOLE HISTORY up to that commit, so un-tracking "the 39 files my `git add -A` swept in"
+  un-tracked **631**. Caught because the count did not match the number intended, and reverted in
+  full. Gen #33's delete-verification globbed one level too SHALLOW; this globbed ALL OF HISTORY —
+  same defect, opposite sign. **ASSERT THE POPULATION SIZE AGAINST THE NUMBER YOU EXPECTED BEFORE
+  ACTING ON IT.** The single-commit query is `git show --diff-filter=A --name-only <commit>`. And the
+  right answer was to do nothing: 790 such files were already tracked, so **a cleanup that contradicts
+  790 existing instances is a new POLICY, and a new policy does not belong in a commit about something
+  else.** Use targeted `git add <path>` in this tree, never `-A`.
+- **CARVE-OUT (gen #34) — `bin/mirror-emit-sweep.sh` IS 53 MIRROR FILES IN ~52 SECONDS.** It is the
+  CHEAPEST instrument in the campaign — an order cheaper than the 6-minute corpus byte-diff lesson (e5)
+  recommends — and it is the right way to iterate any record / frame / class-declaration change: it
+  tells you the exact mover set and therefore the exact re-proof bill. Gen #34 ran it eight times in
+  one hour to price a change gen #33 had estimated at 7-25 hours and measured at ~3. **Price a frame
+  or record change with this sweep BEFORE writing the second line of it.** (And per (d4): tee a gate
+  leg IN FULL — piping the plane run through `tail -40` cost the quotability of a 59/59 green.)
+- **CARVE-OUT (lesson (v6), gen #35) — AFTER EVERY FIELD-DECLARATION BATCH, `why3 --type-only` THE
+  MOVED FILES; THE TYPE-CHECKER IS THE FRAME CHAIN'S FOURTH SIDE.** Declaring a field makes it
+  mentionable, and every CONCRETE (converted) caller whose `#@ assigns` omits a field its callee's
+  DECLARED frame writes becomes "this expression produces an unlisted write effect". Measured: 23
+  verified ExpressionEmissionMixin methods, invisible to all three frame ratchets (the transitive
+  underdeclaration arm walks LIVE bodies, not declared callee frames). Iterate the clause repairs
+  against the ONE moved file's emit + type-check (~10 s a round), never against a battery. The
+  opposite edge is checked too: a `writes` the body never performs is "this write effect does not
+  happen" (#74) — so a declared frame on a concrete `let` must be exactly as honest as its body.
+- **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
+  a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
+  the wall-signal for the next run) and spend the tail on cheaper items.
+
+### A.5 WHY the heartbeat exists (read this before deciding it is ceremony)
+
+**Observed failure, run #6, 2026-07-22.** A 13-hour run was authorized four separate times and stalled
+every time with 8–12 hours still on the clock. The deadline file was correct, the work was not finished,
+and no gate had failed. The user had to retype the command to restart it, repeatedly.
+
+**Root cause — the assistant does not run between turns; it does not exist between them.** A turn begins
+when something invokes the assistant and ends when it stops emitting tool calls. There is no internal
+timer, and `.driver-deadline` is an inert file: it says when to STOP, and nothing about it can WAKE
+anything. So the only things that continue an autonomous run are:
+  1. a **background task completing** (`run_in_background: true`) — its completion notification re-invokes
+     the assistant; this is what produced the long autonomous stretches in run #6 (launch a 40-minute
+     whole-file proof → turn ends → dormant → proof finishes → notification → commit → launch next), and
+  2. a **user message**.
+
+Therefore: **a turn that ends with no pending background task ends the RUN.** Every stall in run #6 was
+exactly that — an increment finished, no proof was in flight, a status summary was written, and the loop
+went dormant with hours remaining. The heartbeat exists solely to guarantee case (1) is never empty.
+
+Two corollaries worth internalizing:
+- **Narration is the main hazard.** Stopping to summarize does not merely cost tokens — it is the act that
+  ends the turn. If nothing is backgrounded when you do it, it ends the run. Prefer chaining the next
+  measurement into the same turn; report when a real increment lands, and only with a wake source pending.
+- **Long proofs are FEATURES here, not obstacles.** A backgrounded 40-minute whole-file proof is both a
+  required gate and a free heartbeat. Launch the proof, keep working on a non-conflicting track in the
+  same turn, and let its notification drive the next iteration.
+
+The heartbeat re-invokes the assistant; it does not make the run unkillable. A turn that dies on an error
+still breaks the chain, and the user can always interrupt (A.4). Cost is real: a self-sustaining loop
+consumes tokens continuously for the whole window, which is what "for 13 hours" authorizes.
+
+## 0. Deliverable & correctness
+
+- **Deliverable (per wall XXX):** the wall is **RESOLVED** — one of two gate-defined verdicts,
+  never a third:
+  - **BROKEN** — one or more `\trusted` stubs behind the wall convert to verified bodies,
+    each passing the base loop's full gate battery (fidelity ∧ Why3 ∧ byte-diff-0), `\trusted`
+    count strictly down, ledger unchanged.
+  - **CERTIFIED-BOUNDARY (leave-trusted)** — the wall is a genuine limit, proven by the impl
+    plan's make-or-break spike REFUTING the build (before any emitter work), recorded with a
+    reproducible reason (a hand `.mlw`, an oracle run) and a one-line lesson.
+- **"Correct" (checkable):** the report `XXX.md` states nothing `L` refutes; the reviewer's
+  `XXX-response.md` is authored WITHOUT the sub-loop's rationale in context; `XXX-impl.md`'s
+  first action is a make-or-break spike (measure-before-build); every executing agent's claim
+  is re-verified by the driver against the three L-planes; the final verdict is BROKEN (gates
+  green) or CERTIFIED-BOUNDARY (spike refuted) — never "grind until done".
+- **Terrain: B (authored authority) + C (split planes).** The wall report is `U` authored
+  upstream (by the sub-loop) and independently reviewed; correctness splits across the base
+  loop's three disjoint oracle planes that must never blend.
+- **Dominant coherent-and-wrong to guard:** (1) a **wrong report** the reviewer rubber-stamps
+  (mitigated: reviewer gets `L`, not just prose); (2) a **wrong/incomplete impl plan** executed
+  to sprawl (mitigated: spike-gate + refutation exit); (3) an **agent over-claim** accepted
+  (mitigated: three-L-plane re-verification); (4) an **over-general wall-lesson** entering the
+  store (mitigated: Gate S); (5) **escalating a non-wall** (mitigated: the wall-escalation gate).
+
+## 1. Bounds
+
+- **Upper bound `U`:** the base loop's contract discipline (`self-tcb-reduction.md`,
+  `triage-ranked-tcb.md`, §10 lessons: type-safety+frame contract shape; measure-before-build;
+  no-unused-facade; coupling rule; ledger stays 3) **+** the wall report `XXX.md` (a *soft*
+  reading the reviewer may refute or carve). The strongest claim any driver actor may make.
+- **Lower bound `L` (the base loop's three disjoint executable planes, ALL required):**
+  - **Fidelity:** `bin/check-self-annotate-sync.sh` ∧ `bin/self-annotate-mirror-check.sh`.
+  - **Type-safety:** `python3 src/pycsl/pycsl.py <file> --import-path src/pycsl` (whole-file
+    proof, §10.10) + `--fun` per method; `proof_axiom_allowlist` unchanged.
+  - **Corpus inertness / sanctioned reset:** `bin/byte-diff-sweep.sh` + `diff -rq` vs a
+    worktree-at-HEAD baseline == 0 — OR, for a semantics-preserving shared-theory change, the
+    diff is *exactly* the change AND every affected program re-proves (the M1 discipline).
+  Plus the ledger audit (`Print Assumptions` / `#print axioms` == 3) and the strictly-decreasing
+  `\trusted` `wc -l`.
+
+## 2. Actors and their disjoint (U,L) pairs
+
+| Actor | Builds | U (above) | L (below) | Forbidden move | Must NOT see |
+|-------|--------|-----------|-----------|----------------|--------------|
+| **driver-coordinator** | wall detection, phase sequencing, verdict (BROKEN / CERTIFIED-BOUNDARY), the wall-lesson ledger | base loop `U` + the report | the gate-machine outputs + spike verdicts | edit the emitter/mirror; rubber-stamp a claim or a lesson | the base loop's in-context rationale (runs it as a **sub-agent**) |
+| **base loop** (`self-tcb-reduction`, run as a SUB-AGENT) | the routine conversions; surfaces a wall when stuck | base loop `U` | base loop `L` (its three planes) | (its own §2 forbidden moves) | — |
+| **report author** (may be the driver, tainted) | `XXX.md` — the state-of-the-art wall statement | base loop `U` | — (this is `U`, not `L`) | claim more than the measured facts | — |
+| **fable reviewer** (independent, `subagent_type` fable) | `XXX-response.md` | base loop `U` (the discipline) | base loop `L` (Why3/byte-diff/**can spike**) | see the sub-loop's rationale, attempts, or reasoning; edit source | **the sub-loop's contents** (only `XXX.md` + `L` in context) |
+| **impl planner** | `XXX-impl.md` (spike-first, refutation-exit) | `XXX.md` ∧ `XXX-response.md` | — | assert "cleared" without a spike | — |
+| **executor agent(s)** | the emitter/mirror edits per `XXX-impl.md` | the impl plan + the fixed contract shape | Why3 **type-check** (`--fun`) locally | weaken/vacuate a contract; add an axiom; loosen a gate; leave an un-trusted-unverified method | the byte-diff baseline; the driver's verdict logic |
+| **driver-verifier** | re-runs the three L-planes FRESH on every executor claim; the spike re-proof | the plan's gate battery + the contract shape | the actual oracle verdicts | trust an agent's self-reported gate result | the executor's recognizer rationale (surface + gate results only) |
+
+- **Disjointness (C1):** the **fable reviewer** holds `U`+`L` but NEVER the sub-loop's rationale
+  (its whole value is the independent evidence base); the **report author** holds only `U` (it may
+  be tainted — that is *why* the reviewer exists); the **executor** holds the plan + local
+  type-check but never the corpus baseline or the verdict; the **driver-verifier** holds the
+  acceptance oracles but never the executor's code rationale. No actor can relieve its own
+  constraint.
+- **Catchability (C2):** report author's *coherent-and-wrong wall claim* → caught by the fable
+  reviewer (independent `U`+`L`); reviewer's *over-scoped fix* → caught by the impl plan's
+  make-or-break spike (measure); executor's *over-claim / sprawl* → caught by the driver-verifier's
+  three-L-planes + the refutation exit; driver's *over-general lesson* → caught by Gate S.
+
+## 3. Gates
+
+- **Gate W (wall-escalation — fires the whole workflow, or does NOT).** The base-loop sub-agent
+  RETURNS, as its soft output (never its in-context rationale — the barrier), a structured
+  **wall-signal**: `{stub, attempts_spent, first_blocker (the exact --fun/type error), cheap_win:
+  bool}` where `cheap_win` is the base loop's own measure-before-build verdict (port → whole-body
+  `--fun` → classify → revert). Escalate to the report→review→impl→execute cycle ONLY if
+  `attempts_spent ≥ the per-stub budget` AND `cheap_win == false` AND the stub is not already in
+  `wall-lessons.md` as CERTIFIED-BOUNDARY **AND the stub is STILL `\trusted` AT HEAD** (the
+  FRESHNESS PRECONDITION below) **AND the cheap queue is empty** (Phase 1 has drained — the base
+  loop reported `no_cheap_remaining`; see §P). Draining cheap wins ALWAYS precedes breaking a wall.
+  Otherwise the base loop handles it inline. The driver
+  gates on the RETURNED wall-signal, not by reading the sub-loop's work — this is the cost control
+  (the cycle is expensive: report + fable + impl + multi-agent execute) AND the barrier (the driver
+  decides from soft outputs only).
+  - **FRESHNESS PRECONDITION — re-verify the TARGET STILL EXISTS before escalating (2026-08-26).**
+    A backlog / `wall-lessons.md` entry names a wall's target stub, and that entry can be STALE: a
+    LATER window may have converted the target by a DIFFERENT route and never retired the record.
+    So before any escalation, run the one-command oracle on the target's own mirror file:
+    ```bash
+    grep -cF '#@ \trusted' src/self-annotate/src/<path>.py    # 0 => the target is ALREADY CONVERTED
+    ```
+    If the named stub is not among them, the item is **REFUTED AS STALE** — payoff 0, and NOT a
+    CERTIFIED-BOUNDARY — so strike it from the ladder, record which commit actually converted it,
+    and advance to the next lever in the SAME turn. Never open a report/review/impl cycle on a stub
+    that is no longer trusted. *Observed 2026-08-26:* the `find_assigned_vars` structural-
+    robustification item sat at the TOP of the ladder, and had been escalated into the authority
+    amendment as a pre-authorized RISKY build, for a target (`_collect_mutations`) that commit
+    `c6557971` had already converted via the heterogeneous value-model root — `ir_scanner.py`'s
+    mirror had **0** trusted markers. The chain `#18 -> #21 -> #22 -> "the ONLY remaining path
+    is ..."` had propagated a reopening for a wall that no longer existed. The rule generalizes to
+    every number a backlog entry carries: **re-measure, never inherit.**
+- **Gate R (reviewer independence — WITH ARTIFACT TEETH).** `XXX-response.md` is accepted only if
+  BOTH hold: (a) it was authored by an actor whose context contained `XXX.md` + `L` and provably
+  NOT the sub-loop's rationale (enforced by spawning fable with only the report + repo/oracle
+  access, never the base-loop transcript); AND (b) **it contains at least one independent ORACLE
+  ARTIFACT** — a hand `.mlw` the reviewer wrote and proved with `why3 prove`, a `byte-diff-sweep`
+  it ran, an emit-and-`grep` of the actual generated WhyML, or a `pycsl --fun` run — that CONFIRMS
+  or REFUTES a NAMED factual claim of `XXX.md` (e.g. "the report says `map` can't be iterated —
+  verified: `for x in m` is a why3 syntax error", or "the report says byte-inert — refuted: 0882
+  changed"). A response that only re-reasons from the prose, with **zero** oracle runs cited, is
+  REJECTED as a rubber stamp — the fable prompt (step 4) MUST demand the artifact, and the driver
+  MUST check the response cites one. This is the load-bearing fix: the reviewer's value is a
+  *different evidence base (`L`)*, not a second opinion on the prose; an unrun `L` makes the review
+  a `U`-only audit that must SAY SO and is downgraded (per sl-monitoring-sl "oracle availability is
+  honest, not assumed").
+- **Gate P (impl-plan acceptance — the spike-gate cannot be skipped).** `XXX-impl.md` is accepted
+  for execution ONLY if its FIRST action is a named **make-or-break falsifier spike** (a cheapest
+  test that could REFUTE the whole build before any emitter edit) AND it carries an explicit
+  **refutation exit** (a "spike REFUTES → CERTIFIED-BOUNDARY, stop" branch) AND the three-L-plane
+  gate battery AND honest costed scope. An impl plan that begins with "build" instead of "spike",
+  or that has no refutation branch, is REJECTED and re-planned — this is what prevents step 6's
+  "execute until done" from grinding an impossible wall (the failure point of the raw idea).
+- **Gate S (impl-plan spike — measure before build).** `XXX-impl.md`'s FIRST executed action is
+  its make-or-break spike. Its verdict routes the loop: spike PASSES → proceed to the build; spike
+  REFUTES → the wall is CERTIFIED-BOUNDARY (record + stop, do NOT build); spike REFINES (a
+  different blocker) → re-plan the residual, do not sprawl. "Cleared" is never asserted without the
+  spike's run.
+- **Gate B (machine — per executor increment).** All three L-planes pass FRESH (driver-verifier,
+  not the executor's self-report): fidelity ∧ whole-file Why3 ∧ byte-diff-0 (or sanctioned-reset
+  + re-proof) ∧ ledger==3 ∧ `\trusted` strictly down ∧ nothing smuggled (no axiom, no gate
+  loosening, no un-trusted-unverified method).
+- **Gate C (coverage / no-blend / coherent-and-wrong).** The three planes never blend (a `--fun`
+  pass never stands in for the whole-file proof; neither stands in for byte-diff-0 or fidelity);
+  non-vacuity (the converted body reads real accessors, no opaque `_get_N <hash>`); a
+  feature-editing-a-verified-emitter-method carries the §10.4 re-port + re-proof in the SAME
+  increment; every touched stub ends VERIFIED or FLOOR+reason.
+- **Gate S-lesson (skill-consistency, per sl-monitoring-sl) — WITH A CONCRETE STORE.** The lesson
+  **store** is a named ledger: `getting-better/wall-lessons.md` (one entry per resolved wall), and,
+  for a lesson general enough to change base-loop policy, a CARVE-OUT appended to
+  `self-tcb-reduction.md` §10 — NEVER an inline edit to the base loop's reasoning. The **write
+  protocol:** a candidate lesson (the driver's compressed takeaway from a resolved wall, e.g.
+  "search-by-value-field ≠ enumerate → check for a missing index before `pydict`") is checked
+  BEFORE it is written: **ignore-signal** lessons ("treat X as a wall/noise") get the **trigger
+  test** (perturb X, does `L`'s verdict move?) → PASS / CARVE-OUT / REJECT; **defer-to-oracle**
+  lessons ("on case S do the L-sanctioned action") get the **validity test** (does `L` actually
+  distinguish S?). Only PASS or CARVE-OUT is written, WITH: the wall it came from, the `L`-input
+  that revealed the divergence, and (for a carve-out) the exact narrower rule. An over-general
+  lesson is carved to its valid complement, never kept whole; an irreconcilable one is REJECTED and
+  logged (loud-fail). This is the gate that stops "all `.values()` are walls" from entering as a
+  rule — the trigger test finds the reverse-index-fixable input and forces the carve-out.
+
+## 4. Loop steps (per wall XXX)
+
+1. **driver-coordinator** runs `self-tcb-reduction` as a **sub-agent** (one level deeper — the
+   barrier is physical) in **Phase 1 (drain)**: the sub-agent converts routine (cheap) conversions
+   until NONE remains, returning either a converted-cheap-stub result (→ commit, stay in Phase 1) or
+   the `no_cheap_remaining` signal + the residual wall list (the stub + its measured first blocker),
+   NOT its full rationale. **Only** `no_cheap_remaining` advances to step 2 (Phase 2 / wall-breaking).
+   See §P — draining ALL cheap wins precedes breaking ANY wall.
+2. **Gate W** → escalate or continue. On escalate, the driver names the wall `XXX` (a short slug).
+3. **report author** writes the self-contained state-of-the-art report:
+   > *"Write the self-contained report `XXX.md` to be sent for review regarding state of the art.
+   > Provide the global picture to help the reviewer."*
+   It states the global picture (what PyCSL is, where the wall sits), the wall as first seen, the
+   deeper truth (is it fundamental or a modeling choice?), the SOTA lens, the honestly-costed routes,
+   and honest limits — every claim reproducible from cited evidence.
+4. **fable reviewer** (Gate R): spawn a **fable** sub-agent (`model: fable` / `subagent_type` fable)
+   whose context is `XXX.md` + repo access to the base loop `U`/`L` (Why3, byte-diff, `pycsl --fun`,
+   the ability to write+prove a `.mlw` spike) and **NOT** the sub-loop's contents/transcript. Prompt:
+   *"Using `XXX.md`, generate `XXX-response.md` — an independent review. You MUST RUN the oracle:
+   write and prove at least one `.mlw` spike, or run a byte-diff / emit-and-grep / `pycsl --fun`, to
+   CONFIRM or REFUTE a named factual claim of the report — cite the run and its output. A review with
+   no oracle run is not acceptable."* Gate R checks the returned `XXX-response.md` cites ≥1 oracle
+   artifact; if not, REJECT and re-spawn (a prose-only response is the rubber stamp this gate exists
+   to stop).
+5. **impl planner** synthesizes:
+   > *"Using `XXX-response.md` and `XXX.md`, generate `XXX-impl.md`, an implementation plan to break
+   > the wall."*
+   Then **Gate P**: accept the plan for execution ONLY if its first action is a make-or-break spike
+   with a refutation exit + the three-L-plane battery + costed scope; else re-plan (no execution from
+   a build-first plan).
+6. **executor(s)** (spawned per the plan): *"Execute `XXX-impl.md` by spawning one or several agents
+   to do the plan. Favor rigor. Check the claims made by the agent."* Each agent leaves edits for the
+   driver-verifier — no commit.
+7. **Gate S (spike)** → PASS (build) / REFUTE (CERTIFIED-BOUNDARY, record + stop) / REFINE (re-plan
+   residual). Then per built increment: **Gate B** (three L-planes FRESH, driver-verifier) → **Gate C**
+   (no-blend + non-vacuity + §10.4). Verify EVERY agent claim independently — this session's record
+   shows agents over-claim on `--fun`-only, on `ugrep` counts, on "byte-inert" premises.
+8. **Verdict.** BROKEN (commit the conversions, `\trusted` down) or CERTIFIED-BOUNDARY (commit the
+   report+response+impl+spike evidence, `\trusted` unchanged, wall recorded). **Gate S-lesson** on any
+   consolidated lesson. Next wall. **Never** a partial/un-verified commit; **never** "grind until done".
+
+## 5. Executable oracle setup
+
+"A verdict" = the conjunction of §1's three L planes + ledger==3 + strictly-decreasing `\trusted`.
+Per-increment (driver-verifier, FRESH from the surface):
+```bash
+bash bin/check-self-annotate-sync.sh && bash bin/self-annotate-mirror-check.sh          # fidelity
+PYTHONHASHSEED=0 python3 src/pycsl/pycsl.py <file> --import-path src/pycsl               # whole-file proof
+# byte-diff-0 (worktree-at-HEAD baseline, .venv symlinked, ONE foreground sweep):
+git worktree add --detach <wt> HEAD; ( cd <wt> && bin/byte-diff-sweep.sh /tmp/before )
+bin/byte-diff-sweep.sh /tmp/after && diff -rq /tmp/before /tmp/after                     # inertness (or sanctioned reset)
+for f in $(find src/self-annotate/src -name '*.py'); do grep -cF '\trusted' "$f"; done | paste -sd+ | bc  # count (grep -F: avoid ugrep \t quirk)
+```
+**CARVE-OUT (lesson (r), 2026-08-26) — EMISSION-DIFF BEFORE PROOF SWEEP.** When an increment changes
+the EMITTER, do NOT scope the re-proof set as "every file matching the gate". Emit every mirror in a
+worktree-at-HEAD and in the patched tree, and `diff` them. Only the files that actually change need a
+whole-file proof, and the diff itself is evidence that nothing unintended was emitted (a blind all-green
+sweep proves the weaker thing). Measured payoff: 8 of 52 mirrors changed, and the two slowest mirrors —
+one exceeding 9 minutes — dropped out of the set entirely.
+
+**CARVE-OUT (lesson (s), 2026-08-26) — A SPIKE PROVES THE TARGET, THE EMITTER GIVES THE DISTANCE.** Never
+name a capability gap from a hand-written spike alone: the spike models the construct the way YOU chose,
+which may be harder than what the emitter actually produces. Before writing any gap into a plan or a
+backlog item, emit that construct through `pycsl.py --no-proof --keep-mlw` and read the generated WhyML.
+Measured payoff on one wall: a 7-item gap list collapsed to 4, and the discarded items included a
+"required lexicographic loop variant" that the emitter's exception-based `break` lowering makes moot.
+
+The **spike** oracle (Gate S) is a hand-written `.mlw` proven with `why3 prove -P alt-ergo` (fall back
+to `-P z3`), asserting the impl plan's make-or-break target is reachable/provable/ledger-clean — run,
+not argued (`getting-better/composition-wall/*.mlw` are the templates).
+
+## 6. Done criteria (gate-defined, never self-declared)
+
+A wall is RESOLVED when the driver-verifier's gates return BROKEN (all three L-planes green on the
+conversion, ledger 3, count down) OR CERTIFIED-BOUNDARY (the impl plan's spike REFUTED the build with a
+reproducible reason). The campaign is at floor when every remaining stub is BROKEN, CERTIFIED-BOUNDARY,
+or below Gate W (a cheap win the base loop handles). No actor's self-report counts.
+
+## 7. Stabilizers engaged (collapse-mode defenses)
+
+- **Rubber-stamped wrong report** → Gate R (reviewer gets `L`, not just prose; independence enforced by
+  the fable barrier) + the impl-plan spike (an independent `L`-run that a prose-only review can't fake).
+- **Grind-until-done on an impossible wall** → the refutation exit: "done" = BROKEN ∨ CERTIFIED-BOUNDARY,
+  the impl plan is spike-first, a REFUTE verdict stops the build.
+- **Agent over-claim accepted** → the three-L-plane driver-verifier; the executor never owns a gate
+  verdict; count via `grep -F` (the `ugrep \t` trap).
+- **Over-general wall-lesson** → Gate S-lesson (trigger/validity test → carve-out, never keep-whole).
+- **Escalating a non-wall (cost blowout)** → Gate W (only genuine, measured, non-cheap walls escalate).
+- **Barrier leak (driver sees sub-loop rationale)** → run `self-tcb-reduction` as a SUB-AGENT; run the
+  reviewer as a fable sub-agent with only `XXX.md`+`L`; both barriers are physical (context), not honorary.
+- **Feature edits a verified emitter method** → Gate C's §10.4 re-port + re-proof in the same increment.
+- **Sanctioned-but-unproven shared-theory change** → the M1 discipline (diff = exactly-the-change ∧ all
+  affected programs re-prove ∧ ledger 3), never "byte-diff nonzero, probably fine".
+
+## 8. Execution order
+
+**DRAIN CHEAP FIRST (§P):** Phase 1 = run the base-loop sub-agent to convert every cheap stub, looping
+until `no_cheap_remaining`; ONLY THEN Phase 2 = Gate W → (one wall) report → fable review (Gate R) → impl
+plan → spike (Gate S) → BROKEN build (Gate B/C) or CERTIFIED-BOUNDARY → **return to Phase 1** (a BROKEN wall
+may unlock new cheap stubs). Sequence walls serially (shared emitter recognizers ⇒ conflicts); the ONLY
+safely-parallel actor is the read-only measurement/triage probe.
+Escalate-not-thrash: a per-wall attempt budget; a refuted or sprawling build reverts to clean + records
+a gap, never leaves an un-verified tree.
+
+## 9. Reference: the workflow's proven instance
+
+The `_field_type_of` wall is the worked example this loop generalizes: `file-type-of-wall.md` (report,
+SOTA framing: map-non-enumerability is a representation choice, not fundamental), `…-response.md` (the
+independent fable review's reverse-index carve-out), `…-impl.md` (the spike-gated plan), and the outcome
+(S-R2 spike REFUTED the map-`.values()` build → CERTIFIED-BOUNDARY; the reverse-index+U path validated its
+mechanism but cascaded → residuals scoped). It demonstrates all four gate verdicts: Gate R caught the
+report's over-scope, Gate S refuted one build and refined another, Gate B/C caught agent over-claims, and
+the Gate S-lesson carve-out ("search-by-value-field ≠ enumerate") repaired an over-general wall-lesson.

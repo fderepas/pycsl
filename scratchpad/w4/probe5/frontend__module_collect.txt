@@ -1,0 +1,2 @@
+L3TC-FAIL            <module>.collect_module_constants  ['This expression has type int -> option.Option.option int, but is expected to have type int']
+L3TC-FAIL            <module>.collect_module_globals  ['This expression has type int -> option.Option.option int, but is expected to have type int']

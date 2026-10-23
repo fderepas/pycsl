@@ -155,6 +155,18 @@ The field-subscript term `self.field[i]` is usable in any contract (e.g. a hand-
 preservation `ensures`). See `annotations.md` §2.5. Demos: corpus `0459` (proves), `0460`
 (in-region write fails at its site), `0461`/`0462` (trusted boundary with/without `\preserves`).
 
+**Element projection off a self array field — `self.field[i].sub`.** When the field is a
+`List[<record>]`, a contract may project a field of the ELEMENT: `self.toks[\length(self.toks) - 1].py_type
+== "EOF"`. It is the same production as `arr[i].field` / `\result[i].field` (annotations.md §4c/§4d)
+with `self.<field>` as the base — no new directive — and lowers to the native record projection over the
+array read. Reach for it when a stateful cursor/parser needs a SENTINEL class invariant: the EOF-at-the-last-index
+invariant is what makes a `while self.at_op(...)` loop TERMINATE (the sentinel forces `self.i < len - 1`
+whenever the loop condition holds, so `advance` really increments and `\length(self.toks) - self.i` decreases).
+Restate the class invariant as a `loop invariant` too — the class invariant is not automatically available
+inside a loop that writes `self`. A `== "<literal>"` invariant of this shape also pins the record's `by {}`
+inhabitance witness, so state it only where the code really guarantees it. Demos: corpus `0900` (proves),
+`0901` (negative twin — wrong literal, and the same loop without the sentinel, both stay unproven).
+
 **Repetitive fixed-size clauses — prefer `#@ for` over `\forall`.** For a fixed, statically-sized run
 of near-identical `requires`/`ensures` (codec bytes, struct fields, a fixed-width buffer), write a
 `#@ for` block instead of copy-pasting or a quantifier:

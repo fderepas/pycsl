@@ -1,0 +1,40 @@
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 72, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1489 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 72, characters 15-19:
+Sub-goal postcondition of goal _process_sertop_line'vc.
+Prover result is: Valid (0.00s, 1240 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 134, characters 15-19:
+Sub-goal postcondition of goal sertop_available'vc.
+Prover result is: Valid (0.00s, 748 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 46, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 66, characters 18-19: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 68, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 72, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 116, characters 19-25: unused variable tokens
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 118, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 120, characters 20-21: unused variable s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 122, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 124, characters 26-36: unused variable proof_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 124, characters 47-56: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 126, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 128, characters 24-34: unused variable load_paths
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 128, characters 42-45: unused variable cwd
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 128, characters 56-70: unused variable require_module
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 128, characters 81-90: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 128, characters 107-116: unused variable timeout_s
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 128, characters 125-139: unused variable require_prefix
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 130, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 134, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 140, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 142, characters 36-40: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 142, characters 58-72: unused variable require_module
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 142, characters 83-92: unused variable qualnames
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_lgwqkwlp.mlw", line 144, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

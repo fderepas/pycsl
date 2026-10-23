@@ -1,0 +1,75 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/desugar.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 47, characters 20-34:
+Sub-goal loop invariant init of goal _chain_operand_repeatable'vc.
+Prover result is: Valid (0.00s, 279 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 40, characters 15-19:
+Sub-goal postcondition of goal _chain_operand_repeatable'vc.
+Prover result is: Valid (0.00s, 293 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 40, characters 15-19:
+Sub-goal postcondition of goal _chain_operand_repeatable'vc.
+Prover result is: Valid (0.00s, 372 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 48, characters 18-42:
+Sub-goal loop variant decrease of goal _chain_operand_repeatable'vc.
+Prover result is: Valid (0.01s, 4000 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 47, characters 20-34:
+Sub-goal loop invariant preservation of goal _chain_operand_repeatable'vc.
+Prover result is: Valid (0.01s, 4122 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 48, characters 18-42:
+Sub-goal loop variant decrease of goal _chain_operand_repeatable'vc.
+Prover result is: Valid (0.01s, 3477 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 47, characters 20-34:
+Sub-goal loop invariant preservation of goal _chain_operand_repeatable'vc.
+Prover result is: Valid (0.01s, 3635 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 40, characters 15-19:
+Sub-goal postcondition of goal _chain_operand_repeatable'vc.
+Prover result is: Valid (0.00s, 297 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 70, characters 15-19:
+Sub-goal postcondition of goal desugar_chained_comparisons'vc.
+Prover result is: Valid (0.00s, 275 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 87, characters 18-33:
+Sub-goal loop invariant init of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 279 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 81, characters 32-36:
+Sub-goal exceptional postcondition of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 361 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 81, characters 32-36:
+Sub-goal exceptional postcondition of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 416 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 88, characters 16-42:
+Sub-goal loop variant decrease of goal reject_unmodelled'vc.
+Prover result is: Valid (0.01s, 4752 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 87, characters 18-33:
+Sub-goal loop invariant preservation of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 4478 steps).
+
+File "/tmp/.pycsl_8u_bv4tx.mlw", line 80, characters 15-19:
+Sub-goal postcondition of goal reject_unmodelled'vc.
+Prover result is: Valid (0.00s, 297 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_8u_bv4tx.mlw", line 43, characters 8-11: unused variable sub
+Warning, file "/tmp/.pycsl_8u_bv4tx.mlw", line 40, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_8u_bv4tx.mlw", line 64, characters 38-42: unused variable self
+Warning, file "/tmp/.pycsl_8u_bv4tx.mlw", line 64, characters 62-66: unused variable node
+Warning, file "/tmp/.pycsl_8u_bv4tx.mlw", line 70, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_8u_bv4tx.mlw", line 74, characters 24-28: unused variable tree
+Warning, file "/tmp/.pycsl_8u_bv4tx.mlw", line 83, characters 8-12: unused variable node
+
+[+] Verification SUCCESS! All contracts formally proven.

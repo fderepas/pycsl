@@ -1,0 +1,15 @@
+{
+  "compile_ok": true,
+  "compile_stdout": "",
+  "compile_stderr": "",
+  "elapsed_compile_s": 0.7650074639823288,
+  "qualname_results": [
+    [
+      "Pycsl.Reference.Json.mirror_involution",
+      true,
+      [
+        "propext"
+      ]
+    ]
+  ]
+}

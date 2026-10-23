@@ -53,15 +53,17 @@ ARM = {
     "Pass":            ("LEMMA",   "skip_code_state_coherent"),
     # Implicit sequencing of a block is the SSeq arm (proved lemma).
     "_seq":            ("LEMMA",   "seq_code_state_coherent"),
-    # No base-WP arm yet — explicitly audited-trusted (LINK-2 only).
-    "FieldAssign":     ("TRUSTED", "(no WP arm)"),
-    "FieldAugAssign":  ("TRUSTED", "(no WP arm)"),
-    "ArraySliceSet":   ("TRUSTED", "(no WP arm)"),
-    "TupleUnpack":     ("TRUSTED", "(desugars to SSeq∘SAssign)"),
-    "CriticalSection": ("TRUSTED", "(concurrency — out of base model)"),
-    "GhostAssign":     ("TRUSTED", "(ghost — erased at extraction)"),
-    "GhostArraySet":   ("TRUSTED", "(ghost — erased)"),
-    "Expr":            ("TRUSTED", "(expression statement / SCall)"),
+    # Proved Why3 coherence lemma (Z3-Valid) + PROVED-COMPOSED in Rocq
+    # (Phase6L_ComposeIfWhile.v emit_stmts_coherent, 0 Admitted); effect axiom = audited D2 boundary.
+    "FieldAssign":     ("LEMMA",   "field_assign_code_state_coherent"),
+    "FieldAugAssign":  ("LEMMA",   "field_aug_code_state_coherent"),
+    "ArraySliceSet":   ("LEMMA",   "slice_set_code_state_coherent"),
+    "Expr":            ("LEMMA",   "expr_code_state_coherent"),
+    # Reduce to the proved fragment / proved-composed in Rocq; still audited-trusted at THIS script's layer.
+    "TupleUnpack":     ("TRUSTED", "(reduces to proved SSeq∘SAssign fragment)"),
+    "CriticalSection": ("TRUSTED", "(proved-via-body in Rocq; real concurrency havoc = Phase-7)"),
+    "GhostAssign":     ("TRUSTED", "(proved-composed in Rocq ghost_assign_coh; ghost — erased at extraction)"),
+    "GhostArraySet":   ("TRUSTED", "(proved-composed in Rocq ghost_arrset_coh; ghost — erased)"),
     "Try":             ("TRUSTED", "(exceptions)"),
     "Raise":           ("TRUSTED", "(exceptions)"),
     "Match":           ("TRUSTED", "(desugars to SIf chain)"),

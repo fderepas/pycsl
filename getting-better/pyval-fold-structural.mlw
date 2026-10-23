@@ -1,0 +1,31 @@
+module FoldStructural
+  use int.Int
+  use option.Option
+  use map.Map
+  use string.String
+
+  type pyval =
+    | PStr string | PInt int | PArr pyval_list
+    | PMap (map string (option pyval)) | PNode pyval
+  with pyval_list = PNil | PCons pyval pyval_list
+
+  (* Structural mutual recursion — NO variant clause; Why3 infers the
+     structural (well-founded) descent on the ADT. This is the campaign's
+     irlist/stmt_list fold shape. *)
+  let rec function count_strs (v: pyval) : int =
+    match v with
+    | PStr _  -> 1
+    | PInt _  -> 0
+    | PMap _  -> 0
+    | PNode n -> count_strs n
+    | PArr l  -> count_strs_list l
+    end
+  with function count_strs_list (l: pyval_list) : int =
+    match l with
+    | PNil      -> 0
+    | PCons h t -> count_strs h + count_strs_list t
+    end
+
+  goal fold_runs:
+    count_strs (PArr (PCons (PStr "a") (PCons (PInt 3) PNil))) = 1
+end

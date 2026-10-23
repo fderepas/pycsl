@@ -1,0 +1,2 @@
+[!] constant-fallthrough: src/pycsl/module6_whyml/expressions.py:14993 `_handle_issorted_expr` falls through to the Why3 constant `false`, and no entry in this gate's baseline says why that is not a decision the model gets to make. Add a classification (with a probe that consumes it in a GUARD) or make the answer opaque.
+[!] constant-fallthrough: baseline entry (_handle_issorted_expr, true) no longer matches any site. Remove it — a baseline that outlives its site hides the next one.

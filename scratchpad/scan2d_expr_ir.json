@@ -1,0 +1,200 @@
+[
+ {
+  "stmt": "If",
+  "test": {
+   "type": "UnaryOp",
+   "op": "not",
+   "expr": {
+    "type": "Call",
+    "func": "isinstance",
+    "args": [
+     {
+      "type": "Var",
+      "name": "expr"
+     },
+     {
+      "type": "Var",
+      "name": "dict"
+     }
+    ]
+   }
+  },
+  "body": [
+   {
+    "stmt": "Return",
+    "value": null
+   }
+  ],
+  "orelse": []
+ },
+ {
+  "stmt": "Assign",
+  "target": "t",
+  "value": {
+   "type": "Call",
+   "func": "expr.get",
+   "args": [
+    {
+     "type": "String",
+     "value": "type"
+    },
+    {
+     "type": "String",
+     "value": ""
+    }
+   ]
+  }
+ },
+ {
+  "stmt": "If",
+  "test": {
+   "type": "BinOp",
+   "op": "==",
+   "left": {
+    "type": "Var",
+    "name": "t"
+   },
+   "right": {
+    "type": "String",
+    "value": "Subscript"
+   }
+  },
+  "body": [
+   {
+    "stmt": "Assign",
+    "target": "inner",
+    "value": {
+     "type": "Call",
+     "func": "expr.get",
+     "args": [
+      {
+       "type": "String",
+       "value": "value"
+      },
+      {
+       "type": "DictLit",
+       "keys": [],
+       "values": []
+      }
+     ]
+    }
+   },
+   {
+    "stmt": "If",
+    "test": {
+     "type": "BinOp",
+     "op": "==",
+     "left": {
+      "type": "Call",
+      "func": "inner.get",
+      "args": [
+       {
+        "type": "String",
+        "value": "type"
+       }
+      ]
+     },
+     "right": {
+      "type": "String",
+      "value": "Subscript"
+     }
+    },
+    "body": [
+     {
+      "stmt": "Assign",
+      "target": "root",
+      "value": {
+       "type": "Call",
+       "func": "inner.get",
+       "args": [
+        {
+         "type": "String",
+         "value": "value"
+        },
+        {
+         "type": "DictLit",
+         "keys": [],
+         "values": []
+        }
+       ]
+      }
+     },
+     {
+      "stmt": "If",
+      "test": {
+       "type": "BinOp",
+       "op": "and",
+       "left": {
+        "type": "BinOp",
+        "op": "==",
+        "left": {
+         "type": "Call",
+         "func": "root.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "type"
+          }
+         ]
+        },
+        "right": {
+         "type": "String",
+         "value": "Var"
+        }
+       },
+       "right": {
+        "type": "BinOp",
+        "op": "in",
+        "left": {
+         "type": "Call",
+         "func": "root.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "name"
+          }
+         ]
+        },
+        "right": {
+         "type": "Var",
+         "name": "param_names"
+        }
+       }
+      },
+      "body": [
+       {
+        "stmt": "Assign",
+        "target": "idx1",
+        "value": {
+         "type": "Call",
+         "func": "inner.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "index"
+          },
+          {
+           "type": "DictLit",
+           "keys": [],
+           "values": []
+          }
+         ]
+        }
+       },
+       {
+        "stmt": "Assign",
+        "target": "idx2",
+        "value": {
+         "type": "Call",
+         "func": "expr.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "index"
+          },
+          {
+           "type": "DictLit",
+           "keys": [],
+           "values": []
+          }
+         ]

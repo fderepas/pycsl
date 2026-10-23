@@ -81,6 +81,7 @@ def run_ir_semantic_checks(ir: Any, *, stage: str = "ir-semantic") -> None:
         _check_subscript_assignments(func)
         _check_checkpoints(func)
         _check_mutable_defaults(func)
+        _check_scalar_return_annotation(func)
         _check_acts(func)
         _check_ghost_string_ops(func)
         _check_diverges(func)
@@ -417,6 +418,14 @@ def _check_contract_scope(func, module_constants) -> None:
     same context strings. Variable extraction mirrors Module 4's ``extract_variables``
     via ``_ir_free_vars`` (binders, ``\\result`` and ``self`` fields excluded)."""
     symtab = func.get("symbol_table") or {}
+    # W8 capability (ii): a `*vals: str` vararg is a real parameter (lowered to a
+    # `seq string`), so it is legitimately in scope in the function's contracts —
+    # `#@ requires x in vals`. Module 4 never records a vararg in `symbol_table`,
+    # so add it here for the scope check only. Absent for every function without a
+    # str-annotated vararg.
+    _va_name = func.get("vararg_str_param")
+    if _va_name and _va_name not in symtab:
+        symtab = {**symtab, _va_name: "tuple"}
     fname = func.get("name", "<anonymous>")
     fctx = f"function '{fname}'"
     contracts = func.get("contracts") or {}
@@ -550,12 +559,44 @@ def _check_subscript_assignments(func) -> None:
     functions only (any `requires`/`ensures`/`assigns` — loop invariants do NOT count).
     The context is uniformly `function 'F'` (no surface tracking). The data is already
     in the IR (no plumbing): `ArraySet{array, index, value}` + `symbol_table`."""
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    # WL-06b (bytes immutability): a `bytes` element write `b[i] = v` is a Python
+    # TypeError ('bytes' object does not support item assignment) — bytes is
+    # IMMUTABLE. Reject it UNCONDITIONALLY (a genuine language error, not a
+    # contract concern), so it never lowers to an unsound mutable `Array.set`.
+    # `bytearray` (mutable) and `list`/`Any` are unaffected. Byte-safe: no corpus
+    # program writes to a bytes-literal local (a bytes value is otherwise a param
+    # whose write already fails the annotated list/dict check below).
+    _sa_immutable_walk(func.get("body", []) or [], where, symtab)
     c = func.get("contracts") or {}
     if not (c.get("requires") or c.get("ensures") or c.get("assigns")):
         return  # unannotated function — Module 4 skips the check, so do we
-    where = f"function '{func.get('name', '<anonymous>')}'"
-    symtab = func.get("symbol_table") or {}
     _sa_walk(func.get("body", []) or [], where, symtab)
+
+
+def _sa_immutable_walk(node, where, symtab) -> None:
+    """Reject a subscript-store `b[i] = v` to an IMMUTABLE `bytes` variable
+    (Python: TypeError, 'bytes' object does not support item assignment). Runs
+    unconditionally (not gated on annotation). `bytearray` is mutable and NOT
+    rejected here (its element write is a sound array mutation)."""
+    if isinstance(node, dict):
+        if node.get("stmt") == "ArraySet":
+            arr = node.get("array")
+            if isinstance(arr, dict) and arr.get("type") == "Var":
+                if symtab.get(arr.get("name")) == "bytes":
+                    raise PyCSLSemanticError(
+                        f"Subscript assignment to immutable 'bytes' variable "
+                        f"'{arr.get('name')}' in {where} — a Python `bytes` object "
+                        f"does not support item assignment (TypeError). Use a "
+                        f"`bytearray` for a mutable byte buffer.",
+                        code="PYCSL-SEM-SUBSCRIPT",
+                    )
+        for v in node.values():
+            _sa_immutable_walk(v, where, symtab)
+    elif isinstance(node, list):
+        for x in node:
+            _sa_immutable_walk(x, where, symtab)
 
 
 def _sa_walk(node, where, symtab) -> None:
@@ -734,27 +775,32 @@ def _body_has_raise(body) -> bool:
     return found[0]
 
 
-def _body_has_return(body) -> bool:
+def _body_has_return(body: list) -> bool:
     """True iff the IR body contains a ``Return`` statement (anywhere, at any depth).
     A ``Return`` (with or without a value) is a NORMAL-EXIT path — the very thing a
-    ``NoReturn`` function must not have."""
-    found = [False]
+    ``NoReturn`` function must not have.
 
-    def walk(node):
-        if found[0]:
-            return
-        if isinstance(node, dict):
-            if node.get("stmt") == "Return":
-                found[0] = True
-                return
-            for v in node.values():
-                walk(v)
-        elif isinstance(node, list):
-            for x in node:
-                walk(x)
-
-    walk(body)
-    return found[0]
+    Flat direct-recursive statement-tree existence walk (self-tcb-reduction
+    tree-walk-wall): descends every statement-body child list — ``body``/
+    ``orelse``/``finalbody`` (While/For/If/Try/With), each ``handlers`` entry's
+    body (Try), and each ``cases`` entry's body (Match) — which are the only IR
+    positions a ``Return`` statement can occur. Verbatim-identical to the
+    self-annotation mirror, where it lowers to the certified stmt_ir
+    ``sl_has_return`` catamorphism (byte-diff-0, both provers, axiom-free)."""
+    for stmt in body:
+        if stmt.get("stmt") == "Return":
+            return True
+        for key in ("body", "orelse", "finalbody"):
+            sub = stmt.get(key)
+            if isinstance(sub, list) and _body_has_return(sub):
+                return True
+        for h in stmt.get("handlers", []):
+            if _body_has_return(h.get("body", [])):
+                return True
+        for c in stmt.get("cases", []):
+            if _body_has_return(c.get("body", [])):
+                return True
+    return False
 
 
 def _check_noreturn(func) -> None:
@@ -775,6 +821,15 @@ def _check_noreturn(func) -> None:
     normal-exit path slips past this check, the ``ensures { false }`` VC fails
     at proof time."""
     if not func.get("is_noreturn"):
+        return
+    # A `\trusted` / `#@ \abstract` stub emits as a bodyless WhyML `val`: its `ensures
+    # { false }` (NR1) is a reviewer-vouched INTERFACE assumption, not a claim about the
+    # placeholder body (`pass`). The NR2a body-justification is meaningless there — it
+    # exists to catch a REAL body that can return normally yet claims NoReturn. The trust
+    # boundary is where the never-returns fact is discharged out of band (e.g. the live
+    # `_ContractParser._err` body is an unconditional `raise`, mirrored here as a trusted
+    # stub). Exempt both, exactly as the emitter treats them as assumption-only vals.
+    if func.get("trusted") or func.get("abstract"):
         return
     name = func.get("name", "<anonymous>")
     body = func.get("body", []) or []
@@ -985,6 +1040,100 @@ def _check_lemma(func, trusted_funcs) -> None:
             code="PYCSL-SEM-LEMMA")
 
 
+# --- (#50) ROUTE #51 shape (a): a `-> str` contradicted by `return None` -------
+
+def _returns_literal_none(body) -> bool:
+    """True iff the IR body contains an EXPLICIT ``return None`` (or a bare ``return``,
+    which is the same value). The mirror image of ``_lemma_returns_value``."""
+    found = [False]
+
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            # A NESTED `def` HAS ITS OWN RETURNS AND ITS OWN ANNOTATION, and not
+            # excluding it is a FALSE POSITIVE this check was measured making:
+            # `core_ir_semantic._lemma_calls_trusted(body, trusted) -> str` returns
+            # the empty string, never `None` — its only bare `return` is the early
+            # exit of the nested `walk` helper. Two of the four census hits were
+            # this same shape.
+            if node.get("stmt") in ("FunctionDef", "AsyncFunctionDef", "Lambda"):
+                return
+            if node.get("stmt") == "Return":
+                v = node.get("value")
+                if v is None or (isinstance(v, dict)
+                                 and v.get("type") in ("None", "CSLNone")):
+                    found[0] = True
+                    return
+            for x in node.values():
+                walk(x)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
+
+
+def _check_scalar_return_annotation(func) -> None:
+    """(#50) ROUTE #51 shape (a) — REFUSE A `-> str` THAT RETURNS `None`.
+
+    A Python return annotation is not enforced at run time, and the model BELIEVES it.
+    Route #50 left `is None` on a string with a third answer — the always-present
+    `false` — for a name the function never binds to `None`, and route #51's Module 6
+    half narrowed that to names the function actually BINDS. A local bound from a CALL
+    *is* such a name, so the caller may soundly decide with it ONLY IF the callee's
+    annotation is true. Measured at `27cf17b1` (`scratchpad/w49/probe50/q2.py`):
+
+        def pick(self, c: int) -> str:      # declares `str`
+            if c > 0: return "a"
+            return None                     # and returns None anyway
+
+        s = self.pick(c)
+        if s is None: return 0
+        return 7                            # `\result == 7` PROVED. Python returns 0.
+
+    So the refusal is what MAKES the caller's decision honest; it is not a separate
+    tidiness rule. SCOPED TO `-> str` DELIBERATELY, and the scope was measured, not
+    guessed: the `-> int` spelling of the same file FAILS CLOSED today (it reaches
+    route #44's opaque `pycsl_none`), so a refusal there would buy nothing and cost
+    nine mirror re-annotations. Census at `27cf17b1`: ten mirror functions declare a
+    scalar return and `return None`, and exactly ONE is `-> str`.
+
+    (#49) ROUTE #198 CORRECTS THE SCOPE ARGUMENT ABOVE. "The `-> int` spelling of the
+    same file FAILS CLOSED today" was measured for the EXPLICIT `return None` — and it
+    was true of that spelling. It was never measured for the BARE `return`, which is the
+    same Python statement: `_returns_literal_none` (above) counts both, but Module 6 did
+    not. A bare `return` in an int-returning function lowered to `raise (Return 0)`, so
+    `#@ requires x > 0` / `#@ ensures \result == 0` over `def f(x: int) -> int: if x > 0:
+    return` PROVED while CPython answers `None`, with the TRUE twin `\result != 0`
+    REFUSED. Repaired at the emitter (`stmt_control_flow.py`, the `val == "()"` arm), which
+    now emits the same `pycsl_none` the explicit spelling gets — so the scope argument is
+    true again, for both spellings, and this time both were measured. THE LESSON IS ABOUT
+    THIS DOCSTRING, not about that arm: a scope that is justified by "the other case fails
+    closed" has to name WHICH SPELLINGS of the other case were run.
+
+    RESIDUE, STATED RATHER THAN HIDDEN: a callee that returns `None` IMPLICITLY, by
+    falling off the end, has no `return None` for this check to see
+    (`scratchpad/w51/q6.py`). It fails closed today, but by a TYPE ACCIDENT — the
+    missing-return path makes Why3 expect `()` where a `string` is supplied — not by
+    anything that intends to. Recorded in the route file; if that accident is ever
+    fixed, this check must grow the fall-through arm with it.
+    """
+    if func.get("return_annotation") != "str":
+        return
+    if not _returns_literal_none(func.get("body", []) or []):
+        return
+    name = func.get("name", "<anonymous>")
+    raise PyCSLSemanticError(
+        f"function '{name}' is annotated `-> str` but can `return None`. Python "
+        f"does not enforce the hint and the model BELIEVES it: a caller's "
+        f"`<result> is None` test is then DECIDED false and the branch the program "
+        f"actually takes is deleted from the proof. Annotate `-> Optional[str]` "
+        f"(the model carries that faithfully) or remove the `return None`.",
+        code="PYCSL-SEM-RETANN")
+
+
 # --- mutable default argument (front-end-resolved flag) ----------------------
 
 def _check_mutable_defaults(func) -> None:
@@ -998,8 +1147,17 @@ def _check_mutable_defaults(func) -> None:
             f"Mutable default argument in function '{func.get('name', '<anonymous>')}': "
             f"a list/dict/set default is a single object shared across all calls (a "
             f"shared-aliasing bug) and is outside PyCSL's value-semantics boundary "
-            f"(ownership discipline R2). Use a `None` sentinel and initialise the "
-            f"collection in the body.",
+            f"(ownership discipline R2). Give the parameter NO default and let the "
+            f"caller supply the collection (`def f(xs: List[int])`, called as "
+            f"`f([0, 0])`) — measured, that VERIFIES. The `None`-sentinel form this "
+            f"message used to advise (`xs: Optional[List[int]] = None`, initialised in "
+            f"the body) DOES NOT COMPILE TODAY: `Optional[List[T]]` as a parameter type "
+            f"emits WhyML with an unbound type symbol `array`, while `List[T]` and "
+            f"`Optional[int]` each compile fine. Measured in gen #30. The missing "
+            f"`use array.Array` was FIXED the same day; what remains is deeper — the "
+            f"union TYPE declares the list arm's payload as `int` while the arm GOAL "
+            f"quantifies `array int`, so the injection goal is genuinely FALSE. A "
+            f"completeness gap in the emitter, not an unsoundness: it FAILS.",
             code="PYCSL-SEM-MUTDEFAULT",
         )
 
@@ -1107,7 +1265,7 @@ def _check_happy(ir) -> None:
                 stacklevel=2)
 
 
-def _hp_collect_written(node, written) -> None:
+def _hp_collect_written(node: Any, written: set) -> None:
     if isinstance(node, dict):
         if node.get("stmt") == "ArraySet":
             arr = node.get("array")
@@ -1605,6 +1763,27 @@ def _union_c8_recognized_guard(test: Any) -> bool:
         for side in (test.get("left"), test.get("right")):
             if isinstance(side, dict) and side.get("type") == "None":
                 return True
+        # no-more-int leak fix: a string-literal equality on a Union-typed variable
+        # (`symtype == "str"`) IS a recognized narrowing guard — its lowering option-
+        # unwraps the union's `str` Some-arm and compares the carrier with `str_eq_op`
+        # (see module6_whyml/expressions.py `_optional_str_union_ctor`). Recognized when
+        # one side is a Var and the other a String literal.
+        sides = (test.get("left"), test.get("right"))
+        has_var = any(isinstance(s, dict) and s.get("type") == "Var" for s in sides)
+        has_str = any(isinstance(s, dict) and s.get("type") == "String" for s in sides)
+        if has_var and has_str:
+            return True
+    if test.get("type") == "BinOp" and test.get("op") in ("in", "not in"):
+        # `symtype in ("set","dict",...)` — string-literal membership on a Union var is
+        # likewise a recognized guard (same option-unwrap lowering, disjunction form).
+        left = test.get("left")
+        right = test.get("right")
+        if (isinstance(left, dict) and left.get("type") == "Var"
+                and isinstance(right, dict) and right.get("type") in ("Tuple", "ArrayLit", "SetLit")
+                and all(isinstance(e, dict) and e.get("type") == "String"
+                        for e in (right.get("elts") or []))
+                and (right.get("elts") or [])):
+            return True
     if test.get("type") == "Call":
         func = test.get("func")
         if isinstance(func, str) and func == "isinstance":

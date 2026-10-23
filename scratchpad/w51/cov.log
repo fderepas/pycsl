@@ -1,0 +1,2 @@
+[*] mirror-coverage: 1820 live def(s) across the 53 MIRRORED file(s); 550 have NO mirror counterpart (30.2%). 41 live file(s) have no mirror at all.
+[+] mirror-coverage: OK — measured 550 unmirrored def(s) / 41 unmirrored file(s) (ratchets 550 / 41).

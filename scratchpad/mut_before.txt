@@ -1,0 +1,48 @@
+  let pycsltojsonemitter___classify_literal_value (self: pycsltojsonemitter) (elt: emit_ir) : (string, pyconst_val, emit_ir)
+    requires { true }
+    ensures  { true }
+    raises { PyCSLIRError }
+    writes {  }
+  =
+    try
+    let v = ref PVNone in
+    if (is_constant elt) then begin
+      v := (const_pyval_of elt);
+      if (is_pvnone !v) then begin
+        raise (Return_tup_string_pyconst_val_emit_ir ("int", PVNone, (IrNum 0)))
+      end else begin
+        if (is_pvbool !v) then begin
+          raise (Return_tup_string_pyconst_val_emit_ir ("int", !v, (IrBoolC (if pvbool_of !v then 1 else 0))))
+        end else begin
+          if (is_pvint !v) then begin
+            raise (Return_tup_string_pyconst_val_emit_ir ("int", !v, (IrNum (pvint_of !v))))
+          end else begin
+            if (is_pvstr !v) then begin
+              raise (Return_tup_string_pyconst_val_emit_ir ("str", !v, (IrStr (pvstr_of !v))))
+            end else begin
+              if (is_pvbytes !v) then begin
+                raise PyCSLIRError
+              end;
+              raise PyCSLIRError
+            end
+          end
+        end
+      end
+    end;
+    if (is_var elt) then begin
+      if (str_eq_op (name_of elt) "None") then begin
+        raise (Return_tup_string_pyconst_val_emit_ir ("int", PVNone, (IrNum 0)))
+      end else begin
+        if (str_eq_op (name_of elt) "True") then begin
+          raise (Return_tup_string_pyconst_val_emit_ir ("int", (PVBool true), (IrBoolC 1)))
+        end else begin
+          if (str_eq_op (name_of elt) "False") then begin
+            raise (Return_tup_string_pyconst_val_emit_ir ("int", (PVBool false), (IrBoolC 0)))
+          end else begin
+            raise PyCSLIRError
+          end
+        end
+      end
+    end;
+    raise PyCSLIRError
+    with Return_tup_string_pyconst_val_emit_ir r -> r end

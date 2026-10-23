@@ -1,5 +1,5 @@
 {
-  "ir_version": "1.2",
+  "ir_version": "1.4",
   "source_language": "python",
   "type_decls": [
     {
@@ -17,6 +17,7 @@
           "mutable": true
         }
       ],
+      "mutable_state": false,
       "class_invariants": [
         {
           "type": "BinOp",
@@ -70,6 +71,7 @@
           "mutable": true
         }
       ],
+      "mutable_state": false,
       "class_invariants": [
         {
           "type": "BinOp",
@@ -106,15 +108,24 @@
       "symbol_table": {
         "node": "int"
       },
+      "param_annotations": {
+        "node": "int"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
       "dict_value_types": {},
       "dict_key_types": {},
+      "set_value_types": {},
       "formal_params": [
         "node"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -187,15 +198,24 @@
       "symbol_table": {
         "node": "int"
       },
+      "param_annotations": {
+        "node": "int"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
       "dict_value_types": {},
       "dict_key_types": {},
+      "set_value_types": {},
       "formal_params": [
         "node"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -262,15 +282,24 @@
       "symbol_table": {
         "node": "int"
       },
+      "param_annotations": {
+        "node": "int"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
       "dict_value_types": {},
       "dict_key_types": {},
+      "set_value_types": {},
       "formal_params": [
         "node"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -338,15 +367,24 @@
         "n": "int",
         "a": "Any"
       },
+      "param_annotations": {
+        "n": "int"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
       "dict_value_types": {},
       "dict_key_types": {},
+      "set_value_types": {},
       "formal_params": [
         "n"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -426,15 +464,24 @@
       "symbol_table": {
         "node": "int"
       },
+      "param_annotations": {
+        "node": "int"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
       "dict_value_types": {},
       "dict_key_types": {},
+      "set_value_types": {},
       "formal_params": [
         "node"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -507,15 +554,24 @@
       "symbol_table": {
         "node": "int"
       },
+      "param_annotations": {
+        "node": "int"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
       "param_defaults": {},
       "has_mutable_default": false,
       "acts": [],
       "dict_value_types": {},
       "dict_key_types": {},
+      "set_value_types": {},
       "formal_params": [
         "node"
       ],
       "return_annotation": "int",
+      "return_value_type": null,
       "contracts": {
         "requires": [],
         "ensures": [
@@ -586,5 +642,10 @@
       0,
       true
     ]
-  ]
+  ],
+  "skipped_dunder_writes": {
+    "functionanalyzer____init__": [
+      "count"
+    ]
+  }
 }

@@ -9,18 +9,25 @@ from __future__ import annotations
 from frontend import pure_ast as ast
 from errors import PyCSLParseError
 _WHITELIST = (ast.Assign, ast.AnnAssign, ast.AugAssign, ast.Expr)
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _is_constant_exec(call: object) -> bool:
-    return False
+    return (isinstance(call, ast.Call)
+            and isinstance(getattr(call, "func", None), ast.Name)
+            and call.func.id == "exec"
+            and len(getattr(call, "args", [])) == 1
+            and isinstance(call.args[0], ast.Constant)
+            and isinstance(call.args[0].value, str))
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _contains_exec(node: object) -> bool:
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Call) and isinstance(getattr(sub, "func", None), ast.Name) \
+                and sub.func.id == "exec":
+            return True
     return False
 
 ""  # pycsl
@@ -28,15 +35,17 @@ class _ExecSplicer(ast.NodeTransformer):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ raises PyCSLParseError when True
+    #@ assigns self._source
     def visit_Expr(self, node):
         pass
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def splice_constant_exec(tree: ast.AST) -> ast.AST:
-    return None
+    """Replace every constant-`exec` expression-statement with its parsed straight-line body.
+    No-op (byte-identical emission) for any file that contains no constant `exec`."""
+    return _ExecSplicer().visit(tree)
 

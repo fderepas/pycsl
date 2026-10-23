@@ -1,0 +1,6 @@
+L3TC-FAIL            ConcurrencyChecker.check  ['This expression has type int, but is expected to have type string']
+L3TC-FAIL            ConcurrencyChecker._check_function  ['but is expected to have type int']
+L3TC-FAIL            ConcurrencyChecker._walk_body  ['but is expected to have type int']
+L3TC-FAIL            ConcurrencyChecker._walk_stmt  ['but is expected to have type int']
+L3TC-FAIL            ConcurrencyChecker._warn_if_unprotected  ['This expression has type string, but is expected to have type int']
+L3TC-FAIL            ConcurrencyChecker.summary  ['but is expected to have type int']

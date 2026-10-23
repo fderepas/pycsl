@@ -1,0 +1,56 @@
+@startuml sl-driver-structure
+' Driver SL: self-tcb-reduction-driver — an SL monitoring an SL
+skinparam backgroundColor #FDFDFD
+skinparam defaultFontName Helvetica
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam ArrowColor #555555
+skinparam rectangle {
+  BorderColor #888888
+  FontColor #222222
+}
+
+title self-tcb-reduction-driver — a Squeeze Loop that MONITORS a Squeeze Loop (sl-monitoring-sl)
+
+rectangle "DRIVER (meta-loop)" as D #EEF7FF {
+
+  rectangle "driver-coordinator\nwall detection • phase sequencing\nverdict (BROKEN / CERTIFIED-BOUNDARY) • wall-lesson ledger" as dcoord #D2E3FC
+
+  rectangle "== PHYSICAL BARRIER (context) ==\nrun the base loop as a SUB-AGENT" as barrier1 #FFF0C2
+  rectangle "self-tcb-reduction\n(BASE LOOP, sub-agent one level deeper)\nreturns only a SOFT wall-signal —\n{stub, attempts_spent, first_blocker, cheap_win}\nNEVER its in-context rationale" as base #E6F4EA
+
+  rectangle "report-author (may be TAINTED)\nwrites XXX.md — the SOTA wall statement" as rep #FFE9C7
+
+  rectangle "== PHYSICAL BARRIER (context) ==\nfable sub-agent: only XXX.md + L,\nNEVER the sub-loop's contents" as barrier2 #FFF0C2
+  rectangle "fable reviewer (INDEPENDENT)\nwrites XXX-response.md\nMUST run the oracle: ≥1 .mlw spike / byte-diff /\nemit-and-grep / pycsl --fun confirming|refuting a named claim" as fable #F5D8E8
+
+  rectangle "impl-planner\nXXX-impl.md — spike-first + refutation-exit + costed scope" as plan #E8E8F8
+
+  rectangle "executor(s)\nemitter/mirror edits per the plan (no commit)" as exec #FFF6D6
+
+  rectangle "driver-verifier\nre-runs the THREE L-planes FRESH on every claim\n(the executor never owns a gate verdict)" as dver #CEEAD6
+}
+
+dcoord --> barrier1
+barrier1 --> base
+base --> dcoord : wall-signal (soft)
+dcoord --> rep
+rep --> barrier2
+barrier2 --> fable
+fable --> plan
+rep --> plan
+plan --> exec
+exec --> dver
+dver --> dcoord : gate verdicts
+
+note right of dcoord
+  U (upper bound) = base-loop discipline
+      + the report XXX.md (a SOFT claim,
+      the reviewer may refute or carve).
+  L (lower bound) = the base loop's 3 planes
+      + ledger==3 + \trusted count ↓.
+  The driver squeezes the wall — a soft
+  "X cannot be done" — against L, from an
+  evidence base the sub-loop does not share.
+end note
+@enduml

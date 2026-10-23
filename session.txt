@@ -1,1 +1,1 @@
-opencode -s ses_105833cd3ffeXOb22S1OTyqMAN
+claude --permission-mode  bypassPermissions   --resume 9dd932d0-43ec-4eaf-b2b4-3686bbb5f588

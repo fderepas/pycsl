@@ -1,0 +1,711 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/module6_whyml/expr_ghost_collections.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_iydqn2oo.mlw", line 154, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23358 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 154, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23380 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 155, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23374 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 155, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23396 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 156, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23346 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 156, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23368 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 157, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23350 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 157, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23372 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 158, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23306 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 159, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23340 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 160, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23386 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 160, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23408 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 160, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23430 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 161, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23376 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 162, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23380 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 163, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23398 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 164, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23416 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 164, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23438 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 165, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23416 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 165, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23438 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 166, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23420 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 166, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23442 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 167, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23424 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 167, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23446 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 168, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23424 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 168, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23446 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 169, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23428 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 169, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23450 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 170, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23436 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 170, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23458 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 171, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23440 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 171, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23462 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 172, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23442 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 173, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23450 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 173, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23472 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 174, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23462 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 174, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23484 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 174, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23506 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 175, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23458 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 175, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23480 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 176, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23462 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 176, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23484 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 177, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23466 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 177, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23488 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 178, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23476 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 178, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23498 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 179, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23480 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 179, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23502 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 180, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23484 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 180, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23506 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 181, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23488 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 181, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 182, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23492 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 182, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23514 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 183, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23496 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 183, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23518 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 184, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23508 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 184, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23530 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 184, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23552 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 185, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23504 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 185, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23526 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 186, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23508 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 186, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23530 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 187, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23518 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 187, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23540 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 188, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23512 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 189, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23516 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 190, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23520 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 191, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23534 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 191, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23556 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 192, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23538 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 192, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23560 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 193, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23542 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 193, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23564 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 194, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23536 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 195, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23540 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 196, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23564 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 196, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23586 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 197, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23558 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 198, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23580 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 198, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23602 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 198, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23624 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 199, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23586 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 199, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23608 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 200, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23586 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 200, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23608 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 201, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23590 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 201, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23612 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 202, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23594 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 202, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23616 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 203, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 23602 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 204, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23610 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 205, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23640 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 206, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23644 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 207, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 23642 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 151, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.02s, 116956 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 212, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.01s, 27353 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 213, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.01s, 28170 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 216, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.01s, 28993 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 217, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.01s, 29810 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 220, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.01s, 30706 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 221, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.01s, 31508 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 222, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.01s, 32336 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 271, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.01s, 32998 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 272, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.01s, 33815 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 273, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.01s, 34563 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 274, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.01s, 35486 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 275, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.01s, 36473 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 276, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.01s, 37290 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 282, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.00s, 11442 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 280, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.01s, 39801 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 286, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.01s, 11478 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 311, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___deref'vc.
+Prover result is: Valid (0.00s, 4558 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 330, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_append_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 331, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_append_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 321, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_append_expr'vc.
+Prover result is: Valid (0.00s, 4704 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 344, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_cons_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 336, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_cons_expr'vc.
+Prover result is: Valid (0.00s, 4768 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 357, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_has_key_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 349, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_has_key_expr'vc.
+Prover result is: Valid (0.00s, 4822 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 368, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_hd_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 362, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_hd_expr'vc.
+Prover result is: Valid (0.00s, 4640 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 379, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_list_length_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 373, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_list_length_expr'vc.
+Prover result is: Valid (0.00s, 4650 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 384, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_map_empty_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 400, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_map_eq_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 401, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_map_eq_expr'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 391, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_map_eq_expr'vc.
+Prover result is: Valid (0.00s, 5202 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 414, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_map_get_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 406, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_map_get_expr'vc.
+Prover result is: Valid (0.00s, 4924 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 427, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_map_remove_expr'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 419, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_map_remove_expr'vc.
+Prover result is: Valid (0.00s, 4822 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 442, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_map_set_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 432, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_map_set_expr'vc.
+Prover result is: Valid (0.00s, 5070 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 455, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_mem_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 447, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_mem_expr'vc.
+Prover result is: Valid (0.00s, 4748 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 460, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_nil_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 475, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_nth_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 467, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_nth_expr'vc.
+Prover result is: Valid (0.00s, 4750 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 488, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_add_expr'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 480, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_add_expr'vc.
+Prover result is: Valid (0.00s, 4822 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 503, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_card_expr'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 493, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_card_expr'vc.
+Prover result is: Valid (0.01s, 5040 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 518, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_diff_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 519, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_diff_expr'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 508, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_diff_expr'vc.
+Prover result is: Valid (0.01s, 6241 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 525, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_empty_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 542, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_eq_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 543, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_eq_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 532, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_eq_expr'vc.
+Prover result is: Valid (0.00s, 6077 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 559, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_inter_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 560, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_inter_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 549, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_inter_expr'vc.
+Prover result is: Valid (0.00s, 6175 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 566, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_mem_expr'vc.
+Prover result is: Valid (0.01s, 7620 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 583, characters 13-54:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_mem_expr'vc.
+Prover result is: Valid (0.00s, 7539 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 566, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_mem_expr'vc.
+Prover result is: Valid (0.01s, 7847 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 598, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_remove_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 590, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_remove_expr'vc.
+Prover result is: Valid (0.01s, 4822 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 613, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_subset_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 614, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_subset_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 603, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_subset_expr'vc.
+Prover result is: Valid (0.01s, 6097 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 630, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_union_expr'vc.
+Prover result is: Valid (0.00s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 631, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_set_union_expr'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 620, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_set_union_expr'vc.
+Prover result is: Valid (0.00s, 6175 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 643, characters 11-52:
+Sub-goal precondition of goal ghostcollectionopsmixin___handle_tl_expr'vc.
+Prover result is: Valid (0.01s, 4510 steps).
+
+File "/tmp/.pycsl_iydqn2oo.mlw", line 637, characters 15-19:
+Sub-goal postcondition of goal ghostcollectionopsmixin___handle_tl_expr'vc.
+Prover result is: Valid (0.00s, 4640 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 309, characters 39-43: unused variable self
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 311, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 316, characters 35-39: unused variable self
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 316, characters 67-69: unused variable ir
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 316, characters 81-83: unused variable lr
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 317, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 321, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 336, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 349, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 362, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 373, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 382, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 382, characters 87-91: unused variable node
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 382, characters 103-105: unused variable lr
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 384, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 391, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 406, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 419, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 432, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 447, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 458, characters 49-53: unused variable self
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 458, characters 81-85: unused variable node
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 458, characters 97-99: unused variable lr
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 460, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 467, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 480, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 493, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 508, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 523, characters 55-59: unused variable self
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 523, characters 87-91: unused variable node
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 523, characters 103-105: unused variable lr
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 525, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 532, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 549, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 566, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 590, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 603, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 620, characters 15-19: unused variable result
+Warning, file "/tmp/.pycsl_iydqn2oo.mlw", line 637, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

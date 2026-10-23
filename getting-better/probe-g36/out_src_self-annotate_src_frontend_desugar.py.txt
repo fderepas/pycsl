@@ -1,0 +1,3 @@
+L3TC-FAIL            _ChainDesugarer.visit_Compare  ['This expression has type string, but is expected to have type int']
+L3TC-FAIL            <module>._try_reaches_assert  ['This expression has type int -> option.Option.option int, but is expected to have type int']
+L3TC-FAIL            <module>.normalize_stores  ['a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at line 175). Every call is resolved against the `def`, so the rebinding would be silently ignored (measured: `inc = dec` then `inc(3)` proved the `inc` contract while Python ran `dec`). Rebinding a function name is not modelled; give the new binding its own name.']

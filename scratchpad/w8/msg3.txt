@@ -1,0 +1,45 @@
+gate(#43): five gates were printing their RATCHET as if it were their measurement — fixed, and avatar-frame INHERITED lowered 7 -> 1
+
+`bin/check-avatar-frame-parity.py`, `check-computed-rhs-erasure.py`,
+`check-dropped-mutation.py`, `check-shadowed-selfcalls.py` and
+`check-trusted-frame-honesty.py` all ended their green run with a line that formatted
+`args.max_*` — the CONSTANT — and nothing else. A reader (or a handoff) that copies that
+line records the ratchet as though it were a census.
+
+That already happened. #34's closing baseline reads "avatar-frame-parity 0 same-file /
+7 inherited". Measured for real — twice at HEAD, once at 13c4860b, all three agreeing —
+it is 0 same-file and **1** inherited: `pycsl.mlw::_py_stmts_to_ir`, declared in
+`frontend/Module5_IREmitter.py`, the four-file caller-fixpoint segment the script's own
+header already describes as budgeted-not-attempted. The 7 was never anything but the
+constant.
+
+So `MAX_INHERITED` goes 7 -> 1. That is a real tightening, not bookkeeping: a SECOND
+frameless inherited avatar now breaks the plane instead of being absorbed by six units of
+slack that no measurement ever justified.
+
+Every one of the five OK lines now prints the MEASUREMENT and the ratchet:
+
+    [+] avatar-frame-parity: OK — measured 0 same-file / 1 inherited (ratchets 0 / 1).
+    [+] computed-rhs-erasure: OK — measured 2 rhs / 0 param (ratchets 2/0).
+    [+] dropped-mutation: OK — measured 1 dropped / 50 ctxbind / 9 tryfinal / 0 dangling
+        (ratchets 1 / 50 / 9 / 0).
+    [+] shadowed-selfcalls: OK — measured 14 (ratchet 14).
+    [+] frame-honesty: OK — measured trusted 0 model-visible / 0 total, converted 0
+        model-visible / 95 total (ratchets 0/0 and 0/95).
+
+Every other ratchet is already AT its measurement, so avatar-frame was the only one with
+slack to remove. `check-yield-erasure.py` and `check-mirror-signature-drift.py` already
+printed measurements and needed no change.
+
+This is lesson (bd) turned on the gates' own OUTPUT rather than their logic: a measurement
+instrument is a claim, and one that reports its threshold instead of its reading is a
+claim that cannot be checked.
+
+Also settled this turn, and it closes the `#@`-attachment vein: the compound-statement
+HEADER shapes. A directive inside a multi-line `def` signature, a multi-line `while`
+header and a multi-line `class` header are all REFUSED by #34's
+`_reject_misplaced_directives`; one inside a multi-line `if` condition attaches to the
+following statement, is CHECKED, and correctly FAILS. With route #12 closed there is no
+un-probed attachment shape left.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

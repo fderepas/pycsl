@@ -1,0 +1,45 @@
+# ROUTE #174 — a handler only an unmodelled exception can reach is dead in the proof
+
+**Status: CLOSED by gen #29 (battery O green: suite 3733/3751, same 18 CONFIRMED FAIL, zero XPASS; planes --slow 34/34).** Severity 1. Generator: hand
+(recorded open in route #173's batch).
+
+## Measured at `546e366f` (and on the #173 draft), each `#@ ensures \result == 0`, CPython 9
+
+    c: Optional[C] = None;  try: v = c.x               except AttributeError: return 9
+    try: f = float(10 ** 400)                           except OverflowError: return 9
+    try: s = bytes([255]).decode("utf-8")               except UnicodeDecodeError: return 9
+    c: Optional[C] = None;  try: v = c.x               except Exception: return 9
+
+The model raises only the five modelled implicit exceptions (routes #170-#173 widen and check those)
+and explicit raises. Any other exception class is invisible, so its handler is dead code in the
+proof; `except Exception` / `BaseException` / bare catch those classes too.
+
+## Repair (draft)
+
+`_reset_function_state` (trusted), in a claiming function (the #171/#172 gate: non-trivial
+`ensures`, an assertion, a loop invariant/variant): a `try` handler is refused when it is broad
+(`Exception`, `BaseException`, bare), or when its class covers none of the modelled implicit
+exceptions and none of the classes raised explicitly in the `try` body (`raise` statements, or calls
+to functions of this file declaring `raises`). Emission: corpus GONE = only #170/#172 witnesses
+1585 (XFAIL), 1592 (XFAIL) and 1594, whose #172 PASS control (in-bounds read under `except
+BaseException`) is now XFAIL by design; python-reference and mirrors inert. Witnesses 1599-1602
+(XFAIL), 1603 (PASS: explicit FileNotFoundError under `except OSError`). Fast planes, conformance,
+sync green.
+
+## Carrier folded in
+
+`except ArithmeticError` around `float(10 ** 400)` PROVED on the draft: the class covers the modelled
+ZeroDivisionError (so it was accepted) and also the unmodelled OverflowError/FloatingPointError.
+A handler covering a modelled class now needs EVERY builtin subclass to be modelled, below a modelled
+class (ValueError's Unicode subclasses: their operations are refused by the widened context), or
+explicitly raised. Witness 1606 (XFAIL). Emission unchanged.
+
+A second carrier: the claim gate ignored CLASS INVARIANTS — a method with no `ensures` whose
+`except ValueError` path set `self.x = -1` under `class invariant self.x >= 0` let a caller prove
+`c.x >= 0` (CPython -1). A method of an invariant-carrying class now counts as claiming (functions.py
+and the preamble gate). Witness 1607 (XFAIL). Emission unchanged.
+
+## Completeness cost (recorded)
+
+A claiming function can no longer use a broad handler at all, even around code that raises only
+modelled or explicit exceptions (census: no PASS program in either corpus or the mirrors did).

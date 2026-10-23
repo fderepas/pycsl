@@ -1,0 +1,17 @@
+### ROUTE 85 CARRIERS — must REFUSE ###
+membership                         expect:FAILED FAILED
+contents                           expect:FAILED FAILED
+set_field                          expect:FAILED FAILED
+cross_call                         expect:FAILED FAILED
+### ROUTE 85 TRUE TWIN — must PROVE (completeness gain) ###
+true_twin                          expect:SUCCESS SUCCESS
+### ROUTE 86 CARRIERS — must REFUSE ###
+r86_value                          expect:FAILED FAILED
+r86_twin                           expect:FAILED FAILED
+### CONTROLS — must be UNCHANGED ###
+ctl_empty_dict                     expect:SUCCESS SUCCESS
+ctl_param_dict                     expect:FAILED FAILED
+ctl_list_field                     expect:FAILED FAILED
+### ROUTE 79/83 CONTROLS — must still PROVE ###
+r79_bounding                       expect:SUCCESS SUCCESS
+r83_bounding                       expect:SUCCESS SUCCESS

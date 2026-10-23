@@ -9,40 +9,81 @@ import copy
 from typing import Any, Dict, List, Optional, Set, Tuple
 from errors import PyCSLSemanticError
 _MAX_INLINE_DEPTH = 16
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _walk_dicts(obj: Any):
-    pass
+    """Yield every dict node in an IR tree (depth-first)."""
+    if isinstance(obj, dict):
+        yield obj
+        for v in obj.values():
+            yield from _walk_dicts(v)
+    elif isinstance(obj, list):
+        for x in obj:
+            yield from _walk_dicts(x)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _touches_global(obj: Any, globals_set: int) -> bool:
+    for node in _walk_dicts(obj):
+        t = node.get("type") or node.get("stmt")
+        if t == "Attribute":
+            o = node.get("object")
+            if (isinstance(o, dict) and o.get("type") == "Var"
+                    and o.get("name") in globals_set):
+                return True
+        elif t in ("FieldGet", "FieldAssign", "FieldAugAssign"):
+            if node.get("object") in globals_set:
+                return True
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _method_key(cls: str, method: str) -> str:
-    return ""
+    """The function-IR name for class `cls`'s method `method` (Module 5 mangling)."""
+    return f"{cls.lower()}__{method}"
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _global_call_target(call: int, globals_set: int, g_class: int) -> Optional[str]:
+def _global_call_target(call: Dict[str, Any], globals_set: Set[str], g_class: Dict[str, str]) -> Optional[str]:
+    """If `call` is `g.m(args)` on a module global `g`, return the callee method key
+    `<class>__m`; else None."""
+    if not (isinstance(call, dict) and call.get("type") == "Call"):
+        return None
+    func = call.get("func")
+    if not isinstance(func, str) or "." not in func:
+        return None
+    recv, _, method = func.partition(".")
+    if recv in globals_set and "." not in method:
+        return _method_key(g_class[recv], method)
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _method_edges(func: int, names: int, self_cls: str, globals_set: int, g_class: int) -> int:
-    return set()
+def _method_edges(func: Dict[str, Any], names: Set[str], self_cls: str, globals_set: Set[str], g_class: Dict[str, str]) -> Set[str]:
+    """Outgoing method-call edges of a function: `self.X` -> `<self_cls>__X`, `g.X` ->
+    `<g_class>__X`, bare `f(...)` -> `f` (when those names exist)."""
+    out: Set[str] = set()
+    for node in _walk_dicts(func.get("body")):
+        if node.get("type") != "Call":
+            continue
+        func_name = node.get("func")
+        if not isinstance(func_name, str):
+            continue
+        if func_name.startswith("self.") and self_cls:
+            cand = _method_key(self_cls, func_name[len("self."):])
+        elif "." in func_name:
+            recv, _, m = func_name.partition(".")
+            cand = _method_key(g_class[recv], m) if recv in globals_set else None
+        else:
+            cand = func_name
+        if cand in names:
+            out.add(cand)
+    return out
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -51,68 +92,129 @@ def _method_edges(func: int, names: int, self_cls: str, globals_set: int, g_clas
 def _recursive_methods(funcs: List[int], globals_set: int, g_class: int) -> int:
     return set()
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _assigned_locals(stmts: Any) -> int:
-    return set()
+def _assigned_locals(stmts: Any) -> Set[str]:
+    """Local names a method body binds (Assign/AugAssign/For targets) — freshened on
+    inlining so they don't collide with (or capture) the caller's locals."""
+    out: Set[str] = set()
+    for node in _walk_dicts(stmts):
+        s = node.get("stmt")
+        if s in ("Assign", "AugAssign", "For") and isinstance(node.get("target"), str):
+            out.add(node["target"])
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _substitute(node: Any, self_name: str, param_map: int, rename: int) -> Any:
-    return None
+def _substitute(node: Any, self_name: str, param_map: Dict[str, Any],
+                rename: Dict[str, str]) -> Any:
+    """Deep-copy `node`, applying, in one pass: a formal `Var`→its actual IR; a method
+    local→its freshened name; the `self` receiver→`self_name` in `FieldGet` /
+    `FieldAssign` / `FieldAugAssign` objects and in `self.X(...)` call funcs."""
+    if isinstance(node, list):
+        return [_substitute(x, self_name, param_map, rename) for x in node]
+    if not isinstance(node, dict):
+        return node
+    if node.get("type") == "Var":
+        nm = node.get("name")
+        if nm in param_map:
+            return copy.deepcopy(param_map[nm])
+        if nm in rename:
+            return {"type": "Var", "name": rename[nm]}
+        return dict(node)
+    new = {k: _substitute(v, self_name, param_map, rename) for k, v in node.items()}
+    t = new.get("type")
+    s = new.get("stmt")
+    if t == "FieldGet" and new.get("object") == "self":
+        new["object"] = self_name
+    if s in ("FieldAssign", "FieldAugAssign") and new.get("object") == "self":
+        new["object"] = self_name
+    if t == "Call" and isinstance(new.get("func"), str):
+        fn = new["func"]
+        if fn.startswith("self."):
+            new["func"] = self_name + fn[len("self"):]   # self.Y -> <self_name>.Y
+        elif "." in fn:
+            # Freshen local-variable receiver in dotted calls like
+            # `entries.append(x)` → `entries__inlN.append(x)`.
+            recv_part, _, method_part = fn.partition(".")
+            if recv_part in rename:
+                new["func"] = f"{rename[recv_part]}.{method_part}"
+    if s in ("Assign", "AugAssign", "For") and isinstance(new.get("target"), str):
+        if new["target"] in rename:
+            new["target"] = rename[new["target"]]
+    return new
 
 ""  # pycsl
 class _Inliner:
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, funcs, globals_set, g_class, recursive, no_inline=None):
-        pass
+        self.fmap = {f["name"]: f for f in funcs}
+        self.globals_set = globals_set
+        self.g_class = g_class
+        self.recursive = recursive
+        self.no_inline = no_inline or set()
+        self.counter = 0
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.counter
     def _fresh(self, base: str) -> str:
-        return ""
+        self.counter += 1
+        return f"{base}__inl{self.counter}"
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ raises PyCSLSemanticError when True
+    #@ assigns self.counter
     def _expand(self, callee: str, recv: str, args: List[Any], result_var: Optional[str]) -> List[Any]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.counter
     def _hoist_calls_in_expr(self, node: Any, pre: List[Any]) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self.counter
     def inline_stmts(self, stmts: List[Any]) -> List[Any]:
         return []
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _check_no_aliasing(funcs: List[int], globals_set: int) -> None:
-    pass
+def _check_no_aliasing(funcs: List[Dict[str, Any]], globals_set: Set[str]) -> None:
+    for f in funcs:
+        for node in _walk_dicts(f.get("body")):
+            if (node.get("stmt") == "Assign" and isinstance(node.get("value"), dict)
+                    and node["value"].get("type") == "Var"
+                    and node["value"].get("name") in globals_set):
+                raise PyCSLSemanticError(
+                    f"cannot alias module global '{node['value']['name']}' into a local "
+                    f"(inline.md Phase 3): a global is a single named object — call its "
+                    f"methods or read its fields directly.")
+            if node.get("type") == "Call":
+                for a in node.get("args", []):
+                    if (isinstance(a, dict) and a.get("type") == "Var"
+                            and a.get("name") in globals_set):
+                        raise PyCSLSemanticError(
+                            f"cannot pass module global '{a['name']}' as an argument "
+                            f"(inline.md Phase 3): would alias the global; operate on it "
+                            f"via its own methods/fields.")
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
+#@ raises PyCSLSemanticError when True
 #@ assigns \nothing
 def _inline_calls(funcs: List[int], globals_set: int, g_class: int, rewrite_funcs: Optional[List[int]]=None) -> None:
     pass

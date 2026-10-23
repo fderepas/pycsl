@@ -1,0 +1,46 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/ConcurrencyChecker.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLSemanticError (record + 0 method stub(s) + 2 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 37, characters 18-33:
+Sub-goal loop invariant init of goal concurrencychecker___walk_body'vc.
+Prover result is: Valid (0.00s, 761 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 39, characters 21-40:
+Sub-goal index in array bounds of goal concurrencychecker___walk_body'vc.
+Prover result is: Valid (0.00s, 1365 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 38, characters 16-47:
+Sub-goal loop variant decrease of goal concurrencychecker___walk_body'vc.
+Prover result is: Valid (0.01s, 10360 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 37, characters 18-33:
+Sub-goal loop invariant preservation of goal concurrencychecker___walk_body'vc.
+Prover result is: Valid (0.01s, 10198 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 32, characters 15-19:
+Sub-goal postcondition of goal concurrencychecker___walk_body'vc.
+Prover result is: Valid (0.00s, 941 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 26, characters 43-47: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 26, characters 70-74: unused variable func
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 34, characters 8-12: unused variable stmt
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 44, characters 38-42: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 44, characters 65-69: unused variable node
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 44, characters 77-81: unused variable held
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 44, characters 89-98: unused variable func_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 48, characters 48-52: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 48, characters 75-78: unused variable var
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 48, characters 89-93: unused variable held
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 48, characters 101-110: unused variable func_name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 48, characters 121-125: unused variable line
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 48, characters 133-138: unused variable write
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 52, characters 33-37: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 54, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 56, characters 35-39: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_b3mpg7y8.mlw", line 58, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

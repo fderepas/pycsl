@@ -1,0 +1,102 @@
+DIVERGED: module6_whyml/expressions.py::ExpressionEmissionMixin._handle_var_expr — un-trusted mirror body != live emitter body:
+  --- live
+  +++ mirror
+  @@ -7,7 +7,6 @@
+   if name in self._array_locals:
+    return whyml_ident(name)
+   if name in self._lambda_locals:
+    return whyml_ident(name)
+   if name in self._record_locals:
+    return whyml_ident(name)
+  -if name in getattr(self, '_optional_union_locals', set()):
+    _proj = self._union_local_read_projection(name)
+    if _proj is not None:
+        return _proj
+   if name in getattr(self, '_pyval_locals', set()):
+    return whyml_ident(name)
+   if name in local_refs:
+    return f'!{whyml_ident(name)}'
+   if name in getattr(self, '_mutated_collection_params', set()):
+    return f'!{whyml_ident(name)}'
+  ---
+DIVERGED: module6_whyml/stmt_control_flow.py::ControlFlowStmtMixin._handle_for_stmt — un-trusted mirror body != live emitter body:
+  --- live
+  +++ mirror
+  @@ -6,32 +6,14 @@
+   has_direct_ret = IRScanner.has_direct_return(_body_d)
+   loop_indent = indent + '  ' if has_direct_ret else indent
+   inner_indent = loop_indent + '  '
+  -tuple_targets = getattr(stmt, 'tuple_targets', None)
+  -str_ci = self._string_char_iter(iter_ir, target, tuple_targets, local_refs) if self._value_semantic else None
+  -extra_locals = set()
+  -saved_str_locals = None
+  -if str_ci is not None:
+    _op, _idx_name, _ch_name, _is_tuple = str_ci
+    extra_locals = {n for n in (_idx_name, _ch_name) if n and n != '_'}
+    saved_str_locals = getattr(self, '_string_local_vars', set())
+    self._string_local_vars = set(saved_str_locals) | {_ch_name}
+  -body_local = local_refs | {target} | extra_locals
+  -body_declared = declared_refs.copy() | {target} | extra_locals
+  -_saved_symtype = _MISSING = object()
+  -_is_classbody = self._classbody_psl_recv(iter_ir) is not None or self._pyast_walk_recv(iter_ir) is not None
+  -_is_kwbody = self._keyword_iter_recv(iter_ir, local_refs) is not None
+  -_is_tparambody = self._tparam_iter_recv(iter_ir) is not None
+  -if _is_classbody:
+    self._pyast_stmt_locals.add(target)
+    _st = getattr(self, '_current_symbol_table', None)
+    if _st is not None:
+        _saved_symtype = _st.get(target, _MISSING)
+        _st[target] = 'PyAstStmt'
+elif _is_tparambody:
+    self._tparam_locals.add(target)
+    _st = getattr(self, '_current_symbol_table', None)
+    if _st is not None:
+        _saved_symtype = _st.get(target, _MISSING)
+        _st[target] = 'TParam'
+elif _is_kwbody:
+    if not hasattr(self, '_keyword_locals'):
+        self._keyword_locals = set()
+    self._keyword_locals.add(target)
+    _st = getattr(self, '_current_symbol_table', None)
+    if _st is not None:
+        _saved_symtype = _st.get(target, _MISSING)
+        _st[target] = 'Keyword'
+elif self._mktuple_elts_recv_ir(iter_ir) is not None:
+    _st = getattr(self, '_current_symbol_table', None)
+    if _st is not None:
+        _saved_symtype = _st.get(target, _MISSING)
+        _st[target] = 'ExprIR'
+elif self._tparam_bases_recv(iter_ir) is not None:
+    _st = getattr(self, '_current_symbol_table', None)
+    if _st is not None:
+        _saved_symtype = _st.get(target, _MISSING)
+        _st[target] = 'ExprIR'
+  +body_local = local_refs | {target}
+  +body_declared = declared_refs.copy() | {target}
+   inner_body = self._stmts_to_whyml(_body_d, body_local, body_declared, inner_indent, True)
+  -if _saved_symtype is not _MISSING or _is_classbody or _is_kwbody or _is_tparambody or (self._mktuple_elts_recv_ir(iter_ir) is not None) or (self._tparam_bases_recv(iter_ir) is not None):
+    _st = getattr(self, '_current_symbol_table', None)
+    if _st is not None:
+        if _saved_symtype is _MISSING:
+            _st.pop(target, None)
+        else:
+            _st[target] = _saved_symtype
+  -if _is_classbody:
+    self._pyast_stmt_locals.discard(target)
+  -if _is_tparambody:
+    self._tparam_locals.discard(target)
+  -if _is_kwbody:
+    self._keyword_locals.discard(target)
+   if not inner_body:
+    inner_body = f'{inner_indent}()'
+  -if saved_str_locals is not None:
+    self._string_local_vars = saved_str_locals
+   has_cont = IRScanner.has_continue(_body_d)
+  -if str_ci is not None and str_ci[3]:
+    self._for_idx_init = '0'
+    self._add_abstract_op('val str_length_op (s: string) : int\n    ensures { result = (String.length s) }')
+    len_expr, elem_expr, is_range = (f'(str_length_op {str_ci[0]})', None, False)
+else:
+    len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
+  +len_expr, elem_expr, is_range = self._classify_iterable(iter_ir, local_refs, idx)
+  ---

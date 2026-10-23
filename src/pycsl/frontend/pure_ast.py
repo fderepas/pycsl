@@ -619,14 +619,14 @@ class _Parser:
             self.error(f"expected keyword {val!r}")
         return self.advance()
 
-    def error(self, msg):
+    def error(self, msg: str) -> "NoReturn":
         t = self.cur()
         raise PyCSLSyntaxError(
             f"{msg} (got {_tokenize.tok_name[t.type]} {t.string!r})",
             (self.filename, t.start[0], t.start[1] + 1, t.string),
         )
 
-    def unsupported(self, what):
+    def unsupported(self, what: str) -> "NoReturn":
         t = self.cur()
         raise PyCSLSyntaxError(
             f"pure_ast parser: {what} not yet implemented",
@@ -748,7 +748,11 @@ class _Parser:
         depth = 0
         j = self.i
         n = len(self.toks)
-        last_sig = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never
+        # evaluated, so this needs no `typing` import), here for the VERIFIER: it makes
+        # the local a real `option _Tok` carrier, so the absent path is a TRUE `None` and
+        # not an int-erased sentinel. Same device as `_param_arg`'s `ann: Optional["ExprIR"]`.
+        last_sig: Optional[_Tok] = None
         while j < n:
             tk = self.toks[j]
             if tk.type == _tokenize.OP and tk.string in ("(", "[", "{"):
@@ -858,7 +862,13 @@ class _Parser:
 
     def return_stmt(self):
         t = self.advance()
-        val = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never evaluated —
+        # the same idiom this file already uses for `asname: Optional[str] = None`). It is
+        # here for the VERIFIER: without it the `val` local is inferred `ExprIR` from its
+        # assignment, the `None` initialiser erases, and `Return`'s OPTIONAL `value` field
+        # would be bound from a non-option local — an L3 type error, and a value-less
+        # `return` would model as a node rather than as a true `None`.
+        val: Optional["ExprIR"] = None
         if not self._stmt_end():
             val = self.testlist()
         return self._fin(_N("Return")(value=val), t)
@@ -868,7 +878,12 @@ class _Parser:
 
     def raise_stmt(self):
         t = self.advance()
-        exc = None; cause = None
+        # PEP-526 local annotations, runtime-INERT (a local's annotation is never evaluated),
+        # here for the VERIFIER: they make the two locals real `option emit_ir` carriers, so a
+        # bare `raise` / a `raise E` without `from` carries a TRUE `None` and not an erased
+        # node. Split onto separate lines only because an annotation needs its own statement.
+        exc: Optional["ExprIR"] = None
+        cause: Optional["ExprIR"] = None
         if not self._stmt_end():
             exc = self.test()
             if self.accept_kw("from"):
@@ -877,15 +892,22 @@ class _Parser:
 
     def del_stmt(self):
         t = self.advance()
-        targets = self.exprlist()
-        for tg in targets:
-            _set_ctx(tg, _N("Del")())
+        raw = self.exprlist()
+        n = len(raw)
+        targets = []
+        k = 0
+        while k < n:
+            targets.append(_set_ctx(raw[k], _N("Del")()))
+            k += 1
         return self._fin(_N("Delete")(targets=targets), t)
 
     def assert_stmt(self):
         t = self.advance()
         test = self.test()
-        msg = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never evaluated),
+        # here for the VERIFIER: it makes the local a real `option emit_ir` carrier, so the
+        # absent path is a TRUE `None` and not an erased node.
+        msg: Optional["ExprIR"] = None
         if self.accept_op(","):
             msg = self.test()
         return self._fin(_N("Assert")(test=test, msg=msg), t)
@@ -897,7 +919,7 @@ class _Parser:
             names.append(self._name_str())
         return self._fin(_N(kind)(names=names), t)
 
-    def _name_str(self):
+    def _name_str(self) -> str:
         if self.cur().type != _tokenize.NAME:
             self.error("expected name")
         return self.advance().string
@@ -909,12 +931,12 @@ class _Parser:
             names.append(self._dotted_as_name())
         return self._fin(_N("Import")(names=names), t)
 
-    def _dotted_as_name(self):
+    def _dotted_as_name(self) -> "alias":
         parts = [self._name_str()]
         while self.accept_op("."):
             parts.append(self._name_str())
         name = ".".join(parts)
-        asname = None
+        asname: Optional[str] = None
         if self.accept_kw("as"):
             asname = self._name_str()
         return _N("alias")(name=name, asname=asname)
@@ -925,13 +947,14 @@ class _Parser:
         while self.at_op(".", "..."):
             level += 3 if self.cur().string == "..." else 1
             self.advance()
-        module = None
+        module: Optional[str] = None
         if not self.at_kw("import"):
             parts = [self._name_str()]
             while self.accept_op("."):
                 parts.append(self._name_str())
             module = ".".join(parts)
         self.expect_kw("import")
+        names = []
         if self.accept_op("*"):
             names = [_N("alias")(name="*", asname=None)]
         elif self.at_op("("):
@@ -950,9 +973,9 @@ class _Parser:
             names.append(self._import_as_name())
         return names
 
-    def _import_as_name(self):
+    def _import_as_name(self) -> "alias":
         name = self._name_str()
-        asname = None
+        asname: Optional[str] = None
         if self.accept_kw("as"):
             asname = self._name_str()
         return _N("alias")(name=name, asname=asname)
@@ -964,29 +987,35 @@ class _Parser:
         if self.at_op(":"):
             self.advance()
             ann = self.test()
-            value = None
+            ann_value = None
             if self.accept_op("="):
-                value = self.testlist_star_expr_or_yield()
-            _set_ctx(first, _N("Store")())
+                ann_value = self.testlist_star_expr_or_yield()
             simple = 1 if isinstance(first, _N("Name")) else 0
+            first = _set_ctx(first, _N("Store")())
             return self._fin(_N("AnnAssign")(target=first, annotation=ann,
-                                              value=value, simple=simple), t)
+                                              value=ann_value, simple=simple), t)
         # augmented assignment
         if self.cur().type == _tokenize.OP and self.cur().string in _AUG:
-            op = _AUG[self.advance().string]
-            value = self.testlist_star_expr_or_yield()
-            _set_ctx(first, _N("Store")())
-            return self._fin(_N("AugAssign")(target=first, op=_N(op)(), value=value), t)
+            op_str = self.advance().string
+            aug_value = self.testlist_star_expr_or_yield()
+            first = _set_ctx(first, _N("Store")())
+            return self._fin(_N("AugAssign")(target=first, op=_N(_AUG[op_str])(),
+                                             value=aug_value), t)
         # plain (possibly chained) assignment
         if self.at_op("="):
-            targets = [first]
+            raw = [first]
             while self.accept_op("="):
                 nxt = self.testlist_star_expr_or_yield()
-                targets.append(nxt)
-            value = targets.pop()
-            for tg in targets:
-                _set_ctx(tg, _N("Store")())
-            return self._fin(_N("Assign")(targets=targets, value=value), t)
+                raw.append(nxt)
+            n = len(raw) - 1
+            asn_value = raw[n]
+            targets = []
+            k = 0
+            while k < n:
+                targets.append(_set_ctx(raw[k], _N("Store")()))
+                k += 1
+            return self._fin(_N("Assign")(targets=targets, value=asn_value,
+                                          type_comment=None), t)
         # bare expression
         return self._fin(_N("Expr")(value=first), t)
 
@@ -1145,7 +1174,13 @@ class _Parser:
             self.error("expected a 'case' clause inside 'match'")
         self.advance()                           # 'case' (soft keyword)
         pat = self.pattern()
-        guard = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never evaluated —
+        # the same idiom `return_stmt`/`raise_stmt`/`assert_stmt` already use here). It is
+        # for the VERIFIER: `match_case.guard` is in `_OPTIONAL_FIELDS`, so without it the
+        # local is inferred `ExprIR` from its assignment, the `None` initialiser erases to
+        # the emit_ir absent-sentinel, and a guard-less `case` would model as carrying a
+        # NODE instead of a true `None`.
+        guard: Optional["ExprIR"] = None
         if self.at_kw("if"):
             self.advance()
             guard = self.namedexpr_test()
@@ -1171,7 +1206,7 @@ class _Parser:
             return self._fin(_N("MatchOr")(patterns=pats), t)
         return first
 
-    def _capture_name(self, ctx):
+    def _capture_name(self, ctx: str) -> str:
         tk = self.cur()
         if (tk.type != _tokenize.NAME or tk.string in _keyword.kwlist
                 or tk.string == "_"):
@@ -1250,7 +1285,7 @@ class _Parser:
                 _N("Attribute")(value=node, attr=attr.string, ctx=_N("Load")()), t)
         return node
 
-    def _sequence_pattern(self, openp, closep, t):
+    def _sequence_pattern(self, openp: str, closep: str, t):
         self.advance()                            # consume opener
         elts = []
         saw_comma = False
@@ -1260,7 +1295,7 @@ class _Parser:
                 nm = self.cur()
                 if nm.type == _tokenize.NAME and nm.string not in _keyword.kwlist:
                     self.advance()
-                    name = None if nm.string == "_" else nm.string
+                    name: Optional[str] = None if nm.string == "_" else nm.string
                 else:
                     self.error("expected a name after '*' in sequence pattern")
                 elts.append(self._fin(_N("MatchStar")(name=name), star_t))
@@ -1303,7 +1338,7 @@ class _Parser:
             tgt = _N("Tuple")(elts=elts, ctx=_N("Load")())
             tgt.lineno = elts[0].lineno; tgt.col_offset = elts[0].col_offset
             tgt.end_lineno = elts[-1].end_lineno; tgt.end_col_offset = elts[-1].end_col_offset
-        _set_ctx(tgt, _N("Store")())
+        tgt = _set_ctx(tgt, _N("Store")())
         return tgt
 
     def with_stmt(self, async_):
@@ -1324,7 +1359,7 @@ class _Parser:
         cls = "AsyncWith" if async_ else "With"
         return self._fin_block(_N(cls)(items=items, body=body, type_comment=None), t)
 
-    def _with_parenthesized(self):
+    def _with_parenthesized(self) -> bool:
         # lookahead: a parenthesized with-items list (heuristic: '(' then items
         # with 'as' or ',' before matching ')'). Keep simple: treat '(' as a
         # normal expression unless we clearly see "as" at depth 1.
@@ -1354,7 +1389,7 @@ class _Parser:
         optional = None
         if self.accept_kw("as"):
             optional = self.expr()
-            _set_ctx(optional, _N("Store")())
+            optional = _set_ctx(optional, _N("Store")())
         return _N("withitem")(context_expr=ctx, optional_vars=optional)
 
     def try_stmt(self):
@@ -1369,7 +1404,7 @@ class _Parser:
             ht = self.advance()
             if self.accept_op("*"):
                 is_star = True
-            typ = None; name = None
+            typ: Optional["ExprIR"] = None; name: Optional[str] = None
             if not self.at_op(":"):
                 typ = self.test()
                 if self.accept_kw("as"):
@@ -1425,7 +1460,7 @@ class _Parser:
         self.expect_op("(")
         args = self.parse_parameters(")")
         self.expect_op(")")
-        returns = None
+        returns: Optional["ExprIR"] = None
         if self.accept_op("->"):
             returns = self.test()
         self.expect_op(":")
@@ -1495,7 +1530,10 @@ class _Parser:
     def _param_arg(self):
         t = self.cur()
         name = self._name_str()
-        ann = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never evaluated),
+        # here for the VERIFIER: it makes the local a real `option emit_ir` carrier, so the
+        # absent path is a TRUE `None` and not an erased node.
+        ann: Optional["ExprIR"] = None
         if self.accept_op(":"):
             ann = self.test()
         return self._fin(_N("arg")(arg=name, annotation=ann, type_comment=None), t)
@@ -1543,7 +1581,7 @@ class _Parser:
         if self.at_op(":="):
             self.advance()
             value = self.test()
-            _set_ctx(first, _N("Store")())
+            first = _set_ctx(first, _N("Store")())
             return self._fin(_N("NamedExpr")(target=first, value=value), t)
         return first
 
@@ -1958,7 +1996,7 @@ class _Parser:
             tgt = _N("Tuple")(elts=elts, ctx=_N("Load")())
             tgt.lineno = elts[0].lineno; tgt.col_offset = elts[0].col_offset
             tgt.end_lineno = elts[-1].end_lineno; tgt.end_col_offset = elts[-1].end_col_offset
-        _set_ctx(tgt, _N("Store")())
+        tgt = _set_ctx(tgt, _N("Store")())
         return tgt
 
     def yield_expr(self):
@@ -1966,7 +2004,10 @@ class _Parser:
         if self.accept_kw("from"):
             val = self.test()
             return self._fin(_N("YieldFrom")(value=val), t)
-        value = None
+        # PEP-526 local annotation, runtime-INERT (a local's annotation is never
+        # evaluated), here for the VERIFIER: it makes the local a real optional carrier,
+        # so the absent path is a TRUE `None` and not an erased node.
+        value: Optional["ExprIR"] = None
         if not self._stmt_end() and not self.at_op(")", "]", "}", ":", ","):
             value = self.testlist()
         return self._fin(_N("Yield")(value=value), t)
@@ -2149,6 +2190,16 @@ def _set_ctx(node, ctx):
         node.ctx = ctx
         for e in node.elts:
             _set_ctx(e, ctx)
+    # RETURN INTERFACE (relaunch #13). The function MUTATES `node` in place and every
+    # caller then reads that same object, so returning it is RUNTIME-IDENTICAL — the
+    # caller binds the very object it passed in. What it buys is a MODEL: an
+    # in-place mutation of an `emit_ir` is invisible to the immutable ADT, so the
+    # emitted model silently kept the node's ORIGINAL `ctx` ("Load") where the source
+    # had just written "Store" — a WRONG VALUE, and the recorded [CORRECTNESS]
+    # boundary on `_set_ctx`. As a RETURN it becomes an honest uninterpreted
+    # `emit_ir -> string -> emit_ir`: nothing false is claimed about the result's
+    # `ctx` in either direction.
+    return node
 
 
 def _parse_number(s):
@@ -2490,7 +2541,7 @@ def dump(node, annotate_fields=True, include_attributes=False, *, indent=None):
 # get_source_segment
 # ---------------------------------------------------------------------------
 
-def _splitlines_no_ff(source):
+def _splitlines_no_ff(source: str) -> "List[str]":
     """Split a string into lines ignoring form feed and other chars (\\n only)."""
     idx = 0
     lines = []
@@ -2512,7 +2563,7 @@ def _splitlines_no_ff(source):
     return lines
 
 
-def _pad_whitespace(source):
+def _pad_whitespace(source: str) -> str:
     r"""Replace all chars except '\f\t' in a line with spaces."""
     result = ''
     for c in source:
@@ -3029,10 +3080,10 @@ class _Unparser(NodeVisitor):
             self.write(": ")
             self.traverse(node.bound)
 
-    def visit_TypeVarTuple(self, node):
+    def visit_TypeVarTuple(self, node: "TypeVarTuple"):
         self.write("*" + node.name)
 
-    def visit_ParamSpec(self, node):
+    def visit_ParamSpec(self, node: "ParamSpec"):
         self.write("**" + node.name)
 
     def visit_TypeAlias(self, node):
@@ -3393,7 +3444,7 @@ class _Unparser(NodeVisitor):
             self.write(":")
             self.traverse(node.step)
 
-    def visit_Name(self, node):
+    def visit_Name(self, node: "Name"):
         self.write(node.id)
 
     def visit_arg(self, node):

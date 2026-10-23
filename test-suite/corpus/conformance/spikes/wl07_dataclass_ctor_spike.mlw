@@ -1,0 +1,66 @@
+(* WL-07 SMT-feasibility spike: prove that a `@dataclass` positional constructor
+   `Point(1, 2)` — whose synthesized `__init__(self, x, y)` binds `self.x = x`,
+   `self.y = y` in field-declaration order — lowers to a record LITERAL with the
+   constructor args threaded into the fields (`{ px = 1; py = 2 }`), so a field
+   read `Point(1, 2).x` denotes the FAITHFUL arg value (1), NOT the field default
+   (0).
+
+   THE BUG (severity-1 UNSOUND, discovered by the WL-04c delegate): a `@dataclass`
+   with NO explicit `__init__` DROPPED its positional constructor arguments —
+   Module5's `_collect_init_construction` only walked an EXPLICIT `__init__`, so a
+   dataclass got empty `init_params`/`init_body` and `_call_record_constructor`
+   fell every field back to its default. So `Point(1, 2)` emitted `{ px = 0; py = 0 }`
+   and `Point(1, 2).x == 0` PROVED — a green proof of a claim FALSE of real Python
+   (`Point(1, 2).x` is `1`). Contrast the PLAIN class with an explicit positional
+   `__init__` (WL-04e / faithful): `Point(1, 2).x == 1` proves and `== 0` does not.
+
+   THE FIX: synthesize `init_params` (the dataclass fields in declaration order)
+   and `init_body` (`self.<field> = <field-param>`) for a `@dataclass` with no
+   explicit `__init__`, mirroring the NamedTuple record path — so
+   `_call_record_constructor` threads the args into the fields exactly as it does
+   for a NamedTuple / recognized `Tuple` / explicit-`__init__` positional class.
+
+   This spike is the ground-truth that the faithful record-literal-from-ctor-args
+   law reasons CLEANLY on BOTH Alt-Ergo AND Z3 — no cited lemma needed (a native
+   Why3 record literal composed with a native field projection). The FALSE twin
+   (`== 0`, the old buggy emission's claim) is refuted, so the SMT context is not
+   vacuous. *)
+
+module WL07DataclassCtorSpike
+  use int.Int
+
+  (* the record lowering of `@dataclass class Point: x: int; y: int` *)
+  type point = { px: int; py: int }
+
+  (* the faithful lowering of `Point(1, 2).x` — the ctor threads its positional
+     args into the fields (declaration order), so the literal is `{ px = 1; py = 2 }`
+     and the field read projects the faithful arg value. *)
+  let ctor_field_x () : int
+    ensures { result = 1 }
+  = let p = { px = 1; py = 2 } in p.px
+
+  let ctor_field_y () : int
+    ensures { result = 2 }
+  = let p = { px = 1; py = 2 } in p.py
+
+  (* FALSE twin — the OLD buggy emission's claim (`{ px = 0; py = 0 }`, field
+     default). It must NOT be derivable from the faithful literal: the faithful
+     `{ px = 1 }` has `px = 1 <> 0`, refuting the old false `== 0`. A goal (not an
+     ensures) so a failure to prove is the CORRECT outcome — proving it would mean
+     the context is unsound/vacuous. *)
+  goal old_false_claim_refuted :
+    (let p = { px = 1; py = 2 } in p.px) <> 0
+
+  (* symbolic form: for ANY positional args a, b the ctor field read denotes a, b
+     — the general faithful-ctor law (not just the concrete 1, 2). *)
+  let ctor_symbolic (a b: int) : int
+    ensures { result = a }
+  = let p = { px = a; py = b } in p.px
+
+  (* PARTIAL-arg soundness: a dataclass field WITH a default that is OMITTED keeps
+     its default; a field bound from a positional arg keeps the arg. `Point(7)`
+     with `y: int = 5` → `{ px = 7; py = 5 }`. *)
+  let ctor_partial_default () : int
+    ensures { result = 7 }
+  = let p = { px = 7; py = 5 } in p.px
+end

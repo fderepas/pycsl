@@ -7,10 +7,21 @@ instantiations: `Just(7)` is `option int`, `Just(s)` for a `str` is `option
 string`. A monomorphic `type option = Nothing | Just int` (the pre-A5d fallback)
 could not type the string use.
 
-Fails today: the `[T]` type-parameter syntax is not in the `#@ datatype` grammar
-(parse error). Flips when the type parameter threads through to a polymorphic
-Why3 variant. Two instantiations (int + str) give it teeth — a monomorphic
-collapse to `Just int` would reject `Just(s)`.
+STATUS — PROVES (since relaunch #45). Two instantiations (int + str) give it
+teeth: a monomorphic collapse to `Just int` would reject `Just(s)`.
+
+The docstring used to say "Fails today: the `[T]` type-parameter syntax is not
+in the `#@ datatype` grammar (parse error)". That was wrong on both halves. The
+grammar HAS accepted `[T]` since A5d (`Module2_Parser._parse_datatype`) and
+Module 6 has lowered it to a polymorphic Why3 variant since A5d
+(`module6_whyml/preamble._fmt_variant`); what this file actually produced was
+`[!] UNEXPECTED PIPELINE ERROR: 'str' object has no attribute 'get'` — an
+INTERNAL CRASH, not a refusal. `type_params` had TWO producers under ONE key
+with TWO shapes: a PEP 695 generic writes `[{"name","bound","kind"}, ...]` and a
+`#@ datatype Option[T]` writes the bare names `["T", ...]`, and
+`frontend/monomorphize` read the second as the first. Monomorphization is not
+defined over sum types at all, so it now skips `kind == "variant"` decls.
+See the negative/positive witness pair 1002/1003.
 """
 #@ datatype Option[T] = Nothing | Just(T)
 _ = 0  # anchor

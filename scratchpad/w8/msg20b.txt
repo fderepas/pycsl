@@ -1,0 +1,45 @@
+FOUND+CLOSED(#43): ROUTE #20 — `with ... as v` was exploitable, and it was hiding inside a ratchet reported green for windows
+
+`bin/check-dropped-mutation.py` has reported `50 CTXBIND` on every run of this campaign, as
+a tracked and accepted residue. It was a live unsoundness:
+
+    class CM:
+        #@ ensures \result == 7
+        def __enter__(self) -> int:  return 7
+
+    #@ ensures \result == 0                    <-- FALSE OF THE PROGRAM
+    def f() -> int:
+        v: int = 0
+        with CM() as v:
+            return v
+
+    [+] Verification SUCCESS! All contracts formally proven.        (Python: 7)
+
+`_py_stmt_with` reads `stmt.body` and the critical-section markers and NEVER reads
+`stmt.items`, so the manager expression and the binding both vanish and the body runs
+against the PRE-`with` value. The emitted body was `let v = ref 0 in v := 0; !v`.
+
+CLOSED with the `nonlocal_writes` shape: carried into the IR as the additive field
+`with_bindings` and refused in Module 6's GENERIC emission, so a `\trusted` / `\abstract`
+function — whose body is never lowered — stays exempt. A BARE `with <lock>:` has no binding
+and IS modelled, as a critical section; the refusal keys on the `as` clause alone.
+
+PRICE, every part measured before landing:
+  · ONE converted mirror method re-`\trusted` — `pure_ast._Unparser.visit_Lambda`, whose
+    `with self.buffered() as buffer:` was reading a STALE `buffer`. Metric 455 -> 456.
+    It is the only converted method in the entire tree with the shape (census: 62 sites).
+  · TWO `python-reference` syntax-coverage tests marked `pycsl-expected: FAIL`
+    (0093, 0191) — the treatment #34 gave `python-reference/0111` for `except*`.
+  · the CTXBIND ratchet 50 -> 51, and the +1 is the WITNESS ITSELF. The counter's meaning
+    changed with it: every site it still sees is now inside a `\trusted` function or a
+    `pycsl-expected: FAIL` witness, because the exploitable form is refused.
+
+GATES: `pycsl-reference` 820/820 BYTE-IDENTICAL · `python-reference` 2142 emitted, with
+exactly 0093/0191 newly refused and every other emission byte-identical · mirror L3-tc
+53/53 · fidelity NO new divergence · core AND front-end conformance 38 OK / 0 MISMATCH each
+(the new IR field moved no golden) · clause-survival 4. Witness 0989, NEGATIVE-TESTED.
+
+OWED: `pure_ast` is the only mirror whose emission moved, so it needs ONE more whole-file
+proof after the in-flight `a_pure` — appended to the queue.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

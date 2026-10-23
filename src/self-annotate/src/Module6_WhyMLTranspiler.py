@@ -25,10 +25,9 @@ class Module6_WhyMLTranspiler(
 ):
     """Reads the JSON IR and transpiles it into valid WhyML (.mlw) syntax."""
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._all_record_fields, self._ambiguous_fields, self._array2d_params, self._array_locals, self._auto_trusted_array_returns, self._auto_trusted_map_returns, self._auto_trusted_set_op, self._auto_trusted_tuple_returns, self._bounded_int, self._class_constants, self._class_str_set_constants, self._constructors, self._current_array1d_params, self._current_params, self._current_self_type, self._current_symbol_table, self._current_tuple_arity, self._dict_locals, self._emit_record_ctx, self._emitted_logic_funcs, self._emitting_val_contract, self._for_idx_init, self._frame_trigger_active, self._func_mutated_collection_params, self._func_return_type, self._func_stmt_seq_mut_params, self._has_early_ret, self._havoc_counter, self._imported_inductive_sigs, self._in_spec, self._lambda_locals, self._late_content_ops, self._module_const_compound_dicts, self._module_const_dicts, self._module_const_pair_dicts, self._module_constants, self._module_func_names, self._module_func_no_exception, self._module_func_no_exception_all, self._module_func_param_names, self._module_func_raises, self._module_global_classes, self._module_method_field_old_ensures, self._module_method_field_param_frame_ensures, self._module_method_field_param_post_ensures, self._module_method_field_param_result_ensures, self._module_method_field_result_ensures, self._module_method_formal_params, self._module_method_param_defaults, self._module_method_param_kinds, self._module_method_param_result_ensures, self._module_method_param_types, self._module_method_param_whyml_types, self._module_method_result_ensures, self._module_method_return_annotations, self._module_method_return_types, self._module_method_vararg_elem, self._module_method_vararg_str, self._module_method_writes, self._module_str_list_constants, self._quant_record_binders, self._quant_scalar_binders, self._record_locals, self._record_types, self._shared_var_names, self._token_kind_constants, self._value_semantic, self._variant_types, self.check_behavioral_subtyping, self.ir, self.memory_model, self.strict_hash_eq_consistency, self.strict_no_exception_propagation
     def __init__(self, json_ir: str, memory_model: str = "hoare",
                  strict_no_exception_propagation: bool = False,
                  strict_hash_eq_consistency: bool = False,
@@ -54,15 +53,60 @@ class Module6_WhyMLTranspiler(
         # is on the hook to keep the methods consistent).
         self.strict_hash_eq_consistency = bool(strict_hash_eq_consistency)
         self._abstract_ops: Dict[str, str] = {}  # Abstract val declarations: name → full decl string
+        # cleared-array item 1 (call comprehensions): the set of module functions
+        # already emitted as a pure `let [rec] function` (a logic symbol usable in a
+        # contract term). Populated in `_emit_function` as each function is emitted
+        # (callee-before-caller SCC order), so a comprehension `[g(x) for x in a]`
+        # processed during the CALLER's body can check `g` is spec-callable.
+        self._emitted_logic_funcs: Set[str] = set()
+        # cleared-array item 1: content-comp `val`s whose `ensures` references a USER
+        # `let function` (a call comprehension). Such a `val` must be declared AFTER
+        # its referenced function, so it is deferred here as (op_name, decl,
+        # using_func) and spliced in just before the using function's `let` line by
+        # `_insert_late_content_ops`, instead of into the early abstract-op block.
+        self._late_content_ops: List[Any] = []
         self._record_types: Dict[str, Any] = {}  # class_name_lower → {fields: [...], defaults: {...}}
         # sum-types: variant type name → {whyml_name, constructors}; constructor name →
         # {type, whyml_type, arity, payload}. Drive param typing, construction, and match.
         self._variant_types: Dict[str, Any] = {}
         self._constructors: Dict[str, Any] = {}
         self._class_constants: Dict[str, Dict[str, int]] = {}  # class_name_lower → {CONST: int literal}
+        # 7b (self-tcb-reduction L4b): class_name → {CONST: [str-member, ...]} for class-body
+        # string-SET constants (`_GENERIC_BASE_NAMES = {"Generic"}`); feeds the faithful
+        # `<x> in self.<CONST>` -> `str_eq_op` disjunction membership.
+        self._class_str_set_constants: Dict[str, Dict[str, List[str]]] = {}
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in `_handle_var_expr` (body and contract).
         self._module_constants: Dict[str, int] = self.ir.get("module_constants", {})
+        # W8 (ii): `<alias>.<CONST>` -> concrete int, for the CPython `tokenize`/`token`
+        # kind codes, read from the real module at emission (see Module5). Empty for
+        # every program that does not import them.
+        self._token_kind_constants: Dict[str, int] = self.ir.get(
+            "token_kind_constants", {})
+        # W8 (ii, companion): `<alias>.<attr>` -> its actual list-of-str contents, for
+        # the CPython `keyword` tables. Empty for every program that does not import it.
+        self._module_str_list_constants: Dict[str, List[str]] = self.ir.get(
+            "module_str_list_constants", {})
+        # module-const-dict-get: module-level constant str->str dict literals
+        # (`OP_MAP = {"==":"=", ...}`) → recognized at `NAME.get(k, default)` in
+        # `_lower_dict_get_call` as a chained string if-then-else. Empty for every
+        # existing corpus program (byte-identical emission).
+        self._module_const_dicts: Dict[str, Dict[str, str]] = self.ir.get("module_const_dicts", {})
+        # module-const-PAIR-dicts: module-level `str -> (str, int)` const dict literals
+        # (`_BINOP = {"|": ("BitOr", 4), ...}`), as `{NAME: [(key, s, i), ...]}` in source
+        # order. Recognized at a `<key> in NAME` membership guard and at a
+        # `a, b = NAME[<key>]` tuple-unpack read. Empty for every corpus program
+        # (byte-identical emission).
+        self._module_const_pair_dicts: Dict[str, list] = self.ir.get(
+            "module_const_pair_dicts", {})
+        # compound-key const-map lowering: `{NAME: {"key_whyml":…, "elem_whyml":…}}`
+        # for a module-const dict with a tuple key + list value (`TRIGGERS`). Each
+        # becomes an opaque `val constant NAME : map <key> (option (list <elem>))`
+        # (emitted after the type decls) and a `NAME.get(k, [])` read lowers to the
+        # faithful defaulting `Map.get` in `_lower_dict_get_call`. Empty for every
+        # corpus program (byte-identical emission).
+        self._module_const_compound_dicts: Dict[str, Dict[str, str]] = self.ir.get(
+            "module_const_compound_dicts", {})
         # gap-9: signatures of imported `#@ inductive` predicates whose RULE was
         # NOT crossed (kept opaque to avoid an E-matching blow-up). Lets the
         # `_emit_contract_logic_symbol` fallback declare the opaque predicate
@@ -113,12 +157,26 @@ class Module6_WhyMLTranspiler(
         self._module_func_names: Set[str] = set()
         self._module_method_return_types: Dict[str, str] = {}
         self._module_method_param_types: Dict[str, List[str]] = {}
+        # wrong-lowering-to-fix.md §WL-05b: func-name -> caller-visible mutable
+        # `ref (map …)` dict/set param names (fixpoint). Empty default → byte-identical.
+        self._func_mutated_collection_params: Dict[str, Set[str]] = {}
+        # stmt-list-append-mutation wall (C-bucket): func-name -> caller-visible mutable
+        # `ref (seq stmt_ir)` list param names (fixpoint). Empty default → byte-identical.
+        self._func_stmt_seq_mut_params: Dict[str, Set[str]] = {}
         # 10-1732-gap (Gaps 2/3): callee return-annotation + by-name param WhyML types.
         self._module_method_return_annotations: Dict[str, str] = {}
         self._module_method_param_whyml_types: Dict[str, Dict[str, str]] = {}
         # 1111-spec R7: per-function formal-param order + positional defaults.
         self._module_method_formal_params: Dict[str, List[str]] = {}
         self._module_method_param_defaults: Dict[str, Dict[str, Any]] = {}
+        # (#49) ROUTE #232: callee-name -> (keyword-only formals, positional-only
+        # formals, has `**kwargs`), for the call-site binding rules.
+        self._module_method_param_kinds: Dict[str, Any] = {}
+        # W8 (ii): callee-name -> its `*vals: str` vararg param name.
+        self._module_method_vararg_str: Dict[str, str] = {}
+        # ladder 1a: callee-name -> WhyML element type of its vararg sequence
+        # ("string" | "int"). Absent entry means "string" (the W8 (ii) default).
+        self._module_method_vararg_elem: Dict[str, str] = {}
         self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_field_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
@@ -151,7 +209,6 @@ class Module6_WhyMLTranspiler(
         self._module_func_param_names: Dict[str, List[str]] = {}
 
     @property
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -166,7 +223,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._module_func_no_exception, self._module_func_no_exception_all, self._module_func_param_names, self._module_func_raises
     def _build_callee_no_exception_summary(self, functions: List[Dict[str, Any]]) -> None:
         """Populate the module-wide callee summary maps (workplan PR 4).
         Indexed by the IR function name (e.g. "divide_256")."""
@@ -181,7 +238,6 @@ class Module6_WhyMLTranspiler(
             self._module_func_raises[name] = list(contracts.get("raises", []) or [])
             self._module_func_param_names[name] = list(func.get("formal_params", []) or [])
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -201,7 +257,6 @@ class Module6_WhyMLTranspiler(
         declared = {r["exc_type"] for r in self._module_func_raises.get(callee_name, [])}
         return declared - proved
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -222,7 +277,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _wrap_call_with_callee_raises_assert(self, callee_name: str,
                                               inner: str, args: List[str]) -> str:
         """For a user-function call site inside a function with
@@ -269,7 +324,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _render_callee_condition(self, cond_ir: Any,
                                   param_names: List[str],
                                   args: List[str]) -> Optional[str]:
@@ -287,7 +342,6 @@ class Module6_WhyMLTranspiler(
         except Exception:
             return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -427,7 +481,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._all_record_fields, self._ambiguous_fields, self._array2d_params, self._array_elem_types, self._array_locals, self._auto_trusted_array_returns, self._auto_trusted_map_returns, self._auto_trusted_set_op, self._auto_trusted_tuple_returns, self._axiom_emitted_decls, self._axiom_logic_funcs, self._bmem_outer_ids, self._bmem_walk_ids, self._bounded_int, self._cbw_emitted, self._cbw_funcs, self._cbw_names, self._cce_emitted, self._cce_funcs, self._cce_names, self._ccm_outer_ids, self._ccm_walk_ids, self._ccns_emitted, self._ccns_funcs, self._ccns_names, self._ccs_emitted, self._ccs_funcs, self._ccs_names, self._check_final_desc, self._check_final_name, self._cira_outer_ids, self._cira_walk_ids, self._class_constants, self._class_inv_axioms_emitted, self._class_name_ternary_locals, self._class_str_set_constants, self._clx_outer_ids, self._clx_pred_names, self._clx_walk_ids, self._cmtl_outer_ids, self._cmtl_walk_ids, self._comp_content_counter, self._composed_provider_methods, self._compound_key_params, self._compound_map_getter, self._conc_cluster, self._conc_emitted, self._conc_names, self._const_pair_dict_str_locals, self._constructors, self._crd_outer_ids, self._crd_walk_ids, self._crn_outer_ids, self._crn_walk_ids, self._crvn_outer_ids, self._crvn_walk_ids, self._cs_trio, self._cs_trio_emitted, self._cs_trio_names, self._csa_emitted, self._csa_funcs, self._csa_names, self._cssd_outer_ids, self._cssd_walk_ids, self._current_append_targets, self._current_array1d_params, self._current_emit_group, self._current_emitting_func, self._current_no_exception, self._current_no_exception_all, self._current_params, self._current_pyast_classdef_params, self._current_pyast_module_params, self._current_record_var_classes, self._current_self_type, self._current_sig_func_name, self._current_symbol_table, self._current_tparam_node_params, self._current_tuple_arity, self._declared_types_modular, self._decode_to_string, self._deferred_union_arm_goals, self._dict_key_types, self._dict_locals, self._dict_value_types, self._eal_outer_ids, self._eal_walk_ids, self._emit_ir_local_vars, self._emit_ir_seq_locals, self._emit_record_ctx, self._emitted_logic_funcs, self._emitted_record_field_labels, self._emitted_walker_names, self._emitting_val_contract, self._exprir_deferred, self._fdsl_outer_ids, self._fdsl_walk_ids, self._final_pair, self._final_pair_emitted, self._final_pair_names, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._formal_params, self._frame_trigger_active, self._frss_outer_ids, self._frss_walk_ids, self._func_mutated_collection_params, self._func_return_type, self._func_stmt_seq_mut_params, self._get_return_raw_option, self._getattr_self_dict_aliases, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._has_crosscheck_str_record, self._has_early_ret, self._has_opaque_term_fields, self._havoc_counter, self._hsom_outer_ids, self._hsom_walk_ids, self._hvalmap_local_vars, self._ile_outer_ids, self._ile_walk_ids, self._in_loop_spec, self._in_spec, self._inductive_preds, self._inline_array_temps, self._irlist_local_vars, self._iroaf_outer_ids, self._iroaf_walk_ids, self._iropt_ir_local_vars, self._iropt_seq_locals, self._iropt_str_local_vars, self._keyword_locals, self._kind_local_recv, self._known_collection_elements, self._known_collection_sizes, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._list_element_record_types, self._list_nested_elem, self._lss_outer_ids, self._lss_pred_names, self._lss_walk_ids, self._module_func_names, self._module_func_no_exception, self._module_func_no_exception_all, self._module_func_param_names, self._module_func_raises, self._module_global_classes, self._module_method_field_old_ensures, self._module_method_field_param_frame_ensures, self._module_method_field_param_post_ensures, self._module_method_field_param_result_ensures, self._module_method_field_result_ensures, self._module_method_formal_params, self._module_method_noreturn, self._module_method_param_defaults, self._module_method_param_kinds, self._module_method_param_result_ensures, self._module_method_param_types, self._module_method_param_whyml_types, self._module_method_result_ensures, self._module_method_result_frame_ensures, self._module_method_return_annotations, self._module_method_return_types, self._module_method_vararg_elem, self._module_method_vararg_str, self._module_method_writes, self._module_string_seq_funcs, self._mutable_state_classes, self._mutated_collection_params, self._needs_array_init, self._needs_crosscheck_str_agree, self._needs_term_eq, self._needs_term_strbuild, self._needs_term_streq, self._nrw_emitted, self._nrw_funcs, self._nrw_names, self._obj_state_written, self._opaque_selfmap_aliases, self._opaque_selfmap_inner_aliases, self._opaque_theory_deferred, self._option_record_param_classes, self._option_str_return_vars, self._option_tuple_unpack_targets, self._option_tuple_vars, self._optional_union_locals, self._optmap_getter_locals, self._param_list_flat_elem, self._pb_trio, self._pb_trio_emitted, self._pb_trio_names, self._pp_term_emitted, self._property_getters, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyconst_val_local_vars, self._pyconst_val_tuple_slot, self._pyval_coll_locals, self._pyval_get_as_string, self._pyval_get_raw_coll, self._pyval_list_walker_names, self._pyval_local_vars, self._pyval_locals, self._pyval_seq_append_targets, self._pyval_seq_fields, self._pyval_seq_locals, self._quant_record_binders, self._quant_scalar_binders, self._record_array_fields, self._record_array_locals, self._record_array_params, self._record_field_elem_locals, self._record_locals, self._record_param_classes, self._record_seq_locals, self._record_types, self._refine_str_comp_locals, self._reserved_exprir_symbols_cache, self._result_alias, self._rss_outer_ids, self._rss_walk_ids, self._scan2d_trio, self._scan2d_trio_emitted, self._scan2d_trio_names, self._scope_all, self._scope_dyn_exec, self._scope_must, self._scope_params, self._sdl_outer_ids, self._sdl_walk_ids, self._seq_ir_tuple_targets, self._seq_locals, self._seq_value_types, self._serl_outer_ids, self._serl_walk_ids, self._shared_op_skip, self._shared_symbol_decls, self._shared_var_names, self._sibling_concrete_methods, self._size_variant_param, self._slice_set_tmp_counter, self._spat_outer_ids, self._spat_walk_ids, self._ssd_emitted, self._ssd_funcs, self._ssd_names, self._ssd_walkers_seen, self._stmt_seq_mut_params, self._str_array_record_fields, self._str_literal_seq_locals, self._str_set_locals, self._str_slice_loop_len, self._string_local_vars, self._suat_outer_ids, self._suat_walk_ids, self._tdrl_hval_locals, self._tdrl_present_locals, self._term_adt_spec, self._term_const_dicts, self._term_const_int_dicts, self._term_local_vars, self._term_pp_convert_classes, self._term_pp_family, self._term_pp_mc, self._term_pp_method_classes, self._term_pp_names, self._todict_aliases, self._todict_arg_wants_pymap, self._tparam_list_aliases, self._tparam_locals, self._tuple_array_locals, self._tuple_emit_ir_slot_locals, self._tuple_var_slot_types, self._union_cluster, self._union_emitted, self._union_names, self._uses_act_guard_cache, self._uses_build_overload_param_guard_cache, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_clause_ir_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_csl_proj_cache, self._uses_dictlit_cache, self._uses_ir_node_param, self._uses_is_overload_stub_cache, self._uses_method_recv_cache, self._uses_null_byte_num_reader_cache, self._uses_py_functiondef_node_cache, self._uses_pyast_module_cache, self._uses_pyast_parser_cache, self._uses_pyast_stmt_cache, self._uses_pyval_cache, self._uses_refine_tuple_return_type_cache, self._uses_stmt_if_test_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache, self._uses_str_set_cache, self._uses_synthesize_overload_guard_cache, self._uses_tparam_cache, self._vararg_elem_type, self._vararg_str_param, self._variant_types, self._verify_module_of
     def transpile(self) -> str:
         """Entry point: converts the entire program to a .mlw string."""
         functions = self.ir.get("functions", [])
@@ -648,7 +702,6 @@ class Module6_WhyMLTranspiler(
     # ------------------------------------------------------------------
     # module-emission.md — OPT-IN axiom isolation via separate Why3 modules
     # ------------------------------------------------------------------
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -665,7 +718,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._composed_provider_methods, self._current_emitting_func, self._current_self_type, self._current_symbol_table, self._func_mutated_collection_params, self._func_stmt_seq_mut_params, self._inductive_preds, self._module_func_names, self._module_func_no_exception, self._module_func_no_exception_all, self._module_func_param_names, self._module_func_raises, self._module_method_field_old_ensures, self._module_method_field_param_frame_ensures, self._module_method_field_param_post_ensures, self._module_method_field_param_result_ensures, self._module_method_field_result_ensures, self._module_method_formal_params, self._module_method_noreturn, self._module_method_param_defaults, self._module_method_param_kinds, self._module_method_param_result_ensures, self._module_method_param_types, self._module_method_param_whyml_types, self._module_method_result_ensures, self._module_method_result_frame_ensures, self._module_method_return_annotations, self._module_method_return_types, self._module_method_vararg_elem, self._module_method_vararg_str, self._module_method_writes, self._module_string_seq_funcs, self._property_getters, self._sibling_concrete_methods, self._tuple_emit_ir_slot_locals, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache
     def _compute_shared_module_maps(self, functions: List[Dict[str, Any]]) -> None:
         """Populate the SHARED cross-function lookup state (return-types, contract-
         propagation ensures maps, no_exception summary, …) from the FULL function set
@@ -716,7 +769,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._ambiguous_fields, self._axiom_emitted_decls, self._axiom_logic_funcs, self._bmem_outer_ids, self._bmem_walk_ids, self._cbw_emitted, self._cbw_funcs, self._cbw_names, self._cce_emitted, self._cce_funcs, self._cce_names, self._ccm_outer_ids, self._ccm_walk_ids, self._ccns_emitted, self._ccns_funcs, self._ccns_names, self._ccs_emitted, self._ccs_funcs, self._ccs_names, self._check_final_desc, self._check_final_name, self._cira_outer_ids, self._cira_walk_ids, self._class_constants, self._class_inv_axioms_emitted, self._class_str_set_constants, self._clx_outer_ids, self._clx_pred_names, self._clx_walk_ids, self._cmtl_outer_ids, self._cmtl_walk_ids, self._comp_content_counter, self._conc_cluster, self._conc_emitted, self._conc_names, self._constructors, self._crd_outer_ids, self._crd_walk_ids, self._crn_outer_ids, self._crn_walk_ids, self._crvn_outer_ids, self._crvn_walk_ids, self._cs_trio, self._cs_trio_emitted, self._cs_trio_names, self._csa_emitted, self._csa_funcs, self._csa_names, self._cssd_outer_ids, self._cssd_walk_ids, self._current_emitting_func, self._current_params, self._current_self_type, self._current_symbol_table, self._declared_types_modular, self._dict_locals, self._eal_outer_ids, self._eal_walk_ids, self._emit_record_ctx, self._emitted_record_field_labels, self._emitted_walker_names, self._fdsl_outer_ids, self._fdsl_walk_ids, self._final_pair, self._final_pair_emitted, self._final_pair_names, self._frame_trigger_active, self._frss_outer_ids, self._frss_walk_ids, self._func_return_type, self._has_crosscheck_str_record, self._has_opaque_term_fields, self._hsom_outer_ids, self._hsom_walk_ids, self._ile_outer_ids, self._ile_walk_ids, self._in_spec, self._inductive_preds, self._iroaf_outer_ids, self._iroaf_walk_ids, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._list_element_record_types, self._lss_outer_ids, self._lss_pred_names, self._lss_walk_ids, self._module_global_classes, self._needs_array_init, self._needs_crosscheck_str_agree, self._needs_term_eq, self._needs_term_strbuild, self._needs_term_streq, self._nrw_emitted, self._nrw_funcs, self._nrw_names, self._obj_state_written, self._pb_trio, self._pb_trio_emitted, self._pb_trio_names, self._pp_term_emitted, self._pyconst_val_tuple_slot, self._pyval_seq_append_targets, self._pyval_seq_fields, self._quant_record_binders, self._quant_scalar_binders, self._record_array_fields, self._record_types, self._reserved_exprir_symbols_cache, self._rss_outer_ids, self._rss_walk_ids, self._scan2d_trio, self._scan2d_trio_emitted, self._scan2d_trio_names, self._sdl_outer_ids, self._sdl_walk_ids, self._serl_outer_ids, self._serl_walk_ids, self._shared_var_names, self._spat_outer_ids, self._spat_walk_ids, self._ssd_emitted, self._ssd_funcs, self._ssd_names, self._ssd_walkers_seen, self._str_array_record_fields, self._string_local_vars, self._suat_outer_ids, self._suat_walk_ids, self._term_adt_spec, self._term_const_dicts, self._term_const_int_dicts, self._term_pp_convert_classes, self._term_pp_family, self._term_pp_mc, self._term_pp_method_classes, self._term_pp_names, self._todict_arg_wants_pymap, self._tuple_emit_ir_slot_locals, self._union_cluster, self._union_emitted, self._union_names, self._uses_act_guard_cache, self._uses_build_overload_param_guard_cache, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_clause_ir_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_csl_proj_cache, self._uses_dictlit_cache, self._uses_is_overload_stub_cache, self._uses_method_recv_cache, self._uses_null_byte_num_reader_cache, self._uses_py_functiondef_node_cache, self._uses_pyast_module_cache, self._uses_pyast_parser_cache, self._uses_pyast_stmt_cache, self._uses_pyval_cache, self._uses_refine_tuple_return_type_cache, self._uses_stmt_if_test_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache, self._uses_synthesize_overload_guard_cache, self._uses_tparam_cache, self._variant_types
     def _emit_prefunctions_infra(self, functions: List[Dict[str, Any]],
                                  type_decls: List[Dict[str, Any]],
                                  all_bodies: List[Any],
@@ -761,10 +814,9 @@ class Module6_WhyMLTranspiler(
         self._declared_types_modular = declared_types
         return out
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._axiom_emitted_decls, self._class_inv_axioms_emitted
     def _reset_module_accumulators(self) -> None:
         """Reset the per-module emission accumulators so each emitted Why3 `module`
         gets its OWN abstract-val block / axiom-decl set / class-inv-axiom set (the
@@ -777,12 +829,47 @@ class Module6_WhyMLTranspiler(
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _sig_val_from_let(self, let_lines: List[str]) -> List[str]:
+    def _sig_val_from_let(self, let_lines: List[str],
+                          public_name: Optional[str] = None) -> List[str]:
         """Convert an emitted `let <fn> ... = <body>` block into a bodyless interface
         `val <fn> ...` carrying ONLY the contract (requires/ensures/writes), dropping the
         `variant` (illegal on a bodyless `val`) and everything from the `=` onward. This
         is the `<G>Sig` interface declaration the provider's `clone`-refinement proves and
-        the consumer module calls — the PROVEN cross-module boundary (no assumed `val`)."""
+        the consumer module calls — the PROVEN cross-module boundary (no assumed `val`).
+
+        A RECOGNIZER-emitted group (a stmt/pyval walker) emits its private helper
+        `let rec`s FIRST and the tagged method's PUBLIC entry `let <public_name>` LAST; the
+        Sig must expose the PUBLIC entry (the provider's `clone`-refinement substitutes
+        `<public_name>`), with the helper lets staying private inside the provider body —
+        never exported. When `public_name` is given AND the block has MORE THAN ONE
+        top-level `let` header, select the block starting at the public entry's header
+        (skipping the preceding helper lets). A SINGLE-body group has exactly one top-level
+        `let` and its public entry IS the first `let`, so the block is left untouched →
+        byte-identical for every existing (single-body) group."""
+        # (#49) gen #31 — AN HONEST MARKER, NOT A REGRESSION. This closure sits inside
+        # `_sig_val_from_let`, which is itself `#@ \trusted`, so the enclosing function
+        # is emitted as an opaque `val` and there is no body anywhere that could carry
+        # this closure's claim. Until now it was UN-trusted, which meant the fidelity
+        # plane counted it among the verbatim un-trusted twins — the population this
+        # project calls verified — while `check-untrusted-emitted.py` could not see it
+        # at all (its walk stopped at a `def`). With the walk fixed, the plane reports
+        # it as SILENTLY RE-ABSTRACTED. The marker says what was already true.
+        # RETIRED BY: converting `_sig_val_from_let`.
+        #@ \trusted reviewer: pycsl-self-annotate
+        def _hdr_name(stripped: str) -> Optional[str]:
+            for kw in ("let rec ", "let function ", "let "):
+                if stripped.startswith(kw):
+                    rest = stripped[len(kw):].lstrip()
+                    return rest.split("(")[0].split()[0] if rest else ""
+            return None
+        if public_name is not None:
+            hdr_idxs = [i for i, ln in enumerate(let_lines)
+                        if _hdr_name(ln.strip()) is not None]
+            if len(hdr_idxs) > 1:
+                for i in hdr_idxs:
+                    if _hdr_name(let_lines[i].strip()) == public_name:
+                        let_lines = let_lines[i:]
+                        break
         out: List[str] = []
         for ln in let_lines:
             stripped = ln.strip()
@@ -806,7 +893,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._ambiguous_fields, self._array2d_params, self._array_elem_types, self._array_locals, self._auto_trusted_array_returns, self._auto_trusted_map_returns, self._auto_trusted_set_op, self._auto_trusted_tuple_returns, self._axiom_emitted_decls, self._axiom_logic_funcs, self._bmem_outer_ids, self._bmem_walk_ids, self._bounded_int, self._cbw_emitted, self._cbw_funcs, self._cbw_names, self._cce_emitted, self._cce_funcs, self._cce_names, self._ccm_outer_ids, self._ccm_walk_ids, self._ccns_emitted, self._ccns_funcs, self._ccns_names, self._ccs_emitted, self._ccs_funcs, self._ccs_names, self._check_final_desc, self._check_final_name, self._cira_outer_ids, self._cira_walk_ids, self._class_constants, self._class_inv_axioms_emitted, self._class_name_ternary_locals, self._class_str_set_constants, self._clx_outer_ids, self._clx_pred_names, self._clx_walk_ids, self._cmtl_outer_ids, self._cmtl_walk_ids, self._comp_content_counter, self._composed_provider_methods, self._compound_key_params, self._compound_map_getter, self._conc_cluster, self._conc_emitted, self._conc_names, self._const_pair_dict_str_locals, self._constructors, self._crd_outer_ids, self._crd_walk_ids, self._crn_outer_ids, self._crn_walk_ids, self._crvn_outer_ids, self._crvn_walk_ids, self._cs_trio, self._cs_trio_emitted, self._cs_trio_names, self._csa_emitted, self._csa_funcs, self._csa_names, self._cssd_outer_ids, self._cssd_walk_ids, self._current_append_targets, self._current_array1d_params, self._current_emit_group, self._current_emitting_func, self._current_no_exception, self._current_no_exception_all, self._current_params, self._current_pyast_classdef_params, self._current_pyast_module_params, self._current_record_var_classes, self._current_self_type, self._current_sig_func_name, self._current_symbol_table, self._current_tparam_node_params, self._current_tuple_arity, self._declared_types_modular, self._decode_to_string, self._deferred_union_arm_goals, self._dict_key_types, self._dict_locals, self._dict_value_types, self._eal_outer_ids, self._eal_walk_ids, self._emit_ir_local_vars, self._emit_ir_seq_locals, self._emit_record_ctx, self._emitted_logic_funcs, self._emitted_record_field_labels, self._emitted_walker_names, self._emitting_val_contract, self._fdsl_outer_ids, self._fdsl_walk_ids, self._final_pair, self._final_pair_emitted, self._final_pair_names, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._formal_params, self._frame_trigger_active, self._frss_outer_ids, self._frss_walk_ids, self._func_mutated_collection_params, self._func_return_type, self._func_stmt_seq_mut_params, self._get_return_raw_option, self._getattr_self_dict_aliases, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._has_crosscheck_str_record, self._has_early_ret, self._has_opaque_term_fields, self._havoc_counter, self._hsom_outer_ids, self._hsom_walk_ids, self._hvalmap_local_vars, self._ile_outer_ids, self._ile_walk_ids, self._in_loop_spec, self._in_spec, self._inductive_preds, self._inline_array_temps, self._irlist_local_vars, self._iroaf_outer_ids, self._iroaf_walk_ids, self._iropt_ir_local_vars, self._iropt_seq_locals, self._iropt_str_local_vars, self._keyword_locals, self._kind_local_recv, self._known_collection_elements, self._known_collection_sizes, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._list_element_record_types, self._list_nested_elem, self._lss_outer_ids, self._lss_pred_names, self._lss_walk_ids, self._module_func_names, self._module_func_no_exception, self._module_func_no_exception_all, self._module_func_param_names, self._module_func_raises, self._module_global_classes, self._module_method_field_old_ensures, self._module_method_field_param_frame_ensures, self._module_method_field_param_post_ensures, self._module_method_field_param_result_ensures, self._module_method_field_result_ensures, self._module_method_formal_params, self._module_method_noreturn, self._module_method_param_defaults, self._module_method_param_kinds, self._module_method_param_result_ensures, self._module_method_param_types, self._module_method_param_whyml_types, self._module_method_result_ensures, self._module_method_result_frame_ensures, self._module_method_return_annotations, self._module_method_return_types, self._module_method_vararg_elem, self._module_method_vararg_str, self._module_method_writes, self._module_string_seq_funcs, self._mutated_collection_params, self._needs_array_init, self._needs_crosscheck_str_agree, self._needs_term_eq, self._needs_term_strbuild, self._needs_term_streq, self._nrw_emitted, self._nrw_funcs, self._nrw_names, self._obj_state_written, self._opaque_selfmap_aliases, self._opaque_selfmap_inner_aliases, self._option_record_param_classes, self._option_str_return_vars, self._option_tuple_unpack_targets, self._option_tuple_vars, self._optional_union_locals, self._optmap_getter_locals, self._param_list_flat_elem, self._pb_trio, self._pb_trio_emitted, self._pb_trio_names, self._pp_term_emitted, self._property_getters, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyconst_val_local_vars, self._pyconst_val_tuple_slot, self._pyval_coll_locals, self._pyval_get_as_string, self._pyval_get_raw_coll, self._pyval_list_walker_names, self._pyval_local_vars, self._pyval_locals, self._pyval_seq_append_targets, self._pyval_seq_fields, self._pyval_seq_locals, self._quant_record_binders, self._quant_scalar_binders, self._record_array_fields, self._record_array_locals, self._record_array_params, self._record_field_elem_locals, self._record_locals, self._record_param_classes, self._record_seq_locals, self._record_types, self._refine_str_comp_locals, self._reserved_exprir_symbols_cache, self._result_alias, self._rss_outer_ids, self._rss_walk_ids, self._scan2d_trio, self._scan2d_trio_emitted, self._scan2d_trio_names, self._scope_all, self._scope_dyn_exec, self._scope_must, self._scope_params, self._sdl_outer_ids, self._sdl_walk_ids, self._seq_ir_tuple_targets, self._seq_locals, self._seq_value_types, self._serl_outer_ids, self._serl_walk_ids, self._shared_op_skip, self._shared_symbol_decls, self._shared_var_names, self._sibling_concrete_methods, self._size_variant_param, self._slice_set_tmp_counter, self._spat_outer_ids, self._spat_walk_ids, self._ssd_emitted, self._ssd_funcs, self._ssd_names, self._ssd_walkers_seen, self._stmt_seq_mut_params, self._str_array_record_fields, self._str_literal_seq_locals, self._str_set_locals, self._str_slice_loop_len, self._string_local_vars, self._suat_outer_ids, self._suat_walk_ids, self._tdrl_hval_locals, self._tdrl_present_locals, self._term_adt_spec, self._term_const_dicts, self._term_const_int_dicts, self._term_local_vars, self._term_pp_convert_classes, self._term_pp_family, self._term_pp_mc, self._term_pp_method_classes, self._term_pp_names, self._todict_aliases, self._todict_arg_wants_pymap, self._tparam_list_aliases, self._tparam_locals, self._tuple_array_locals, self._tuple_emit_ir_slot_locals, self._tuple_var_slot_types, self._union_cluster, self._union_emitted, self._union_names, self._uses_act_guard_cache, self._uses_build_overload_param_guard_cache, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_clause_ir_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_csl_proj_cache, self._uses_dictlit_cache, self._uses_is_overload_stub_cache, self._uses_method_recv_cache, self._uses_null_byte_num_reader_cache, self._uses_py_functiondef_node_cache, self._uses_pyast_module_cache, self._uses_pyast_parser_cache, self._uses_pyast_stmt_cache, self._uses_pyval_cache, self._uses_refine_tuple_return_type_cache, self._uses_stmt_if_test_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache, self._uses_synthesize_overload_guard_cache, self._uses_tparam_cache, self._vararg_elem_type, self._vararg_str_param, self._variant_types, self._verify_module_of
     def _transpile_modular(self, functions: List[Dict[str, Any]],
                            type_decls: List[Dict[str, Any]]) -> str:
         """module-emission.md — emit the program as SEVERAL top-level Why3 `module`s so
@@ -915,7 +1002,7 @@ class Module6_WhyMLTranspiler(
             self._current_emit_group = g
             for func in gfuncs:
                 let_block = self._emit_function(func, scc_info)
-                sig += self._sig_val_from_let(let_block)
+                sig += self._sig_val_from_let(let_block, whyml_ident(func["name"]))
                 sig.append("")
             self._current_emit_group = None
             sig.append("end")
@@ -961,7 +1048,6 @@ class Module6_WhyMLTranspiler(
 
         return "\n".join("\n".join(m) for m in out_modules)
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -974,10 +1060,6 @@ class Module6_WhyMLTranspiler(
         AXIOM (constraining the SHARED symbol) is still emitted. A module that `use Shared`
         must reference the SAME symbol — a local re-declaration would break the
         `clone`-refinement (body `dir_lookup` ≠ interface `dir_lookup`)."""
-        #@ \trusted reviewer: pycsl-self-annotate
-        #@ requires True
-        #@ ensures True
-        #@ assigns \nothing
         def _symbol(stripped: str):
             p = stripped.split()
             if len(p) >= 3 and p[0] == "val" and p[1] == "function":
@@ -1002,7 +1084,7 @@ class Module6_WhyMLTranspiler(
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._bmem_outer_ids, self._bmem_walk_ids, self._cbw_emitted, self._cbw_funcs, self._cbw_names, self._cce_emitted, self._cce_funcs, self._cce_names, self._ccm_outer_ids, self._ccm_walk_ids, self._ccns_emitted, self._ccns_funcs, self._ccns_names, self._ccs_emitted, self._ccs_funcs, self._ccs_names, self._check_final_desc, self._check_final_name, self._cira_outer_ids, self._cira_walk_ids, self._clx_outer_ids, self._clx_pred_names, self._clx_walk_ids, self._cmtl_outer_ids, self._cmtl_walk_ids, self._conc_cluster, self._conc_emitted, self._conc_names, self._crd_outer_ids, self._crd_walk_ids, self._crn_outer_ids, self._crn_walk_ids, self._crvn_outer_ids, self._crvn_walk_ids, self._cs_trio, self._cs_trio_emitted, self._cs_trio_names, self._csa_emitted, self._csa_funcs, self._csa_names, self._cssd_outer_ids, self._cssd_walk_ids, self._current_emitting_func, self._current_self_type, self._current_symbol_table, self._eal_outer_ids, self._eal_walk_ids, self._emitted_walker_names, self._fdsl_outer_ids, self._fdsl_walk_ids, self._final_pair, self._final_pair_emitted, self._final_pair_names, self._frss_outer_ids, self._frss_walk_ids, self._has_crosscheck_str_record, self._has_opaque_term_fields, self._hsom_outer_ids, self._hsom_walk_ids, self._ile_outer_ids, self._ile_walk_ids, self._iroaf_outer_ids, self._iroaf_walk_ids, self._lss_outer_ids, self._lss_pred_names, self._lss_walk_ids, self._needs_crosscheck_str_agree, self._needs_term_eq, self._needs_term_strbuild, self._needs_term_streq, self._nrw_emitted, self._nrw_funcs, self._nrw_names, self._pb_trio, self._pb_trio_emitted, self._pb_trio_names, self._pp_term_emitted, self._pyconst_val_tuple_slot, self._rss_outer_ids, self._rss_walk_ids, self._scan2d_trio, self._scan2d_trio_emitted, self._scan2d_trio_names, self._sdl_outer_ids, self._sdl_walk_ids, self._serl_outer_ids, self._serl_walk_ids, self._spat_outer_ids, self._spat_walk_ids, self._ssd_emitted, self._ssd_funcs, self._ssd_names, self._ssd_walkers_seen, self._suat_outer_ids, self._suat_walk_ids, self._term_adt_spec, self._term_const_dicts, self._term_const_int_dicts, self._term_pp_convert_classes, self._term_pp_family, self._term_pp_mc, self._term_pp_method_classes, self._term_pp_names, self._tuple_emit_ir_slot_locals, self._union_cluster, self._union_emitted, self._union_names, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache, self._uses_pyval_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache, self._uses_tparam_cache
     def _shared_use_lines(self) -> List[str]:
         """The `use` lines every emitted module needs to see the Shared infrastructure
         (the concrete record type, val-functions, predicates, helpers) plus the standard

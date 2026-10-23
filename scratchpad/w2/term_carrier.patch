@@ -1,0 +1,124 @@
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index c43c8c57..61c5a235 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -8551,6 +8551,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                     else:
+                         _cls_names = []
+                         break
++            # SPIKE: `isinstance(<Term-typed x>, <term ctor(s)>)` is the REAL constructor
++            # discriminant over the certified `term` inductive — not an uninterpreted op.
++            _tspec = getattr(self, "_term_adt_spec", None)
++            if _tspec and isinstance(_a0, dict) and _a0.get("type") == "Var":
++                _tct = _tspec.get("ctors", {})
++                _tnames = _cls_names or ([_cn] if isinstance(_cn, str) and _cn else [])
++                _tst = (getattr(self, "_current_symbol_table", {}) or {}).get(
++                    _a0.get("name"))
++                if (_tst == "Term" and _tnames
++                        and all(_c in _tct for _c in _tnames)):
++                    _trw = self._expr_to_whyml(_a0, local_refs or set(),
++                                               getattr(self, "_in_spec", False), None)
++                    _tarms = " | ".join(
++                        _c + "".join(" _" for _ in _tct[_c]) + " -> true"
++                        for _c in _tnames)
++                    return f"(match {_trw} with {_tarms} | _ -> false end)"
+             if _rt and _cls_names:
+                 _rw = self._expr_to_whyml(_a0, local_refs or set(),
+                                           getattr(self, "_in_spec", False), None)
+diff --git a/src/pycsl/module6_whyml/functions.py b/src/pycsl/module6_whyml/functions.py
+index d879a1ff..da0b4c73 100644
+--- a/src/pycsl/module6_whyml/functions.py
++++ b/src/pycsl/module6_whyml/functions.py
+@@ -231,6 +231,9 @@ class FunctionEmissionMixin:
+                 return f"({safe}: option {_wn})"
+             # Unknown record — fall through to the int collapse (never fires for a
+             # declared record; keeps the branch total).
++        if symtype == "Term" and getattr(self, "_term_adt_spec", None):
++            # SPIKE: a `Term`-annotated param is the certified `term` inductive.
++            return f"({safe}: term)"
+         if symtype in self._variant_types:
+             # sum-types: a `#@ datatype`-typed param is its Why3 variant type.
+             return f"({safe}: {self._variant_types[symtype]['whyml_name']})"
+@@ -2120,6 +2123,11 @@ class FunctionEmissionMixin:
+                 and getattr(self, "_current_self_type", None)
+                 in getattr(self, "_mutable_state_classes", set())):
+             return "term"
++        # SPIKE: same, for a module-level FUNCTION (no self_type).
++        if (getattr(self, "_term_adt_spec", None)
++                and func.get("return_annotation") == "Term"
++                and not func.get("self_type")):
++            return "term"
+         # dict-literal emit_ir construction: a method that RETURNS a constructed IR node
+         # (`node = {"type":"Var",…}; … return node`) is `emit_ir`, not the `map int (option int)`
+         # its `-> Dict[str, Any]` annotation would otherwise imply (the Python type of an IR-node
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index 11eae523..ac1d82f9 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -3880,7 +3880,8 @@ class PreambleEmissionMixin:
+         # mistake surfaced at L3-tc instead of becoming a silent facade.
+         _ms_cls = getattr(self, "_mutable_state_classes", set())
+         if any(f.get("return_annotation") == "Term"
+-               and (f.get("self_type") or "").lower() in _ms_cls
++               and ((f.get("self_type") or "").lower() in _ms_cls
++                    or not f.get("self_type"))          # SPIKE: module-level fn
+                and (IRScanner.has_in_loop_return(f.get("body", []))
+                     or IRScanner.has_early_return(f.get("body", [])))
+                for f in self.ir.get("functions", [])):
+diff --git a/src/pycsl/module6_whyml/statements.py b/src/pycsl/module6_whyml/statements.py
+index 3dc7cf10..5f340a39 100644
+--- a/src/pycsl/module6_whyml/statements.py
++++ b/src/pycsl/module6_whyml/statements.py
+@@ -4541,6 +4541,33 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+         _walk(body_stmts)
+         return found.pop() if len(found) == 1 else None
+ 
++    def _module_term_bound_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
++        """SPIKE: the module-level twin of `_term_bound_locals`. Locals of a
++        MODULE-LEVEL function bound from a `-> Term` call. Deliberately a separate
++        walker rather than a gate widening on `_sibling_ret_ann_locals`, which also
++        serves the `_union_*` locals and is shared with every method."""
++        if not getattr(self, "_term_adt_spec", None):
++            return set()
++        ann = getattr(self, "_module_method_return_annotations", {}) or {}
++        out: Set[str] = set()
++
++        def _walk(n: Any) -> None:
++            if isinstance(n, dict):
++                if n.get("stmt") == "Assign" and isinstance(n.get("target"), str):
++                    v = n.get("value")
++                    if isinstance(v, dict) and v.get("type") == "Call":
++                        fn = v.get("func", "") or ""
++                        if isinstance(fn, str) and "." not in fn                                 and ann.get(fn) == "Term":
++                            out.add(n["target"])
++                for x in n.values():
++                    _walk(x)
++            elif isinstance(n, list):
++                for x in n:
++                    _walk(x)
++
++        _walk(body_stmts)
++        return out
++
+     def _term_bound_locals(self, body_stmts: List[Dict[str, Any]]) -> Set[str]:
+         """Locals bound from a `-> Term` sibling call — `term`-typed, so they must NOT
+         pre-declare `ref 0`. Additionally gated on the certified inductive being emitted."""
+@@ -5890,6 +5917,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+                                and v not in _optstr_predecl}
+             pre_decl_vars |= _optmap_predecl
+ 
++        # SPIKE: module-level `term` carrier — the pre-declaration twin of the
++        # `_ms_body` term locals, for a MODULE-LEVEL `-> Term` function.
++        if (not is_method and getattr(self, "_term_adt_spec", None)
++                and func.get("return_annotation") == "Term"):
++            _mterm = {v for v in self._module_term_bound_locals(body_stmts)
++                      if v in local_refs and v not in ghost_vars
++                      and v not in ref_params and v not in self._formal_params
++                      and v not in _uput
++                      and v not in struct_array_targets
++                      and v not in struct_pack_targets}
++            pre_decl_vars |= _mterm
++            _term_predecl |= _mterm
+         # self-tcb-reduction WRITER class (`_build_param_list`): the symbol table, the two
+         # array-param sequences, and the set-comprehension result are `seq string` locals —
+         # pre-declared `ref (Seq.empty: seq string)`, never the int `ref 0` (which would

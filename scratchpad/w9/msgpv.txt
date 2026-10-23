@@ -1,0 +1,42 @@
+FIX(#44): the configured Alt-Ergo did not exist, so every default run proved with ONE prover — 10 more suite tests green, and the next mismatch is now loud
+
+`config/agents-config.json` and `pycsl.py`'s `_DEFAULT_PROVERS` both named
+**Alt-Ergo 2.6.2**. The installed opam switch has **2.6.3**. `why3` answers
+an unresolvable `-P` with a single stderr line —
+
+    No prover in /home/fabrice/.why3.conf corresponds to "Alt-Ergo,2.6.2,"
+
+— and returns; the dispatcher then simply proceeds with whatever provers
+DID resolve. So every DEFAULT run, which is the entire reference suite, has
+been proving with **Z3 alone**, and a goal Alt-Ergo would have closed looks
+exactly like a goal that is genuinely hard.
+
+MEASURED, on the 30 tests still failing after this window's other fixes:
+**TEN pass the moment Alt-Ergo is actually present** — pycsl-reference
+0226, 0484, 0714, 0766, 0932, 0938, 0943, 0944, 0948, 0949. Five of those
+say "STATUS — PROVES." in their own docstrings, and I had recorded them
+earlier this window as a completeness regression "somebody introduced
+without updating the tests". They were nothing of the kind. Bisecting one
+of them (0943) to the commit that INTRODUCED it showed it failing there
+too, which is what pointed at the environment rather than the code.
+
+THE CAMPAIGN'S OWN PROOFS WERE NEVER AFFECTED, and that is precisely why
+nobody saw it: the supervisor's standing instruction passes
+`--provers 'Alt-Ergo,2.6.3,,Z3,4.13.3,'` explicitly on every mirror proof.
+The one path that used the config was the suite.
+
+TWO CHANGES, and the second matters more than the first:
+  * the pinned version goes 2.6.2 -> 2.6.3 in both places;
+  * `_run_why3_prove` now prints a LOUD, unmissable banner when a
+    configured prover does not resolve, naming the prover and saying that
+    an unproven goal in that run may mean the prover is missing rather than
+    the goal is hard. The version constant is ENVIRONMENT-COUPLED by
+    nature — the banner is what makes the next mismatch visible instead of
+    silent, which is the whole lesson of this window applied to the
+    prover configuration.
+
+EMISSION-NEUTRAL BY CONSTRUCTION AND BY MEASUREMENT: provers do not affect
+what is emitted. pycsl-reference 820/820 and all 53 mirror emissions
+BYTE-IDENTICAL; metric unchanged at 456.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

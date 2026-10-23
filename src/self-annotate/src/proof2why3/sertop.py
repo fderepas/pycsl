@@ -12,12 +12,12 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Tuple
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def sertop_available() -> bool:
-    return False
+    """True iff sertop is on $PATH (post `opam install coq-serapi`)."""
+    return shutil.which("sertop") is not None
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -36,6 +36,7 @@ def _sexp_tokens(s: str) -> Iterator[str]:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
+#@ raises ValueError when True
 #@ assigns \nothing
 def _sexp_parse(tokens: List[str]) -> object:
     return None
@@ -47,19 +48,51 @@ def _sexp_parse(tokens: List[str]) -> object:
 def parse_sexp(s: str) -> object:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _process_sertop_line(line: str, payloads_by_tag: int) -> int:
+def _process_sertop_line(line: str,
+                          payloads_by_tag: Dict[int, object]) -> Optional[int]:
+    """Parse one sertop output line. On `ObjList` capture the payload
+    by tag. Return the tag iff the line is `(Answer <tag> Completed)`,
+    else None."""
+    if not line.startswith("(Answer"):
+        return None
+    try:
+        sexp = parse_sexp(line)
+    except (ValueError, IndexError):
+        return None
+    if not isinstance(sexp, tuple) or len(sexp) < 3:
+        return None
+    if sexp[0] != "Answer":
+        return None
+    try:
+        ans_tag = int(sexp[1])
+    except (ValueError, TypeError):
+        return None
+    body = sexp[2]
+    if body == "Completed":
+        return ans_tag
+    if isinstance(body, tuple) and body and body[0] == "ObjList" and len(body) >= 2:
+        payloads_by_tag[ans_tag] = body[1]
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _extract_stmid(added_payload: object) -> int:
-    return None
+    """Parse the STMID out of an `(Added <stmid> ...)` Answer body.
+
+    sertop's `Add` returns `(Answer N (Added STMID (...))) NewAddTip`
+    style; we want the STMID."""
+    if not isinstance(added_payload, tuple) or len(added_payload) < 2:
+        return None
+    if added_payload[0] != "Added":
+        return None
+    try:
+        return int(added_payload[1])
+    except (ValueError, TypeError):
+        return None
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -76,14 +109,12 @@ class SertopSession:
     cwd: Optional[Path] = None
     proc: Optional[subprocess.Popen] = None
     seq: int = 0
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def __enter__(self) -> 'SertopSession':
-        return None
+        return self
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

@@ -49,6 +49,22 @@ annotate:
 | Class | Before `class` line (requires anchor — see §1.3) |
 | Statement | Before the statement line |
 | `with` block | Before `with` line |
+| `if` / `try` / `try…except*` / `match` | Before the compound-statement line (statement-level directives only) |
+
+**A directive that lands on an anchor that does not consume it is now a HARD ERROR**
+(`Module3_Weaver._reject_misplaced_directives`, relaunch #34). Each anchor consumes
+exactly one family: a `def` takes the function-level clauses, a `class` takes
+`class invariant` / `allow_finalizer` / `mixin` / `compose_from` / `conforms_to`, a loop
+takes `loop invariant` / `loop variant` / `allow_iteration_mutation`, a `with` takes
+`acquires` / `releases` / `critical`, and ANY statement takes the statement-level
+directives `label` / `assert` / `check` / `ghost`. `datatype`, `inductive`, `shared`,
+`mutex_invariant`, `lock_order` and `happy` are hoisted to module level from wherever they
+appear. Anything else on the wrong anchor used to be SILENTLY DISCARDED while the run
+still printed *All contracts formally proven* — `#@ assert 1 == 2` above a `def` or a
+`class`, and `#@ ensures 1 == 2` on a `while`, all reported `Verification SUCCESS`.
+
+A `#@` block written BETWEEN a decorator and its `def` is attached to the decorated
+function (relaunch #34); it used to be discarded outright.
 
 ### 1.3 Class-Level Anchor
 
@@ -381,8 +397,11 @@ _Corresponds to `annotations.md` §2.7._
 | 2.5.7 | Compose from | `compose_from_decl ::= "compose_from" CNAME ("," CNAME)* ;` |
 
 `mixin_decl`/`compose_from_decl` precede the `class` keyword; the method-scoped forms precede a `def`.
-A `depends_method`/`requires_method` opens a window: the immediately-following indented `#@ ensures`
-lines are the **dependency's** declared contract (closed by the next `provides`/structural directive).
+A `depends_method`/`requires_method` opens a window: the immediately-following indented `#@ requires`,
+`#@ ensures` and `#@ assigns` lines are the **dependency's** declared contract (closed by the next
+`provides`/structural directive, or by any other directive). The `#@ assigns` form declares the
+dependency's FRAME; without it a declared dependency is frameless, so its caller-side abstract
+`val` claims no effect however much state the real provider writes.
 
 #### Example
 
@@ -483,6 +502,7 @@ top-to-bottom. Longer prefixes must appear before shorter ones:
 | 3.1.4 | `arr[i]` | `SubscriptAccess` | Array element access. The array name is a `CNAME`; the index is an arbitrary `expr`. |
 | 3.1.4b | `arr[i][j]` (`arr[i][j][k]`…) | `ChainedSubscript` (`NestedSubscript` for depth ≥3) | Nested array/collection element access. The array name is a `CNAME`; all indices are arbitrary `expr`. Depth 2 is `ChainedSubscript` (byte-identical); a THIRD and further index level wraps in `NestedSubscript` nodes (nested-list.md §8 EXTENSION), lowering to composed `Seq.get` on a `List[List[List[τ]]]` ~ `array (seq (seq τ))` param, up to the type-recursion depth bound 4. Deeper than 4 falls to the opaque `subscript_get` (rejected, not a faithful read). |
 | 3.1.4c | `arr[i].field` | `SubscriptFieldAccess` | Field PROJECTION off a subscripted collection element (cleared-array.md S2). The array name is a `CNAME`, the index an arbitrary `expr`, the field a `CNAME`. Lowers to `Attribute(Subscript(Var(arr), index), field)` — the SAME IR the body path produces for `a[i].x`, so the abstract getter `get_<field>` matches a projection-comprehension content law. The consumer of `\result[k] == a[k].x`. |
+| 3.1.4d | `self.field[i].sub` | `SubscriptFieldAccess` | Field projection off an element of an instance ARRAY field; the SELF-FIELD base of §3.1.4c (`subscript_field_access ::= "self" "." CNAME "[" expr "]" "." CNAME ;`). The same production as §3.1.4c/§3.1.5c with `self.<field>` as the collection base, carried as the dotted base string `"self.<field>"` (the convention `\length(self.f)` already uses). Lowers to `Attribute(Subscript(FieldGet(self, field), index), sub)`. Disambiguation: the `.` lookahead after `]` drives the shift into the longer rule, exactly as `self.<field>[i]` (§3.1.3b) shifts past `self.<field>` (§3.1.3) — zero conflict, since `field_subscript` had no continuation. |
 | 3.1.5 | `\result` | `Result` | Return value of the current function. Valid only in `ensures` clauses (checked by static semantics, not syntax). |
 | 3.1.5b | `\result[i]` | `ResultSubscript` | Subscript into the return value. Parsed as a distinct atom with the `expr` index. |
 | 3.1.5c | `\result[i].field` | `SubscriptFieldAccess` | Field projection off a subscripted `\result` element (cleared-array.md S2); the `\result` sibling of §3.1.4c. Lowers to `Attribute(Subscript(Result, index), field)`. |
@@ -578,10 +598,18 @@ unary       ::= UNARY_OP unary
 - `/` (TRUE division) maps — in a body **and** in a contract — to Python's
   **true/float** semantics: it ALWAYS yields a `real` (float), even on integer
   operands (`5 / 2 == 2.5`). The lowering lifts both int operands to `real` via
-  `real.FromInt` (`from_int`) and divides over the reals (`real.RealInfix` `/.`);
-  a body `/` bridges through `val float_truediv_op (a b: int) : real ensures
-  { result = from_int a /. from_int b }`. Because the result is a `real`, a `/`
-  used at `int` type (e.g. `#@ ensures \result == 2` with `-> int`) is a
+  `real.FromInt` (`from_int`). Since ROUTE #58 the VALUE is no longer an exact real
+  division: two INT LITERALS are FOLDED exactly as CPython folds them and rendered
+  through the same `repr` normalization the float-literal leaf uses (`5 / 2` emits
+  `2.5`, `1 / 3` emits `0.3333333333333333`), and ANY other operand shape lowers to
+  one uninterpreted deterministic `val function float_truediv_op (a b: int) : real`.
+  Dividing over the exact reals had DECIDED orderings the language answers the other
+  way — `1 / 3 > 0.3333333333333333` proved, though in Python the two are the SAME
+  binary64 value — while being INCOMPLETE on `1 / 3 == 0.3333333333333333`, which is
+  true and did not prove. Folding fixes both: the shortest round-trip repr is
+  injective and order-preserving on doubles, so a folded quotient and a literal
+  compare exactly as the doubles do. Because the result is still a `real`, a `/`
+  used at `int` type (e.g. `#@ ensures \result == 2` with `-> int`) remains a
   real-vs-int **type error** — fail-closed, never a silent integer truncation.
   (WL-02, FIXED — previously `/` mapped to the floored integer `div`, which
   unsoundly proved `5 / 2 == 2`. To assert an integer quotient, use `//`.)
@@ -1419,7 +1447,22 @@ is recognized at the front-end normalization seam
 Each stub synthesizes a **guard** `G_i = isinstance(p_i, T_i)` and, for each
 stub `#@ ensures Q_i`, a **guarded postcondition** `ensures { G_i ==> Q_i }`
 attached to the implementation's `contracts.ensures` (the stub itself is NOT
-emitted — its `...` body is discarded, R1). The `==>` implication is the
+emitted — its `...` body is discarded, R1).
+
+**`ensures` IS THE ONLY CLAUSE A STUB CONTRIBUTES, and any other is REFUSED
+(`PYCSL-SEM-OVERLOAD-CLAUSE-DISCARDED`, route #222).** `_synthesize_overload_guard`
+reads `csl_ensures` and nothing else, so a `#@ requires` / `#@ assigns` /
+`#@ raises` / `#@ no_exception` / `#@ diverges` / `#@ variant` written on a stub
+used to be thrown away WITH the stub node — silently, while the run still
+reported `All contracts formally proven`. MEASURED: `#@ requires x > 100` on a
+stub left a call `f(0)` accepted, and the emitted `let f` carried no `requires`
+at all; the identical clause on the IMPLEMENTATION correctly refuses that call.
+Dropping a precondition is SOUND (the callee is proved under a weaker assumption
+and no caller gains anything false) and it is refused anyway, because a contract
+the user wrote must be enforced somewhere or rejected — never quietly ignored.
+Put the clause on the implementation `def`, where it is enforced at every call
+site. This paragraph exists because its absence was half of route #222's cause:
+the section described what IS carried and left the reader to supply the rest. The `==>` implication is the
 existing CSL IMPL_OP (`Module2_Parser`), lowered to WhyML `->`; the
 `isinstance(p_i, T_i)` is the existing metatype-tag guard (`subtag (typeof p_i)
 <T_i tag>`, a WhyML bool). The implementation's single body proves each

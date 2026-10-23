@@ -1,0 +1,39 @@
+[*] soundness-planes: --slow, adding 15 prover/emission plane(s) (~20 min)
+[*] soundness-planes: shared mirror emission ready (53 .mlw) — six plane(s) will use it
+[*] soundness-planes: running 34 driver-run lower bound(s)
+    ok       check-self-annotate-mirror-sync.py        
+    ok       count-trusted-directives.py               
+    ok       check-mirror-coverage.py                  
+    ok       check-mirror-field-parity.py              
+    ok       check-mirror-loop-annotations.py          
+    ok       check-mirror-signature-drift.py           
+    ok       check-refusal-reachability.py             
+    ok       check-trigger-rows-live.py                
+    ok       check-trusted-raises-honesty.py           
+    ok       check-type-keyed-constant-answers.py      
+    ok       check-emit-ir-arm-postconditions.py       
+    ok       check-singleton-constant-lowering.py      
+    ok       check-type-keyed-value-sentinels.py       
+    ok       check-collapsed-option-reads.py           
+    ok       check-constant-fallthrough.py             
+    ok       check-dropped-mutation.py                 
+    ok       check-ir-field-coverage.py                
+    ok       check-statement-block-coverage.py         
+    ok       check-vacuous-drivers.py                  
+    ok       check-getattr-erasure.py                  
+    ok       check-computed-rhs-erasure.py             
+    ok       check-yield-erasure.py                    
+    ok       check-shadowed-selfcalls.py               
+    ok       check-untrusted-emitted.py                
+    ok       check-trusted-frame-honesty.py            
+    ok       check-swallowed-exceptions.py             
+    ok       check-bespoke-model-drift.py              
+    ok       check-internal-crash-free.py              
+    ok       check-param-mutator-visibility.py         
+    ok       check-avatar-frame-parity.py              
+    ok       count-trusted-directives.py               
+    ok       check-mirror-type-only.py                 
+    ok       check-no-exception-differential.py        
+    ok       check-value-differential.py               
+[+] soundness-planes: OK — all 34 plane(s) green.
+rc=0

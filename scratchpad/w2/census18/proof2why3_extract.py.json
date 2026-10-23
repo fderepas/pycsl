@@ -1,0 +1,1 @@
+[{"file": "proof2why3/extract.py", "cls": null, "name": "extract_lean_statements", "tc": false}, {"file": "proof2why3/extract.py", "cls": null, "name": "_split_rocq_check_output", "tc": false}, {"file": "proof2why3/extract.py", "cls": null, "name": "extract_rocq_statements", "tc": false}]

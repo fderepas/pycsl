@@ -1,0 +1,8 @@
+check-untrusted-emitted                rc=0 [+] untrusted-emitted: 861 un-trusted function(s); 845 emitted as definitions, 0 re-abstracted 
+
+check-vacuous-drivers                  rc=0 [+] vacuous-drivers: OK — every suite at or below its ratchet.
+
+check-yield-erasure                    rc=0 [+] yield-erasure: OK (0 value-erasing, 2 suspension-dropping / ratchet 2, 1 genuinely modelled
+
+check-internal-crash-free              rc=0 [+] internal-crash-free: OK — 0 (hard ratchet).
+

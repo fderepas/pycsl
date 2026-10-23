@@ -1,0 +1,2 @@
+L3TC-FAIL            TypeInferenceMixin._track_collection_metadata  ['This expression has type string, but is expected to have type int']
+L3TC-FAIL            TypeInferenceMixin._collect_array_var_assigns  ['This expression has type int, but is expected to have type string']

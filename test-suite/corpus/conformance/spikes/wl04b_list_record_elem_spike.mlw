@@ -1,0 +1,86 @@
+(* WL-04b SMT-feasibility spike: prove that a FLAT `List[<record>]` PARAMETER,
+   realized as `array <record>`, reads its element at the faithful RECORD type
+   at a use site, so a projected field read `a[i].field` denotes the faithful
+   field value.
+
+   Python `List[Point]` (a `@dataclass` element) / `List[Tuple[int, str]]` (a
+   recognized fixed-length tuple element) is a flat list whose element is a
+   user record. PyCSL previously collapsed a `List[...]`-annotated PARAMETER's
+   element to `int` (`let f (a: array int) ... : int = a[i]`), so `a[i]` was an
+   opaque int and `a[i].field` a `get_field`-stub read (content-opaque, and
+   ill-typed at a record use site). The faithful lowering (wrong-lowering-to-fix.md
+   §WL-04 record residual) realizes the parameter as `array <record>` — the
+   one-level-up analog of the WL-04 str/float flat model and the WL-03 tuple
+   per-slot record — so `a[i]` reads a real record and `a[i].field` projects the
+   faithful field (`Array.get` is element-polymorphic; the projection is a native
+   record field label).
+
+   Why3 FORBIDS a MUTABLE element inside `array` (`array` instantiates a PURE type
+   variable), so the element record used at array-element position is a PURE
+   (immutable-field) record — exactly the constraint the nested-list `array (seq τ)`
+   model already met. The record read + field projection are still native.
+
+   This fixture is the ground-truth that a flat record-list-element field read
+   reasons CLEANLY at a use site on BOTH Alt-Ergo AND Z3 — no cited lemma needed
+   (a native `array` read composed with a native record projection). *)
+
+module WL04bSpikeDataclass
+  use int.Int
+  use array.Array
+
+  (* the PURE record lowering of a `@dataclass Point: x: int; y: int`
+     (immutable fields — mandatory for use as an `array` element) *)
+  type point = { px: int; py: int }
+
+  (* the faithful lowering of `def f(a: List[Point], i: int) -> int: return a[i].x`
+     — `a : array point`, so `a[i]` reads a `point` and `a[i].x` projects `px`. *)
+  let f (a: array point) (i: int) : int
+    requires { 0 <= i < Array.length a }
+    ensures  { result = (a[i]).px }
+  = (a[i]).px
+
+  (* make-or-break: a concrete record-array read-after-write projects the written
+     field, and the untouched slot / sibling field are independent. *)
+  let test_record_read () =
+    let a = Array.make 3 { px = 0; py = 0 } in
+    a[1] <- { px = 7; py = 9 };
+    assert { (a[1]).px = 7 };
+    assert { (a[1]).py = 9 };     (* sibling field is independent *)
+    assert { (a[0]).px = 0 }      (* untouched slot is independent *)
+
+  (* NEGATIVE make-or-break: distinct slots hold independent records, so a false
+     cross-slot field conflation is refuted (the collapse conflated every element
+     into one opaque int, which would force distinct-slot fields equal). *)
+  let test_slots_not_conflated () =
+    let a = Array.make 2 { px = 0; py = 0 } in
+    a[0] <- { px = 3; py = 0 };
+    a[1] <- { px = 4; py = 0 };
+    assert { (a[0]).px <> (a[1]).px }
+end
+
+module WL04bSpikeTuple
+  use int.Int
+  use string.String
+  use array.Array
+
+  (* the synthesized WL-03 per-slot record for `Tuple[int, str]` (PURE for use as
+     an `array` element) *)
+  type pytuple_int_str = { field0: int; field1: string }
+
+  (* the faithful lowering of
+     `def g(a: List[Tuple[int, str]], i: int) -> str: return a[i][1]`
+     — `a : array pytuple_int_str`, so `a[i]` reads the tuple record and
+     `a[i][1]` projects the STRING slot `field1`. *)
+  let g (a: array pytuple_int_str) (i: int) : string
+    requires { 0 <= i < Array.length a }
+    ensures  { result = (a[i]).field1 }
+  = (a[i]).field1
+
+  (* make-or-break: a concrete tuple-record-array read projects each slot at its
+     own type; the two slots are independent. *)
+  let test_tuple_read () =
+    let a = Array.make 2 { field0 = 0; field1 = "" } in
+    a[0] <- { field0 = 5; field1 = "hi" };
+    assert { (a[0]).field0 = 5 };
+    assert { (a[0]).field1 = "hi" }
+end

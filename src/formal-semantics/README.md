@@ -50,6 +50,16 @@ previously-`Admitted`/`sorry` proof obligations are now discharged:
 Both proofs compile end-to-end with `make proof` in their respective
 directories.
 
+> **Ledger unchanged by the tier-3 record-valued-`val` promotion (Phase 3).**
+> The conservative record-valued `val` (`Phase2b_RecordVal.v` / `PyCSL/RecordVal.lean`,
+> §2.2, §8.1, §8.2) is now part of the certified build. It adds **no axiom**:
+> `Print Assumptions pycsl_soundness` remains exactly
+> `{propositional_extensionality, functional_extensionality_dep}` (Rocq), and
+> `#print axioms pycslSoundnessVerified` remains `[propext, Classical.choice,
+> Quot.sound]` (Lean) — verbatim the baseline. Every lemma in the two new files
+> is closed under the standard kernel axioms only. The 3-axiom TCB above is
+> intact.
+
 ---
 
 ## 2. Scope
@@ -74,7 +84,19 @@ is no constructor for unannotated loops.
   `CClassInvariant cls inv` constructor and the derived preservation lemma
   landed (Phase6n); `self.field` now has real flat-key read/write semantics
   (Phase 6). The record-*valued* `val` for nested aliasing (`a.b.c`, shared
-  sub-records) is the remaining Phase-7 item
+  sub-records) is **DONE (conservative)** — `Phase2b_RecordVal.v` (Rocq, in
+  `_CoqProject`) and `PyCSL/RecordVal.lean` (Lean, imported by `PyCSL.lean`)
+  define a record/ADT-valued `val7`/`Val7` with nested `path_get`/`path_set`,
+  proving read-back, frame, and **conservativity** against the real Phase-2
+  `lookup`/`update` (the `SAssign` arm is unchanged). This certifies the
+  Phase-1 emitter `ir_node` ADT reads (a `BinOp op left right` node's
+  `ir.get("right")` is `path_get node ["right"]`). It is conservative: it does
+  **not** add a `VRec` constructor to the core `val` inductive (that cascade
+  across the 22-ctor soundness induction is the Phase-1/Phase-2 emitter work);
+  `pycsl_soundness`/`pycslSoundnessVerified` re-prove with axiom sets
+  **unchanged**, so the 3-axiom ledger is intact. Threading `VRec` into the
+  core `val`/`eval_expr`/SOS/WP is the remaining (deferred) deep-integration
+  step
 - Lambda and higher-order functions
 - Multi-thread interleaving / deadlock-cycle detection — a scheduler
   formalism, not a WP feature. The *WP-level* concurrency is done: `TypedMM`/
@@ -348,6 +370,7 @@ extraction tooling. The core soundness chain:
 |------|-------|-----------------|----------------|
 | `Phase1_AST.v` | 1 | `binop`, `cmpop`, `expr` (incl. `EFieldGet`, `ECall`), `contract_expr` (70 ctors incl. 37 ghost atoms), `stmt` (22 ctors), `func_spec` | Compiles |
 | `Phase2_State.v` | 2 | `val`, `state`, `lookup`, `update`, `eval_expr`, `eval_z`, `eval_contract`, `eval_contract_es` (for `CAt`), `eval_variant` | Test lemmas pass |
+| `Phase2b_RecordVal.v` | 2b | `val7` (record/ADT-valued), `path_get`/`path_set`, `path_read_back`, `path_frame`, conservativity (`lookup7_lift`/`update7_lift`/`assign_arm_conservative`) vs the real Phase-2 `lookup`/`update` — certifies the Phase-1 `ir_node` ADT reads | **Proved — 0 Admitted, no axiom** (`Print Assumptions` = "Closed under the global context") |
 | `Phase3_SOS.v` | 3 | `outcome` (6 kinds), `exec` (22 ctor rules), `exec_deterministic` | `exec_deterministic` proved |
 | `Phase3b_Desugar.v` | 3b | `desugar`, `desugar_correct` | **Proved (Qed.)** |
 | `Phase4_WP.v` | 4 | `wp` fixpoint (5-continuation, 22-ctor coverage) | Termination accepted |
@@ -401,6 +424,7 @@ core soundness chain:
 |------|-------|-----------------|----------------|
 | `PyCSL/AST.lean` | L0 | `Binop`, `CmpOp`, `Expr` (incl. `fieldGet`, `call`), `ContractExpr` (70 ctors), `Stmt` (22 ctors), `FuncSpec`, `FrameCond`, `GhostType` | Compiles |
 | `PyCSL/State.lean` | L1 | `Val`, `State`, `ExecState` (incl. `labelSnaps`), `lookup`, `update`, `evalExpr`, `evalZ`, `evalZEs`, `evalContract`, `evalContractEs` (for `.at_`), `evalVariant`, ghost evaluators | Test lemmas pass |
+| `PyCSL/RecordVal.lean` | L1b | `Val7` (record/ADT-valued), `pathGet`/`pathSet`, `path_read_back`, `path_frame`, conservativity (`lookup7_lift`/`update7_lift`/`assign_arm_conservative`) vs the real `State.lookup`/`update` — mirror of `Phase2b_RecordVal.v`; certifies the Phase-1 `ir_node` ADT reads | **Proved — 0 sorry**, `#print axioms` = `[propext, Classical.choice, Quot.sound]` only |
 | `PyCSL/SOS.lean` | L2 | `Outcome` (6 kinds), `Exec` (22 ctor rules), `exec_deterministic` | `exec_deterministic` proved |
 | `PyCSL/DesugarDef.lean` | L2 | `desugar` (pure, imports AST only) | Compiles |
 | `PyCSL/Desugar.lean` | L2 | `desugar_correct`, `walrusAssign_eq`, `tupleUnpack2_eq`, `desugarMatch` hit/miss | **Proved** |
@@ -475,7 +499,7 @@ against the current AST.
 |---------|--------|
 | `raises` (exceptions) | ✅ DONE — `SRaise`/`STryCatch` stmts (Phase1_AST.v:219-220; AST.lean:281-282); `OThrew`/`OFailed` outcomes (Phase3_SOS.v; SOS.lean:17-19); WP 5th continuation `Qe` (Phase4_WP.v:128-136; WP.lean:105-113); soundness cases (Phase5b_Soundness.v; Soundness.lean:41,68) |
 | `class invariant` | ✅ PARTIAL — modelled as a contract-level construct `CClassInvariant cls inv` (Phase1_AST.v:187; AST.lean:252) that evaluates the invariant predicate over the current state, plus a derived preservation lemma `class_invariant_preserved`/`classInvariantPreserved` (Phase6n_ClassInvariants.v; ClassInvariants.lean) instantiating `pycsl_soundness` with the invariant as both assumed precondition and ensured normal postcondition. The class tag `cls` is documentation-only in the Hoare model; record-typed state (scoping the invariant to the named record's fields) is deferred to Phase 7 (memory-model parameterisation). No new Stmt, no new SOS rule, 0 new axioms, 0 new Admitted/sorry. |
-| `self.field` | ✅ DONE — `EFieldGet`/`fieldGet` runtime ctor (Phase1_AST.v:37; AST.lean:24); `SFieldAssign`/`SFieldAugAssign` stmts (Phase1_AST.v:253-254; AST.lean:284-285). **Real read/write semantics** (no longer a placeholder): `self.f` is the flat synthetic key `obj ++ "." ++ f`, so field assign updates exactly the key `EFieldGet` reads. The SOS rules, WP arms, and `gen`→WhyML (Phase3_SOS.v, Phase4_WP.v, Phase6d_StmtGen.v; SOS.lean, WP.lean, StmtGen.lean) all mirror `SAssign`/`SAugAssign` on that key — coherent with the now-concrete Why3 LINK-3 `field_effect`. `pycsl_soundness`/`pycslSoundnessVerified` re-proved with 0 new axioms; non-vacuity witnessed by a read-back theorem (`o.f := 5` ⟹ `o.f = 5`). Nested-record aliasing (a record-valued `val`) is the deferred Phase 7 work |
+| `self.field` | ✅ DONE — `EFieldGet`/`fieldGet` runtime ctor (Phase1_AST.v:37; AST.lean:24); `SFieldAssign`/`SFieldAugAssign` stmts (Phase1_AST.v:253-254; AST.lean:284-285). **Real read/write semantics** (no longer a placeholder): `self.f` is the flat synthetic key `obj ++ "." ++ f`, so field assign updates exactly the key `EFieldGet` reads. The SOS rules, WP arms, and `gen`→WhyML (Phase3_SOS.v, Phase4_WP.v, Phase6d_StmtGen.v; SOS.lean, WP.lean, StmtGen.lean) all mirror `SAssign`/`SAugAssign` on that key — coherent with the now-concrete Why3 LINK-3 `field_effect`. `pycsl_soundness`/`pycslSoundnessVerified` re-proved with 0 new axioms; non-vacuity witnessed by a read-back theorem (`o.f := 5` ⟹ `o.f = 5`). Nested-record aliasing (a record-valued `val`) is **now certified conservatively** — `Phase2b_RecordVal.v`/`PyCSL/RecordVal.lean` (`path_get`/`path_set` read-back + frame + conservativity, 0 new axioms; §2.2). Threading a `VRec` arm into the core `val`/`eval_expr`/SOS/WP is the remaining deferred deep-integration step |
 | String literals | ✅ DONE — `CStringLit`/`.stringLit` (Phase1_AST.v:103; AST.lean:168); `evalZ` = 0, `evalContract` = `s ≠ ""` (Phase2_State.v; State.lean:201,237) |
 | `None` | ✅ DONE — `CNoneLit`/`.noneLit` (Phase1_AST.v:102; AST.lean:167); `evalZ` = 0, `evalContract` = False (Phase2_State.v; State.lean:200,236) |
 | Assert | ✅ DONE — `SAssert` stmt (Phase1_AST.v:212; AST.lean:274); SOS `execAssertPass`/`execAssertFail` (SOS.lean:112-118); WP `eval_c cond ∧ Qn es` (Phase4_WP.v:110; WP.lean:89-90) |

@@ -61,7 +61,6 @@ class ReverifyReport:
     qualname_results: List[tuple[str, bool, List[str]]] = field(default_factory=list)
     cached: bool = False
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing

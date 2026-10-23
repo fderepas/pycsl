@@ -12,7 +12,20 @@ from errors import PyCSLParseError
 class CSLNode:
     pass
 
-class ContractWrapper(CSLNode): pass   # Requires, Ensures, LoopInvariant, LoopVariant
+@dataclass
+class ContractWrapper(CSLNode):        # Requires, Ensures, LoopInvariant, LoopVariant
+    # tcb(M5) contract-wrapper passthrough (_csl_contract_wrapper): the common
+    # `expr` sub-expression, previously declared ONLY on each of the 4 concrete
+    # subclasses (Requires/Ensures/LoopInvariant/LoopVariant), is HOISTED to the
+    # abstract base and typed `"ExprIR"` — the BinOp.left/right / CSLSlice.low /
+    # CSLNotIn.element precedent verbatim (pure type-hint). Faithful: every
+    # subclass genuinely carries `expr`, and every use consumes it in an emit_ir
+    # position (`_csl_contract_wrapper` -> `self._csl_to_ir(node.expr)`). The
+    # self-annotation record-import model then synthesizes the projector
+    # `contractwrapper_expr : emit_ir`, so the mirror's verbatim passthrough body
+    # type-checks. Signature-only forward-ref → no runtime effect (ContractWrapper
+    # is never instantiated directly; only its subclasses are), corpus byte-inert.
+    expr: "ExprIR"
 class QuantifierNode(CSLNode): pass    # Forall, Exists
 class SingleExprNode(CSLNode): pass    # UnaryOp, Old
 
@@ -47,9 +60,9 @@ class ForExpand(CSLNode):
     [lo, hi), each body clause with VAR substituted by the literal m. lo/hi are
     bound exprs (Number for v1); clauses are Requires/Ensures."""
     var: str
-    lo: CSLNode
-    hi: CSLNode
-    clauses: List[CSLNode]
+    lo: "ExprIR"
+    hi: "ExprIR"
+    clauses: List["ExprIR"]
 
 @dataclass
 class Complete(CSLNode):
@@ -81,8 +94,15 @@ class HappyProperty(CSLNode):
     the Stage-A check primitive — no new IR/backend. See `meta.md` Stage B."""
     name: str
     field: str            # the shared instance field, e.g. "disk" (target = self.<field>)
-    region_lo: CSLNode    # region lower bound (inclusive); None for the `protects` form
-    region_hi: CSLNode    # region upper bound (exclusive); None for the `protects` form
+    # self-tcb-reduction (_canonical_preservation_ensures): region_lo/region_hi retyped
+    # `CSLNode` -> the forward-ref `"ExprIR"` (BinOp.left/right/Old.expr precedent) so the
+    # self-annotation record-import model gives `happyproperty_region_lo`/`_region_hi :
+    # emit_ir`, letting the mirror's `copy.deepcopy(hp.region_lo)` construction lower to the
+    # emit_ir sub-node fed into `IrBinOp`. PURE TYPE-HINT (signature-only forward-ref) —
+    # `dataclasses`/Python never evaluate it at runtime; corpus-inert (a normal PyCSL program
+    # never imports this class into VERIFIED code).
+    region_lo: "ExprIR"   # region lower bound (inclusive); None for the `protects` form
+    region_hi: "ExprIR"   # region upper bound (exclusive); None for the `protects` form
     except_set: List[str] # method names allowed to write the region (the legitimate writers)
     context: str = "writing"
     # 07-1143 R1/R2: the subsystem-ownership form. When non-None, this HAPPY forbids
@@ -127,14 +147,25 @@ class LoopVariant(ContractWrapper):
 
 @dataclass
 class BinOp(CSLNode):
-    left: CSLNode
+    # self-tcb-reduction spike (csl-ast-as-emit_ir): left/right retyped `CSLNode` ->
+    # the forward-ref `"ExprIR"` so a self-annotation mirror that imports this class
+    # (`from frontend.Module2_Parser import BinOp as CSLBinOp`) gets `cslbinop_left`/
+    # `right : emit_ir` record fields (via `_field_type_from_annotation_inst`'s
+    # `_irnode_ann_name` recognition), matching `_e(self, ir: "ExprIR", ...)`'s
+    # existing param-side use of the same tag. PURE TYPE-HINT — `dataclasses`/Python
+    # never evaluate/enforce it at runtime (no behavior change to the live parser).
+    # A regular (non-mirror) PyCSL program never imports this class into VERIFIED
+    # code, so this field never becomes a `type_decl` for the corpus (inert there).
+    left: "ExprIR"
     op: str
-    right: CSLNode
+    right: "ExprIR"
 
 @dataclass
 class UnaryOp(SingleExprNode):
     op: str
-    expr: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_unaryop): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    expr: "ExprIR"
 
 @dataclass
 class Var(CSLNode):
@@ -154,7 +185,14 @@ class Result(CSLNode):
 
 @dataclass
 class Old(SingleExprNode):
-    expr: CSLNode
+    # isinstance-on-CSL-class recognizer (self-tcb-reduction M5): retyped `CSLNode` ->
+    # `"ExprIR"`, BinOp.left/right precedent verbatim (pure type-hint) — so a
+    # self-annotation mirror that imports this class lowers `Old.expr` to the `emit_ir`
+    # record field, letting Module5's `_csl_old` read `node.expr` as an emit_ir node
+    # (the `isinstance(node.expr, CSLFieldAccess)` guard + `.object`/`.field`
+    # projections). Corpus-inert: the annotation is only consulted when PyCSL models
+    # this dataclass during self-annotation, never at runtime parse time.
+    expr: "ExprIR"
 
 @dataclass
 class Nothing(CSLNode):
@@ -172,7 +210,9 @@ class FieldSubscript(CSLNode):
     `\\forall i; (lo <= i and i < hi) ==> self.disk[i] == \\old(self.disk[i])`
     on a `\\trusted`/`\\abstract` writer (meta.md Stage B, option C)."""
     field: str       # the field name (no "self." prefix), e.g. "disk"
-    index: CSLNode
+    # tcb(M5) FREE bucket (_csl_field_subscript): retyped `CSLNode` -> `"ExprIR"`,
+    # BinOp.left/right precedent verbatim (pure type-hint).
+    index: "ExprIR"
 
 @dataclass
 class GlobalFieldSubscript(CSLNode):
@@ -183,7 +223,9 @@ class GlobalFieldSubscript(CSLNode):
     riding the existing gap-10 global-field projection + spec-context `Array.get` machinery."""
     obj: str         # the module-global instance name, e.g. "_filesystem"
     field: str       # the field name, e.g. "fd_inode"
-    index: CSLNode
+    # tcb(M5) FREE bucket (_csl_global_field_subscript): retyped `CSLNode` ->
+    # `"ExprIR"`, BinOp.left/right precedent verbatim (pure type-hint).
+    index: "ExprIR"
 
 @dataclass
 class ClassInvariant(CSLNode):
@@ -192,7 +234,9 @@ class ClassInvariant(CSLNode):
 @dataclass
 class SubscriptAccess(CSLNode):
     array: str
-    index: CSLNode
+    # tcb(M5) Return_emit_ir mini-M1 (_csl_subscript): retyped `CSLNode` -> `"ExprIR"`,
+    # BinOp.left/right precedent verbatim (pure type-hint).
+    index: "ExprIR"
 
 @dataclass
 class SubscriptFieldAccess(CSLNode):
@@ -209,19 +253,28 @@ class SubscriptFieldAccess(CSLNode):
 @dataclass
 class Forall(QuantifierNode):
     var: str
-    body: CSLNode
+    # optional-field builder (monomorphic-option ADTs): `body` retyped `CSLNode`
+    # -> `"ExprIR"` so the imported record field is `emit_ir` (the CSLBinOp.left
+    # precedent), letting `_csl_forall`'s `self._csl_to_ir(node.body)` lower to
+    # `(self__csl_to_ir_1 node.forall_body)`. Signature-only forward-ref → no
+    # runtime effect; only the IR-record-import model sees `emit_ir`.
+    body: "ExprIR"
     # quantification.md: typed/bounded binder. `binder_type=None` ⇒ legacy int
     # path (emits `forall var : int.` verbatim → byte-identical). `domain` is the
     # `in S` bounded term (P3), else None.
+    # optional-field builder: `domain` retyped `Optional[CSLNode]` -> `Optional
+    # ["ExprIR"]` so the record field is `option emit_ir` (converted to the
+    # monomorphic `iropt_ir` at the ctor arg). `binder_type` stays `Optional[str]`
+    # -> `option string` (→ `iropt_str`).
     binder_type: Optional[str] = None
-    domain: Optional[CSLNode] = None
+    domain: Optional["ExprIR"] = None
 
 @dataclass
 class Exists(QuantifierNode):
     var: str
-    body: CSLNode
+    body: "ExprIR"
     binder_type: Optional[str] = None
-    domain: Optional[CSLNode] = None
+    domain: Optional["ExprIR"] = None
 
 @dataclass
 class ArrayLength(CSLNode):
@@ -249,22 +302,28 @@ class InScope(CSLNode):
 class AssignsRegion(CSLNode):
     """Represents `arr[lo..hi]` inside an assigns clause (frame condition region)."""
     base: str       # array parameter name
-    low: CSLNode    # lower bound expression (inclusive)
-    high: CSLNode   # upper bound expression (exclusive)
+    # tcb(M5) spec-op batch mini-M1 (_csl_assigns_region): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    low: "ExprIR"    # lower bound expression (inclusive)
+    high: "ExprIR"   # upper bound expression (exclusive)
 
 @dataclass
 class Valid(CSLNode):
     """Represents `\\valid(arr, n)` — memory region [arr, arr+n) is allocated."""
     base: str
-    length: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_valid): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    length: "ExprIR"
 
 @dataclass
 class Separated(CSLNode):
     """Represents `\\separated(a, na, b, nb)` — regions [a,a+na) and [b,b+nb) don't overlap."""
     base1: str
-    length1: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_separated): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    length1: "ExprIR"
     base2: str
-    length2: CSLNode
+    length2: "ExprIR"
 
 @dataclass
 class Label(CSLNode):
@@ -284,27 +343,40 @@ class CheckPoint(CSLNode):
 @dataclass
 class At(CSLNode):
     """Represents `\\at(expr, L)` — value of expr at program point L."""
-    expr: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_at): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    expr: "ExprIR"
     label: str
 
 @dataclass
 class Length2D(CSLNode):
     """Represents `\\length2d(arr, m, n)` — arr has m rows each of length n."""
     base: str
-    rows: CSLNode
-    cols: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_length2d): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    rows: "ExprIR"
+    cols: "ExprIR"
 
 @dataclass
 class Valid2D(CSLNode):
     """Represents `\\valid2d(arr, i, j)` — (i,j) is a valid 2D index into arr."""
     base: str
-    row: CSLNode
-    col: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_valid2d): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    row: "ExprIR"
+    col: "ExprIR"
 
 @dataclass
 class FunctionVariant(CSLNode):
     """Represents `#@ \\variant <expr>` or `#@ \\variant (<expr>, <ordering>)`."""
-    expr: CSLNode
+    # optional-field ext (monomorphic-option ADTs): `expr` retyped `CSLNode` ->
+    # `"ExprIR"` so the imported record field is `emit_ir` (the Forall.body
+    # precedent), letting `_csl_function_variant`'s `self._csl_to_ir(node.expr)`
+    # lower to `(self__csl_to_ir_1 node.function_variant_expr)`. Signature-only
+    # forward-ref → no runtime effect; only the IR-record-import model sees
+    # `emit_ir`. `ordering` stays `Optional[str]` -> `option string` (→ `iropt_str`);
+    # it is a parser `expect_name()` token, so NEVER the empty string.
+    expr: "ExprIR"
     ordering: Optional[str] = None   # None → integer, str → named well-founded relation
 
 @dataclass
@@ -459,8 +531,16 @@ class CSLIn(CSLNode):
 @dataclass
 class CSLNotIn(CSLNode):
     """Represents `x not in arr` negated membership test in contracts."""
-    element: CSLNode
-    collection: CSLNode
+    # tcb(M5) membership run (_csl_not_in): retyped `CSLNode` -> `"ExprIR"`, the
+    # BinOp.left/right / CSLSlice.low precedent verbatim (pure type-hint). The
+    # self-annotation record-import model then types `cslnotin_element` /
+    # `cslnotin_collection` as `emit_ir`, so `_csl_not_in`'s verbatim body
+    # `self._csl_to_ir(CSLIn(node.element, node.collection))` type-checks — the
+    # nested `IrCSLIn : emit_ir -> emit_ir -> emit_ir` ctor consumes both fields
+    # in an emit_ir position. Signature-only forward-ref → no runtime effect;
+    # only the IR-record-import model sees `emit_ir` (corpus byte-inert).
+    element: "ExprIR"
+    collection: "ExprIR"
 
 @dataclass
 class DictView(CSLNode):
@@ -479,21 +559,27 @@ class ForallItems(QuantifierNode):
     key: str
     val: str
     coll: str
-    body: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_forall_items): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    body: "ExprIR"
 
 @dataclass
 class CSLSlice(CSLNode):
     """Represents `arr[lo:hi]` slice notation in contracts."""
     collection: str
-    low: CSLNode
-    high: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_slice): retyped `CSLNode`
+    # -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    low: "ExprIR"
+    high: "ExprIR"
 
 @dataclass
 class ChainedSubscript(CSLNode):
     """Represents `arr[i][j]` chained subscript access (2D array element)."""
     array: str
-    index1: CSLNode
-    index2: CSLNode
+    # tcb(M5) FREE bucket (_csl_chained_subscript): retyped `CSLNode` -> `"ExprIR"`,
+    # BinOp.left/right precedent verbatim (pure type-hint).
+    index1: "ExprIR"
+    index2: "ExprIR"
 
 @dataclass
 class NestedSubscript(CSLNode):
@@ -509,21 +595,35 @@ class NestedSubscript(CSLNode):
 class CallExpr(CSLNode):
     """Represents a function call in a contract expression."""
     func: str
-    args: List[CSLNode]
+    # variadic content-law comprehension (FABLE-sanctioned): `args` is a list of
+    # already-lowered ExprIR children (the emitter's `_csl_call_expr` maps
+    # `self._csl_to_ir` over them). Retyped `List[CSLNode]` -> `List["ExprIR"]` so the
+    # imported record field is `array emit_ir` (value_type "emit_ir", the
+    # `_m5_get_list_elem_type` forward-ref path — same as `MkTupleExpr.elts`), letting
+    # the emit_ir dispatcher comprehension `[self._csl_to_ir(a) for a in node.args]`
+    # lower with both a length law and a per-index content law over the shared
+    # `emit_ir_disp__csl_to_ir`, then build the `IrCallN string irlist` ctor. Signature-
+    # only retype (string forward-ref, no runtime effect); the parser still fills `args`
+    # with CSL AST nodes, which the emitter lowers.
+    args: List["ExprIR"]
 
 @dataclass
 class IsSorted(CSLNode):
     """Represents `\\is_sorted(a, lo, hi)` — array is sorted in range."""
     base: str
-    lo: CSLNode
-    hi: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_is_sorted): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 @dataclass
 class ArrayEq(CSLNode):
     """Represents `\\array_eq(a, b)` — two arrays have equal length and
     equal elements at every index (extensional content equality)."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_array_eq): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class Permutation(CSLNode):
@@ -531,15 +631,19 @@ class Permutation(CSLNode):
     multiset of elements). Unlike `\\array_eq` it does NOT unfold to a
     first-order formula; it lowers to an uninterpreted Why3 `predicate permut`
     that a proof-assistant-imported axiom constrains (no-more-int A2b Gap 1)."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_permutation): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class Sum(CSLNode):
     """Represents `\\sum(a, lo, hi)` — sum of array elements in range."""
     base: str
-    lo: CSLNode
-    hi: CSLNode
+    # tcb(M5) spec-op batch mini-M1 (_csl_sum): retyped `CSLNode` -> `"ExprIR"`,
+    # FieldSubscript.index precedent verbatim (pure type-hint).
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 @dataclass
 class GhostAssignDecl(CSLNode):
@@ -556,22 +660,44 @@ class GhostAssignDecl(CSLNode):
 @dataclass
 class MkTupleExpr(CSLNode):
     """\\mktuple(a, b[, c[, d]]) — construct a ghost tuple."""
-    elts: List[CSLNode]
+    # variadic content-law comprehension (FABLE-sanctioned): `elts` is a list of
+    # already-lowered ExprIR children (the emitter's `_csl_mktuple` maps
+    # `self._csl_to_ir` over them). Retyped `List[CSLNode]` -> `List["ExprIR"]` so
+    # the imported record field is `array emit_ir` (value_type "emit_ir", the
+    # `_m5_get_list_elem_type` forward-ref path), letting the emit_ir dispatcher
+    # comprehension `[self._csl_to_ir(e) for e in node.elts]` lower with both a
+    # length law and a per-index content law over the shared `emit_ir_disp__csl_to_ir`.
+    # Signature-only retype (matches the `_csl_to_ir` param's own `"ExprIR"`); the
+    # parser still fills `elts` with CSL AST nodes, which the emitter lowers. A
+    # string forward-ref -> no runtime effect; only @mutable_state / IR-node-param
+    # importers see `array emit_ir` (the value_type gate) — corpus byte-inert.
+    elts: List["ExprIR"]
 
 @dataclass
 class FstExpr(CSLNode):
     """\\fst(t) — first component of a ghost tuple."""
-    tuple_expr: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_fst): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    tuple_expr: "ExprIR"
 
 @dataclass
 class SndExpr(CSLNode):
     """\\snd(t) — second component of a ghost tuple."""
-    tuple_expr: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_snd): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    tuple_expr: "ExprIR"
 
 @dataclass
 class ProjExpr(CSLNode):
     """\\proj(t, i) — ith component of a ghost tuple (i must be a literal)."""
-    tuple_expr: CSLNode
+    # tcb(M5) csl-family (_csl_proj): retyped `tuple_expr` CSLNode -> `"ExprIR"`, the
+    # CSLSlice.low / CSLNotIn.element / BinOp.left precedent verbatim (pure type-hint).
+    # The self-annotation record-import model then types `projexpr_tuple_expr` as
+    # `emit_ir`, so the verbatim body `self._csl_to_ir(node.tuple_expr)` type-checks in
+    # the `IrProj : emit_ir -> int -> emit_ir` ctor's first (emit_ir) position.
+    # Signature-only forward-ref -> no runtime effect (corpus byte-inert); `index`
+    # stays `CSLNode` (the `isinstance(node.index, CSLNumber)` literal guard reads it).
+    tuple_expr: "ExprIR"
     index: CSLNode
 
 @dataclass
@@ -594,20 +720,27 @@ class CtorPayload(CSLNode):
 @dataclass
 class StrConcatExpr(CSLNode):
     """s ^ t — string concatenation in ghost / contract context."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_strconcat): retyped `CSLNode`
+    # -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class StrLengthExpr(CSLNode):
     r"""\str_length(s) — length of a ghost string variable."""
-    string: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_str_length): retyped
+    # `CSLNode` -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure
+    # type-hint).
+    string: "ExprIR"
 
 @dataclass
 class StrSubExpr(CSLNode):
     r"""\str_sub(s, lo, hi) — substring of ghost string s from lo to hi."""
-    string: CSLNode
-    lo: CSLNode
-    hi: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_str_sub): retyped `CSLNode`
+    # -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    string: "ExprIR"
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 # --- Ghost array nodes ---
 
@@ -620,14 +753,20 @@ class GhostCopyExpr(CSLNode):
 class GhostCopyRangeExpr(CSLNode):
     """\\copy_range(arr, lo, hi) — bounded snapshot: arr[lo..hi-1] into a new ghost array."""
     arr: str       # CNAME of the source array
-    lo: CSLNode    # lower bound (inclusive)
-    hi: CSLNode    # upper bound (exclusive)
+    # tcb(M5) misc single-return batch mini-M1 (_csl_ghost_copy_range): retyped
+    # `CSLNode` -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure
+    # type-hint).
+    lo: "ExprIR"   # lower bound (inclusive)
+    hi: "ExprIR"   # upper bound (exclusive)
 
 @dataclass
 class GhostMakeExpr(CSLNode):
     """\\make(n, v) — create a ghost array of length n filled with v."""
-    size: CSLNode
-    default: CSLNode
+    # tcb(M5) misc single-return batch mini-M1 (_csl_ghost_make): retyped
+    # `CSLNode` -> `"ExprIR"`, FieldSubscript.index precedent verbatim (pure
+    # type-hint).
+    size: "ExprIR"
+    default: "ExprIR"
 
 # --- Ghost dict nodes ---
 
@@ -639,33 +778,43 @@ class MapEmptyExpr(CSLNode):
 @dataclass
 class MapGetExpr(CSLNode):
     """\\map_get(d, k) — look up key k in ghost dict d."""
-    dict_expr: CSLNode
-    key: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_map_get): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    dict_expr: "ExprIR"
+    key: "ExprIR"
 
 @dataclass
 class MapSetExpr(CSLNode):
     """\\map_set(d, k, v) — return ghost dict d with d[k] := v."""
-    dict_expr: CSLNode
-    key: CSLNode
-    value: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_map_set): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    dict_expr: "ExprIR"
+    key: "ExprIR"
+    value: "ExprIR"
 
 @dataclass
 class MapEqExpr(CSLNode):
     """\\map_eq(d1, d2) — extensional equality of two ghost dicts."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_map_eq): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class HasKeyExpr(CSLNode):
     """\\has_key(d, k) — true iff ghost dict d has a present (non-None) value at key k."""
-    dict_expr: CSLNode
-    key: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_has_key): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    dict_expr: "ExprIR"
+    key: "ExprIR"
 
 @dataclass
 class MapRemoveExpr(CSLNode):
     """\\map_remove(d, k) — return ghost dict d with key k removed (set to None/absent)."""
-    dict_expr: CSLNode
-    key: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_map_remove): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    dict_expr: "ExprIR"
+    key: "ExprIR"
 
 # --- Ghost set nodes ---
 
@@ -677,57 +826,75 @@ class SetEmptyExpr(CSLNode):
 @dataclass
 class SetAddExpr(CSLNode):
     """\\set_add(s, x) — ghost set with x added."""
-    set_expr: CSLNode
-    elem: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_add): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    set_expr: "ExprIR"
+    elem: "ExprIR"
 
 @dataclass
 class SetRemoveExpr(CSLNode):
     """\\set_remove(s, x) — ghost set with x removed."""
-    set_expr: CSLNode
-    elem: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_remove): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    set_expr: "ExprIR"
+    elem: "ExprIR"
 
 @dataclass
 class SetMemExpr(CSLNode):
     """\\set_mem(x, s) — x is a member of ghost set s."""
-    elem: CSLNode
-    set_expr: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_mem): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    elem: "ExprIR"
+    set_expr: "ExprIR"
 
 @dataclass
 class SetUnionExpr(CSLNode):
     """\\set_union(s1, s2) — union of two ghost sets."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_union): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class SetInterExpr(CSLNode):
     """\\set_inter(s1, s2) — intersection of two ghost sets."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_inter): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class SetDiffExpr(CSLNode):
     """\\set_diff(s1, s2) — set difference s1 \\ s2."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_diff): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class SetCardExpr(CSLNode):
     """\\set_card(s, lo, hi) — cardinality of s restricted to [lo, hi)."""
-    set_expr: CSLNode
-    lo: CSLNode
-    hi: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_card): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    set_expr: "ExprIR"
+    lo: "ExprIR"
+    hi: "ExprIR"
 
 @dataclass
 class SetSubsetExpr(CSLNode):
     """\\set_subset(s1, s2) — s1 is a subset of s2."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_subset): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class SetEqExpr(CSLNode):
     """\\set_eq(s1, s2) — extensional equality of two ghost sets."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_set_eq): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 # --- Ghost list nodes ---
 
@@ -739,41 +906,55 @@ class NilExpr(CSLNode):
 @dataclass
 class ConsExpr(CSLNode):
     """\\cons(x, l) — prepend x to ghost list l."""
-    head: CSLNode
-    tail: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_cons): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    head: "ExprIR"
+    tail: "ExprIR"
 
 @dataclass
 class HdExpr(CSLNode):
     """\\hd(l) — head of ghost list l (requires l non-empty)."""
-    list_expr: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_hd): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    list_expr: "ExprIR"
 
 @dataclass
 class TlExpr(CSLNode):
     """\\tl(l) — tail of ghost list l (requires l non-empty)."""
-    list_expr: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_tl): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    list_expr: "ExprIR"
 
 @dataclass
 class ListLengthExpr(CSLNode):
     """\\list_length(l) — length of ghost list l."""
-    list_expr: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_list_length): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    list_expr: "ExprIR"
 
 @dataclass
 class NthExpr(CSLNode):
     """\\nth(l, i) — ith element of ghost list l (requires 0 <= i < length)."""
-    list_expr: CSLNode
-    index: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_nth): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    list_expr: "ExprIR"
+    index: "ExprIR"
 
 @dataclass
 class MemExpr(CSLNode):
     """\\mem(x, l) — x appears in ghost list l."""
-    elem: CSLNode
-    list_expr: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_mem): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    elem: "ExprIR"
+    list_expr: "ExprIR"
 
 @dataclass
 class AppendExpr(CSLNode):
     """\\append(l1, l2) — concatenation of two ghost lists."""
-    left: CSLNode
-    right: CSLNode
+    # tcb(M5) map/set/list batch mini-M1 (_csl_append): retyped `CSLNode` ->
+    # `"ExprIR"`, FieldSubscript.index precedent verbatim (pure type-hint).
+    left: "ExprIR"
+    right: "ExprIR"
 
 @dataclass
 class GhostArraySetDecl(CSLNode):
@@ -1000,7 +1181,7 @@ class _Tok:
         self.string = string
         self.start = start       # offset into source (for REVIEWER_ID re-scan)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"_Tok({self.type}, {self.string!r})"
 
 
@@ -1860,6 +2041,16 @@ class _ContractParser:
                 self.advance()
                 idx = self._parse_expr()
                 self.expect_op("]")
+                # cleared-array.md S2, SELF-FIELD base: `self.<field>[<idx>].<sub>`
+                # — the same element-projection production as `<name>[i].<field>`
+                # and `\result[i].<field>`, with `self.<field>` as the collection
+                # base instead of a plain name. The base is carried as the dotted
+                # string `"self." + field` (the same convention `\length(self.f)`
+                # already uses for `ArrayLength`).
+                if self.at_op("."):
+                    self.advance()
+                    sub = self.expect_name()
+                    return SubscriptFieldAccess("self." + field, idx, sub)
                 return FieldSubscript(field, idx)
             return FieldAccess("self", field)
         # general CNAME
@@ -1885,6 +2076,33 @@ class _ContractParser:
             if self.at_op(")"):
                 self.advance()
                 return CallExpr(name, [])
+            # genexp-erasure-wall R2c: `all`/`any` over a GENERATOR EXPRESSION in a
+            # spec clause (`#@ assert all(x >= 0 for x in a)`) desugars to the
+            # EXISTING bounded quantifier — the same CSLNode `\forall x in dom; P`
+            # / `\exists x in dom; P` builds via `_mk_in` (quantification.md P3).
+            # So the IR, lowering, and certificate are entirely REUSED and the
+            # unconstrained `all_1`/`any_1` oracle never appears in spec position.
+            # `all` -> Forall (`x in dom ==> P`), `any` -> Exists (`x in dom and P`).
+            # A non-genexp `all(arr)`/`any(arr)` (no `for`) keeps the CallExpr path.
+            if name in ("all", "any"):
+                first = self._parse_expr()
+                if self.at_name("for"):
+                    self.advance()
+                    binder = self.expect_name()
+                    if not self.at_name("in"):
+                        self._err("expected 'in' in generator expression")
+                    self.advance()
+                    domain = self._parse_expr()
+                    self.expect_op(")")
+                    is_exists = (name == "any")
+                    cls = Exists if is_exists else Forall
+                    return cls(binder,
+                               self._mk_in(binder, domain, first, is_exists))
+                args = [first]
+                while self.accept_op(","):
+                    args.append(self._parse_expr())
+                self.expect_op(")")
+                return CallExpr(name, args)
             args = self._parse_expr_list()
             self.expect_op(")")
             return CallExpr(name, args)

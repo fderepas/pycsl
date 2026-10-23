@@ -1,0 +1,40 @@
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1096 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 54, characters 15-58:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1097 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 55, characters 15-56:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1098 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 56, characters 15-50:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.01s, 1099 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 57, characters 15-48:
+Sub-goal postcondition of goal crosscheckresult__pairwise'vc.
+Prover result is: Valid (0.00s, 1100 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 29, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 31, characters 37-46: unused variable rocq_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 33, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 37, characters 23-30: unused variable py_file
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 39, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 42, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 44, characters 36-40: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 46, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 51, characters 32-35: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 52, characters 31-34: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 53, characters 31-34: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 54, characters 36-39: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 55, characters 35-38: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 56, characters 32-35: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 57, characters 31-34: this `at'/`old' operator is never used
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 50, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 61, characters 12-16: unused variable argv
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_8v8tcghv.mlw", line 63, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

@@ -9,25 +9,46 @@ class PreambleEmissionMixin:
     _CLASS_INV_AXIOMS: frozenset = frozenset({'UnixFs.Dir.empty_disk_slots_dead', 'UnixFs.Dir.ibv_intro', 'UnixFs.Dir.ibv_elim', 'UnixFs.Content.block_content_eq_intro', 'UnixFs.Content.block_content_eq_elim', 'UnixFs.Dir.establish_uniq', 'UnixFs.Dir.establish_slots_lt32', 'Pycsl.Reference.FieldPred.field_nonneg_intro', 'Pycsl.Reference.FieldPred.field_nonneg_elim'})
     _DEFINITIONAL_AXIOMS: frozenset = frozenset({'UnixFs.Dir.ibv_intro', 'UnixFs.Dir.ibv_elim', 'UnixFs.Content.block_content_eq_intro', 'UnixFs.Content.block_content_eq_elim', 'Pycsl.Reference.FieldPred.field_nonneg_intro', 'Pycsl.Reference.FieldPred.field_nonneg_elim'})
     _AXIOM_FUNCTIONS: Dict[str, List[str]] = {'Pycsl.Reference.Gcd.': ['function gcd (a : int) (b : int) : int'], 'Pycsl.Reference.FieldPred.': ['predicate field_nonneg (x: int)'], 'Pycsl.Strmod.Capwords.': ['val function capwords_def (s: string) : string'], 'UnixFs.Field.': ['val function field_to_str (d: array int) (off: int) (width: int) : string'], 'Pycsl.Reference.Perm.': ['predicate permut (a: array int) (b: array int)'], 'Pycsl.Reference.Perm.rev_permutation': ['val function array_rev (a: array int) : array int'], 'Pycsl.Reference.Json.': ['val function json_mirror (x: json) : json'], 'UnixFs.Bitmap.': ['val function bit_and (x : int) (y : int) : int'], 'UnixFs.Struct.i1a1.': ['val function struct_pack_i1a1 (fmt: int) (x0: int) (x1: array int) : array int\n    ensures { Array.length result = 32 }', 'val function struct_unpack_i1a1 (fmt: int) (data: array int) : (int, array int)'], 'UnixFs.Struct.i2.': ['val function struct_pack_i2 (fmt: int) (x0: int) (x1: int) : array int', 'val function struct_unpack_i2 (fmt: int) (data: array int) : (int, int)'], 'UnixFs.Struct.i18.': ['val function struct_pack_i18 (fmt: int) (x0: int) (x1: int) (x2: int) (x3: int) (x4: int) (x5: int) (x6: int) (x7: int) (x8: int) (x9: int) (x10: int) (x11: int) (x12: int) (x13: int) (x14: int) (x15: int) (x16: int) (x17: int) : array int\n    ensures { Array.length result = 64 }', 'val function struct_unpack_i18 (fmt: int) (data: array int) : (int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int)'], 'UnixFs.Content.': ['function inode_size (disk: array int) (ino: int) : int =\n    disk[512 + ino*64 + 0] * 16777216 + disk[512 + ino*64 + 1] * 65536\n    + disk[512 + ino*64 + 2] * 256 + disk[512 + ino*64 + 3]', 'predicate block_content_eq (d: array int) (blk: int) (data: array int)'], 'UnixFs.Dir.': ['val function slot_inode (disk: array int) (blk: int) (k: int) : int', 'val function slot_name  (disk: array int) (blk: int) (k: int) : string', 'val function dir_lookup (disk: array int) (blk: int) (name: string) : int', 'predicate uniq (d: array int)', 'predicate inode_bytes_valid (d: array int)', 'predicate slots_lt32 (d: array int)', 'predicate dir_blit_marker (d0 d1: array int) (s b0 b1: int) (name: string)', 'predicate dir_scan_result (d: array int) (blk: int) (name: string) (r: int)', 'predicate dir_scan_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)'], 'UnixFs.Dir.dir_find_slot': ['predicate dir_find_slot_result (d: array int) (blk: int) (name: string) (r: int)', 'predicate dir_find_slot_prefix (d: array int) (blk: int) (name: string) (i: int) (r: int)'], 'UnixFs.Dir.dir_find_free': ['predicate dir_find_free_result (d: array int) (blk: int) (r: int)', 'predicate dir_find_free_prefix (d: array int) (blk: int) (i: int) (r: int)'], 'UnixFs.Dir.dir_blit_marker_at': ['predicate dir_blit_marker_at (d0 d1: array int) (blk s b0 b1: int) (name: string)']}
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
-    def _func_returns_string_seq(func: int) -> bool:
-        return False
+    def _func_returns_string_seq(func: Dict[str, Any]) -> bool:
+        """str-list-elements: does `func` return a seq local whose elements are STRING
+        (`seq_value_types[v] == "string"`)? Such a list is emitted as `array string` and
+        carried through the `Return_seq_str (seq string)` exception."""
+        svt = func.get("seq_value_types", {})
+        if not svt:
+            return False
+        found = [False]
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "Return":
+                    v = node.get("value")
+                    if (isinstance(v, dict) and v.get("type") == "Var"
+                            and svt.get(v.get("name")) == "string"):
+                        found[0] = True
+                for x in node.values():
+                    rec(x)
+            elif isinstance(node, list):
+                for x in node:
+                    rec(x)
+
+        rec(func.get("body", []))
+        return found[0]
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._bmem_outer_ids, self._bmem_walk_ids, self._cbw_emitted, self._cbw_funcs, self._cbw_names, self._cce_emitted, self._cce_funcs, self._cce_names, self._ccm_outer_ids, self._ccm_walk_ids, self._ccns_emitted, self._ccns_funcs, self._ccns_names, self._ccs_emitted, self._ccs_funcs, self._ccs_names, self._check_final_desc, self._check_final_name, self._cira_outer_ids, self._cira_walk_ids, self._clx_outer_ids, self._clx_pred_names, self._clx_walk_ids, self._cmtl_outer_ids, self._cmtl_walk_ids, self._conc_cluster, self._conc_emitted, self._conc_names, self._crd_outer_ids, self._crd_walk_ids, self._crn_outer_ids, self._crn_walk_ids, self._crvn_outer_ids, self._crvn_walk_ids, self._cs_trio, self._cs_trio_emitted, self._cs_trio_names, self._csa_emitted, self._csa_funcs, self._csa_names, self._cssd_outer_ids, self._cssd_walk_ids, self._current_emitting_func, self._current_self_type, self._current_symbol_table, self._eal_outer_ids, self._eal_walk_ids, self._emitted_walker_names, self._fdsl_outer_ids, self._fdsl_walk_ids, self._final_pair, self._final_pair_emitted, self._final_pair_names, self._frss_outer_ids, self._frss_walk_ids, self._has_crosscheck_str_record, self._has_opaque_term_fields, self._hsom_outer_ids, self._hsom_walk_ids, self._ile_outer_ids, self._ile_walk_ids, self._iroaf_outer_ids, self._iroaf_walk_ids, self._lss_outer_ids, self._lss_pred_names, self._lss_walk_ids, self._needs_crosscheck_str_agree, self._needs_term_eq, self._needs_term_strbuild, self._needs_term_streq, self._nrw_emitted, self._nrw_funcs, self._nrw_names, self._pb_trio, self._pb_trio_emitted, self._pb_trio_names, self._pp_term_emitted, self._pyconst_val_tuple_slot, self._rss_outer_ids, self._rss_walk_ids, self._scan2d_trio, self._scan2d_trio_emitted, self._scan2d_trio_names, self._sdl_outer_ids, self._sdl_walk_ids, self._serl_outer_ids, self._serl_walk_ids, self._spat_outer_ids, self._spat_walk_ids, self._ssd_emitted, self._ssd_funcs, self._ssd_names, self._ssd_walkers_seen, self._suat_outer_ids, self._suat_walk_ids, self._term_adt_spec, self._term_const_dicts, self._term_const_int_dicts, self._term_pp_convert_classes, self._term_pp_family, self._term_pp_mc, self._term_pp_method_classes, self._term_pp_names, self._tuple_emit_ir_slot_locals, self._union_cluster, self._union_emitted, self._union_names, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache, self._uses_tparam_cache
     def _scan_preamble_needs(self, functions: List[int], all_bodies: List[Any]) -> int:
         return {}
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._uses_pyval_cache
     def _emit_preamble_uses(self, needs: int, module_name: str='PyCSL_Program') -> List[str]:
         return []
 
@@ -38,45 +59,190 @@ class PreambleEmissionMixin:
     def _emit_preamble_exceptions(self, needs: int) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # PREAMBLE-HELPER BLOCK (self-tcb-reduction, relaunch #17): CONVERTED, and
+    # FULLY FAITHFUL. Found by the comprehensive cheap-win census — the ONE stub
+    # of ~230 whose ported body lowers with NOTHING erased. The `val` it replaces
+    # was `val …_emit_preamble_helpers (self) (needs: int) : array string`, with
+    # the whole `needs` dictionary collapsed to an int, so every gate this method
+    # tests was invisible to the model and the returned helper block was an
+    # unconstrained array. The emitted body reads `needs` as a real
+    # `map string (option int)` with NATIVE STRING KEYS (`Map.get needs
+    # "needs_sum"`), and every emitted preamble LINE is the real string literal
+    # snoc'd onto a real `seq string`, materialized to `array string` — measured:
+    # ZERO `str_hash_op` / argument-less oracle / `getattr_*` occurrences in the
+    # whole body. The signature also gains the live `needs: Dict[str, Any]`
+    # (the stub carried `needs: int`), so the mirror-check signature parity is
+    # tighter than before. Verbatim body port of the LIVE `_emit_preamble_helpers`.
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _emit_preamble_helpers(self, needs: int) -> List[str]:
-        return []
+    def _emit_preamble_helpers(self, needs: Dict[str, Any]) -> List[str]:
+        """Phase C: emit helper lemmas, pycsl_sum, pycsl_div, pycsl_mod function bodies."""
+        out: List[str] = []
+        # crosscheck_ir.py self-state carrier (class-variant-impl.md §OUTCOME-CC):
+        # the string-empty test `not self.<strfield>` lowers to the abstract
+        # `val pystr_eq` (result no VC constrains -> NOT an axiom, ledger 3; the
+        # term-carrier precedent). Gated on the self-state recognizer; never
+        # double-declared (pydict/term declare their own, and this file has
+        # neither). Corpus/other-mirror byte-inert (needs_selfstate_streq False).
+        if ((needs.get("needs_selfstate_streq")
+                or needs.get("needs_crosscheck_str_agree"))
+                and not needs.get("needs_pydict")
+                and not needs.get("needs_term_streq")):
+            out.append("")
+            out.append("  (* crosscheck self-state string-empty guard"
+                       " (result VC-free; ledger 3) *)")
+            out.append("  val pystr_eq (a b: string) : bool")
+        if needs.get("needs_list_ghost"):
+            # axiom mem_head: base case of mem — makes \mem(x, \cons(x, l)) proofs tractable
+            # without recursive unfolding. This is the head-match case of mem's definition,
+            # so it is mathematically sound to assume it as an axiom.
+            out.append("")
+            out.append("  axiom mem_head : forall x: int, l: list int. mem x (Cons x l)")
+        if needs["needs_sum"]:
+            out.append("")
+            out.append("  let rec function pycsl_sum (a: array int) (lo hi: int) : int")
+            out.append("    requires { 0 <= lo }")
+            out.append("    requires { hi <= Array.length a }")
+            out.append("    variant { hi - lo }")
+            out.append("  = if lo >= hi then 0 else a[lo] + pycsl_sum a (lo + 1) hi")
+            out.append("")
+            out.append("  let rec lemma pycsl_sum_snoc (a: array int) (lo hi: int) : unit")
+            out.append("    requires { 0 <= lo <= hi <= Array.length a }")
+            out.append("    variant { hi - lo }")
+            out.append("    ensures { hi > lo -> pycsl_sum a lo hi = pycsl_sum a lo (hi - 1) + a[hi - 1] }")
+            out.append("  = if lo < hi - 1 then pycsl_sum_snoc a (lo + 1) hi")
+        if needs["needs_set_card"]:
+            out.append("")
+            out.append("  let rec function set_card (s: map int bool) (lo hi: int) : int")
+            out.append("    requires { lo <= hi }")
+            out.append("    variant { hi - lo }")
+            out.append("  = if lo >= hi then 0")
+            out.append("    else (if Map.get s lo then 1 else 0) + set_card s (lo + 1) hi")
+            out.append("")
+            out.append("  let rec lemma set_card_add_hi (s: map int bool) (lo hi: int) : unit")
+            out.append("    requires { lo <= hi }")
+            out.append("    variant { hi - lo }")
+            out.append("    ensures { set_card (Map.set s hi true) lo (hi + 1) = set_card s lo hi + 1 }")
+            out.append("  = if lo < hi then set_card_add_hi s (lo + 1) hi")
+        if needs["needs_divmod"]:
+            out.append("")
+            # WL-01 FIX: Python `//` is FLOORED division (rounds toward -inf) and `%`
+            # has the sign of the DIVISOR. Why3's int.EuclideanDivision `div`/`mod` use a
+            # NON-NEGATIVE remainder, which AGREES with Python when y > 0 but DIVERGES
+            # when y < 0 (e.g. (-7)//(-2): Euclidean 4, Python 3). We recover Python's
+            # floored semantics by a sign-of-divisor correction: for a negative divisor
+            # with a non-zero remainder, floordiv = div - 1 and floormod = mod + y. This
+            # keeps the positive-divisor case byte-for-byte equal to Euclidean.
+            if "ZeroDivisionError" in needs["user_exceptions"]:
+                out.append("  let pycsl_div (x: int) (y: int) : int")
+                out.append("    raises { ZeroDivisionError -> y = 0 }")
+                out.append("    ensures { y <> 0 /\\ result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }")
+                out.append("  = if y = 0 then raise ZeroDivisionError else (if mod x y <> 0 && y < 0 then div x y - 1 else div x y)")
+                out.append("")
+                out.append("  let pycsl_mod (x: int) (y: int) : int")
+                out.append("    raises { ZeroDivisionError -> y = 0 }")
+                out.append("    ensures { y <> 0 /\\ result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }")
+                out.append("  = if y = 0 then raise ZeroDivisionError else (if mod x y <> 0 && y < 0 then mod x y + y else mod x y)")
+            else:
+                out.append("  let pycsl_div (x: int) (y: int) : int")
+                out.append("    requires { [@expl:division by zero] y <> 0 }")
+                out.append("    ensures { result = (if mod x y <> 0 && y < 0 then div x y - 1 else div x y) }")
+                out.append("  = if mod x y <> 0 && y < 0 then div x y - 1 else div x y")
+                out.append("")
+                out.append("  let pycsl_mod (x: int) (y: int) : int")
+                out.append("    requires { [@expl:modulo by zero] y <> 0 }")
+                out.append("    ensures { result = (if mod x y <> 0 && y < 0 then mod x y + y else mod x y) }")
+                out.append("  = if mod x y <> 0 && y < 0 then mod x y + y else mod x y")
+        return out
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _inductive_refs_global_or_axiom_func(self, ir: Dict[str, Any]) -> bool:
+        inds = ir.get("inductive_decls", [])
+        if not inds:
+            return False
+        axiom_fns = getattr(self, "_axiom_logic_funcs", set())
+        globals_names = {g["name"] for g in ir.get("module_globals", [])}
+        if not axiom_fns and not globals_names:
+            return False
+
+        hit = False
+
+        def _walk(node: Any) -> None:
+            nonlocal hit
+            if hit:
+                return
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and node.get("func") in axiom_fns:
+                    hit = True
+                    return
+                if node.get("type") == "Var" and node.get("name") in globals_names:
+                    hit = True
+                    return
+                if isinstance(node.get("object"), str) and node["object"] in globals_names:
+                    hit = True
+                    return
+                for v in node.values():
+                    _walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    _walk(v)
+
+        for ind in inds:
+            for m in [ind] + ind.get("members", []):
+                for (_rname, clause_ir) in m.get("rules", []):
+                    _walk(clause_ir)
+        return hit
+
+    #@ requires True
+    #@ ensures True
+    #@ assigns \nothing
+    def _class_inv_refs_axiom_func(self, ir: Dict[str, Any]) -> bool:
+        axiom_fns = getattr(self, "_axiom_logic_funcs", set())
+        if not axiom_fns:
+            return False
+
+        hit = False
+
+        def _walk(node: Any) -> None:
+            nonlocal hit
+            if hit:
+                return
+            if isinstance(node, dict):
+                if node.get("type") == "Call" and node.get("func") in axiom_fns:
+                    hit = True
+                    return
+                for v in node.values():
+                    _walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    _walk(v)
+
+        for td in ir.get("type_decls", []):
+            for inv in td.get("class_invariants", []):
+                _walk(inv)
+        return hit
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
-    def _inductive_refs_global_or_axiom_func(self, ir: int) -> bool:
-        return False
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
-    def _class_inv_refs_axiom_func(self, ir: int) -> bool:
-        return False
-
-    #@ \trusted reviewer: pycsl-self-annotate
-    #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._axiom_logic_funcs
     def _precompute_axiom_logic_funcs(self, ir: int) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._class_inv_axioms_emitted
     def _emit_class_inv_axioms(self, ir: int) -> List[str]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._axiom_emitted_decls, self._axiom_logic_funcs
     def _emit_preamble_axioms(self, ir: int) -> List[str]:
         return []
 
@@ -90,30 +256,58 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._uses_pyval_cache
     def _emit_preamble(self, needs: int, module_name: str='PyCSL_Program') -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _collect_critical_mutexes(self) -> List[str]:
-        return []
+        """Every mutex acquired by a `#@ critical`/`#@ acquires` section anywhere in
+        the program, sorted (deterministic — the repo forbids hash-order emission).
+
+        Used to declare the abstract diverging `acquire_<mutex>` operation per mutex:
+        a lock-acquire can block forever (deadlock/contention), so it is faithfully
+        modelled as a call that *may* diverge. This is what lets a worker carrying a
+        `#@ \\diverges` effect type-check — its body genuinely can fail to terminate."""
+        mutexes: Set[str] = set()
+
+        def walk(stmts: Any) -> None:
+            if not isinstance(stmts, list):
+                return
+            for s in stmts:
+                if not isinstance(s, dict):
+                    continue
+                if s.get("stmt") == "CriticalSection" and s.get("mutex"):
+                    mutexes.add(s["mutex"])
+                for v in s.values():
+                    if isinstance(v, list):
+                        walk(v)
+                    elif isinstance(v, dict):
+                        walk([v])
+
+        for func in self.ir.get("functions", []):
+            walk(func.get("body", []))
+        return sorted(mutexes)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._shared_var_names, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _emit_shared_state(self) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _mutex_inv_params(self, mutex: str, inv_str: str) -> List[str]:
-        return []
+        names = sorted(
+            sv["name"]
+            for sv in self.ir.get("shared_vars", [])
+            if sv.get("mutex") == mutex
+        )
+        return [v for v in names if f"!{whyml_ident(v)}" in inv_str]
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
@@ -132,21 +326,47 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._axiom_emitted_decls
     def _emit_uncited_axiom_func_decls(self) -> List[str]:
         return []
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _inductive_sig_whyml(self, signature: str) -> str:
-        return ""
+        """inductive.md: a predicate's WhyML arg-type list (Why3 `inductive p t1 t2`
+        takes UNNAMED arg types). From a source signature `"(n: int, x: Json)"`
+        extract the types and map them (scalars stay, a datatype/class lowercases):
+        `int json`."""
+        inner = signature.strip().lstrip("(").rstrip(")").strip()
+        if not inner:
+            return ""
+        scalars = {"int": "int", "bool": "bool", "str": "string", "float": "real"}
+        # Collection params lower to their value-semantic Why3 type, matching the
+        # rule-body lowering (a `disk: list` binder appears as `array int` in the
+        # forall) — without this the header emits the unbound source type `list`.
+        # A multi-word type (e.g. `array int`) must be parenthesised in the
+        # space-separated Why3 inductive arg-type list.
+        collections = {
+            "list": "(array int)", "tuple": "(array int)",
+            "bytes": "(array int)", "bytearray": "(array int)",
+            "dict": "(map int (option int))",
+        }
+        types = []
+        for part in inner.split(","):
+            ty = part.split(":")[-1].strip() if ":" in part else "int"
+            if ty in scalars:
+                types.append(scalars[ty])
+            elif ty in collections:
+                types.append(collections[ty])
+            else:
+                types.append(whyml_ident(ty.lower()))
+        return " ".join(types)
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._axiom_emitted_decls, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _emit_inductive_decls(self, inductive_decls: List[int]) -> List[str]:
         return []
 
@@ -160,21 +380,21 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _fresh_globals_facts(self) -> List[str]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._module_global_classes, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _emit_module_globals(self) -> List[str]:
         return []
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._ambiguous_fields, self._class_constants, self._class_str_set_constants, self._comp_content_counter, self._constructors, self._current_params, self._current_self_type, self._current_symbol_table, self._dict_locals, self._emit_record_ctx, self._emitted_record_field_labels, self._emitted_record_field_types, self._emitted_record_mutable_labels, self._formal_params, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._list_element_record_types, self._needs_array_init, self._obj_state_written, self._pyval_seq_append_targets, self._pyval_seq_fields, self._quant_record_binders, self._quant_scalar_binders, self._record_array_fields, self._record_types, self._reserved_exprir_symbols_cache, self._str_array_record_fields, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_act_guard_cache, self._uses_build_overload_param_guard_cache, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_clause_ir_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_csl_proj_cache, self._uses_dictlit_cache, self._uses_is_overload_stub_cache, self._uses_method_recv_cache, self._uses_null_byte_num_reader_cache, self._uses_py_functiondef_node_cache, self._uses_pyast_module_cache, self._uses_pyast_parser_cache, self._uses_pyast_stmt_cache, self._uses_refine_tuple_return_type_cache, self._uses_stmt_if_test_cache, self._uses_stmt_ir_cache, self._uses_stmt_return_recogniser_cache, self._uses_synthesize_overload_guard_cache, self._uses_tparam_cache, self._variant_types
     def _emit_type_decls(self, type_decls: List[int]) -> Tuple[List[str], int]:
         return ([], {})
 

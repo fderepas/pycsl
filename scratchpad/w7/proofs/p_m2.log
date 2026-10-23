@@ -1,0 +1,3039 @@
+[*] Parsing and Semantic Analysis for 'src/self-annotate/src/frontend/Module2_Parser.py'...
+[*] Memory model: hoare
+[*] Imported class from 'errors': PyCSLParseError (record + 0 method stub(s) + 2 helper(s))
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3 → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 180, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24088 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 180, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24110 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 181, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24104 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 181, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24126 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 182, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24076 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 182, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24098 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 183, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24080 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 183, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24102 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 184, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24036 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 185, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24070 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 186, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24116 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 186, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24138 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 186, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24160 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 187, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24106 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 188, characters 22-28:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24110 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 189, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24128 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 190, characters 45-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24146 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 190, characters 35-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24168 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 191, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24146 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 191, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24168 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 192, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24150 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 192, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 193, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24154 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 193, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24176 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 194, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24154 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 194, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24176 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 195, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24158 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 195, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24180 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 196, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24166 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 196, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24188 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 197, characters 44-50:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24170 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 197, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24192 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 198, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 199, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24180 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 199, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24202 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 200, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24192 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 200, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24214 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 200, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24236 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 201, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24188 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 201, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24210 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 202, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24192 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 202, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24214 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 203, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 203, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24218 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 204, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24206 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 204, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24228 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 205, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24210 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 205, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24232 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 206, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24214 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 206, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24236 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 207, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24218 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 207, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24240 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 208, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24222 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 208, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24244 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 209, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 209, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24248 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 210, characters 50-57:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24238 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 210, characters 40-47:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24260 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 210, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24282 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 211, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24234 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 211, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24256 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 212, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24238 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 212, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24260 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 213, characters 33-39:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24248 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 213, characters 24-30:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24270 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 214, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24242 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 215, characters 20-26:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24246 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 216, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24250 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 217, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24264 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 217, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24286 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 218, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24268 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 218, characters 23-29:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24290 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 219, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24272 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 219, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24294 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 220, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24266 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 221, characters 21-27:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24270 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 222, characters 38-44:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24294 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 222, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24316 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 223, characters 27-33:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24288 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 224, characters 46-52:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 224, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24332 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 224, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24354 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 225, characters 45-51:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24316 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 225, characters 36-42:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24338 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 226, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24316 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 226, characters 30-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24338 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 227, characters 40-46:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 227, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24342 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 228, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24324 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 228, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24346 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 229, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24332 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 230, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24340 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 231, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24370 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 232, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24374 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 233, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24376 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 234, characters 32-38:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24382 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 235, characters 30-36:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24390 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 236, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24400 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 236, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24422 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 237, characters 37-43:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 237, characters 28-34:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24426 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 238, characters 31-37:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24398 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 239, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24402 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 240, characters 35-41:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24410 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 241, characters 25-31:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24410 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 242, characters 26-32:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24414 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 243, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24430 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 244, characters 48-54:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24436 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 244, characters 39-45:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24458 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 245, characters 29-35:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.00s, 24430 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 246, characters 34-40:
+Sub-goal variant decrease of goal size'vc.
+Prover result is: Valid (0.01s, 24434 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 177, characters 14-25:
+Sub-goal postcondition of goal size'vc.
+Prover result is: Valid (0.02s, 164101 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 251, characters 58-83:
+Sub-goal goal of goal size_left_dec.
+Prover result is: Valid (0.01s, 31176 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 252, characters 58-84:
+Sub-goal goal of goal size_right_dec.
+Prover result is: Valid (0.01s, 31993 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 255, characters 65-90:
+Sub-goal goal of goal size_ifexpr_body_dec.
+Prover result is: Valid (0.01s, 32816 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 256, characters 67-94:
+Sub-goal goal of goal size_ifexpr_orelse_dec.
+Prover result is: Valid (0.01s, 33633 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 259, characters 59-87:
+Sub-goal goal of goal size_ter_fst_dec.
+Prover result is: Valid (0.01s, 34529 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 260, characters 59-87:
+Sub-goal goal of goal size_ter_snd_dec.
+Prover result is: Valid (0.02s, 35331 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 261, characters 59-87:
+Sub-goal goal of goal size_ter_thd_dec.
+Prover result is: Valid (0.01s, 36159 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 310, characters 57-84:
+Sub-goal goal of goal size_svalue_dec.
+Prover result is: Valid (0.01s, 36821 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 311, characters 57-84:
+Sub-goal goal of goal size_sindex_dec.
+Prover result is: Valid (0.01s, 37638 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 312, characters 63-90:
+Sub-goal goal of goal size_object_dec.
+Prover result is: Valid (0.01s, 38386 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 313, characters 58-83:
+Sub-goal goal of goal size_arg0_dec.
+Prover result is: Valid (0.01s, 39309 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 314, characters 59-84:
+Sub-goal goal of goal size_elt0_dec.
+Prover result is: Valid (0.01s, 40296 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 315, characters 59-84:
+Sub-goal goal of goal size_elt1_dec.
+Prover result is: Valid (0.01s, 41113 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 321, characters 48-55:
+Sub-goal variant decrease of goal irlen'vc.
+Prover result is: Valid (0.00s, 12578 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 319, characters 14-25:
+Sub-goal postcondition of goal irlen'vc.
+Prover result is: Valid (0.01s, 43760 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 325, characters 75-90:
+Sub-goal variant decrease of goal irnth'vc.
+Prover result is: Valid (0.01s, 12614 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 615, characters 16-79:
+Sub-goal array creation size of goal _contractparser'vc.
+Prover result is: Valid (0.00s, 4978 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 611, characters 16-24:
+Sub-goal type invariant of goal _contractparser'vc.
+Prover result is: Valid (0.00s, 5334 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 612, characters 16-41:
+Sub-goal type invariant of goal _contractparser'vc.
+Prover result is: Valid (0.01s, 7337 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 613, characters 16-42:
+Sub-goal type invariant of goal _contractparser'vc.
+Prover result is: Valid (0.01s, 7354 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 614, characters 16-90:
+Sub-goal type invariant of goal _contractparser'vc.
+Prover result is: Valid (0.02s, 47784 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 665, characters 15-19:
+Sub-goal postcondition of goal _contractparser___mk_in'vc.
+Prover result is: Valid (0.01s, 5217 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 666, characters 15-34:
+Sub-goal postcondition of goal _contractparser___mk_in'vc.
+Prover result is: Valid (0.00s, 5218 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 685, characters 9-26:
+Sub-goal index in array bounds of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 47404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 684, characters 4-6:
+Sub-goal type invariant of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 48404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 684, characters 4-6:
+Sub-goal type invariant of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 5443 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 684, characters 4-6:
+Sub-goal type invariant of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 47970 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 684, characters 4-6:
+Sub-goal type invariant of goal _contractparser__advance'vc.
+Prover result is: Valid (0.02s, 48818 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 680, characters 67-96:
+Sub-goal postcondition of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 23406 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 681, characters 15-39:
+Sub-goal postcondition of goal _contractparser__advance'vc.
+Prover result is: Valid (0.01s, 23465 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 680, characters 67-96:
+Sub-goal postcondition of goal _contractparser__advance'vc.
+Prover result is: Valid (0.00s, 5441 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 681, characters 15-39:
+Sub-goal postcondition of goal _contractparser__advance'vc.
+Prover result is: Valid (0.00s, 5445 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 697, characters 4-21:
+Sub-goal index in array bounds of goal _contractparser__cur'vc.
+Prover result is: Valid (0.02s, 47404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 693, characters 15-45:
+Sub-goal postcondition of goal _contractparser__cur'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 694, characters 15-34:
+Sub-goal postcondition of goal _contractparser__cur'vc.
+Prover result is: Valid (0.01s, 5197 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 706, characters 9-36:
+Sub-goal precondition of goal _contractparser__at_op'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 701, characters 33-92:
+Sub-goal postcondition of goal _contractparser__at_op'vc.
+Prover result is: Valid (0.01s, 23159 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 702, characters 15-34:
+Sub-goal postcondition of goal _contractparser__at_op'vc.
+Prover result is: Valid (0.01s, 5664 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 716, characters 8-79:
+Sub-goal precondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.00s, 6172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 717, characters 48-79:
+Sub-goal precondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.00s, 6374 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 711, characters 47-70:
+Sub-goal postcondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.02s, 74073 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 712, characters 15-39:
+Sub-goal postcondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.00s, 6477 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 711, characters 47-70:
+Sub-goal postcondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.00s, 3706 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 712, characters 15-39:
+Sub-goal postcondition of goal _contractparser__accept_op'vc.
+Prover result is: Valid (0.01s, 6377 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 730, characters 9-36:
+Sub-goal precondition of goal _contractparser__at_name'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 725, characters 33-94:
+Sub-goal postcondition of goal _contractparser__at_name'vc.
+Prover result is: Valid (0.01s, 23159 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 726, characters 15-34:
+Sub-goal postcondition of goal _contractparser__at_name'vc.
+Prover result is: Valid (0.00s, 5664 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 738, characters 18-73:
+Sub-goal precondition of goal _contractparser__expect_name'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 738, characters 103-176:
+Sub-goal precondition of goal _contractparser__expect_name'vc.
+Prover result is: Valid (0.00s, 6374 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 739, characters 131-137:
+Sub-goal unreachable point of goal _contractparser__expect_name'vc.
+Prover result is: Valid (0.01s, 3867 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 741, characters 17-48:
+Sub-goal precondition of goal _contractparser__expect_name'vc.
+Prover result is: Valid (0.01s, 6480 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 735, characters 15-39:
+Sub-goal postcondition of goal _contractparser__expect_name'vc.
+Prover result is: Valid (0.01s, 6570 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 749, characters 30-68:
+Sub-goal precondition of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 751, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 6206 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 752, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 62812 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 753, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 63641 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 750, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 6442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 750, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 6447 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 750, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 63145 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 750, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 6469 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 750, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 6457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 755, characters 31-69:
+Sub-goal precondition of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.00s, 6525 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 754, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 88911 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 751, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 70398 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 752, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 72906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 753, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.01s, 33850 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 745, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_act_names'vc.
+Prover result is: Valid (0.02s, 69836 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 773, characters 12-55:
+Sub-goal precondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 774, characters 8-76:
+Sub-goal precondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.00s, 6202 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 775, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.01s, 6402 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 776, characters 15-50:
+Sub-goal variant decrease of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.02s, 78961 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 776, characters 15-50:
+Sub-goal precondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.01s, 6488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 766, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.02s, 73629 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 766, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_atom'vc.
+Prover result is: Valid (0.01s, 6404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 791, characters 13-85:
+Sub-goal precondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.00s, 6172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 791, characters 96-179:
+Sub-goal precondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.00s, 6356 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 792, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.01s, 6654 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 793, characters 43-79:
+Sub-goal variant decrease of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.02s, 93624 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 793, characters 43-79:
+Sub-goal precondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.01s, 6749 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 785, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.02s, 84330 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 795, characters 28-63:
+Sub-goal precondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.00s, 6652 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 785, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_unary'vc.
+Prover result is: Valid (0.01s, 6682 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 806, characters 12-48:
+Sub-goal precondition of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 808, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 5230 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 809, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 810, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 807, characters 11-125:
+Sub-goal type invariant of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.00s, 6739 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 807, characters 11-125:
+Sub-goal type invariant of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.00s, 6744 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 807, characters 11-125:
+Sub-goal type invariant of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.02s, 66295 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 807, characters 11-125:
+Sub-goal type invariant of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 6766 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 807, characters 11-125:
+Sub-goal precondition of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 6754 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 812, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.00s, 6791 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 813, characters 33-69:
+Sub-goal precondition of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.00s, 6869 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 811, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.03s, 115842 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 808, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.02s, 78323 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 809, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.02s, 82945 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 810, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 43306 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 801, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_factor'vc.
+Prover result is: Valid (0.01s, 25418 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 824, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 826, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 5230 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 827, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.02s, 50457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 828, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 825, characters 11-94:
+Sub-goal type invariant of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.00s, 6537 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 825, characters 11-94:
+Sub-goal type invariant of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.00s, 6542 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 825, characters 11-94:
+Sub-goal type invariant of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 64176 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 825, characters 11-94:
+Sub-goal type invariant of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 6564 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 825, characters 11-94:
+Sub-goal precondition of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 6552 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 830, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 6589 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 831, characters 33-70:
+Sub-goal precondition of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 6667 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 829, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.02s, 91677 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 826, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.02s, 75892 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 827, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 78621 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 828, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 41890 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 819, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_term'vc.
+Prover result is: Valid (0.01s, 24458 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 843, characters 45-58:
+Sub-goal index in array bounds of goal _contractparser__peek'vc.
+Prover result is: Valid (0.01s, 47645 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 843, characters 64-105:
+Sub-goal index in array bounds of goal _contractparser__peek'vc.
+Prover result is: Valid (0.02s, 47487 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 837, characters 15-19:
+Sub-goal postcondition of goal _contractparser__peek'vc.
+Prover result is: Valid (0.00s, 5371 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 838, characters 15-34:
+Sub-goal postcondition of goal _contractparser__peek'vc.
+Prover result is: Valid (0.00s, 5372 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 852, characters 12-47:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 853, characters 8-79:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 6202 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 854, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 6402 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 855, characters 43-78:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 6488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 847, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.02s, 73860 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 857, characters 20-92:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 6487 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 857, characters 126-156:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 6518 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 857, characters 231-261:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 6572 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 858, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 6624 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 859, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 6710 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 860, characters 48-83:
+Sub-goal precondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.01s, 6779 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 847, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.02s, 81352 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 847, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_membership'vc.
+Prover result is: Valid (0.00s, 6626 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 874, characters 12-53:
+Sub-goal precondition of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 876, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.00s, 5230 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 877, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.02s, 50457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 878, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 875, characters 11-126:
+Sub-goal type invariant of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 6739 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 875, characters 11-126:
+Sub-goal type invariant of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 6744 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 875, characters 11-126:
+Sub-goal type invariant of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.02s, 66471 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 875, characters 11-126:
+Sub-goal type invariant of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 6766 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 875, characters 11-126:
+Sub-goal precondition of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 6754 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 880, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 6791 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 881, characters 33-74:
+Sub-goal precondition of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 6869 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 879, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.03s, 116102 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 876, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.02s, 78499 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 877, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.02s, 83139 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 878, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 43348 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 869, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_comparison'vc.
+Prover result is: Valid (0.01s, 25418 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 892, characters 12-53:
+Sub-goal precondition of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 894, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.00s, 5230 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 895, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 896, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 893, characters 11-96:
+Sub-goal type invariant of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.00s, 6537 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 893, characters 11-96:
+Sub-goal type invariant of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.00s, 6542 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 893, characters 11-96:
+Sub-goal type invariant of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.02s, 64268 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 893, characters 11-96:
+Sub-goal type invariant of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 6564 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 893, characters 11-96:
+Sub-goal precondition of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 6552 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 898, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.00s, 6589 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 899, characters 33-74:
+Sub-goal precondition of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.00s, 6667 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 897, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.02s, 91799 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 894, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.02s, 75984 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 895, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.02s, 78725 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 896, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 41914 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 887, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_equality'vc.
+Prover result is: Valid (0.01s, 24458 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 915, characters 9-36:
+Sub-goal precondition of goal _contractparser__at_bs'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 910, characters 15-19:
+Sub-goal postcondition of goal _contractparser__at_bs'vc.
+Prover result is: Valid (0.01s, 5627 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 911, characters 15-34:
+Sub-goal postcondition of goal _contractparser__at_bs'vc.
+Prover result is: Valid (0.00s, 5628 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 924, characters 18-93:
+Sub-goal precondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.00s, 6172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 924, characters 104-179:
+Sub-goal precondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.01s, 6261 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 924, characters 211-285:
+Sub-goal precondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.00s, 6421 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 925, characters 28-69:
+Sub-goal precondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.00s, 6507 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 920, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.01s, 6541 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 927, characters 28-67:
+Sub-goal precondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.00s, 6505 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 920, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_and_rhs'vc.
+Prover result is: Valid (0.00s, 6539 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 944, characters 12-51:
+Sub-goal precondition of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 946, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 5230 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 947, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 50457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 948, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.02s, 51473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 945, characters 11-83:
+Sub-goal type invariant of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 6442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 945, characters 11-83:
+Sub-goal type invariant of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.00s, 6447 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 945, characters 11-83:
+Sub-goal type invariant of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.02s, 63364 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 945, characters 11-83:
+Sub-goal type invariant of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.00s, 6469 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 945, characters 11-83:
+Sub-goal precondition of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.00s, 6457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 950, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.00s, 6494 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 951, characters 15-53:
+Sub-goal precondition of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 6563 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 949, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.02s, 81471 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 946, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.02s, 75049 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 947, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.02s, 77134 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 948, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 41251 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 939, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_logical_and'vc.
+Prover result is: Valid (0.01s, 24018 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 962, characters 18-93:
+Sub-goal precondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.00s, 6172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 962, characters 104-179:
+Sub-goal precondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.00s, 6261 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 962, characters 211-285:
+Sub-goal precondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.01s, 6421 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 963, characters 28-69:
+Sub-goal precondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.00s, 6507 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 958, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.00s, 6541 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 965, characters 28-70:
+Sub-goal precondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.01s, 6505 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 958, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_or_rhs'vc.
+Prover result is: Valid (0.01s, 6539 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 976, characters 12-54:
+Sub-goal precondition of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 978, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.00s, 5230 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 979, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.02s, 50457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 980, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.02s, 51473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 977, characters 11-82:
+Sub-goal type invariant of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 6442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 977, characters 11-82:
+Sub-goal type invariant of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.00s, 6447 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 977, characters 11-82:
+Sub-goal type invariant of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.02s, 63287 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 977, characters 11-82:
+Sub-goal type invariant of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 6469 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 977, characters 11-82:
+Sub-goal precondition of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 6457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 982, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 6494 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 983, characters 15-52:
+Sub-goal precondition of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.00s, 6563 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 981, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.02s, 81577 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 978, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.02s, 74972 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 979, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.02s, 77043 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 980, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 41239 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 971, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_logical_or'vc.
+Prover result is: Valid (0.01s, 24018 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 994, characters 18-93:
+Sub-goal precondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.01s, 6172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 994, characters 104-179:
+Sub-goal precondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.00s, 6261 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 994, characters 211-285:
+Sub-goal precondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.01s, 6421 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 995, characters 28-69:
+Sub-goal precondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.01s, 6507 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 990, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.00s, 6541 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 997, characters 28-69:
+Sub-goal precondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.00s, 6505 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 990, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_impl_rhs'vc.
+Prover result is: Valid (0.01s, 6539 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1009, characters 12-53:
+Sub-goal precondition of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1011, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.00s, 5230 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1012, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.02s, 50457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1013, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1010, characters 11-99:
+Sub-goal type invariant of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.00s, 6537 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1010, characters 11-99:
+Sub-goal type invariant of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 6542 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1010, characters 11-99:
+Sub-goal type invariant of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.02s, 64397 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1010, characters 11-99:
+Sub-goal type invariant of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.00s, 6564 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1010, characters 11-99:
+Sub-goal precondition of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.00s, 6552 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1015, characters 25-56:
+Sub-goal precondition of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.00s, 6589 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1016, characters 15-54:
+Sub-goal precondition of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 6667 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1014, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.02s, 91972 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1011, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.02s, 76113 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1012, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.02s, 78874 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1013, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 41938 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1003, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_implication'vc.
+Prover result is: Valid (0.01s, 24458 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1027, characters 18-93:
+Sub-goal precondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1027, characters 104-179:
+Sub-goal precondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6261 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1027, characters 211-285:
+Sub-goal precondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.01s, 6421 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1028, characters 28-69:
+Sub-goal precondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6507 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1023, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6541 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1030, characters 28-70:
+Sub-goal precondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.01s, 6505 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1023, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_expr'vc.
+Prover result is: Valid (0.00s, 6539 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1039, characters 13-84:
+Sub-goal precondition of goal _contractparser__expect_op'vc.
+Prover result is: Valid (0.00s, 6172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1040, characters 67-73:
+Sub-goal unreachable point of goal _contractparser__expect_op'vc.
+Prover result is: Valid (0.00s, 3659 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1042, characters 4-35:
+Sub-goal precondition of goal _contractparser__expect_op'vc.
+Prover result is: Valid (0.00s, 6374 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1036, characters 15-39:
+Sub-goal postcondition of goal _contractparser__expect_op'vc.
+Prover result is: Valid (0.01s, 6464 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1052, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1053, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1054, characters 10-45:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.01s, 5254 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1055, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.00s, 5282 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1056, characters 10-45:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.00s, 5310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1057, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.00s, 5338 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1046, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_assigns_region'vc.
+Prover result is: Valid (0.00s, 5366 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1085, characters 12-55:
+Sub-goal precondition of goal _contractparser___parse_class_invariant'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1086, characters 12-59:
+Sub-goal precondition of goal _contractparser___parse_class_invariant'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1087, characters 22-57:
+Sub-goal precondition of goal _contractparser___parse_class_invariant'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1082, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_class_invariant'vc.
+Prover result is: Valid (0.01s, 48840 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1095, characters 12-62:
+Sub-goal precondition of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1096, characters 30-68:
+Sub-goal precondition of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1098, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 60430 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1099, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.02s, 63369 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1100, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 64112 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1097, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.00s, 6470 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1097, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.00s, 6475 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1097, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 63455 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1097, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 6497 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1097, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 6485 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1102, characters 31-69:
+Sub-goal precondition of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.00s, 6553 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1101, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.02s, 91613 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1098, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.02s, 70745 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1099, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.02s, 73365 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1100, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 34022 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1091, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_compose_from'vc.
+Prover result is: Valid (0.01s, 66888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1112, characters 12-61:
+Sub-goal precondition of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1113, characters 30-68:
+Sub-goal precondition of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1115, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 60430 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1116, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 63369 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1117, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 64112 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1114, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 6470 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1114, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 6475 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1114, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 63455 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1114, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.00s, 6497 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1114, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.00s, 6485 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1119, characters 31-69:
+Sub-goal precondition of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.00s, 6553 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1118, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.03s, 91613 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1115, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 70745 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1116, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 73365 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1117, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.01s, 34022 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1108, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_conforms_to'vc.
+Prover result is: Valid (0.02s, 66888 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1142, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1143, characters 8-76:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6202 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1144, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6402 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1145, characters 31-72:
+Sub-goal variant decrease of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 78961 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1145, characters 31-72:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1147, characters 20-43:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 84719 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1148, characters 20-74:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 79073 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1149, characters 20-104:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 78258 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1146, characters 19-56:
+Sub-goal type invariant of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 6667 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1146, characters 19-56:
+Sub-goal type invariant of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6672 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1146, characters 19-56:
+Sub-goal type invariant of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 77386 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1146, characters 19-56:
+Sub-goal type invariant of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 6694 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1146, characters 19-56:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 6682 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1151, characters 31-72:
+Sub-goal variant decrease of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 80330 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1151, characters 31-72:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 6750 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1150, characters 18-53:
+Sub-goal loop variant decrease of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 90279 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1147, characters 20-43:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 85816 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1148, characters 20-74:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 90532 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1149, characters 20-104:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.01s, 48742 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1153, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6761 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1135, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.02s, 79047 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1135, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mixin_type'vc.
+Prover result is: Valid (0.00s, 6404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1167, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_mixin_param'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1168, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_mixin_param'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1169, characters 66-107:
+Sub-goal precondition of goal _contractparser___parse_mixin_param'vc.
+Prover result is: Valid (0.00s, 5292 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1162, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mixin_param'vc.
+Prover result is: Valid (0.01s, 49231 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1162, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mixin_param'vc.
+Prover result is: Valid (0.02s, 50772 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1181, characters 31-73:
+Sub-goal precondition of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1183, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 6206 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1184, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.02s, 62812 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1185, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.02s, 63641 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1182, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 6442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1182, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 6447 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1182, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 63145 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1182, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.00s, 6469 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1182, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.00s, 6457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1187, characters 33-75:
+Sub-goal precondition of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 6525 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1186, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.03s, 88911 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1183, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.02s, 70398 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1184, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.02s, 72906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1185, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.01s, 33850 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1177, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mixin_params'vc.
+Prover result is: Valid (0.02s, 71617 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1199, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1201, characters 13-81:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.01s, 6211 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1202, characters 16-59:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.01s, 6213 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1204, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6241 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1205, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6269 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1206, characters 11-52:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6297 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1193, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6462 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1193, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.01s, 3698 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1204, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.01s, 6411 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1205, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.01s, 6437 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1206, characters 11-52:
+Sub-goal precondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.01s, 6465 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1193, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 6630 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1193, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mixin_method_sig'vc.
+Prover result is: Valid (0.00s, 3784 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1221, characters 12-43:
+Sub-goal precondition of goal _contractparser___parse_depends_method'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1222, characters 14-52:
+Sub-goal precondition of goal _contractparser___parse_depends_method'vc.
+Prover result is: Valid (0.01s, 5371 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1223, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_depends_method'vc.
+Prover result is: Valid (0.00s, 5397 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1224, characters 11-58:
+Sub-goal precondition of goal _contractparser___parse_depends_method'vc.
+Prover result is: Valid (0.00s, 5425 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1216, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_depends_method'vc.
+Prover result is: Valid (0.00s, 5446 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1233, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1235, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 5230 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1236, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.02s, 50457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1237, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1234, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 5466 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1234, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.00s, 5471 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1234, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 51126 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1234, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.00s, 5493 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1234, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.00s, 5481 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1239, characters 54-92:
+Sub-goal precondition of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 5549 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1238, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.02s, 54199 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1235, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 52502 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1236, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.02s, 53902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1237, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.01s, 24447 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1229, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_dotted_path'vc.
+Prover result is: Valid (0.02s, 54088 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1249, characters 30-72:
+Sub-goal precondition of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1251, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 6206 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1252, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 62812 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1253, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.02s, 63641 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1250, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.00s, 6442 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1250, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 6447 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1250, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 63145 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1250, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 6469 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1250, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 6457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1255, characters 31-73:
+Sub-goal precondition of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.00s, 6525 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1254, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.02s, 88911 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1251, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.02s, 70398 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1252, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.02s, 72906 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1253, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.01s, 33850 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1245, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_dotted_path_list'vc.
+Prover result is: Valid (0.02s, 69836 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1271, characters 12-59:
+Sub-goal precondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1272, characters 18-56:
+Sub-goal precondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1273, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.01s, 5254 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1274, characters 11-46:
+Sub-goal precondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.01s, 5282 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1275, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.01s, 5310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1266, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_footprint'vc.
+Prover result is: Valid (0.00s, 5338 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1288, characters 12-53:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1289, characters 11-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1290, characters 12-52:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1291, characters 12-55:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5282 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1292, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 5310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1293, characters 10-45:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5338 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1294, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5366 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1295, characters 35-70:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 5432 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1303, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 5465 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1304, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5493 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1307, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 51642 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1308, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 54883 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1309, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 55245 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 6746 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 6751 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 71991 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6773 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 16-93:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6761 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 104-180:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6850 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1311, characters 10-87:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7059 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1312, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7080 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1313, characters 49-84:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7149 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1310, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.03s, 139933 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1307, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 107857 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1308, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 113868 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1309, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 64066 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1315, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7078 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1316, characters 48-83:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7147 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1310, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.03s, 142580 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1307, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 107998 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1308, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 114005 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1309, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 64196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1320, characters 73-79:
+Sub-goal unreachable point of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 4271 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1322, characters 119-188:
+Sub-goal array creation size of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 85243 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1280, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7946 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1303, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1304, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 5485 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1307, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 53337 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1308, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 56564 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1309, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 57037 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 6738 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 6743 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 74172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 16-93:
+Sub-goal type invariant of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6765 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 16-93:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6753 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1306, characters 104-180:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 6842 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1311, characters 10-87:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7051 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1312, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7072 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1313, characters 49-84:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7141 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1310, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.03s, 138143 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1307, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 107460 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1308, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 113401 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1309, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 63912 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1315, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 7070 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1316, characters 48-83:
+Sub-goal precondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7139 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1310, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.03s, 140625 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1307, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 107601 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1308, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 113538 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1309, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 64042 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1320, characters 73-79:
+Sub-goal unreachable point of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.00s, 4265 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1322, characters 119-188:
+Sub-goal array creation size of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.02s, 84875 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1280, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_for_block'vc.
+Prover result is: Valid (0.01s, 7938 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1329, characters 13-84:
+Sub-goal precondition of goal _contractparser__expect_bs'vc.
+Prover result is: Valid (0.01s, 6172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1330, characters 67-73:
+Sub-goal unreachable point of goal _contractparser__expect_bs'vc.
+Prover result is: Valid (0.00s, 3659 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1332, characters 17-48:
+Sub-goal precondition of goal _contractparser__expect_bs'vc.
+Prover result is: Valid (0.01s, 6183 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1326, characters 15-19:
+Sub-goal postcondition of goal _contractparser__expect_bs'vc.
+Prover result is: Valid (0.01s, 6358 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1342, characters 12-57:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1343, characters 8-76:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.00s, 6193 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1344, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.01s, 6395 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1345, characters 11-46:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.00s, 6481 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1346, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.01s, 6507 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1347, characters 18-56:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.00s, 6535 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1348, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.01s, 6563 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1336, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.01s, 6591 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1351, characters 47-82:
+Sub-goal precondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.00s, 6393 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1336, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_function_variant'vc.
+Prover result is: Valid (0.01s, 6419 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1365, characters 12-55:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1366, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1367, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1368, characters 15-53:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 5320 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1369, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 5348 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1370, characters 53-88:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 5376 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1357, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 5404 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1372, characters 20-89:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 6307 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1372, characters 100-169:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 6396 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1372, characters 201-270:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 6761 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1373, characters 27-58:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6859 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1374, characters 55-90:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 6954 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1357, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 6980 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1376, characters 12-80:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6944 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1377, characters 18-49:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6965 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1378, characters 19-54:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 7051 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1379, characters 18-55:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 7077 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1380, characters 18-55:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 7105 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1381, characters 66-101:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 7133 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1357, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 7161 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1383, characters 18-55:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.00s, 6963 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1384, characters 57-92:
+Sub-goal precondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 6989 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1357, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_ghost'vc.
+Prover result is: Valid (0.01s, 7017 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1401, characters 8-83:
+Sub-goal precondition of goal _contractparser___parse_opt_except'vc.
+Prover result is: Valid (0.01s, 6172 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1402, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_opt_except'vc.
+Prover result is: Valid (0.00s, 6374 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1403, characters 38-78:
+Sub-goal precondition of goal _contractparser___parse_opt_except'vc.
+Prover result is: Valid (0.00s, 6460 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1397, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_opt_except'vc.
+Prover result is: Valid (0.02s, 78175 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1397, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_opt_except'vc.
+Prover result is: Valid (0.01s, 6630 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1418, characters 12-56:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1419, characters 10-45:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1420, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1421, characters 10-45:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 5282 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1422, characters 8-83:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6286 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1431, characters 12-43:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6491 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1432, characters 12-54:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6577 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1433, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6603 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1434, characters 13-51:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6631 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1435, characters 12-57:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6659 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1436, characters 12-56:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6687 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1437, characters 35-76:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6715 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1438, characters 161-236:
+Sub-goal array creation size of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.02s, 81912 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1411, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 7132 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1425, characters 10-84:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6571 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1431, characters 12-43:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6603 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1432, characters 12-54:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6689 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1433, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6715 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1434, characters 13-51:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6743 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1435, characters 12-57:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 6771 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1436, characters 12-56:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6799 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1437, characters 35-76:
+Sub-goal precondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.01s, 6827 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1438, characters 161-236:
+Sub-goal array creation size of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.02s, 85400 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1411, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 7244 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1428, characters 86-92:
+Sub-goal unreachable point of goal _contractparser___parse_happy_region'vc.
+Prover result is: Valid (0.00s, 3842 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1461, characters 12-59:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1462, characters 8-84:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6202 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1463, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 6402 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1464, characters 68-103:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1457, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 74131 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1466, characters 10-87:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6487 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1467, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6514 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1468, characters 72-107:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 6600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1457, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.02s, 77315 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1470, characters 12-88:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 6597 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1471, characters 18-49:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.00s, 6618 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1472, characters 61-99:
+Sub-goal precondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 6704 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1457, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.02s, 78056 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1474, characters 90-96:
+Sub-goal unreachable point of goal _contractparser___parse_interface'vc.
+Prover result is: Valid (0.01s, 3844 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1486, characters 93-114:
+Sub-goal variant decrease of goal _csl_to_str'vc.
+Prover result is: Valid (0.01s, 34900 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1486, characters 93-114:
+Sub-goal precondition of goal _csl_to_str'vc.
+Prover result is: Valid (0.00s, 5186 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1486, characters 52-72:
+Sub-goal variant decrease of goal _csl_to_str'vc.
+Prover result is: Valid (0.01s, 34925 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1486, characters 52-72:
+Sub-goal precondition of goal _csl_to_str'vc.
+Prover result is: Valid (0.01s, 5211 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1481, characters 32-36:
+Sub-goal postcondition of goal _csl_to_str'vc.
+Prover result is: Valid (0.01s, 5177 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1499, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1500, characters 8-76:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.01s, 6202 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1501, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.01s, 6402 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1502, characters 15-50:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 6488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1503, characters 14-51:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 6514 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1504, characters 80-100:
+Sub-goal precondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.01s, 6542 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1491, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 6655 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1492, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.02s, 74113 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1493, characters 15-50:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.02s, 75913 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1491, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 6400 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1492, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.00s, 6405 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1493, characters 15-50:
+Sub-goal postcondition of goal _contractparser___parse_mutex_expr_str'vc.
+Prover result is: Valid (0.01s, 68545 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1516, characters 12-60:
+Sub-goal precondition of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1517, characters 30-75:
+Sub-goal precondition of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1519, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 61947 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1520, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.02s, 62741 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1521, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.02s, 64118 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1518, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.00s, 6484 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1518, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 6489 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1518, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.02s, 63673 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1518, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 6511 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1518, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 6499 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1523, characters 31-76:
+Sub-goal precondition of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.00s, 6567 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1522, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.02s, 92188 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1519, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.02s, 71424 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1520, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 71197 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1521, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.01s, 34107 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1512, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_lock_order'vc.
+Prover result is: Valid (0.02s, 67207 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1533, characters 12-54:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1534, characters 8-86:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.01s, 6202 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1535, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.01s, 6402 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1536, characters 45-80:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.01s, 6488 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1529, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.01s, 74228 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1538, characters 10-86:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.00s, 6487 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1539, characters 16-47:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.00s, 6514 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1540, characters 45-80:
+Sub-goal precondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.00s, 6600 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1529, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.02s, 77198 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1542, characters 83-89:
+Sub-goal unreachable point of goal _contractparser___parse_loop'vc.
+Prover result is: Valid (0.00s, 3788 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1553, characters 12-65:
+Sub-goal precondition of goal _contractparser___parse_mutex_invariant'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1554, characters 13-58:
+Sub-goal precondition of goal _contractparser___parse_mutex_invariant'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1555, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_mutex_invariant'vc.
+Prover result is: Valid (0.01s, 5374 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1556, characters 29-64:
+Sub-goal precondition of goal _contractparser___parse_mutex_invariant'vc.
+Prover result is: Valid (0.00s, 5400 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1549, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_mutex_invariant'vc.
+Prover result is: Valid (0.01s, 5428 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1569, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1571, characters 18-42:
+Sub-goal loop invariant init of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 5230 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1572, characters 18-72:
+Sub-goal loop invariant init of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.02s, 50457 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1573, characters 18-102:
+Sub-goal loop invariant init of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 51473 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1570, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.00s, 5466 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1570, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 5471 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1570, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 51126 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1570, characters 17-54:
+Sub-goal type invariant of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.00s, 5493 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1570, characters 17-54:
+Sub-goal precondition of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.00s, 5481 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1575, characters 54-92:
+Sub-goal precondition of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 5549 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1574, characters 16-51:
+Sub-goal loop variant decrease of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 54199 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1571, characters 18-42:
+Sub-goal loop invariant preservation of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 52502 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1572, characters 18-72:
+Sub-goal loop invariant preservation of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 53902 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1573, characters 18-102:
+Sub-goal loop invariant preservation of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 24447 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1565, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_qualname'vc.
+Prover result is: Valid (0.01s, 54088 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1586, characters 12-55:
+Sub-goal precondition of goal _contractparser___parse_proof'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1587, characters 14-52:
+Sub-goal precondition of goal _contractparser___parse_proof'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1588, characters 16-55:
+Sub-goal precondition of goal _contractparser___parse_proof'vc.
+Prover result is: Valid (0.01s, 5254 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1581, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_proof'vc.
+Prover result is: Valid (0.00s, 5282 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1597, characters 12-56:
+Sub-goal precondition of goal _contractparser___parse_raises'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1598, characters 11-49:
+Sub-goal precondition of goal _contractparser___parse_raises'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1599, characters 12-54:
+Sub-goal precondition of goal _contractparser___parse_raises'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1600, characters 23-58:
+Sub-goal precondition of goal _contractparser___parse_raises'vc.
+Prover result is: Valid (0.00s, 5282 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1593, characters 15-39:
+Sub-goal postcondition of goal _contractparser___parse_raises'vc.
+Prover result is: Valid (0.01s, 49176 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1610, characters 12-56:
+Sub-goal precondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.01s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1611, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.01s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1612, characters 8-89:
+Sub-goal precondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.00s, 6230 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1613, characters 14-45:
+Sub-goal precondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.01s, 6430 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1614, characters 15-60:
+Sub-goal precondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.00s, 6516 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1604, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.01s, 6562 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1604, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_shared'vc.
+Prover result is: Valid (0.01s, 6428 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1628, characters 12-62:
+Sub-goal precondition of goal _contractparser___parse_shared_state'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1629, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_shared_state'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1630, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_shared_state'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1631, characters 10-51:
+Sub-goal precondition of goal _contractparser___parse_shared_state'vc.
+Prover result is: Valid (0.00s, 5282 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1623, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_shared_state'vc.
+Prover result is: Valid (0.00s, 5310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1641, characters 12-63:
+Sub-goal precondition of goal _contractparser___parse_touches_field'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1642, characters 12-50:
+Sub-goal precondition of goal _contractparser___parse_touches_field'vc.
+Prover result is: Valid (0.00s, 5226 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1643, characters 12-49:
+Sub-goal precondition of goal _contractparser___parse_touches_field'vc.
+Prover result is: Valid (0.00s, 5254 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1644, characters 10-51:
+Sub-goal precondition of goal _contractparser___parse_touches_field'vc.
+Prover result is: Valid (0.01s, 5282 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1636, characters 15-19:
+Sub-goal postcondition of goal _contractparser___parse_touches_field'vc.
+Prover result is: Valid (0.00s, 5310 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1668, characters 32-59:
+Sub-goal precondition of goal _contractparser__at_eof'vc.
+Prover result is: Valid (0.00s, 5196 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1664, characters 15-19:
+Sub-goal postcondition of goal _contractparser__at_eof'vc.
+Prover result is: Valid (0.01s, 5198 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1665, characters 15-34:
+Sub-goal postcondition of goal _contractparser__at_eof'vc.
+Prover result is: Valid (0.00s, 5199 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1692, characters 18-41:
+Sub-goal loop invariant init of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.00s, 5190 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1694, characters 29-64:
+Sub-goal index in array bounds of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.01s, 7476 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1695, characters 45-108:
+Sub-goal precondition of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.00s, 5426 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1693, characters 16-63:
+Sub-goal loop variant decrease of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.01s, 62891 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1692, characters 18-41:
+Sub-goal loop invariant preservation of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.02s, 62729 steps).
+
+File "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1685, characters 15-19:
+Sub-goal postcondition of goal module2_parser__parse_node_contracts'vc.
+Prover result is: Valid (0.01s, 5836 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 635, characters 19-21: unused variable x0
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 648, characters 20-23: unused variable sep
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 648, characters 34-36: unused variable xs
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 653, characters 29-33: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 653, characters 53-56: unused variable msg
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 665, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 680, characters 15-97: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 735, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 748, characters 8-17: unused variable names_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 745, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 761, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 766, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 785, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 801, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 819, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 837, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 847, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 869, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 887, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 905, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 910, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 920, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 933, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 939, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 958, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 971, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 990, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1003, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1023, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1036, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1046, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1082, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1094, characters 8-17: unused variable names_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1091, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1111, characters 8-17: unused variable names_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1108, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1140, characters 8-16: unused variable args_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1135, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1162, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1180, characters 8-18: unused variable params_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1177, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1193, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1216, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1229, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1248, characters 8-17: unused variable paths_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1245, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1266, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1283, characters 8-19: unused variable clauses_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1280, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1326, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1336, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1357, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1397, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1411, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1440, characters 69-73: unused variable name
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1457, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1481, characters 32-36: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1491, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1515, characters 8-17: unused variable names_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1512, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1529, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1549, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1565, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1581, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1593, characters 15-39: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1604, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1623, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1636, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1657, characters 53-55: unused variable fn
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1664, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1675, characters 21-27: unused variable source
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1679, characters 38-42: unused variable self
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1679, characters 61-73: unused variable contract_str
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1679, characters 84-95: unused variable line_number
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1681, characters 15-19: unused variable result
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1688, characters 8-20: unused variable contract_str
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1687, characters 8-24: unused variable parsed_nodes_len
+Warning, file "/home/fabrice/git/pycsl/scratchpad/w7/tmp/.pycsl_27aw1d92.mlw", line 1685, characters 15-19: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.

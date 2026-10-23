@@ -1,0 +1,1133 @@
+[
+ {
+  "idx": 6,
+  "fn": {
+   "name": "preambleemissionmixin___inductive_refs_global_or_axiom_func",
+   "symbol_table": {
+    "ir": "dict",
+    "inds": "Any",
+    "axiom_fns": "Any",
+    "globals_names": "Any",
+    "hit": "Any",
+    "ind": "Any",
+    "m": "Any",
+    "v": "Any",
+    "_rname": "Any",
+    "clause_ir": "Any"
+   },
+   "param_annotations": {
+    "ir": "dict"
+   },
+   "param_ast_node_types": {},
+   "param_list_elem_types": {},
+   "param_list_nested_elem": {},
+   "param_list_flat_elem": {},
+   "param_defaults": {},
+   "has_mutable_default": false,
+   "acts": [],
+   "dict_value_types": {},
+   "dict_key_types": {
+    "ir": "string",
+    "ind": "string",
+    "m": "string"
+   },
+   "set_value_types": {},
+   "formal_params": [
+    "ir"
+   ],
+   "return_annotation": "bool",
+   "return_value_type": null,
+   "contracts": {
+    "requires": [
+     {
+      "type": "Bool",
+      "value": true
+     }
+    ],
+    "ensures": [
+     {
+      "type": "Bool",
+      "value": true
+     }
+    ],
+    "assigns": [
+     {
+      "type": "Nothing"
+     }
+    ],
+    "raises": [],
+    "no_exception": [],
+    "no_exception_all": false
+   },
+   "body": [
+    {
+     "stmt": "Assign",
+     "target": "inds",
+     "value": {
+      "type": "Call",
+      "func": "ir.get",
+      "args": [
+       {
+        "type": "String",
+        "value": "inductive_decls"
+       },
+       {
+        "type": "ArrayLit",
+        "elts": []
+       }
+      ]
+     }
+    },
+    {
+     "stmt": "If",
+     "test": {
+      "type": "UnaryOp",
+      "op": "not",
+      "expr": {
+       "type": "Var",
+       "name": "inds"
+      }
+     },
+     "body": [
+      {
+       "stmt": "Return",
+       "value": {
+        "type": "Bool",
+        "value": false
+       }
+      }
+     ],
+     "orelse": []
+    },
+    {
+     "stmt": "Assign",
+     "target": "axiom_fns",
+     "value": {
+      "type": "Call",
+      "func": "getattr",
+      "args": [
+       {
+        "type": "Var",
+        "name": "self"
+       },
+       {
+        "type": "String",
+        "value": "_axiom_logic_funcs"
+       },
+       {
+        "type": "Call",
+        "func": "set",
+        "args": []
+       }
+      ]
+     }
+    },
+    {
+     "stmt": "Assign",
+     "target": "globals_names",
+     "value": {
+      "type": "SetComp",
+      "elt": {
+       "type": "Subscript",
+       "value": {
+        "type": "Var",
+        "name": "g"
+       },
+       "index": {
+        "type": "String",
+        "value": "name"
+       }
+      },
+      "generators": [
+       {
+        "target": "g",
+        "iter": {
+         "type": "Call",
+         "func": "ir.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "module_globals"
+          },
+          {
+           "type": "ArrayLit",
+           "elts": []
+          }
+         ]
+        },
+        "ifs": []
+       }
+      ]
+     }
+    },
+    {
+     "stmt": "If",
+     "test": {
+      "type": "BinOp",
+      "op": "and",
+      "left": {
+       "type": "UnaryOp",
+       "op": "not",
+       "expr": {
+        "type": "Var",
+        "name": "axiom_fns"
+       }
+      },
+      "right": {
+       "type": "UnaryOp",
+       "op": "not",
+       "expr": {
+        "type": "Var",
+        "name": "globals_names"
+       }
+      }
+     },
+     "body": [
+      {
+       "stmt": "Return",
+       "value": {
+        "type": "Bool",
+        "value": false
+       }
+      }
+     ],
+     "orelse": []
+    },
+    {
+     "stmt": "Assign",
+     "target": "hit",
+     "value": {
+      "type": "Bool",
+      "value": false
+     }
+    },
+    {
+     "stmt": "For",
+     "line": 103,
+     "target": "ind",
+     "iter": {
+      "type": "Var",
+      "name": "inds"
+     },
+     "invariants": [],
+     "variants": [],
+     "body": [
+      {
+       "stmt": "For",
+       "line": 104,
+       "target": "m",
+       "iter": {
+        "type": "BinOp",
+        "op": "+",
+        "left": {
+         "type": "ArrayLit",
+         "elts": [
+          {
+           "type": "Var",
+           "name": "ind"
+          }
+         ]
+        },
+        "right": {
+         "type": "Call",
+         "func": "ind.get",
+         "args": [
+          {
+           "type": "String",
+           "value": "members"
+          },
+          {
+           "type": "ArrayLit",
+           "elts": []
+          }
+         ]
+        }
+       },
+       "invariants": [],
+       "variants": [],
+       "body": [
+        {
+         "stmt": "For",
+         "line": 105,
+         "target": "_for_target",
+         "iter": {
+          "type": "Call",
+          "func": "m.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "rules"
+           },
+           {
+            "type": "ArrayLit",
+            "elts": []
+           }
+          ]
+         },
+         "invariants": [],
+         "variants": [],
+         "body": [
+          {
+           "stmt": "Expr",
+           "value": {
+            "type": "Call",
+            "func": "_walk",
+            "args": [
+             {
+              "type": "Var",
+              "name": "clause_ir"
+             }
+            ]
+           }
+          }
+         ],
+         "allow_iteration_mutation": false,
+         "lineno": 105,
+         "tuple_targets": [
+          "_rname",
+          "clause_ir"
+         ]
+        }
+       ],
+       "allow_iteration_mutation": false,
+       "lineno": 104
+      }
+     ],
+     "allow_iteration_mutation": false,
+     "lineno": 103
+    },
+    {
+     "stmt": "Return",
+     "value": {
+      "type": "Var",
+      "name": "hit"
+     }
+    }
+   ],
+   "function_variants": [],
+   "diverges": false,
+   "no_inline": false,
+   "sibling_concrete": false,
+   "verify_module": "",
+   "propagate_frame": false,
+   "fresh_globals": false,
+   "trusted": false,
+   "abstract": false,
+   "preserves": false,
+   "lemma": false,
+   "uses": [],
+   "interface": {},
+   "reveal": [],
+   "memoized": false,
+   "reviewer": "",
+   "bounded_int": null,
+   "proof": [],
+   "provides": [],
+   "method_deps": [],
+   "shared_state": [],
+   "touches_field": [],
+   "line": 72,
+   "col": 4,
+   "pure": true,
+   "kind": "method",
+   "self_type": "PreambleEmissionMixin"
+  }
+ },
+ {
+  "idx": 7,
+  "fn": {
+   "name": "preambleemissionmixin___walk",
+   "symbol_table": {
+    "node": "Any",
+    "v": "Any",
+    "hit": "Any"
+   },
+   "param_annotations": {},
+   "param_ast_node_types": {},
+   "param_list_elem_types": {},
+   "param_list_nested_elem": {},
+   "param_list_flat_elem": {},
+   "param_defaults": {},
+   "has_mutable_default": false,
+   "acts": [],
+   "dict_value_types": {},
+   "dict_key_types": {
+    "node": "string"
+   },
+   "set_value_types": {},
+   "formal_params": [
+    "node"
+   ],
+   "return_annotation": "None",
+   "return_value_type": null,
+   "contracts": {
+    "requires": [],
+    "ensures": [],
+    "assigns": [],
+    "raises": [],
+    "no_exception": [],
+    "no_exception_all": false
+   },
+   "body": [
+    {
+     "stmt": "If",
+     "test": {
+      "type": "Var",
+      "name": "hit"
+     },
+     "body": [
+      {
+       "stmt": "Return",
+       "value": null
+      }
+     ],
+     "orelse": []
+    },
+    {
+     "stmt": "If",
+     "test": {
+      "type": "Call",
+      "func": "isinstance",
+      "args": [
+       {
+        "type": "Var",
+        "name": "node"
+       },
+       {
+        "type": "Var",
+        "name": "dict"
+       }
+      ]
+     },
+     "body": [
+      {
+       "stmt": "If",
+       "test": {
+        "type": "BinOp",
+        "op": "and",
+        "left": {
+         "type": "BinOp",
+         "op": "==",
+         "left": {
+          "type": "Call",
+          "func": "node.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "type"
+           }
+          ]
+         },
+         "right": {
+          "type": "String",
+          "value": "Call"
+         }
+        },
+        "right": {
+         "type": "BinOp",
+         "op": "in",
+         "left": {
+          "type": "Call",
+          "func": "node.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "func"
+           }
+          ]
+         },
+         "right": {
+          "type": "Var",
+          "name": "axiom_fns"
+         }
+        }
+       },
+       "body": [
+        {
+         "stmt": "Assign",
+         "target": "hit",
+         "value": {
+          "type": "Bool",
+          "value": true
+         }
+        },
+        {
+         "stmt": "Return",
+         "value": null
+        }
+       ],
+       "orelse": []
+      },
+      {
+       "stmt": "If",
+       "test": {
+        "type": "BinOp",
+        "op": "and",
+        "left": {
+         "type": "BinOp",
+         "op": "==",
+         "left": {
+          "type": "Call",
+          "func": "node.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "type"
+           }
+          ]
+         },
+         "right": {
+          "type": "String",
+          "value": "Var"
+         }
+        },
+        "right": {
+         "type": "BinOp",
+         "op": "in",
+         "left": {
+          "type": "Call",
+          "func": "node.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "name"
+           }
+          ]
+         },
+         "right": {
+          "type": "Var",
+          "name": "globals_names"
+         }
+        }
+       },
+       "body": [
+        {
+         "stmt": "Assign",
+         "target": "hit",
+         "value": {
+          "type": "Bool",
+          "value": true
+         }
+        },
+        {
+         "stmt": "Return",
+         "value": null
+        }
+       ],
+       "orelse": []
+      },
+      {
+       "stmt": "If",
+       "test": {
+        "type": "BinOp",
+        "op": "and",
+        "left": {
+         "type": "Call",
+         "func": "isinstance",
+         "args": [
+          {
+           "type": "Call",
+           "func": "node.get",
+           "args": [
+            {
+             "type": "String",
+             "value": "object"
+            }
+           ]
+          },
+          {
+           "type": "Var",
+           "name": "str"
+          }
+         ]
+        },
+        "right": {
+         "type": "BinOp",
+         "op": "in",
+         "left": {
+          "type": "Subscript",
+          "value": {
+           "type": "Var",
+           "name": "node"
+          },
+          "index": {
+           "type": "String",
+           "value": "object"
+          }
+         },
+         "right": {
+          "type": "Var",
+          "name": "globals_names"
+         }
+        }
+       },
+       "body": [
+        {
+         "stmt": "Assign",
+         "target": "hit",
+         "value": {
+          "type": "Bool",
+          "value": true
+         }
+        },
+        {
+         "stmt": "Return",
+         "value": null
+        }
+       ],
+       "orelse": []
+      },
+      {
+       "stmt": "For",
+       "line": 97,
+       "target": "v",
+       "iter": {
+        "type": "Call",
+        "func": "node.values",
+        "args": []
+       },
+       "invariants": [],
+       "variants": [],
+       "body": [
+        {
+         "stmt": "Expr",
+         "value": {
+          "type": "Call",
+          "func": "_walk",
+          "args": [
+           {
+            "type": "Var",
+            "name": "v"
+           }
+          ]
+         }
+        }
+       ],
+       "allow_iteration_mutation": false,
+       "lineno": 97
+      }
+     ],
+     "orelse": [
+      {
+       "stmt": "If",
+       "test": {
+        "type": "Call",
+        "func": "isinstance",
+        "args": [
+         {
+          "type": "Var",
+          "name": "node"
+         },
+         {
+          "type": "Var",
+          "name": "list"
+         }
+        ]
+       },
+       "body": [
+        {
+         "stmt": "For",
+         "line": 100,
+         "target": "v",
+         "iter": {
+          "type": "Var",
+          "name": "node"
+         },
+         "invariants": [],
+         "variants": [],
+         "body": [
+          {
+           "stmt": "Expr",
+           "value": {
+            "type": "Call",
+            "func": "_walk",
+            "args": [
+             {
+              "type": "Var",
+              "name": "v"
+             }
+            ]
+           }
+          }
+         ],
+         "allow_iteration_mutation": false,
+         "lineno": 100
+        }
+       ],
+       "orelse": []
+      }
+     ]
+    }
+   ],
+   "function_variants": [],
+   "diverges": false,
+   "no_inline": false,
+   "sibling_concrete": false,
+   "verify_module": "",
+   "propagate_frame": false,
+   "fresh_globals": false,
+   "trusted": false,
+   "abstract": false,
+   "preserves": false,
+   "lemma": false,
+   "uses": [],
+   "interface": {},
+   "reveal": [],
+   "memoized": false,
+   "reviewer": "",
+   "bounded_int": null,
+   "proof": [],
+   "provides": [],
+   "method_deps": [],
+   "shared_state": [],
+   "touches_field": [],
+   "line": 83,
+   "col": 8,
+   "kind": "method",
+   "self_type": "PreambleEmissionMixin"
+  }
+ },
+ {
+  "idx": 8,
+  "fn": {
+   "name": "preambleemissionmixin___class_inv_refs_axiom_func",
+   "symbol_table": {
+    "ir": "dict",
+    "axiom_fns": "Any",
+    "hit": "Any",
+    "td": "Any",
+    "inv": "Any",
+    "v": "Any"
+   },
+   "param_annotations": {
+    "ir": "dict"
+   },
+   "param_ast_node_types": {},
+   "param_list_elem_types": {},
+   "param_list_nested_elem": {},
+   "param_list_flat_elem": {},
+   "param_defaults": {},
+   "has_mutable_default": false,
+   "acts": [],
+   "dict_value_types": {},
+   "dict_key_types": {
+    "ir": "string",
+    "td": "string"
+   },
+   "set_value_types": {},
+   "formal_params": [
+    "ir"
+   ],
+   "return_annotation": "bool",
+   "return_value_type": null,
+   "contracts": {
+    "requires": [
+     {
+      "type": "Bool",
+      "value": true
+     }
+    ],
+    "ensures": [
+     {
+      "type": "Bool",
+      "value": true
+     }
+    ],
+    "assigns": [
+     {
+      "type": "Nothing"
+     }
+    ],
+    "raises": [],
+    "no_exception": [],
+    "no_exception_all": false
+   },
+   "body": [
+    {
+     "stmt": "Assign",
+     "target": "axiom_fns",
+     "value": {
+      "type": "Call",
+      "func": "getattr",
+      "args": [
+       {
+        "type": "Var",
+        "name": "self"
+       },
+       {
+        "type": "String",
+        "value": "_axiom_logic_funcs"
+       },
+       {
+        "type": "Call",
+        "func": "set",
+        "args": []
+       }
+      ]
+     }
+    },
+    {
+     "stmt": "If",
+     "test": {
+      "type": "UnaryOp",
+      "op": "not",
+      "expr": {
+       "type": "Var",
+       "name": "axiom_fns"
+      }
+     },
+     "body": [
+      {
+       "stmt": "Return",
+       "value": {
+        "type": "Bool",
+        "value": false
+       }
+      }
+     ],
+     "orelse": []
+    },
+    {
+     "stmt": "Assign",
+     "target": "hit",
+     "value": {
+      "type": "Bool",
+      "value": false
+     }
+    },
+    {
+     "stmt": "For",
+     "line": 133,
+     "target": "td",
+     "iter": {
+      "type": "Call",
+      "func": "ir.get",
+      "args": [
+       {
+        "type": "String",
+        "value": "type_decls"
+       },
+       {
+        "type": "ArrayLit",
+        "elts": []
+       }
+      ]
+     },
+     "invariants": [],
+     "variants": [],
+     "body": [
+      {
+       "stmt": "For",
+       "line": 134,
+       "target": "inv",
+       "iter": {
+        "type": "Call",
+        "func": "td.get",
+        "args": [
+         {
+          "type": "String",
+          "value": "class_invariants"
+         },
+         {
+          "type": "ArrayLit",
+          "elts": []
+         }
+        ]
+       },
+       "invariants": [],
+       "variants": [],
+       "body": [
+        {
+         "stmt": "Expr",
+         "value": {
+          "type": "Call",
+          "func": "_walk",
+          "args": [
+           {
+            "type": "Var",
+            "name": "inv"
+           }
+          ]
+         }
+        }
+       ],
+       "allow_iteration_mutation": false,
+       "lineno": 134
+      }
+     ],
+     "allow_iteration_mutation": false,
+     "lineno": 133
+    },
+    {
+     "stmt": "Return",
+     "value": {
+      "type": "Var",
+      "name": "hit"
+     }
+    }
+   ],
+   "function_variants": [],
+   "diverges": false,
+   "no_inline": false,
+   "sibling_concrete": false,
+   "verify_module": "",
+   "propagate_frame": false,
+   "fresh_globals": false,
+   "trusted": false,
+   "abstract": false,
+   "preserves": false,
+   "lemma": false,
+   "uses": [],
+   "interface": {},
+   "reveal": [],
+   "memoized": false,
+   "reviewer": "",
+   "bounded_int": null,
+   "proof": [],
+   "provides": [],
+   "method_deps": [],
+   "shared_state": [],
+   "touches_field": [],
+   "line": 112,
+   "col": 4,
+   "pure": true,
+   "kind": "method",
+   "self_type": "PreambleEmissionMixin"
+  }
+ },
+ {
+  "idx": 9,
+  "fn": {
+   "name": "preambleemissionmixin___walk",
+   "symbol_table": {
+    "node": "Any",
+    "v": "Any",
+    "hit": "Any"
+   },
+   "param_annotations": {},
+   "param_ast_node_types": {},
+   "param_list_elem_types": {},
+   "param_list_nested_elem": {},
+   "param_list_flat_elem": {},
+   "param_defaults": {},
+   "has_mutable_default": false,
+   "acts": [],
+   "dict_value_types": {},
+   "dict_key_types": {
+    "node": "string"
+   },
+   "set_value_types": {},
+   "formal_params": [
+    "node"
+   ],
+   "return_annotation": "None",
+   "return_value_type": null,
+   "contracts": {
+    "requires": [],
+    "ensures": [],
+    "assigns": [],
+    "raises": [],
+    "no_exception": [],
+    "no_exception_all": false
+   },
+   "body": [
+    {
+     "stmt": "If",
+     "test": {
+      "type": "Var",
+      "name": "hit"
+     },
+     "body": [
+      {
+       "stmt": "Return",
+       "value": null
+      }
+     ],
+     "orelse": []
+    },
+    {
+     "stmt": "If",
+     "test": {
+      "type": "Call",
+      "func": "isinstance",
+      "args": [
+       {
+        "type": "Var",
+        "name": "node"
+       },
+       {
+        "type": "Var",
+        "name": "dict"
+       }
+      ]
+     },
+     "body": [
+      {
+       "stmt": "If",
+       "test": {
+        "type": "BinOp",
+        "op": "and",
+        "left": {
+         "type": "BinOp",
+         "op": "==",
+         "left": {
+          "type": "Call",
+          "func": "node.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "type"
+           }
+          ]
+         },
+         "right": {
+          "type": "String",
+          "value": "Call"
+         }
+        },
+        "right": {
+         "type": "BinOp",
+         "op": "in",
+         "left": {
+          "type": "Call",
+          "func": "node.get",
+          "args": [
+           {
+            "type": "String",
+            "value": "func"
+           }
+          ]
+         },
+         "right": {
+          "type": "Var",
+          "name": "axiom_fns"
+         }
+        }
+       },
+       "body": [
+        {
+         "stmt": "Assign",
+         "target": "hit",
+         "value": {
+          "type": "Bool",
+          "value": true
+         }
+        },
+        {
+         "stmt": "Return",
+         "value": null
+        }
+       ],
+       "orelse": []
+      },
+      {
+       "stmt": "For",
+       "line": 127,
+       "target": "v",
+       "iter": {
+        "type": "Call",
+        "func": "node.values",
+        "args": []
+       },
+       "invariants": [],
+       "variants": [],
+       "body": [
+        {
+         "stmt": "Expr",
+         "value": {
+          "type": "Call",
+          "func": "_walk",
+          "args": [
+           {
+            "type": "Var",
+            "name": "v"
+           }
+          ]
+         }
+        }
+       ],
+       "allow_iteration_mutation": false,
+       "lineno": 127
+      }
+     ],
+     "orelse": [
+      {
+       "stmt": "If",
+       "test": {
+        "type": "Call",
+        "func": "isinstance",
+        "args": [
+         {
+          "type": "Var",
+          "name": "node"
+         },
+         {
+          "type": "Var",
+          "name": "list"
+         }
+        ]
+       },
+       "body": [
+        {
+         "stmt": "For",
+         "line": 130,
+         "target": "v",
+         "iter": {
+          "type": "Var",
+          "name": "node"
+         },
+         "invariants": [],
+         "variants": [],
+         "body": [
+          {
+           "stmt": "Expr",
+           "value": {
+            "type": "Call",
+            "func": "_walk",
+            "args": [
+             {
+              "type": "Var",
+              "name": "v"
+             }
+            ]
+           }
+          }
+         ],
+         "allow_iteration_mutation": false,
+         "lineno": 130
+        }
+       ],
+       "orelse": []
+      }
+     ]
+    }
+   ],
+   "function_variants": [],
+   "diverges": false,
+   "no_inline": false,
+   "sibling_concrete": false,
+   "verify_module": "",
+   "propagate_frame": false,
+   "fresh_globals": false,
+   "trusted": false,
+   "abstract": false,
+   "preserves": false,
+   "lemma": false,
+   "uses": [],
+   "interface": {},
+   "reveal": [],
+   "memoized": false,
+   "reviewer": "",
+   "bounded_int": null,
+   "proof": [],
+   "provides": [],
+   "method_deps": [],
+   "shared_state": [],
+   "touches_field": [],
+   "line": 119,
+   "col": 8,
+   "kind": "method",
+   "self_type": "PreambleEmissionMixin"
+  }
+ }
+]

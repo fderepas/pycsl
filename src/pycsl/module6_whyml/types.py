@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, TypedDict
 
 
 # Bool-typed BinOp operators — RHS of any of these is a Python bool and
@@ -8,6 +8,29 @@ from typing import Any, Dict, List, Optional, Set
 _BOOL_BINOPS = frozenset({
     "==", "!=", "<", "<=", ">", ">=", "is", "is not", "in", "not in",
 })
+
+
+class ValIRBoolView(TypedDict):
+    """Closed-key view of the two IR-expression keys `_val_is_bool` reads
+    (`type`, `op` — both `str`). Runtime-inert (a TypedDict IS a dict), it
+    monomorphizes to a native WhyML record so the mirror's `val_ir.get("type")`
+    lowers to the field read `val_ir.py_type` and the literal comparisons route
+    through `str_eq_op` (09-2223 G1/G2), not an opaque int-hash op."""
+    type: str
+    op: str
+
+
+class BoolWrapIRView(TypedDict):
+    """Closed-key view of the three IR-expression keys `_bool_ir_to_int_wrap`
+    reads (`type`, `op`, `func` — all `str`). Runtime-inert (a TypedDict IS a
+    dict); `Optional[BoolWrapIRView]` monomorphizes to `option <record>` (the
+    boundary-1 G1 option-of-record projection), so — after the `if val_ir is
+    None` guard — `val_ir.get("type")` projects the field from the `Some` arm
+    (`match val_ir with Some _r -> _r.py_type | None -> ""`) and the literal
+    comparisons route through `str_eq_op`, not an opaque int-hash op."""
+    type: str
+    op: str
+    func: str
 
 
 class TypeInferenceMixin:
@@ -36,36 +59,193 @@ class TypeInferenceMixin:
     """
 
     def _track_collection_metadata(self, target: str, val_ir: Dict[str, Any]) -> None:
-        """Update _known_collection_sizes/_elements for constant-folding of len/sum/index."""
+        """Update _known_collection_sizes/_elements for constant-folding of len/sum/index.
+
+        ROUTES #32 and #33 (relaunch #45) — REBINDING POISONS THE FOLD. These two
+        maps are consulted by `_handle_len_call` and the indexed-read fold, and
+        they were populated in EMISSION ORDER with no branch or scope discipline,
+        so a local bound to a literal in ONE ARM of a conditional handed its size
+        and its contents to EVERY path. MEASURED in the default hoare model:
+
+            if c == 0: a = [9, 9, 9]        if c == 0: a = [7]
+            else:      a = [1, 2]           else:      a = [9]
+            return len(a)                   return a[0]
+
+        with `#@ requires c == 0`, the first proved `\result == 2` (Python: 3) and
+        the second proved `\result == 9` (Python: 7). The emissions are the tell —
+        Why3 warns "unused variable a" once PER ARM and the body is the bare
+        constant, so the model has no `a` after the `if` at all and still answers
+        questions about it. Witnesses `pycsl-reference/1013`-`1014`.
+
+        THE FOLD IS ONLY VALID FOR A SINGLE, UNCONDITIONAL BINDING, and this
+        function cannot see conditionals — but it CAN see that a name was bound
+        twice, which is what a per-arm binding looks like from here. So a second
+        binding of the same target REMOVES both entries and blacklists the name:
+        the consumers then fall through to the real array (`Array.length` / an
+        `Array.get`), which is faithful, or to a refusal. Recording the LAST
+        literal, which is what the code did, is the one answer that is wrong on
+        every path but one.
+        """
+        _rb = getattr(self, "_rebound_collections", None)
+        if _rb is None:
+            _rb = self._rebound_collections = set()
+        if target in _rb:
+            self._known_collection_sizes.pop(target, None)
+            self._known_collection_elements.pop(target, None)
+            return
+        if (target in self._known_collection_sizes
+                or target in self._known_collection_elements):
+            _rb.add(target)
+            self._known_collection_sizes.pop(target, None)
+            self._known_collection_elements.pop(target, None)
+            return
+        # ROUTE #34: the mutation/alias pre-pass in `_reset_function_state` has already
+        # decided which names may be folded at all. A name it marked is never registered,
+        # so the read falls through to the real array — which the emission models
+        # faithfully.
+        _u_el = getattr(self, "_fold_unsafe_elems", ())
+        _u_sz = getattr(self, "_fold_unsafe_sizes", ())
         vt = val_ir.get("type", "")
         if vt in ("ArrayLit", "Tuple"):
             elts = val_ir.get("elts", [])
-            self._known_collection_sizes[target] = len(elts)
-            elem_map = {i: str(int(e["value"])) for i, e in enumerate(elts)
-                        if e.get("type") == "Number" and isinstance(e.get("value"), (int, float))}
-            if elem_map:
+            if target not in _u_sz:
+                self._known_collection_sizes[target] = len(elts)
+            # WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): a LOCAL
+            # bound from a `List[<record>]` LITERAL of full-arity, content-faithful
+            # record CONSTRUCTORS (`a = [Point(1, 2), Point(3, 4)]`) is a record-array
+            # local — register the element record's whyml name so `a[i].field` /
+            # `a[i][k]` projects the faithful field natively (the local twin of
+            # `_record_array_params`). A non-record / non-faithful literal is not
+            # matched (byte-identical). No numeric fold is registered for a record
+            # element (the elem_map below only folds Number elements).
+            _rec_elem = self._record_ctor_list_elem(elts)
+            if _rec_elem is not None:
+                _info = self._record_types.get(_rec_elem, {})
+                _wn = _info.get("whyml_name")
+                if _wn is not None:
+                    self._record_array_locals[target] = _wn
+            # WL-04a: a PURE-float literal folds an indexed read to the FAITHFUL real
+            # value (`a[1]` → `2.5`), matching the `array real` construction — never the
+            # int-truncated `2` (which would be an `int` vs `real` type error against the
+            # faithful element). Int / mixed literals keep the `str(int(...))` fold
+            # (byte-identical); a str literal has no numeric fold (reads via `Array.get`).
+            _all_float = bool(elts) and all(
+                e.get("type") == "Number" and isinstance(e.get("value"), float)
+                for e in elts)
+            if _all_float:
+                elem_map = {
+                    i: (repr(e["value"]) if not float(e["value"]).is_integer()
+                        else f'{int(e["value"])}.0')
+                    for i, e in enumerate(elts)}
+            else:
+                elem_map = {i: str(int(e["value"])) for i, e in enumerate(elts)
+                            if e.get("type") == "Number" and isinstance(e.get("value"), (int, float))}
+            if elem_map and target not in _u_el:
                 self._known_collection_elements[target] = elem_map
         elif vt == "String" and isinstance(val_ir.get("value"), str):
-            self._known_collection_sizes[target] = len(val_ir["value"])
+            if target not in _u_sz:
+                self._known_collection_sizes[target] = len(val_ir["value"])
         elif vt == "DictLit":
+            # (#49) ROUTE #54 — A DICT LITERAL HAD TWO MODELS AND THEY DISAGREED. The MAP
+            #   is faithful (`map_update_some` in source order, so a repeated key's LAST
+            #   value wins, exactly Python); this fold never consulted it and counted the
+            #   SYNTACTIC entries, comparing keys by their source form. Python compares
+            #   dict keys by VALUE and `True == 1`, `"\x61" == "a"`. MEASURED at
+            #   `383ec4e5`, all three `[+] Verification SUCCESS` and all three false of the
+            #   program (`scratchpad/w49/probeinv/d1.py`, `d2.py`, `d4.py`):
+            #       len({1: 10, True: 20}) proved 2      -- Python 1
+            #       {1: 10, True: 20}[1]   proved 10     -- Python 20 (the second wins)
+            #       len({"a": 10, "\x61": 20}) proved 2 -- Python 1
+            #   THE FIX IS TO GIVE THE FOLD PYTHON'S OWN KEY EQUALITY: normalise each
+            #   literal key to its VALUE (a `Bool` key is the int 1/0 — that is the whole
+            #   of the first witness), then count the DISTINCT ones and let a later entry
+            #   overwrite an earlier one, which is what the map already does.
+            #   CENSUS, so the cost is known: ZERO dict literals anywhere in this tree —
+            #   mirror, live, `src/pycsl_lib`, both corpora — have two equal keys, so this
+            #   is byte-inert by measurement and buys the exploits their fail-closed.
+            #   STATED RESIDUE: a literal with a NON-CONSTANT key (13 in the mirror, 2 in
+            #   the corpora) still takes `len(keys)`, because two variables may be equal
+            #   and the fold cannot know; withholding the size there is a separate,
+            #   measurable change and is recorded in the route file rather than smuggled in.
             keys = val_ir.get("keys", [])
-            self._known_collection_sizes[target] = len(keys)
+            _r54_norm = []
+            for _r54_k in keys:
+                if not isinstance(_r54_k, dict):
+                    _r54_norm = None
+                    break
+                _r54_t = _r54_k.get("type")
+                if _r54_t == "Number" and isinstance(_r54_k.get("value"), (int, float)):
+                    _r54_norm.append(("n", _r54_k["value"]))
+                elif _r54_t == "Bool":
+                    _r54_norm.append(("n", 1 if _r54_k.get("value") else 0))
+                elif _r54_t == "String" and isinstance(_r54_k.get("value"), str):
+                    _r54_norm.append(("s", _r54_k["value"]))
+                else:
+                    _r54_norm = None
+                    break
+            # (#49) ROUTE #61 — `else len(keys)` WAS THE ROUTE. `_r54_norm` is None exactly
+            # when some key is NOT a literal, and the fallback took the raw SYNTACTIC count.
+            # Measured: `#@ requires a == b` then `d = {a: 1, b: 2}; return len(d)` PROVED
+            # `\result == 2` while CPython answers 1 — the precondition hands the prover the
+            # collision as a FACT and the fold answers 2 anyway, because it never consults
+            # the map.
+            #
+            # This was DOCUMENTED as a "stated residue ... because two variables may be
+            # equal and the fold cannot know". That reasoning is right and the conclusion
+            # drawn from it was wrong: **"the fold cannot know" is an argument for REFUSING,
+            # not for guessing.** A residue that proves a FALSE claim is a soundness route;
+            # a boundary fails closed. So no size is registered at all when any key is
+            # non-literal, and `len(d)` falls through and fails closed — exactly what every
+            # other unfoldable dict `len` already does.
+            #
+            # The ELEMENT fold is NOT affected and needs no change: `elem_map` below only
+            # ever holds Number/Bool keys, and the MAP itself is faithful, so `d[a]` with
+            # `a == b` already proves Python's answer (2, the later entry winning) and the
+            # false twin already fails. Measured both directions.
+            #
+            # Route #54 closed the CONSTANT-key literal and route #60 the STORE; this is the
+            # third and last path to the same semantics.
+            if target not in _u_sz and _r54_norm is not None:
+                self._known_collection_sizes[target] = len(set(_r54_norm))
             elem_map = {}
             for k, v in zip(keys, val_ir.get("values", [])):
-                if (k.get("type") == "Number" and isinstance(k.get("value"), (int, float)) and
-                        v.get("type") == "Number" and isinstance(v.get("value"), (int, float))):
-                    elem_map[int(k["value"])] = str(int(v["value"]))
-            if elem_map:
+                _r54_kv = None
+                if k.get("type") == "Number" and isinstance(k.get("value"), (int, float)):
+                    _r54_kv = int(k["value"])
+                elif k.get("type") == "Bool":
+                    _r54_kv = 1 if k.get("value") else 0
+                if (_r54_kv is not None
+                        and v.get("type") == "Number"
+                        and isinstance(v.get("value"), (int, float))):
+                    elem_map[_r54_kv] = str(int(v["value"]))
+                elif _r54_kv is not None:
+                    # a key the fold CAN normalise whose VALUE it cannot: it must still
+                    # shadow any earlier entry at the same key, or the fold answers a value
+                    # Python has overwritten (witness d2).
+                    elem_map.pop(_r54_kv, None)
+            if elem_map and target not in _u_el:
                 self._known_collection_elements[target] = elem_map
         elif vt == "SetLit":
+            # (#49) ROUTE #54's set twin: `id(e)` makes every non-numeric element distinct,
+            # so `{"a", "\x61"}` counted 2 where Python counts 1. String elements are
+            # normalised by VALUE on the same terms as the dict keys above; anything else
+            # keeps its per-node identity (an over-count that stays as a stated residue).
             elts = val_ir.get("elts", [])
-            unique_vals = {int(e["value"]) if (e.get("type") == "Number" and
-                           isinstance(e.get("value"), (int, float))) else id(e)
-                           for e in elts}
-            self._known_collection_sizes[target] = len(unique_vals)
+            unique_vals = set()
+            for e in elts:
+                if e.get("type") == "Number" and isinstance(e.get("value"), (int, float)):
+                    unique_vals.add(("n", e["value"]))
+                elif e.get("type") == "Bool":
+                    unique_vals.add(("n", 1 if e.get("value") else 0))
+                elif e.get("type") == "String" and isinstance(e.get("value"), str):
+                    unique_vals.add(("s", e["value"]))
+                else:
+                    unique_vals.add(("id", id(e)))
+            if target not in _u_sz:
+                self._known_collection_sizes[target] = len(unique_vals)
 
     @staticmethod
-    def _val_is_bool(val_ir: Dict[str, Any]) -> bool:
+    def _val_is_bool(val_ir: ValIRBoolView) -> bool:
         """RHS expression is bool-typed in Python — needs `if … then 1 else 0`
         when stored into a WhyML `int` slot."""
         vt = val_ir.get("type", "")
@@ -77,7 +257,7 @@ class TypeInferenceMixin:
             return True
         return False
 
-    def _first_assign_kind(self, val: str, val_ir: Dict[str, Any]) -> str:
+    def _first_assign_kind(self, val: str, val_ir: "ExprIR") -> str:
         """Classify a first-declaration RHS into one of: record, lambda,
         array, slice, dict, bounded_int, default. Drives the `let X = …`
         shape selection in `_handle_assign_stmt`."""
@@ -134,7 +314,7 @@ class TypeInferenceMixin:
             return "bounded_int"
         return "default"
 
-    def _rhs_yields_array(self, val_ir: Dict[str, Any]) -> bool:
+    def _rhs_yields_array(self, val_ir: "ExprIR") -> bool:
         """Parallel of `_rhs_yields_map` for `array int`-typed RHS.
         True for list/tuple-typed param Vars, list-typed self-fields,
         and Calls to functions known to return `array int`."""
@@ -165,7 +345,7 @@ class TypeInferenceMixin:
             return self._module_method_return_types.get(key) == "array int"
         return False
 
-    def _rhs_yields_map(self, val_ir: Dict[str, Any]) -> bool:
+    def _rhs_yields_map(self, val_ir: "ExprIR") -> bool:
         """Heuristic: does this RHS IR yield a `map int (option int)`
         value? True for set/dict-typed param Vars, IfExpr branches that
         do, BinOp `|`/`&` between map-typed sides (Python set ops),
@@ -186,6 +366,31 @@ class TypeInferenceMixin:
             return self._field_type_of(val_ir) in ("set", "dict", "frozenset")
         if t == "Call":
             fn = val_ir.get("func", "")
+            # (#33) `getattr(self, "<dict/set field>", {})` IS `self.<field>` — #32's
+            # `_lower_getattr` relaxation makes it LOWER as the real field, so the LOCAL it
+            # binds must be pre-declared as a MAP and not as `ref 0`. Without this the
+            # defensive read of a collection field takes a `map` on its first `:=` against
+            # an int slot. Same fail-closed gate as the lowering: literal attribute name,
+            # `self` receiver, DECLARED collection type.
+            # REFLECTION-SAFE SPELLING (lesson (cf)): this method is CONVERTED, so the body
+            # is copied verbatim into the mirror and must type-check THERE. `val_ir["args"]`
+            # (a Subscript) is not routed through `_EMIT_IR_PROJ`; `.get("args") or []` is,
+            # and reflects to `args_of : array emit_ir` — the spelling already proved in
+            # `expressions._iter_elem_class` and `ir_scanner`.
+            _ga = val_ir.get("args") or []
+            # SPELLED AS AN EXPLICIT CONJUNCTION, NOT AS THE CHAIN `2 <= len(_ga) <= 3`:
+            # Module5 `_py_expr_compare` keeps only `ops[0]`/`comparators[0]`, so a chained
+            # comparison in Python-expression position DROPS ITS TAIL and this guard would
+            # be modelled as `2 <= len(_ga)` alone — an over-approximation of the guard in a
+            # CONVERTED, PROVED method. Recorded as its own finding; until the lowering is
+            # fixed, no chain may be written in mirrored code.
+            if fn == "getattr" and 2 <= len(_ga) and len(_ga) <= 3:
+                if (isinstance(_ga[0], dict) and _ga[0].get("type") == "Var"
+                        and _ga[0].get("name") == "self"
+                        and isinstance(_ga[1], dict) and _ga[1].get("type") == "String"
+                        and self._self_field_py_type(_ga[1].get("value"))
+                        in ("dict", "set", "frozenset")):
+                    return True
             # `self.<method>(...)` — apply class-prefix mangling.
             if fn.startswith("self."):
                 tail = fn[len("self."):]
@@ -238,7 +443,7 @@ class TypeInferenceMixin:
                 return info.get("field_types", {}).get(field)
         return None
 
-    def _field_type_of(self, attr_ir: Dict[str, Any]) -> Optional[str]:
+    def _field_type_of(self, attr_ir: "ExprIR") -> Optional[str]:
         """Resolve `self.<field>` or `global.<field>` to its declared IR type tag,
         or None if the target is not a known record-field access. Accepts both
         shapes: `Attribute(value=Var(name), attr=F)` and `FieldGet(object=name,
@@ -292,6 +497,24 @@ class TypeInferenceMixin:
                     pcls = getattr(self, "_record_param_classes", {}).get(receiver_name)
                     if pcls is not None:
                         cls = pcls
+                    else:
+                        # W8/W1 residual: a RECORD-ELEMENT LOCAL — one bound from an
+                        # element of an `array <record>` self-field, or from a sibling
+                        # call with a record return (`t = self.cur()`, the opening line of
+                        # every parser predicate) — resolves its field types exactly like
+                        # a record PARAM receiver. `_record_field_elem_locals` already maps
+                        # it (that map is what makes `t.<field>` project natively);
+                        # without it here, `t.start[0]` — an integer subscript into a
+                        # `Tuple[int,int]` FIELD — could not find the synthesized
+                        # `pytuple_int_int` namedtuple record and fell through to the
+                        # opaque `subscript_get (x: int)`, which mistypes against it.
+                        # NOTE the map stores the record CLASS name, not its whyml name
+                        # (unlike `_record_param_classes`) — translate. Empty for every
+                        # file without an `array <record>` self-field -> byte-inert.
+                        ecls = getattr(self, "_record_field_elem_locals", {}).get(
+                            receiver_name)
+                        if ecls is not None and ecls in self._record_types:
+                            cls = self._record_types[ecls].get("whyml_name")
         if not cls:
             return None
         for info in self._record_types.values():
@@ -299,7 +522,7 @@ class TypeInferenceMixin:
                 return info.get("field_types", {}).get(field_name)
         return None
 
-    def _bool_ir_to_int_wrap(self, val: str, val_ir: Optional[Dict[str, Any]]) -> str:
+    def _bool_ir_to_int_wrap(self, val: str, val_ir: Optional[BoolWrapIRView]) -> str:
         """If val_ir denotes a bool-typed IR expression, wrap val with
         an int coercion `(if X then 1 else 0)`. Mirrors the bool-source
         detection in _to_bool() so a `return isinstance(x, T)` style
@@ -350,6 +573,62 @@ class TypeInferenceMixin:
                     found.update(self._collect_tuple_array_locals(h.get("body", [])))
         return found
 
+    def _collect_str_literal_seq_locals(self, stmts: List[Dict[str, Any]]) -> Dict[str, list]:
+        """faithful for-over-literal (self-tcb-reduction): locals assigned a Tuple/List/Array
+        literal whose elements are ALL string constants (`a = ("0x", "0o", …)`) → {name:
+        [String-elt IR nodes]}. Lets a `for p in a` loop over the emitter's OWN unmodeled
+        Python string-tuple/list literal materialise a real `seq string` (Seq.cons chain,
+        cert-free over Why3 Seq theory) and iterate it faithfully — bound `Seq.length`,
+        element `Seq.get` — instead of the opaque `iter_length`/`iter_get` int fallback
+        (which int-erases the literal to `0` and leaves the loop's `variant` term unbound).
+        Gated on an ALL-string-constant literal → corpus-inert (no corpus program binds or
+        iterates a string-literal tuple/list; the modeled-array corpus loops are untouched)."""
+        found: Dict[str, list] = {}
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                tgt = s.get("target", "")
+                if (isinstance(val, dict)
+                        and val.get("type") in ("Tuple", "ArrayLit", "ListLit") and tgt):
+                    elts = val.get("elts", [])
+                    strs = [e for e in elts
+                            if isinstance(e, dict) and e.get("type") == "String"
+                            and isinstance(e.get("value"), str)]
+                    if elts and len(strs) == len(elts):
+                        found[tgt] = strs
+            for k in ("body", "orelse"):
+                if k in s:
+                    found.update(self._collect_str_literal_seq_locals(s[k]))
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found.update(self._collect_str_literal_seq_locals(h.get("body", [])))
+        return found
+
+    def _split_tuple_slots(self, inner: str) -> List[str]:
+        """Split a WhyML tuple body (`string, map string (option hval)`) on the
+        TOP-LEVEL commas only — a nested `(…)` (a `map`'s codomain, or a nested
+        tuple) is not split. Byte-identical to `inner.split(",")` (then `.strip()`)
+        when there are no nested parens, so the existing flat-`(int,int)` path is
+        unchanged."""
+        slots: List[str] = []
+        depth = 0
+        cur = ""
+        for ch in inner:
+            if ch == "(":
+                depth += 1
+                cur += ch
+            elif ch == ")":
+                depth -= 1
+                cur += ch
+            elif ch == "," and depth == 0:
+                slots.append(cur.strip())
+                cur = ""
+            else:
+                cur += ch
+        if cur.strip():
+            slots.append(cur.strip())
+        return slots
+
     def _collect_tuple_var_assigns(self, stmts: List[Dict[str, Any]]) -> Dict[str, int]:
         """0442.md C2: locals bound to a tuple-returning call (`p = mk(x)` where `mk`'s
         return type is `(int, …)`) → {name: arity}. The cross-method return-type map
@@ -386,6 +665,138 @@ class TypeInferenceMixin:
                 for h in s.get("handlers", []):
                     found.update(self._collect_tuple_var_assigns(h.get("body", [])))
         return found
+
+    def _collect_option_tuple_locals(self, stmts: List[Dict[str, Any]]) -> Dict[str, str]:
+        """self-tcb-reduction Tier-5 (union/match cluster C5): locals bound to an
+        OPTION-tuple-returning call (`union_info = self._match_subject_union_info(...)`
+        whose return type is `option (τ...)`) → {name: the full `option (τ...)` type}.
+        Distinct from `_collect_tuple_var_assigns` (a BARE always-present tuple): a real
+        option local's `is not None` guard and tuple-unpack lower to `match … with
+        None/Some`. Also records the per-slot INNER tuple types in `_tuple_var_slot_types`
+        so `a, b = <option local>` types its targets. This is a live-only helper called
+        from the `\\trusted`-mirrored `_typed_local_vars`, so it needs no mirror body.
+        Byte-inert: no corpus method returns `Optional[Tuple[...]]`."""
+        found: Dict[str, str] = {}
+        rets = getattr(self, "_module_method_return_types", {})
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                tgt = s.get("target", "")
+                if isinstance(val, dict) and val.get("type") == "Call" and tgt:
+                    _fn = val.get("func", "")
+                    rt = rets.get(_fn)
+                    if rt is None and isinstance(_fn, str) and _fn.startswith("self."):
+                        _cls = getattr(self, "_current_self_type", None)
+                        rt = rets.get(f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn)
+                    if (isinstance(rt, str) and rt.startswith("option (")
+                            and rt.rstrip().endswith(")") and "," in rt):
+                        _inner = rt[len("option "):].strip()
+                        found[tgt] = rt
+                        if not hasattr(self, "_tuple_var_slot_types"):
+                            self._tuple_var_slot_types = {}
+                        self._tuple_var_slot_types[tgt] = self._split_tuple_slots(_inner[1:-1])
+            for k in ("body", "orelse"):
+                if k in s:
+                    found.update(self._collect_option_tuple_locals(s[k]))
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found.update(self._collect_option_tuple_locals(h.get("body", [])))
+        return found
+
+    def _collect_option_str_return_locals(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction lever #1 sub-inc A cap (c): locals bound to a call whose
+        registered abstract-val return type is `option string` (`_rec = self._record_valued_
+        expr_whyml_type(val_ir)`). Such a local pre-declares `ref None` (an `option string`),
+        its `is not None` guard lowers to a `match … with None/Some` discriminant, and a bare
+        `return <local>` threads into the enclosing Optional[str] `_union_*` return arm — the
+        scalar-string analogue of `_collect_option_tuple_locals`. Live-only helper called
+        from the `\\trusted`-mirrored `_typed_local_vars`, so it needs no mirror body.
+        Byte-inert: no corpus method's abstract self-call return is registered `option
+        string` (only the lever-#1 emitter-internal helpers are)."""
+        found: Set[str] = set()
+        rets = getattr(self, "_module_method_return_types", {})
+        for s in stmts:
+            if s.get("stmt") == "Assign":
+                val = s.get("value", {})
+                tgt = s.get("target", "")
+                if isinstance(val, dict) and val.get("type") == "Call" and tgt:
+                    _fn = val.get("func", "")
+                    rt = rets.get(_fn)
+                    if rt is None and isinstance(_fn, str) and _fn.startswith("self."):
+                        _cls = getattr(self, "_current_self_type", None)
+                        rt = rets.get(f"{_cls}__{_fn[len('self.'):]}" if _cls else _fn)
+                    if rt == "option string":
+                        found.add(tgt)
+            for k in ("body", "orelse"):
+                if k in s:
+                    found.update(self._collect_option_str_return_locals(s[k]))
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []):
+                    found.update(self._collect_option_str_return_locals(h.get("body", [])))
+        return found
+
+    def _collect_optmap_getter_locals(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction `_compute_return_type` PATH(b): local names bound from
+        `getattr(self, "_compound_map_getter", None)` — an `Optional[Dict[str, str]]`
+        self-field, modelled `option (map string (option string))`. Such a local
+        pre-declares `ref (None: option (map string (option string)))`, its `is not None`
+        guard lowers to a `match … None/Some` discriminant, and `<local>["<lit>"]` reads
+        the inner map. Gated on emitting `_compute_return_type` -> byte-inert elsewhere."""
+        if not self._emitting_compute_return_type():
+            return set()
+        out: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") in ("Assign", "assign") and isinstance(
+                        node.get("target"), str):
+                    _v = node.get("value") or {}
+                    if (isinstance(_v, dict) and _v.get("type") == "Call"
+                            and _v.get("func") == "getattr"):
+                        _a = _v.get("args") or []
+                        if (len(_a) >= 2 and isinstance(_a[0], dict)
+                                and _a[0].get("name") == "self"
+                                and isinstance(_a[1], dict)
+                                and _a[1].get("type") == "String"
+                                and _a[1].get("value") == "_compound_map_getter"):
+                            out.add(node["target"])
+                for _x in node.values():
+                    rec(_x)
+            elif isinstance(node, list):
+                for _x in node:
+                    rec(_x)
+
+        rec(stmts)
+        return out
+
+    def _collect_option_tuple_unpack_targets(self, stmts: List[Dict[str, Any]]) -> Set[str]:
+        """self-tcb-reduction Tier-5 (union/match cluster C1b): the TARGET names of a
+        `a, b = <option-tuple local>` unpack (`_uvar, uinfo = union_info`). These are
+        let-bound FRESH inside the `Some (…)` arm with the SLOT's real type (string / map
+        string (option hval) / hval), so they must be EXCLUDED from the integer `ref 0`
+        pre-declaration (which would int-clash with a map/hval slot). Live-only helper
+        called from the `\\trusted`-mirrored `_typed_local_vars`. Byte-inert: no corpus
+        method unpacks an `Optional[Tuple[...]]`."""
+        opt = getattr(self, "_option_tuple_vars", {})
+        out: Set[str] = set()
+
+        def rec(node: Any) -> None:
+            if isinstance(node, dict):
+                if node.get("stmt") == "TupleUnpack":
+                    _v = node.get("value") or {}
+                    if (isinstance(_v, dict) and _v.get("type") == "Var"
+                            and _v.get("name") in opt):
+                        for _t in node.get("targets", []) or []:
+                            if isinstance(_t, str):
+                                out.add(_t)
+                for _x in node.values():
+                    rec(_x)
+            elif isinstance(node, list):
+                for _x in node:
+                    rec(_x)
+
+        rec(stmts)
+        return out - set(self._formal_params)
 
     def _call_return_whyml_type(self, fn: str) -> Optional[str]:
         """Resolve the declared WhyML return type of a call `fn` from the cross-method
@@ -429,6 +840,9 @@ class TypeInferenceMixin:
         found: Set[str] = set(seed) if seed else set()
         # Map target → source var for transitive propagation
         var_assigns: dict = {}
+        # self-tcb-reduction (union/match cluster): target → (arm1_var, arm2_var) of a
+        # both-arms-Var ternary (`true_branch_stmts = body if … else orelse`).
+        ternary_assigns: dict = {}
         for s in stmts:
             if s.get("stmt") == "Assign":
                 val = s.get("value", {})
@@ -449,7 +863,7 @@ class TypeInferenceMixin:
                         _ga = val.get("args") or []
                         if (_ga and isinstance(_ga[0], dict)
                                 and _ga[0].get("type") == "String"
-                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts")):
+                                and _ga[0].get("value") in ("captures", "args", "body", "orelse", "parts", "elts", "alternatives")):
                             found.add(tgt)
                 # list-comprehension-lowering.md L1: a local first-assigned a list
                 # comprehension is an array local (its element-typed array from
@@ -471,10 +885,20 @@ class TypeInferenceMixin:
                         _ga = _vv.get("args") or []
                         if (_ga and isinstance(_ga[0], dict)
                                 and _ga[0].get("type") == "String"
-                                and _ga[0].get("value") in ("captures", "args", "body", "parts", "elts")):
+                                and _ga[0].get("value") in ("captures", "args", "body", "orelse", "parts", "elts", "alternatives")):
                             found.add(tgt)
                 elif isinstance(val, dict) and val.get("type") == "Var" and tgt:
                     var_assigns[tgt] = val.get("name", "")
+                # self-tcb-reduction (union/match cluster): `X = A if C else B` where BOTH
+                # arms are array-local Vars (`true_branch_stmts = body if true_is_none else
+                # orelse`) → X is an array local. Recorded for the transitive fixpoint (both
+                # arm vars must be array-classified first). @mutable_state-gated.
+                elif (isinstance(val, dict) and val.get("type") == "IfExpr" and tgt
+                      and getattr(self, "_mutable_state_classes", None)):
+                    _av, _ov = val.get("body", {}), val.get("orelse", {})
+                    if (isinstance(_av, dict) and _av.get("type") == "Var"
+                            and isinstance(_ov, dict) and _ov.get("type") == "Var"):
+                        ternary_assigns[tgt] = (_av.get("name", ""), _ov.get("name", ""))
                 # i-feel-good.md I-E: a local first-assigned a `List`/`tuple` record-field
                 # read (`targets = stmt.targets`) is an array local — the list-local-from-
                 # field form. @mutable_state-gated → byte-identical for the corpus. The
@@ -494,7 +918,7 @@ class TypeInferenceMixin:
                         found.add(tgt)
                     # self-tcb-reduction T1.a: `elts = node.elts` — a node-LIST attr on an emit_ir
                     # node is an `array emit_ir` local (`args_of`). @mutable_state.
-                    elif _fld in ("elts", "parts", "args", "captures") and isinstance(
+                    elif _fld in ("elts", "parts", "args", "captures", "alternatives") and isinstance(
                             val.get("object") or val.get("value"), dict) and self._is_emit_ir_expr(
                             val.get("object") or val.get("value")):
                         found.add(tgt)
@@ -504,12 +928,17 @@ class TypeInferenceMixin:
             if s.get("stmt") == "Try":
                 for h in s.get("handlers", []):
                     found |= self._collect_array_var_assigns(h.get("body", []))
-        # Transitive propagation: y = x where x is array → y is array
+        # Transitive propagation: y = x where x is array → y is array; and a both-arms-
+        # Var ternary target is array once BOTH arm vars are array-classified.
         changed = True
         while changed:
             changed = False
             for tgt, src in var_assigns.items():
                 if tgt not in found and src in found:
+                    found.add(tgt)
+                    changed = True
+            for tgt, (_a, _o) in ternary_assigns.items():
+                if tgt not in found and _a in found and _o in found:
                     found.add(tgt)
                     changed = True
         return found

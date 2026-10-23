@@ -1,0 +1,267 @@
+module M1Spike
+  use int.Int
+  use int.EuclideanDivision
+  use ref.Ref
+  use string.String
+  use seq.Seq
+  use int.MinMax
+  use map.Map
+  use map.Const
+  use option.Option
+  use array.Array
+  use list.List
+  use bool.Bool
+
+  (* ===== pyval theory (measure renamed size -> pv_size) ===== *)
+  (* D2 / R-B — interned IR keys: key (dis)equality is constructor reasoning, *)
+  (* zero string theory in any walker VC. `K_dyn s` is the computed-key fallback. *)
+  type irkey =
+    | K_type | K_left | K_right | K_op | K_z
+    | K_value | K_target | K_body | K_orelse | K_func | K_name
+    | K_dyn string
+
+  (* D1 / R-A — the strictly-positive concrete universal value (no arrow / no map *)
+  (* in any constructor); `pydict` is a bespoke assoc-list keyed by irkey. *)
+  type pyval =
+    | PInt  int
+    | PStr  string
+    | PBool bool
+    | PNone
+    | PList (list pyval)
+    | PDict pydict
+  with pydict =
+    | DNil
+    | DCons irkey pyval pydict
+
+  let function is_pdict (v: pyval) : bool = match v with PDict _ -> true | _ -> false end
+  let function is_plist (v: pyval) : bool = match v with PList _ -> true | _ -> false end
+  let function is_pstr  (v: pyval) : bool = match v with PStr  _ -> true | _ -> false end
+
+  (* get / mem_key : structural over the dict; key test is constructor (dis)equality. *)
+  function get (d: pydict) (k: irkey) : option pyval
+  = match d with
+    | DNil -> None
+    | DCons k' v rest -> if k = k' then Some v else get rest k
+    end
+
+  predicate mem_key (d: pydict) (k: irkey)
+  = match d with
+    | DNil -> false
+    | DCons k' _ rest -> k = k' \/ mem_key rest k
+    end
+
+  function values (d: pydict) : list pyval
+  = match d with
+    | DNil -> Nil
+    | DCons _ v rest -> Cons v (values rest)
+    end
+
+  (* D3 — pv_size measure: +1 per cons cell (list AND dict), so the HEAD recursion *)
+  (* strictly decreases even for a singleton (the spike's crux fix). *)
+  function pv_size (v: pyval) : int
+  = match v with
+    | PInt _ | PStr _ | PBool _ | PNone -> 1
+    | PList xs -> 1 + pv_size_list xs
+    | PDict d  -> 1 + pv_size_dict d
+    end
+  with pv_size_list (l: list pyval) : int
+  = match l with Nil -> 0 | Cons h t -> 1 + pv_size h + pv_size_list t end
+  with pv_size_dict (d: pydict) : int
+  = match d with DNil -> 0 | DCons _ v rest -> 1 + pv_size v + pv_size_dict rest end
+
+  (* R-C — the PROVEN lemma pack (`let rec lemma`: the recursion IS the induction). *)
+  let rec lemma pv_size_pos (v: pyval) : unit
+    ensures { pv_size v > 0 } variant { v }
+  = match v with
+    | PList xs -> pv_size_list_nonneg xs
+    | PDict d  -> pv_size_dict_nonneg d
+    | _ -> () end
+  with lemma pv_size_list_nonneg (l: list pyval) : unit
+    ensures { pv_size_list l >= 0 } variant { l }
+  = match l with Nil -> () | Cons h t -> pv_size_pos h; pv_size_list_nonneg t end
+  with lemma pv_size_dict_nonneg (d: pydict) : unit
+    ensures { pv_size_dict d >= 0 } variant { d }
+  = match d with DNil -> () | DCons _ v rest -> pv_size_pos v; pv_size_dict_nonneg rest end
+
+  let rec lemma pv_size_dict_mem (k: irkey) (d: pydict) : unit
+    ensures { mem_key d k -> match get d k with
+                             | Some w -> pv_size w < pv_size (PDict d)
+                             | None   -> true end }
+    variant { d }
+  = match d with DNil -> () | DCons _ _ rest -> pv_size_dict_mem k rest end
+
+  (* E4 — wf_ir well-formedness + the compositionality lemma the unguarded read *)
+  (* discharges from. `wf_val` is the per-key expected-shape table (representative *)
+  (* here; `wf_ir_gen.py` emits the full per-(shape,key) predicate from ir_schema.py). *)
+  predicate wf_val (k: irkey) (v: pyval)
+  = match k with
+    | K_op | K_type | K_target | K_func | K_name ->
+        (match v with PStr _ -> true | _ -> false end)
+    | _ -> true
+    end
+
+  predicate wf_dict (d: pydict)
+  = match d with
+    | DNil -> true
+    | DCons k v rest -> wf_val k v /\ wf_dict rest
+    end
+
+  predicate wf_ir (v: pyval)
+  = match v with PDict d -> wf_dict d | _ -> true end
+
+  let rec lemma wf_ir_binds (k: irkey) (d: pydict) : unit
+    requires { wf_dict d }
+    ensures  { forall v: pyval. get d k = Some v -> wf_val k v }
+    variant  { d }
+  = match d with
+    | DNil -> ()
+    | DCons _ _ rest -> wf_ir_binds k rest
+    end
+
+  (* F4 — the document ADT + render skeleton; only render touches strings, and no *)
+  (* walker VC ever carries a string term (projections flow PStr into DText opaquely). *)
+  type doc = DText string | DInt int | DCat doc doc | DDoc_nil
+  function int_to_str int : string   (* abstract (uninterpreted) — no axiom *)
+  function render (d: doc) : string
+  = match d with
+    | DText s -> s
+    | DInt n  -> int_to_str n
+    | DCat a b -> String.concat (render a) (render b)
+    | DDoc_nil -> String.empty
+    end
+
+  (* A-unit accumulator model (WL-05b): a Set[str] is `ref (map string bool)`; *)
+  (* `.add e` sets the membership bit. `pystr_eq` is the string-guard test *)
+  (* (payload equality; the walk contract is `ensures True`, so it need not *)
+  (* interpret the string — only type-check the guard). *)
+  val set_add (m: map string bool) (e: string) : map string bool
+    ensures { result = Map.set m e true }
+  val pystr_eq (a b: string) : bool
+
+  (* A-set result algebra (phase3.md §3.1): a RETURNED set is the same *)
+  (* `map string bool`; the `|=` union fold combinator is pointwise or. *)
+  (* PURELY DEFINED (map = string -> bool) — no axiom, certified by *)
+  (* construction, so the returned-set model needs no new certificate *)
+  (* beyond the already-certified L1 set repr. *)
+  let function set_union (a b: map string bool) : map string bool
+    = fun (k: string) -> orb (Map.get a k) (Map.get b k)
+
+
+
+  (* ===== emit_ir ADT theory (measure stays size) ===== *)
+  (* tier3-p1 T3.1.1 (getting-better/tier3/ir-node-adt-signature.md §7, risk 7 / no-more-int): the faithful numeric-leaf carrier for a Number node — keeps int vs float distinct instead of coercing float→int. The Number constructor's int payload is refined onto this carrier in a later increment; declared here as the certified (Phase-0 spike) numeric leaf type. *)
+  type ir_num = INum int | IReal real
+
+  (* typed-ir-for-b-ceiling.md B-C1: typed IR-node sum for the emitter model. tier3-p1 T3.1.1: extended with IrBinOp (op, left, right) — the EXPR-family operator node — realizing the Phase-0 spike design in the live emitter. *)
+  type emit_ir = IrVar string | IrAttr emit_ir string | IrStr string | IrNum int | IrRaw string | IrOther string | IrCall string emit_ir int | IrSub emit_ir emit_ir | IrTuple emit_ir emit_ir | IrBinOp string emit_ir emit_ir | IrFieldGet string string
+
+  (* B-C5: IrCall carries func name, first arg (arg0), arity; IrSub carries value and index sub-nodes — the emitter reflects on Call/Subscript IR. B-C6: IrTuple carries the first two elements (elts[0], elts[1]) — the emitter reflects on a MkTuple node's `elts` in the ghost-dict `+=` branch. tier3-p1: IrBinOp carries the operator string and the left/right sub-nodes. *)
+  let function kind_of (e: emit_ir) : string =
+    match e with
+    | IrVar _ -> "Var" | IrAttr _ _ -> "Attribute"
+    | IrStr _ -> "String" | IrNum _ -> "Number"
+    | IrRaw _ -> "RawWhyml"
+    | IrCall _ _ _ -> "Call" | IrSub _ _ -> "Subscript"
+    | IrTuple _ _ -> "MkTuple"
+    | IrBinOp _ _ _ -> "BinOp"
+    | IrFieldGet _ _ -> "FieldGet"
+    | IrOther k -> k
+    end
+
+  (* tier3-p1 T3.1.2 (spike LAW 1): the BinOp constructor DISCRIMINANT — a match-based bool, NOT `kind_of e = "BinOp"`. The two agree on every REAL IR node (Module 5 never emits an IrOther whose kind is a registry tag — the commit-d2479fe9 fail-closed boundary), but `is_binop` EXCLUDES the IrOther catch-all, which is what makes the size-decrease law (below) hold and thus lets structural recursion over a projected sub-node terminate. *)
+  let function is_binop (e: emit_ir) : bool =
+    match e with IrBinOp _ _ _ -> true | _ -> false end
+
+  (* tier3-p1 increment 2 (complete the EXPR family, triage-ranked-tcb-tier3.md T3.1.2): the per-kind constructor DISCRIMINANTS. Each is a match-based bool that agrees with `kind_of e = "K"` on every REAL node yet EXCLUDES the IrOther catch-all — the guard shape under which the size-decrease laws hold. Registered in expressions.py::_KIND_DISCRIMINANT so `node.get("type") == "K"` lowers to `(is_K node)` (the faithful match dispatch, not a string compare). *)
+  let function is_var (e: emit_ir) : bool =
+    match e with IrVar _ -> true | _ -> false end
+  let function is_num (e: emit_ir) : bool =
+    match e with IrNum _ -> true | _ -> false end
+  let function is_str (e: emit_ir) : bool =
+    match e with IrStr _ -> true | _ -> false end
+  let function is_sub (e: emit_ir) : bool =
+    match e with IrSub _ _ -> true | _ -> false end
+  let function is_attribute (e: emit_ir) : bool =
+    match e with IrAttr _ _ -> true | _ -> false end
+  let function is_call (e: emit_ir) : bool =
+    match e with IrCall _ _ _ -> true | _ -> false end
+  let function is_tuple (e: emit_ir) : bool =
+    match e with IrTuple _ _ -> true | _ -> false end
+  let function is_fieldget (e: emit_ir) : bool =
+    match e with IrFieldGet _ _ -> true | _ -> false end
+
+  (* tier3-p1 T3.1.2 (spike LAW 2): BinOp field projections. `op_of` reads the operator STRING leaf; `left_of`/`right_of` project the SUB-NODES. Total over the sum (a non-BinOp reads the empty string / the IrOther "" sentinel). *)
+  let function op_of (e: emit_ir) : string =
+    match e with IrBinOp o _ _ -> o | _ -> "" end
+
+  let function left_of (e: emit_ir) : emit_ir =
+    match e with IrBinOp _ l _ -> l | _ -> IrOther "" end
+
+  let function right_of (e: emit_ir) : emit_ir =
+    match e with IrBinOp _ _ r -> r | _ -> IrOther "" end
+
+  (* tier3-p1 T3.1.4 (spike LAW 3): the structural subtree-size measure. The `variant { e }` is STRUCTURAL (recurses on pattern-bound sub-terms), so it discharges natively here. The `ensures { result >= 1 }` — proven at this definition, each recursive call assuming it — exposes `size e >= 1 > 0` to every caller, discharging the int-variant well-foundedness lower bound. *)
+  let rec function size (e: emit_ir) : int
+    ensures { result >= 1 }
+    variant { e }
+  = match e with
+    | IrBinOp _ l r -> 1 + size l + size r
+    | IrSub a b -> 1 + size a + size b
+    | IrTuple a b -> 1 + size a + size b
+    | IrAttr o _ -> 1 + size o
+    | IrCall _ a _ -> 1 + size a
+    | _ -> 1
+    end
+
+  (* tier3-p1 T3.1.4: the guarded size-DECREASE laws — a BinOp's left/right sub-node is strictly smaller than the node. PROVEN (no axiom) by case analysis on the sum + `size`'s `result >= 1`. These are the facts an emitter-shaped recursive function over an IR-node param needs at its recursive call sites (`f (node.get("left"))`) to discharge termination. *)
+  lemma size_left_dec  : forall e: emit_ir. is_binop e -> size (left_of e) < size e
+  lemma size_right_dec : forall e: emit_ir. is_binop e -> size (right_of e) < size e
+
+  let function name_of (e: emit_ir) : string =
+    match e with IrVar n -> n | IrAttr _ a -> a | _ -> "" end
+
+  let function value_of (e: emit_ir) : string =
+    match e with IrStr v -> v | IrRaw v -> v | _ -> "" end
+
+  (* tier3-p1 increment 2 (§5e / risk-6 asymmetry): FieldGet projections. FieldGet.object is a LEAF string (`fgobject_of` : string) — UNLIKE Attribute.object which is a SUB-node (`object_of` : emit_ir). FieldGet.field is also a leaf string (`field_of`). The two `object` reads have DIFFERENT result type-classes, so a naive "object is a sub-node" rule is wrong for FieldGet. *)
+  let function fgobject_of (e: emit_ir) : string =
+    match e with IrFieldGet o _ -> o | _ -> "" end
+
+  let function field_of (e: emit_ir) : string =
+    match e with IrFieldGet _ f -> f | _ -> "" end
+
+  let function object_of (e: emit_ir) : emit_ir =
+    match e with IrAttr o _ -> o | _ -> IrOther "" end
+
+  let function func_of (e: emit_ir) : string =
+    match e with IrCall f _ _ -> f | _ -> "" end
+
+  let function nargs_of (e: emit_ir) : int =
+    match e with IrCall _ _ n -> n | _ -> 0 end
+
+  let function arg0_of (e: emit_ir) : emit_ir =
+    match e with IrCall _ a _ -> a | _ -> IrOther "" end
+
+  (* resync-campaign.md R1: the args LIST of a reflected Call node — opaque `array emit_ir` (sound; the ADT carries only arg0/nargs, so content is unmodelled). Used by the emitter's `val_ir.get("args")`. *)
+  val args_of (e: emit_ir) : array emit_ir
+  (* cf6.md M1.1: the OPAQUE statement-list of a match case (`c.get("body")`) — an `array int` (stmt-lists stay int-opaque, feeding `_stmts_to_whyml`), distinct from `args_of`'s reflected `array emit_ir`. *)
+  val stmts_of (e: emit_ir) : array int
+
+  let function svalue_of (e: emit_ir) : emit_ir =
+    match e with IrSub v _ -> v | _ -> IrOther "" end
+
+  let function sindex_of (e: emit_ir) : emit_ir =
+    match e with IrSub _ i -> i | _ -> IrOther "" end
+
+  let function elt0_of (e: emit_ir) : emit_ir =
+    match e with IrTuple a _ -> a | _ -> IrOther "" end
+
+  let function elt1_of (e: emit_ir) : emit_ir =
+    match e with IrTuple _ b -> b | _ -> IrOther "" end
+
+  (* tier3-p1 increment 2 (T3.1.4): the guarded size-DECREASE laws for the rest of the EXPR family — a Subscript's value/index, an Attribute's object, a Call's arg0, and a MkTuple's elt0/elt1 sub-node is strictly smaller than the node. PROVEN (no axiom) by case analysis on the sum + `size`'s `result >= 1`. These are the facts an emitter-shaped recursive function over an IR-node param needs at each recursive call site (`f (node.get("value"))`, `f (node.get("object"))`, …) to discharge the injected `variant { size node }`. *)
+  lemma size_svalue_dec : forall e: emit_ir. is_sub e -> size (svalue_of e) < size e
+  lemma size_sindex_dec : forall e: emit_ir. is_sub e -> size (sindex_of e) < size e
+  lemma size_object_dec : forall e: emit_ir. is_attribute e -> size (object_of e) < size e
+
+end

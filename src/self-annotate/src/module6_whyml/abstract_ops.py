@@ -6,7 +6,7 @@ class AbstractOpsMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _add_abstract_op(self, decl: str) -> None:
         pass
 
@@ -27,7 +27,7 @@ class AbstractOpsMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._abstract_ops, self._obj_state_written
     def _insert_abstract_val_block(self, out: List[str]) -> None:
         pass
 

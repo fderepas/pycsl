@@ -161,12 +161,57 @@ TRIGGERS: Dict[Tuple[str, Optional[str]], List[Trigger]] = {
     ("binop", "%"):   [("ZeroDivisionError", "no_div_zero ({1})")],
     ("binop", "<<"):  [("ValueError",        "non_neg_shift ({1})")],
     ("binop", ">>"):  [("ValueError",        "non_neg_shift ({1})")],
+    # (#49) ROUTE #68 — `0 ** -1` raises `ZeroDivisionError` in Python (a zero base cannot be
+    # raised to a negative power). Both operands are available at the call site, so the
+    # condition is EXACT and a correct power still discharges. NOTE the two rows above were
+    # in the table all along and were NOT being injected: the `<<`/`>>` emission goes through
+    # the bitwise/power path, which did not wrap, so `1 << -1` PROVED under
+    # `#@ no_exception \all` while CPython raises `ValueError`. That path now wraps.
+    ("binop", "**"):  [("ZeroDivisionError", "not ({0} = 0 /\\ {1} < 0)")],
 
     # Indexing — {0} is the array-length expression supplied at the call
     # site, {1} is the index. The Module 6 emitter looks up the array's
     # length via the same machinery that supports `\length(arr)`.
     ("subscript", "read"):  [("IndexError", "in_bounds ({0}) ({1})")],
     ("subscript", "write"): [("IndexError", "in_bounds ({0}) ({1})")],
+    # (#49) ROUTE #64 — AN ELEMENT STORE TO A `bytes`/`bytearray` RECEIVER also raises
+    # `ValueError` when the value is out of [0, 256). There was no entry for this at all,
+    # so `#@ no_exception \all` — which expands to the whole KNOWN_EXCEPTIONS set, and
+    # `ValueError` IS in it — PROVED for `b = bytearray([1]); b[0] = 999; return b[0]`,
+    # which raises `ValueError: byte must be in range(0, 256)` in CPython. Measured that
+    # the machinery itself works: `a // 0` under `no_exception ZeroDivisionError` does NOT
+    # prove and `a // b` with `requires b != 0` DOES, so this was a missing ROW, not a
+    # broken mechanism.
+    #
+    # A SEPARATE KEY, not a second trigger on ("subscript", "write"): that key is shared
+    # with plain lists, whose elements are ordinary ints and must NOT acquire a byte-range
+    # obligation. The emitter selects this key only when the receiver's type is known to be
+    # `bytes`/`bytearray`. {0} is the stored VALUE.
+    # INLINE, like the `map_get` row above and deliberately NOT a new entry in
+    # PREDICATE_LIBRARY: that library is emitted WHOLESALE into the preamble of every unit
+    # declaring `no_exception`, so adding a predicate there moved 31 corpus emissions by one
+    # inert definition line — measured. An inline condition keeps the repair byte-inert on
+    # every program that does not actually store into a bytes receiver.
+    ("subscript", "write_bytes"): [("ValueError", "0 <= {0} /\\ {0} < 256")],
+    # (#49) ROUTE #66 — `del d[k]` on a LOCAL dict raises `KeyError` when the key is absent.
+    # The operation lowers FAITHFULLY (`d := map_update_none !d k`) and carried no obligation
+    # at all, so `#@ no_exception KeyError` PROVED for `d = {1:1}; del d[5]`. Same condition
+    # the `("attr_call", "pop")` row already carries. WIRED rather than refused, because
+    # unlike `divmod`/`int(str)` the receiver here is a real modelled map, so the obligation
+    # is faithful and a correct program still discharges it.
+    ("subscript", "del"): [("KeyError", "Map.get {0} {1} <> None")],
+    # (#49) ROUTE #66 — `chr(n)` raises `ValueError` outside [0, 0x110000). The abstract
+    # `chr_op` carried `ensures { String.length result = 1 }` UNCONDITIONALLY, i.e. it
+    # asserted a TOTALITY Python does not have, and there was no trigger row, so
+    # `#@ no_exception \all` PROVED for `chr(-1)`. WIRED rather than refused: the bound is
+    # exact, so `chr(65)` still discharges.
+    ("call", "chr"): [("ValueError", "0 <= {0} /\\ {0} < 1114112")],
+    # (#49) ROUTE #67 — a STRING subscript read raises `IndexError` out of range, and went
+    # down the `char_code_at` path that no row covered while the ARRAY read (below) was
+    # wired all along. `{0}` is the string, `{1}` the index. `in_bounds` is already in
+    # PREDICATE_LIBRARY, and an `assert` is a LOGIC context, so `String.length` is legal
+    # here even though it is not in a program term.
+    ("subscript", "read_str"): [("IndexError", "in_bounds (String.length {0}) ({1})")],
 
     # Dict access — inline `Map.get d k <> None` rather than a separate
     # predicate, mirroring the existing ghost-dict vocabulary so we don't

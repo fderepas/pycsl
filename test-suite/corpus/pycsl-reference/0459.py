@@ -21,14 +21,23 @@ class Store:
         self.disk: list = bytearray(4096)
 
     #@ requires 0 <= i and i < 512
+    # (#34) HONEST FRAME: this method writes `self.disk`, and a method with NO
+    # `#@ assigns` at all was assumed by callers to write nothing.
+    #@ assigns self.disk
     def set_bitmap(self, i: int, v: int) -> None:
         self.disk[i] = v                                   # point, below region
 
     #@ requires block >= 5 and block < 8
     #@ requires \length(data) == 512
+    # (#34) HONEST FRAME: this method writes `self.disk`, and a method with NO
+    # `#@ assigns` at all was assumed by callers to write nothing.
+    #@ assigns self.disk
     def write_block(self, block: int, data: list) -> None:
         self.disk[block * 512 : block * 512 + 512] = data  # slice, at/above region
 
     #@ requires 0 <= off and off < 4096
+    # (#34) HONEST FRAME: this method writes `self.disk`, and a method with NO
+    # `#@ assigns` at all was assumed by callers to write nothing.
+    #@ assigns self.disk
     def _write_meta(self, off: int, v: int) -> None:
         self.disk[off] = v                                 # exempt: no obligation

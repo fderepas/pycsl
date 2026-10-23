@@ -1,0 +1,4 @@
+NO-LIVE-SOURCE       GhostSpecOpsMixin._e  
+NO-LIVE-SOURCE       GhostSpecOpsMixin._expr_to_whyml_string_ctx  
+L3TC-FAIL            GhostSpecOpsMixin._handle_proj_expr  ['This expression has type PyCSL_Program.emit_ir, but is expected to have type int']
+L3TC-FAIL            GhostSpecOpsMixin._handle_ctor_payload_expr  ['This expression has type PyCSL_Program.emit_ir, but is expected to have type int']

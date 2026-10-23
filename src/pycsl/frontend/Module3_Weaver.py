@@ -21,6 +21,7 @@ from frontend.Module2_Parser import (
     MixinDecl, ProvidesDecl, SharedStateDecl, TouchesFieldDecl,
     MethodDependencyDecl, ComposeFromDecl, ConformsToDecl,
 )
+import re
 import copy
 from errors import PyCSLSemanticError
 from frontend.Module1_Ingestor import PyCSLContract
@@ -208,7 +209,7 @@ class PyCSLWeaver(ast.NodeVisitor):
             if isinstance(c, MethodDependencyDecl):
                 close_dep()
                 open_dep = {"method": c.method, "sig": c.sig, "kind": c.kind,
-                            "requires": [], "ensures": []}
+                            "requires": [], "ensures": [], "assigns": []}
             elif isinstance(c, ProvidesDecl):
                 close_dep()
                 node.csl_provides.append(c.method)
@@ -226,6 +227,17 @@ class PyCSLWeaver(ast.NodeVisitor):
                 open_dep["requires"].append(c)
             elif open_dep is not None and isinstance(c, Ensures):
                 open_dep["ensures"].append(c)
+            elif open_dep is not None and isinstance(c, Assigns):
+                # (#32) A METHOD REQUIREMENT MAY DECLARE ITS FRAME. The window already
+                # accepts `requires`/`ensures`; without `assigns` a `#@ requires_method`
+                # dependency is FRAMELESS BY CONSTRUCTION, so its caller-side abstract
+                # `val` declares no effect and every calling method may claim
+                # `assigns \nothing` however much state the real provider writes.
+                # Measured: that is the sole remaining MODEL-VISIBLE converted false frame
+                # (`expressions._ifexpr_seq_arm`, whose `_seq_operand` requirement reaches
+                # `_add_abstract_op`). An `assigns` OUTSIDE a window still closes it and is
+                # the method's own, exactly as before -> no existing program changes.
+                open_dep["assigns"].append(c)
             else:
                 # Anything else closes an open dependency window and is the method's own.
                 close_dep()
@@ -322,6 +334,32 @@ class PyCSLWeaver(ast.NodeVisitor):
     def _validate_function_contracts(node: ast.FunctionDef) -> None:
         """Post-attachment sanity checks: vacuous \\trusted ensures clauses
         get a warning; \\variant+\\diverges combination is a hard error."""
+        # (#49) gen #30 — `#@ complete` / `#@ disjoint` ON A BODYLESS FUNCTION ARE
+        # UNCHECKED CLAIMS. `_desugar_acts` turns them into function-ENTRY `#@ assert`
+        # checkpoints stamped on the first body statement, and a `\trusted` / `\abstract`
+        # body is never lowered, so the stamp evaporates — the same shape as routes
+        # #210/#211 in the `happy` forms. MEASURED: guards `x < 0` and `x > 100` under
+        # `#@ complete small, big` (which leaves 0..100 covered by neither) FAIL for an
+        # ordinary function and PROVE the moment `#@ \trusted` is added.
+        # NOT PROMOTED TO A ROUTE, because the caller exploit was built and REFUSED: a
+        # caller of that function could NOT prove `\result == 1 or \result == 2` (CPython
+        # answers 7), so today nothing downstream consumes the false completeness. This is
+        # sound-by-rejection ahead of the day something does, and it costs nothing: no
+        # corpus file, mirror file or stdlib stub carries `complete`/`disjoint` on a
+        # trusted function (measured: 0 of the 4 files that use them).
+        if (getattr(node, "csl_trusted", False)
+                or getattr(node, "csl_abstract", False)):
+            for _cm in getattr(node, "csl_acts", []) or []:
+                _kind = type(_cm).__name__
+                if _kind in ("Complete", "Disjoint"):
+                    raise PyCSLSemanticError(
+                        f"Function '{node.name}' (line {node.lineno}): "
+                        f"`#@ {_kind.lower()}` is discharged as a function-ENTRY assert "
+                        f"over the act guards, and this function is `#@ \\trusted` / "
+                        f"`#@ \\abstract`, so its body is never lowered and that assert "
+                        f"is never proved. The claim would hold by nothing at all. Drop "
+                        f"the `{_kind.lower()}` line, or give the function a verified "
+                        f"body.")
         if node.csl_trusted:
             for ens in node.csl_ensures:
                 if (isinstance(ens.expr, BinOp) and ens.expr.op == '=='
@@ -352,6 +390,30 @@ class PyCSLWeaver(ast.NodeVisitor):
 
     def visit_Module(self, node: ast.Module) -> Any:
         """Attach module-level concurrency annotations (shared, mutex_invariant, lock_order)."""
+        # (#49) gen #31 — THE BINDING SET, for the mutex-name check in `visit_With`.
+        # `#@ critical` / `#@ acquires` / `#@ releases` naming something that does not
+        # exist verified silently (`no_such_lock` is a NameError in CPython). The three
+        # were caught only INDIRECTLY, and only when the block actually touched a
+        # protected shared variable — that is the protection analysis, not a name check.
+        # A file with a star import is exempt: its binding set is not knowable from here.
+        self._csl_bound_names = set()
+        self._csl_star_import = False
+        for _n_bn in ast.walk(node):
+            if isinstance(_n_bn, ast.Name) and isinstance(_n_bn.ctx, ast.Store):
+                self._csl_bound_names.add(_n_bn.id)
+            elif isinstance(_n_bn, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                self._csl_bound_names.add(_n_bn.name)
+            elif isinstance(_n_bn, ast.alias):
+                if _n_bn.name == "*":
+                    self._csl_star_import = True
+                else:
+                    self._csl_bound_names.add(
+                        (_n_bn.asname or _n_bn.name).split(".")[0])
+            elif isinstance(_n_bn, ast.arg):
+                self._csl_bound_names.add(_n_bn.arg)
+            elif isinstance(_n_bn, ast.Global):
+                for _g_bn in _n_bn.names:
+                    self._csl_bound_names.add(_g_bn)
         node.csl_shared_decls = []
         node.csl_mutex_invariants = {}
         node.csl_lock_order = None
@@ -386,6 +448,25 @@ class PyCSLWeaver(ast.NodeVisitor):
                     node.csl_acquires = c.mutex
                 elif isinstance(c, Releases):
                     node.csl_releases = c.mutex
+
+        # (#49) gen #31 — A MUTEX NAME THAT RESOLVES TO NOTHING. See `visit_Module` for
+        # the binding set and the (u4) reasoning behind the WEAK rule. `#@ releases` is
+        # the one that is never caught by anything else: `csl_releases` is set here and
+        # read by NO downstream stage, so the name had no second chance.
+        _bn_mx = getattr(self, "_csl_bound_names", None)
+        if _bn_mx is not None and not getattr(self, "_csl_star_import", False):
+            for _d_mx, _m_mx in (("critical", node.csl_critical_mutex),
+                                 ("acquires", node.csl_acquires),
+                                 ("releases", node.csl_releases)):
+                if _m_mx and str(_m_mx) not in _bn_mx:
+                    raise PyCSLSemanticError(
+                        "`#@ %s %s` names a mutex that is bound nowhere in this file, "
+                        "and the directive was silently dropped — the file still "
+                        "reported success while the lock it names does not exist (it "
+                        "is a NameError in CPython). FIX: correct the spelling, or "
+                        "declare `%s` in this module."
+                        % (_d_mx, _m_mx, _m_mx),
+                        stage="Module3", code="PYCSL-SEM-MUTEX-UNKNOWN-NAME")
 
         self.generic_visit(node)
 
@@ -457,6 +538,43 @@ class PyCSLWeaver(ast.NodeVisitor):
         # (returning a cached/singleton/other instance, or branching) interposes on
         # allocation in a way the record-construction model cannot soundly represent —
         # `C(...)` would no longer be a fresh `{...}` literal. Reject rather than fake it.
+        # (#49) gen #31 — AND ITS ARITY. `C(k)` is `type.__call__`, which passes the
+        # arguments to BOTH `__new__` and `__init__`. A `__new__` that is trivial but too
+        # NARROW therefore makes every construction a TypeError in CPython, while the model
+        # builds the record from `__init__` alone and proves whatever the class promises —
+        # measured on 0496, where `\result == k` verified for a function that raises
+        # `__new__() takes 1 positional argument but 2 were given` for every k. A contract
+        # over a function with no normal exit is VACUOUSLY true; see
+        # `getting-better/open-routes/finding-a-contract-over-a-function-that-never-returns.md`
+        # and `NEVER_RETURNS` in `bin/check-corpus-contract-truth-args.py`.
+        #
+        # The condition is the one that admits NO call at all (the (u4) discipline: refuse
+        # only what could never be right): `__init__`'s MINIMUM required argument count
+        # exceeds `__new__`'s MAXIMUM acceptable one. A `*args`/`**kwargs` `__new__` accepts
+        # anything and is exempt. Censused before landing — ONE instance in the corpus, the
+        # mirror, the live tree and `pycsl_lib` combined, and it is 0496 itself.
+        _new_fn = next((x for x in node.body if isinstance(x, ast.FunctionDef)
+                        and x.name == "__new__"), None)
+        _ini_fn = next((x for x in node.body if isinstance(x, ast.FunctionDef)
+                        and x.name == "__init__"), None)
+        if (_new_fn is not None and _ini_fn is not None
+                and _new_fn.args.vararg is None and _new_fn.args.kwarg is None):
+            _new_max = len(_new_fn.args.posonlyargs) + len(_new_fn.args.args) - 1
+            _ini_min = (len(_ini_fn.args.posonlyargs) + len(_ini_fn.args.args)
+                        - len(_ini_fn.args.defaults) - 1)
+            if _ini_min > _new_max:
+                raise PyCSLSemanticError(
+                    f"Class '{node.name}' (line {node.lineno}): `__new__` accepts at most "
+                    f"{_new_max} argument(s) after `cls` while `__init__` REQUIRES "
+                    f"{_ini_min}. `{node.name}(...)` passes its arguments to BOTH, so every "
+                    f"construction of this class raises `TypeError: {node.name}.__new__() "
+                    f"takes {_new_max + 1} positional argument(s) but {_ini_min + 1} were "
+                    f"given` in CPython — there is no call that can succeed. A contract on "
+                    f"anything that constructs it would be proved over an exit the program "
+                    f"never reaches. Widen `__new__` to accept the same arguments "
+                    f"(`def __new__(cls, ...)`, or `*args, **kwargs`), or delete it and let "
+                    f"the default allocation run. See config/skills/pycsl-ub-catalog/"
+                    f"SKILL.md §7.6.")
         for stmt in node.body:
             if (isinstance(stmt, ast.FunctionDef) and stmt.name == "__new__"
                     and not self._is_trivial_new(stmt)):
@@ -726,12 +844,27 @@ class Module3_Weaver:
         write-sites (meta.md composition theorem, clause 1); the trusted boundary
         (clause 2) is handled separately. Sites are processed in (lineno, col) order
         for determinism; each injected check is tagged with an `origin` for attribution."""
-        if not happy_props:
-            return
         funcs = [n for n in ast.walk(python_ast) if isinstance(n, ast.FunctionDef)]
         # 07-1143 R3 (validation): every `#@ footprint NAME(arg)` must reference a declared
         # PARAMETRIC HAPPY `NAME` — a typo would silently confine nothing (a soundness
         # hole, since the method would appear constrained but get no per-site check).
+        #
+        # (#49) gen #31 — THIS CHECK USED TO SIT BELOW `if not happy_props: return`, so it
+        # never ran in a file that declares NO `#@ happy` at all. Measured:
+        # `#@ footprint no_such_prop(k)` in such a file reports
+        # `[+] Verification SUCCESS! All contracts formally proven.` The comment above
+        # already calls that "a soundness hole"; the guard was simply on the wrong side of
+        # an early return, and the case it missed is the one where the user has written a
+        # confinement directive into a file with no confinement discipline at all —
+        # i.e. precisely the case where they are most likely to be mistaken about what
+        # they have. The message already renders an empty declared-set correctly
+        # (`Declared parametric HAPPYs: []`).
+        #
+        # Found by a sweep of the "a NAME that resolves to nothing" family — see
+        # `getting-better/open-routes/finding-a-name-that-resolves-to-nothing-is-dropped-in-silence.md`.
+        # Hoisted rather than moved to the `_run_pipeline` choke point because the footprint
+        # nodes live on the AST (`fn.csl_footprints`), not in the IR, and because this
+        # method's mirror twin is `\trusted`, so the edit owes no re-proof.
         param_happy_names = {hp.name for hp in happy_props if hp.param is not None}
         for fn in funcs:
             for fpd in getattr(fn, "csl_footprints", []):
@@ -740,6 +873,8 @@ class Module3_Weaver:
                         f"`footprint {fpd.happy_name}` on '{fn.name}' references no "
                         f"parametric HAPPY named '{fpd.happy_name}'. Declared parametric "
                         f"HAPPYs: {sorted(param_happy_names)}.")
+        if not happy_props:
+            return
         for hp in happy_props:
             except_set = set(hp.except_set)
             # H-I2 (noninterference): synthesize a self-composition twin (macsl's approach —
@@ -763,9 +898,23 @@ class Module3_Weaver:
                 if hp.context == "total":
                     # H-D (totality / DoS): PyCSL functions are total by DEFAULT — Why3 emits a
                     # termination VC (each loop needs a `#@ loop variant`), so an attacker-driven
-                    # unbounded loop fails to verify. This policy NAMES that guarantee and
-                    # forbids the only opt-out: `#@ \diverges` on the target contradicts the
-                    # totality claim and is a hard error.
+                    # unbounded loop fails to verify. This policy NAMES that guarantee, and it
+                    # must therefore reject every way of ESCAPING that VC. There are two, not
+                    # one (route #93 — the comment here used to say "the only opt-out"):
+                    #   (a) `#@ \diverges` on the target explicitly opts out of termination;
+                    #   (b) `#@ \trusted` / `#@ \abstract` on the target make Module 6 emit it
+                    #       as a bodyless `val` (contract only, NO goals), so there is no loop
+                    #       and no termination VC to discharge — the guarantee this policy names
+                    #       is simply absent.
+                    # MEASURED for (b): 0728's shape with the target marked `\trusted` and a
+                    # body of `while True: acc = acc + 1` VERIFIED, i.e. an availability policy
+                    # proved of a function whose body cannot terminate. Controls: 0726 proves,
+                    # 0727's `\diverges` is rejected, 0728's variant-less loop fails.
+                    # Sound-by-rejection, and consistent with the three SIBLING happy forms,
+                    # every one of which already carries an explicit trusted/abstract trust
+                    # boundary: the `protects` form (R1.1) and the region-write form (C) demand
+                    # `#@ \preserves`, and the `reading` form (iv) demands membership of
+                    # `except`. H-D was the only form with no trust boundary at all.
                     for fn in target_fns:
                         if getattr(fn, "csl_diverges", False):
                             raise PyCSLSemanticError(
@@ -773,6 +922,102 @@ class Module3_Weaver:
                                 f"`#@ \\diverges` — it opts OUT of termination, contradicting "
                                 f"the totality (H-D) claim. Remove `\\diverges`, or drop the "
                                 f"`total` policy.")
+                        if (getattr(fn, "csl_trusted", False)
+                                or getattr(fn, "csl_abstract", False)):
+                            marker = ("\\trusted" if getattr(fn, "csl_trusted", False)
+                                      else "\\abstract")
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}`: total target '{hp.target}' is marked "
+                                f"`#@ {marker}`, so it is emitted as a bodyless `val` with no "
+                                f"goals — there is no termination VC, and the totality (H-D) "
+                                f"guarantee this policy names cannot be discharged for it. "
+                                f"Give '{hp.target}' a verified body (each loop carrying a "
+                                f"`#@ loop variant`), or drop the `total` policy.")
+                    # (#49) ROUTE #206 — THE REPAIR ABOVE REJECTED THE TRUSTED TARGET AND
+                    # NOT THE TRUSTED CALLEE. Route #93 closed "the target is bodyless";
+                    # a target with a perfectly good body whose work is ONE CALL to a
+                    # bodyless stub is the same situation one hop away, and the totality
+                    # VC is just as absent. MEASURED:
+                    #     #@ happy availability: targets parse total
+                    #     class Parser:
+                    #         #@ ensures \result >= 0
+                    #         #@ \trusted
+                    #         def spin(self, n: int) -> int:
+                    #             acc: int = 0
+                    #             while True:          # cannot terminate
+                    #                 acc = acc + 1
+                    #             return acc
+                    #         #@ no_exception \all
+                    #         #@ ensures \result >= 0
+                    #         def parse(self, n: int) -> int:
+                    #             return self.spin(n)
+                    # printed "Verification SUCCESS" (witness 1711) — an AVAILABILITY
+                    # policy, whose stated purpose is that an attacker-controlled input
+                    # cannot cause non-termination, proved of a function that never
+                    # returns. CPython hangs. Controls unchanged: 0726 proves, 0728 fails,
+                    # 1254/1255 stay refused.
+                    # THE RULE: the totality claim covers the target's WHOLE call graph
+                    # inside this module, so no bodyless function may be reachable from
+                    # it. Transitive over module-local definitions only — an import is
+                    # already a hard error here ("targets '<name>', which is not a method
+                    # in this module").
+                    # (#49) ROUTE #208 — AND `\diverges` IS THE THIRD WAY IN, WHICH MY
+                    # OWN #206 REPAIR MISSED TWENTY MINUTES AFTER WRITING IT. #93 rejects
+                    # `#@ \diverges` ON THE TARGET as the first opt-out it ever named;
+                    # #206 added bodyless CALLEES; a `\diverges` CALLEE has a body and no
+                    # termination VC, which is the same erasure by the most EXPLICIT
+                    # declaration of non-termination the language has. MEASURED: the 1711
+                    # shape with `#@ \diverges` in place of `#@ \trusted` on `spin`
+                    # printed "Verification SUCCESS" (witness 1715). The set below is
+                    # therefore "every module-local function with NO termination VC",
+                    # not "every bodyless one" — which is what the rule always meant.
+                    _r206_bodyless = set()
+                    for _r206_f in funcs:
+                        if (getattr(_r206_f, "csl_trusted", False)
+                                or getattr(_r206_f, "csl_abstract", False)
+                                or getattr(_r206_f, "csl_diverges", False)):
+                            _r206_bodyless.add(_r206_f.name)
+                    if _r206_bodyless:
+                        _r206_calls = {}
+                        for _r206_f in funcs:
+                            _r206_set = set()
+                            for _r206_n in ast.walk(_r206_f):
+                                if isinstance(_r206_n, ast.Call):
+                                    _r206_fn = _r206_n.func
+                                    if isinstance(_r206_fn, ast.Name):
+                                        _r206_set.add(_r206_fn.id)
+                                    elif isinstance(_r206_fn, ast.Attribute):
+                                        _r206_set.add(_r206_fn.attr)
+                            _r206_calls[_r206_f.name] = _r206_set
+                        _r206_seen = set()
+                        _r206_queue = [hp.target]
+                        _r206_hit = ""
+                        while _r206_queue:
+                            _r206_cur = _r206_queue.pop()
+                            if _r206_cur in _r206_seen:
+                                continue
+                            _r206_seen.add(_r206_cur)
+                            for _r206_callee in sorted(_r206_calls.get(_r206_cur, ())):
+                                if _r206_callee in _r206_bodyless:
+                                    _r206_hit = _r206_callee
+                                    break
+                                if _r206_callee in _r206_calls:
+                                    _r206_queue.append(_r206_callee)
+                            if _r206_hit:
+                                break
+                        if _r206_hit:
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}`: total target '{hp.target}' reaches "
+                                f"'{_r206_hit}', which is marked `#@ \\trusted`, "
+                                f"`#@ \\abstract` or `#@ \\diverges` and therefore carries "
+                                f"NO termination VC (the first two are emitted as a "
+                                f"bodyless `val` with no goals; the third opts out "
+                                f"explicitly). A non-terminating body inside "
+                                f"'{_r206_hit}' costs the target NOTHING — its call is "
+                                f"assumed to return — so the totality (H-D) guarantee this "
+                                f"policy names is absent for '{hp.target}' too. Give "
+                                f"'{_r206_hit}' a verified body (each loop carrying a "
+                                f"`#@ loop variant`), or drop the `total` policy.")
                     continue
                 for fn in target_fns:
                     if hp.context == "postcond":
@@ -790,6 +1035,47 @@ class Module3_Weaver:
                     # the grant gets an unprovable VC IN THE CALLER — exactly macsl's
                     # `unauth_endpoint` red (../macsl tests/small_example/attacks.c). The
                     # target's own (recursive) self-call already assumes the precond, so skip it.
+                    # FINDING w68 / co-landing fix. `_collect_self_call_sites` matches ONLY
+                    # `self.<target>(…)`, so a call through any other receiver
+                    # (`other.transfer(…)`) is not a site and gets NO capability check —
+                    # while the target keeps ASSUMING the capability as a `requires`
+                    # (MEASURED: the assumption is real). Today that asymmetry is fenced only
+                    # by a COMPLETENESS GAP, not a guard: a non-`self` call is OPAQUE in the
+                    # model and propagates no postcondition at all (measured). The day
+                    # cross-object calls carry their callee's contract — an obvious and
+                    # frequently-wanted gain, since today it makes every cross-object call
+                    # useless for proof — the capability becomes assumable at a call site
+                    # nobody checks.
+                    # INJECTING the check at such a site instead would be UNSOUND: the
+                    # formula speaks about `self`, and at `other.transfer(…)` the object whose
+                    # capability matters is `other`; proving `self.session_authenticated`
+                    # there proves it of the WRONG object. So reject — sound-by-rejection,
+                    # matching every sibling happy form's trust boundary. Keyed on the CALLEE
+                    # (`func.attr == hp.target`), not on the receiver's shape: route #91's
+                    # lesson, key on what is being called.
+                    # Spelled INLINE rather than as a helper for the #33 reason below.
+                    for _nd in ast.walk(python_ast):
+                        if not (isinstance(_nd, ast.Call)
+                                and isinstance(_nd.func, ast.Attribute)
+                                and _nd.func.attr == hp.target):
+                            continue
+                        _recv = _nd.func.value
+                        if isinstance(_recv, ast.Name) and _recv.id == "self":
+                            continue
+                        try:
+                            _shown = ast.unparse(_recv)
+                        except Exception:
+                            _shown = "<expr>"
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}`: '{hp.target}' is guarded by a capability "
+                            f"precondition, but it is called here as "
+                            f"`{_shown}.{hp.target}(…)` (L{getattr(_nd, 'lineno', 0)}) — "
+                            f"through a receiver other than `self`. The call-site capability "
+                            f"check can only be injected at a `self.{hp.target}(…)` site: the "
+                            f"guarding formula speaks about `self`, so proving it here would "
+                            f"prove the capability of the WRONG object, while '{hp.target}' "
+                            f"still ASSUMES it. Call it as `self.{hp.target}(…)`, or drop the "
+                            f"`precond` policy.")
                     csites: List[tuple] = []
                     self._collect_self_call_sites(python_ast, hp.target, None, None, csites)
                     csites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
@@ -822,10 +1108,32 @@ class Module3_Weaver:
                 self._collect_protect_index_sites(python_ast, path, None, psites)
                 psites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
                                            getattr(t[0], "col_offset", 0)))
+                # (#49) ROUTE #211 — THE PARAMETRIC FORM HAD ROUTE #210's HOLE TOO, AND
+                # THE TWIN IS ONE ANNOTATION LINE AWAY. Below, a non-exempt method with no
+                # `#@ footprint` that writes the parametric path gets `check False` — which
+                # is inert in a body that is never lowered. MEASURED on 0614's own shape
+                # (witness 1719): a `#@ \trusted` `rogue` with no footprint writing
+                # `d.disk[900]` PROVED, while the SAME function without `\trusted` FAILED.
+                # One line flips a demonstrated containment violation into a green run.
+                _r211_bodyless = {fn.name for fn in funcs2
+                                  if (getattr(fn, "csl_trusted", False)
+                                      or getattr(fn, "csl_abstract", False))
+                                  and not getattr(fn, "csl_preserves", False)}
                 for stmt, func_name, idx_ast in psites:
                     if func_name in except_set:
                         continue
                     line = getattr(stmt, "lineno", 0)
+                    if func_name in _r211_bodyless and func_name not in fp_arg:
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}({hp.param})`: '{func_name}' is "
+                            f"`#@ \\trusted` or `#@ \\abstract`, is not exempt, has no "
+                            f"`#@ footprint {hp.name}(...)`, and its BODY writes the "
+                            f"parametric path '{path}' (line {line}). Its body is never "
+                            f"lowered, so the `#@ check False` this policy stamps on that "
+                            f"write would never be proved and the containment claim would "
+                            f"hold by nothing at all. Bind a footprint, add "
+                            f"`#@ \\preserves`, add '{func_name}' to `except`, or give it "
+                            f"a verified body.")
                     if func_name in fp_arg:
                         arg = fp_arg[func_name]
                         lo_s = self._subst_csl_param(hp.region_lo, hp.param, arg)
@@ -839,6 +1147,44 @@ class Module3_Weaver:
                     origin = f"happy {hp.name}({hp.param}) protects {path} L{line}"
                     cp = CheckPoint("check", pred, origin=origin)
                     stmt.csl_checkpoints = getattr(stmt, "csl_checkpoints", []) + [cp]
+                # (R3b) WHOLE-PATH AND SLICE STORES — route #92. `_collect_protect_index_sites`
+                # matches only a POINT write, and its docstring DEFERRED the rest: "Slice/
+                # whole-array writes to a parametric path are not certifiable per-object; they
+                # are left to the non-footprint reject." THERE WAS NO SUCH REJECT — the
+                # `CSLBool(False)` above fires only on sites that collector already returned,
+                # which are exactly the point writes, and this branch `continue`s before the
+                # R1/R2 `protects` form (which keys on the DOTTED PATH and would have caught
+                # both). Measured: a non-exempt, footprint-less `d.disk = a` AND
+                # `d.disk[512:576] = a` each VERIFIED, while `ensures d.disk[512] == 7` — the
+                # preservation of a cell inside object 0's region — REFUSED, so both stores
+                # genuinely reached the protected region and neither was erased. A per-index
+                # footprint check cannot constrain a whole-array or slice store, so the
+                # deferral becomes what the docstring always claimed it was: a rejection.
+                for fn in funcs2:
+                    if fn.name in except_set or fn.name == "__init__":
+                        continue
+                    for nd in ast.walk(fn):
+                        if not isinstance(nd, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                            continue
+                        tgts = (nd.targets if isinstance(nd, ast.Assign) else [nd.target])
+                        for tgt in tgts:
+                            if self._target_dotted_path(tgt) != path:
+                                continue
+                            is_sub = isinstance(tgt, ast.Subscript)
+                            sl = tgt.slice if is_sub else None
+                            if isinstance(sl, ast.Index):        # pre-3.9 wrapper
+                                sl = sl.value
+                            if is_sub and not isinstance(sl, ast.Slice):
+                                continue                        # point write: handled above
+                            kind = "slice" if is_sub else "whole-array"
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}({hp.param})`: non-exempt '{fn.name}' "
+                                f"performs a {kind} store to the protected path '{path}' "
+                                f"(line {getattr(nd, 'lineno', 0)}), which a per-index "
+                                f"`#@ footprint` check cannot confine to one object's region. "
+                                f"Write through {path}[i] one index at a time so each write is "
+                                f"checked against the footprint, or add '{fn.name}' to the "
+                                f"`except` set if it is a legitimate whole-path owner.")
                 continue
             # 07-1143 R1/R2: the `protects <paths>` subsystem-ownership form — no method
             # outside `except` may DIRECTLY write any protected (possibly dotted) path.
@@ -851,9 +1197,43 @@ class Module3_Weaver:
                 self._collect_protect_sites(python_ast, protected, None, psites)
                 psites.sort(key=lambda t: (getattr(t[0], "lineno", 0),
                                            getattr(t[0], "col_offset", 0)))
+                # (#49) ROUTE #210 — A `check False` INJECTED INTO A BODY THAT IS NEVER
+                # LOWERED IS NOT A CHECK. The loop below stamps every non-exempt write
+                # site with an unprovable `#@ check`, which is how 0612 fails. A
+                # `\trusted` / `\abstract` function's body is NOT LOWERED, so its stamped
+                # sites evaporate — and route #209's trust boundary keyed on the DECLARED
+                # `#@ assigns`, so a stub that declares `assigns \nothing` while its body
+                # writes the protected path walks past BOTH. MEASURED (witness 1718):
+                #     #@ assigns \nothing
+                #     #@ \trusted
+                #     def liar(n: int) -> None:
+                #         g.v = n            # protected, not exempt, not \preserves
+                # printed "Verification SUCCESS". The body is RIGHT THERE in the AST —
+                # `\trusted` means "not lowered", not "not readable" — and
+                # `check-trusted-frame-honesty.py` already compares stub frames against
+                # live bodies for exactly this reason. So the sites collected below are
+                # the evidence, and a trusted enclosing function turns one into a refusal
+                # instead of an inert stamp.
+                _r210_bodyless = {fn.name for fn in
+                                  [n for n in ast.walk(python_ast)
+                                   if isinstance(n, ast.FunctionDef)]
+                                  if (getattr(fn, "csl_trusted", False)
+                                      or getattr(fn, "csl_abstract", False))
+                                  and not getattr(fn, "csl_preserves", False)}
                 for stmt, func_name, path in psites:
                     if func_name in except_set:
                         continue
+                    if func_name in _r210_bodyless:
+                        raise PyCSLSemanticError(
+                            f"`happy {hp.name}`: '{func_name}' is `#@ \\trusted` or "
+                            f"`#@ \\abstract`, is not exempt, and its BODY writes the "
+                            f"protected path '{path}' (line "
+                            f"{getattr(stmt, 'lineno', 0)}). Its body is never lowered, "
+                            f"so the `#@ check` this policy stamps on that write would "
+                            f"never be proved — the confinement claim would hold by "
+                            f"nothing at all. Add `#@ \\preserves` to promise the "
+                            f"protected path survives, add '{func_name}' to `except`, or "
+                            f"give it a verified body.")
                     origin = (f"happy {hp.name} protects {path} "
                               f"L{getattr(stmt, 'lineno', 0)}")
                     cp = CheckPoint("check", CSLBool(False), origin=origin)
@@ -868,9 +1248,57 @@ class Module3_Weaver:
                         continue
                     if getattr(fn, "csl_preserves", False):
                         continue
-                    assigned = {self._target_dotted_path(t)
-                                for a in getattr(fn, "csl_assigns", [])
-                                for t in getattr(a, "targets", [])}
+                    # (#49) ROUTE #209 — THIS TRUST BOUNDARY HAD NEVER FIRED, BECAUSE IT
+                    # ASKED A PYTHON-AST MATCHER ABOUT A CSL NODE. `_target_dotted_path`
+                    # tests `isinstance(target, ast.Attribute | ast.Subscript | ast.Name)`,
+                    # and an `#@ assigns` target is a CSL object — `assigns g.v` parses to
+                    # `FieldAccess(object='g', field='v')` and `assigns self.disk[i]` to
+                    # `FieldSubscript(field='disk', index=Var(name='i'))`. None of those is
+                    # a `pure_ast` node, so the matcher returned None for EVERY target, the
+                    # set was `{None}`, and the intersection with the protected paths was
+                    # always empty. MEASURED: `happy own: protects g.v except setter` with
+                    # a NON-exempt `#@ \trusted` function declaring `#@ assigns g.v` and a
+                    # body of `g.v = n` printed "Verification SUCCESS" (witness 1716),
+                    # i.e. the confinement policy proved of a program that violates it. The
+                    # untrusted twin is corpus 0612 and has always been refused — the body
+                    # site gets a `#@ check False` injected, and a trusted body has no site.
+                    # The REGION form's identical boundary (0461/0462) does fire, because it
+                    # reads the region and not the assigns targets; so this form's teeth
+                    # were the only ones missing, and nothing noticed because no witness
+                    # exercised THIS form's trust boundary.
+                    assigned = set()
+                    for a in getattr(fn, "csl_assigns", []):
+                        for t in getattr(a, "targets", []):
+                            _p209 = self._target_dotted_path(t)
+                            if _p209:
+                                assigned.add(_p209)
+                                continue
+                            # CSL target: peel `FieldAccess`/`FieldSubscript`/`Var` into a
+                            # dotted path, bounded so a cyclic structure cannot spin.
+                            _parts209 = []
+                            _cur209 = t
+                            _guard209 = 0
+                            while _guard209 < 8:
+                                _guard209 += 1
+                                if isinstance(_cur209, str):
+                                    _parts209.append(_cur209)
+                                    break
+                                _fld209 = getattr(_cur209, "field", None)
+                                if _fld209 is not None:
+                                    _parts209.append(_fld209)
+                                    _obj209 = getattr(_cur209, "object", None)
+                                    if _obj209 is None:
+                                        # `FieldSubscript` has no object: it is `self.<f>`
+                                        _parts209.append("self")
+                                        break
+                                    _cur209 = _obj209
+                                    continue
+                                _nm209 = getattr(_cur209, "name", None)
+                                if _nm209 is not None:
+                                    _parts209.append(_nm209)
+                                break
+                            if _parts209:
+                                assigned.add(".".join(reversed(_parts209)))
                     if assigned & protected:
                         raise PyCSLSemanticError(
                             f"`happy {hp.name}`: trusted/abstract method '{fn.name}' is "
@@ -970,6 +1398,40 @@ class Module3_Weaver:
                           f"L{getattr(stmt, 'lineno', 0)}")
                 cp = CheckPoint("check", pred, origin=origin)
                 stmt.csl_checkpoints = getattr(stmt, "csl_checkpoints", []) + [cp]
+            # (A2) WHOLE-FIELD REBINDING — route #91. `_field_write_site` matches only a
+            # `Subscript` target, so `self.<field> = <expr>` (an `Attribute` target, which
+            # REPLACES the whole array, protected region included) matched nothing and got
+            # NO check at all. Measured: a non-exempt `def wipe(self, a: list): self.disk = a`
+            # VERIFIED, while in the same file `ensures self.disk[1000] == 99` (an
+            # attacker-chosen value inside the region) PROVED and the preservation claim
+            # `== 7` REFUSED — so the model itself certified the region had changed while the
+            # property claiming it had not was proved. Sound-by-rejection, mirroring the
+            # `protects` form (whose `_collect_protect_sites` matches the DOTTED PATH and so
+            # already catches this) and the reading form's alias rejection above. `__init__`
+            # is exempt: it CREATES the field, so there is no prior region for the property
+            # to be about.
+            for fn in funcs:
+                if fn.name in except_set or fn.name == "__init__":
+                    continue
+                for nd in ast.walk(fn):
+                    if not isinstance(nd, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
+                        continue
+                    tgts = (nd.targets if isinstance(nd, ast.Assign) else [nd.target])
+                    for tgt in tgts:
+                        if (isinstance(tgt, ast.Attribute)
+                                and isinstance(tgt.value, ast.Name)
+                                and tgt.value.id == "self"
+                                and tgt.attr == hp.field):
+                            lo, hi = (self._region_bound_str(hp.region_lo),
+                                      self._region_bound_str(hp.region_hi))
+                            raise PyCSLSemanticError(
+                                f"`happy {hp.name}`: non-exempt '{fn.name}' REBINDS the whole "
+                                f"field 'self.{hp.field}' (line "
+                                f"{getattr(nd, 'lineno', 0)}), replacing the protected region "
+                                f"[{lo}, {hi}) wholesale — a per-index check cannot constrain "
+                                f"a whole-array store. Write through self.{hp.field}[i] so "
+                                f"each index is checked, or add '{fn.name}' to the `except` "
+                                f"set if it is a legitimate owner.")
             # (C) Trust boundary: a non-exempt trusted/abstract function has no
             # checkable body, so it could write the protected region. It must opt in
             # with `#@ \preserves`, which synthesizes the canonical region-preservation
@@ -1051,7 +1513,10 @@ class Module3_Weaver:
         """07-1143 R3: like `_collect_protect_sites` but for a single indexed path,
         capturing the subscript INDEX ast — `(stmt, enclosing_func_name, index_ast)` for
         every point write `<path>[i] = v`. (Slice/whole-array writes to a parametric path
-        are not certifiable per-object; they are left to the non-footprint reject.)"""
+        are not certifiable per-object. They are NOT returned here, and — route #92 — they
+        were NOT caught by the `CSLBool(False)` non-footprint reject either, which fires only
+        on the sites THIS collector returns. They are now rejected outright by clause (R3b)
+        in the R3 branch of `_weave_happy`.)"""
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.Assign, ast.AnnAssign, ast.AugAssign)):
                 tgts = (child.targets if isinstance(child, ast.Assign)
@@ -1186,6 +1651,85 @@ class Module3_Weaver:
                 raise PyCSLSemanticError(
                     f"`happy {hp.name}`: secret '{s}' is not a parameter of '{hp.target}' "
                     f"(parameters: {formal}).")
+        # FINDING w67 / co-landing fix. The twin synthesized below attaches EXACTLY ONE
+        # obligation — `assert (ra == rb)` over the two RESULTS. NOTHING IN IT COMPARES
+        # `self` ACROSS THE TWO CALLS, so what the form buys is RESULT-noninterference while
+        # its name invites the reader to hear noninterference. A target that returns
+        # something secret-independent and writes the secret verbatim into an observable
+        # field satisfies the obligation exactly as written.
+        #
+        # The twin CANNOT be strengthened to cover the state channel: it calls the target
+        # twice on the SAME `self`, sequentially, so there is no second initial state
+        # against which to compare a final state — a genuine 2-run state relation needs a
+        # second `self`, which this synthesis does not have. Today the channel is fenced
+        # only by a COMPLETENESS GAP: a noninterference target that writes ANY field — even
+        # a literal `0`, with no secret in sight — already fails on the twin's own
+        # postcondition (MEASURED, finding w67; a target that merely READS state proves).
+        # That is an accident, not a guard, and the day self-composition works through
+        # state it evaporates and the state channel is unguarded.
+        #
+        # So reject the shape the obligation does not cover. REACHABILITY-based, not a scan
+        # of the target's own body, so a mutation reached through a helper cannot walk past
+        # it — keying a confinement check on the syntactic shape of one function is exactly
+        # what routes #91/#92 punished. A call through a NON-`self` receiver needs no
+        # traversal: it is opaque in the model and propagates nothing (finding w68).
+        # Spelled INLINE rather than as a helper for the #33 reason below.
+        _methods: Dict[str, Any] = {}
+        for _node in ast.walk(python_ast):
+            if isinstance(_node, ast.ClassDef):
+                for _item in _node.body:
+                    if isinstance(_item, ast.FunctionDef):
+                        _methods.setdefault(_item.name, _item)
+        _seen: set = set()
+        _work = [target_fn]
+        _writer = None
+        while _work and _writer is None:
+            _fn = _work.pop()
+            if _fn.name in _seen:
+                continue
+            _seen.add(_fn.name)
+            for _a in getattr(_fn, "csl_assigns", []) or []:
+                _txt = getattr(_a, "raw", None) or str(getattr(_a, "expr", _a))
+                if "self." in _txt:
+                    _writer = (_fn.name, _txt.strip())
+                    break
+            if _writer is not None:
+                break
+            for _nd in ast.walk(_fn):
+                _tgts = []
+                if isinstance(_nd, ast.Assign):
+                    _tgts = list(_nd.targets)
+                elif isinstance(_nd, (ast.AugAssign, ast.AnnAssign)):
+                    _tgts = [_nd.target]
+                for _t in _tgts:
+                    _base = _t
+                    while isinstance(_base, ast.Subscript):
+                        _base = _base.value
+                    if (isinstance(_base, ast.Attribute)
+                            and isinstance(_base.value, ast.Name)
+                            and _base.value.id == "self"):
+                        _writer = (_fn.name, "self." + _base.attr)
+                        break
+                if _writer is not None:
+                    break
+                if (isinstance(_nd, ast.Call) and isinstance(_nd.func, ast.Attribute)
+                        and isinstance(_nd.func.value, ast.Name)
+                        and _nd.func.value.id == "self"
+                        and _nd.func.attr in _methods):
+                    _work.append(_methods[_nd.func.attr])
+        if _writer is not None:
+            _wfn, _wfield = _writer
+            _via = ("" if _wfn == hp.target
+                    else f" (reached from '{hp.target}' via `self.{_wfn}(…)`)")
+            raise PyCSLSemanticError(
+                f"`happy {hp.name}`: noninterference target '{hp.target}' can WRITE state — "
+                f"`{_wfield}` in '{_wfn}'{_via}. The synthesized self-composition twin "
+                f"asserts only that the two RESULTS are equal (`ra == rb`); it calls the "
+                f"target twice on the same `self`, so it has no second initial state and "
+                f"CANNOT compare final state. A secret written into a field is therefore "
+                f"OUTSIDE the property this form proves. Make '{hp.target}' state-free (no "
+                f"`self.<field>` store on any path it reaches, `assigns \\nothing`), or drop "
+                f"the noninterference policy — it would not mean what its name says.")
         line = getattr(target_fn, "lineno", 0)
         secset = set(secret)
 
@@ -1251,10 +1795,1822 @@ class Module3_Weaver:
                     out.append((cur_stmt, site, cur_func))
             self._collect_field_read_sites(child, field, new_func, new_stmt, out)
 
+    # (#33) A CONTRACT BLOCK WITH NOTHING TO ATTACH TO IS DISCARDED, AND THE RUN STILL
+    # SAYS "All contracts formally proven". An annotation block binds to the node that
+    # FOLLOWS it; a block with no follower is dropped silently. Measured: a trailing
+    # `#@ ensures \result == 99` after a function returning 1 reported
+    # `[+] Verification SUCCESS! All contracts formally proven.` It cannot make a false
+    # statement provable, so it is not an unsoundness — it is the tool reporting success
+    # for work it did not do, which is the same dishonesty in a different place.
+    # STATEMENT-LEVEL directives are excluded and that exclusion is load-bearing: a
+    # trailing `#@ assert` IS the last statement of a body and attaches correctly (corpus
+    # 0710/0711/0712 end exactly that way). Filtering by directive KIND turns three false
+    # positives into zero. CENSUS: 0 in every population — `pycsl-reference`,
+    # `python-reference`, the negative corpus, the mirror, `pycsl_lib` and the live
+    # emitter — so this is byte-inert, and `bin/check-dropped-mutation.py`'s DANGLING
+    # counter (a hard 0) keeps it that way.
+    # SPELLED INLINE, not as a helper: a new method on this class becomes a new abstract
+    # `val module3_weaver___reject_dangling_contract_block` in the emission of EVERY mirror
+    # that imports the weaver (measured — `frontend/__init__` and `frontend/ir_resolve`
+    # both gained a declaration line and would each need a whole-file re-proof for a check
+    # whose census is 0). Same reason as `Module5_IREmitter._py_expr_call`'s `_fin`-family
+    # recognizer and `desugar`'s repeatability walk.
+    # (#34) WHICH DIRECTIVES EACH ANCHOR ACTUALLY CONSUMES. Every attachment site in this
+    # file is an `if/elif` chain with NO `else`, so a directive that reaches an anchor whose
+    # site does not name its class is DROPPED — silently, while the run still prints
+    # "All contracts formally proven". `process` already refused ONE case of that (a `#@`
+    # block with nothing after it to attach to); this is the same hazard one step later,
+    # where the block DOES have a follower but the follower ignores it.
+    #
+    # MEASURED VICTIMS, before this refusal:
+    #   · `src/pycsl_lib/re/_engine.py` — TWO `#@ class invariant` separated from
+    #     `class ReMatch:` by `__slots__` and a blank line, so they landed on `__init__`'s
+    #     FunctionDef anchor. `ReMatch` had NO invariants in the model.
+    #   · `src/pycsl_lib/os/UnixInodeFileSystem.py::_pad_name` — an `#@ assigns` and THREE
+    #     `#@ ensures` written AFTER the docstring, so they landed on the first body
+    #     statement. The source comment beside them says they are "surfaced as top-level
+    #     ensures so `_blit_dir_entry` can chain them"; they were not top-level anything.
+    #   · corpus `0299` — a `#@ loop invariant` + `#@ loop variant` above a `return`.
+    #   · corpus `0878`/`0880` and three mirror witness files — a stray `#@ ensures`
+    #     above a statement.
+    # `\trusted` is in the FunctionDef set, so a misplaced `\trusted` is now a hard error
+    # rather than a marker that counts but does nothing.
+    _STMT_LEVEL = (CSLLabel, CheckPoint, GhostAssignDecl, GhostArraySetDecl)
+    _ANY_ANCHOR = (DatatypeDecl, InductiveDecl, SharedDecl, MutexInvariant, LockOrder,
+                   HappyProperty)
+    _FUNCTION_LEVEL = (Requires, Ensures, Assigns, FunctionVariant, Diverges, NoInline,
+                       SiblingConcrete, VerifyModule, PropagateFrame, FreshGlobals,
+                       Trusted, Abstract, Lemma, Uses, InterfaceClause, Reveal, Preserves,
+                       Footprint, RaisesDecl, NoExceptionDecl, BoundedIntDecl, ProofDecl,
+                       ThreadEntry, Act, ForExpand, Complete, Disjoint, Given,
+                       MixinDecl, ProvidesDecl, SharedStateDecl, TouchesFieldDecl,
+                       MethodDependencyDecl, ComposeFromDecl, ConformsToDecl)
+    _ACCEPTS = {
+        "FunctionDef": _FUNCTION_LEVEL,
+        "ClassDef": (ClassInvariant, AllowFinalizerDecl, MixinDecl, ComposeFromDecl,
+                     ConformsToDecl),
+        "While": (LoopInvariant, LoopVariant) + _STMT_LEVEL,
+        "For": (LoopInvariant, LoopVariant, AllowIterationMutationDecl) + _STMT_LEVEL,
+        "With": (CriticalSection, Acquires, Releases) + _STMT_LEVEL,
+        "SimpleStatement": _STMT_LEVEL,
+        "TrailingSimpleStatement": _STMT_LEVEL,
+        "Module": (),
+    }
+
+    def _reject_misplaced_directives(self) -> None:
+        """Refuse a `#@` directive whose anchor's attachment site would ignore it."""
+        for extraction in self.extracted_data:
+            accepted = self._ACCEPTS.get(extraction.node_type)
+            if accepted is None:
+                continue
+            for node in self.parser_module.parse_node_contracts(
+                    extraction.contracts, extraction.line_number):
+                if isinstance(node, self._ANY_ANCHOR) or isinstance(node, accepted):
+                    continue
+                raise PyCSLSemanticError(
+                    f"line {extraction.line_number}: a "
+                    f"`{type(node).__name__}` directive is attached to a "
+                    f"{extraction.node_type} anchor "
+                    f"('{extraction.node_name}'), which does not consume it — the "
+                    f"clause would be SILENTLY DISCARDED while the run still reported "
+                    f"'All contracts formally proven'. A `#@` block binds to the node "
+                    f"that FOLLOWS it: move it directly above the "
+                    f"`def`/`class`/loop it describes.")
+
     def process(self) -> ast.AST:
+        _stmt_lvl = ("assert", "assume", "ghost", "loop", "label",
+                     "reveal", "unfold", "havoc")
+        _lines = self.source_code.split("\n")
+        _i = 0
+        while _i < len(_lines):
+            if not _lines[_i].strip().startswith("#@"):
+                _i += 1
+                continue
+            _j, _kinds, _first = _i, [], _i + 1
+            _col0 = True
+            while _j < len(_lines) and (_lines[_j].strip().startswith("#")
+                                        or not _lines[_j].strip()):
+                _m = re.match(r"#@\s+\\?([a-z_]+)", _lines[_j].strip())
+                if _m:
+                    _kinds.append(_m.group(1))
+                    if _lines[_j].startswith((" ", "\t")):
+                        _col0 = False
+                _j += 1
+            # (#34) THE STATEMENT-LEVEL EXEMPTION ONLY HOLDS WHEN THE BLOCK IS INDENTED.
+            # `assert`/`ghost`/`label`/… are exempt from the end-of-file refusal because a
+            # trailing `#@ assert` IS the last statement of a body — but that is true only
+            # INSIDE a body. At column 0 there is no enclosing block: Module 1's `_assign`
+            # takes the `elif nxt is None: pass` branch ("module-level trailing comment
+            # (indent 0) -> ignored, as libcst") and the directive is discarded. Measured:
+            #     def f() -> int: ... return 0
+            #     #@ assert 1 == 2                <-- FALSE, AND NEVER CHECKED
+            #     [+] Verification SUCCESS! All contracts formally proven.
+            # So an at-EOF block gets the exemption only if it is indented.
+            if _j >= len(_lines) and (_col0 or any(_k not in _stmt_lvl for _k in _kinds)):
+                raise PyCSLSemanticError(
+                    f"line {_first}: this `#@` contract block has nothing after it to "
+                    f"attach to (it runs to end-of-file), so it would be SILENTLY "
+                    f"DISCARDED while the run still reports 'All contracts formally "
+                    f"proven'. Move it directly above the `def`/`class` it describes, or "
+                    f"delete it. (Directives: {', '.join(_kinds) or '<none>'}.)")
+            _i = _j
         contracts_map, trailing_contracts_map = self._parse_extracted_contracts()
+        self._reject_misplaced_directives()
         happy_props = self._extract_happy_properties(contracts_map)
         python_ast = ast.parse(self.source_code)
+        # (#49) ROUTES #118 + #119 — A FUNCTION NAME IS NOT A CONSTANT IN PYTHON. Every call is
+        # resolved against the `def` of that name (module function or class method), and
+        # nothing consulted a LATER rebinding of it. Measured, each PROVING a contract of the
+        # original def while CPython ran the replacement: `inc = dec`; a class-body `m = n`; a
+        # module walrus `if (inc := dec):`; `global inc`; `_g["inc"] = dec` through a
+        # `globals()` alias (route #116's last carrier); and, surviving the first repair
+        # (#119, order 2): `C.m = C.n`, `vars()["inc"] = dec`, `locals()["inc"] = dec`,
+        # `setattr(sys.modules[__name__], "inc", dec)`, and ANY of these inside an IMPORTED
+        # module (the first repair sat in `pycsl._run_pipeline`, which imported dependencies
+        # never pass through — `ir_resolve` runs its own Module 1-3-5). There is no model of a
+        # rebound function, so REFUSE. PLACED HERE because this is the one step BOTH pipelines
+        # share and it already raises (so `check-trusted-raises-honesty` and the mirror
+        # emissions do not move — a `raise` in `Module5.visit_Module` measurably did).
+        # Keyed on the NAME being bound or the OBJECT being written through, never on the
+        # statement kind (two earlier cuts that enumerated kinds were each walked past).
+        #   (1) one pass per SCOPE (the module, every class body) over every child node except
+        #       nested def/class/lambda bodies: a Name Store/Del, import alias, except-as or
+        #       match capture of a def/class/method name AFTER its definition; a constant
+        #       `exec("...")` whose text names one is refused outright;
+        #   (2) `global <def name>` anywhere;
+        #   (3) a subscript store/del, or a mutating method call, through `globals()`,
+        #       `vars()`, `locals()`, a name bound to one of them, or any `.__dict__`;
+        #   (4) an attribute store/del whose attribute is a def/class/method name, on any
+        #       receiver except `self` (`self.<m> = fn` inside the class is fenced today by the
+        #       function-as-value "Symbol is already defined" error and is a WATCH item);
+        #   (5) `setattr`/`delattr` whose attribute is a def/class/method name or not a string
+        #       literal, on any receiver except `self`.
+        # CENSUS (all four trees): no site of (1)-(3); (4) only `self.` stores in pycsl_lib;
+        # (5) one, python-reference 0078 (expected-FAIL).
+        _rb_defs: Dict[str, int] = {}
+        _rb_all: set = set()
+        _rb_globs: set = set()
+        _rb_scopes: list = []
+        for _rb_st in python_ast.body:
+            if isinstance(_rb_st, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                _rb_defs.setdefault(_rb_st.name, _rb_st.lineno)
+            if (isinstance(_rb_st, ast.Assign) and len(_rb_st.targets) == 1
+                    and isinstance(_rb_st.targets[0], ast.Name)
+                    and isinstance(_rb_st.value, ast.Call)
+                    and isinstance(_rb_st.value.func, ast.Name)
+                    and _rb_st.value.func.id in ("globals", "vars", "locals")):
+                _rb_globs.add(_rb_st.targets[0].id)
+        _rb_all.update(_rb_defs)
+        # IMPORTED objects (a module alias or an imported name): an attribute write on one of
+        # them monkeypatches ANOTHER module (`plainlib.inc = plainlib.dec`, `K.m = K.n` after
+        # `from plainlib import K`) — measured PROVING, the first cut only knew this file's defs.
+        _rb_objs: set = set(_rb_defs)
+        # (#49) ROUTE #127 — the BUILTINS namespace is an object too: `__builtins__.len = seven`
+        # (no import needed) proved `len([1, 2]) == 2` while Python returned 7 (the first cut
+        # rooted only on imports and defs). `builtins` is covered once imported.
+        _rb_objs.add("__builtins__")
+        for _rb_x in ast.walk(python_ast):
+            if isinstance(_rb_x, (ast.Import, ast.ImportFrom)):
+                for _rb_a in _rb_x.names:
+                    _rb_objs.add((_rb_a.asname or _rb_a.name).split(".")[0])
+        # (#49) ROUTE #127 — ALIASES of an object root, and COMPUTED receivers. The rules below
+        # were keyed on the SPELLING of the receiver root; `bm = __builtins__; bm.len = seven`,
+        # `pm = plainlib; pm.inc = abs` and `getattr(__builtins__, "__dict__")["len"] = seven`
+        # each proved the original contract while Python ran the replacement. A name bound
+        # (anywhere, any scope) to an expression that REACHES an object root through
+        # attribute/subscript steps, or through a dynamic accessor call (`getattr`, `vars`,
+        # `globals`, `locals`, `type`, `__import__`, `eval`, `*.import_module`), is itself an
+        # object root, to a fixpoint. A CALL of a def/class (`C()`, `mk()`) produces a value,
+        # not the object, and taints nothing. An alias is never exempted as a "local".
+        _rb_alias: set = set()
+        _rb_retobj: set = set()
+        _rb_grew = True
+        while _rb_grew:
+            _rb_grew = False
+            for _rb_x in ast.walk(python_ast):
+                _rb_pairs: list = []
+                if isinstance(_rb_x, ast.Assign):
+                    _rb_pairs = [(_rb_t, _rb_x.value) for _rb_t in _rb_x.targets]
+                elif isinstance(_rb_x, (ast.AnnAssign, ast.NamedExpr)) and _rb_x.value is not None:
+                    _rb_pairs = [(_rb_x.target, _rb_x.value)]
+                elif isinstance(_rb_x, (ast.For, ast.AsyncFor)):
+                    _rb_pairs = [(_rb_x.target, _rb_x.iter)]
+                elif isinstance(_rb_x, ast.withitem) and _rb_x.optional_vars is not None:
+                    _rb_pairs = [(_rb_x.optional_vars, _rb_x.context_expr)]
+                elif (isinstance(_rb_x, (ast.FunctionDef, ast.AsyncFunctionDef))
+                      and _rb_x.name not in _rb_retobj):
+                    # a FUNCTION whose return value reaches an object root makes every call of
+                    # it an object (`def get(): return __builtins__`, then `bm = get()`).
+                    _rb_rq: list = list(_rb_x.body)
+                    while _rb_rq:
+                        _rb_ry = _rb_rq.pop()
+                        if isinstance(_rb_ry, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                               ast.ClassDef, ast.Lambda)):
+                            continue
+                        if isinstance(_rb_ry, ast.Return) and _rb_ry.value is not None:
+                            _rb_pairs.append((None, _rb_ry.value))
+                        _rb_rq.extend(ast.iter_child_nodes(_rb_ry))
+                for _rb_t, _rb_v in _rb_pairs:
+                    # the value REACHES an object when any name in it (outside the arguments of
+                    # an ordinary call, whose RESULT is a value) is an object root or alias, or
+                    # it calls a dynamic accessor, or it calls a function that returns an object.
+                    _rb_hit = False
+                    _rb_vq: list = [_rb_v]
+                    while _rb_vq and not _rb_hit:
+                        _rb_e = _rb_vq.pop()
+                        if isinstance(_rb_e, (ast.Lambda, ast.ListComp, ast.SetComp, ast.DictComp,
+                                              ast.GeneratorExp)):
+                            continue
+                        if isinstance(_rb_e, ast.Call):
+                            _rb_f = _rb_e.func
+                            if ((isinstance(_rb_f, ast.Name)
+                                 and _rb_f.id in ("globals", "locals", "type", "__import__", "eval"))
+                                    or (isinstance(_rb_f, ast.Attribute)
+                                        and _rb_f.attr == "import_module")
+                                    or (isinstance(_rb_f, ast.Name) and _rb_f.id in _rb_retobj)):
+                                _rb_hit = True
+                            elif (isinstance(_rb_f, ast.Name) and _rb_f.id in ("getattr", "vars")
+                                    and _rb_e.args):
+                                _rb_vq.append(_rb_e.args[0])
+                            continue
+                        if isinstance(_rb_e, ast.Name):
+                            _rb_hit = _rb_e.id in _rb_objs or _rb_e.id in _rb_alias
+                            continue
+                        _rb_vq.extend(ast.iter_child_nodes(_rb_e))
+                    if not _rb_hit:
+                        continue
+                    if _rb_t is None:
+                        _rb_retobj.add(_rb_x.name)
+                        _rb_grew = True
+                        break
+                    _rb_tq: list = [_rb_t]
+                    while _rb_tq:
+                        _rb_tn = _rb_tq.pop()
+                        if isinstance(_rb_tn, (ast.Tuple, ast.List)):
+                            _rb_tq.extend(_rb_tn.elts)
+                        elif isinstance(_rb_tn, ast.Starred):
+                            _rb_tq.append(_rb_tn.value)
+                        elif (isinstance(_rb_tn, ast.Name) and _rb_tn.id != "self"
+                                and _rb_tn.id not in _rb_alias):
+                            _rb_alias.add(_rb_tn.id)
+                            _rb_grew = True
+        _rb_mod_body: list = list(python_ast.body)
+        _rb_scopes.append((_rb_mod_body, _rb_defs))
+        for _rb_cls in ast.walk(python_ast):
+            if isinstance(_rb_cls, ast.ClassDef):
+                _rb_cdefs: Dict[str, int] = {}
+                for _rb_cst in _rb_cls.body:
+                    if isinstance(_rb_cst, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                        _rb_cdefs.setdefault(_rb_cst.name, _rb_cst.lineno)
+                _rb_all.update(_rb_cdefs)
+                if _rb_cdefs:
+                    _rb_scopes.append((list(_rb_cls.body), _rb_cdefs))
+        # (#49) ROUTE #127 — the receivers a NON-LITERAL `setattr` may write through: a local
+        # bound ONLY by assignments from an ordinary call (`out = copy.deepcopy(node)`, the
+        # emitter's own idiom) in the innermost enclosing function. A PARAMETER is not one:
+        # `__init_subclass__(cls): setattr(cls, n, ...)` rebinds a subclass's method (measured
+        # PROVING, Python 2). Keyed by the id of each call node inside that function.
+        _rb_inst: Dict[int, set] = {}
+        for _rb_fn2 in ast.walk(python_ast):
+            if not isinstance(_rb_fn2, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            _rb_callsets: set = set()
+            _rb_other: set = set()
+            _rb_calls2: list = []
+            _rb_q2: list = list(_rb_fn2.body)
+            while _rb_q2:
+                _rb_y2 = _rb_q2.pop()
+                if isinstance(_rb_y2, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+                                       ast.Lambda)):
+                    continue
+                _rb_is_call_assign = (
+                    isinstance(_rb_y2, ast.Assign) and len(_rb_y2.targets) == 1
+                    and isinstance(_rb_y2.targets[0], ast.Name)
+                    and isinstance(_rb_y2.value, ast.Call)
+                    and not (isinstance(_rb_y2.value.func, ast.Name)
+                             and _rb_y2.value.func.id in ("getattr", "vars", "globals", "locals",
+                                                          "type", "__import__", "eval")))
+                if _rb_is_call_assign:
+                    _rb_callsets.add(_rb_y2.targets[0].id)
+                    _rb_q2.append(_rb_y2.value)
+                    continue
+                if isinstance(_rb_y2, ast.Name) and isinstance(_rb_y2.ctx, (ast.Store, ast.Del)):
+                    _rb_other.add(_rb_y2.id)
+                if isinstance(_rb_y2, ast.Call):
+                    _rb_calls2.append(_rb_y2)
+                _rb_q2.extend(ast.iter_child_nodes(_rb_y2))
+            _rb_fa2 = _rb_fn2.args
+            _rb_params2 = {_rb_ar.arg for _rb_ar in (
+                list(getattr(_rb_fa2, "posonlyargs", []) or []) + list(_rb_fa2.args)
+                + list(_rb_fa2.kwonlyargs)
+                + [x for x in (_rb_fa2.vararg, _rb_fa2.kwarg) if x is not None])}
+            _rb_inst_locals = _rb_callsets - _rb_other - _rb_params2
+            for _rb_c2 in _rb_calls2:
+                _rb_inst[id(_rb_c2)] = _rb_inst_locals
+        _rb_bad: list = []
+        _rb_stack: list = []
+        for _rb_body, _rb_sdefs in _rb_scopes:
+            for _rb_x in _rb_body:
+                _rb_stack.append((_rb_x, _rb_sdefs, getattr(_rb_x, "lineno", 0)))
+        while _rb_stack:
+            _rb_s, _rb_scope_defs, _rb_line = _rb_stack.pop()
+            if isinstance(_rb_s, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+                                  ast.Lambda)):
+                continue
+            _rb_line = getattr(_rb_s, "lineno", None) or _rb_line
+            _rb_names: list = []
+            if isinstance(_rb_s, ast.Name) and isinstance(_rb_s.ctx, (ast.Store, ast.Del)):
+                _rb_names.append(_rb_s.id)
+            elif isinstance(_rb_s, (ast.Import, ast.ImportFrom)):
+                _rb_names = [(_rb_a.asname or _rb_a.name).split(".")[0] for _rb_a in _rb_s.names]
+            elif isinstance(_rb_s, (ast.ExceptHandler, ast.MatchAs)):
+                if isinstance(getattr(_rb_s, "name", None), str):
+                    _rb_names.append(_rb_s.name)
+            elif hasattr(ast, "MatchStar") and isinstance(_rb_s, ast.MatchStar):
+                if isinstance(getattr(_rb_s, "name", None), str):
+                    _rb_names.append(_rb_s.name)
+            for _rb_n in _rb_names:
+                if _rb_n in _rb_scope_defs and _rb_line > _rb_scope_defs[_rb_n]:
+                    _rb_bad.append(f"`{_rb_n}` rebound at line {_rb_line}")
+            for _rb_x in ast.iter_child_nodes(_rb_s):
+                _rb_stack.append((_rb_x, _rb_scope_defs, _rb_line))
+        for _rb_n in ast.walk(python_ast):
+            _rb_ln = getattr(_rb_n, "lineno", 0)
+            # A CONSTANT `exec("...")` is spliced in as source later (`splice_constant_exec`),
+            # AFTER this check. Its text is not parsed here (a `try/except SyntaxError` in this
+            # method measurably added an `exception SyntaxError` to two mirror emissions), so it
+            # is refused CONSERVATIVELY when it so much as names a def/class/imported object.
+            if (isinstance(_rb_n, ast.Call) and isinstance(_rb_n.func, ast.Name)
+                    and _rb_n.func.id == "exec" and _rb_n.args
+                    and isinstance(_rb_n.args[0], ast.Constant)
+                    and isinstance(_rb_n.args[0].value, str)):
+                _rb_toks = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", _rb_n.args[0].value))
+                if _rb_toks & (_rb_all | _rb_objs):
+                    _rb_bad.append(f"a constant `exec` naming a function or class at line {_rb_ln}")
+            if isinstance(_rb_n, ast.Global):
+                for _rb_g in _rb_n.names:
+                    if _rb_g in _rb_defs:
+                        _rb_bad.append(f"`global {_rb_g}` at line {_rb_ln}")
+            _rb_ns = None
+            if isinstance(_rb_n, ast.Subscript) and isinstance(_rb_n.ctx, (ast.Store, ast.Del)):
+                _rb_ns = _rb_n.value
+            elif (isinstance(_rb_n, ast.Call) and isinstance(_rb_n.func, ast.Attribute)
+                    and _rb_n.func.attr in ("update", "__setitem__", "__delitem__", "pop",
+                                            "popitem", "setdefault", "clear")):
+                _rb_ns = _rb_n.func.value
+            _rb_ns_alias = False
+            if _rb_ns is not None:
+                _rb_e2 = _rb_ns
+                while True:
+                    if isinstance(_rb_e2, (ast.Attribute, ast.Subscript)):
+                        _rb_e2 = _rb_e2.value
+                    elif isinstance(_rb_e2, ast.Call):
+                        _rb_f2 = _rb_e2.func
+                        if ((isinstance(_rb_f2, ast.Name)
+                             and _rb_f2.id in ("globals", "locals", "type", "__import__", "eval"))
+                                or (isinstance(_rb_f2, ast.Attribute)
+                                    and _rb_f2.attr == "import_module")):
+                            _rb_ns_alias = True
+                            break
+                        if (isinstance(_rb_f2, ast.Name) and _rb_f2.id in ("getattr", "vars")
+                                and _rb_e2.args):
+                            _rb_e2 = _rb_e2.args[0]
+                            continue
+                        break
+                    else:
+                        if isinstance(_rb_e2, ast.Name) and (
+                                _rb_e2.id in _rb_alias or _rb_e2.id == "__builtins__"):
+                            _rb_ns_alias = True
+                        break
+            if _rb_ns is not None and (
+                    (isinstance(_rb_ns, ast.Name) and (_rb_ns.id in _rb_globs
+                                                       or _rb_ns.id == "__builtins__"))
+                    # (#127) a subscript store / mutating call whose receiver chain roots at an
+                    # ALIAS of an object, or passes through a dynamic accessor call.
+                    or _rb_ns_alias
+                    or (isinstance(_rb_ns, ast.Call) and isinstance(_rb_ns.func, ast.Name)
+                        and _rb_ns.func.id in ("globals", "vars", "locals"))
+                    # (#138) `__dict__` is one of FOUR attributes that hand out a namespace
+                    # mapping. `f.__globals__.__setitem__("N", 5)` on a module def PROVED
+                    # `f() == 3` (CPython 5) — the receiver is an Attribute, so neither the
+                    # `_rb_globs` name rule nor the `__dict__` rule saw it. CENSUS of the four
+                    # spellings over the five trees: 2 sites (1402, 1403), both already
+                    # expected-FAIL route witnesses.
+                    or (isinstance(_rb_ns, ast.Attribute)
+                        and _rb_ns.attr in ("__dict__", "__globals__", "f_globals",
+                                            "f_locals"))):
+                _rb_bad.append(f"a write through a namespace dict at line {_rb_ln}")
+            if (isinstance(_rb_n, ast.Attribute) and isinstance(_rb_n.ctx, (ast.Store, ast.Del))
+                    and _rb_n.attr in _rb_all
+                    and not (isinstance(_rb_n.value, ast.Name) and _rb_n.value.id == "self")):
+                _rb_bad.append(f"attribute `.{_rb_n.attr}` rebound at line {_rb_ln}")
+            _rb_sa = None
+            if (isinstance(_rb_n, ast.Call) and isinstance(_rb_n.func, ast.Name)
+                    and _rb_n.func.id in ("setattr", "delattr") and len(_rb_n.args) >= 2):
+                _rb_sa = (_rb_n.args[0], _rb_n.args[1])
+            elif (isinstance(_rb_n, ast.Call) and isinstance(_rb_n.func, ast.Attribute)
+                    and _rb_n.func.attr in ("__setattr__", "__delattr__")):
+                # `object.__setattr__(c, "m", f)` / `type.__setattr__(C, "m", f)`: the SAME
+                # write as `setattr`, spelled as a dunder call. `super().__setattr__(name, v)`
+                # and `self.__setattr__(...)` are the instance-level spelling (WATCH, as (4)).
+                _rb_fv = _rb_n.func.value
+                if not ((isinstance(_rb_fv, ast.Name) and _rb_fv.id == "self")
+                        or (isinstance(_rb_fv, ast.Call) and isinstance(_rb_fv.func, ast.Name)
+                            and _rb_fv.func.id == "super")):
+                    if len(_rb_n.args) >= 2:
+                        _rb_sa = (_rb_n.args[0], _rb_n.args[1])
+            if _rb_sa is not None and not (isinstance(_rb_sa[0], ast.Name)
+                                           and _rb_sa[0].id == "self"):
+                _rb_a1 = _rb_sa[1]
+                _rb_lit = isinstance(_rb_a1, ast.Constant) and isinstance(_rb_a1.value, str)
+                # A NON-LITERAL attribute name is refused only on a class-or-module-like
+                # receiver (a module-level def/class name, or any non-Name expression such as
+                # `sys.modules[__name__]` / `type(x)`): `setattr(out, f.name, v)` on a plain
+                # local object is the emitter's own dataclass-copy idiom (live Module3_Weaver,
+                # measured: refusing it refused two MIRROR files that import it) and is the
+                # instance-level WATCH case, like `self.<m> = fn`.
+                _rb_recv_cls = ((not isinstance(_rb_sa[0], ast.Name)) or _rb_sa[0].id in _rb_objs
+                                or _rb_sa[0].id in _rb_alias)
+                if ((_rb_lit and (_rb_a1.value in _rb_all
+                                  or (isinstance(_rb_sa[0], ast.Name)
+                                      and (_rb_sa[0].id in _rb_objs
+                                           or _rb_sa[0].id in _rb_alias))))
+                        or (not _rb_lit and (_rb_recv_cls or not (
+                            isinstance(_rb_sa[0], ast.Name)
+                            and _rb_sa[0].id in _rb_inst.get(id(_rb_n), set()))))):
+                    _rb_bad.append(f"`setattr`/`delattr` of a function name at line {_rb_ln}")
+        # (6) ANY attribute store/del on an object that IS a module-level def or class, or an
+        # IMPORTED module/name —
+        # `inc.__code__ = dec.__code__` rewrites what `inc(...)` runs without touching a name.
+        # Scope-aware: inside a function the receiver must not be a parameter or a local of
+        # that function (pure_ast's `node.lineno = ...` stores on a PARAMETER named like a
+        # module function, and is not a rebinding).
+        _rb_fscopes: list = [(python_ast.body, set())]
+        for _rb_fn in ast.walk(python_ast):
+            if isinstance(_rb_fn, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                _rb_locals: set = set()
+                _rb_fa = _rb_fn.args
+                for _rb_arg in (list(getattr(_rb_fa, "posonlyargs", []) or []) + list(_rb_fa.args)
+                                + list(_rb_fa.kwonlyargs)
+                                + [x for x in (_rb_fa.vararg, _rb_fa.kwarg) if x is not None]):
+                    _rb_locals.add(_rb_arg.arg)
+                _rb_fbody = _rb_fn.body if isinstance(_rb_fn.body, list) else [_rb_fn.body]
+                _rb_globals_decl: set = set()
+                _rb_st2: list = list(_rb_fbody)
+                while _rb_st2:
+                    _rb_y = _rb_st2.pop()
+                    if isinstance(_rb_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+                                          ast.Lambda)):
+                        if hasattr(_rb_y, "name"):
+                            _rb_locals.add(_rb_y.name)
+                        continue
+                    if isinstance(_rb_y, ast.Name) and isinstance(_rb_y.ctx, (ast.Store, ast.Del)):
+                        _rb_locals.add(_rb_y.id)
+                    if isinstance(_rb_y, (ast.Import, ast.ImportFrom)):
+                        # an `import` inside a function still names a MODULE object: patching
+                        # it is global. Never let it hide as a "local".
+                        for _rb_a in _rb_y.names:
+                            _rb_globals_decl.add((_rb_a.asname or _rb_a.name).split(".")[0])
+                    if isinstance(_rb_y, ast.Global):
+                        _rb_globals_decl.update(_rb_y.names)
+                    _rb_st2.extend(ast.iter_child_nodes(_rb_y))
+                _rb_fscopes.append((_rb_fbody, _rb_locals - _rb_globals_decl))
+        for _rb_body, _rb_loc in _rb_fscopes:
+            _rb_st3: list = list(_rb_body)
+            while _rb_st3:
+                _rb_z = _rb_st3.pop()
+                if isinstance(_rb_z, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    continue
+                if isinstance(_rb_z, ast.Attribute) and isinstance(_rb_z.ctx, (ast.Store, ast.Del)):
+                    # Walk the receiver CHAIN to its root (`a.b[0].c` -> `a`), noting any call
+                    # on the way (`importlib.import_module("m").inc = dec`, `type(c).m = f`).
+                    _rb_root = _rb_z.value
+                    _rb_has_call = False
+                    while isinstance(_rb_root, (ast.Attribute, ast.Subscript, ast.Call)):
+                        if isinstance(_rb_root, ast.Call):
+                            _rb_has_call = True
+                            _rb_root = _rb_root.func
+                        else:
+                            _rb_root = _rb_root.value
+                    _rb_root_id = _rb_root.id if isinstance(_rb_root, ast.Name) else None
+                    if ((_rb_root_id in _rb_objs and _rb_root_id not in _rb_loc)
+                            or _rb_root_id in _rb_alias
+                            or (_rb_has_call and _rb_root_id != "self")):
+                        _rb_bad.append(f"attribute `.{_rb_z.attr}` written on "
+                                       f"`{_rb_root_id or '<expr>'}...` at line "
+                                       f"{getattr(_rb_z, 'lineno', 0)}")
+                _rb_st3.extend(ast.iter_child_nodes(_rb_z))
+        # (8) INSTANCE-LEVEL shadowing of a method: `self.m = abs` in `__init__` makes `c.m(-3)`
+        # call `abs` (measured PROVING the method's contract, Python 3). A builtin value slips
+        # past the function-as-value error that fenced `self.m = fn` for an in-file `fn`, so the
+        # earlier WATCH exemption was wrong. Keyed on the METHODS OF THE ENCLOSING CLASS AND ITS
+        # IN-MODULE BASES (a same-named field of an unrelated class is not a shadow: pycsl_lib
+        # `subproc` stores `self.returncode` beside another class's `returncode` method).
+        # `setattr(self, <non-literal>, v)` is refused only in a class that has a non-dunder
+        # method to shadow (pure_ast's node base sets its fields that way and has only dunders).
+        _rb_cls_by_name: Dict[str, Any] = {}
+        for _rb_c in ast.walk(python_ast):
+            if isinstance(_rb_c, ast.ClassDef):
+                _rb_cls_by_name.setdefault(_rb_c.name, _rb_c)
+        for _rb_c in ast.walk(python_ast):
+            if not isinstance(_rb_c, ast.ClassDef):
+                continue
+            _rb_meths: set = set()
+            _rb_todo: list = [_rb_c]
+            _rb_seen: set = set()
+            while _rb_todo:
+                _rb_k = _rb_todo.pop()
+                if id(_rb_k) in _rb_seen:
+                    continue
+                _rb_seen.add(id(_rb_k))
+                _rb_meths |= {_rb_s.name for _rb_s in _rb_k.body
+                              if isinstance(_rb_s, (ast.FunctionDef, ast.AsyncFunctionDef))}
+                for _rb_b in _rb_k.bases:
+                    if isinstance(_rb_b, ast.Name) and _rb_b.id in _rb_cls_by_name:
+                        _rb_todo.append(_rb_cls_by_name[_rb_b.id])
+                    elif not (isinstance(_rb_b, ast.Name) and _rb_b.id == "object"):
+                        # a base NOT defined in this module (imported, builtin, or an
+                        # expression): its methods are invisible here. A non-literal
+                        # `setattr(self, name, v)` could shadow any of them — measured
+                        # `C(K)` with `setattr(self, name, value)` and `C("m", int).m()`
+                        # PROVING `K.m`'s contract, Python 0.
+                        _rb_meths.add("<foreign-base>")
+            _rb_has_plain = any(not (_rb_m.startswith("__") and _rb_m.endswith("__"))
+                                for _rb_m in _rb_meths)
+            for _rb_q in ast.walk(_rb_c):
+                _rb_ql = getattr(_rb_q, "lineno", 0)
+                if (isinstance(_rb_q, ast.Attribute) and isinstance(_rb_q.ctx, (ast.Store, ast.Del))
+                        and isinstance(_rb_q.value, ast.Name) and _rb_q.value.id == "self"
+                        and _rb_q.attr in _rb_meths):
+                    _rb_bad.append(f"method `{_rb_q.attr}` shadowed by `self.{_rb_q.attr}` at line {_rb_ql}")
+                _rb_sargs = None
+                if (isinstance(_rb_q, ast.Call) and isinstance(_rb_q.func, ast.Name)
+                        and _rb_q.func.id in ("setattr", "delattr") and len(_rb_q.args) >= 2
+                        and isinstance(_rb_q.args[0], ast.Name) and _rb_q.args[0].id == "self"):
+                    _rb_sargs = _rb_q.args[1]
+                elif (isinstance(_rb_q, ast.Call) and isinstance(_rb_q.func, ast.Attribute)
+                        and _rb_q.func.attr in ("__setattr__", "__delattr__") and _rb_q.args
+                        and ((isinstance(_rb_q.func.value, ast.Name) and _rb_q.func.value.id == "self")
+                             or (isinstance(_rb_q.func.value, ast.Call)
+                                 and isinstance(_rb_q.func.value.func, ast.Name)
+                                 and _rb_q.func.value.func.id == "super"))):
+                    _rb_sargs = _rb_q.args[0]
+                elif (isinstance(_rb_q, ast.Call) and isinstance(_rb_q.func, ast.Attribute)
+                        and _rb_q.func.attr in ("__setattr__", "__delattr__")
+                        and len(_rb_q.args) >= 2 and isinstance(_rb_q.args[0], ast.Name)
+                        and _rb_q.args[0].id == "self"):
+                    # `object.__setattr__(self, name, v)`: the unbound spelling of the same write.
+                    _rb_sargs = _rb_q.args[1]
+                if _rb_sargs is not None:
+                    _rb_slit = isinstance(_rb_sargs, ast.Constant) and isinstance(_rb_sargs.value, str)
+                    if (_rb_slit and _rb_sargs.value in _rb_meths) or (not _rb_slit and _rb_has_plain):
+                        _rb_bad.append(f"method shadowed through `setattr` on self at line {_rb_ql}")
+        if _rb_bad:
+            raise PyCSLSemanticError(
+                "a function, method or class NAME is rebound after its definition ("
+                + "; ".join(sorted(set(_rb_bad))) + "). Every call is resolved against the "
+                "`def`, so the rebinding would be silently ignored (measured: `inc = dec` then "
+                "`inc(3)` proved the `inc` contract while Python ran `dec`). Rebinding a "
+                "function name is not modelled; give the new binding its own name.")
+        # (#49) ROUTES #121, #122 (module-scope arm), #124 — THREE MORE WAYS A NAME'S RUNTIME
+        # BINDING DIFFERS FROM THE `def` EVERY CALL IS RESOLVED AGAINST. Measured at 7c9dede2,
+        # each PROVING a claim CPython contradicts:
+        #   #121 a DECORATOR is silently dropped: `def swap(fn): return abs`, `@swap def inc`
+        #        -> `inc(-3)` proved `inc`'s contract (-2), Python 3.
+        #   #122 a def inside a module-level `if`/`try` competes with another binding of the
+        #        name and the model keeps the TEXTUALLY LAST one: `if FLAG == 1: def inc (-1)
+        #        else: def inc (+1)`, and the fallback idiom `try: from m import inc / except
+        #        ImportError: def inc` — both proved the fallback's contract, Python ran the other.
+        #   #124 `from m import *` AFTER a def rebinds the name: proved the def's contract.
+        # Keyed on the NAME and its BINDING SITES, never on the statement kind:
+        #   (a) a decorator is allowed only when every binding of its root name in the file is
+        #       either absent (and the name is a modelled builtin/marker: `property`,
+        #       `staticmethod`, `mutable_state`, `dataclass`), or exactly ONE canonical import
+        #       (`dataclasses.dataclass`, `functools.lru_cache/cache/cached_property`,
+        #       `contextlib.contextmanager`, `typing.overload`), or exactly ONE module-level
+        #       IDENTITY def (`def mutable_state(cls): return cls`); `mod.attr` only through a
+        #       plain `import mod` of those modules.
+        #   (b) a module-scope def/class NESTED IN A COMPOUND STATEMENT whose name has any other
+        #       module-scope binding.
+        #   (c) a star import preceded by a module-scope binding of any name other than the
+        #       anchor `_` (a `from __future__` import binds nothing here).
+        # CENSUS (pycsl-reference, python-reference, 53 mirrors, pycsl_lib): decorators in use
+        # are dataclass, staticmethod, property, mutable_state (identity defs or unbound),
+        # cached_property, lru_cache, contextmanager (+ `_contextmanager` alias), `_identity`
+        # (an identity def) — all allowed; (b) 0 sites (json/tool.py's two compound defs have no
+        # competing binding); (c) 0 sites (three star imports, each right after `_ = 0`).
+        _dc_canon = {("dataclasses", "dataclass"), ("functools", "lru_cache"),
+                     ("functools", "cache"), ("functools", "cached_property"),
+                     ("contextlib", "contextmanager"), ("typing", "overload")}
+        _dc_mods = {_dc_m for (_dc_m, _dc_a) in _dc_canon}
+        _dc_bare_ok = {"property", "staticmethod", "mutable_state", "dataclass"}
+        # every binding site of every name, file-wide: name -> [(kind, detail, node)]
+        _dc_sites: Dict[str, list] = {}
+        for _dc_n in ast.walk(python_ast):
+            if isinstance(_dc_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                _dc_sites.setdefault(_dc_n.name, []).append(("def", None, _dc_n))
+                if not isinstance(_dc_n, ast.ClassDef):
+                    _dc_fa = _dc_n.args
+                    for _dc_arg in (list(getattr(_dc_fa, "posonlyargs", []) or [])
+                                    + list(_dc_fa.args) + list(_dc_fa.kwonlyargs)
+                                    + [x for x in (_dc_fa.vararg, _dc_fa.kwarg) if x is not None]):
+                        _dc_sites.setdefault(_dc_arg.arg, []).append(("other", None, _dc_n))
+            elif isinstance(_dc_n, ast.Lambda):
+                for _dc_arg in _dc_n.args.args:
+                    _dc_sites.setdefault(_dc_arg.arg, []).append(("other", None, _dc_n))
+            elif isinstance(_dc_n, ast.Name) and isinstance(_dc_n.ctx, (ast.Store, ast.Del)):
+                _dc_sites.setdefault(_dc_n.id, []).append(("other", None, _dc_n))
+            elif isinstance(_dc_n, ast.Import):
+                for _dc_a in _dc_n.names:
+                    _dc_sites.setdefault((_dc_a.asname or _dc_a.name).split(".")[0], []).append(
+                        ("module", _dc_a.name if not _dc_a.asname or "." not in _dc_a.name
+                         else None, _dc_n))
+            elif isinstance(_dc_n, ast.ImportFrom):
+                for _dc_a in _dc_n.names:
+                    if _dc_a.name == "*":
+                        continue
+                    _dc_sites.setdefault(_dc_a.asname or _dc_a.name, []).append(
+                        ("from", (_dc_n.module or "", _dc_a.name) if not _dc_n.level else None,
+                         _dc_n))
+            elif isinstance(_dc_n, (ast.ExceptHandler, ast.MatchAs)) or (
+                    hasattr(ast, "MatchStar") and isinstance(_dc_n, ast.MatchStar)):
+                if isinstance(getattr(_dc_n, "name", None), str):
+                    _dc_sites.setdefault(_dc_n.name, []).append(("other", None, _dc_n))
+            elif isinstance(_dc_n, (ast.Global, ast.Nonlocal)):
+                for _dc_g in _dc_n.names:
+                    _dc_sites.setdefault(_dc_g, []).append(("other", None, _dc_n))
+        _dc_bad: list = []
+        for _dc_n in ast.walk(python_ast):
+            if not isinstance(_dc_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            for _dc_d in _dc_n.decorator_list:
+                _dc_t = _dc_d.func if isinstance(_dc_d, ast.Call) else _dc_d
+                _dc_ok = False
+                _dc_root = _dc_t.id if isinstance(_dc_t, ast.Name) else (
+                    _dc_t.value.id if (isinstance(_dc_t, ast.Attribute)
+                                       and isinstance(_dc_t.value, ast.Name)) else None)
+                _dc_s = _dc_sites.get(_dc_root, []) if _dc_root is not None else []
+                _dc_kind, _dc_det, _dc_node = ("", None, None)
+                if len(_dc_s) == 1:
+                    _dc_kind, _dc_det, _dc_node = _dc_s[0]
+                if isinstance(_dc_t, ast.Name):
+                    if not _dc_s:
+                        # a STAR import may bind the name to anything, so a bare builtin/marker
+                        # is trusted only in a module without one.
+                        _dc_ok = _dc_t.id in _dc_bare_ok and not any(
+                            isinstance(_dc_si, ast.ImportFrom)
+                            and any(_dc_sa.name == "*" for _dc_sa in _dc_si.names)
+                            for _dc_si in ast.walk(python_ast))
+                    elif _dc_kind == "from" and _dc_det in _dc_canon:
+                        # the recognizers downstream key on the SPELLING (`_is_memoized` on
+                        # `lru_cache`/`cache`/`cached_property`, `is_property` on `property`,
+                        # the CM fixpoint on a `...contextmanager` suffix): an ALIAS of a
+                        # canonical decorator would be ACCEPTED here and IGNORED there
+                        # (measured: `cached_property as memo_prop` proved route #94's stale
+                        # read). So the bound name must be the canonical one.
+                        _dc_dm, _dc_da = _dc_det
+                        _dc_ok = (_dc_t.id == _dc_da
+                                  or (_dc_da == "contextmanager"
+                                      and _dc_t.id.endswith("contextmanager")))
+                    elif (_dc_kind == "def" and isinstance(_dc_node, ast.FunctionDef)
+                          and _dc_node in python_ast.body):
+                        _dc_body = list(_dc_node.body)
+                        _dc_first = _dc_body[0] if _dc_body else None
+                        if (isinstance(_dc_first, ast.Expr)
+                                and isinstance(_dc_first.value, ast.Constant)
+                                and isinstance(_dc_first.value.value, str)):
+                            _dc_body = _dc_body[1:]
+                        _dc_fa = _dc_node.args
+                        _dc_ret = _dc_body[0] if len(_dc_body) == 1 else None
+                        _dc_p0 = _dc_fa.args[0] if len(_dc_fa.args) == 1 else None
+                        # an identity def must not borrow the spelling of a decorator a
+                        # recognizer gives MEANING to (`def property(f): return f` would make
+                        # `c.x` read the getter's value while Python returns the function).
+                        _dc_ok = (_dc_t.id not in ("property", "staticmethod", "classmethod",
+                                                   "dataclass", "lru_cache", "cache",
+                                                   "cached_property", "overload")
+                                  and not _dc_t.id.endswith("contextmanager")
+                                  and not _dc_node.decorator_list and _dc_p0 is not None
+                                  and not getattr(_dc_fa, "posonlyargs", [])
+                                  and not _dc_fa.kwonlyargs and _dc_fa.vararg is None
+                                  and _dc_fa.kwarg is None and not _dc_fa.defaults
+                                  and isinstance(_dc_ret, ast.Return)
+                                  and isinstance(_dc_ret.value, ast.Name)
+                                  and _dc_ret.value.id == _dc_p0.arg)
+                elif _dc_root is not None:
+                    _dc_ok = (_dc_kind == "module" and _dc_det == _dc_root
+                              and _dc_root in _dc_mods and (_dc_root, _dc_t.attr) in _dc_canon)
+                if not _dc_ok:
+                    _dc_bad.append(f"decorator `{ast.unparse(_dc_d)}` on `{_dc_n.name}` "
+                                   f"(line {_dc_n.lineno})")
+        # (b) defs/classes inside compound statements, and every binding site, per SCOPE: the
+        # module and EVERY CLASS BODY (function/class bodies nested in a scope are excluded).
+        # A class body is a scope too: `class C: if FLAG == 1: def m (2) else: def m (1)`
+        # proved `C().m() == 1` (the textually last), Python 2 — measured on the first cut,
+        # which walked only the module.
+        _dc_mscope: Dict[str, list] = {}
+        _dc_scope_list: list = [(python_ast.body, "the module")]
+        for _dc_cl in ast.walk(python_ast):
+            if isinstance(_dc_cl, ast.ClassDef):
+                _dc_scope_list.append((_dc_cl.body, f"class `{_dc_cl.name}`"))
+        _dc_is_module = True
+        for _dc_sbody, _dc_sname in _dc_scope_list:
+            _dc_sites2: Dict[str, list] = {}
+            _dc_nested: list = []
+            _dc_stack2: list = [(_dc_x, False) for _dc_x in _dc_sbody]
+            while _dc_stack2:
+                _dc_x, _dc_in_compound = _dc_stack2.pop()
+                if isinstance(_dc_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    _dc_sites2.setdefault(_dc_x.name, []).append(_dc_x.lineno)
+                    if _dc_in_compound:
+                        _dc_nested.append(_dc_x)
+                    for _dc_dd in _dc_x.decorator_list:
+                        _dc_stack2.append((_dc_dd, _dc_in_compound))
+                    continue
+                if isinstance(_dc_x, ast.Lambda):
+                    continue
+                _dc_bn: list = []
+                if isinstance(_dc_x, ast.Name) and isinstance(_dc_x.ctx, (ast.Store, ast.Del)):
+                    _dc_bn.append(_dc_x.id)
+                elif isinstance(_dc_x, ast.Import):
+                    _dc_bn = [(_dc_a.asname or _dc_a.name).split(".")[0] for _dc_a in _dc_x.names]
+                elif isinstance(_dc_x, ast.ImportFrom) and _dc_x.module != "__future__":
+                    _dc_bn = [_dc_a.asname or _dc_a.name for _dc_a in _dc_x.names
+                              if _dc_a.name != "*"]
+                elif isinstance(_dc_x, (ast.ExceptHandler, ast.MatchAs)) or (
+                        hasattr(ast, "MatchStar") and isinstance(_dc_x, ast.MatchStar)):
+                    if isinstance(getattr(_dc_x, "name", None), str):
+                        _dc_bn.append(_dc_x.name)
+                for _dc_b in _dc_bn:
+                    _dc_sites2.setdefault(_dc_b, []).append(getattr(_dc_x, "lineno", 0))
+                _dc_cmp = _dc_in_compound or isinstance(_dc_x, (ast.If, ast.Try, ast.For,
+                                                                ast.While, ast.With,
+                                                                ast.AsyncFor, ast.AsyncWith)) \
+                    or type(_dc_x).__name__ in ("TryStar", "Match")
+                for _dc_c in ast.iter_child_nodes(_dc_x):
+                    _dc_stack2.append((_dc_c, _dc_cmp))
+            for _dc_x in _dc_nested:
+                if len(_dc_sites2.get(_dc_x.name, [])) > 1:
+                    _dc_bad.append(f"`{_dc_x.name}` defined inside a compound statement at line "
+                                   f"{_dc_x.lineno} and bound elsewhere in {_dc_sname}")
+            if _dc_is_module:
+                _dc_mscope = _dc_sites2
+            _dc_is_module = False
+        # (c) a star import after a module-scope binding (a star import can only appear at
+        # module scope, but it may sit inside a module-level `if`/`try`), or after ANOTHER star
+        # import (measured: `from a import *; from b import *` proved a's `inc` while Python
+        # ran b's — the wildcard resolver keeps the first).
+        _dc_stars = sorted((_dc_x.lineno, _dc_x.module) for _dc_x in ast.walk(python_ast)
+                           if isinstance(_dc_x, ast.ImportFrom)
+                           and any(_dc_a.name == "*" for _dc_a in _dc_x.names))
+        _dc_first_star = True
+        for _dc_sl, _dc_sm in _dc_stars:
+            if not _dc_first_star:
+                _dc_bad.append(f"a second star import `from {_dc_sm} import *` at line {_dc_sl}")
+            _dc_first_star = False
+        for _dc_x in ast.walk(python_ast):
+            if isinstance(_dc_x, ast.ImportFrom) and any(_dc_a.name == "*" for _dc_a in _dc_x.names):
+                _dc_prior = sorted(_dc_b for _dc_b, _dc_ls in _dc_mscope.items()
+                                   if _dc_b != "_" and any(_dc_l < _dc_x.lineno for _dc_l in _dc_ls))
+                if _dc_prior:
+                    _dc_bad.append(f"`from {_dc_x.module} import *` at line {_dc_x.lineno} after "
+                                   f"a binding of `{_dc_prior[0]}`")
+        if _dc_bad:
+            raise PyCSLSemanticError(
+                "a name's runtime binding is not the `def` the model resolves it to ("
+                + "; ".join(sorted(set(_dc_bad))) + "). A decorator whose effect is not "
+                "modelled is silently dropped (measured: a decorator returning `abs` proved the "
+                "undecorated contract); a def inside `if`/`try` that competes with another "
+                "binding is resolved to the textually last one; a star import after a def "
+                "rebinds it. None of these is modelled: use a modelled decorator (or an "
+                "identity decorator `def d(f): return f`), give each definition its own "
+                "name, or move the star import above every definition.")
+        # (#49) ROUTES #130-#133 — FOUR MORE PLACES WHERE A NAME'S RUNTIME VALUE IS NOT THE ONE
+        # THE MODEL READS. Measured at 65237fdb, each PROVING a claim CPython contradicts:
+        #   #130 an IMPORTED name bound twice: `from plainlib import inc` then `from starlib
+        #        import inc` (or `inc = plainlib.dec`, `import a as m; import b as m`, a from-import
+        #        in a module `if`/`else`, a function-local import of another `inc`) — the model
+        #        keeps the FIRST import (#118 rule (1) keys on this file's defs only).
+        #   #131 a BUILTIN shadowed by an assignment: module `len = sum`, a local `len = sum`, a
+        #        module `for max in [min]` — `len(xs)` still lowered to the builtin length.
+        #   #132 the module/class CONSTANT FOLDERS (`module_collect.collect_module_*`,
+        #        `_collect_class_constants`) take "bound exactly once" from the TOP-LEVEL
+        #        single-name `Assign`/`AnnAssign` statements only: `N = 3; N += 2`, `if ...: N = 5`,
+        #        `N, M = 5, 6`, `for N in [5]`, `setattr(sys.modules[__name__], "N", 5)`, a class
+        #        body `N += 2`, and a folded str dict MUTATED (`OP.update(...)`, `OP["a"] = "c"`,
+        #        `d = OP; d["a"] = "c"` in a function) all read the first literal.
+        #   #133 a def NESTED IN A METHOD is lifted to a method of the class under its own name:
+        #        named like a method of that class, it REPLACED the method's body and dropped its
+        #        postcondition (`C.h` claiming 2 over `return 1` proved).
+        # CENSUS (pycsl-reference, python-reference, 53 mirrors, pycsl_lib): #130 witness 1342
+        # (already refused) and pycsl_lib json/tool.py (not ingested); #131 0 sites; #132 0 sites
+        # beyond an unread `_`/`__all__`, plus pycsl_lib json/encoder.py `ESCAPE_DCT.setdefault`
+        # (a genuine mutation of a folded dict); #133 0 sites.
+        _nb_bad: list = []
+        _nb_builtin_names = frozenset((
+            "ArithmeticError", "AssertionError", "AttributeError", "BaseException", "BaseExceptionGroup",
+            "BlockingIOError", "BrokenPipeError", "BufferError", "BytesWarning", "ChildProcessError",
+            "ConnectionAbortedError", "ConnectionError", "ConnectionRefusedError", "ConnectionResetError",
+            "DeprecationWarning", "EOFError", "Ellipsis", "EncodingWarning", "EnvironmentError",
+            "Exception", "ExceptionGroup", "False", "FileExistsError", "FileNotFoundError",
+            "FloatingPointError", "FutureWarning", "GeneratorExit", "IOError", "ImportError",
+            "ImportWarning", "IndentationError", "IndexError", "InterruptedError", "IsADirectoryError",
+            "KeyError", "KeyboardInterrupt", "LookupError", "MemoryError", "ModuleNotFoundError",
+            "NameError", "None", "NotADirectoryError", "NotImplemented", "NotImplementedError", "OSError",
+            "OverflowError", "PendingDeprecationWarning", "PermissionError", "ProcessLookupError",
+            "PythonFinalizationError", "RecursionError", "ReferenceError", "ResourceWarning",
+            "RuntimeError", "RuntimeWarning", "StopAsyncIteration", "StopIteration", "SyntaxError",
+            "SyntaxWarning", "SystemError", "SystemExit", "TabError", "TimeoutError", "True", "TypeError",
+            "UnboundLocalError", "UnicodeDecodeError", "UnicodeEncodeError", "UnicodeError",
+            "UnicodeTranslateError", "UnicodeWarning", "UserWarning", "ValueError", "Warning",
+            "ZeroDivisionError", "abs", "aiter", "all", "anext", "any", "ascii", "bin", "bool",
+            "breakpoint", "bytearray", "bytes", "callable", "chr", "classmethod", "compile", "complex",
+            "copyright", "credits", "delattr", "dict", "dir", "divmod", "enumerate", "eval", "exec", "exit",
+            "filter", "float", "format", "frozenset", "getattr", "globals", "hasattr", "hash", "help",
+            "hex", "id", "input", "int", "isinstance", "issubclass", "iter", "len", "license", "list",
+            "locals", "map", "max", "memoryview", "min", "next", "object", "oct", "open", "ord", "pow",
+            "print", "property", "quit", "range", "repr", "reversed", "round", "set", "setattr", "slice",
+            "sorted", "staticmethod", "str", "sum", "super", "tuple", "type", "vars", "zip"))
+        # binding sites per SCOPE (the module, every class body, every function body), not
+        # descending into nested def/class/lambda bodies nor into comprehension targets:
+        # name -> list of (kind, key, node); kind in def/store/import; key identifies an import.
+        _nb_scopes: list = [("module", python_ast.body, None)]
+        for _nb_x in ast.walk(python_ast):
+            if isinstance(_nb_x, ast.ClassDef):
+                _nb_scopes.append(("class", _nb_x.body, _nb_x))
+            elif isinstance(_nb_x, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                _nb_scopes.append(("function", _nb_x.body, _nb_x))
+        _nb_sites_of: Dict[int, Dict[str, list]] = {}
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            _nb_sites: Dict[str, list] = {}
+            _nb_st: list = list(_nb_body)
+            while _nb_st:
+                _nb_y = _nb_st.pop()
+                if isinstance(_nb_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    _nb_sites.setdefault(_nb_y.name, []).append(("def", None, _nb_y))
+                    _nb_st.extend(_nb_y.decorator_list)
+                    continue
+                if isinstance(_nb_y, ast.Lambda):
+                    continue
+                if type(_nb_y).__name__ == "comprehension":
+                    _nb_st.append(_nb_y.iter)
+                    _nb_st.extend(_nb_y.ifs)
+                    continue
+                if isinstance(_nb_y, ast.Name) and isinstance(_nb_y.ctx, (ast.Store, ast.Del)):
+                    _nb_sites.setdefault(_nb_y.id, []).append(("store", None, _nb_y))
+                elif isinstance(_nb_y, ast.Import):
+                    for _nb_a in _nb_y.names:
+                        _nb_root = _nb_a.name.split(".")[0]
+                        _nb_key = f"import {_nb_a.name}" if _nb_a.asname else f"import {_nb_root}"
+                        _nb_sites.setdefault(_nb_a.asname or _nb_root, []).append(
+                            ("import", _nb_key, _nb_y))
+                elif isinstance(_nb_y, ast.ImportFrom):
+                    for _nb_a in _nb_y.names:
+                        if _nb_a.name == "*":
+                            continue
+                        _nb_sites.setdefault(_nb_a.asname or _nb_a.name, []).append(
+                            ("import", f"from {_nb_y.level} {_nb_y.module} {_nb_a.name}", _nb_y))
+                elif type(_nb_y).__name__ in ("ExceptHandler", "MatchAs", "MatchStar"):
+                    if isinstance(getattr(_nb_y, "name", None), str):
+                        _nb_sites.setdefault(_nb_y.name, []).append(("store", None, _nb_y))
+                _nb_st.extend(ast.iter_child_nodes(_nb_y))
+            _nb_sites_of[id(_nb_body)] = _nb_sites
+        _nb_msites = _nb_sites_of.get(id(python_ast.body), {})
+        # (#130) an imported name with any other binding site of a different key, per scope; a
+        # function-local import of a name the module binds differently.
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            _nb_sites = _nb_sites_of.get(id(_nb_body), {})
+            for _nb_n, _nb_ss in _nb_sites.items():
+                _nb_ikeys = {_nb_k for (_nb_sk, _nb_k, _nb_nd) in _nb_ss if _nb_sk == "import"}
+                if not _nb_ikeys:
+                    continue
+                _nb_allkeys = {_nb_k for (_nb_sk, _nb_k, _nb_nd) in _nb_ss}
+                if len(_nb_allkeys) > 1:
+                    _nb_bad.append(f"imported name `{_nb_n}` bound again in the same scope")
+                if _nb_kind == "function" and _nb_n in _nb_msites:
+                    _nb_mkeys = {_nb_k for (_nb_sk, _nb_k, _nb_nd) in _nb_msites[_nb_n]}
+                    if _nb_mkeys != _nb_ikeys:
+                        _nb_bad.append(f"imported name `{_nb_n}` in function "
+                                       f"`{_nb_owner.name}` shadows a module binding")
+        # (#131) a builtin name bound by a store in a scope where it is also called.
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            if _nb_kind == "class":
+                continue
+            _nb_sites = _nb_sites_of.get(id(_nb_body), {})
+            _nb_shadow = {_nb_n for _nb_n, _nb_ss in _nb_sites.items()
+                          if _nb_n in _nb_builtin_names
+                          and any(_nb_sk == "store" for (_nb_sk, _nb_k, _nb_nd) in _nb_ss)}
+            # a PARAMETER named like a builtin is a binding too: `def f(len, xs): return
+            # len(xs)` lowered the call as the array length (`f(sum, [5]) == 1` proved, CPython 5).
+            if _nb_kind == "function":
+                _nb_pa = _nb_owner.args
+                for _nb_a in (list(getattr(_nb_pa, "posonlyargs", []) or []) + list(_nb_pa.args)
+                              + list(_nb_pa.kwonlyargs)
+                              + [x for x in (_nb_pa.vararg, _nb_pa.kwarg) if x is not None]):
+                    if _nb_a.arg in _nb_builtin_names:
+                        _nb_shadow.add(_nb_a.arg)
+            # `from builtins import sum as len` binds a builtin name to ANOTHER builtin; the
+            # import resolver treats a `builtins` import as the builtin of the bound name
+            # (measured past the first cut: `len([5]) == 1` proved, CPython 5).
+            for _nb_n, _nb_ss in _nb_sites.items():
+                for _nb_sk, _nb_k, _nb_nd in _nb_ss:
+                    if (_nb_sk == "import" and isinstance(_nb_nd, ast.ImportFrom)
+                            and _nb_nd.module in ("builtins", "__builtin__")):
+                        for _nb_a in _nb_nd.names:
+                            if _nb_a.asname and _nb_a.asname != _nb_a.name:
+                                _nb_bad.append(f"builtin `{_nb_a.name}` imported as "
+                                               f"`{_nb_a.asname}`")
+            if not _nb_shadow:
+                continue
+            # any LOAD of the rebound name in that scope (a call, `raise ValueError`, `except
+            # KeyError`, an `isinstance` argument): the first cut keyed on CALLS of a short
+            # list and was walked past by `ValueError = KeyError` (a `raise`/`except` pair
+            # proved the handler did not run, CPython 2). Census: 0 sites in the five trees.
+            _nb_where = python_ast if _nb_owner is None else _nb_owner
+            for _nb_c in ast.walk(_nb_where):
+                if (isinstance(_nb_c, ast.Name) and isinstance(_nb_c.ctx, ast.Load)
+                        and _nb_c.id in _nb_shadow):
+                    _nb_bad.append(f"builtin `{_nb_c.id}` rebound by an assignment and "
+                                   f"read at line {getattr(_nb_c, 'lineno', 0)}")
+        # (#132) a module/class constant the folders take as bound once (one top-level
+        # single-name Assign/AnnAssign of a literal) that is READ (a load, or a `#@` token)
+        # and has another binding site in its scope, is named by a literal setattr on a
+        # module-like receiver, or — a dict/set/list literal — is mutated or aliased anywhere.
+        _nb_readers = frozenset((
+            "get", "items", "keys", "values", "copy", "count", "index", "__contains__",
+            "__getitem__", "union", "intersection", "difference", "issubset", "issuperset",
+            "isdisjoint", "symmetric_difference"))
+        _nb_pure_calls = frozenset((
+            "len", "sorted", "list", "tuple", "set", "frozenset", "dict", "any", "all", "sum",
+            "min", "max", "enumerate", "zip", "reversed", "str", "repr", "bool", "isinstance"))
+        _nb_exec_names: set = set()
+        _nb_parent: Dict[int, Any] = {}
+        for _nb_x in ast.walk(python_ast):
+            for _nb_c in ast.iter_child_nodes(_nb_x):
+                _nb_parent[id(_nb_c)] = _nb_x
+        _nb_contract_toks: set = set()
+        for _nb_line in self.source_code.splitlines():
+            if _nb_line.lstrip().startswith("#@"):
+                _nb_contract_toks.update(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", _nb_line))
+        _nb_loads: set = set()
+        _nb_attr_loads: set = set()
+        for _nb_x in ast.walk(python_ast):
+            if isinstance(_nb_x, ast.Name) and isinstance(_nb_x.ctx, ast.Load):
+                _nb_loads.add(_nb_x.id)
+            elif isinstance(_nb_x, ast.Attribute) and isinstance(_nb_x.ctx, ast.Load):
+                _nb_attr_loads.add(_nb_x.attr)
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            if _nb_kind == "function":
+                continue
+            _nb_sites = _nb_sites_of.get(id(_nb_body), {})
+            _nb_once: Dict[str, list] = {}
+            for _nb_ch in _nb_body:
+                _nb_tg = None
+                _nb_val = None
+                if (isinstance(_nb_ch, ast.Assign) and len(_nb_ch.targets) == 1
+                        and isinstance(_nb_ch.targets[0], ast.Name)):
+                    _nb_tg = _nb_ch.targets[0]
+                    _nb_val = _nb_ch.value
+                elif (isinstance(_nb_ch, ast.AnnAssign) and isinstance(_nb_ch.target, ast.Name)
+                        and _nb_ch.value is not None):
+                    _nb_tg = _nb_ch.target
+                    _nb_val = _nb_ch.value
+                if _nb_tg is not None:
+                    _nb_once.setdefault(_nb_tg.id, []).append((_nb_tg, _nb_val))
+            for _nb_n, _nb_rows in _nb_once.items():
+                if len(_nb_rows) != 1:
+                    continue
+                _nb_tg, _nb_val = _nb_rows[0]
+                _nb_lit = (isinstance(_nb_val, ast.Constant)
+                           or (isinstance(_nb_val, ast.UnaryOp)
+                               and isinstance(_nb_val.operand, ast.Constant)))
+                _nb_mut = (isinstance(_nb_val, (ast.Dict, ast.Set, ast.List, ast.Tuple))
+                           or (isinstance(_nb_val, ast.Call) and isinstance(_nb_val.func, ast.Name)
+                               and _nb_val.func.id in ("frozenset", "set")))
+                # (#134) the same premise in two more single-binding recognizers: route #116's
+                # `F("name")(args)` resolver takes `G = globals()` as bound once from the TOP-LEVEL
+                # statements (`if True: G = {"inc": dec}` escaped: `F("inc")(3)` proved `inc`'s
+                # result, CPython ran `dec`), and `collect_module_globals` takes `g = C(...)`
+                # (a module-defined class) the same way.
+                _nb_obj = (_nb_kind == "module" and isinstance(_nb_val, ast.Call)
+                           and isinstance(_nb_val.func, ast.Name)
+                           and (_nb_val.func.id in ("globals", "vars", "locals")
+                                or any(isinstance(_nb_cd, ast.ClassDef)
+                                       and _nb_cd.name == _nb_val.func.id
+                                       for _nb_cd in python_ast.body)))
+                if not (_nb_lit or _nb_mut or _nb_obj):
+                    continue
+                _nb_read = (_nb_n in _nb_contract_toks
+                            or (_nb_n in _nb_loads if _nb_kind == "module"
+                                else (_nb_n in _nb_attr_loads or _nb_n in _nb_loads)))
+                if not _nb_read:
+                    continue
+                _nb_why = ""
+                if any(_nb_nd is not _nb_tg for (_nb_sk, _nb_k, _nb_nd) in _nb_sites.get(_nb_n, [])):
+                    _nb_why = "bound again in its scope"
+                if _nb_kind == "module" and not _nb_why:
+                    for _nb_x in ast.walk(python_ast):
+                        if (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)
+                                and _nb_x.func.id in ("setattr", "delattr") and len(_nb_x.args) >= 2
+                                and isinstance(_nb_x.args[1], ast.Constant)
+                                and _nb_x.args[1].value == _nb_n
+                                and not (isinstance(_nb_x.args[0], ast.Name)
+                                         and _nb_x.args[0].id not in _rb_objs
+                                         and _nb_x.args[0].id not in _rb_alias)):
+                            _nb_why = "written by a literal `setattr`"
+                            break
+                # a MUTABLE literal of a shape a folder takes (a str-keyed dict, a str set, a list
+                # of str tuples; a class-body str set): EVERY reference to the object must sit in
+                # a read position — keyed on the object, never on the spelling of a write (the
+                # first cut enumerated `d = OP` and was walked past by `d, e = OP, 1`, `for d in
+                # [OP]` and `L = [OP]`). One level of aliasing into a plain name is allowed when
+                # every load of that name is itself a read position.
+                _nb_shape = _nb_val
+                if (isinstance(_nb_shape, ast.Call) and isinstance(_nb_shape.func, ast.Name)
+                        and _nb_shape.func.id == "set" and len(_nb_shape.args) == 1):
+                    _nb_shape = _nb_shape.args[0]
+                _nb_escape = False
+                if isinstance(_nb_shape, ast.Set):
+                    _nb_escape = all(isinstance(_nb_e, ast.Constant) and isinstance(_nb_e.value, str)
+                                     for _nb_e in _nb_shape.elts)
+                elif isinstance(_nb_shape, ast.Dict) and _nb_kind == "module":
+                    _nb_escape = bool(_nb_shape.keys) and all(
+                        isinstance(_nb_e, ast.Constant) and isinstance(_nb_e.value, str)
+                        for _nb_e in _nb_shape.keys)
+                elif isinstance(_nb_shape, ast.List) and _nb_kind == "module":
+                    _nb_escape = bool(_nb_shape.elts) and all(
+                        isinstance(_nb_e, ast.Tuple) for _nb_e in _nb_shape.elts)
+                if _nb_escape and not _nb_why:
+                    _nb_refs: list = []
+                    for _nb_x in ast.walk(python_ast):
+                        if (_nb_kind == "module" and isinstance(_nb_x, ast.Name)
+                                and _nb_x.id == _nb_n and _nb_x is not _nb_tg):
+                            _nb_refs.append(_nb_x)
+                        elif (_nb_kind == "class" and isinstance(_nb_x, ast.Attribute)
+                                and _nb_x.attr == _nb_n):
+                            _nb_refs.append(_nb_x)
+                        elif (_nb_kind == "class" and isinstance(_nb_x, ast.Name)
+                                and _nb_x.id == _nb_n and _nb_x is not _nb_tg):
+                            _nb_refs.append(_nb_x)
+                    _nb_aliases: set = set()
+                    _nb_depth = 0
+                    while _nb_refs and not _nb_why:
+                        _nb_next: list = []
+                        for _nb_r in _nb_refs:
+                            _nb_p = _nb_parent.get(id(_nb_r))
+                            if not isinstance(getattr(_nb_r, "ctx", None), ast.Load):
+                                _nb_why = "mutated or rebound"
+                            elif (isinstance(_nb_p, ast.Attribute) and _nb_p.value is _nb_r
+                                    and _nb_p.attr in _nb_readers):
+                                continue
+                            elif (isinstance(_nb_p, ast.Subscript) and _nb_p.value is _nb_r
+                                    and isinstance(_nb_p.ctx, ast.Load)):
+                                continue
+                            elif isinstance(_nb_p, ast.BinOp):
+                                continue
+                            elif (isinstance(_nb_p, ast.Compare) and _nb_r is not _nb_p.left
+                                    and all(isinstance(_nb_o, (ast.In, ast.NotIn))
+                                            for _nb_o in _nb_p.ops)):
+                                continue
+                            elif (type(_nb_p).__name__ in ("For", "AsyncFor", "comprehension")
+                                    and getattr(_nb_p, "iter", None) is _nb_r):
+                                continue
+                            elif (isinstance(_nb_p, ast.Call) and _nb_r in _nb_p.args
+                                    and isinstance(_nb_p.func, ast.Name)
+                                    and _nb_p.func.id in _nb_pure_calls):
+                                continue
+                            elif (_nb_depth == 0
+                                    and isinstance(_nb_p, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
+                                    and _nb_p.value is _nb_r):
+                                _nb_tgts = (list(_nb_p.targets) if isinstance(_nb_p, ast.Assign)
+                                            else [_nb_p.target])
+                                for _nb_t in _nb_tgts:
+                                    if isinstance(_nb_t, ast.Name):
+                                        _nb_aliases.add(_nb_t.id)
+                                    else:
+                                        _nb_why = "aliased"
+                            else:
+                                _nb_why = "aliased or mutated"
+                            if _nb_why:
+                                break
+                        if _nb_depth == 0 and _nb_aliases and not _nb_why:
+                            for _nb_x in ast.walk(python_ast):
+                                if (isinstance(_nb_x, ast.Name) and _nb_x.id in _nb_aliases
+                                        and isinstance(_nb_x.ctx, ast.Load)):
+                                    _nb_next.append(_nb_x)
+                        _nb_refs = _nb_next
+                        _nb_depth = _nb_depth + 1
+                if _nb_why:
+                    _nb_where = "the module" if _nb_owner is None else f"class `{_nb_owner.name}`"
+                    _nb_bad.append(f"constant `{_nb_n}` of {_nb_where} {_nb_why}")
+                _nb_exec_names.add(_nb_n)
+        # a CONSTANT `exec("...")` is spliced in as source AFTER this check: refuse one whose text
+        # names a builtin, an imported name, or a folded constant (measured: `exec("len = sum")`
+        # proved `len([5]) == 1` past the first cut).
+        for _nb_n, _nb_ss in _nb_msites.items():
+            if any(_nb_sk == "import" for (_nb_sk, _nb_k, _nb_nd) in _nb_ss):
+                _nb_exec_names.add(_nb_n)
+        for _nb_x in ast.walk(python_ast):
+            if (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)
+                    and _nb_x.func.id == "exec" and _nb_x.args
+                    and isinstance(_nb_x.args[0], ast.Constant)
+                    and isinstance(_nb_x.args[0].value, str)):
+                _nb_toks = set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*", _nb_x.args[0].value))
+                if _nb_toks & (_nb_exec_names | _nb_builtin_names):
+                    _nb_bad.append(f"a constant `exec` naming a builtin, an imported name or a "
+                                   f"constant at line {getattr(_nb_x, 'lineno', 0)}")
+        # (#135) MODULE-SCOPE and CLASS-BODY code is never lowered: the weaver is its only
+        # fence, and #127's alias taint keys on how a value is SPELLED (an ordinary call
+        # "produces a value"). `m = ident(plainlib); m.inc = plainlib.dec`, `(lambda:
+        # plainlib)()`, `[x for x in [plainlib]][0]`, `ident(x=plainlib)` and
+        # `setattr(ident(plainlib), "inc", ...)` each proved the original `inc` (CPython ran
+        # `dec`). Keyed on the SINK: in those scopes an attribute store/delete, or a
+        # `setattr`/`delattr`, is allowed only on a receiver rooted at a name whose every
+        # binding in the file is a literal or a call of a class defined in this module (a
+        # fresh object), or at a name with no module-scope binding at all.
+        _nb_fresh_ok: Dict[str, bool] = {}
+        _nb_modcls = {_nb_cd.name for _nb_cd in python_ast.body if isinstance(_nb_cd, ast.ClassDef)}
+        _nb_has_star = any(isinstance(_nb_x, ast.ImportFrom)
+                           and any(_nb_a.name == "*" for _nb_a in _nb_x.names)
+                           for _nb_x in ast.walk(python_ast))
+        # (#137) THE NODES THAT ACTUALLY RUN WHEN THE MODULE (or a class body) RUNS. The first
+        # cut walked `iter_child_nodes` and `continue`d on every FunctionDef and Lambda, so
+        # THREE module-scope execution sites were never scanned at all (each PROVED the
+        # original `inc` while CPython ran `dec`):
+        #   a LAMBDA BODY called in place — `(lambda m: setattr(m, "inc", plainlib.dec))
+        #   (plainlib)` — where #119 rule (6) also exempts the lambda's PARAMETER receiver;
+        #   the same lambda in a CLASS BODY;
+        #   a def's DEFAULT ARGUMENT / annotation / decorator expression, all evaluated at
+        #   DEFINITION time — `def h(z = (lambda m: setattr(m, "inc", ...))(plainlib))`.
+        # A def's BODY is NOT executed here and stays out (an in-function patch is fenced by
+        # the value model). A lambda's body is admitted fail-closed: whether it is called in
+        # place cannot be read off the syntax.
+        # NO NESTED `def` HERE: this file is mirrored, `check-mirror-coverage` counts nested
+        # FunctionDefs, and the first cut's two helpers were LIFTED into methods and emitted
+        # as two extra abstract `val`s in `frontend/__init__` and `frontend/ir_resolve` (the
+        # two mirrors that ingest this one) — 2 MOVED on the mirror byte-diff.
+        _nb_lam_params: set = set()
+        _nb_mx_of: Dict[int, list] = {}
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            if _nb_kind == "function":
+                continue
+            _nb_out: list = []
+            _nb_stk: list = list(_nb_body)
+            while _nb_stk:
+                _nb_y = _nb_stk.pop()
+                if isinstance(_nb_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    _nb_ar = _nb_y.args
+                    _nb_stk.extend([_nb_d for _nb_d in (_nb_ar.defaults or [])
+                                    if _nb_d is not None])
+                    _nb_stk.extend([_nb_d for _nb_d in (_nb_ar.kw_defaults or [])
+                                    if _nb_d is not None])
+                    if isinstance(_nb_y, ast.Lambda):
+                        for _nb_a in (list(getattr(_nb_ar, "posonlyargs", []) or [])
+                                      + list(_nb_ar.args) + list(_nb_ar.kwonlyargs)
+                                      + [_nb_v for _nb_v in (_nb_ar.vararg, _nb_ar.kwarg)
+                                         if _nb_v is not None]):
+                            _nb_lam_params.add(_nb_a.arg)
+                        _nb_stk.append(_nb_y.body)
+                        continue
+                    _nb_stk.extend(_nb_y.decorator_list)
+                    _nb_stk.extend([_nb_a.annotation
+                                    for _nb_a in (list(getattr(_nb_ar, "posonlyargs", []) or [])
+                                                  + list(_nb_ar.args) + list(_nb_ar.kwonlyargs)
+                                                  + [_nb_v for _nb_v in (_nb_ar.vararg,
+                                                                         _nb_ar.kwarg)
+                                                     if _nb_v is not None])
+                                    if _nb_a.annotation is not None])
+                    if _nb_y.returns is not None:
+                        _nb_stk.append(_nb_y.returns)
+                    continue
+                if isinstance(_nb_y, ast.ClassDef):
+                    # the class BODY is its own scope entry in `_nb_scopes`; only the header
+                    # expressions run here.
+                    _nb_stk.extend(_nb_y.decorator_list)
+                    _nb_stk.extend(_nb_y.bases)
+                    _nb_stk.extend(_nb_y.keywords)
+                    continue
+                _nb_out.append(_nb_y)
+                _nb_stk.extend(ast.iter_child_nodes(_nb_y))
+            _nb_mx_of[id(_nb_body)] = _nb_out
+        # the bindings that a module-scope / class-body receiver name refers to: those in the
+        # module and class bodies themselves (a function-local binding is another variable).
+        _nb_mnodes: list = []
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            if _nb_kind == "function":
+                continue
+            _nb_mnodes.extend(_nb_mx_of.get(id(_nb_body), []))
+        for _nb_x in _nb_mnodes:
+            _nb_pairs: list = []
+            if isinstance(_nb_x, ast.Assign):
+                for _nb_t in _nb_x.targets:
+                    _nb_pairs.append((_nb_t, _nb_x.value))
+            elif isinstance(_nb_x, (ast.AnnAssign, ast.NamedExpr)):
+                _nb_pairs.append((_nb_x.target, _nb_x.value))
+            elif isinstance(_nb_x, (ast.For, ast.AsyncFor)):
+                _nb_pairs.append((_nb_x.target, None))
+            elif type(_nb_x).__name__ == "withitem" and _nb_x.optional_vars is not None:
+                _nb_pairs.append((_nb_x.optional_vars, None))
+            # (#137) the first cut enumerated the binding forms its author pictured, and a
+            # name bound by any OTHER form fell to the `not _nb_has_star` DEFAULT, i.e. FRESH.
+            # Measured: `[setattr(m, "inc", plainlib.dec) for m in [plainlib]]` at module
+            # scope proved the original `inc` (CPython ran `dec`) — the sink saw the
+            # `setattr`, but the comprehension target `m` was never recorded.
+            elif isinstance(_nb_x, ast.AugAssign):
+                _nb_pairs.append((_nb_x.target, None))
+            elif type(_nb_x).__name__ == "comprehension":
+                _nb_pairs.append((_nb_x.target, None))
+            elif type(_nb_x).__name__ in ("ExceptHandler", "MatchAs", "MatchStar"):
+                if isinstance(getattr(_nb_x, "name", None), str):
+                    _nb_fresh_ok[_nb_x.name] = False
+            elif isinstance(_nb_x, (ast.Import, ast.ImportFrom)):
+                for _nb_a in _nb_x.names:
+                    if _nb_a.name != "*":
+                        _nb_fresh_ok[_nb_a.asname or _nb_a.name.split(".")[0]] = False
+            for _nb_t, _nb_v in _nb_pairs:
+                _nb_good = (isinstance(_nb_t, ast.Name) and _nb_v is not None
+                            and (isinstance(_nb_v, (ast.Constant, ast.Dict, ast.List, ast.Set))
+                                 or (isinstance(_nb_v, ast.Call)
+                                     and isinstance(_nb_v.func, ast.Name)
+                                     and _nb_v.func.id in _nb_modcls)))
+                for _nb_tn in ast.walk(_nb_t):
+                    if isinstance(_nb_tn, ast.Name) and not isinstance(_nb_tn.ctx, ast.Load):
+                        _nb_fresh_ok[_nb_tn.id] = _nb_fresh_ok.get(_nb_tn.id, True) and _nb_good
+        # a LAMBDA PARAMETER is bound by the caller, not by the module: it describes no
+        # object this file can see (the `(lambda m: setattr(m, ...))(plainlib)` carrier).
+        for _nb_n in _nb_lam_params:
+            _nb_fresh_ok[_nb_n] = False
+        # `__builtins__` is never bound by this file, so the "no module-scope binding" exemption
+        # would have made THE builtin namespace the one receiver every sink here trusts.
+        _nb_fresh_ok["__builtins__"] = False
+        # (#138) the mutating DICT methods #118 already enumerates. At module/class-body scope
+        # they are the same sink as a subscript store, one spelling over: `f.__globals__
+        # .__setitem__("N", 5)` PROVED `f() == 3` (CPython 5) past gen #26's draft-9, whose
+        # subscript rule keys on the PATH but never sees a method call.
+        _nb_mutators = frozenset(("update", "__setitem__", "__delitem__", "pop", "popitem",
+                                  "setdefault", "clear"))
+        for _nb_kind, _nb_body, _nb_owner in _nb_scopes:
+            if _nb_kind == "function":
+                continue
+            for _nb_y in _nb_mx_of.get(id(_nb_body), []):
+                _nb_recv = None
+                if isinstance(_nb_y, ast.Attribute) and isinstance(_nb_y.ctx, (ast.Store, ast.Del)):
+                    _nb_recv = _nb_y.value
+                elif (isinstance(_nb_y, ast.Call) and isinstance(_nb_y.func, ast.Name)
+                        and _nb_y.func.id in ("setattr", "delattr") and _nb_y.args):
+                    _nb_recv = _nb_y.args[0]
+                # (#138) a `getattr` AT MODULE/CLASS-BODY SCOPE hands out an object this file
+                # cannot describe, and gen #26's computed-getattr arm scoped itself TWICE by
+                # things an alias defeats: by the RECEIVER'S NAME (`_nb_imported` is file-wide,
+                # so `b = builtins; getattr(b, "set" + "attr")(plainlib, "inc", plainlib.dec)`
+                # walked past it) and by the SYNTACTIC SHAPE `Call(func=Call(getattr, ...))`
+                # (so `sa = getattr(builtins, "set" + "attr"); sa(...)` walked past it too).
+                # BOTH PROVED `plainlib.inc(3) == 4`; CPython returns 2. Keyed on the PATH, like
+                # every other sink here. CENSUS of module/class-scope `getattr`: 2 sites, both
+                # already-expected-FAIL route witnesses (1351, 1396); 0 in python-reference, the
+                # 53 mirrors, `pycsl_lib` and `src/pycsl` (the emitter's own
+                # `getattr(self, handler_name)(node)` dispatch is inside function bodies).
+                elif (isinstance(_nb_y, ast.Call) and isinstance(_nb_y.func, ast.Name)
+                        and _nb_y.func.id == "getattr" and _nb_y.args):
+                    _nb_recv = _nb_y.args[0]
+                # (#138) ... and a MUTATING DICT METHOD on a receiver this file cannot describe.
+                # CENSUS: 12 module/class-scope sites over the five trees — 1401 (already
+                # expected-FAIL) plus eleven whose receiver IS a fresh name (`b = Buffer()` in
+                # 0192, `ESCAPE_DCT` and `_EMIT_IR_HANDLER_ATTR_PROJ`, both module dict
+                # literals), so no live program changes verdict.
+                elif (isinstance(_nb_y, ast.Call) and isinstance(_nb_y.func, ast.Attribute)
+                        and _nb_y.func.attr in _nb_mutators):
+                    _nb_recv = _nb_y.func.value
+                # a SUBSCRIPT store is the same sink one spelling over. #118's rule
+                # enumerates the DICT spellings that name a namespace (`globals()[k]`,
+                # `vars()[k]`, `<mod>.__dict__[k]`), and two more reach the very same
+                # dict: `f.__globals__["N"] = 5` on a module def and
+                # `inspect.currentframe().f_globals["N"] = 5` both PROVED `N == 3`
+                # (CPython 5). Keyed on the PATH being written, not on the spelling:
+                # at module/class-body scope the receiver must be a name this file can
+                # describe. CENSUS of non-Name receivers: 2 in pycsl-reference (1326 and
+                # 1351, both already expected-FAIL), 0 everywhere else.
+                elif isinstance(_nb_y, ast.Subscript) and isinstance(_nb_y.ctx,
+                                                                     (ast.Store, ast.Del)):
+                    _nb_recv = _nb_y.value
+                if _nb_recv is not None:
+                    # the receiver itself must be that name: a deeper chain (`m.x.inc`,
+                    # `ms[0].inc`) reaches an object the binding does not describe (measured
+                    # past the first cut: `m = H(plainlib); m.x.inc = ...` and `ms =
+                    # [ident(plainlib)]; ms[0].inc = ...` both proved the original `inc`).
+                    # a name with no module-scope binding is exempt only in a file without a
+                    # star import (`from aliaslib import *` exporting `pm = plainlib`, then
+                    # `pm.inc = plainlib.dec`, proved the original `inc` past the second cut).
+                    if not (isinstance(_nb_recv, ast.Name)
+                            and _nb_fresh_ok.get(_nb_recv.id, not _nb_has_star)):
+                        _nb_bad.append(f"an attribute or item written, or a namespace reached, "
+                                       f"at {_nb_kind} scope on a computed receiver at line "
+                                       f"{getattr(_nb_y, 'lineno', 0)}")
+        # (#136) A DYNAMIC `exec`, AND AN `eval` THAT CAN BIND, REBIND NAMES WHOSE VALUES THE
+        # MODEL HAS ALREADY FOLDED OR RESOLVED — and NOTHING downstream models the value.
+        # `exec_splice.py` splices only a CONSTANT single-argument `exec` and defers the rest
+        # to "scope havoc + frame taint, P5a/P5a'"; both handlers were located and neither
+        # touches a value: `_scope_dyn_exec` only withholds the `\in_scope` decided-FALSE
+        # direction, and `exec_havoc … writes {int_mem}` exists only in the typed/store
+        # memory model. The same docstring (and `_has_dynamic_exec`) assert that eval "does
+        # not inject names" — false since 3.8's walrus. Measured, each PROVING what CPython
+        # contradicts: module-scope `exec("N" + " = 5")` over a folded `N = 3`; `S = "N = 5";
+        # exec(S)`; `exec("le" + "n = sum")` then `len([5]) == 1`; `exec("in" + "c = dec")`
+        # over an imported `inc`; `exec("in" + "c = lambda y: y - 1")` over a module def;
+        # `eval("(N := 5)")`; and, inside a function, `exec(code, globals())` and
+        # `eval("(N := 5)", globals())`.
+        # SCOPED TO WHERE THE BINDING REACHES THE MODULE NAMESPACE: assignments made by a
+        # bare `exec`/`eval` go to the LOCALS mapping, which IS the module globals at module
+        # and class-body scope and is a discarded snapshot inside a function. So a bare call
+        # in a function body is left alone (corpus 0638/0639/0644 keep demonstrating the
+        # `\in_scope` havoc and the frame taint); an explicit mapping argument is refused
+        # anywhere. CENSUS: pycsl-reference 3 dynamic execs (0638 0639 0644, all bare and
+        # in a function/method), python-reference 2 evals (0109 0217, constant, no walrus),
+        # 53 mirrors 0, pycsl_lib 0.
+        _nb_ns_builtins = frozenset(("exec", "eval", "setattr", "delattr", "globals",
+                                     "vars", "locals", "getattr"))
+        _nb_modexec_ids = {id(_nb_x) for _nb_x in _nb_mnodes}
+        for _nb_x in ast.walk(python_ast):
+            if not (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)
+                    and _nb_x.func.id in ("exec", "eval")):
+                continue
+            _nb_src = _nb_x.args[0] if _nb_x.args else None
+            _nb_const = (isinstance(_nb_src, ast.Constant)
+                         and isinstance(_nb_src.value, str))
+            if _nb_x.func.id == "eval":
+                # an `eval` BINDS through a walrus — and also through any namespace
+                # builtin its expression reaches. The first cut keyed on `:=` alone and
+                # was walked past by `eval("globals().update({'N': 5})")` and
+                # `eval("exec('N = 5')")`, both of which PROVED `N == 3` (CPython 5).
+                # A constant text naming none of them cannot rebind anything
+                # (python-reference 0109/0217 are `eval("2 + 3")` — no identifiers).
+                # (#138) ... AND THE TOKEN RULE IS STILL A SPELLING RULE. An eval text that
+                # reaches the namespace WITHOUT naming one of the eight walks past it:
+                # `eval("f.__globals__.__setitem__('N', 5)")` PROVED `f() == 3` (CPython 5).
+                # A text can only bind or mutate through a CALL, an ATTRIBUTE, a SUBSCRIPT or
+                # an `=`; a text with none of `( . [ =` is a closed arithmetic/literal
+                # expression. The text is NOT parsed here on purpose — a `try/except
+                # SyntaxError` in this method measurably added an `exception SyntaxError` to
+                # two mirror emissions (see the constant-`exec` note above). CENSUS of the
+                # eleven constant `eval`/`exec` texts over the five trees: the three that
+                # PASS today are all `eval("2 + 3")` (1397, python-reference 0109 and 0217),
+                # which contains none of the four characters; every other one already FAILS.
+                # `exec` is deliberately NOT given this rule: a constant `exec` is SPLICED IN
+                # AS REAL SOURCE by `splice_constant_exec` and is modelled (0642, 0643).
+                _nb_binds = ((not _nb_const) or (":=" in _nb_src.value)
+                             or any(_nb_ch in _nb_src.value for _nb_ch in "(.[=")
+                             or bool(set(re.findall(r"[A-Za-z_][A-Za-z0-9_]*",
+                                                    _nb_src.value)) & _nb_ns_builtins))
+            else:
+                _nb_binds = not _nb_const
+            if not _nb_binds:
+                continue
+            # (#138) the LOCATION gate is about where an ASSIGNMENT lands (the locals mapping,
+            # which is a discarded snapshot inside a function). A text that MUTATES THROUGH A
+            # CALL does not care: a bare in-function `eval("f.__globals__.__setitem__('N', 5)")`
+            # reaches the real module globals and PROVED `f() == 3` (CPython 5). So a constant
+            # text carrying a call, an attribute or a subscript is refused wherever it stands.
+            # ... and a NON-CONSTANT text is unknown, so it reaches too: `S =
+            # "f.__globals__.__setitem__('N', 5)"` with a bare in-function `eval(S)` PROVED
+            # `f() == 3` (CPython 5) past the constant-text form of this widening. CENSUS of
+            # dynamic `eval`: 0 in pycsl-reference, python-reference, the 53 mirrors and
+            # `pycsl_lib`; 1 in `src/pycsl` (`module6_whyml/auto_trust.py:188`), whose mirror
+            # method is `\trusted` and carries no body. `exec` keeps the location gate: its
+            # constant form is spliced in as real source and its dynamic form is what 0638,
+            # 0639, 0644 and 1397 exercise.
+            # (#49) ROUTE #229 — THE LOCATION GATE'S PREMISE IS FALSE FOR `exec`, AND
+            # `global` IS EXACTLY THE BINDING FORM THAT BREAKS IT.
+            # The gate above rests on "assignments made by a bare `exec`/`eval` go to the
+            # LOCALS mapping, which ... is a discarded snapshot inside a function". True of a
+            # plain assignment. A `global` DECLARATION inside the exec'd text redirects the
+            # assignment into the GLOBALS mapping — and at function scope `exec`'s globals
+            # mapping is still the REAL module globals. The snapshot is discarded; the
+            # assignment never went there. MEASURED:
+            #     N = 3
+            #     def rebind(): code = "global N\nN = 5"; exec(code)
+            #     def read() -> int: return N        under `#@ ensures \result == 3`
+            # PROVED "All contracts formally proven"; CPython returns 5 after `rebind()`.
+            # (`getting-better/open-routes/route229-*`.)
+            # AND IT CANNOT BE A SPELLING RULE — that is the mistake this block already made
+            # twice (the `:=` cut, then the token cut). The text is DYNAMIC, so the emitter
+            # cannot read it AT ALL, and any rule about its contents is unfounded by
+            # construction. So a NON-CONSTANT `exec` now reaches exactly as a non-constant
+            # `eval` already did: the location gate survives only for a CONSTANT `exec`, whose
+            # text IS spliced in as real source by `splice_constant_exec` and is therefore
+            # modelled.
+            # COST, paid deliberately and not hidden: 0638/0639/0644 and 1397 all call
+            # `exec(code)` with `code` a PARAMETER, so all four are now refused. 1397 was an
+            # expected-PASS positive control whose docstring ASSERTED the premise this route
+            # refutes; it is re-marked and corrected rather than left encoding a falsehood.
+            _nb_reach = ((not _nb_const)
+                         or (_nb_x.func.id == "eval"
+                             and any(_nb_ch in _nb_src.value for _nb_ch in "(.[")))
+            if (_nb_reach or len(_nb_x.args) > 1 or _nb_x.keywords
+                    or id(_nb_x) in _nb_modexec_ids):
+                _nb_bad.append(f"a dynamic `{_nb_x.func.id}` that can bind into the module "
+                               f"namespace at line {getattr(_nb_x, 'lineno', 0)}")
+        # (#136/#137, SECOND CUT — found by carrier-rerun on this block's own first cut)
+        # EVERY RECOGNIZER THAT GUARDS THE NAMESPACE KEYS ON THE SPELLING OF A BUILTIN —
+        # #118's namespace-dict rule, #119's `setattr`/`delattr` rule, #127's computed
+        # `getattr`, the two arms just above. ONE ALIAS DEFEATS THEM ALL AT ONCE, and both
+        # spellings PROVED against the first cut of this very block: `sa = setattr;
+        # sa(plainlib, "inc", plainlib.dec)` (CPython 2) and `ex = exec; ex("N" + " = 5")`
+        # (CPython 5). So a namespace-reaching builtin read ANYWHERE other than as the
+        # CALLEE of a call is refused — keyed on the read, not on the twenty spellings of a
+        # write. CENSUS over pycsl-reference, python-reference, the 53 mirrors, `pycsl_lib`
+        # and `src/pycsl`: 0 sites. `__import__` is deliberately NOT in the list — no
+        # recognizer keys on it and python-reference 0127 reads it as a value.
+        _nb_callees = {id(_nb_x.func) for _nb_x in ast.walk(python_ast)
+                       if isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)}
+        _nb_imported: set = set()
+        for _nb_x in ast.walk(python_ast):
+            if isinstance(_nb_x, ast.Import):
+                for _nb_a in _nb_x.names:
+                    _nb_imported.add(_nb_a.asname or _nb_a.name.split(".")[0])
+            elif isinstance(_nb_x, ast.ImportFrom):
+                for _nb_a in _nb_x.names:
+                    if _nb_a.name != "*":
+                        _nb_imported.add(_nb_a.asname or _nb_a.name)
+        for _nb_x in ast.walk(python_ast):
+            if (isinstance(_nb_x, ast.Name) and isinstance(_nb_x.ctx, ast.Load)
+                    and _nb_x.id in _nb_ns_builtins and id(_nb_x) not in _nb_callees):
+                _nb_bad.append(f"the namespace builtin `{_nb_x.id}` read as a value at line "
+                               f"{getattr(_nb_x, 'lineno', 0)}")
+            # the same builtin reached as an ATTRIBUTE — `import builtins;
+            # builtins.setattr(plainlib, "inc", plainlib.dec)` PROVED past the cut above,
+            # and #127's `__builtins__` rules do not name the `builtins` MODULE. Census of
+            # `.exec/.eval/.setattr/.delattr/.globals/.vars/.locals/.getattr` over the five
+            # trees: 0 sites.
+            elif isinstance(_nb_x, ast.Attribute) and _nb_x.attr in _nb_ns_builtins:
+                _nb_bad.append(f"the namespace builtin `{_nb_x.attr}` reached as an "
+                               f"attribute at line {getattr(_nb_x, 'lineno', 0)}")
+            # ... and reached by a `getattr` ON A NAMESPACE OBJECT that is then CALLED:
+            # `getattr(builtins, "set" + "attr")(plainlib, "inc", plainlib.dec)` names none
+            # of the spellings above. #127 already refuses a computed `getattr` on the WRITE
+            # side; this is its read side.
+            # SCOPED TO A NAMESPACE RECEIVER — `__builtins__` or an IMPORTED name. The first
+            # cut refused EVERY `getattr(...)(...)` on a census I read off a TRUNCATED
+            # listing ("the 333 sites are all `_N(cls)(...)`"): the real count of
+            # `getattr(obj, name)(...)` is 2 in the mirrors and 5 in `src/pycsl` — the
+            # emitter's own `getattr(self, handler_name)(node)` dispatch — and the mirror
+            # emission sweep caught it as FOUR GONE mirrors. A `self`/local receiver is not
+            # a namespace and is untouched; census under the scoped rule: 0 live sites.
+            elif (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Call)
+                    and isinstance(_nb_x.func.func, ast.Name)
+                    and _nb_x.func.func.id == "getattr"
+                    and _nb_x.func.args
+                    and isinstance(_nb_x.func.args[0], ast.Name)
+                    and (_nb_x.func.args[0].id == "__builtins__"
+                         or _nb_x.func.args[0].id in _nb_imported)):
+                _nb_bad.append(f"a `getattr` on a namespace object used as a callee at "
+                               f"line {getattr(_nb_x, 'lineno', 0)}")
+            # ... and the NAMESPACE DICT ITSELF, escaping into an arbitrary call. #118's
+            # rule keys on a SUBSCRIPT STORE through it, so `operator.setitem(globals(),
+            # "N", 5)` and `dict.update(globals(), N=5)` both PROVED `N == 3` (CPython 5)
+            # past the cut above. A NO-ARGUMENT `globals()`/`vars()`/`locals()` IS the
+            # module namespace; it may only be bound to a plain name (route #116's
+            # `_g = globals()` idiom, itself fenced by #134) or read through a subscript.
+            # `vars(self)` HAS an argument — an ordinary object's `__dict__`, not a
+            # namespace — and is untouched. CENSUS of no-arg calls: 4 `_g = globals()`
+            # (allowed) + 1326's `vars()["inc"] = dec` (already refused by #118) in
+            # pycsl-reference, 1 `_g = globals()` in the mirrors, 0 in python-reference
+            # and pycsl_lib.
+            elif (isinstance(_nb_x, ast.Call) and isinstance(_nb_x.func, ast.Name)
+                    and _nb_x.func.id in ("globals", "vars", "locals")
+                    and not _nb_x.args and not _nb_x.keywords):
+                _nb_p = _nb_parent.get(id(_nb_x))
+                _nb_ok = False
+                if (isinstance(_nb_p, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
+                        and _nb_p.value is _nb_x):
+                    _nb_tg = (list(_nb_p.targets) if isinstance(_nb_p, ast.Assign)
+                              else [_nb_p.target])
+                    _nb_ok = all(isinstance(_nb_t, ast.Name) for _nb_t in _nb_tg)
+                elif (isinstance(_nb_p, ast.Subscript) and _nb_p.value is _nb_x
+                        and isinstance(_nb_p.ctx, ast.Load)):
+                    _nb_ok = True
+                if not _nb_ok:
+                    _nb_bad.append(f"the module namespace dict `{_nb_x.func.id}()` used "
+                                   f"outside a name binding or a subscript read at line "
+                                   f"{getattr(_nb_x, 'lineno', 0)}")
+        # (#138) THE SAME MAPPING, REACHED AS AN ATTRIBUTE. Gen #26's draft-9 gave the no-arg
+        # `globals()`/`vars()`/`locals()` spelling an ESCAPE rule (it may only be bound to a
+        # plain name or read through a subscript) and gave `f.__globals__["N"] = 5` a SINK rule
+        # (the subscript store is keyed on the path). Neither covers the mapping FLOWING INTO A
+        # CALL under the attribute spelling, and three shapes proved `f() == 3` while CPython
+        # returned 5: `f.__globals__.__setitem__("N", 5)` (receiver), `dict.__setitem__(
+        # f.__globals__, "N", 5)` and `operator.setitem(f.__globals__, "N", 5)` (argument — the
+        # unbound-method spelling also makes the sink's receiver the name `dict`, which has no
+        # module binding and so defaulted to FRESH). So the ESCAPE rule, not a sink rule, is the
+        # one that generalizes: these four attributes ARE a namespace mapping wherever they
+        # appear. CENSUS over the five trees: 2 sites (1402, 1403), both already expected-FAIL.
+        # The bare NAME `__builtins__` is deliberately NOT given this rule — python-reference
+        # 0127 passes `__builtins__` to `hasattr` and reads `__builtins__.__import__`, and it
+        # PASSES today; #127's own rules already cover writing through it.
+        _nb_ns_attrs = frozenset(("__globals__", "f_globals", "f_locals", "__dict__"))
+        for _nb_x in ast.walk(python_ast):
+            if not (isinstance(_nb_x, ast.Attribute) and _nb_x.attr in _nb_ns_attrs):
+                continue
+            _nb_p = _nb_parent.get(id(_nb_x))
+            _nb_ok = False
+            if (isinstance(_nb_p, (ast.Assign, ast.AnnAssign, ast.NamedExpr))
+                    and _nb_p.value is _nb_x):
+                _nb_tg = (list(_nb_p.targets) if isinstance(_nb_p, ast.Assign)
+                          else [_nb_p.target])
+                _nb_ok = all(isinstance(_nb_t, ast.Name) for _nb_t in _nb_tg)
+            elif (isinstance(_nb_p, ast.Subscript) and _nb_p.value is _nb_x
+                    and isinstance(_nb_p.ctx, ast.Load)):
+                _nb_ok = True
+            if not _nb_ok:
+                _nb_bad.append(f"the namespace mapping `.{_nb_x.attr}` used outside a name "
+                               f"binding or a subscript read at line "
+                               f"{getattr(_nb_x, 'lineno', 0)}")
+        # (#142) THE ONE ESCAPE BOTH RULES ALLOW — "it may be bound to a plain NAME" — HANDS OUT
+        # AN UNGUARDED HANDLE ON THE NAMESPACE, and every sink in this block is keyed on the
+        # spelling of the mapping, not on the name now holding it. Measured against the two
+        # rules above: `_g = globals(); dict.update(_g, N=5)`, `_g = globals();
+        # operator.setitem(_g, "N", 5)` and `_g = f.__globals__; dict.update(_g, N=5)` each
+        # PROVED `f() == 3` while CPython returns 5 (the unbound-method spelling also makes the
+        # module-scope sink's receiver the name `dict`, which has no module binding and is
+        # FRESH). The allowance exists for route #116's `_g = globals()` idiom, whose ONLY use
+        # is a subscript READ — so that is exactly what the name is now permitted to do.
+        # CENSUS over the five trees of a name bound to a no-argument `globals()`/`vars()`/
+        # `locals()` or to one of the four namespace attributes, USED anywhere other than a
+        # subscript read: ONE site, 1322's `_g["inc"] = dec`, already an expected-FAIL witness.
+        _nb_nsnames: set = set()
+        for _nb_x in ast.walk(python_ast):
+            if not isinstance(_nb_x, (ast.Assign, ast.AnnAssign, ast.NamedExpr)):
+                continue
+            _nb_v = _nb_x.value
+            if _nb_v is None:
+                continue
+            _nb_isns = ((isinstance(_nb_v, ast.Call) and isinstance(_nb_v.func, ast.Name)
+                         and _nb_v.func.id in ("globals", "vars", "locals")
+                         and not _nb_v.args and not _nb_v.keywords)
+                        or (isinstance(_nb_v, ast.Attribute) and _nb_v.attr in _nb_ns_attrs))
+            if not _nb_isns:
+                continue
+            for _nb_t in (list(_nb_x.targets) if isinstance(_nb_x, ast.Assign)
+                          else [_nb_x.target]):
+                if isinstance(_nb_t, ast.Name):
+                    _nb_nsnames.add(_nb_t.id)
+        if _nb_nsnames:
+            for _nb_x in ast.walk(python_ast):
+                if not (isinstance(_nb_x, ast.Name) and isinstance(_nb_x.ctx, ast.Load)
+                        and _nb_x.id in _nb_nsnames):
+                    continue
+                _nb_p = _nb_parent.get(id(_nb_x))
+                if not (isinstance(_nb_p, ast.Subscript) and _nb_p.value is _nb_x
+                        and isinstance(_nb_p.ctx, ast.Load)):
+                    _nb_bad.append(f"the name `{_nb_x.id}`, bound to the module namespace "
+                                   f"mapping, used outside a subscript read at line "
+                                   f"{getattr(_nb_x, 'lineno', 0)}")
+        # NOT EXTENDED TO THE COMPUTED SPELLING: `getattr(f, "__globals__")["N"] = 5` and
+        # `getattr(f, "__glo" + "bals__")["N"] = 5` were both probed and BOTH ARE REFUSED AT
+        # HEAD (a Why3 typing failure on the subscript store through the accessor's result), so
+        # a string-argument rule here would add refusal surface that closes nothing measured.
+        # (#133) a def nested in a method, named like a method of that class or of an in-module
+        # base (the lift emits it as that method).
+        _nb_cls_by_name: Dict[str, Any] = {}
+        for _nb_x in ast.walk(python_ast):
+            if isinstance(_nb_x, ast.ClassDef):
+                _nb_cls_by_name.setdefault(_nb_x.name, _nb_x)
+        for _nb_x in ast.walk(python_ast):
+            if not isinstance(_nb_x, ast.ClassDef):
+                continue
+            _nb_meths: set = set()
+            _nb_todo: list = [_nb_x]
+            _nb_seen: set = set()
+            while _nb_todo:
+                _nb_k = _nb_todo.pop()
+                if id(_nb_k) in _nb_seen:
+                    continue
+                _nb_seen.add(id(_nb_k))
+                _nb_meths |= {_nb_s.name for _nb_s in _nb_k.body
+                              if isinstance(_nb_s, (ast.FunctionDef, ast.AsyncFunctionDef))}
+                for _nb_b in _nb_k.bases:
+                    if isinstance(_nb_b, ast.Name) and _nb_b.id in _nb_cls_by_name:
+                        _nb_todo.append(_nb_cls_by_name[_nb_b.id])
+            for _nb_m in _nb_x.body:
+                if not isinstance(_nb_m, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                _nb_q: list = list(_nb_m.body)
+                while _nb_q:
+                    _nb_z = _nb_q.pop()
+                    if isinstance(_nb_z, ast.ClassDef):
+                        continue
+                    if isinstance(_nb_z, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
+                            _nb_z.name in _nb_meths):
+                        _nb_bad.append(f"`{_nb_z.name}` defined inside method "
+                                       f"`{_nb_x.name}.{_nb_m.name}` at line {_nb_z.lineno}")
+                    _nb_q.extend(ast.iter_child_nodes(_nb_z))
+        if _nb_bad:
+            raise PyCSLSemanticError(
+                "a name's runtime value is not the one the model reads ("
+                + "; ".join(sorted(set(_nb_bad))) + "). An imported name bound twice keeps the "
+                "FIRST import (measured: `from plainlib import inc` then `from starlib import "
+                "inc` proved the plainlib contract); a builtin rebound by an assignment is still "
+                "lowered as the builtin (`len = sum` then `len([5]) == 1` proved); a module or "
+                "class constant is folded to its first literal although it is rebound or mutated "
+                "(`N = 3; N += 2` proved `N == 3`); a def nested in a method replaces the method "
+                "of the same name; a DYNAMIC `exec`, or an `eval` that binds through a walrus, "
+                "rebinds names into the module namespace and no part of the model sees the new "
+                "value (`exec(\"N\" + \" = 5\")` proved `N == 3`); and an attribute written at "
+                "module or class-body scope must have a receiver this file can describe — a "
+                "lambda parameter, a comprehension target and an imported module are not "
+                "(`(lambda m: setattr(m, \"inc\", other))(mod)` proved the original `inc`). "
+                "Give each binding its own name, treat a folded constant as immutable, and "
+                "keep a dynamic `exec`/`eval` out of module and class-body scope.")
+        # (#49) ROUTE #120 — ATTRIBUTE-ACCESS HOOKS ARE NOT MODELLED. Every method call and field
+        # store is resolved statically; a class-level hook that intercepts the lookup or the
+        # store is never consulted. Measured at c01ef653, both PROVING what CPython contradicts:
+        # a `__getattribute__` that redirects `m` to `n` (`C().m()` proved `\result == 1`,
+        # Python 2), and a `__setattr__` that drops `a = 5` (`self.a = 5; return self.a` proved
+        # `\result == 5`, Python 0). `__getattr__` is NOT refused: it runs only when normal
+        # lookup FAILS, and an unmodelled attribute read is already an opaque fresh value.
+        # CENSUS: `__getattribute__` 0 sites; `__setattr__` 1 (python-reference 0076,
+        # expected-FAIL); `__delattr__` 0.
+        for _hk_cls in ast.walk(python_ast):
+            if isinstance(_hk_cls, ast.ClassDef):
+                for _hk_st in _hk_cls.body:
+                    # a hook INSTALLED BY ASSIGNMENT (`__getattribute__ = _redirect`) is the same
+                    # hook; measured refused only by incidental Why3 errors before this.
+                    _hk_names = ([_hk_st.name] if isinstance(_hk_st, (ast.FunctionDef,
+                                                                     ast.AsyncFunctionDef))
+                                 else [_hk_t.id for _hk_x in ([_hk_st.target] if isinstance(
+                                           _hk_st, (ast.AnnAssign, ast.AugAssign)) else
+                                           getattr(_hk_st, "targets", []) or [])
+                                       for _hk_t in ast.walk(_hk_x) if isinstance(_hk_t, ast.Name)])
+                    _hk_hit = [_hk_n for _hk_n in _hk_names
+                               if _hk_n in ("__getattribute__", "__setattr__", "__delattr__",
+                                            # (#49) ROUTE #128 — the DESCRIPTOR protocol is the
+                                            # same hook on the attribute's class: `x = Seven()`
+                                            # with `__get__ -> 7` made `C().x` read 7 while
+                                            # `\result == 42` PROVED. Census: pyref 0078 only
+                                            # (expected-FAIL).
+                                            "__get__", "__set__", "__delete__", "__set_name__")]
+                    if _hk_hit:
+                        raise PyCSLSemanticError(
+                            f"Class '{_hk_cls.name}' (line {_hk_cls.lineno}) defines "
+                            f"`{_hk_hit[0]}`, an attribute-access hook the model does not "
+                            f"consult: every method call and field store is resolved "
+                            f"statically, so the hook would be silently ignored (measured: a "
+                            f"`__getattribute__` redirecting `m` to `n` proved `m`'s contract; "
+                            f"a `__setattr__` dropping a store proved the store happened). "
+                            f"Attribute-access hooks are not modelled; remove the hook.")
+        # (#34) A `#@` CONTRACT ON AN `async def` IS SILENTLY DISCARDED, AND THE RUN THEN
+        # REPORTS "All contracts formally proven". Module 1 extracts an `AsyncFunctionDef`
+        # under the SAME `FunctionDef` anchor as a plain `def`, so the contract IS parsed
+        # and lands in `contracts_map` — but `PyCSLWeaver` has only `visit_FunctionDef`,
+        # so the clauses are never attached, and Module 5's `visit_FunctionDef` never
+        # fires either, so the whole coroutine is absent from the emitted WhyML. Measured
+        # before this refusal:
+        #     class C:
+        #         #@ ensures \result == 1        <-- FALSE OF THE PROGRAM
+        #         async def m(self) -> int:
+        #             return 2
+        # emitted a module with no `m` at all and printed
+        # `[+] Verification SUCCESS! All contracts formally proven.`
+        # Coroutines are not modelled (no suspension/resumption semantics), so the honest
+        # answer is a refusal rather than a silent drop. Refused only when a contract was
+        # actually extracted for the `async def`: an UNCONTRACTED coroutine claims nothing,
+        # and refusing it would reject files whose async code is irrelevant to the proof
+        # (11 such definitions live in `python-reference`, all nested, all uncontracted).
+        for _n in ast.walk(python_ast):
+            if isinstance(_n, ast.AsyncFunctionDef) and _n.lineno in contracts_map:
+                raise PyCSLSemanticError(
+                    f"Coroutine '{_n.name}' (line {_n.lineno}) carries a `#@` contract, "
+                    f"but `async def` is NOT MODELLED: the weaver attaches contracts only "
+                    f"to `FunctionDef`, and the IR emitter has no `AsyncFunctionDef` "
+                    f"visitor, so both the contract and the whole coroutine body would be "
+                    f"silently DROPPED while the run still reports 'All contracts formally "
+                    f"proven'. Remove the contract, or make the function synchronous.")
+        # (#49) ROUTES #122 (nested arm) + #126 — A NESTED `def` IS LIFTED TO A SIBLING OF ITS
+        # ENCLOSING FUNCTION UNDER ITS OWN NAME, and two things the lift does not preserve were
+        # measured PROVING what CPython contradicts:
+        #   #122 two sibling functions each defining a helper `h` (+1 / -1) emit ONE `let h`
+        #        (the textually last), and a nested def named like a MODULE function replaces it;
+        #   #126 a name the nested def reads from its ENCLOSING function (a parameter, a local,
+        #        a captured list it writes through) becomes ONE GLOBAL opaque `val constant`:
+        #        `f(x): def h(): return x` made `f(1) - f(2) == 0` provable (Python -1).
+        # Only the emitter knows whether the lifted body is ever lowered (a `\trusted` /
+        # `\abstract` parent emits it as a bodyless `val`; converted mirror methods pair some
+        # lifted walkers bespoke), so the facts are MARKED here and REFUSED in Module 6
+        # `_emit_function`, next to the `nonlocal_writes` refusal of the same shape:
+        #   `csl_lifted_collision`  the def is nested in a function and another non-method def
+        #                           in the file has the same name;
+        #   `csl_closure_captures`  the names it (or a lambda/comprehension inside it) reads that
+        #                           are bound by an enclosing function and not by itself — the
+        #                           enclosing functions' own nested def names excluded (they are
+        #                           lifted beside it, under the collision rule).
+        _lf_rows: list = []
+        _lf_stack: list = [(_lf_n, [], "module") for _lf_n in python_ast.body]
+        while _lf_stack:
+            _lf_n, _lf_chain, _lf_scope = _lf_stack.pop()
+            if isinstance(_lf_n, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if _lf_scope != "class":
+                    _lf_rows.append((_lf_n, _lf_chain))
+                for _lf_c in ast.iter_child_nodes(_lf_n):
+                    _lf_stack.append((_lf_c, _lf_chain + [_lf_n], "function"))
+                continue
+            if isinstance(_lf_n, ast.ClassDef):
+                for _lf_c in _lf_n.body:
+                    _lf_stack.append((_lf_c, _lf_chain, "class"))
+                continue
+            for _lf_c in ast.iter_child_nodes(_lf_n):
+                _lf_stack.append((_lf_c, _lf_chain, _lf_scope))
+        _lf_count: Dict[str, int] = {}
+        for _lf_n, _lf_chain in _lf_rows:
+            _lf_count[_lf_n.name] = _lf_count.get(_lf_n.name, 0) + 1
+        # other bindings a lifted helper's name competes with: every import alias (file-wide),
+        # every class name, and every module-scope assignment target (measured: a nested helper
+        # `inc` replaced an IMPORTED `inc` for a sibling function, Python 2 vs proved 4).
+        _lf_others: set = set()
+        for _lf_x in ast.walk(python_ast):
+            if isinstance(_lf_x, (ast.Import, ast.ImportFrom)):
+                for _lf_al in _lf_x.names:
+                    _lf_others.add((_lf_al.asname or _lf_al.name).split(".")[0])
+            elif isinstance(_lf_x, ast.ClassDef):
+                _lf_others.add(_lf_x.name)
+        _lf_mq: list = list(python_ast.body)
+        while _lf_mq:
+            _lf_x = _lf_mq.pop()
+            if isinstance(_lf_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+                continue
+            if isinstance(_lf_x, ast.Name) and not isinstance(_lf_x.ctx, ast.Load):
+                _lf_others.add(_lf_x.id)
+            _lf_mq.extend(ast.iter_child_nodes(_lf_x))
+        for _lf_n, _lf_chain in _lf_rows:
+            if not _lf_chain:
+                continue
+            if _lf_count.get(_lf_n.name, 0) > 1 or _lf_n.name in _lf_others:
+                _lf_n.csl_lifted_collision = True
+            # names bound by the nested def itself (params, stores, imports, defs, globals),
+            # and names it loads (descending into lambdas/comprehensions, not nested defs).
+            _lf_own: set = set()
+            _lf_loads: set = set()
+            _lf_fa = _lf_n.args
+            for _lf_a in (list(getattr(_lf_fa, "posonlyargs", []) or []) + list(_lf_fa.args)
+                          + list(_lf_fa.kwonlyargs)
+                          + [x for x in (_lf_fa.vararg, _lf_fa.kwarg) if x is not None]):
+                _lf_own.add(_lf_a.arg)
+            _lf_q: list = list(_lf_n.body)
+            while _lf_q:
+                _lf_y = _lf_q.pop()
+                if isinstance(_lf_y, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    _lf_own.add(_lf_y.name)
+                    continue
+                if isinstance(_lf_y, ast.Lambda):
+                    for _lf_a in _lf_y.args.args:
+                        _lf_own.add(_lf_a.arg)
+                if isinstance(_lf_y, ast.Name):
+                    if isinstance(_lf_y.ctx, ast.Load):
+                        _lf_loads.add(_lf_y.id)
+                    else:
+                        _lf_own.add(_lf_y.id)
+                elif isinstance(_lf_y, (ast.Import, ast.ImportFrom)):
+                    for _lf_al in _lf_y.names:
+                        _lf_own.add((_lf_al.asname or _lf_al.name).split(".")[0])
+                elif isinstance(_lf_y, ast.Global):
+                    _lf_own.update(_lf_y.names)
+                elif isinstance(_lf_y, ast.ExceptHandler) and isinstance(_lf_y.name, str):
+                    _lf_own.add(_lf_y.name)
+                _lf_q.extend(ast.iter_child_nodes(_lf_y))
+            _lf_encl: set = set()
+            _lf_encl_defs: set = set()
+            for _lf_f in _lf_chain:
+                _lf_ga = _lf_f.args
+                for _lf_a in (list(getattr(_lf_ga, "posonlyargs", []) or []) + list(_lf_ga.args)
+                              + list(_lf_ga.kwonlyargs)
+                              + [x for x in (_lf_ga.vararg, _lf_ga.kwarg) if x is not None]):
+                    _lf_encl.add(_lf_a.arg)
+                _lf_globals: set = set()
+                _lf_q2: list = list(_lf_f.body)
+                while _lf_q2:
+                    _lf_z = _lf_q2.pop()
+                    if isinstance(_lf_z, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        _lf_encl_defs.add(_lf_z.name)
+                        continue
+                    if isinstance(_lf_z, (ast.ClassDef, ast.Lambda)):
+                        continue
+                    if isinstance(_lf_z, ast.Name) and not isinstance(_lf_z.ctx, ast.Load):
+                        _lf_encl.add(_lf_z.id)
+                    elif isinstance(_lf_z, (ast.Import, ast.ImportFrom)):
+                        for _lf_al in _lf_z.names:
+                            _lf_encl.add((_lf_al.asname or _lf_al.name).split(".")[0])
+                    elif isinstance(_lf_z, ast.Global):
+                        _lf_globals.update(_lf_z.names)
+                    elif isinstance(_lf_z, ast.ExceptHandler) and isinstance(_lf_z.name, str):
+                        _lf_encl.add(_lf_z.name)
+                    _lf_q2.extend(ast.iter_child_nodes(_lf_z))
+                _lf_encl -= _lf_globals
+            # inside a METHOD the lifted def is itself emitted as a method of the class, so
+            # `self` is its own parameter, not a capture.
+            _lf_root_args = _lf_chain[0].args.args if _lf_chain else []
+            if _lf_root_args and _lf_root_args[0].arg == "self":
+                _lf_own.add("self")
+            _lf_caps = sorted((_lf_loads - _lf_own) & (_lf_encl - _lf_encl_defs))
+            if _lf_caps:
+                _lf_n.csl_closure_captures = _lf_caps
         PyCSLWeaver(contracts_map).visit(python_ast)
         python_ast.csl_happy_properties = happy_props
         self._consolidate_module_concurrency(python_ast, contracts_map)

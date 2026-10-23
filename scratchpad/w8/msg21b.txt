@@ -1,0 +1,25 @@
+CLOSED(#43): ROUTE #21 gated — and the fidelity plane caught a live/mirror desync for the third time this relaunch
+
+Refused in Module 6's statement lowering, so a `\trusted` / `\abstract` function — whose body
+is never lowered — stays exempt. Census: 4 `try/finally`-with-handlers sites in the whole
+tree, and the one in the mirror (`pycsl._run_proofs`) is `\trusted`.
+
+`check-self-annotate-sync.sh` then reported a NEW divergence:
+`stmt_control_flow._handle_try_stmt` is CONVERTED in the mirror, so editing the live body
+desynced it. Synced by copying the BODY and KEEPING THE MIRROR'S SIGNATURE — the lesson
+learned earlier this relaunch when a verbatim copy clobbered `val_ir: "ExprIR"` with
+`Dict[str, Any]` and stopped a file type-checking.
+
+That is the third live/mirror desync this plane has caught here. It is not a redundant gate.
+
+GATES: `pycsl-reference` 820/820 AND `python-reference` 2142/2142 BYTE-IDENTICAL · mirror
+L3-tc 53/53 · vacuity 0 NEW · core conformance 38/0 · fidelity no NEW divergence · metric
+UNCHANGED at 456. Witness 0990, NEGATIVE-TESTED.
+
+TRYFINAL ratchet 9 -> 10, and as with CTXBIND the +1 is the WITNESS ITSELF and the counter's
+meaning changed: every site it still sees is inside a `\trusted` function or a
+`pycsl-expected: FAIL` witness, because the exploitable form is now refused.
+
+OWED: `stmt_control_flow` is the one mirror whose emission moved — appended to the queue.
+
+Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>

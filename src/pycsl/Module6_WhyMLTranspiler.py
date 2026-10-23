@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any, Dict, List, Optional, Set
 
 from module6_whyml.identifiers import whyml_ident
@@ -12,6 +13,22 @@ from module6_whyml.expressions import ExpressionEmissionMixin
 from module6_whyml.statements import StatementEmissionMixin
 from module6_whyml.preamble import PreambleEmissionMixin
 from module6_whyml.functions import FunctionEmissionMixin
+
+
+# parser-primitives-wall-impl-3.md capability (i): the internal sentinel that parks
+# the emit_ir ADT theory's position while the rest of the file is emitted. It NEVER
+# survives `transpile` (`_resolve_deferred_exprir_theory` either replaces it with the
+# theory or deletes it).
+_EXPRIR_THEORY_SLOT = "(*__pycsl_exprir_theory_slot__*)"
+
+# self-tcb-reduction (opaque-mirror accessor restore): the sentinel that parks the
+# minimal-vs-full CHOICE for an opaque-tailored mirror (`_TAILOR_OPAQUE_MIRROR_CLASSES`,
+# e.g. StatementEmissionMixin). It is resolved by `_resolve_deferred_opaque_theory`,
+# which splices the FULL emit_ir accessor theory iff a converted node-reader in the
+# emitted body actually references a dropped accessor symbol (kind_of/left_of/...),
+# and otherwise splices the MINIMAL surface — so a purely-opaque mirror stays
+# byte-identical while a kind_of-reading node-reader gets exactly the theory it needs.
+_OPAQUE_THEORY_SLOT = "(*__pycsl_opaque_exprir_theory_slot__*)"
 
 
 class Module6_WhyMLTranspiler(
@@ -68,9 +85,42 @@ class Module6_WhyMLTranspiler(
         self._variant_types: Dict[str, Any] = {}
         self._constructors: Dict[str, Any] = {}
         self._class_constants: Dict[str, Dict[str, int]] = {}  # class_name_lower → {CONST: int literal}
+        # 7b (self-tcb-reduction L4b): class_name → {CONST: [str-member, ...]} for class-body
+        # string-SET constants (`_GENERIC_BASE_NAMES = {"Generic"}`); feeds the faithful
+        # `<x> in self.<CONST>` -> `str_eq_op` disjunction membership.
+        self._class_str_set_constants: Dict[str, Dict[str, List[str]]] = {}
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in `_handle_var_expr` (body and contract).
         self._module_constants: Dict[str, int] = self.ir.get("module_constants", {})
+        # W8 (ii): `<alias>.<CONST>` -> concrete int, for the CPython `tokenize`/`token`
+        # kind codes, read from the real module at emission (see Module5). Empty for
+        # every program that does not import them.
+        self._token_kind_constants: Dict[str, int] = self.ir.get(
+            "token_kind_constants", {})
+        # W8 (ii, companion): `<alias>.<attr>` -> its actual list-of-str contents, for
+        # the CPython `keyword` tables. Empty for every program that does not import it.
+        self._module_str_list_constants: Dict[str, List[str]] = self.ir.get(
+            "module_str_list_constants", {})
+        # module-const-dict-get: module-level constant str->str dict literals
+        # (`OP_MAP = {"==":"=", ...}`) → recognized at `NAME.get(k, default)` in
+        # `_lower_dict_get_call` as a chained string if-then-else. Empty for every
+        # existing corpus program (byte-identical emission).
+        self._module_const_dicts: Dict[str, Dict[str, str]] = self.ir.get("module_const_dicts", {})
+        # module-const-PAIR-dicts: module-level `str -> (str, int)` const dict literals
+        # (`_BINOP = {"|": ("BitOr", 4), ...}`), as `{NAME: [(key, s, i), ...]}` in source
+        # order. Recognized at a `<key> in NAME` membership guard and at a
+        # `a, b = NAME[<key>]` tuple-unpack read. Empty for every corpus program
+        # (byte-identical emission).
+        self._module_const_pair_dicts: Dict[str, list] = self.ir.get(
+            "module_const_pair_dicts", {})
+        # compound-key const-map lowering: `{NAME: {"key_whyml":…, "elem_whyml":…}}`
+        # for a module-const dict with a tuple key + list value (`TRIGGERS`). Each
+        # becomes an opaque `val constant NAME : map <key> (option (list <elem>))`
+        # (emitted after the type decls) and a `NAME.get(k, [])` read lowers to the
+        # faithful defaulting `Map.get` in `_lower_dict_get_call`. Empty for every
+        # corpus program (byte-identical emission).
+        self._module_const_compound_dicts: Dict[str, Dict[str, str]] = self.ir.get(
+            "module_const_compound_dicts", {})
         # gap-9: signatures of imported `#@ inductive` predicates whose RULE was
         # NOT crossed (kept opaque to avoid an E-matching blow-up). Lets the
         # `_emit_contract_logic_symbol` fallback declare the opaque predicate
@@ -121,12 +171,26 @@ class Module6_WhyMLTranspiler(
         self._module_func_names: Set[str] = set()
         self._module_method_return_types: Dict[str, str] = {}
         self._module_method_param_types: Dict[str, List[str]] = {}
+        # wrong-lowering-to-fix.md §WL-05b: func-name -> caller-visible mutable
+        # `ref (map …)` dict/set param names (fixpoint). Empty default → byte-identical.
+        self._func_mutated_collection_params: Dict[str, Set[str]] = {}
+        # stmt-list-append-mutation wall (C-bucket): func-name -> caller-visible mutable
+        # `ref (seq stmt_ir)` list param names (fixpoint). Empty default → byte-identical.
+        self._func_stmt_seq_mut_params: Dict[str, Set[str]] = {}
         # 10-1732-gap (Gaps 2/3): callee return-annotation + by-name param WhyML types.
         self._module_method_return_annotations: Dict[str, str] = {}
         self._module_method_param_whyml_types: Dict[str, Dict[str, str]] = {}
         # 1111-spec R7: per-function formal-param order + positional defaults.
         self._module_method_formal_params: Dict[str, List[str]] = {}
         self._module_method_param_defaults: Dict[str, Dict[str, Any]] = {}
+        # (#49) ROUTE #232: callee-name -> (keyword-only formals, positional-only
+        # formals, has `**kwargs`), for the call-site binding rules.
+        self._module_method_param_kinds: Dict[str, Any] = {}
+        # W8 (ii): callee-name -> its `*vals: str` vararg param name.
+        self._module_method_vararg_str: Dict[str, str] = {}
+        # ladder 1a: callee-name -> WhyML element type of its vararg sequence
+        # ("string" | "int"). Absent entry means "string" (the W8 (ii) default).
+        self._module_method_vararg_elem: Dict[str, str] = {}
         self._module_method_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_param_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
         self._module_method_field_result_ensures: Dict[str, List[Dict[str, Any]]] = {}
@@ -166,6 +230,38 @@ class Module6_WhyMLTranspiler(
         elif self.memory_model == "store":
             return "store"
         raise ValueError(f"No heap variable in Hoare model")
+
+    def _record_return_sibling_methods(self) -> Set[str]:
+        """W8 capability (vi): the IR names of methods whose resolved WhyML return type is
+        a declared RECORD. A `self.<m>(...)` call to one of these lowers to the CONCRETE
+        sibling application `(<class>__<m> self)` (expressions._handle_dotted_call), so the
+        callee needs a callee-before-caller SCC ordering edge exactly like an opt-in
+        `#@ sibling_concrete` callee. Gated by `_record_array_fields` (the parser-cursor
+        low-blast-radius gate) → empty, hence ordering-inert, for every other module."""
+        if not getattr(self, "_record_array_fields", None):
+            return set()
+        rec_names = {ri["whyml_name"]
+                     for ri in getattr(self, "_record_types", {}).values()}
+        # NODE-CTOR spike (self-tcb-reduction): the `emit_ir` ADT return is the SAME
+        # capability one type-class over — a `self.<m>()` sibling returning the IR-node
+        # ADT must bind CONCRETELY too, else it degrades to an UNCONSTRAINED abstract
+        # `val self_<m>_0 (self) : emit_ir` (no ensures) — a facade.
+        # LIST-RETURNING SIBLING (relaunch #9): the TWIN of the `array <t>` arm added to
+        # `_handle_dotted_call`'s concrete-sibling allowlist. This map is the SECOND
+        # PRODUCER of that same decision (lesson (am)) — it supplies the SCC
+        # callee-before-caller ordering edge — and without the twin the newly-concrete
+        # `(<class>__<m> self)` application is emitted before the callee is declared
+        # (measured: `unbound function or predicate symbol '_parser__block'`).
+        # TUPLE-RETURNING SIBLING (relaunch #10): the TWIN of the tuple arm added to
+        # `_handle_dotted_call`'s concrete-sibling allowlist — this map is the SECOND
+        # PRODUCER of that same decision (lesson (am)) and supplies the SCC
+        # callee-before-caller ordering edge, without which the newly-concrete
+        # `(_parser___call_args self …)` application is emitted before its callee.
+        return {name for name, rt in self._module_method_return_types.items()
+                if rt in rec_names or rt in ("emit_ir", "int", "string")
+                or (isinstance(rt, str) and rt.startswith("array "))
+                or (isinstance(rt, str) and rt.startswith("(")
+                    and rt.endswith(")") and "," in rt)}
 
     def _build_callee_no_exception_summary(self, functions: List[Dict[str, Any]]) -> None:
         """Populate the module-wide callee summary maps (workplan PR 4).
@@ -224,6 +320,14 @@ class Module6_WhyMLTranspiler(
         contract says the raise fires only when ``P``.
         """
         active = set(self._current_no_exception)
+        # (#49) ROUTE #171 — only the DECLARED `no_exception` set governs a callee's
+        # EXPLICIT raises: route #171 widens `_current_no_exception` with the implicit
+        # exceptions a handler catches, and a callee's declared `raises` of such an
+        # exception is modelled faithfully (raised, then caught) rather than asserted away.
+        for _f171 in (self.ir.get("functions", []) or []):
+            if _f171.get("name") == getattr(self, "_current_sig_func_name", None):
+                active &= set(((_f171.get("contracts") or {}).get("no_exception")) or [])
+                break
         if self._current_no_exception_all:
             from exception_model import all_phase1_exceptions
             active.update(all_phase1_exceptions())
@@ -262,14 +366,64 @@ class Module6_WhyMLTranspiler(
         names. Returns None if the IR shape is not supported."""
         if cond_ir is None or not param_names:
             return None
+        # (#49) ROUTE #140 — `zip` TRUNCATES, AND A TRUNCATED SUBSTITUTION IS NOT A MISSING
+        # FACT, IT IS A WRONG ONE. Any callee parameter left unsubstituted is rendered by
+        # `_expr_to_whyml` IN THE CALLER'S SCOPE, so a caller that happens to have a local or
+        # parameter of the same name silently supplies the condition's value. Measured: a
+        # method `f(self, k: int = -1)` with `raises ValueError when k < 0`, called as `c.f()`
+        # from a caller with `requires k >= 0` and `no_exception ValueError` — the default fill
+        # at `_handle_dotted_call` is gated on a `self.` receiver, so `args` is empty, `k`
+        # bound to the CALLER's `k`, `assert { not (k < 0) }` discharged, and the whole
+        # contract PROVED while CPython raises. (Renaming the caller's parameter to `j` makes
+        # the same condition an unconstrained `val constant` and the proof is refused — so the
+        # mechanism is name capture, not a missing assert.) Fail-closed: an incomplete
+        # substitution renders NOTHING, and the caller then gets `assert { false }`, which is
+        # the honest statement that this call site cannot be shown exception-free.
+        if len(args) < len(param_names):
+            return None
+        # (#49) ROUTE #141 — ... AND THE SUBSTITUTION ENUMERATES *PARAMETERS*, WHICH IS NOT THE
+        # SAME SET AS "EVERY NAME THE CONDITION CAN MENTION". `formal_params` does not contain
+        # `self`, so a callee whose `raises` condition is over a FIELD renders that field IN THE
+        # CALLER'S SCOPE. Measured, on this very repair: a class `H` with `self.tag = -1` and
+        # `raises ValueError when self.tag < 0`, called as `h.f(k)` from a method of a DIFFERENT
+        # class `G` whose own `self.tag` is 5 and which declares `requires self.tag >= 0` +
+        # `no_exception ValueError` — the emitted line was literally
+        # `assert { not ((self.g_tag < 0)) }`, discharged from G's field, and the contract PROVED
+        # while CPython raises ValueError. A module-level global in a condition (`_filesystem`,
+        # `dir_lookup`) denotes the SAME object in both scopes and is untouched; `self` is the
+        # one name that cannot. CENSUS of `#@ raises ... when ...self...` over the corpora, the
+        # 53 mirrors, `pycsl_lib` and `src/pycsl`: 0 sites, so this arm is a pure ratchet.
+        _r141: List[Any] = [cond_ir]
+        while _r141:
+            _n141 = _r141.pop()
+            if isinstance(_n141, dict):
+                for _k141, _v141 in _n141.items():
+                    if _k141 in ("name", "id", "var") and _v141 == "self":
+                        return None
+                    _r141.append(_v141)
+            elif isinstance(_n141, list):
+                _r141.extend(_n141)
+            elif isinstance(_n141, str) and _n141 == "self":
+                return None
         subst = {p: a for p, a in zip(param_names, args)}
         try:
             # Reuse the existing expression renderer with a substitution
             # map — this preserves the callee's contract semantics while
             # binding parameters to the caller's arg strings.
-            return self._expr_to_whyml(cond_ir, set(), invariant_ctx=False, subst=subst)
+            _r = self._expr_to_whyml(cond_ir, set(), invariant_ctx=False, subst=subst)
         except Exception:
             return None
+        # (#49) ROUTE #186 — the renderer registers an abstract `val constant <name>` for a
+        # name it does not know, and under `subst` that "name" is the ARGUMENT TEXT: a literal
+        # actual produced `val constant 1 : int`, a Why3 SYNTAX error that fails the whole
+        # file (measured on a field-receiver call whose condition the route #186 key fallback
+        # newly resolves). Drop any op whose name is not an identifier; a real symbol the
+        # condition needs (str_hash_op, …) is untouched.
+        _ops = getattr(self, "_abstract_ops", None)
+        if isinstance(_ops, dict):
+            for _k in [_k for _k in list(_ops) if not str(_k)[:1].isalpha() and not str(_k).startswith("_")]:
+                _ops.pop(_k, None)
+        return _r
 
     def _wrap_with_no_exception_assert(self, op_key, operands, inner_expr: str) -> str:
         """Wrap ``inner_expr`` with a no_exception assertion if appropriate.
@@ -410,7 +564,43 @@ class Module6_WhyMLTranspiler(
         self._mutable_state_classes = {
             whyml_ident(td["name"].lower()) for td in type_decls
             if isinstance(td, dict) and td.get("kind") == "record" and td.get("mutable_state")
+        } | {
+            # gating fix (self-tcb-reduction): a @mutable_state class with no fields/bases
+            # never gets a "record" type_decl (Module5's `fields or bases` gate — a WhyML
+            # record cannot carry zero fields), so it would never reach the set above even
+            # though it IS @mutable_state-decorated. `mutable_state_class_names` is the
+            # unconditional AST-level registration (Module5_IREmitter.visit_ClassDef) —
+            # class-set membership, not method-name or record-population dependent. Empty
+            # for every module with no such stateless-but-decorated class → byte-identical.
+            whyml_ident(n.lower()) for n in self.ir.get("mutable_state_class_names", [])
         }
+        # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): record CLASS names
+        # (type_decls keys) used as a flat `List[<record>]` ELEMENT, so `_emit_type_decls`
+        # emits them PURE (Why3 forbids a mutable element inside `array`). Empty for
+        # every module with no `List[<record>]` param/return → byte-identical.
+        self._list_element_record_types: Set[str] = set(
+            self.ir.get("list_element_record_types", []))
+
+        # tier3-p1 T3.1.1: an IR-node-typed param/local (`node: ExprIR`) makes the
+        # emitter reflect on it as the `emit_ir` ADT (functions.py::_param_type_str →
+        # `emit_ir`), so the ADT theory (variant type + projections + `size` recursion
+        # measure) MUST be in scope — even without a @mutable_state class. Scan every
+        # function's symbol_table for an IR-node base name. Corpus programs annotate no
+        # param/local with these names → flag False → theory NOT emitted → byte-identical.
+        _IRNODE_TAGS = ("ExprIR", "StmtIR", "IRNode", "ContractExprIR", "exprir", "emit_ir")
+        self._uses_ir_node_param = any(
+            v in _IRNODE_TAGS
+            for f in functions
+            for v in (f.get("symbol_table", {}) or {}).values()
+        ) or any(
+            # self-tcb-reduction (_canonical_preservation_ensures): a function whose
+            # RETURN annotation is an IR-node tag (`-> "ExprIR"`) constructs + returns an
+            # emit_ir value, so the ADT theory must be in scope even when no param/local
+            # names it. Corpus programs never annotate `-> ExprIR` → flag stays False →
+            # theory NOT emitted → byte-identical.
+            (f.get("return_annotation") in _IRNODE_TAGS)
+            for f in functions
+        )
 
         # module-emission.md: OPT-IN axiom isolation. If a function carries
         # `#@ verify_module <name>` AND is emitted here as a REAL `let` body (i.e. it is
@@ -470,12 +660,173 @@ class Module6_WhyMLTranspiler(
 
         # typed-ir-for-b-ceiling.md B-C1/B-C2: the `emit_ir` ADT + projections BEFORE
         # the record types — an ExprIR-valued field names `emit_ir`, so the ADT must be
-        # in scope first. Gated on a @mutable_state class; corpus has none → byte-identical.
-        if getattr(self, "_mutable_state_classes", None):
-            out += self._emit_exprir_theory()
+        # in scope first. Gated on a @mutable_state class OR (tier3-p1) an IR-node-typed
+        # param/local; corpus has neither → byte-identical.
+        if (getattr(self, "_mutable_state_classes", None)
+                or getattr(self, "_uses_ir_node_param", False)
+                or self._uses_stmt_ir()
+                or self._uses_call_kw()
+                # L1: the tparam theory references emit_ir (the bound child) + reuses
+                # is_var/is_attribute/name_of → needs the full emit_ir theory. Gated on
+                # `_uses_tparam` (TParamNode sentinel) → byte-inert elsewhere.
+                or self._uses_tparam()):
+            # theory-tailoring: emit the MINIMAL emit_ir surface for opaque-use
+            # emitter mirrors, gated by an EXPLICIT class-name ALLOW-LIST
+            # (`_TAILOR_OPAQUE_MIRROR_CLASSES`). These mirrors pass emit_ir
+            # purely opaquely (no ctor construction / no projection in any
+            # proven body), so only the bare `type emit_ir` need exist — the
+            # ~80-ctor theory (kind_of/size/projectors/lemmas/irlist/iropt) is
+            # dropped, keeping every VC's SMT context small (~4x faster proof).
+            # Corpus programs NEVER define these emitter mixin classes, so the
+            # tailoring is corpus-inert BY CONSTRUCTION (full theory kept /
+            # byte-identical there). The allow-list is matched against the
+            # file's @mutable_state class names (the reliable AST-level
+            # registration from Module5_IREmitter.visit_ClassDef) — NOT a
+            # post-hoc emitted-body symbol scan (which mis-classified corpus +
+            # monomorphize in a prior attempt). See preamble.py.
+            # Only `StatementEmissionMixin` (statements.py) is TRULY opaque:
+            # its proven bodies never construct/project a rich emit_ir symbol,
+            # so the minimal surface typechecks + proves (verified). NOTE:
+            # `ControlFlowStmtMixin` (stmt_control_flow.py) is NOT opaque — its
+            # bodies apply `svalue_of` (a rich projector), so it must keep the
+            # FULL theory (a minimal surface fails with `unbound ... svalue_of`);
+            # it is deliberately excluded from the allow-list.
+            _TAILOR_OPAQUE_MIRROR_CLASSES = {"StatementEmissionMixin"}
+            _is_opaque_tailored = bool(
+                set(self.ir.get("mutable_state_class_names", []))
+                & _TAILOR_OPAQUE_MIRROR_CLASSES)
+            # The exception-append SUFFIX (Return_emit_ir / emit_ir opttuple returns /
+            # pyconst_val tuple returns) is declared AFTER the emit_ir ADT — the `emit_ir`
+            # ADT / `pyconst_val` theory is only in scope now, so these cannot live in
+            # `_emit_preamble_exceptions` (which runs before the ADT). The suffix is
+            # IDENTICAL regardless of which emit_ir theory (minimal or full) precedes it, so
+            # compute it ONCE and append to whichever theory is chosen. Every `needs` set
+            # below is empty for the opaque mirror AND the whole existing corpus → inert.
+            _exprir_suffix: List[str] = []
+            # Return_emit_ir: an emit_ir-returning function's early-return catch
+            # (`_wrap_body_with_return_catch`) carries an `emit_ir` payload. Inert corpus-wide.
+            if needs.get("needs_return_emit_ir"):
+                _exprir_suffix += ["", "  exception Return_emit_ir emit_ir"]
+            # self-tcb-reduction Layer-2: opttuple returns whose slot type references
+            # `emit_ir` (a receiver/slice recognizer returning `Optional[Tuple[ExprIR, ...]]`).
+            # Byte-inert: no existing opttuple return has an emit_ir slot.
+            _emit_ir_opttuples = sorted(
+                ot for ot in needs.get("opt_tuple_return_types", set())
+                if "emit_ir" in ot)
+            for _ot in _emit_ir_opttuples:
+                # Name by payload type (not arity) — see `_emit_preamble_exceptions`:
+                # a same-arity all-int opttuple would otherwise collide with this one.
+                _suffix = _ot.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+                _exprir_suffix += ["", f"  exception Return_opttuple_{_suffix} (option {_ot})"]
+            # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a tuple return carrying a
+            # `pyconst_val` slot (`_classify_literal_value`'s `(string, pyconst_val, emit_ir)`).
+            # Named by payload type so it never collides with the homogeneous `Return_<arity>`.
+            # Byte-inert: no corpus / other-mirror tuple return refines to a pyconst_val slot.
+            for _pt in sorted(needs.get("pyconst_val_tuple_return_types", set())):
+                _psuffix = _pt.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+                _exprir_suffix += ["", f"  exception Return_tup_{_psuffix} {_pt}"]
+            # THE STATEMENT-LIST CARRIER (pyast ctor family): a `-> "List[ExprIR]"` method
+            # returns `array emit_ir`, and an early/in-loop return of one travels as an
+            # immutable `seq emit_ir` (Why3 forbids a mutable array exception payload).
+            # DEFERRED here for the same reason as the emit_ir-slot opttuples above:
+            # `emit_ir` is not in scope in the top-of-module exception block, and declaring
+            # it there emits `unbound type symbol 'emit_ir'` (measured).
+            if needs.get("needs_return_seq_ir"):
+                _exprir_suffix += ["", "  exception Return_seq_ir (Seq.seq emit_ir)"]
+
+            if _is_opaque_tailored:
+                # self-tcb-reduction (opaque-mirror accessor restore): an opaque-tailored
+                # mirror historically got the MINIMAL emit_ir surface UNCONDITIONALLY (the
+                # ~80-ctor accessor theory dropped for proof speed, sound because its proven
+                # bodies used emit_ir purely opaquely). Converting a node-reader stub (e.g.
+                # `_field_type_of`) makes a PROVEN body read a real accessor (`.get("type")`
+                # → `kind_of`), which the minimal surface cannot type (`unbound kind_of`).
+                # So DEFER the choice: build BOTH, and let `_resolve_deferred_opaque_theory`
+                # splice the FULL theory iff the emitted body actually references a dropped
+                # accessor symbol, else the MINIMAL surface. With no such conversion present
+                # the body references no rich accessor → minimal is chosen → BYTE-IDENTICAL
+                # to the historical emission (the perf-tailoring is preserved). Tightly
+                # gated: the upgrade fires ONLY on a real kind_of-reading node-reader, never
+                # on a sibling opaque method. Corpus-inert: corpus never defines this class.
+                _minimal = list(self._emit_minimal_emit_ir_theory()) + _exprir_suffix
+                _full = list(self._emit_exprir_theory()) + _exprir_suffix
+                # RICH = the accessor/projector SYMBOLS the FULL theory adds over the
+                # MINIMAL surface — the `let (rec) function` / `val` / `predicate` names a
+                # node-reader body APPLIES (kind_of/left_of/size/svalue_of/name_of/…). We
+                # deliberately scope to callable declarations (NOT the broad
+                # `_exprir_theory_symbols`, which also captures type names, constructors and
+                # single-letter pattern binders like `i` — every one a false positive that
+                # would spuriously force the full theory on a purely-opaque body). A
+                # node-reader only PROJECTS, so a projector-name match is the exact signal.
+                _rich = self._opaque_accessor_symbols(_full) - self._opaque_accessor_symbols(_minimal)
+                self._opaque_theory_deferred = (
+                    _OPAQUE_THEORY_SLOT, _full, _minimal, _rich)
+                out.append(_OPAQUE_THEORY_SLOT)
+                _exprir_theory = None  # opaque path resolved via its own deferral
+            else:
+                _exprir_theory = list(self._emit_exprir_theory()) + _exprir_suffix
+            # parser-primitives-wall-impl-3.md capability (i) — LOW-BLAST-RADIUS
+            # record-element class-field gate. `_mutable_state_classes` is the COARSE
+            # disjunct above: it fires for ANY @mutable_state class, including one whose
+            # state is plain records/arrays/ints (a `_Parser`-shaped token cursor) and
+            # that never names an emit_ir symbol. Emitting the ~277-line ADT theory there
+            # is what made `@mutable_state` unaffordable on a big mirror file (round 2's
+            # measured +283 lines / CERTIFIED-BOUNDARY). The four NARROW disjuncts
+            # (IR-node param, stmt_ir, call_kw, tparam) are positive evidence of real
+            # emit_ir use, so they emit eagerly and are untouched. When ONLY the coarse
+            # disjunct fires we DEFER: park a sentinel, emit the rest of the file, and
+            # splice the theory back in iff the emitted text actually references a symbol
+            # the theory declares (`_resolve_deferred_exprir_theory`). Any reference —
+            # including one inside a comment — re-inserts, so the decision is
+            # conservative in the safe direction and every file that uses emit_ir stays
+            # BYTE-IDENTICAL. Only a @mutable_state class with zero emit_ir contact loses
+            # the theory (and it could not have used it anyway).
+            # (Skipped for the opaque-tailored mirror, which parked its own minimal-vs-full
+            # deferral above and set `_exprir_theory = None`.)
+            if _exprir_theory is not None:
+                if (getattr(self, "_uses_ir_node_param", False)
+                        or self._uses_stmt_ir()
+                        or self._uses_call_kw()
+                        or self._uses_tparam()):
+                    out += _exprir_theory
+                else:
+                    self._exprir_deferred = (_EXPRIR_THEORY_SLOT, list(_exprir_theory))
+                    out.append(_EXPRIR_THEORY_SLOT)
+
+        # pyval-value-model-wall (self-tcb-reduction, Tier-5 heterogeneous value model):
+        # emit the certified `hval` sum + `hval_list` BEFORE the record types — a
+        # `Dict[str, PyVal]` field/local names `pyval`, so the ADT must be in scope first.
+        # Gated on `_uses_pyval` (a `Dict[str, PyVal]` annotation is present); the corpus
+        # has none → byte-identical there. Co-landed with the Phase2f_PyVal cert.
+        if self._uses_pyval():
+            out += self._emit_pyval_theory()
+            # self-tcb-reduction Tier-5 (union/match cluster C1b): opttuple returns whose
+            # slot type references `hval` (the union readers' `Optional[Tuple[str, PyVal]]`)
+            # are declared HERE — after the `hval` ADT (just emitted) — not in
+            # `_emit_preamble_exceptions` (which runs before it). The emit_ir opttuple
+            # precedent. Byte-inert: no existing opttuple return has an hval slot.
+            _hval_opttuples = sorted(
+                ot for ot in needs.get("opt_tuple_return_types", set())
+                if "hval" in ot and "emit_ir" not in ot)
+            for _ot in _hval_opttuples:
+                _suffix = _ot.replace("(", "").replace(")", "").replace(" ", "").replace(",", "_")
+                out += ["", f"  exception Return_opttuple_{_suffix} (option {_ot})"]
+
+        # set-value-model-wall (self-tcb-reduction, Tier-5 value-model wall): the
+        # executable emitter-local `Set[str]` value model — a `set.SetApp[string]`
+        # clone in a nested `scope StrSet`. Emitted BEFORE the record types (a
+        # `Set[str]` local names `StrSet.set`). Gated on `_uses_str_set` (a
+        # `Set[str] = set()` local is present); the corpus has none -> byte-identical.
+        if self._uses_str_set():
+            out += self._emit_str_set_theory()
 
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
+        # value-model campaign incr5 (primitive c): declare `Return_<variant>` exceptions HERE —
+        # after the synthesized `_union_*` types are in scope — for early-returning Optional[X]
+        # walkers. Empty (byte-identical) for modules with none.
+        out += self._emit_union_return_exceptions(needs, declared_types)
+        out += self._emit_module_const_compound_maps()
 
         # inductive.md: `#@ inductive` predicates emit AFTER datatypes (their rules
         # reference constructors) and BEFORE axioms/functions (which may mention the
@@ -503,6 +854,7 @@ class Module6_WhyMLTranspiler(
             out += self._emit_preamble_axioms(self.ir)
             out += self._emit_uncited_axiom_func_decls()
             out += self._emit_module_globals()
+            out += self._emit_init_contract_checks()   # (#43) route #15
             out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
         else:
             out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
@@ -514,10 +866,25 @@ class Module6_WhyMLTranspiler(
             # inline.md Phase 1: module-level global object instances. Emitted
             # AFTER the record type declarations and BEFORE functions.
             out += self._emit_module_globals()
+            out += self._emit_init_contract_checks()   # (#43) route #15
 
         self._emit_opaque_class_aliases(functions, out, declared_types)
 
         self._module_func_names = {whyml_ident(func["name"]) for func in functions}
+        # `@property` SUPPORT (relaunch #16): `(class whyml_name, property name) ->
+        # emitted nullary method`, so `_handle_attribute_expr` can route a
+        # `<recv>.<prop>` READ to the getter Module 5 now emits. Empty unless some
+        # method carries `is_property` -> byte-inert for every property-free program.
+        self._property_getters = {}
+        for func in functions:
+            if not func.get("is_property"):
+                continue
+            _st = func.get("self_type")
+            if not _st:
+                continue
+            _nm = str(func.get("name", ""))
+            _prop = _nm.split("__")[-1] if "__" in _nm else _nm
+            self._property_getters[(whyml_ident(_st.lower()), _prop)] = whyml_ident(_nm)
         # allocator-frame plan §2.7: methods that OPTED IN to concrete sibling-calls via
         # `#@ sibling_concrete`. A `self.<m>()` call to one of these lowers to a CONCRETE
         # call (the callee's real contract + type-invariant guarantee reaches the caller);
@@ -546,13 +913,111 @@ class Module6_WhyMLTranspiler(
         # against it. Empty for non-mixin modules → maps unchanged → byte-identical.
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # WL-04b SELF-CALL SIBLING (`_fin` recognizer vein, increment 8): a
+        # `-> List[<record>]` method's SELF-CALL return type is `array <record>` — the
+        # same shape `_compute_return_type` already gives the DEFINITION (its WL-04b
+        # branch). Without it the definition emits `: array py_alias` while every
+        # `self.<m>(...)` call site abstracts as `array int`, so a caller binding the
+        # result into a record-element list local ill-types (measured: `import_from`
+        # calling `self._import_as_names()`).
+        # WHY HERE and not inside `_build_method_return_type_map`, where it belongs
+        # logically: that method's MIRROR is UN-TRUSTED and converted, so the two lines
+        # there would have to be re-ported (§10.4) and would oblige a first-ever
+        # whole-file re-proof of `module6_whyml/functions.py` — lesson (vv), a change's
+        # home is decided by its re-port cost. `transpile`'s mirror is `\trusted`, so the
+        # same post-pass here costs nothing and perturbs no verified artifact.
+        # Gated on `_record_array_fields` (non-empty only for a `@mutable_state` class
+        # with a `List[<record>]` field) exactly like the `-> <RecordClass>` branch in
+        # the map builder -> corpus byte-inert.
+        if getattr(self, "_record_array_fields", None):
+            for _f in funcs_for_maps:
+                if (_f.get("return_annotation") == "list"
+                        and self._module_method_return_types.get(
+                            _f.get("name")) == "array int"
+                        and _f.get("return_value_type") in self._record_types):
+                    self._module_method_return_types[_f["name"]] = (
+                        "array "
+                        + self._record_types[_f["return_value_type"]]["whyml_name"])
+        # PYTHON-AST NODE CTOR FAMILY (increment 11): the SELF-CALL sibling of
+        # `_compute_return_type`'s `-> "List[ExprIR]"` branch. `block`/`_if_tail`/
+        # `_else_block` are `\trusted` stubs, so `_build_method_return_type_map` computed
+        # their return from a `pass` body ("unit") and never reached its `ann == "list"`
+        # branch — leaving every `body = self.block()` call site abstracted at the wrong
+        # type. Placed here rather than in the map builder for the SAME reason as the
+        # record-list sibling above: that builder's mirror is UN-TRUSTED, `transpile`'s is
+        # `\trusted`. Keyed on the literal `emit_ir` element `ir_resolve` sets only for
+        # that annotation -> corpus byte-inert.
+        for _f in funcs_for_maps:
+            if (_f.get("return_annotation") == "list"
+                    and _f.get("return_value_type") == "emit_ir"):
+                self._module_method_return_types[_f["name"]] = "array emit_ir"
+        # LITERAL-VALUE MODEL (relaunch #12): a module-level helper declared
+        # `-> "PyConstVal"` returns a Python CONSTANT VALUE, and its CALL SITES must see
+        # that. `_parse_number` is the only such helper: it is a `\trusted` stub, so
+        # `_build_method_return_type_map` computed its return from a `pass` body ("unit")
+        # and every `Constant(value=_parse_number(...))` construction declined to a facade.
+        # Placed here rather than in the map builder for the SAME reason as the
+        # `array emit_ir` sibling above (lesson (vv)): that builder's mirror is UN-TRUSTED
+        # and converted, so editing it obliges a whole-file re-proof of
+        # `module6_whyml/functions.py`, while `transpile`'s mirror is `\trusted` and this
+        # post-pass costs nothing. Keyed on the literal annotation tag, which no corpus
+        # program uses -> corpus byte-inert. Lesson (am), AGAIN: the DECLARATION side
+        # (`functions._compute_return_type`) and the CALL-SITE side (this map) are TWO
+        # producers, and patching only the first left the emitted `val` correctly typed
+        # `pyconst_val` while its call site still read `unit`.
+        for _f in funcs_for_maps:
+            if _f.get("return_annotation") == "PyConstVal":
+                self._module_method_return_types[_f["name"]] = "pyconst_val"
+        # self-tcb-reduction (_err-divergence): callee IR-names declared `-> NoReturn`
+        # (is_noreturn, Module5 NR1). A `self.<m>(...)` call to one of these is modelled at
+        # the call site (`_handle_dotted_call`) as making the continuation UNREACHABLE — the
+        # abstract op gets `ensures { false }` (the faithful never-returns claim, justified
+        # by the callee's unconditional-raise body) and the call lowers to
+        # `(let _ = <call> in absurd)`, so a trailing `self._err(...)` in a `-> ExprIR`
+        # clause parser type-checks. Empty for every module with no `-> NoReturn` method →
+        # byte-identical.
+        self._module_method_noreturn = {
+            f["name"] for f in funcs_for_maps if f.get("is_noreturn")}
         self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
+        # wrong-lowering-to-fix.md §WL-05b: func-name -> {dict/set params modelled as a
+        # caller-visible mutable `ref (map ...)` (fixpoint over direct item-mutation +
+        # transitive param forwarding). Consulted at call sites (pass the bare ref) and
+        # in `_reset_function_state` (ref param type + `writes` frame). Empty for every
+        # read-only-collection program -> byte-identical.
+        self._func_mutated_collection_params = \
+            self._build_func_mutated_collection_params(funcs_for_maps)
+        # stmt-list-append-mutation wall (C-bucket): func-name -> list params modelled as
+        # a caller-visible mutable `ref (seq stmt_ir)` (fixpoint over direct stmt-append +
+        # transitive param forwarding). Empty for every program with no `{"stmt":K}`
+        # append -> byte-identical.
+        self._func_stmt_seq_mut_params = \
+            self._build_func_stmt_seq_mut_params(funcs_for_maps)
         # 1111-spec R7: formal-param order + positional defaults, for call-site
         # default fill of cross-module / module-function calls.
         self._module_method_formal_params = {
             f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
         self._module_method_param_defaults = {
             f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
+        # (#49) ROUTE #232: callee-name -> (keyword-only formals, positional-only formals,
+        # has-`**kwargs`), for the call-site binding rules. Only callees carrying one of
+        # the three IR fields get an entry -> empty for every other program.
+        self._module_method_param_kinds = {
+            f["name"]: (list(f.get("kwonly_params") or []),
+                        list(f.get("posonly_params") or []),
+                        bool(f.get("kwarg_param")))
+            for f in funcs_for_maps
+            if f.get("kwonly_params") or f.get("posonly_params") or f.get("kwarg_param")}
+        # W8 capability (ii): callee-name -> the name of its `*vals: str` vararg param
+        # (always the LAST entry of `formal_params`). Consulted at call sites so the
+        # trailing positional arguments are PACKED into a `seq string` instead of
+        # tripping the fixed-arity check. Empty for every corpus / pycsl_lib program
+        # (no str-annotated vararg) -> byte-identical.
+        self._module_method_vararg_str = {
+            f["name"]: f["vararg_str_param"] for f in funcs_for_maps
+            if f.get("vararg_str_param")}
+        self._module_method_vararg_elem = {
+            f["name"]: f.get("vararg_elem_type", "string") for f in funcs_for_maps
+            if f.get("vararg_str_param")}
         # 10-1732-gap (Gap 3): by-name {param → WhyML type} for call-site default fill,
         # so an omitted `None`-defaulted non-int param is filled at its faithful zero
         # (`""`/`0.0`) instead of int `0`. Built from the SAME `funcs_for_maps` (incl.
@@ -581,6 +1046,63 @@ class Module6_WhyMLTranspiler(
             f["name"] for f in funcs_for_maps
             if self._func_returns_string_seq(f)
         }
+        # (#49) gen #36: a TUPLE slot bound to a Module5 SEQ-PROMOTED list local whose
+        # every element source is a string (`clauses.append(raw[i].strip()); return
+        # clauses, i`) is an `array string`, not the `array int` `_refine_tuple_return_type`
+        # gives every list slot; the tail return bridges it with `materialize_str`
+        # (`_handle_return_stmt`). The element type is the one `_mark_string_seq_locals`
+        # infers, computed from the func's OWN IR (symbol table + param annotations, formal
+        # params, flat param element types, Module5 seq facts) with every piece of
+        # per-function state it reads restored afterwards. This MAP entry is the single
+        # source: `_emit_function_block` adopts it for the function's own signature, so the
+        # call-site type and the declaration agree by construction. Placed here rather than
+        # in the refine/map builder for the reason of the siblings above (lesson (vv)):
+        # their mirrors are UN-TRUSTED and converted, `transpile`'s is `\trusted`. Only a
+        # slot whose Var is seq-promoted moves, and every such return failed L3-tc (`seq`
+        # vs the `array int` slot), so no passing program changes.
+        for _f in funcs_for_maps:
+            _rt = self._module_method_return_types.get(_f.get("name"))
+            _spv = set(_f.get("seq_promoted_vars", []) or [])
+            if not (_spv and isinstance(_rt, str) and _rt.startswith("(")
+                    and _rt.endswith(")") and "array int" in _rt):
+                continue
+            _elts = self._first_tuple_return_elts(_f.get("body", []) or [])
+            _slots = _rt[1:-1].split(", ")
+            if not _elts or len(_slots) != len(_elts):
+                continue
+            if not any(isinstance(_e, dict) and _e.get("type") == "Var"
+                       and _e.get("name") in _spv and _slots[_k] == "array int"
+                       for _k, _e in enumerate(_elts)):
+                continue
+            _sv_saved = (getattr(self, "_current_symbol_table", None),
+                         getattr(self, "_seq_locals", set()),
+                         getattr(self, "_seq_value_types", {}),
+                         getattr(self, "_formal_params", []),
+                         getattr(self, "_param_list_flat_elem", {}),
+                         getattr(self, "_string_local_vars", set()),
+                         getattr(self, "_array_elem_types", {}))
+            _st = dict(_f.get("symbol_table", {}) or {})
+            for _pk, _pty in (_f.get("param_annotations") or {}).items():
+                if _st.get(_pk) in (None, "Any"):
+                    _st[_pk] = _pty
+            self._current_symbol_table = _st
+            self._seq_locals = _spv
+            self._seq_value_types = dict(_f.get("seq_value_types", {}) or {})
+            self._formal_params = list(_f.get("formal_params", []) or [])
+            self._param_list_flat_elem = dict(_f.get("param_list_flat_elem", {}) or {})
+            self._string_local_vars = set()
+            self._array_elem_types = {}
+            self._mark_string_seq_locals(_f.get("body", []) or [])
+            _svt = self._seq_value_types
+            (self._current_symbol_table, self._seq_locals, self._seq_value_types,
+             self._formal_params, self._param_list_flat_elem, self._string_local_vars,
+             self._array_elem_types) = _sv_saved
+            for _k, _e in enumerate(_elts):
+                if (isinstance(_e, dict) and _e.get("type") == "Var"
+                        and _e.get("name") in _spv and _slots[_k] == "array int"
+                        and _svt.get(_e.get("name")) == "string"):
+                    _slots[_k] = "array string"
+            self._module_method_return_types[_f["name"]] = "(" + ", ".join(_slots) + ")"
         self._module_method_result_ensures = self._build_method_result_ensures_map(funcs_for_maps)
         self._module_method_param_result_ensures = self._build_method_param_result_ensures_map(funcs_for_maps)
         self._module_method_field_result_ensures = self._build_method_field_result_ensures_map(funcs_for_maps)
@@ -616,19 +1138,212 @@ class Module6_WhyMLTranspiler(
             self._module_method_return_types[pf["name"]] = pf["_mixin_ret_whyml"]
         self._build_callee_no_exception_summary(functions)
 
-        sorted_functions, scc_info = sort_functions_by_scc(functions)
+        # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): the dispatcher's
+        # calls to its 23 handlers are synthesized from the source table by the bespoke
+        # emitter, so `find_calls_in_ir` cannot see them. Publish them as explicit `uses`
+        # ordering citations BEFORE sorting, or the dispatcher sorts before three of its
+        # handlers and Why3 rejects the file with `unbound function or predicate symbol`.
+        # No-op unless the dispatcher shape is recognized -> byte-inert.
+        self._inject_pyx_dispatch_uses(functions)
+        sorted_functions, scc_info = sort_functions_by_scc(
+            functions, self._record_return_sibling_methods())
+        # C1b (pyval-walker-impl.md): the fixpoint set of pyval→`list string`
+        # walker names, so a walker that cross-calls a sibling walker is
+        # recognized. SCC ordering above already places callees before callers.
+        from module6_whyml.generic_fold import compute_pyval_list_walker_names
+        self._pyval_list_walker_names = compute_pyval_list_walker_names(functions)
         self._emitted_logic_funcs = set()
         self._late_content_ops = []
+        # (#78) A multi-member SCC is one `let rec … with …` chain, keyworded by POSITION in
+        # `_emit_function`. A member emitted as a bodyless `val` (a `--fun`-trusted member
+        # outside the slice; the BESPOKE emitters keep their body whatever `trusted` says)
+        # breaks it two ways: a later concrete member still opens with `with` (Why3 SYNTAX
+        # ERROR, measured on Module5 `--fun`), and an earlier concrete member calls the `val`
+        # before it is declared (`unbound function or predicate symbol`, measured). Both are
+        # invalid WhyML whatever the program, so the SCC's blocks are buffered and, ONLY in
+        # that broken case, re-emitted vals-first with the concrete chain re-keyworded
+        # (`let rec` then `with`). Any SCC that is valid today is flushed unchanged
+        # (byte-inert). Sound: a `val` carries only its contract; order changes no meaning.
+        _scc_buf: List[tuple] = []
         for func in sorted_functions:
-            out += self._emit_function(func, scc_info)
+            _blk = self._emit_function(func, scc_info)
+            _, _spos, _ssize = scc_info.get(func["name"], (0, 0, 1))
+            if _ssize <= 1:
+                out += _blk
+                continue
+            _scc_buf.append(_blk)
+            if _spos < _ssize - 1:
+                continue
+            _vals = [b for b in _scc_buf if b and b[0].startswith("  val ")]
+            _broken = False
+            _seen_val = False
+            _conc_text = ""
+            for _b in _scc_buf:
+                if not _b:
+                    continue
+                if _b[0].startswith("  val "):
+                    _seen_val = True
+                    _vn = _b[0][len("  val "):].split(" ", 1)[0]
+                    if re.search(r"(?<![\w'])" + re.escape(_vn) + r"(?![\w'])", _conc_text):
+                        _broken = True
+                elif _b[0].startswith(("  with ", "  let rec ", "  let ")):
+                    if _seen_val and _b[0].startswith("  with "):
+                        _broken = True
+                    _conc_text += "\n".join(_b) + "\n"
+            if not _broken:
+                for _b in _scc_buf:
+                    out += _b
+            else:
+                for _b in _vals:
+                    out += _b
+                _open = False
+                for _b in _scc_buf:
+                    if not _b or _b[0].startswith("  val "):
+                        continue
+                    _b = list(_b)
+                    for _kw in ("  with ", "  let rec "):
+                        if _b[0].startswith(_kw):
+                            _b[0] = ("  with " if _open else "  let rec ") + _b[0][len(_kw):]
+                            break
+                    _open = _b[0].startswith(("  with ", "  let rec "))
+                    out += _b
+            _scc_buf = []
+        for _b in _scc_buf:
+            out += _b
 
+        # (#49) ROUTE #224 — a DECLARED `#@ conforms_to` is checked whether or not the
+        # flag is passed; the implicit inheritance overrides stay opt-in.
         if self.check_behavioral_subtyping:
             out += self._emit_subtyping_goals(functions)
+        else:
+            out += self._emit_subtyping_goals(functions, conforms_to_only=True)
 
         out.append("end")
         self._insert_abstract_val_block(out)
         self._insert_late_content_ops(out)
+        self._resolve_deferred_exprir_theory(out)
+        self._resolve_deferred_opaque_theory(out)
+        self._insert_array_init_use(out)
         return "\n".join(out)
+
+    # ------------------------------------------------------------------
+    # parser-primitives-wall-impl-3.md capability (i)
+    # ------------------------------------------------------------------
+    def _exprir_theory_symbols(self, theory_lines: List[str]) -> Set[str]:
+        """Every top-level WhyML name the emit_ir theory DECLARES: type names,
+        `with`-group members, constructors, `let (rec) function` / `val` / `lemma`
+        / `exception` names, and the inline record field labels. Derived from the
+        theory's OWN emitted text (same discipline as
+        `_reserved_exprir_symbols`), so it can never drift out of sync."""
+        text = "\n".join(theory_lines)
+        # (#49) ROUTE #191 PREREQUISITE — STRIP COMMENTS AND STRING LITERALS FIRST.
+        # `_opaque_accessor_symbols` (below) already does this and says why: the
+        # theory's own explanatory prose contains the phrase "`val function`", which
+        # `\bval\s+(\w+)` captures as a symbol named `function`. That word is NOT
+        # declared by the theory, and it made the deferral's reference test fire on
+        # any emitted `val function <op> : …` abstract-op line — so a @mutable_state
+        # file that merely declared an abstract op had the whole ~277-line ADT theory
+        # spliced back in (MEASURED on 0933 the moment route #191 gave the typed
+        # `None` arm route #44's `pycsl_none`). Stripping first also lets the `val`
+        # pattern capture the REAL name of a `val function f` / `val predicate p`
+        # declaration instead of the keyword, which is the same defect read the other
+        # way round: a theory symbol declared that way would otherwise be MISSED and
+        # a file referencing it would lose the theory it needs.
+        text = re.sub(r"\(\*.*?\*\)", " ", text, flags=re.S)
+        text = re.sub(r'"[^"]*"', ' ', text)
+        names: Set[str] = set()
+        names.update(re.findall(r"^\s*type\s+(\w+)", text, re.M))
+        names.update(re.findall(r"\bwith\s+(\w+)\s*=", text))
+        names.update(re.findall(r"\blet\s+(?:rec\s+)?function\s+(\w+)", text))
+        names.update(re.findall(r"\bval\s+(?:function\s+|predicate\s+)?(\w+)", text))
+        names.update(re.findall(r"\blemma\s+(\w+)", text))
+        names.update(re.findall(r"\bexception\s+(\w+)", text))
+        # Constructors of the sum types (`IrVar`, `ILCons`, `INum`, …): the
+        # capitalized identifiers on a `type`/`with` declaration line.
+        for line in theory_lines:
+            if re.match(r"^\s*(type|with)\s+\w+", line):
+                names.update(re.findall(r"\b([A-Z]\w*)\b", line))
+        # inline record types declared within the theory (`sharedvar`) — their
+        # field labels share the module namespace too.
+        for rec_body in re.findall(r"\{([^{}]*)\}", text):
+            names.update(re.findall(r"(\w+)\s*:", rec_body))
+        names.discard("")
+        return names
+
+    def _resolve_deferred_exprir_theory(self, out: List[str]) -> None:
+        """Splice the deferred emit_ir theory into its parked slot iff the rest of
+        the emitted file references a symbol the theory declares; otherwise drop
+        the slot. See the deferral comment in `transpile`. No-op (and no sentinel
+        in `out`) whenever the theory was emitted eagerly or not at all."""
+        info = getattr(self, "_exprir_deferred", None)
+        if not info:
+            return
+        marker, theory = info
+        self._exprir_deferred = None
+        try:
+            idx = out.index(marker)
+        except ValueError:      # pragma: no cover - defensive
+            return
+        rest = "\n".join(out[idx + 1:])
+        names = self._exprir_theory_symbols(theory)
+        used = bool(names) and bool(re.search(
+            r"\b(?:" + "|".join(re.escape(n) for n in sorted(names)) + r")\b", rest))
+        if used:
+            out[idx:idx + 1] = theory
+        else:
+            del out[idx]
+
+    def _opaque_accessor_symbols(self, theory_lines: List[str]) -> Set[str]:
+        """The CALLABLE symbols a theory declares: every `let (rec) function` / `val`
+        (incl. `val function`) / `predicate` name. Used to compute the emit_ir
+        accessor/projector set a node-reader body could APPLY — precisely the names
+        that gate the minimal→full upgrade. Deliberately narrower than
+        `_exprir_theory_symbols` (which also captures types/constructors/pattern
+        binders — all false positives for a projection-only node-reader).
+
+        Comments and string literals are stripped FIRST: the theory's own
+        explanatory prose contains phrases like "val function" that would
+        otherwise be mis-captured as a symbol named `function`."""
+        text = "\n".join(theory_lines)
+        text = re.sub(r"\(\*.*?\*\)", " ", text, flags=re.S)
+        text = re.sub(r'"[^"]*"', ' ', text)
+        names: Set[str] = set()
+        names.update(re.findall(r"\blet\s+(?:rec\s+)?function\s+(\w+)", text))
+        names.update(re.findall(r"\bval\s+(?:function\s+)?(\w+)", text))
+        names.update(re.findall(r"\bpredicate\s+(\w+)", text))
+        names.discard("")
+        return names
+
+    def _resolve_deferred_opaque_theory(self, out: List[str]) -> None:
+        """Resolve the opaque-mirror emit_ir theory slot (`_OPAQUE_THEORY_SLOT`).
+
+        Splice the FULL accessor theory iff the emitted body references a dropped
+        accessor symbol (kind_of/left_of/size/…, i.e. a symbol the FULL theory
+        declares but the MINIMAL surface does not); otherwise splice the MINIMAL
+        surface — reproducing the historical opaque emission BYTE-FOR-BYTE. No-op
+        when the mirror was not opaque-tailored (no slot parked). See the deferral
+        in `transpile`."""
+        info = getattr(self, "_opaque_theory_deferred", None)
+        if not info:
+            return
+        marker, full, minimal, rich = info
+        self._opaque_theory_deferred = None
+        try:
+            idx = out.index(marker)
+        except ValueError:      # pragma: no cover - defensive
+            return
+        # PRECISE detection: the accessor upgrade must fire ONLY on a real body
+        # application of a dropped accessor, never on the SYMBOL NAME appearing inside
+        # a `(* … *)` comment or a "…" string literal (both carry accessor names in the
+        # emitter's own explanatory prose). Strip them before scanning, otherwise the
+        # emission is NOT byte-inert for a purely-opaque mirror (a comment mentioning
+        # `kind_of`/`size` would spuriously pull in the full theory).
+        rest = "\n".join(out[idx + 1:])
+        rest = re.sub(r"\(\*.*?\*\)", " ", rest, flags=re.S)
+        rest = re.sub(r'"[^"]*"', ' ', rest)
+        used = bool(rich) and bool(re.search(
+            r"\b(?:" + "|".join(re.escape(n) for n in sorted(rich)) + r")\b", rest))
+        out[idx:idx + 1] = full if used else minimal
 
     # ------------------------------------------------------------------
     # module-emission.md — OPT-IN axiom isolation via separate Why3 modules
@@ -650,6 +1365,20 @@ class Module6_WhyMLTranspiler(
         global to the program (a cross-module call still needs the callee's propagated
         contract), so they are computed ONCE here and reused for every emitted module."""
         self._module_func_names = {whyml_ident(func["name"]) for func in functions}
+        # `@property` SUPPORT (relaunch #16): `(class whyml_name, property name) ->
+        # emitted nullary method`, so `_handle_attribute_expr` can route a
+        # `<recv>.<prop>` READ to the getter Module 5 now emits. Empty unless some
+        # method carries `is_property` -> byte-inert for every property-free program.
+        self._property_getters = {}
+        for func in functions:
+            if not func.get("is_property"):
+                continue
+            _st = func.get("self_type")
+            if not _st:
+                continue
+            _nm = str(func.get("name", ""))
+            _prop = _nm.split("__")[-1] if "__" in _nm else _nm
+            self._property_getters[(whyml_ident(_st.lower()), _prop)] = whyml_ident(_nm)
         self._sibling_concrete_methods = {whyml_ident(func["name"]) for func in functions
                                           if func.get("sibling_concrete")}
         self._composed_provider_methods = set(self.ir.get("composed_provider_methods", []))
@@ -659,11 +1388,68 @@ class Module6_WhyMLTranspiler(
                for m in ind.get("members", [])})
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # LITERAL-VALUE MODEL (relaunch #12): a module-level helper declared
+        # `-> "PyConstVal"` returns a Python CONSTANT VALUE, and its CALL SITES must see
+        # that. `_parse_number` is the only such helper: it is a `\trusted` stub, so
+        # `_build_method_return_type_map` computed its return from a `pass` body ("unit")
+        # and every `Constant(value=_parse_number(...))` construction declined to a facade.
+        # Placed here rather than in the map builder for the SAME reason as the
+        # `array emit_ir` sibling above (lesson (vv)): that builder's mirror is UN-TRUSTED
+        # and converted, so editing it obliges a whole-file re-proof of
+        # `module6_whyml/functions.py`, while `transpile`'s mirror is `\trusted` and this
+        # post-pass costs nothing. Keyed on the literal annotation tag, which no corpus
+        # program uses -> corpus byte-inert. Lesson (am), AGAIN: the DECLARATION side
+        # (`functions._compute_return_type`) and the CALL-SITE side (this map) are TWO
+        # producers, and patching only the first left the emitted `val` correctly typed
+        # `pyconst_val` while its call site still read `unit`.
+        for _f in funcs_for_maps:
+            if _f.get("return_annotation") == "PyConstVal":
+                self._module_method_return_types[_f["name"]] = "pyconst_val"
+        # self-tcb-reduction (_err-divergence): callee IR-names declared `-> NoReturn`
+        # (is_noreturn, Module5 NR1). A `self.<m>(...)` call to one of these is modelled at
+        # the call site (`_handle_dotted_call`) as making the continuation UNREACHABLE — the
+        # abstract op gets `ensures { false }` (the faithful never-returns claim, justified
+        # by the callee's unconditional-raise body) and the call lowers to
+        # `(let _ = <call> in absurd)`, so a trailing `self._err(...)` in a `-> ExprIR`
+        # clause parser type-checks. Empty for every module with no `-> NoReturn` method →
+        # byte-identical.
+        self._module_method_noreturn = {
+            f["name"] for f in funcs_for_maps if f.get("is_noreturn")}
         self._module_method_param_types = self._build_method_param_types_map(funcs_for_maps)
+        # wrong-lowering-to-fix.md §WL-05b: func-name -> {dict/set params modelled as a
+        # caller-visible mutable `ref (map ...)` (fixpoint over direct item-mutation +
+        # transitive param forwarding). Consulted at call sites (pass the bare ref) and
+        # in `_reset_function_state` (ref param type + `writes` frame). Empty for every
+        # read-only-collection program -> byte-identical.
+        self._func_mutated_collection_params = \
+            self._build_func_mutated_collection_params(funcs_for_maps)
+        # stmt-list-append-mutation wall (C-bucket): see the parallel setup above.
+        self._func_stmt_seq_mut_params = \
+            self._build_func_stmt_seq_mut_params(funcs_for_maps)
         self._module_method_formal_params = {
             f["name"]: list(f.get("formal_params", [])) for f in funcs_for_maps}
         self._module_method_param_defaults = {
             f["name"]: dict(f.get("param_defaults", {})) for f in funcs_for_maps}
+        # (#49) ROUTE #232: callee-name -> (keyword-only formals, positional-only formals,
+        # has-`**kwargs`), for the call-site binding rules. Only callees carrying one of
+        # the three IR fields get an entry -> empty for every other program.
+        self._module_method_param_kinds = {
+            f["name"]: (list(f.get("kwonly_params") or []),
+                        list(f.get("posonly_params") or []),
+                        bool(f.get("kwarg_param")))
+            for f in funcs_for_maps
+            if f.get("kwonly_params") or f.get("posonly_params") or f.get("kwarg_param")}
+        # W8 capability (ii): callee-name -> the name of its `*vals: str` vararg param
+        # (always the LAST entry of `formal_params`). Consulted at call sites so the
+        # trailing positional arguments are PACKED into a `seq string` instead of
+        # tripping the fixed-arity check. Empty for every corpus / pycsl_lib program
+        # (no str-annotated vararg) -> byte-identical.
+        self._module_method_vararg_str = {
+            f["name"]: f["vararg_str_param"] for f in funcs_for_maps
+            if f.get("vararg_str_param")}
+        self._module_method_vararg_elem = {
+            f["name"]: f.get("vararg_elem_type", "string") for f in funcs_for_maps
+            if f.get("vararg_str_param")}
         self._module_method_param_whyml_types = \
             self._build_method_param_whyml_types_by_name(funcs_for_maps)
         self._module_method_return_annotations = \
@@ -713,6 +1499,11 @@ class Module6_WhyMLTranspiler(
             out += self._emit_class_inv_axioms(self.ir)
         type_lines, declared_types = self._emit_type_decls(type_decls)
         out += type_lines
+        # value-model campaign incr5 (primitive c): declare `Return_<variant>` exceptions HERE —
+        # after the synthesized `_union_*` types are in scope — for early-returning Optional[X]
+        # walkers. Empty (byte-identical) for modules with none.
+        out += self._emit_union_return_exceptions(needs, declared_types)
+        out += self._emit_module_const_compound_maps()
         self._inductive_preds = (
             {ind["name"] for ind in self.ir.get("inductive_decls", [])}
             | {m["name"] for ind in self.ir.get("inductive_decls", [])
@@ -723,6 +1514,7 @@ class Module6_WhyMLTranspiler(
                 out += self._emit_preamble_axioms(axiom_ir)
             out += self._emit_uncited_axiom_func_decls()
             out += self._emit_module_globals()
+            out += self._emit_init_contract_checks()   # (#43) route #15
             out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
         else:
             out += self._emit_inductive_decls(self.ir.get("inductive_decls", []))
@@ -730,6 +1522,7 @@ class Module6_WhyMLTranspiler(
                 out += self._emit_preamble_axioms(axiom_ir)
             out += self._emit_uncited_axiom_func_decls()
             out += self._emit_module_globals()
+            out += self._emit_init_contract_checks()   # (#43) route #15
         self._emit_opaque_class_aliases(functions, out, declared_types)
         self._declared_types_modular = declared_types
         return out
@@ -742,12 +1535,37 @@ class Module6_WhyMLTranspiler(
         self._axiom_emitted_decls = set()
         self._class_inv_axioms_emitted = set()
 
-    def _sig_val_from_let(self, let_lines: List[str]) -> List[str]:
+    def _sig_val_from_let(self, let_lines: List[str],
+                          public_name: Optional[str] = None) -> List[str]:
         """Convert an emitted `let <fn> ... = <body>` block into a bodyless interface
         `val <fn> ...` carrying ONLY the contract (requires/ensures/writes), dropping the
         `variant` (illegal on a bodyless `val`) and everything from the `=` onward. This
         is the `<G>Sig` interface declaration the provider's `clone`-refinement proves and
-        the consumer module calls — the PROVEN cross-module boundary (no assumed `val`)."""
+        the consumer module calls — the PROVEN cross-module boundary (no assumed `val`).
+
+        A RECOGNIZER-emitted group (a stmt/pyval walker) emits its private helper
+        `let rec`s FIRST and the tagged method's PUBLIC entry `let <public_name>` LAST; the
+        Sig must expose the PUBLIC entry (the provider's `clone`-refinement substitutes
+        `<public_name>`), with the helper lets staying private inside the provider body —
+        never exported. When `public_name` is given AND the block has MORE THAN ONE
+        top-level `let` header, select the block starting at the public entry's header
+        (skipping the preceding helper lets). A SINGLE-body group has exactly one top-level
+        `let` and its public entry IS the first `let`, so the block is left untouched →
+        byte-identical for every existing (single-body) group."""
+        def _hdr_name(stripped: str) -> Optional[str]:
+            for kw in ("let rec ", "let function ", "let "):
+                if stripped.startswith(kw):
+                    rest = stripped[len(kw):].lstrip()
+                    return rest.split("(")[0].split()[0] if rest else ""
+            return None
+        if public_name is not None:
+            hdr_idxs = [i for i, ln in enumerate(let_lines)
+                        if _hdr_name(ln.strip()) is not None]
+            if len(hdr_idxs) > 1:
+                for i in hdr_idxs:
+                    if _hdr_name(let_lines[i].strip()) == public_name:
+                        let_lines = let_lines[i:]
+                        break
         out: List[str] = []
         for ln in let_lines:
             stripped = ln.strip()
@@ -805,7 +1623,17 @@ class Module6_WhyMLTranspiler(
         self._late_content_ops = []
         # Partition the SORTED function list (preserve emission order) into the main
         # (untagged) set + one list per group.
-        sorted_functions, scc_info = sort_functions_by_scc(functions)
+        # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): the dispatcher's
+        # calls to its 23 handlers are synthesized from the source table by the bespoke
+        # emitter, so `find_calls_in_ir` cannot see them. Publish them as explicit `uses`
+        # ordering citations BEFORE sorting, or the dispatcher sorts before three of its
+        # handlers and Why3 rejects the file with `unbound function or predicate symbol`.
+        # No-op unless the dispatcher shape is recognized -> byte-inert.
+        self._inject_pyx_dispatch_uses(functions)
+        sorted_functions, scc_info = sort_functions_by_scc(
+            functions, self._record_return_sibling_methods())
+        from module6_whyml.generic_fold import compute_pyval_list_walker_names
+        self._pyval_list_walker_names = compute_pyval_list_walker_names(functions)
         group_funcs: Dict[str, List[Dict[str, Any]]] = {g: [] for g in groups}
         main_funcs: List[Dict[str, Any]] = []
         for func in sorted_functions:
@@ -864,10 +1692,48 @@ class Module6_WhyMLTranspiler(
 
         out_modules: List[List[str]] = [shared]
 
-        # ===================== per-group Sig + provider =====================
+        # ===================== ALL <G>Sig, THEN all providers =====================
+        # (#49) gen #31 — THE TWO PASSES USED TO BE ONE, AND THAT MADE THE DIRECTIVE'S
+        # HEADLINE CASE UNEMITTABLE. annotations.md row 29 promises that "a cross-module
+        # `self.<m>(...)` call (a sibling in a DIFFERENT `verify_module` group, or the flat
+        # default module)" is lowered to the callee's PROVEN contract through `<G>Sig`. The
+        # flat-caller half worked; the sibling-in-another-group half did not, and the
+        # reason was one missing `use`. The expression layer correctly rewrites the call to
+        # `LeafSig.c__leaf`, `PyCSL_Program` got `use <G>Sig` for every group — and a GROUP
+        # module got `self._shared_use_lines()` and nothing else, so the qualified name
+        # named a module the enclosing module never imported:
+        #
+        #     module Top
+        #       use Shared                                   (* and nothing else *)
+        #       let c__caller (self: c) : int = (LeafSig.c__leaf self)
+        #                                        ^ unbound function or predicate symbol
+        #
+        # MEASURED on a two-method class: `leaf` in `LeafMod` + `caller` FLAT verifies (and
+        # a claim of `\result >= 7`, the body's value rather than the contract's `>= 0`,
+        # correctly FAILS, so the boundary does convey the contract); the same file with
+        # `caller` moved into its own group died on `unbound … 'LeafSig.c__leaf'`.
+        #
+        # THE ONLY STRUCTURAL CONSTRAINT, AND WHY THE SPLIT IS THE FIX. Why3 requires a
+        # module to be defined EARLIER IN THE FILE than any use of it. The old interleaved
+        # order (Shared, LeafSig, Leaf, TopSig, Top) therefore could not let `Top` use
+        # `LeafSig` for every pair of groups — `A` and `B` would each need the other's Sig
+        # and only one of them can come first. Emitting ALL the Sig modules and THEN all the
+        # providers removes the constraint outright, and it is safe by construction: a
+        # `<G>Sig` is bodyless `val`s over `Shared` and can never depend on a provider, so
+        # the Sig layer is acyclic no matter how the groups call each other. `use` edges now
+        # run provider -> Sig only, and MUTUALLY RECURSIVE GROUPS cost nothing.
+        #
+        # BLAST RADIUS (lesson d3, measured before landing): `#@ verify_module` occurs in
+        # ZERO corpus files and in exactly one library source,
+        # `src/pycsl_lib/os/UnixInodeFileSystem.py` (`ReadMod`, `FindSlotMod`,
+        # `FindFreeMod`). Nothing without the directive reaches this code at all — the
+        # caller returns early when `groups` is empty — so the corpus is byte-inert by
+        # construction, and the whole observable effect is on that one file and on programs
+        # nobody has written yet. That is also why the defect survived: the single real
+        # user's three groups happen not to call each other across the boundary the
+        # directive exists to create.
         for g in sorted(groups):
             gfuncs = group_funcs[g]
-            cited_ir = {**self.ir, "functions": gfuncs}
 
             # ---- <G>Sig : bodyless contract `val`s (the proven interface) ----
             sig: List[str] = [f"module {g}Sig"]
@@ -877,15 +1743,26 @@ class Module6_WhyMLTranspiler(
             self._current_emit_group = g
             for func in gfuncs:
                 let_block = self._emit_function(func, scc_info)
-                sig += self._sig_val_from_let(let_block)
+                sig += self._sig_val_from_let(let_block, whyml_ident(func["name"]))
                 sig.append("")
             self._current_emit_group = None
             sig.append("end")
             out_modules.append(sig)
 
+        for g in sorted(groups):
+            gfuncs = group_funcs[g]
+            cited_ir = {**self.ir, "functions": gfuncs}
+
             # ---- <G> : shared symbols + group axioms LOCALLY + real let + clone ----
             prov: List[str] = [f"module {g}"]
             prov += self._shared_use_lines()
+            # Every OTHER group's proven interface, so a cross-group `self.<m>(...)` — which
+            # the expression layer emits as `<Other>Sig.<fn>` — resolves. Own Sig excluded:
+            # the trailing `clone {g}Sig` is what binds it, and `use`ing it as well would
+            # shadow the real `let` this module is defining.
+            for other in sorted(groups):
+                if other != g:
+                    prov.append(f"  use {other}Sig")
             self._reset_module_accumulators()
             self._axiom_emitted_decls = set(self._shared_symbol_decls)
             # The group's cited `#@ proof` axioms, emitted LOCALLY (in scope only here).
@@ -915,8 +1792,11 @@ class Module6_WhyMLTranspiler(
         self._axiom_emitted_decls = set(self._shared_symbol_decls)
         main += self._emit_preamble_axioms(main_ir)
         main += _emit_funcs(main_funcs, None)
+        # (#49) ROUTE #224 — same rule on the `#@ verify_module` path.
         if self.check_behavioral_subtyping:
             main += self._emit_subtyping_goals(functions)
+        else:
+            main += self._emit_subtyping_goals(functions, conforms_to_only=True)
         main.append("end")
         self._insert_abstract_val_block(main)
         # cleared-array item 1: flush any deferred call-comprehension content-law
@@ -925,6 +1805,7 @@ class Module6_WhyMLTranspiler(
         # anchor would not be in `main`); the missing decl fails the L3 typecheck
         # loudly — never a false proof.
         self._insert_late_content_ops(main)
+        self._insert_array_init_use(main)
         out_modules.append(main)
 
         return "\n".join("\n".join(m) for m in out_modules)

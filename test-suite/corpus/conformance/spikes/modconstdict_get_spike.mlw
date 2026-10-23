@@ -1,0 +1,59 @@
+(* module-const-dict-get SMT-feasibility spike.
+
+   FEATURE: a module-level constant str->str dict `OP_MAP = {"==":"=", "!=":"<>", ...}`
+   read via `OP_MAP.get(k, default)` lowers FAITHFULLY to a chained string-valued
+   if-then-else:
+
+       op_translate k default =
+         if k = "==" then "=" else if k = "!=" then "<>" else ... else default
+
+   The chained if-then-else is a total `string` expression; NO new axiom, NO
+   `string.String` extensionality (only literal disequality of distinct string
+   constants). Must discharge on Alt-Ergo AND Z3.
+
+   Target laws:
+     (HIT)     op_translate "==" "==" = "="     -- a matched key returns its value
+     (DEFAULT) op_translate "zzz" "zzz" = "zzz"  -- an absent key returns the default
+   plus a FALSE-TWIN goal (below) that must NOT prove. *)
+module ModConstDictGet
+  use string.String
+
+  (* Faithful chained-ITE lowering of the module-level constant str->str dict
+     OP_MAP.get(k, default). Only a representative prefix of OP_MAP's 11 entries
+     is needed to exercise the hit / default / false-twin laws. *)
+  function op_translate (k: string) (default: string) : string =
+    if k = "==" then "="
+    else if k = "!=" then "<>"
+    else if k = "//" then "div"
+    else if k = "%" then "mod"
+    else default
+
+  (* HIT: a key present in the dict returns its mapped value. *)
+  goal g_hit_eq   : op_translate "==" "==" = "="
+  goal g_hit_ne   : op_translate "!=" "!=" = "<>"
+  goal g_hit_div  : op_translate "//" "//" = "div"
+
+  (* DEFAULT: a key absent from the dict returns the caller's default (here the
+     key itself, exactly as `OP_MAP.get(op, op)` in the live op_translate). *)
+  goal g_default  : op_translate "zzz" "zzz" = "zzz"
+  goal g_default2 : op_translate "+"   "+"   = "+"
+end
+
+(* SOUNDNESS floor: these goals are FALSE of the real mapping and must NOT be
+   Valid. Run with the SAME provers; a Valid here is a severity-1 regression
+   (a false twin proven ⇒ UNSOUND ⇒ the lowering is wrong). *)
+module ModConstDictGetFalseTwins
+  use string.String
+
+  function op_translate (k: string) (default: string) : string =
+    if k = "==" then "="
+    else if k = "!=" then "<>"
+    else if k = "//" then "div"
+    else if k = "%" then "mod"
+    else default
+
+  (* FALSE: "==" maps to "=", never to "<>". *)
+  goal g_hit_wrong    : op_translate "==" "==" = "<>"
+  (* FALSE: an absent key returns the default ("zzz"), not some dict value. *)
+  goal g_default_wrong : op_translate "zzz" "zzz" = "div"
+end

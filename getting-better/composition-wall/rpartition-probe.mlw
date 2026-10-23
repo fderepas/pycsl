@@ -1,0 +1,48 @@
+(* rpartition-probe.mlw — measures whether str.rpartition + the option-return mapping (A4)
+   are BOUNDED (type-correct vals, no semantics) for the self-annotation's type-safety+frame
+   contract, i.e. whether _call_return_whyml_type is convertible via recognizers (no string wall,
+   no axiom). Hand-written; zero source edits. Mirrors the shape of the failing spike body. *)
+module RpartitionProbe
+  use int.Int
+  use string.String
+  use option.Option
+  use map.Map
+
+  (* A3: rpartition lowered to a TYPE-CORRECT abstract val — 3-string tuple, no semantics.
+     Analogous to the existing `val str_split_op (s sep: string) : array string`. The
+     self-annotation needs only type-safety+frame, so NO axiom characterizes it. *)
+  val str_rpartition_op (s sep: string) : (string, string, string)
+  val str_concat_op (a b: string) : string
+  val str_lower_op (s: string) : string
+  val str_contains_op (s sub: string) : bool
+  val str_eq_op (a b: string) : bool
+
+  (* Optional[str] return, exactly as the emitter's union for `-> Optional[str]`. *)
+  type union_ret = Arm_str string | Arm_none
+
+  (* faithful shape of _call_return_whyml_type: self string-map field + rpartition +
+     f-string key (concat + .lower) + the A4 option->return-union mapping (NO int-0 default). *)
+  let call_return_whyml_type
+        (rmap: map string (option string))
+        (current_self_type: string)
+        (fn: string) : union_ret
+    requires { true }
+    ensures  { true }
+  =
+    (* branch 1: `if "." not in fn: return rmap.get(fn)` — A4 mapping, no int default *)
+    if not (str_contains_op fn ".") then
+      match Map.get rmap fn with Some v -> Arm_str v | None -> Arm_none end
+    else begin
+      (* `obj, _, method = fn.rpartition(".")` — A3: all three are `string` *)
+      let (obj, _u, meth) = str_rpartition_op fn "." in
+      (* `if obj == "self": return rmap.get(f"{cls}__{method}")` *)
+      if str_eq_op obj "self" then
+        let key = str_concat_op (str_concat_op current_self_type "__") meth in
+        match Map.get rmap key with Some v -> Arm_str v | None -> Arm_none end
+      else begin
+        (* `return rmap.get(f"{cls.lower()}__{method}")` — .lower() on a string operand *)
+        let key2 = str_concat_op (str_concat_op (str_lower_op current_self_type) "__") meth in
+        match Map.get rmap key2 with Some v -> Arm_str v | None -> Arm_none end
+      end
+    end
+end

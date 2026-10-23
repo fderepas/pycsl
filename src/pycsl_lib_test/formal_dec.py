@@ -25,8 +25,12 @@ def test_remainder_nonneg(a: int, b: int) -> int:
     return decimal_remainder(a, b)
 
 
+# (#49) gen #30: `getcontext_prec` gained `requires prec <= 999999999999999999`
+# (`decimal.MAX_PREC`; above it the assignment RAISES OverflowError), so this driver must
+# discharge it.
 #@ requires prec > 0
+#@ requires prec <= 999999999999999999
 #@ ensures \result > 0
 def test_context_prec_pos(prec: int) -> int:
-    """Context precision is positive."""
+    """Context precision is positive, for a precision CPython accepts."""
     return getcontext_prec(prec)

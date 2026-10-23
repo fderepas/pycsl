@@ -1,3 +1,4 @@
+# pycsl-expected: FAIL
 # Negative test: postcondition is intentionally wrong
 # This should FAIL on dynamic oracle (assertion error)
 # Static oracle should also report FAIL (Invalid goals)

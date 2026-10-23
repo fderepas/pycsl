@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for 'test-suite/corpus/pycsl-reference/0400.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+test-suite/corpus/pycsl-reference/0400.py (line 4): import 'ctypes' is on the C-extension deny-list. Either annotate the importing function(s) with `#@ \trusted` to acknowledge that the boundary is excluded from verification, or pass `--allow-unverified-imports` to opt out of the check. See config/skills/pycsl-ub-catalog/SKILL.md §7.4.

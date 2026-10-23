@@ -1,0 +1,234 @@
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 61078311..c777c589 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -537,6 +537,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+             # (#46) an EMPTY set/tuple literal is recorded too (route #41 needs the
+             # VALUE opaque), but its TRUTHINESS is faithful — Python agrees the empty
+             # container is falsy — so the `#empty` suffix is skipped here.
++            # (#49) ROUTE #46 — an AMBIGUOUS name is neither decided nor refused. Its
++            # truthiness falls through to the default `<> 0` coercion over the per-name
++            # OPAQUE the read site gives it, which is undecidable — the only sound answer
++            # when the binding depends on the path. Refusing instead would break every
++            # `x = None ... x = <int> ... if x:` in the tree for a fact the model can
++            # simply decline to know.
++            if _etk in ("AMBIG", "AMBIG#nan"):
++                _etk = None
+             if _etk and not _etk.endswith("#empty"):
+                 from errors import PyCSLSemanticError
+                 _kindname = {"GenExp": "a generator expression",
+@@ -4798,6 +4806,52 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+                     _r45_stack.append(_r45_n.get("expr"))
+             if _r45_nan:
+                 return "true" if raw_op == "!=" else "false"
++            # (#49) ROUTE #46 — A COMPARISON WITH A **POSSIBLY**-NaN OPERAND IS REFUSED.
++            #   The `_erased_truthy_locals` record is flow-INSENSITIVE, so a name bound to
++            #   `float("nan")` in one branch of an `if` and to an int in the other carries
++            #   no usable NaN fact after the join — and route #45 established that the
++            #   campaign's opaque-value repair CANNOT close this shape, because an opaque
++            #   constant is still EQUAL TO ITSELF. Measured at 90fed0c9, `\result == 7`
++            #   PROVED where Python returns 0:
++            #       if c > 0: x = float("nan")   else: x = 1     then  `if x == x:`
++            #   The pre-scan in `_reset_function_state` marks such a name `AMBIG#nan`
++            #   (including names that INHERIT the taint through arithmetic — IEEE 754 makes
++            #   every operation with a NaN operand NaN, so `y = x + 1` is possibly-NaN too).
++            #   A comparison over one is REFUSED rather than answered: `true`/`false` would
++            #   be a path fact, and no opaque INT can express "not equal to itself".
++            #   BYTE-INERT BY MEASUREMENT — not one function in either corpus or in the
++            #   mirror binds a name to NaN on one path and to something else on another.
++            _r46_amb = False
++            _r46_stack = [_r45_seed_l, _r45_seed_r]
++            while _r46_stack:
++                _r46_n = _r46_stack.pop()
++                if not isinstance(_r46_n, dict):
++                    continue
++                _r46_t = _r46_n.get("type")
++                if _r46_t == "Var":
++                    if (getattr(self, "_erased_truthy_locals", {}).get(
++                            _r46_n.get("name")) == "AMBIG#nan"):
++                        _r46_amb = True
++                elif _r46_t == "BinOp" and _r46_n.get("op") in (
++                        "+", "-", "*", "/", "div", "%", "**"):
++                    _r46_stack.append(_r46_n.get("left"))
++                    _r46_stack.append(_r46_n.get("right"))
++                elif _r46_t == "UnaryOp" and _r46_n.get("op") in ("-", "+"):
++                    _r46_stack.append(_r46_n.get("expr"))
++            if _r46_amb:
++                from errors import PyCSLSemanticError
++                raise PyCSLSemanticError(
++                    "a comparison over a value that may be NaN on one path and an "
++                    "ordinary number on another is not modelled: NaN is the one Python "
++                    "value whose `==` is NOT reflexive, and every value model makes `=` "
++                    "reflexive, so the model would answer this comparison with a fact "
++                    "that holds on only one path — measured, `if c > 0: x = float(\"nan\") "
++                    "else: x = 1` then `if x == x: return 7` PROVED `\\result == 7` where "
++                    "Python returns 0. Bind the NaN on every path (then the comparison "
++                    "lowers EXACTLY), or test `math.isnan(...)` instead.",
++                    stage="whyml",
++                    code="PYCSL-WHYML-AMBIGUOUS-NAN-COMPARISON",
++                )
+         # #5 (pyval `or {}` / `or []` default, self-tcb-reduction Tier-5): `<pyval> or {}`
+         # (the legacy `registry = self.f.get(k) or {}` default) lowers to a FAITHFUL
+         # keep-if-map-else-empty projection over the heterogeneous carrier —
+diff --git a/src/pycsl/module6_whyml/functions.py b/src/pycsl/module6_whyml/functions.py
+index 00374894..7fc48c3a 100644
+--- a/src/pycsl/module6_whyml/functions.py
++++ b/src/pycsl/module6_whyml/functions.py
+@@ -504,6 +504,136 @@ class FunctionEmissionMixin:
+         # Map target -> the source RHS kind, so `_to_bool` can refuse by name and say what
+         # it was. Empty for every function that binds no such local -> byte-identical.
+         self._erased_truthy_locals: Dict[str, str] = {}
++        # (#49) ROUTE #46 — THE AMBIGUITY PRE-SCAN. The record above is LINEAR: written
++        # when an assignment is EMITTED and cleared when the name is rebound. That is
++        # exactly right for route #41's facts (which are only ever used to REFUSE) and
++        # WRONG for routes #44/#45's, which are used to DECIDE: `bool(x) is False` and
++        # `x is the None singleton` are PATH facts, and a flow-INSENSITIVE record cannot
++        # carry a path fact. Measured, both halves, at 90fed0c9:
++        #     if c > 0: x = None       else: x = 5   then `if x == 0: return 7` -> PROVED
++        #     if c > 0: x = float("nan") else: x = 1 then `if x == x: return 7` -> PROVED
++        # Python returns 0 from both (`None == 0` is False; `nan == nan` is False). The
++        # `else` branch's assignment CLEARS the record the `then` branch set, so the guard
++        # after the join reads the ordinary `!x` and decides on the literal `0`.
++        # THE REPAIR IS FLOW-INSENSITIVE ON PURPOSE, and that is why it is cheap: walk the
++        # body ONCE before emitting it and mark every name that is bound to a `None`/NaN
++        # RHS on SOME path and to something else on SOME OTHER path. Such a name is
++        # AMBIGUOUS for the whole function, so its VALUE is made opaque (route #41's
++        # per-name device, which the read site already applies to any recorded name) and
++        # its TRUTHINESS is left UNDECIDED — the exact half the "sticky record" variant got
++        # wrong: `_to_bool` reads this same dict, so a sticky `None` record collapsed
++        # `cls = None; cls = <str>; if cls:` to the literal `false` on a path where the
++        # string is non-empty.
++        # THE TYPE GATE IS LOAD-BEARING, and it is the second thing the sticky variant got
++        # wrong: a `str`-typed name cannot become an opaque INT (measured — the read then
++        # fed `pycsl_erased_<name>` into `str_eq_op`, a Why3 TYPE ERROR), so AMBIG applies
++        # only where the symbol table types the name int-ish or does not type it at all
++        # (`Any` is the tag an unannotated local actually carries — measured, not assumed).
++        # Other types stay a stated, narrower residue.
++        # SPELLED AS AN INLINE EXPLICIT-STACK WALK, not as a helper `def`: a nested
++        # function moves `bin/check-mirror-coverage.py`, and this method is `\trusted` in
++        # the mirror, so as written the build costs NO body sync, NO model and NO fidelity
++        # divergence.
++        _amb_st = func.get("symbol_table") or {}
++        _amb_asgs = []
++        _amb_stack = [body_stmts]
++        while _amb_stack:
++            _amb_n = _amb_stack.pop()
++            if isinstance(_amb_n, list):
++                _amb_stack.extend(_amb_n)
++                continue
++            if not isinstance(_amb_n, dict):
++                continue
++            if (_amb_n.get("stmt") == "Assign"
++                    and isinstance(_amb_n.get("target"), str)):
++                _amb_kinds = set()
++                _amb_vars = set()
++                _amb_rs = [_amb_n.get("value")]
++                while _amb_rs:
++                    _amb_r = _amb_rs.pop()
++                    if not isinstance(_amb_r, dict):
++                        continue
++                    _amb_rt = _amb_r.get("type")
++                    if _amb_rt == "None":
++                        _amb_kinds.add("NONE")
++                    elif _amb_rt == "Call":
++                        _amb_f = _amb_r.get("func")
++                        if _amb_f == "math.nan":
++                            _amb_kinds.add("NAN")
++                        elif _amb_f == "float":
++                            _amb_a = (_amb_r.get("args") or [None])[0]
++                            if (isinstance(_amb_a, dict)
++                                    and _amb_a.get("type") == "String"
++                                    and str(_amb_a.get("value", "")).strip().lower()
++                                        .lstrip("+-") == "nan"):
++                                _amb_kinds.add("NAN")
++                            else:
++                                _amb_kinds.add("OTHER")
++                        else:
++                            _amb_kinds.add("OTHER")
++                    elif _amb_rt == "Attribute":
++                        if (_amb_r.get("attr") == "nan"
++                                and str((_amb_r.get("value") or {}).get("name", ""))
++                                    == "math"):
++                            _amb_kinds.add("NAN")
++                        else:
++                            _amb_kinds.add("OTHER")
++                    elif _amb_rt == "Var":
++                        # PROPAGATION, and it is IEEE 754's rule: every arithmetic
++                        # operation with a NaN operand is NaN, so a name built out of a
++                        # possibly-NaN name is itself possibly-NaN. Recorded as a
++                        # DEPENDENCY and resolved by the fixpoint below, because the
++                        # source name's own status may not be known yet.
++                        _amb_vars.add(_amb_r.get("name"))
++                    elif _amb_rt == "BinOp" and _amb_r.get("op") in (
++                            "+", "-", "*", "/", "div", "%", "**"):
++                        _amb_rs.append(_amb_r.get("left"))
++                        _amb_rs.append(_amb_r.get("right"))
++                        continue
++                    elif _amb_rt == "UnaryOp" and _amb_r.get("op") in ("-", "+"):
++                        _amb_rs.append(_amb_r.get("expr"))
++                        continue
++                    else:
++                        _amb_kinds.add("OTHER")
++                if not _amb_kinds and not _amb_vars:
++                    _amb_kinds.add("OTHER")
++                _amb_asgs.append((_amb_n.get("target"), _amb_kinds, _amb_vars))
++            for _amb_v in _amb_n.values():
++                if isinstance(_amb_v, (list, dict)):
++                    _amb_stack.append(_amb_v)
++        _amb_status = {}
++        for _amb_t, _amb_k, _amb_vs in _amb_asgs:
++            _amb_status.setdefault(_amb_t, set()).update(_amb_k)
++            if _amb_vs and not _amb_k:
++                # a pure copy/arithmetic binding contributes OTHER only once the fixpoint
++                # says the source is not NaN — seed it as OTHER so a plain `y = x` never
++                # LOSES the ambiguity it inherits below.
++                _amb_status[_amb_t].add("OTHER")
++        _amb_changed = True
++        while _amb_changed:
++            _amb_changed = False
++            for _amb_t, _amb_k, _amb_vs in _amb_asgs:
++                for _amb_src in _amb_vs:
++                    if "NAN" in _amb_status.get(_amb_src, ()):
++                        if "NAN" not in _amb_status.get(_amb_t, ()):
++                            _amb_status.setdefault(_amb_t, set()).add("NAN")
++                            _amb_changed = True
++        for _amb_nm in sorted(_amb_status):
++            if _amb_st.get(_amb_nm) not in (None, "", "Any", "int", "bool"):
++                continue
++            _amb_k = _amb_status[_amb_nm]
++            if len(_amb_k) < 2:
++                continue
++            if "NAN" in _amb_k:
++                # A NaN-AMBIGUOUS name: the campaign's opaque-value device CANNOT close
++                # this one, and route #45 is where that was established — an opaque
++                # constant is still EQUAL TO ITSELF, so `x == x` stays decidably true
++                # while Python's answer on the NaN path is False. The value is still made
++                # opaque (the read site does that for every recorded name); the COMPARISON
++                # is refused in `_expr_to_whyml`.
++                self._erased_truthy_locals[_amb_nm] = "AMBIG#nan"
++            elif "NONE" in _amb_k:
++                self._erased_truthy_locals[_amb_nm] = "AMBIG"
+         # typed-ir-for-b-ceiling.md §26: `X = getattr(self, "<field>", {})` binds a
+         # local aliasing a dict/set self-field (the emitter's `known_sizes =
+         # getattr(self, "_known_collection_sizes", {})` / `st = getattr(self,
+diff --git a/src/pycsl/module6_whyml/statements.py b/src/pycsl/module6_whyml/statements.py
+index 456482a5..accb0d94 100644
+--- a/src/pycsl/module6_whyml/statements.py
++++ b/src/pycsl/module6_whyml/statements.py
+@@ -558,7 +558,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
+                 _r45_stack.append(_r45_n.get("right"))
+             elif _r45_t == "UnaryOp" and _r45_n.get("op") in ("-", "+"):
+                 _r45_stack.append(_r45_n.get("expr"))
+-        if _r45_nan:
++        # (#49) ROUTE #46 — AN `AMBIG` MARK IS OWNED BY THE PRE-SCAN AND SURVIVES EVERY
++        # REBINDING. The pre-scan in `_reset_function_state` already knows the name is
++        # bound to `None`/NaN on one path and to something else on another; the linear
++        # recorder below must not narrow that back to whichever binding it happens to be
++        # emitting, in EITHER direction (recording `None#empty` would re-decide the
++        # truthiness, and the `pop` would restore the leak this closes).
++        if self._erased_truthy_locals.get(target) in ("AMBIG", "AMBIG#nan"):
++            pass
++        elif _r45_nan:
+             self._erased_truthy_locals[target] = "NaN"
+         elif vt == "None":
+             self._erased_truthy_locals[target] = "None#empty"

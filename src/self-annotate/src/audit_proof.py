@@ -37,18 +37,23 @@ class AuditReport:
     failures: List[str] = field(default_factory=list)
     skips: List[str] = field(default_factory=list)
 
-    @property
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures (\length(self.failures) > 0) ==> (\result == 1)
+    #@ ensures (\length(self.failures) == 0) ==> (\result == 0)
     #@ assigns \nothing
     def exit_code(self) -> int:
         return 1 if self.failures else 0
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    # (#49) W-IPM S-C: CONVERTED. Each `self.<f>.extend(other.<f>)` now lowers to the
+    # faithful field write-back `self.<f> <- Array.append self.<f> other.<f>` (a fresh
+    # array of the summed length), so the three mutations are IN the model and the length
+    # postconditions below are proved against them (route #13's erasure is gone: the old
+    # nullary `val self_passes_extend_1 (x0: int) : int` op is no longer emitted).
     #@ requires True
-    #@ ensures True
-    #@ assigns \nothing
+    #@ ensures \length(self.passes) == \old(\length(self.passes)) + \old(len(other.passes))
+    #@ ensures \length(self.failures) == \old(\length(self.failures)) + \old(len(other.failures))
+    #@ ensures \length(self.skips) == \old(\length(self.skips)) + \old(len(other.skips))
+    #@ assigns self.failures, self.passes, self.skips
     def extend(self, other: "AuditReport") -> None:
         self.passes.extend(other.passes)
         self.failures.extend(other.failures)
@@ -112,7 +117,6 @@ _ROCQ_DECL_KEYWORDS = {
 }
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -126,6 +130,8 @@ def _strip_rocq_comments(text: str) -> str:
     depth = 0
     i = 0
     n = len(text)
+    #@ loop invariant i >= 0
+    #@ loop variant n - i
     while i < n:
         if depth == 0 and i + 1 < n and text[i] == "(" and text[i + 1] == "*":
             depth = 1
@@ -231,7 +237,6 @@ _LEAN_DECL_KEYWORDS = {
 }
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -243,6 +248,8 @@ def _strip_lean_comments(text: str) -> str:
     depth = 0
     i = 0
     n = len(text)
+    #@ loop invariant i >= 0
+    #@ loop variant n - i
     while i < n:
         # Block comment open / close (nest-aware)
         if depth == 0 and i + 1 < n and text[i] == "/" and text[i + 1] == "-":
@@ -259,6 +266,8 @@ def _strip_lean_comments(text: str) -> str:
         # Line comment
         elif i + 1 < n and text[i] == "-" and text[i + 1] == "-":
             # Skip to EOL
+            #@ loop invariant i >= 0
+            #@ loop variant n - i
             while i < n and text[i] != "\n":
                 i += 1
         else:
@@ -483,7 +492,6 @@ def _index_proofs_dir_by_file(proofs_dir: Path, prover: str) -> dict:
 # ---------------------------------------------------------------------------
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -491,7 +499,6 @@ def _default_rocq_dir(py_file: Path) -> Path:
     return py_file.parent / f"{py_file.stem}.proofs" / "rocq"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -499,7 +506,6 @@ def _default_lean_dir(py_file: Path) -> Path:
     return py_file.parent / f"{py_file.stem}.proofs" / "lean"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -515,7 +521,6 @@ def audit_rocq(py_file: Path, proofs_dir: Optional[Path] = None,
                               reverify=reverify, project_root=project_root)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -531,7 +536,6 @@ def audit_lean(py_file: Path, proofs_dir: Optional[Path] = None,
                               reverify=reverify, project_root=project_root)
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
@@ -549,7 +553,6 @@ def audit_both(py_file: Path,
     return report
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

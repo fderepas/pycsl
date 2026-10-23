@@ -96,6 +96,18 @@ and ingestable; consumed by `frontend/monomorphize.apply_monomorphization`, the 
 IR-resolution pass that COLLECTs concrete instantiations and EMITs name-mangled specialized
 copies with substituted contracts.)
 
+The v1.4 schema also **folds in** the optional, default-inert *faithful-lowering metadata*
+fields that grew during the wrong-lowering campaign (`wrong-lowering-to-fix.md`): the
+`FunctionIR` fields `param_annotations`, `param_list_elem_types`, `param_list_nested_elem`,
+`param_list_flat_elem`, `return_value_type` (§5); the `type_decls` field `mutable_state`
+(§4a); and the `Call` node `keywords` (§7). Each is additive — a param-name→type map that is
+`{}` (or `null`, or ABSENT) when the feature is unused — so a pre-v1.4 IR without them stays
+ingestable. They carry no NEW `ir_version` bump (they landed under the 1.x line without one);
+they are documented here at v1.4, the schema they live in. Obligation going forward
+(§10): a new IR field MUST bump `IR_VERSION` / widen `ACCEPTED_IR_VERSIONS` / refresh the
+conformance goldens / update this table **in the same commit**, so this multi-field drift does
+not recur.
+
 **Enforcement** in `validate_ir` (`ir_schema.py:148–153`): if `ir_version` is present and
 *not* in `ACCEPTED_IR_VERSIONS`, it is a **hard error** (do not lower an IR this core may
 misread). An **absent** `ir_version` is tolerated as legacy/internal — but the real
@@ -193,6 +205,11 @@ drivers). Consumed by `frontend/monomorphize.apply_monomorphization` (the step-5
 IR-resolution pass): COLLECT concrete instantiations → EMIT name-mangled specialized
 copies with substituted contracts.
 
+**(v1.4)** `mutable_state` — `bool`, `true` iff the class carries the `@mutable_state`
+decorator (`_is_mutable_state_decorated`, `Module5_IREmitter.py:2559`). Consumed by the
+param-mutation family (WL-05): it authorises the caller-visible mutable-self model. Always
+emitted (default `false`), so a class without the decorator is inert.
+
 Field `type` ∈ `int` | `list` | `dict` | `set` | `str` (`_field_type_from_annotation`,
 `Module5_IREmitter.py:1264`; container shapes inferred from RHS in `_collect_class_fields`).
 
@@ -243,7 +260,9 @@ carry their own `line` (`Module5_IREmitter.py:1134`, `:1145`), used to reconstru
 |-------|------|---------|
 | `line`, `col` | `int` | §4.4 source span (always emitted by this front-end; `line` is effectively required). |
 | `formal_params` | `List[str]` | Formal parameter names only (excludes `self` and locals) — Module 6 uses this for parameter-mutation handling. |
-| `param_defaults` | `Dict[str,expr-IR]` | Positional default values, name → default expr (`Module5_IREmitter.py:1746`); lets a short call fill trailing params. |
+| `param_defaults` | `Dict[str,expr-IR]` | Positional default values, name → default expr (`Module5_IREmitter.py:1746`); lets a short call fill trailing params. Since route #232 also carries keyword-only defaults that are context-free literals (a constant or a negated number); any other keyword-only default is omitted, so a call leaving that keyword out is refused. |
+| `kwonly_params`, `posonly_params` | `List[str]` | Route #232: which entries of `formal_params` are keyword-only (bound at a call site by name only, appended after the positional ones) / positional-only. Emitted only when non-empty. |
+| `kwarg_param`, `kwarg_read` | `str`, `bool` | Route #232: the name of a `**kwargs` parameter (not modelled, not in `formal_params`), and whether the body reads it other than as a `**` splat; Module 6 refuses an emitted body with `kwarg_read`. Emitted only when present/true. |
 | `has_mutable_default` | `bool` | Any default arg is a list/dict/set literal or `list()/dict()/set()` call (`Module5_IREmitter.py:1760`); the core's `_check_mutable_defaults` raises on it. |
 | `acts` | `List[Dict]` | Pre-desugar `#@ act` metadata for `_check_acts`: `{"kind":"act","name","given_exprs":[...]}`, `{"kind":"complete","names":[...]}`, `{"kind":"disjoint","names":[...]}` (`Module5_IREmitter.py:1771`). |
 | `dict_value_types`, `dict_key_types` | `Dict[str,str]` | WhyML value/key types for string-valued dicts (`Module5_IREmitter.py:1792`). |
@@ -270,6 +289,11 @@ carry their own `line` (`Module5_IREmitter.py:1134`, `:1145`), used to reconstru
 | `fresh_globals` | `bool` | **(v1.2)** `#@ fresh_globals` — fresh global state on entry (`Module5_IREmitter.py:1877`); read by `core_ir_semantic`. Default `false`. |
 | `is_noreturn` | `bool` | **(v1.3)** `-> NoReturn` (PEP 484) — the function never returns normally (typing-engagement ty1 / 28-0000-typing-spec-4). Set `true` by `_build_function_ir` when the return annotation is `NoReturn` / `typing.NoReturn`; **ABSENT otherwise** (emitted only when true → byte-identical for non-NoReturn drivers). Module 6 lowers it to `ensures { false }` (NR1); `core_ir_semantic._check_noreturn` checks the body supports divergence (NR2a) and `_check_noreturn_successors` flags dead successors (NR3); the non-vacuity gate exempts the function (NR4). |
 | `type_params` | `list` | **(v1.4)** PEP 695 type parameters of a generic function (`def f[T]():`) or the legacy `TypeVar` spelling (typing-engagement ty3 / 33-1700-typing-spec-9). Each entry `{"name": str, "bound": Optional[str], "kind": str}`; `kind` is `"TypeVar"` (the only interpreted kind — `ParamSpec`/`TypeVarTuple` are schema-only and loud-fail GT3). **ABSENT** on non-generic functions (emitted only when non-empty → byte-identical for unaffected drivers). Consumed by `frontend/monomorphize.apply_monomorphization` (the step-5 IR-resolution pass): COLLECT concrete instantiations → EMIT name-mangled specialized copies. |
+| `param_annotations` | `Dict[str,str]` | **(v1.4)** param name → its source type-annotation string, for every annotated param (`Module5_IREmitter.py:3675`). The faithful-lowering seam Module 6 consults to type a param. Always emitted (`{}` when no annotated params). |
+| `param_list_elem_types` | `Dict[str,str]` | **(v1.4)** `List[τ]` param → element type `τ` (`Module5_IREmitter.py:3676`); `{}` when no list param. |
+| `param_list_nested_elem` | `Dict[str,str]` | **(v1.4)** nested `List[List[τ]]`/`List[Dict[..]]` param → the pure inner element WhyML type (nested-list lowering; `Module5_IREmitter.py:3681`); `{}` otherwise. |
+| `param_list_flat_elem` | `Dict[str,str]` | **(v1.4)** flat `List[str]`/`List[float]`/`List[<record>]` param → the faithful element WhyML type or record class name (WL-04b/e; `Module5_IREmitter.py:3688`); `{}` otherwise. |
+| `return_value_type` | `str` \| `null` | **(v1.4)** for a `-> List[τ]` return, the faithful element type of the returned array (`Module5_IREmitter.py:3932`); `null` when not a list return. |
 
 ---
 
@@ -324,7 +348,7 @@ dispatch on these; nodes not listed there recurse generically (the core treats `
 |--------|--------|---------|
 | `FieldGet` | `object` (`"self"`), `field` | `self.f` (a mutable record field). Opaque to scope extraction. |
 | `Attribute` | `object` (expr-IR), `attr` | `p.f` on a record-typed param, or `\result.f` (object is `{"type":"Result"}`); `Module5_IREmitter.py:313`. |
-| `Call` | `func` (str), `args`, `receiver`? | Function/method call; dotted calls keep the dotted name in `func`, an unresolved receiver expr goes in `receiver` (`Module5_IREmitter.py:796`). |
+| `Call` | `func` (str), `args`, `receiver`?, `keywords`? | Function/method call; dotted calls keep the dotted name in `func`, an unresolved receiver expr goes in `receiver` (`Module5_IREmitter.py:796`). **(v1.4)** `keywords` — `List[{"arg": str, "value": expr-IR}]`, explicit keyword args of a call, captured so a keyword-constructed record binds its fields faithfully (WL-07; `Module5_IREmitter.py:1051`). **ABSENT** for a keyword-free call (emitted only when non-empty → byte-identical for unaffected drivers). |
 | `Subscript` | `value` (expr-IR), `index` (expr-IR) | `a[i]`. `value` may be `Result`, a `Var`, or a nested `Subscript`/`FieldGet` for `a[i][j]` / `self.f[i]`. |
 | `SliceAccess` | `value`, `slice` (a `Slice` node) | `a[lo:hi]`. |
 | `Slice` | `lower`, `upper`, `step` (any may be `null`) | A slice spec. |
@@ -451,6 +475,39 @@ signals an out-of-subset expression.
 > `lo <= x and x < hi` `BinOp`; a set/dict/str collection becomes a raw `{"op":"in"}`
 > `BinOp` (lowered by Module 6's membership emitter); an array becomes an
 > `Exists` over indices. `x not in coll` becomes `UnaryOp(not, <in>)`.
+
+### §7a. Upstream-tag normalization (the registry alphabet is closed)
+
+The wire-tag registry (`ir_schema.py::_expr_from_dict_inner`) is the **closed** set of
+canonical expression tags; the table above enumerates it. A front-end **must not** emit
+any of the following eleven *upstream* node names — CPython-`ast` / `pure_ast` node types
+and `Module2_Parser` CSL-parse nodes — as an IR wire tag. Module 5 already **normalizes
+each to its canonical registry tag at emission** (structural translation, not a
+tag-rename — the field shapes differ), and Module 6 relies on this: it consumes only
+Module-5 IR, so it never encounters these tags.
+
+| upstream tag | canonical | Module-5 site |
+|---|---|---|
+| `BoolOp` | `BinOp` | `_py_expr_boolop` (and/or fold) |
+| `Compare` | `BinOp` | `_py_expr_compare` (chained comparison) |
+| `Num` | `Number` | numeric literal (legacy CPython<3.8) |
+| `Constant` | `Number`/`Bool`/`String`/`None` | literal (CPython≥3.8) |
+| `Name` | `Var` | `_csl_var` / `_py_expr_name` |
+| `List` | `ArrayLit` | list-literal node |
+| `ListLit` | `ArrayLit` | phantom synonym (no wire-dict form) |
+| `ListLiteral` | `ArrayLit` | phantom synonym (no wire-dict form) |
+| `Set` | `SetLit` | set-literal node |
+| `ChainedSubscript` | `Subscript` | `_csl_chained_subscript` (`a[i][j]` → nested) |
+| `OldVar` | `Old` | `_csl_old` (`\old(x)` → `Old(Var)`) |
+
+The canonical mapping is recorded as the single source of truth in
+`ir_schema.py::IR_TAG_ALIASES` (`is_upstream_alias_tag(tag)` tests membership). These
+eleven tags are a **fail-closed boundary**: an `OpaqueExpr` whose `kind` is one of them
+must **never** be lowered inside its `raw` dict —
+`module6_whyml/expressions.py::_expr_to_whyml` asserts this. (Reaching it means the
+front-end violated §9.5's resolved-IR contract.) Any *other* unknown tag falls to the
+inert `OpaqueExpr` catch-all (§7 above), which the emitter lowers to the empty string —
+also never a faithful law.
 
 ---
 

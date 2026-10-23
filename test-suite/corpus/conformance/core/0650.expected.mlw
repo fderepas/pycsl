@@ -19,6 +19,7 @@ module PyCSL_Program
 
   let lib__seven (self: lib) : int
     ensures  { (result = 7) } (* linear *)
+    ensures  { self.x = old self.x }
   =
     7
 

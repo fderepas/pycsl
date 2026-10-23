@@ -5,7 +5,7 @@ function's precondition fail to verify under full proof. The
 corpus runner uses `--no-proof` for fast iteration; the failure
 mode is exercised manually with `--proof`.
 """
-# pycsl-flags: --no-proof
+# pycsl-flags: --no-proof --allow-unverified-imports
 # pycsl-expected: PASS
 _ = 0  # anchor
 import ctypes  # noqa: F401

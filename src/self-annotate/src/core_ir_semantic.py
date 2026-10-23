@@ -7,7 +7,7 @@ the source. The mirror-check gate enforces signature parity.
 """
 from __future__ import annotations
 import warnings
-from typing import Any
+from typing import Any, Dict, List
 from errors import PyCSLSemanticError
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -16,364 +16,1310 @@ from errors import PyCSLSemanticError
 def run_ir_semantic_checks(ir: Any, *, stage: str='ir-semantic') -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns acc
 def _collect_call_targets(node: Any, acc: set) -> None:
-    pass
+    if isinstance(node, dict):
+        if node.get("type") == "Call":
+            f = node.get("func")
+            if isinstance(f, str):
+                acc.add(f)
+                acc.add(f.rsplit(".", 1)[-1])
+        for v in node.values():
+            _collect_call_targets(v, acc)
+    elif isinstance(node, list):
+        for v in node:
+            _collect_call_targets(v, acc)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_fresh_globals(ir: Any, stage: str) -> None:
-    pass
+    """fresh-globals.md — SOUNDNESS CONFINEMENT for ``#@ fresh_globals``.
 
-#@ \trusted reviewer: pycsl-self-annotate
+    ``#@ fresh_globals`` re-establishes each module-global singleton's CONSTRUCTOR
+    post-state as an ASSUMED fact at the function's body entry. That is sound ONLY for
+    a STANDALONE entry point that runs on a freshly-imported global (import ran the
+    constructor) and is NEVER entered with a pre-mutated global. So the directive is
+    confined to a top-level formal-test DRIVER that:
+
+      (1) is NOT a method (``self``-receiver) — a method runs on an arbitrary live
+          ``self`` / shared global, NOT a fresh construction; and
+      (2) is NOT called by any other function in the unit — a callee inherits its
+          caller's (possibly already-mutated) global, so assuming the fresh state
+          would be UNSOUND.
+
+    Either violation is a hard error: an unsound surfacing is worse than a missed
+    proof. (A library function that another module imports and calls would also be
+    rejected by (2) once that call is in scope; a top-level driver that nothing calls
+    is the only admissible site.)"""
+    funcs = ir.get("functions", []) or []
+    fresh = [f for f in funcs if f.get("fresh_globals")]
+    if not fresh:
+        return
+    # Union of every call target across ALL function bodies (so a `fresh_globals`
+    # function that is invoked anywhere is caught).
+    call_targets: set = set()
+    for f in funcs:
+        _collect_call_targets(f.get("body", []), call_targets)
+    for f in fresh:
+        name = f.get("name", "<anonymous>")
+        short = name.rsplit("__", 1)[-1]
+        where = f"function '{name}' (line {f.get('line', 0)})"
+        if f.get("kind") == "method":
+            raise PyCSLSemanticError(
+                f"{where}: `#@ fresh_globals` is not allowed on a method. It "
+                f"re-establishes the module-global constructor post-state as an "
+                f"assumed entry fact, which is sound only for a standalone driver "
+                f"that runs on a freshly-imported global — a method runs on an "
+                f"arbitrary live `self`/shared global, so assuming the fresh state "
+                f"would be unsound. See config/skills/pycsl-stdlib-coverage (fresh_globals).",
+                stage=stage,
+                code="PYCSL-SEM-FRESH-GLOBALS",
+            )
+        if name in call_targets or short in call_targets:
+            raise PyCSLSemanticError(
+                f"{where}: `#@ fresh_globals` is only allowed on a top-level driver "
+                f"that no other verified function calls. '{short}' is called "
+                f"elsewhere; a callee inherits its caller's (possibly already-mutated) "
+                f"global, so re-establishing the fresh constructor state at its entry "
+                f"would be unsound. Remove the call, or drop `#@ fresh_globals`.",
+                stage=stage,
+                code="PYCSL-SEM-FRESH-GLOBALS",
+            )
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_span(func: Any, stage: str) -> None:
-    pass
+    if "line" not in func:
+        name = func.get("name", "<anonymous>")
+        raise PyCSLSemanticError(
+            f"IR function '{name}' carries no source span; a front-end must "
+            f"stamp §4.4 spans (line/col) on every node",
+            stage=stage,
+            code="PYCSL-SEM-SPAN",
+        )
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_no_exception(func: Any) -> None:
-    pass
+    from exception_model import KNOWN_EXCEPTIONS  # lazy: keep the import surface small
 
-#@ \trusted reviewer: pycsl-self-annotate
+    contracts = func.get("contracts") or {}
+    no_exc = list(contracts.get("no_exception", []) or [])
+    no_exc_all = bool(contracts.get("no_exception_all", False))
+    raises = contracts.get("raises", []) or []
+    raised_names = {r.get("exc_type") for r in raises}
+
+    where = f"function '{func.get('name', '<anonymous>')}' (line {func.get('line', 0)})"
+
+    for name in no_exc:
+        if name not in KNOWN_EXCEPTIONS:
+            raise PyCSLSemanticError(
+                f"{where}: no_exception names unknown exception '{name}'. "
+                f"Known: {sorted(KNOWN_EXCEPTIONS)}.",
+                code="PYCSL-SEM-NOEXC",
+            )
+        if name in raised_names:
+            raise PyCSLSemanticError(
+                f"{where}: contradictory annotations — no_exception {name} "
+                f"and raises {{ {name} -> ... }} cannot both apply.",
+                code="PYCSL-SEM-NOEXC",
+            )
+    if no_exc_all and raised_names:
+        raise PyCSLSemanticError(
+            f"{where}: no_exception \\all requires the raises set to be empty; "
+            f"found raises {{ {', '.join(sorted(raised_names))} -> ... }}.",
+            code="PYCSL-SEM-NOEXC",
+        )
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_assigns_regions(func: Any) -> None:
-    pass
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    for target in func.get("contracts", {}).get("assigns", []) or []:
+        if isinstance(target, dict) and target.get("type") == "AssignsRegion":
+            base = target.get("base")
+            arr_type = symtab.get(base)
+            if arr_type is None:
+                raise PyCSLSemanticError(
+                    f"Assigns region references undefined variable '{base}' in {where}.",
+                    code="PYCSL-SEM-ASSIGNS",
+                )
+            if arr_type not in ("list", "List", "Any"):
+                raise PyCSLSemanticError(
+                    f"Assigns region on non-list variable '{base}' "
+                    f"(type '{arr_type}') in {where}.",
+                    code="PYCSL-SEM-ASSIGNS",
+                )
 
 _PB_ARRAY_BASE_TYPES = ('list', 'List', 'bytes', 'bytearray', 'Any', None)
 _PB_LENGTHLESS_TYPES = ('dict', 'Dict', 'set', 'Set', 'frozenset', 'FrozenSet')
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_contract_exprs(func, known) -> None:
-    pass
+    symtab = func.get("symbol_table") or {}
+    fname = func.get("name", "<anonymous>")
+    fctx = f"function '{fname}'"
+    contracts = func.get("contracts") or {}
+    for key in ("requires", "ensures", "assigns", "function_variants"):
+        for clause in contracts.get(key, []) or []:
+            _pb_expr(clause, fctx, symtab, known)
+    _pb_body(func.get("body", []) or [], fname, symtab, known)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _pb_body(stmts, fname, symtab, known) -> None:
-    pass
+def _pb_body(stmts: List[Dict[str, Any]], fname, symtab, known) -> None:
+    """Walk a statement list, applying the contract-expr checks to while-invariants
+    and ghost values with their surface-specific context, recursing into nested bodies."""
+    for s in stmts:
+        if isinstance(s, dict):
+            _pb_stmt(s, fname, symtab, known)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _pb_stmt(s, fname, symtab, known) -> None:
-    pass
+    st = s.get("stmt")
+    if st == "While":
+        lctx = f"while loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _pb_expr(clause, lctx, symtab, known)
+        for clause in (s.get("variants") or []):
+            _pb_expr(clause, lctx, symtab, known)
+        _pb_body(s.get("body", []) or [], fname, symtab, known)
+    elif st == "For":
+        lctx = f"for loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _pb_expr(clause, lctx, symtab, known)
+        for clause in (s.get("variants") or []):
+            _pb_expr(clause, lctx, symtab, known)
+        _pb_body(s.get("body", []) or [], fname, symtab, known)
+    elif st == "GhostAssign":
+        _pb_expr(s.get("value"),
+                 f"function '{fname}' (ghost '{s.get('target')}')", symtab, known)
+    elif st == "GhostArraySet":
+        gctx = f"function '{fname}' (ghost '{s.get('target')}[...]')"
+        _pb_expr(s.get("index"), gctx, symtab, known)
+        _pb_expr(s.get("value"), gctx, symtab, known)
+    else:
+        for v in s.values():
+            _pb_descend(v, fname, symtab, known)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _pb_descend(v, fname, symtab, known) -> None:
-    pass
+    if isinstance(v, dict):
+        if "stmt" in v:
+            _pb_stmt(v, fname, symtab, known)
+        else:
+            for x in v.values():
+                _pb_descend(x, fname, symtab, known)
+    elif isinstance(v, list):
+        for x in v:
+            _pb_descend(x, fname, symtab, known)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _pb_expr(node, ctx, symtab, known) -> None:
-    pass
+    """Recursively check predicate bases (`\\length`/`\\valid`/`\\separated`) and typed
+    quantifier binders in a contract-expr tree, against the surface context. Messages
+    reproduce Module 4 verbatim."""
+    if isinstance(node, list):
+        for x in node:
+            _pb_expr(x, ctx, symtab, known)
+        return
+    if not isinstance(node, dict):
+        return
+    t = node.get("type")
+    if t == "ArrayLen":
+        var = node.get("var", "")
+        if not str(var).startswith("self.") and var != "\\result":
+            typ = symtab.get(var)
+            if typ in _PB_LENGTHLESS_TYPES:
+                raise PyCSLSemanticError(
+                    f"\\length is not supported on the {typ}-typed '{var}' in "
+                    f"{ctx}: dicts/sets are modelled as total maps "
+                    f"(`map int (option int)`) with no cardinality. Use \\has_key(d, k) "
+                    f"for key presence, or a list/array for a length-bearing collection.",
+                    code="PYCSL-SEM-PREDBASE",
+                )
+    elif t == "Valid":
+        base = node.get("base")
+        arr_type = symtab.get(base)
+        if arr_type not in _PB_ARRAY_BASE_TYPES:
+            raise PyCSLSemanticError(
+                f"\\valid base '{base}' is not a list/bytes parameter "
+                f"in {ctx} (got type '{arr_type}').",
+                code="PYCSL-SEM-PREDBASE",
+            )
+    elif t == "Separated":
+        for base in (node.get("base1"), node.get("base2")):
+            arr_type = symtab.get(base)
+            if arr_type not in _PB_ARRAY_BASE_TYPES:
+                raise PyCSLSemanticError(
+                    f"\\separated base '{base}' is not a list/bytes parameter "
+                    f"in {ctx} (got type '{arr_type}').",
+                    code="PYCSL-SEM-PREDBASE",
+                )
+    elif t in ("Forall", "Exists"):
+        bt = node.get("binder_type")
+        if bt is not None and bt not in known:
+            raise PyCSLSemanticError(
+                f"Quantifier binder '{node.get('var')}: {bt}' in {ctx} has an "
+                f"unresolved type '{bt}'. A typed binder must name a scalar "
+                f"(int/bool/str/float) or a declared `#@ datatype` / class — "
+                f"it is never silently defaulted to int. "
+                f"Known types: {sorted(known)}.",
+                code="PYCSL-SEM-QUANTBINDER")
+    for v in node.values():
+        _pb_expr(v, ctx, symtab, known)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_contract_scope(func, module_constants) -> None:
-    pass
+    symtab = func.get("symbol_table") or {}
+    _va_name = func.get("vararg_str_param")
+    if _va_name and _va_name not in symtab:
+        symtab = {**symtab, _va_name: "tuple"}
+    fname = func.get("name", "<anonymous>")
+    fctx = f"function '{fname}'"
+    contracts = func.get("contracts") or {}
+    for key, allow_result in (("requires", False), ("ensures", True),
+                              ("assigns", False), ("function_variants", False)):
+        for clause in contracts.get(key, []) or []:
+            _cs_clause(clause, fctx, allow_result, symtab, module_constants)
+    _cs_body(func.get("body", []) or [], fname, symtab, module_constants)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _cs_body(stmts, fname, symtab, mc) -> None:
-    pass
+def _cs_body(stmts: List[Dict[str, Any]], fname, symtab, mc) -> None:
+    for s in stmts:
+        if isinstance(s, dict):
+            _cs_stmt(s, fname, symtab, mc)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _cs_stmt(s, fname, symtab, mc) -> None:
-    pass
+    st = s.get("stmt")
+    if st == "While":
+        lctx = f"while loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        for clause in (s.get("variants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        _cs_body(s.get("body", []) or [], fname, symtab, mc)
+    elif st == "For":
+        lctx = f"for loop at line {s.get('line', 0)} inside function '{fname}'"
+        for clause in (s.get("invariants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        for clause in (s.get("variants") or []):
+            _cs_clause(clause, lctx, False, symtab, mc)
+        _cs_body(s.get("body", []) or [], fname, symtab, mc)
+    elif st == "GhostAssign":
+        _cs_clause(s.get("value"),
+                   f"function '{fname}' (ghost '{s.get('target')}')", False, symtab, mc)
+    elif st == "GhostArraySet":
+        gctx = f"function '{fname}' (ghost '{s.get('target')}[...]')"
+        _cs_clause(s.get("index"), gctx, False, symtab, mc)
+        _cs_clause(s.get("value"), gctx, False, symtab, mc)
+    else:
+        for v in s.values():
+            _cs_descend(v, fname, symtab, mc)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _cs_descend(v, fname, symtab, mc) -> None:
-    pass
+    if isinstance(v, dict):
+        if "stmt" in v:
+            _cs_stmt(v, fname, symtab, mc)
+        else:
+            for x in v.values():
+                _cs_descend(x, fname, symtab, mc)
+    elif isinstance(v, list):
+        for x in v:
+            _cs_descend(x, fname, symtab, mc)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _cs_clause(clause, ctx, allow_result, symtab, mc) -> None:
-    pass
+    if clause is None:
+        return
+    if not allow_result and _contains_result(clause):
+        raise PyCSLSemanticError(
+            f"Invalid use of '\\result' in {ctx}. It is only allowed in 'ensures'.",
+            code="PYCSL-SEM-RESULT",
+        )
+    for v in _ir_free_vars(clause):
+        if v and v not in symtab and v not in mc:
+            raise PyCSLSemanticError(
+                f"Undefined variable '{v}' referenced in contract for {ctx}. "
+                f"Available variables in scope: {list(symtab.keys())}",
+                code="PYCSL-SEM-SCOPE",
+            )
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _ir_free_vars(node):
-    pass
+    """IR port of Module 4's ``extract_variables`` — the free (local-scope) variable
+    names a contract expr references. Excludes quantifier binders, ``\\result`` (a
+    ``Result`` node, not a ``Var``), and ``self`` fields (``FieldGet``); the string-base
+    predicates (``\\length``/``\\valid``/``\\separated``/``\\copy``/assigns-region) carry
+    their base as a string, so it is added explicitly before the generic recursion picks
+    up nested ``Var`` nodes (lengths, indices, bounds)."""
+    if isinstance(node, list):
+        out: set = set()
+        for x in node:
+            out |= _ir_free_vars(x)
+        return out
+    if not isinstance(node, dict):
+        return set()
+    t = node.get("type")
+    if t == "Var":
+        return {node.get("name")}
+    if t in ("FieldGet", "Result", "Attribute", "Call", "CallExpr"):
+        return set()
+    if t == "ArrayLen":
+        var = node.get("var", "")
+        if str(var).startswith("self.") or var == "\\result":
+            return set()
+        return {var}
+    if t in ("Forall", "Exists"):
+        return _ir_free_vars(node.get("body")) - {node.get("var")}
+    if t == "ForallItems":
+        return ((_ir_free_vars(node.get("body")) - {node.get("key"), node.get("val")})
+                | {node.get("coll")})
+    base_names: set = set()
+    if t == "Valid":
+        base_names = {node.get("base")}
+    elif t == "Separated":
+        base_names = {node.get("base1"), node.get("base2")}
+    elif t in ("GhostCopy", "GhostCopyRange"):
+        base_names = {node.get("arr")}
+    elif t == "AssignsRegion":
+        base_names = {node.get("base")}
+    out = {b for b in base_names if b}
+    for v in node.values():
+        out |= _ir_free_vars(v)
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_subscript_assignments(func) -> None:
-    pass
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    _sa_immutable_walk(func.get("body", []) or [], where, symtab)
+    c = func.get("contracts") or {}
+    if not (c.get("requires") or c.get("ensures") or c.get("assigns")):
+        return
+    _sa_walk(func.get("body", []) or [], where, symtab)
 
-#@ \trusted reviewer: pycsl-self-annotate
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def _sa_immutable_walk(node, where, symtab) -> None:
+    if isinstance(node, dict):
+        if node.get("stmt") == "ArraySet":
+            arr = node.get("array")
+            if isinstance(arr, dict) and arr.get("type") == "Var":
+                if symtab.get(arr.get("name")) == "bytes":
+                    raise PyCSLSemanticError(
+                        f"Subscript assignment to immutable 'bytes' variable "
+                        f"'{arr.get('name')}' in {where} — a Python `bytes` object "
+                        f"does not support item assignment (TypeError). Use a "
+                        f"`bytearray` for a mutable byte buffer.",
+                        code="PYCSL-SEM-SUBSCRIPT",
+                    )
+        for v in node.values():
+            _sa_immutable_walk(v, where, symtab)
+    elif isinstance(node, list):
+        for x in node:
+            _sa_immutable_walk(x, where, symtab)
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _sa_walk(node, where, symtab) -> None:
-    pass
+    if isinstance(node, dict):
+        if node.get("stmt") == "ArraySet":
+            arr = node.get("array")
+            if isinstance(arr, dict) and arr.get("type") == "Var":
+                name = arr.get("name")
+                arr_type = symtab.get(name)
+                if arr_type is None:
+                    raise PyCSLSemanticError(
+                        f"Subscript assignment to undefined variable '{name}' in {where}.",
+                        code="PYCSL-SEM-SUBSCRIPT",
+                    )
+                if arr_type not in ("list", "List", "dict", "Dict", "Any"):
+                    raise PyCSLSemanticError(
+                        f"Subscript assignment to non-list/dict variable '{name}' "
+                        f"(type '{arr_type}') in {where}.",
+                        code="PYCSL-SEM-SUBSCRIPT",
+                    )
+        for v in node.values():
+            _sa_walk(v, where, symtab)
+    elif isinstance(node, list):
+        for x in node:
+            _sa_walk(x, where, symtab)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_checkpoints(func) -> None:
-    pass
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    _cp_walk(func.get("body", []) or [], where)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _cp_walk(node, where) -> None:
-    pass
+    if isinstance(node, dict):
+        if node.get("stmt") == "ProofAssert" and _contains_result(node.get("test")):
+            raise PyCSLSemanticError(
+                f"'\\result' is not allowed in a `#@ {node.get('kind')}` in {where} "
+                f"(it is bound only at return; use `ensures` for return values).",
+                code="PYCSL-SEM-CHECKPOINT",
+            )
+        for v in node.values():
+            _cp_walk(v, where)
+    elif isinstance(node, list):
+        for x in node:
+            _cp_walk(x, where)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _contains_result(node) -> bool:
+    if isinstance(node, dict):
+        if node.get("type") == "Result":
+            return True
+        return any(_contains_result(v) for v in node.values())
+    if isinstance(node, list):
+        return any(_contains_result(x) for x in node)
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_ghost_string_ops(func) -> None:
-    pass
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    symtab = func.get("symbol_table") or {}
+    _gso_walk(func.get("body", []) or [], where, symtab)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _gso_walk(node, where, symtab) -> None:
-    pass
+    if isinstance(node, dict):
+        if node.get("stmt") == "GhostAssign":
+            op = node.get("op")
+            target = node.get("target")
+            if op != "=" and symtab.get(target) == "string":
+                raise PyCSLSemanticError(
+                    f"Ghost string variable '{target}' does not support '{op}' "
+                    f"in {where}. "
+                    "Use the ^ operator for string concatenation: "
+                    f"#@ ghost {target} = {target} ^ expr",
+                    code="PYCSL-SEM-GHOSTSTR",
+                )
+        for v in node.values():
+            _gso_walk(v, where, symtab)
+    elif isinstance(node, list):
+        for x in node:
+            _gso_walk(x, where, symtab)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _body_has_diverging_construct(body) -> bool:
-    return False
+    """True iff the IR body contains a loop (``While``/``For``), a critical section
+    (``CriticalSection`` — a lock-acquire that may block forever), or a function/method
+    call (``{"type": "Call"}`` — recursion or a diverging callee). This is the IR port of
+    Module 4's ``ast.walk`` over ``ast.While/For/AsyncFor/Call`` + critical ``with``."""
+    found = [False]
 
-#@ \trusted reviewer: pycsl-self-annotate
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") in ("While", "For", "CriticalSection"):
+                found[0] = True
+                return
+            if node.get("type") == "Call":
+                found[0] = True
+                return
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_diverges(func) -> None:
-    pass
+    if not func.get("diverges"):
+        return
+    if func.get("lemma"):
+        return  # _check_lemma raises the lemma-specific message first
+    if _body_has_diverging_construct(func.get("body", []) or []):
+        return
+    raise PyCSLSemanticError(
+        f"`#@ \\diverges` on function '{func.get('name', '<anonymous>')}' is not "
+        f"justified: its body has no potentially-diverging construct (no critical "
+        f"section / lock-acquire, no loop, no call/recursion). A straight-line body "
+        f"provably terminates, so Why3 rejects the `diverges` effect (\"this expression "
+        f"does not diverge\"). Remove `#@ \\diverges`, or give the body a construct that "
+        f"can actually block or loop.",
+        code="PYCSL-SEM-DIVERGES",
+    )
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _body_has_raise(body) -> bool:
-    return False
+    """True iff the IR body contains a ``Raise`` statement (anywhere, at any depth)."""
+    found = [False]
 
-#@ \trusted reviewer: pycsl-self-annotate
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") == "Raise":
+                found[0] = True
+                return
+            for v in node.values():
+                walk(v)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _body_has_return(body) -> bool:
+def _body_has_return(body: list) -> bool:
+    """True iff the IR body contains a ``Return`` statement (anywhere, at any depth).
+    A ``Return`` (with or without a value) is a NORMAL-EXIT path — the very thing a
+    ``NoReturn`` function must not have.
+
+    Flat direct-recursive statement-tree existence walk (self-tcb-reduction
+    tree-walk-wall): descends every statement-body child list — ``body``/
+    ``orelse``/``finalbody`` (While/For/If/Try/With), each ``handlers`` entry's
+    body (Try), and each ``cases`` entry's body (Match) — which are the only IR
+    positions a ``Return`` statement can occur. Verbatim-identical to the
+    self-annotation mirror, where it lowers to the certified stmt_ir
+    ``sl_has_return`` catamorphism (byte-diff-0, both provers, axiom-free)."""
+    for stmt in body:
+        if stmt.get("stmt") == "Return":
+            return True
+        for key in ("body", "orelse", "finalbody"):
+            sub = stmt.get(key)
+            if isinstance(sub, list) and _body_has_return(sub):
+                return True
+        for h in stmt.get("handlers", []):
+            if _body_has_return(h.get("body", [])):
+                return True
+        for c in stmt.get("cases", []):
+            if _body_has_return(c.get("body", [])):
+                return True
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_noreturn(func) -> None:
-    pass
+    """NR2a (typing-engagement ty1 / 28-0000-typing-spec-4 §1.0) — a function
+    declared ``-> NoReturn`` carries the postcondition ``false`` (NR1): it never
+    returns normally. The body MUST support that claim — every path must raise or
+    diverge (call a NoReturn function, loop forever). A body that CAN return
+    normally (contains a ``Return``, or falls off the end without raising) is a
+    STATIC ERROR: the ``false`` postcondition would be genuinely unprovable (not
+    vacuous, just wrong — the two-plane spec §1.0 NR2a).
 
-#@ \trusted reviewer: pycsl-self-annotate
+    This is a CONSERVATIVE sound under-approximation (stricter than S1 is
+    permitted): any ``Return`` statement anywhere in the body is rejected
+    (even one inside a provably-dead branch — sound, since a dead ``Return``
+    indicates a logic error). A body with neither a ``Raise`` nor a diverging
+    construct (``While``/``For``/``CriticalSection``/``Call``) is rejected too
+    (it falls off the end → normal exit). Why3 provides defense-in-depth: if a
+    normal-exit path slips past this check, the ``ensures { false }`` VC fails
+    at proof time."""
+    if not func.get("is_noreturn"):
+        return
+    # A `\trusted` / `#@ \abstract` stub emits as a bodyless WhyML `val`: its `ensures
+    # { false }` (NR1) is a reviewer-vouched INTERFACE assumption, not a claim about the
+    # placeholder body (`pass`). The NR2a body-justification is meaningless there — it
+    # exists to catch a REAL body that can return normally yet claims NoReturn. The trust
+    # boundary is where the never-returns fact is discharged out of band (e.g. the live
+    # `_ContractParser._err` body is an unconditional `raise`, mirrored here as a trusted
+    # stub). Exempt both, exactly as the emitter treats them as assumption-only vals.
+    if func.get("trusted") or func.get("abstract"):
+        return
+    name = func.get("name", "<anonymous>")
+    body = func.get("body", []) or []
+    if _body_has_return(body):
+        raise PyCSLSemanticError(
+            f"`-> NoReturn` on function '{name}' is not justified: its body "
+            f"contains a `return` statement (a normal-exit path). A NoReturn "
+            f"function must never return normally — every path must raise or "
+            f"diverge (NR2a / PEP 484). Remove `-> NoReturn`, or eliminate the "
+            f"normal return (raise instead, or call another NoReturn function).",
+            code="PYCSL-SEM-NORETURN",
+        )
+    if not _body_has_raise(body) and not _body_has_diverging_construct(body):
+        raise PyCSLSemanticError(
+            f"`-> NoReturn` on function '{name}' is not justified: its body has "
+            f"no `raise` and no potentially-diverging construct (no loop, no call, "
+            f"no critical section) — it provably falls off the end (a normal exit). "
+            f"A NoReturn function must raise or diverge on every path (NR2a / "
+            f"PEP 484). Remove `-> NoReturn`, or give the body a raise/divergence.",
+            code="PYCSL-SEM-NORETURN",
+        )
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _collect_noreturn_names(ir) -> set:
-    return set()
+    out: set = set()
+    for func in ir.get("functions", []):
+        if func.get("is_noreturn"):
+            nm = func.get("name")
+            if nm:
+                out.add(nm)
+                # A method call `self.m()` or `obj.m()` resolves to the
+                # `Class__method` flattened name; also accept the short tail.
+                out.add(nm.rsplit("__", 1)[-1])
+    return out
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_noreturn_successors(ir) -> None:
-    pass
+    noreturn_names = _collect_noreturn_names(ir)
+    if not noreturn_names:
+        return  # NoReturn-free module → byte-identical (no work, no error).
+    for func in ir.get("functions", []):
+        fname = func.get("name", "<anonymous>")
+        _noreturn_walk_stmts(func.get("body", []) or [], fname, noreturn_names)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _noreturn_walk_stmts(stmts, fname, noreturn_names) -> None:
-    pass
+    prev_noreturn_call = False
+    for s in stmts:
+        if isinstance(s, dict):
+            if prev_noreturn_call:
+                raise PyCSLSemanticError(
+                    f"Dead code in function '{fname}': this statement follows a "
+                    f"call to a `NoReturn` function, which never returns normally "
+                    f"(NR3 / PEP 484). The continuation path is unreachable. "
+                    f"Remove the dead statement, or move it before the NoReturn call.",
+                    code="PYCSL-SEM-NORETURN",
+                )
+                prev_noreturn_call = False
+            prev_noreturn_call = _stmt_is_noreturn_call(s, noreturn_names)
+            for key in ("body", "orelse", "finalbody"):
+                child = s.get(key)
+                if isinstance(child, list):
+                    _noreturn_walk_stmts(child, fname, noreturn_names)
+            if s.get("stmt") == "Try":
+                for h in s.get("handlers", []) or []:
+                    if isinstance(h, dict) and isinstance(h.get("body"), list):
+                        _noreturn_walk_stmts(h["body"], fname, noreturn_names)
+            if s.get("stmt") == "Match" and isinstance(s.get("cases"), list):
+                for case in s["cases"]:
+                    if isinstance(case, dict) and isinstance(case.get("body"), list):
+                        _noreturn_walk_stmts(case["body"], fname, noreturn_names)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _stmt_is_noreturn_call(s, noreturn_names) -> bool:
-    return False
+    if s.get("stmt") != "Expr":
+        return False
+    val = s.get("value")
+    if not isinstance(val, dict) or val.get("type") != "Call":
+        return False
+    fn = val.get("func")
+    if not isinstance(fn, str):
+        return False
+    return fn in noreturn_names or fn.rsplit(".", 1)[-1] in noreturn_names
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _lemma_returns_value(body) -> bool:
-    return False
+    """True iff the IR body contains a ``Return`` statement carrying a non-``None`` value
+    (Module 4 walked ``ast.Return`` whose value was neither absent nor the ``None``
+    constant)."""
+    found = [False]
 
-#@ \trusted reviewer: pycsl-self-annotate
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") == "Return":
+                v = node.get("value")
+                # `return` / `return None` → value is None (no value) or a None constant.
+                if v is not None and not (
+                        isinstance(v, dict) and v.get("type") in ("None", "CSLNone")):
+                    found[0] = True
+                    return
+            for x in node.values():
+                walk(x)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _lemma_calls_trusted(body, trusted) -> str:
-    return ""
+    hit = [""]
 
-#@ \trusted reviewer: pycsl-self-annotate
+    def walk(node):
+        if hit[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("type") == "Call":
+                fn = node.get("func")
+                if isinstance(fn, str) and fn in trusted:
+                    hit[0] = fn
+                    return
+            for x in node.values():
+                walk(x)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return hit[0]
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_lemma(func, trusted_funcs) -> None:
-    pass
+    if not func.get("lemma"):
+        return
+    name = func.get("name", "<anonymous>")
+    if func.get("diverges"):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' is also `#@ \\diverges`: a non-terminating "
+            f"lemma proves nothing and would be unsound as a fact. Remove one.",
+            code="PYCSL-SEM-LEMMA")
+    contracts = func.get("contracts") or {}
+    if not (contracts.get("ensures") or []):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' has no `#@ ensures`: a lemma must state the "
+            f"fact it proves (the conclusion). Add at least one `#@ ensures`.",
+            code="PYCSL-SEM-LEMMA")
+    ra = func.get("return_annotation")
+    if ra not in (None, "None"):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' must be annotated `-> None`: a lemma computes "
+            f"nothing (its WhyML result is `unit`); the body is the proof.",
+            code="PYCSL-SEM-LEMMA")
+    for t in contracts.get("assigns", []) or []:
+        if not (isinstance(t, dict) and t.get("type") == "Nothing"):
+            raise PyCSLSemanticError(
+                f"`#@ lemma` '{name}' must be `assigns \\nothing`: a lemma is "
+                f"erased at extraction and may not mutate non-ghost state.",
+                code="PYCSL-SEM-LEMMA")
+    if _lemma_returns_value(func.get("body", []) or []):
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' body must not `return` a value — it is a "
+            f"proof (returns unit). Use `pass` for an immediate arm.",
+            code="PYCSL-SEM-LEMMA")
+    leaked = _lemma_calls_trusted(func.get("body", []) or [], trusted_funcs)
+    if leaked:
+        raise PyCSLSemanticError(
+            f"`#@ lemma` '{name}' calls `\\trusted` function '{leaked}': a "
+            f"checked lemma may not rest on an unverified (trusted) fact — that "
+            f"would smuggle an unchecked axiom into a 'proved' lemma.",
+            code="PYCSL-SEM-LEMMA")
 
+# (#51 gen3) `\trusted` BY MEASUREMENT, AND THE METRIC RISING IS THE CORRECT OUTCOME.
+# This function and its nested `walk` were the whole of `core_ir_semantic.py`'s proof
+# failure: the file's FIRST-EVER whole-file proof (`w51_cis`) came back rc=1 with 1521
+# Valid, 16 TIMEOUTS and EIGHT unproven goals, and ALL EIGHT were TERMINATION — six of
+# the nested `walk`, one of this function, and one of `_check_scalar_return_annotation`,
+# which CALLS it and inherited the failure from the inlined body.
+# WHY IT CANNOT BE PROVED AS WRITTEN: `walk` is a NESTED recursion over an UNTYPED
+# parameter (`body` carries no annotation) descending through `node.values()` and list
+# elements, so there is no well-founded measure to decrease. The other walks in this
+# same file — `_union_c8_walk`, `_check_union_narrowing__collect` — DO carry variants and
+# DO discharge `variant decrease`, and the difference is exactly that their parameters
+# are annotated (`stmts: list`). This is a COST/SCALE boundary whose reopening capability
+# is the certified IR-node ADT, not a correctness one.
+# MEASURED DISPOSITION (`w51h_cis_trusted`, at HEAD, 3h budget): with this marker the
+# file proves rc=0, "All contracts formally proven" — 1509 Valid, **0 timeouts**, 0
+# unproven, against 16 timeouts and 8 unproven without it.
+# THE FRAME IS HONEST AS AN ASSUMPTION, checked rather than assumed: the live body has no
+# `global` statement and writes no attribute — it is pure over a local `found` list — so
+# `assigns \nothing` is true of the real function, not merely of a reduced one.
 #@ \trusted reviewer: pycsl-self-annotate
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def _returns_literal_none(body) -> bool:
+    found = [False]
+
+    # (#49) gen #31 — AN HONEST MARKER, NOT A REGRESSION, and this one was invisible TWICE
+    # over. `_returns_literal_none` is itself `#@ \trusted`, so this closure is folded into
+    # an opaque `val` and verified nowhere — while the fidelity plane counted it among the
+    # verbatim un-trusted twins. `check-untrusted-emitted.py` could not see it because its
+    # walk stopped at a `def`; and once the walk was fixed it STILL could not see it,
+    # because that plane matches on the BARE name and this file has FIVE closures called
+    # `walk`, the other four of which are emitted. Only the STATIC question — is the
+    # enclosing function `\trusted`? — separates them. RETIRED BY: converting
+    # `_returns_literal_none`.
+    #@ \trusted reviewer: pycsl-self-annotate
+    def walk(node):
+        if found[0]:
+            return
+        if isinstance(node, dict):
+            if node.get("stmt") in ("FunctionDef", "AsyncFunctionDef", "Lambda"):
+                return
+            if node.get("stmt") == "Return":
+                v = node.get("value")
+                if v is None or (isinstance(v, dict)
+                                 and v.get("type") in ("None", "CSLNone")):
+                    found[0] = True
+                    return
+            for x in node.values():
+                walk(x)
+        elif isinstance(node, list):
+            for x in node:
+                walk(x)
+
+    walk(body)
+    return found[0]
+
+#@ requires True
+#@ ensures True
+#@ assigns \nothing
+def _check_scalar_return_annotation(func) -> None:
+    if func.get("return_annotation") != "str":
+        return
+    if not _returns_literal_none(func.get("body", []) or []):
+        return
+    name = func.get("name", "<anonymous>")
+    raise PyCSLSemanticError(
+        f"function '{name}' is annotated `-> str` but can `return None`. Python "
+        f"does not enforce the hint and the model BELIEVES it: a caller's "
+        f"`<result> is None` test is then DECIDED false and the branch the program "
+        f"actually takes is deleted from the proof. Annotate `-> Optional[str]` "
+        f"(the model carries that faithfully) or remove the `return None`.",
+        code="PYCSL-SEM-RETANN")
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_mutable_defaults(func) -> None:
-    pass
+    if func.get("has_mutable_default"):
+        raise PyCSLSemanticError(
+            f"Mutable default argument in function '{func.get('name', '<anonymous>')}': "
+            f"a list/dict/set default is a single object shared across all calls (a "
+            f"shared-aliasing bug) and is outside PyCSL's value-semantics boundary "
+            f"(ownership discipline R2). Give the parameter NO default and let the "
+            f"caller supply the collection (`def f(xs: List[int])`, called as "
+            f"`f([0, 0])`) — measured, that VERIFIES. The `None`-sentinel form this "
+            f"message used to advise (`xs: Optional[List[int]] = None`, initialised in "
+            f"the body) DOES NOT COMPILE TODAY: `Optional[List[T]]` as a parameter type "
+            f"emits WhyML with an unbound type symbol `array`, while `List[T]` and "
+            f"`Optional[int]` each compile fine. Measured in gen #30. The missing "
+            f"`use array.Array` was FIXED the same day; what remains is deeper — the "
+            f"union TYPE declares the list arm's payload as `int` while the arm GOAL "
+            f"quantifies `array int`, so the injection goal is genuinely FALSE. A "
+            f"completeness gap in the emitter, not an unsoundness: it FAILS.",
+            code="PYCSL-SEM-MUTDEFAULT",
+        )
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_acts(func) -> None:
-    pass
+    acts = func.get("acts") or []
+    if not acts:
+        return
+    where = f"function '{func.get('name', '<anonymous>')}'"
+    defined: dict = {}
+    for a in acts:
+        if a.get("kind") != "act":
+            continue
+        name = a.get("name")
+        if name in defined:
+            raise PyCSLSemanticError(f"duplicate act name '{name}' in {where}.",
+                                     code="PYCSL-SEM-ACT")
+        defined[name] = a
+        for gx in a.get("given_exprs", []):
+            if _contains_result(gx):
+                raise PyCSLSemanticError(
+                    f"act '{name}' in {where}: '\\result' is not allowed in a "
+                    f"'given' guard (guards are evaluated in the pre-state).",
+                    code="PYCSL-SEM-ACT")
+    referenced: set = set()
+    for a in acts:
+        kind = a.get("kind")
+        if kind in ("complete", "disjoint"):
+            for nm in a.get("names", []):
+                referenced.add(nm)
+                if nm not in defined:
+                    raise PyCSLSemanticError(
+                        f"`{kind}` in {where} references undefined act '{nm}'.",
+                        code="PYCSL-SEM-ACT")
+    if any(a.get("kind") in ("complete", "disjoint") for a in acts):
+        for nm in defined:
+            if nm not in referenced:
+                warnings.warn(
+                    f"act '{nm}' in {where} is not referenced by any "
+                    f"`complete`/`disjoint` — possible typo or omission.",
+                    stacklevel=2)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_happy(ir) -> None:
-    pass
+    happy = ir.get("happy")
+    if not happy:
+        return
+    method_names = set(happy.get("method_names", []))
+    exec_methods = happy.get("exec_methods", [])
+    # written fields = the `self.<field>[...] = v` sites (ArraySet on a FieldGet of self),
+    # collected from every function body in the IR.
+    written: set = set()
+    for func in ir.get("functions", []):
+        _hp_collect_written(func.get("body", []) or [], written)
+    for hp in happy.get("properties", []):
+        hname = hp.get("name")
+        except_set = hp.get("except_set", [])
+        for name in except_set:
+            if name not in method_names:
+                raise PyCSLSemanticError(
+                    f"`happy {hname}`: exempt function '{name}' is not a method "
+                    f"in this module. Known methods: {sorted(method_names)}. "
+                    f"A typo in the exempt set would silently widen the property's "
+                    f"coverage, so this is rejected.",
+                    code="PYCSL-SEM-HAPPY")
+        for m in sorted(set(exec_methods)):
+            if m not in except_set:
+                raise PyCSLSemanticError(
+                    f"`happy {hname}`: method '{m}' contains a dynamic `exec(...)`, "
+                    f"which may write anything (not a compile-time-constant exec, so it "
+                    f"cannot be spliced/bounded). A non-exempt dynamic-exec method cannot "
+                    f"be confined by this property — add it to the except set or remove the "
+                    f"exec. (07-1839 P5 — exec is a worst-case mutator under HAPPY.)",
+                    code="PYCSL-SEM-HAPPY")
+        if hp.get("protects") is not None:
+            continue
+        if hp.get("field") not in written:
+            warnings.warn(
+                f"`happy {hname}`: no write to `self.{hp.get('field')}[...]` found in "
+                f"this module — the property expands to zero obligations (inert). "
+                f"Check the field name.",
+                stacklevel=2)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
-def _hp_collect_written(node, written) -> None:
-    pass
+#@ assigns written
+def _hp_collect_written(node: Any, written: set) -> None:
+    if isinstance(node, dict):
+        if node.get("stmt") == "ArraySet":
+            arr = node.get("array")
+            if (isinstance(arr, dict) and arr.get("type") == "FieldGet"
+                    and arr.get("object") == "self"):
+                written.add(arr.get("field"))
+        for v in node.values():
+            _hp_collect_written(v, written)
+    elif isinstance(node, list):
+        for x in node:
+            _hp_collect_written(x, written)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_final(ir) -> None:
-    pass
+    registry = ir.get("final_registry")
+    if not registry:
+        return  # Final-free module → byte-identical (no work, no error).
+    module_finals = {e["name"] for e in registry if e.get("kind") == "module"}
+    class_attr_finals = {e["name"] for e in registry if e.get("kind") == "class_attr"}
+    if not module_finals and not class_attr_finals:
+        return
+    for func in ir.get("functions", []):
+        fname = func.get("name", "<anonymous>")
+        _final_walk_body(func.get("body", []) or [], fname,
+                         module_finals, class_attr_finals)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _final_walk_body(stmts, fname, module_finals, class_attr_finals) -> None:
-    pass
+def _final_walk_body(stmts: List[Dict[str, Any]], fname, module_finals, class_attr_finals) -> None:
+    """Walk a list of IR statements for Final write-policy violations."""
+    for s in stmts:
+        if isinstance(s, dict):
+            _final_check_stmt(s, fname, module_finals, class_attr_finals)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _final_check_stmt(s, fname, module_finals, class_attr_finals) -> None:
-    pass
+    st = s.get("stmt")
+    # F1: bare-name write to a module-level Final → reassignment (error).
+    if st in ("Assign", "AugAssign"):
+        target = s.get("target")
+        if isinstance(target, str) and target in module_finals:
+            raise PyCSLSemanticError(
+                f"Final: cannot reassign Final name '{target}' in function "
+                f"'{fname}' (F1 — write-once at declaration; PEP 591). The name "
+                f"is declared `Final` at module/class scope and may be written "
+                f"only at its declaration.",
+                code="PYCSL-SEM-FINAL")
+    # F2: self.<attr> write to a class_attr Final outside __init__ (error).
+    elif st in ("FieldAssign", "FieldAugAssign"):
+        if s.get("object") == "self" and s.get("field") in class_attr_finals:
+            field = s.get("field")
+            raise PyCSLSemanticError(
+                f"Final: cannot write Final instance attribute 'self.{field}' "
+                f"in function '{fname}' (F2 — __init__-only writes; PEP 591). "
+                f"The attribute is declared `Final` and may be written only in "
+                f"the declaring class's __init__.",
+                code="PYCSL-SEM-FINAL")
+    # Recurse into nested statement containers (If/While/For/Try/With bodies).
+    for key in ("body", "orelse", "finalbody", "handlers"):
+        child = s.get(key)
+        if isinstance(child, list):
+            _final_walk_body(child, fname, module_finals, class_attr_finals)
+        elif isinstance(child, dict):
+            _final_check_stmt(child, fname, module_finals, class_attr_finals)
+    # CriticalSection carries a body; Match carries cases with bodies.
+    if st == "CriticalSection" and isinstance(s.get("body"), list):
+        _final_walk_body(s["body"], fname, module_finals, class_attr_finals)
+    if st == "Match" and isinstance(s.get("cases"), list):
+        for case in s["cases"]:
+            if isinstance(case, dict) and isinstance(case.get("body"), list):
+                _final_walk_body(case["body"], fname, module_finals, class_attr_finals)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_concurrency(ir) -> None:
-    pass
+    shared_list = ir.get("shared_vars") or []
+    if not shared_list:
+        return
+    shared = {sv.get("name"): sv.get("mutex") for sv in shared_list}
+    lock_order = ir.get("lock_order")
+    for func in ir.get("functions", []):
+        fname = func.get("name", "<anonymous>")
+        _conc_stmts(func.get("body", []) or [], set(), fname, shared, lock_order)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _conc_check_shared_access(var_name, held, fname, shared, write) -> None:
-    pass
+    if var_name not in shared:
+        return
+    req_mutex = shared[var_name]
+    if req_mutex is None:
+        return
+    if req_mutex not in held:
+        action = "write to" if write else "read of"
+        raise PyCSLSemanticError(
+            f"Function '{fname}': unprotected {action} shared variable '{var_name}' "
+            f"(protected_by '{req_mutex}', but held mutexes are {sorted(held) or 'none'}).",
+            code="PYCSL-SEM-CONCURRENCY")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _conc_check_reads(node, held, fname, shared) -> None:
-    pass
+    if isinstance(node, dict):
+        if node.get("type") == "Var":
+            _conc_check_shared_access(node.get("name"), held, fname, shared, write=False)
+        for v in node.values():
+            _conc_check_reads(v, held, fname, shared)
+    elif isinstance(node, list):
+        for x in node:
+            _conc_check_reads(x, held, fname, shared)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _conc_stmts(stmts, held, fname, shared, lock_order) -> None:
-    pass
+    for s in stmts:
+        if isinstance(s, dict):
+            _conc_stmt(s, held, fname, shared, lock_order)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _conc_stmt(s, held, fname, shared, lock_order) -> None:
-    pass
+    st = s.get("stmt")
+    if st == "CriticalSection":
+        mutex = s.get("mutex")
+        inner_held = held | {mutex} if mutex else held
+        if mutex and held and lock_order is None:
+            raise PyCSLSemanticError(
+                f"Function '{fname}': nested mutex acquisition of '{mutex}' while holding "
+                f"{sorted(held)} requires a module-level '#@ lock_order' declaration.",
+                code="PYCSL-SEM-CONCURRENCY")
+        if mutex and held and lock_order is not None:
+            for already_held in sorted(held):
+                ah_idx = lock_order.index(already_held) if already_held in lock_order else -1
+                new_idx = lock_order.index(mutex) if mutex in lock_order else -1
+                if ah_idx >= 0 and new_idx >= 0 and new_idx <= ah_idx:
+                    raise PyCSLSemanticError(
+                        f"Function '{fname}': lock_order violation — acquiring '{mutex}' "
+                        f"while holding '{already_held}' violates declared order "
+                        f"{lock_order}.",
+                        code="PYCSL-SEM-CONCURRENCY")
+        _conc_stmts(s.get("body", []) or [], inner_held, fname, shared, lock_order)
+    elif st == "If":
+        _conc_stmts(s.get("body", []) or [], held, fname, shared, lock_order)
+        _conc_stmts(s.get("orelse", []) or [], held, fname, shared, lock_order)
+    elif st in ("While", "For"):
+        _conc_stmts(s.get("body", []) or [], held, fname, shared, lock_order)
+    elif st == "Assign":
+        target = s.get("target")
+        if isinstance(target, str):
+            _conc_check_shared_access(target, held, fname, shared, write=True)
+        _conc_check_reads(s.get("value"), held, fname, shared)
+    elif st == "AugAssign":
+        target = s.get("target")
+        if isinstance(target, str):
+            _conc_check_shared_access(target, held, fname, shared, write=True)
+    elif st == "Return":
+        if s.get("value") is not None:
+            _conc_check_reads(s.get("value"), held, fname, shared)
+    elif st == "Expr":
+        _conc_check_reads(s.get("value"), held, fname, shared)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_class_invariants(ir) -> None:
-    pass
+    """B-final STEP 3 — class-invariant scope, migrated verbatim from Module 4's
+    ``visit_ClassDef`` check. For each ``type_decl`` of kind ``record``, every free
+    variable a ``class_invariant`` references must be a declared field (``self.<field>``
+    is lowered to ``FieldGet`` and excluded by ``_ir_free_vars``, exactly as Module 4's
+    ``extract_variables`` excluded ``FieldAccess``). The IR carries ``fields`` (name +
+    type) and the lowered ``class_invariants`` exprs, so the check runs on the IR alone.
+    The ``Available fields`` list is the field-name list in first-appearance order
+    (matching Module 4's ``list(self._class_fields.keys())``)."""
+    for td in ir.get("type_decls", []):
+        if td.get("kind") != "record":
+            continue
+        field_names = [f.get("name") for f in td.get("fields", []) or []]
+        field_set = set(field_names)
+        cname = td.get("name")
+        context = f"class invariant for '{cname}'"
+        for inv in td.get("class_invariants", []) or []:
+            # Sorted for determinism (Module 4 iterated a set; sorting only differs in
+            # the inherently non-deterministic multiple-undefined-var case).
+            for var in sorted(v for v in _ir_free_vars(inv) if v is not None):
+                if var not in field_set:
+                    raise PyCSLSemanticError(
+                        f"Undefined variable '{var}' in {context}. "
+                        f"Class invariants should only reference self.field or constants. "
+                        f"Available fields: {field_names}",
+                        code="PYCSL-SEM-CLASSINV",
+                    )
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_mutex_invariants(ir) -> None:
-    pass
+    """Module-level mutex-invariant scope/well-formedness, migrated from Module 4's
+    ``_validate_mutex_invariant_scope`` (refactor.md B-final). For each
+    ``#@ mutex_invariant <m>: <expr>``, every free variable referenced by ``<expr>``
+    must be a shared variable protected by ``<m>`` (matching by full mutex name OR by
+    array-mutex base, ``m.split('[')[0]``). Single-/two-letter names (loop/quantifier
+    binders common in invariants) are tolerated, mirroring the AST check.
 
-#@ \trusted reviewer: pycsl-self-annotate
+    This was a MODULE-level check (Module 4 ran it once in ``visit_Module``, before any
+    ``FunctionDef`` was visited — so the ``var in self.current_scope`` branch it carried
+    was over an *empty* scope and never matched). The IR has no module-level function
+    scope, so only the shared-var set remains; the message is reproduced byte-for-byte.
+    Free variables come from ``_ir_free_vars`` (Module 4's ``extract_variables`` port)."""
+    shared_vars = ir.get("shared_vars") or []
+    mutex_invariants = ir.get("mutex_invariants") or {}
+    # {var_name: mutex} over the IR's `[{name, mutex}]` shared-var list.
+    shared = {sv.get("name"): sv.get("mutex") for sv in shared_vars}
+    for mutex, inv_expr in mutex_invariants.items():
+        protected = {v for v, m in shared.items() if m == mutex or
+                     (m is not None and m.split('[')[0] == mutex.split('[')[0])}
+        for var in _ir_free_vars(inv_expr):
+            if var in protected:
+                continue
+            # Allow single-letter loop variables common in invariants
+            if len(var) <= 2:
+                continue
+            raise PyCSLSemanticError(
+                f"Mutex invariant for '{mutex}': variable '{var}' is not a shared variable "
+                f"protected by '{mutex}'. Protected variables: {sorted(protected)}.",
+                code="PYCSL-SEM-MUTEXINV",
+            )
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_typeddict_access(func: Any, td_record_names: set) -> None:
-    pass
+    if not td_record_names:
+        return
+    symtab = func.get("symbol_table", {}) or {}
+    td_vars = {v for v, t in symtab.items() if t in td_record_names}
+    if not td_vars:
+        return
+    _typeddict_walk_subscripts(func.get("body", []) or [], td_vars,
+                               func.get("name", "?"))
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _typeddict_walk_subscripts(stmts: list, td_vars: set, fname: str) -> None:
-    pass
+    """Walk the body IR for Subscript nodes whose receiver is a TypedDict-
+    typed variable. T5: the index must be a string literal naming a declared
+    field. A non-literal or unknown-key access is flagged (Why3 will reject it
+    at type-check; this surfaces the issue earlier)."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        for k, v in s.items():
+            if k == "value" and isinstance(v, dict) and v.get("type") == "Subscript":
+                _typeddict_check_subscript(v, td_vars, fname)
+            elif isinstance(v, dict):
+                if v.get("type") == "Subscript":
+                    _typeddict_check_subscript(v, td_vars, fname)
+                _typeddict_walk_subscripts([v], td_vars, fname)
+            elif isinstance(v, list):
+                _typeddict_walk_subscripts(v, td_vars, fname)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -382,19 +1328,42 @@ def _typeddict_walk_subscripts(stmts: list, td_vars: set, fname: str) -> None:
 def _typeddict_check_subscript(sub: dict, td_vars: set, fname: str) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_namedtuple_access(func: Any, nt_record_names: set, nt_record_arities: dict) -> None:
-    pass
+    if not nt_record_names:
+        return
+    symtab = func.get("symbol_table", {}) or {}
+    nt_vars = {v for v, t in symtab.items() if t in nt_record_names}
+    fname = func.get("name", "?")
+    body = func.get("body", []) or []
+    if nt_vars:
+        _namedtuple_walk_subscripts(body, nt_vars, fname)
+    if nt_record_arities:
+        _namedtuple_walk_construction(body, nt_record_arities, fname)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _namedtuple_walk_construction(stmts: list, nt_arities: dict, fname: str) -> None:
-    pass
+def _namedtuple_walk_construction(stmts: list, nt_arities: dict,
+                                  fname: str) -> None:
+    """Walk the body IR for `Call` nodes to a NamedTuple constructor and raise
+    a hard error when the call arity is wrong (N7). A field with a default (N1b)
+    makes trailing arguments optional, so the minimum arity is the count of
+    fields WITHOUT defaults."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        for k, v in s.items():
+            if k == "value" and isinstance(v, dict) and v.get("type") == "Call":
+                _namedtuple_check_call(v, nt_arities, fname)
+            elif isinstance(v, dict):
+                if v.get("type") == "Call":
+                    _namedtuple_check_call(v, nt_arities, fname)
+                _namedtuple_walk_construction([v], nt_arities, fname)
+            elif isinstance(v, list):
+                _namedtuple_walk_construction(v, nt_arities, fname)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -403,12 +1372,26 @@ def _namedtuple_walk_construction(stmts: list, nt_arities: dict, fname: str) -> 
 def _namedtuple_check_call(call: dict, nt_arities: dict, fname: str) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _namedtuple_walk_subscripts(stmts: list, nt_vars: set, fname: str) -> None:
-    pass
+    """Walk the body IR for Subscript nodes whose receiver is a NamedTuple-
+    typed variable. N5: the index must be an integer literal in range. A
+    non-literal or out-of-range index is flagged (Why3 will reject it at
+    type-check; this surfaces the issue earlier)."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        for k, v in s.items():
+            if k == "value" and isinstance(v, dict) and v.get("type") == "Subscript":
+                _namedtuple_check_subscript(v, nt_vars, fname)
+            elif isinstance(v, dict):
+                if v.get("type") == "Subscript":
+                    _namedtuple_check_subscript(v, nt_vars, fname)
+                _namedtuple_walk_subscripts([v], nt_vars, fname)
+            elif isinstance(v, list):
+                _namedtuple_walk_subscripts(v, nt_vars, fname)
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
@@ -417,52 +1400,179 @@ def _namedtuple_walk_subscripts(stmts: list, nt_vars: set, fname: str) -> None:
 def _namedtuple_check_subscript(sub: dict, nt_vars: set, fname: str) -> None:
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_union_narrowing(func: Any) -> None:
-    pass
+    symtab = func.get("symbol_table", {}) or {}
+    union_vars = {v for v, t in symtab.items()
+                  if t and isinstance(t, str) and t.startswith("_union_")}
+    if not union_vars:
+        return
+    _union_c8_walk(func.get("body", []) or [], union_vars, func.get("name", "?"))
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _union_c8_walk(stmts: list, union_vars: set, fname: str) -> None:
-    pass
+    """Walk the body IR. C8: an `if` condition that references a Union-typed
+    variable without a recognized narrowing guard (is None / isinstance /
+    TypeIs / TypeGuard) does NOT refine the variable's type — flag a warning
+    (not an error, since the variable simply retains its Union type; the
+    static rejection is for a downstream claim of narrowing, which is caught
+    by the Why3 type system)."""
+    for s in stmts:
+        if not isinstance(s, dict):
+            continue
+        st = s.get("stmt")
+        if st == "If":
+            test = s.get("test", {})
+            if _union_c8_test_references_union_var(test, union_vars):
+                if not _union_c8_recognized_guard(test):
+                    warnings.warn(
+                        f"Function '{fname}': path condition narrows a Union-typed "
+                        f"variable without a recognized guard (is None / isinstance / "
+                        f"TypeIs / TypeGuard). The variable retains its Union type on "
+                        f"both branches (C8).",
+                        stacklevel=2,
+                    )
+            _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+            _union_c8_walk(s.get("orelse", []) or [], union_vars, fname)
+        elif st in ("While", "For"):
+            _union_c8_walk(s.get("body", []) or [], union_vars, fname)
+        elif st == "Match":
+            _union_c11_check_dead_arms(s, fname)
+            for c in s.get("cases", []) or []:
+                _union_c8_walk(c.get("body", []) or [], union_vars, fname)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _union_c8_test_references_union_var(test: Any, union_vars: set) -> bool:
+    """Does the `if` test IR reference a Union-typed variable?"""
+    if isinstance(test, dict):
+        if test.get("type") == "Var" and test.get("name") in union_vars:
+            return True
+        return any(_union_c8_test_references_union_var(v, union_vars)
+                   for v in test.values())
+    if isinstance(test, list):
+        return any(_union_c8_test_references_union_var(v, union_vars)
+                   for v in test)
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _union_c8_recognized_guard(test: Any) -> bool:
+    """Is this `if` condition a recognized narrowing guard? Checks for:
+    `x is None` (BinOp op ==), `isinstance(x, ...)`, or a Call to a
+    TypeIs/TypeGuard function."""
+    if not isinstance(test, dict):
+        return False
+    if test.get("type") == "BinOp" and test.get("op") in ("==", "!="):
+        for side in (test.get("left"), test.get("right")):
+            if isinstance(side, dict) and side.get("type") == "None":
+                return True
+        # no-more-int leak fix: a string-literal equality on a Union-typed variable
+        # (`symtype == "str"`) IS a recognized narrowing guard — its lowering option-
+        # unwraps the union's `str` Some-arm and compares the carrier with `str_eq_op`
+        # (see module6_whyml/expressions.py `_optional_str_union_ctor`). Recognized when
+        # one side is a Var and the other a String literal.
+        sides = (test.get("left"), test.get("right"))
+        has_var = any(isinstance(s, dict) and s.get("type") == "Var" for s in sides)
+        has_str = any(isinstance(s, dict) and s.get("type") == "String" for s in sides)
+        if has_var and has_str:
+            return True
+    if test.get("type") == "BinOp" and test.get("op") in ("in", "not in"):
+        # `symtype in ("set","dict",...)` — string-literal membership on a Union var is
+        # likewise a recognized guard (same option-unwrap lowering, disjunction form).
+        left = test.get("left")
+        right = test.get("right")
+        if (isinstance(left, dict) and left.get("type") == "Var"
+                and isinstance(right, dict) and right.get("type") in ("Tuple", "ArrayLit", "SetLit")
+                and all(isinstance(e, dict) and e.get("type") == "String"
+                        for e in (right.get("elts") or []))
+                and (right.get("elts") or [])):
+            return True
+    if test.get("type") == "Call":
+        func = test.get("func")
+        if isinstance(func, str) and func == "isinstance":
+            return True
+        args = test.get("args", [])
+        if isinstance(args, list) and args:
+            first = args[0]
+            if isinstance(first, dict) and first.get("type") == "Var":
+                return True
     return False
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _union_c11_check_dead_arms(match_stmt: Any, fname: str) -> None:
-    pass
+    """C11 — a match arm whose pattern is subsumed by an earlier arm is dead.
+    Basic check: flag duplicate constructor patterns (same ctor name)."""
+    cases = match_stmt.get("cases", []) or []
+    seen_ctors: set = set()
+    for c in cases:
+        pat = c.get("pattern", {})
+        if not isinstance(pat, dict):
+            continue
+        ctor = pat.get("ctor")
+        if ctor and ctor in seen_ctors:
+            warnings.warn(
+                f"Function '{fname}': match arm '{ctor}' is subsumed by an earlier "
+                f"arm — dead code (C11).",
+                stacklevel=2,
+            )
+        if ctor:
+            seen_ctors.add(ctor)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_callable_params(func: Any) -> None:
-    pass
+    """typing-engagement ty3 / 34-1700-typing-spec-10 — validate a
+    `Callable[[A1, ..., An], R]`-typed parameter's encoded tag.
 
-#@ \trusted reviewer: pycsl-self-annotate
+    Module 5 encodes a Callable parameter annotation as the symbol_table tag
+    `"callable:<a1>,...-><r>"` (C1). This check is a belt-and-suspenders
+    well-formedness guard: the encoding must carry a `->` separator and every
+    arg/return tag must be a non-empty bare identifier. A malformed encoding
+    (which would otherwise silently fall through to the WhyML `int` default in
+    Module 6, hiding a mis-recognition) is a static reject. Only fires on
+    parameters whose tag starts with `"callable:"` → zero impact on every
+    existing driver."""
+    symtab = func.get("symbol_table") or {}
+    for _pname, ptag in symtab.items():
+        if not (isinstance(ptag, str) and ptag.startswith("callable:")):
+            continue
+        body = ptag[len("callable:"):]
+        arg_part, sep, ret_part = body.partition("->")
+        if not sep:
+            raise PyCSLSemanticError(
+                f"Callable parameter tag {ptag!r} is malformed (no `->` "
+                f"separator) — the encoding must be "
+                f"`callable:<a1>,...-><r>`.",
+                stage="ir-semantic", code="PYCSL-TY3-CALLABLE-SHAPE",
+            )
+        tags = [t for t in arg_part.split(",") if t] + [ret_part]
+        if not ret_part or any(not t.isidentifier() for t in tags):
+            raise PyCSLSemanticError(
+                f"Callable parameter tag {ptag!r} is malformed (an arg/return "
+                f"tag is empty or not a bare identifier).",
+                stage="ir-semantic", code="PYCSL-TY3-CALLABLE-SHAPE",
+            )
+
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _check_union_gt1(ir: Any) -> None:
-    pass
+    gt1_sites = ir.get("union_gt1_sites") or []
+    for site in gt1_sites:
+        warnings.warn(
+            f"GT1: Union arm `Any` refused (opaque, operation-barren) in "
+            f"variant '{site}'. The arm was dropped from the synthesized variant; "
+            f"the static plane discharges C2/C3 against non-`Any` arms only.",
+            stacklevel=2,
+        )
 

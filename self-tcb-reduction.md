@@ -1,5 +1,20 @@
 # self-tcb-reduction.md — shrink the self-annotation trusted core toward its irreducible floor
 
+> ## 📍 ROLE / HIERARCHY (read first)
+> **This is NOT the current strategic plan.** The **plan of record is `triage-ranked-tcb.md`** — the
+> empirically-calibrated go-forward plan (tier ranking, calibrations, closure). This document's live role
+> is now twofold: (a) the **SL loop procedure** (paired with `config/skills/self-tcb-reduction/SKILL.md`,
+> incl. the §5.1 streamlined gate), and (b) the **append-only §8 iteration ledger** (the execution log).
+> For strategy, direction, and "what's next," read `triage-ranked-tcb.md`; append iteration entries here.
+>
+> **Campaign status (2026-07-06): CLOSED at count 1240.** Tiers 1/2/3 all executed and closed at their
+> honest floors (marker yields **8 / 0 / 9**); the certified tier-3 ADT foundation is banked. The prose
+> below is the original long-horizon framing — historical; read it through this banner and the plan of
+> record. **Next work (NOT planned here):** the **141 trusted-pending** stubs, blocked by separate
+> value-model gaps (85 `Dict[str,Any]` value-typing + 43 collection-result modeling + 13 emitter
+> string/self-state) — a distinct, demand-driven effort outside the ADT campaign
+> (see `getting-better/tier3/whole-body-census.md` + `step-d-leave-trusted-analysis.md`).
+
 **Purpose.** The self-annotation mirror (`src/self-annotate/src/`) carries **≈1290 `\trusted`
 stubs** (one `#@ \trusted reviewer: pycsl-self-annotate` marker each) against only **24 verified
 body-faithful methods** (the completed 18-handler statement-emitter campaign + ~6 supporting
@@ -179,10 +194,100 @@ add a `@mutable_state` witness per `pycsl-how-to-develop §8.2` if it can verify
 | T3 | front-end pipeline | ~671 | 0 | ~671 | ◻ demand-gated |
 | T4 | tooling / orchestration | ~192 | 0 | ~192 | ◻ re-site to F3 (mostly) |
 
+### Iteration 2026-07-05 — TIER-1 trivial-leaf batch (streamlined gate §5.1)
+
+Batch-converted the triage-ranked TIER-1 "free win" trivial-leaf stubs. Global `\trusted` grep
+count **1260 → 1252** (net **8** converted, all mirror-only, byte-diff 0 by construction —
+`src/pycsl` emitter + corpus BYTE-IDENTICAL to baseline `961c89f9`). No emitter file touched; no
+axiom / allowlist change.
+
+**Converted (8, each proven — fidelity + full-file Why3 discharge, or `--fun` for the two big
+files):**
+- `proof2why3/crosscheck.py` — `_module_namespace_of` (const-string) — 8→7
+- `frontend/Module2_Parser.py` — `__init__` (rdp-compat `pass`) — 91→90
+- `frontend/Module1_Ingestor.py` — `_clean` (string slice+strip) — 18→17
+- `frontend/ir_inline.py` — `_method_key` (all-string f-string) — 17→16
+- `Module6_WhyMLTranspiler.py` — `_wrap_unannotated_call_with_strict_assert` — 22→21
+- `proof2why3/ir.py` — `Var.pp` (`return self.name`), `Unsupported.pp` (f-string over str field);
+  frozen `@dataclass` fields DO render as `string` record fields — 13→11
+- `module6_whyml/stmt_control_flow.py` — `_union_arm_whyml_type` (string-dict `.get`) — 23→22
+
+**Reclassified non-trivial / proof-not-free (deferred, `\trusted` restored):**
+- `module6_whyml/ir_scanner.py` — **all 18** candidates. `uses_inline_set_or_dict_ops` = typecheck
+  fail (`obj.values()` → int/array mismatch). The 17 recursive IR-tree walkers: **13 discharge in
+  per-function `--fun` isolation** but the **full-file gate FAILS** — Alt-Ergo times out (30 s/goal)
+  on the postcondition / array-creation VCs of the recursive-scanner set in the COMBINED file
+  context; even a 13-only subset full-file proof times out. `--no-proof` (typecheck-only, the triage
+  probe's basis) was too weak an oracle here. Proof-not-free: needs a per-goal-timeout bump or a
+  recursion lemma, out of tier-1 scope.
+- `module6_whyml/expr_ghost_collections.py` — 3 const-string handlers
+  (`_handle_map_empty/set_empty/nil_expr`): live signature `node: "ExprIR"` lowers to `unbound type
+  symbol 'emit_ir'` standalone (sync forbids changing the def line). Gated on the emit_ir ADT.
+- `module6_whyml/types.py` — `_val_is_bool`, `_bool_ir_to_int_wrap`: explicit `Dict[str, Any]`
+  param triggers the faithful `map string (option int)` model; `.get("type")` → `option int`
+  mismatches the string-literal comparisons (`is None` also mismatches on a map). Value-model gap.
+- `module6_whyml/functions.py` — `_symtype_to_whyml`: `Optional[str]` + tuple-membership emits a
+  `_union__…` type that mismatches the string return.
+- `proof2why3/ir.py` — `BoolLit.pp`: `bool` record field ITE → int/string type mismatch.
+- `module6_whyml/stmt_control_flow.py` — `_try_local_decl_kind` (Dict-param map model + self-field);
+  the 4 nominal candidates (`_materialize_bridge`, `_materialize_str_bridge`, `_bool_ir_to_int_wrap`,
+  `_coerce_to_int`) are **mirror-only** (no live counterpart in `stmt_control_flow.py` — the real
+  leaf is the sibling home file), so converting them here would earn NO fidelity guarantee — skipped.
+
+**Batch confirmation:** fidelity (`check-self-annotate-sync.sh`) green; byte-diff 0 by construction
+(emitter+corpus unchanged vs baseline); full `run-self-annotation-suite.sh` — no NEW failure vs the
+known pre-existing set. Commits: `3400ceef e88026c8 f556927b 47464411 19417433 5671455e 281ab3ec`.
+
 **Definition of done.** Every `.py` stub in the mirror is either (a) a verified body or (b)
 enumerated in the F1/F3 audited floor with a reason; the `wc -l` trusted count is reduced to that
 floor; `check-self-annotate-sync.sh`, `self-annotate-mirror-check.sh`, and
 `run-self-annotation-suite.sh` all green; byte-diff 0 throughout.
+
+### Iteration 2026-07-06 — TIER-3-v2 PATH-1 harvest (census `whole-body-census.md` §5 PATH 1)
+
+Harvested the census-confirmed **convertible-NOW** `\trusted` stubs — the bounded, zero-build,
+no-new-axiom conversion the tier3-v2 whole-body census (`getting-better/tier3/whole-body-census.md`)
+recommends as the honest floor. Global canonical `\trusted` count **1249 → 1240** (net **9**
+converted, all in `ir_scanner.py`, mirror-only). `src/pycsl` emitter untouched (byte-diff 0 by
+construction); `why3-semantics` untouched; `proof_axiom_allowlist` unchanged.
+
+**Converted (9, each proven whole-body via per-function `--fun` — safety + termination +
+non-vacuity; live body ported verbatim, fixed contract `requires True`/`ensures True`/`assigns
+\nothing`, `\trusted` marker removed):**
+- `module6_whyml/ir_scanner.py` — `uses_subscript`, `uses_array_lit`, `uses_minmax`,
+  `is_recursive`, `uses_string`, `uses_sum`, `uses_set_card`, `uses_ord_chr`, `uses_divmod`
+  (the 9 substantive reflective IR-tree predicate walkers). Each `irscanner__<name>` reaches
+  `Verification SUCCESS` under `pycsl.py … --fun <name>`. The combined-file gate does NOT time out
+  here — `ir_scanner.py` **PASSES the full-file suite proof** (superseding the 2026-07-05 deferral,
+  which had `uses_inline_set_or_dict_ops` — a typecheck-failer — in the batch).
+
+**Census discrepancies (2 of the "11" did NOT reproduce — NOT forced, per the non-vacuity guard):**
+- `statements.py::_wrap_body_with_return_catch` — census listed it convertible-NOW, but on disk it
+  is **already un-`\trusted`** with the full live body (not a stub); converting it is a no-op and it
+  is **not** in the 1249 count. (It also currently FAILS the full-file statements.py proof on the
+  f-string-hash→int limitation — a pre-existing state independent of this harvest.)
+- `expressions.py::_e` — census listed it convertible-NOW, but with the live body
+  (`return self._expr_to_whyml(ir, lr)`) it **FAILS** `--fun` in the committed mirror: the trusted
+  `_expr_to_whyml` stub's declared return type mismatches (`type int … expected PyCSL_Program.emit_ir`).
+  The census probe passed only because `sync-mirror-bodies.py` also ports every sibling's signature/
+  return-type; a pure single-method edit does not. Left `\trusted` (reverted).
+
+So the measured harvest yield is **9, not 11** (target 1238 → actual **1240**).
+
+**Batch confirmation:** fidelity (`check-self-annotate-sync.sh` — 90 un-trusted mirror fns verbatim;
+`self-annotate-mirror-check.sh` — 51 mirrors in sync) green; byte-diff 0 by construction
+(`src/pycsl` byte-identical to baseline `7a750917`); `run-self-annotation-suite.sh` — the only file
+this iteration touched, `ir_scanner.py`, **PASSES**; the pre-existing FAIL set (`pycsl.py`,
+`expressions.py`, `statements.py`, …) is byte-identical to `7a750917` (no NEW failure). Commit:
+`7e398d4e`.
+
+**Marker campaign closed at the honest floor** per the census: the ADT-relevant convertible-NOW
+frontier is now exhausted (9 harvested; `_wrap` already-converted; `_e` census-non-reproducing).
+Residual = **141 semantic-ceiling other-blockers** (85 `Dict[str,Any]` value-typing + 43
+collection-result modeling + 13 emitter string/self-state/WhyML-gen) **+ 2 leave-trusted**
+(`find_named_expr_targets`, `_collect_assign_targets` — by-ref dict/set param mutation, PyCSL
+rejects at the pipeline, fail-stop) — all outside the IR-node ADT's reach without a live-source
+rewrite.
 
 ---
 
@@ -617,3 +722,559 @@ variant in a LOGIC context**:
   targets is gone); var's conversion waits on the seq-slice-variant fix.
 - **Count stays 1277 (17 converted).** The val-vs-logic seq-slice-variant issue is the same class as
   fstring's nested-`_sp` — a logic-context constraint the loop's recognizers can't cross.
+
+### Iteration 21 (2026-07-05) — fidelity plane REPAIRED (drift resync); T1.b helper leaf frontier = feature-gated
+
+**E-0 baseline** pinned from committed HEAD (746-file byte-diff sweep, /tmp/sltcb_baseline). Start
+count **1262**.
+
+**Fidelity plane was RED at HEAD.** `check-self-annotate-sync.sh` exited 1: one DIVERGED method,
+`statements.py::_handle_array_set_stmt` — the live emitter grew the WL-04f nested-inner-mutation
+branch (`a[i][j]=v -> a[i] <- Seq.set a[i] j v`, non-int-leaf nested lists) in the recent WL-04/WL-06
+commits, but the mirror's un-trusted copy was never resynced. This blocked the fidelity plane
+tree-wide (Gate B unreachable for ANY conversion). **RESYNCED** (verbatim live-body port, commit
+`4ef18975`): sync exit 1->0, byte-diff 0 (mirror-only, no src/pycsl change), count unchanged, no NEW
+suite failure (statements.py had a pre-existing int/string type leak in the method's top guard,
+orthogonal to the resync — it did not type-check at HEAD either).
+
+**Triage probe** (parallel actor) classified the T1.b Module-6 helper leaves
+(identifiers/scc/abstract_ops/struct_format/auto_trust/expr_ghost_spec_ops): 3 nominal TRIVIAL-LEAF,
+the rest BLOCKED-SET / BLOCKED-RECURSION / BLOCKED-OTHER. **All 3 "trivial" leaves proved
+feature-gated when actually run through pycsl** (the probe does not run pycsl):
+
+- `identifiers::op_translate` (`return OP_MAP.get(op, op)`) -> FLAG-HARD. Missing feature:
+  **module-level constant-dict `.get` recognizer**. The existing constant-dict recognizer is
+  class-constant-only; a module constant lowers `.get` to an opaque `val oP_MAP_get_2 (int)(int):int`,
+  so the string arg leaks (int expected). Reverted.
+- `identifiers::safe_exc_name` (`return name.lstrip("_") or name`) -> FLAG-HARD. Missing feature:
+  **string-valued `or`** (`str or str` returns a string in Python, not a bool; lowering treats it as
+  boolean-or -> int leak) **+ faithful `.lstrip(arg)`** (arg dropped). Reverted.
+- `struct_format::arity` (`return len(self.slots)`, `slots: List[str]`) -> FLAG-HARD. Missing feature:
+  **`use array.Array` in the preamble for a NON-`@mutable_state` module with an array-typed record
+  field** (`use array.Array` is currently forced only for `@mutable_state` modules; StructFormat is a
+  frozen value dataclass, so its `array string` field leaks `unbound type symbol 'array'`). Reverted.
+
+Everything else in T1.b helpers is a hard blocker: BLOCKED-SET (`find_calls_in_ir`,
+`find_self_method_calls`, `sort_functions_by_scc`, `_advance_past_referenced_axiom_decls`,
+`_insert_abstract_val_block`, `_collect_map_typed_locals` — set-local modeling still absent),
+BLOCKED-RECURSION (`compute_sccs`, `_is_linear_expr`, `_test_contains_map`, `_has_set_op_on_map`,
+`_should_auto_trust_tuple_return`), or external-callback-gated (all `expr_ghost_spec_ops` handlers
+call still-`\trusted` `ExpressionEmissionMixin` methods `self._e`/`_deref`/`_expr_to_whyml_string_ctx`).
+
+**End count 1262 (0 conversions).** byte-diff 0 held throughout; `proof_axiom_allowlist` unchanged; no
+coherent-and-wrong caught (no conversion passed). **Verdict:** the in-stack-recognizer / byte-diff-0
+STUB-port frontier is EXHAUSTED across T1.a (iters 16-20) AND now T1.b helper leaves — every remaining
+leaf needs a demand-driven emitter FEATURE (spike->implement->gate), which is focused feature work, not
+loop iteration. Per "escalate-not-thrash", flagged with exact missing features above; NOT ground on.
+Next tractable pickup is smallest-feature-first: `module-level constant-dict .get` (unblocks
+`op_translate`) or `use array.Array` preamble for value-record array fields (unblocks
+`struct_format::arity`).
+
+### Iteration 22 (2026-07-05) — 🎯 op_translate CONVERTS via module-const-dict-get feature (1262→1261)
+
+The demand-driven feature flagged in iteration 21 (module-level constant str→str dict
+`.get(k, default)`) LANDED (commit `69ea852e`): the pattern now lowers to a faithful chained string
+if-then-else (11-arm ITE over the key), so the string arg no longer leaks to int. This iteration
+converts the sole consumer, `identifiers::op_translate`, through the full SL loop.
+
+- **converter:** ported the live body verbatim — `return OP_MAP.get(op, op)` (+ the live docstring);
+  retyped the module constant `OP_MAP: Dict[str, str]` (was the stub placeholder `int`) so the
+  recognizer fires. Contract shape `#@ requires True / ensures True / assigns \nothing` (type-safety +
+  frame, non-value-faithful, non-vacuous). Local `--no-proof`: L3-tc ✓.
+- **Gate A:** T1.b tier, not on floor denylist, contract shape correct → APPROVED; `\trusted` removed.
+- **VERIFIER (fresh, surface-only) — three L planes, ALL PASS:**
+  - **Fidelity:** `check-self-annotate-sync.sh` exit 0 (68 un-trusted mirror fns verbatim) ∧
+    `self-annotate-mirror-check.sh` exit 0 (51 mirrors in sync).
+  - **Type-safety:** `Verification SUCCESS` — op_translate postcondition Valid 0.01s via best-of-N
+    **Z3** (the sanctioned string-theory path; Alt-Ergo has no string theory). `proof_axiom_allowlist`
+    diff **EMPTY** (no smuggled axiom).
+  - **Corpus inertness:** byte-diff **0** vs the re-pinned E-0 baseline (748 corpus files identical);
+    suite **no NEW failure** (identifiers.py PASSES; the failed set — pycsl.py `_Directive`,
+    expressions.py/statements.py int/string leaks, 7 unmirrored "file missing" — is a subset of the
+    known pre-existing failures); `\trusted` count **1262 → 1261** (canonical `\\trusted` marker
+    count; strict −1).
+- **Gate B + Gate C:** all three planes pass, unblended; non-vacuity holds (tight `\nothing` frame,
+  real verbatim body, genuine string-ITE postcondition discharge — not a stub). No coherent-and-wrong
+  caught. Committed `c397dffe`.
+- **Adjacent-leaf sweep:** the freed feature's exact pattern (`ALLCAPS_CONST.get(k, str_default)`) has
+  **no other consumer** in the still-trusted frontier (grep of `src/pycsl` finds only op_translate's
+  line 100 + emitter comments describing the feature). So no cheap same-recognizer follow-on — stopped.
+
+**End count 1261 (18 handlers/leaves converted cumulatively).** byte-diff 0 held; allowlist unchanged.
+The in-stack-recognizer frontier remains otherwise feature-gated (iter-21 flags stand):
+`safe_exc_name` (string-valued `or` + `.lstrip(arg)`), `struct_format::arity` (`use array.Array`
+preamble for a value-record array field — and note iter-21's addendum: struct_format's mirror is a
+STALE stub skeleton, so arity needs the whole grown `StructFormat` shape resynced first), plus the
+set-local / IR-recursion / external-callback blocked helpers. Next tractable pickup is again
+smallest-feature-first (string-valued `or`, or the value-record array-preamble).
+
+### Iteration 23 (2026-07-05) — 🎯 safe_exc_name CONVERTS via string-bool-op feature (1261→1260)
+
+The second demand-driven feature flagged in iteration 21 (both-operands-string `or`/`and`) LANDED
+(commit `16f5f6a2`): `s or t` now lowers to a faithful string ITE over emptiness
+(`if str_length_op s > 0 then s else t`); `.lstrip("_")` already yields a length-bounded opaque
+`string`, so `safe_exc_name(name) = name.lstrip("_") or name` lowers to a coherent string. This
+iteration converts `identifiers::safe_exc_name` through the full SL loop.
+
+- **converter:** ported the live body verbatim — `return name.lstrip("_") or name` (+ the live
+  docstring). Contract shape `#@ requires True / ensures True / assigns \nothing`. NO companion type
+  change needed (body touches only the `name` param, `.lstrip`, and `or` — unlike op_translate which
+  needed `OP_MAP: int→Dict[str,str]`). Local `--no-proof`: L3-tc ✓.
+- **Gate A:** T1.b tier, not on floor denylist, contract shape correct → APPROVED; `\trusted` removed.
+- **VERIFIER (fresh, surface-only) + independent re-confirmation — three L planes, ALL PASS:**
+  - **Fidelity:** `check-self-annotate-sync.sh` exit 0 ∧ `self-annotate-mirror-check.sh` exit 0
+    (safe_exc_name body == live verbatim).
+  - **Type-safety:** `Verification SUCCESS` — `safe_exc_name'vc` Valid via best-of-N **Z3** (sanctioned
+    string-theory path). `proof_axiom_allowlist` diff **EMPTY** (no smuggled axiom).
+  - **Corpus inertness:** byte-diff **0** vs the re-pinned E-0 baseline (750 corpus files identical;
+    the mirror file is not in the reference sweep — mirror-only conversions are byte-diff 0 by
+    construction); suite **17/27**, identical to the known pre-existing failed set
+    (pycsl.py `_Directive`, expressions.py/statements.py int/string leaks, 7 unmirrored "file
+    missing") — identifiers.py PASSES, no NEW failure; `\trusted` count **1261 → 1260** (canonical
+    `\\trusted` marker; strict −1).
+- **Gate B + Gate C:** all three planes pass, unblended; non-vacuity holds (tight `\nothing` frame,
+  real verbatim body, genuine string-ITE VC discharge). No coherent-and-wrong caught. Committed
+  `1b029a75`.
+- **Adjacent-leaf sweep:** neither new feature (module-const-dict-get, string-or-and) cheaply unblocks
+  another leaf at byte-diff 0. The only `return X or Y` in identifiers.py was safe_exc_name itself; the
+  two remaining identifiers.py stubs are feature-blocked — `stable_hash` (hashlib, external opaque) and
+  `whyml_ident` (per-char loop + `unicodedata.normalize`/`ord` — needs char-loop invariants + unicode
+  modeling). No module-const-dict `.get(k, str_default)` consumer remains. Stopped.
+
+**End count 1260 (19 handlers/leaves converted cumulatively; 3 this session: op_translate,
+safe_exc_name, + the statements.py fidelity resync).** byte-diff 0 held; allowlist unchanged. Frontier
+back to **feature-gated**: next flagged leaf is `struct_format::arity` (needs the `use array.Array`
+value-record-field preamble AND a stale-`StructFormat`-stub resync — the mirror struct_format.py is a
+generated stub skeleton whose live `StructFormat` has grown a `chars` field + faithful_* methods it
+lacks; see iter-21 addendum). Remaining set-local / IR-recursion / external-callback helpers unchanged.
+
+### Phase 2 (tier3-p2, 2026-07-06) — expr-ADT re-triage under FULL proof + 3 free string-leaf converts (count 1252→1249)
+
+Executes `triage-ranked-tcb-tier3.md` T3.2.1 (re-triage the Module-6 core WITH the landed expr-ADT,
+under FULL proof, not `--no-proof`) + T3.2.2 (convert the cleanly-provable set). This is the first
+Phase-2 marker-payoff pass over the tier-3 ADT (commits `8993a5b9`+`d989985f`).
+
+**T3.2.1 — re-triage (harness: splice live body verbatim → `--fun <method>` full proof → revert).**
+Swept every trusted stub with a live counterpart across the Module-6 core + A6 IR-readers:
+`expressions.py` (51), `statements.py` (15), `functions.py` (36, whole-file-provable), plus A6
+`ir_scanner.py` (34, 18 sampled), `types.py` (18), `stmt_control_flow.py` (8 smallest). **Verdict:
+CONVERTIBLE = 3; BLOCKED = all IR-node-reading handlers.** The landed ADT advances the typecheck
+frontier (the tier-1 `unbound type symbol 'emit_ir'` is GONE — these node-reads now bind a type) but
+NO IR-reading handler discharges a verbatim whole-body port, because each then hits one of:
+
+- **`.get("value")` scalar-vs-subnode overload** (dominant, ~all of `expressions.py`/`types.py`). The
+  recognizer maps `value`→`svalue_of : emit_ir` (a SUB-node), but literal handlers read `Number.value`
+  (int) / `String.value` (str) as a *scalar leaf* → `type int, but expected string`. `_is_float_expr`,
+  `_is_null_byte_lit`, `_handle_sum_call`, `_linear_form`, `_static_width`, `_val_is_bool`, … all leak
+  here. This is §5e/risk-7 unresolved for the `value` leaf.
+- **list-shaped `.get("elts")/.get("args")`→`args_of : array emit_ir` (OPAQUE)** — can't be iterated
+  faithfully (`ArrayLit`/`SetLit`/`Tuple`/`DictLit` deferred per §9a); `_handle_sum_call`,
+  `_is_null_byte_lit`, comprehension/tuple readers.
+- **list-recursion TERMINATION VC** — the `IRScanner` bool scanners (`uses_arrayset`, `has_continue`,
+  `uses_continue`, `uses_break`, `has_direct_return`, `ends_with_return`, `find_ghost_vars`, …)
+  TYPECHECK under the ADT but the proof FAILS: recursion over a stmt/expr *list* has no `size` measure
+  (`_emit_function` injects `variant {size p}` only for a scalar `emit_ir` param, not `List[ExprIR]`).
+  This is exactly FRONTIER's "`--no-proof` over-counts the 19 ir_scanner leaves" — confirmed under full
+  proof (0/18 sampled convert).
+- **dict/map field builders** (`functions._build_method_*`, `types._collect_*`, `find_array_and_dict_vars`)
+  — `Dict[str,X]` iteration → `array int`/`array string @rho` / `'mu -> option int` gaps (map-local
+  modeling absent).
+- **str-tag inference domain** (`types.py`) — returns type-name strings that mix with int hashes
+  (`type string, but expected int`).
+
+**T3.2.2 — CONVERTED (3, all free string/f-string LEAVES that read NO IR node — missed by the
+iters-16-23 sweeps, NOT ADT-enabled):**
+
+| file | method | shape | proof |
+|---|---|---|---|
+| `expressions.py` | `_array_coerce_arg` | pure `str` coercion (`@staticmethod`, `.strip`/`.startswith`/`.isalnum`) | `--fun` SUCCESS |
+| `statements.py` | `_emit_new_ghost_ref` | `let ghost … in` f-string builder (calls trusted `_stmts_to_whyml` opaquely) | `--fun` SUCCESS |
+| `statements.py` | `_wrap_body_with_return_catch` | return-catch wrapper, string-dispatch on return_type | `--fun` SUCCESS |
+
+Each: verbatim live body + fixed contract (`#@ requires True / ensures True / assigns \nothing`),
+`\trusted` removed. No live emitter method touched → no re-port needed (process rule N/A). Committed
+`e73ec7c6`.
+
+**Gates (streamlined §5.1, all green):** fidelity `check-self-annotate-sync` (80 un-trusted verbatim)
+∧ `self-annotate-mirror-check` (51 in sync); type-safety = 3× `--fun` SUCCESS; `proof_axiom_allowlist`
+diff EMPTY; corpus inertness = emitter (`src/pycsl`) git-IDENTICAL HEAD~1..HEAD (mirror-only) ⇒
+byte-diff 0 by construction, belt-and-suspenders sweep emitted 756 corpus `.mlw` crash-free; **no NEW
+failure** — only 2 files changed, both retain their SAME pre-existing `int`↔`string` leak verdict
+(unchanged from baseline; the leak is in an unconverted method), every other suite file byte-identical
+to HEAD~1. Count **1252→1249** (literal `\trusted`; full marker 1232→1229).
+
+**Honest yield & the next Phase-1 increment (the guide for tier3-p1).** The tier-3 expr-ADT did NOT
+yet yield an IR-reading marker conversion — the 3 converts are incidental free leaves. The **single
+highest-leverage next Phase-1 increment is the list-shaped kinds** (`ArrayLit`/`SetLit`/`Tuple`/`args`/
+`elts` as a structural `list emit_ir` + a `size_list` MUTUAL measure): it simultaneously (a) unblocks
+the `.get("elts")/.get("args")` projections and (b) provides the `size` measure for **list recursion**,
+which is the termination VC blocking the ENTIRE `ir_scanner` family (~34 stubs) — the largest single
+cluster. Second: the **scalar-value-leaf projection** for `Number.value` (int/`ir_num`) and
+`String.value` (string), splitting the overloaded `.get("value")` by receiver-kind — unblocks the
+literal/affine-form readers in `expressions.py`. The stmt/contract node families and set-local/map-local
+modeling remain further out. Both increments are demand-driven emitter features (spike→build→gate),
+per the standing tier-2/tier-3 lesson that a marker conversion needs the value shape BUILT first.
+
+**Phase-1 Track-R (R3 / R1' / R2) — STOP-LOSS at 1240; 0 conversions (full: `getting-better/tier3/
+wall-plan-phase1.md`).** Executed the Phase-0 (`wall-plan-phase0.md`) decision "Track M HALTED,
+Track-R-only" through the existing certified IR-node ADT (no new value model; `pyval`/`fmap`
+untouched). Count **1240 → 1240**. Measured clean rate **0/1** direct attempt (+ the tier-5 census's
+0/98 on the same surface). Findings:
+- **The mirror baseline is RED at HEAD** (pre-existing, zero edits this session):
+  `bin/run-self-annotation-suite.sh` FAILs on `expressions.py` (`.mlw:669`, verified
+  `_handle_field_get_expr` — `_class_constants` value-type `option int` read as string) and
+  `statements.py` (`.mlw:508`, verified `_handle_array_set_stmt`), both `int↔string`, plus `pycsl.py`.
+  Git-traced to the WL-04f/05/06 verified-method resyncs (`4ef18975` et al.) — the SKILL §10.4 failure
+  mode (re-port of a verified method that can't re-prove) landed across the WL series and degraded the
+  `e73ec7c6`-era "pre-existing leak in an unconverted method" into a **whole-file typecheck failure**.
+  A whole-file typecheck failure blocks `--fun` proof of EVERY method in the file (confirmed on
+  `_handle_tuple_unpack_stmt`).
+- **R3 BLOCKED:** its targets (`_handle_tuple_unpack_stmt` in statements.py; the `for nm,v in (…)`
+  path via `_emit_metatype_tags`/`_classify_iterable`/`_handle_for_stmt`) are verified methods in RED
+  files, and the `for nm,v` case is a heterogeneous-tuple-literal **value-model feature** (opaque
+  `iter_length` path), not a small typing tweak — out of Track-R scope.
+- **R2 = 0/1:** ADT reflection is gated on a `@mutable_state @dataclass` reader class (recognizers §7);
+  the @mutable_state files are RED, the clean files (types.py/ir_scanner.py/functions.py) are plain
+  classes → `.get("type")` collapses to `int` → B1. Measured `types.py::_val_is_bool` (smallest
+  non-recursive incidental clean stub) → `--fun` `type string, but expected int` FAIL; reverted, 1240.
+- **R1' NOT built** — unused facade = gold-plating (task's explicit prohibition) with every R2 consumer
+  blocked; deferred to a green-baseline session with a co-landing consumer.
+- **Actionable output:** restore the RED baseline (fix the `expressions.py`/`statements.py` verified-body
+  `int↔string` leaks; audit the WL resyncs vs §10.4) BEFORE reopening Track-R Phase-1 — it blocks R3,
+  ADT-routed R2, and R1' alike. Ledger held at 3 axioms; `proof_axiom_allowlist` unchanged; fidelity
+  `check-self-annotate-sync` green (90 verbatim). Deliverables docs-only; no `src/pycsl`/mirror edit.
+
+---
+
+### Iteration — 2026-07-09 · Track A (census): V2 collection-result frontier · count held 1237
+
+**Trigger:** SL loop re-entered at 1237 (bounded-algebra IR-fold/traversal frontier exhausted per
+`bigger-build.md §7`). User chose **A — CENSUS**. Scoped to **V2 (collection-result modeling)** in the
+model-addressable emitter modules (`module6_whyml/*`, `core_ir_semantic.py`) — NOT the
+`frontend/pure_ast.py` (262) / `Module5_IREmitter.py` (180) flat AST-builder bulk (already out-of-frontier).
+
+**Method:** static shape triage over the 19 collection-returning `\trusted` candidates → whole-body
+`--fun` proof on the survivors (§10.1: classify on full proof, never inspection).
+
+**Verdict — V2 yields 0 clean conversions (frontier confirmed exhausted):**
+- **16 / 19 out-of-frontier by static shape:** the `functions.py::_build_method_*_map` family (10) returns
+  `Dict[str, List[Dict[str,Any]]]` — **nested-pyval dict-values** (ensures-clause AST subtrees), V1-adjacent,
+  not the flat `sdict` frontier; the `Set[str]`/`List` collectors (`_typed_local_vars`, `find_iteration_mutations`,
+  `_build_method_param_types_map`) **compose non-algebra `\trusted` siblings + write self-state**
+  (`self._ghost_tuple_vars.update`, `self._inline_array_temps = …`) — the D-outlining-over-non-algebra class.
+- **3 static survivors, all fall under full proof:**
+  - `types.py::_split_tuple_type` — **PROOF FAILED, measured:** ported live body
+    (`rt.strip(); inner[1:-1]; inner.split(",")` comprehension) → `This expression has type int, but is
+    expected to have type array string`. The `str.split(sep) -> List[str]` (whole-list, not element-index)
+    chain leaks `int`; the faithful-`split`-into-`array string` op is **not modelled**. Reverted, 1237.
+  - `scc.py::compute_sccs` — nested recursive **closure** (`strongconnect`) over captured mutable state +
+    **non-structural recursion** (variant = unvisited-node count). Out-of-frontier.
+  - `scc.py::sort_functions_by_scc` — composes `compute_sccs`. Out.
+
+**One bounded feature surfaced (Track-B candidate, NOT research-grade):** faithful
+`str.split(sep) -> array string` (extends the landed faithful-string-op P1–P4 which did split-**elem** but
+not whole-list split). Would unblock `_split_tuple_type` (+1) and any sibling whole-list-split string method.
+A bounded emitter feature, gated like any Track-B build (both provers, byte-diff 0, whole-body proof).
+
+**Outcome:** census confirms the residual V2 frontier is at the honest floor — the tractable slice is
+`str.split` alone. No conversion landed (correct — measure before build); tree clean, count 1237, ledger==3.
+
+---
+
+### Iteration — 2026-07-09 · Track B (build): faithful whole-list `str.split` → `array string` · 1237 → 1236
+
+**Trigger:** the V2 census (above) surfaced ONE bounded feature — the whole-list
+`str.split(sep) -> array string` op (the landed faithful-string-op P1–P4 did split-**elem**
+`s.split(sep)[i]` but not the whole list). User chose **B — BUILD**. Gated per §3/§5.1/§10.
+
+**Built (emitter, `src/pycsl/module6_whyml/`):**
+- `expressions.py::_split_comp_array_string` — recognizes a comprehension
+  `[<str-elt> for t in <string>.split(sep)]` (single generator, split source, element
+  string-typed once the loop target is bound to `str`) → an OPAQUE `array string`
+  (`val str_split_op (s sep: string) : array string ensures { Array.length result >= 0 }`).
+  A sound under-approximation (content unmodelled, like `str_split_elem_op`); the per-element
+  transform is dropped, sound under the `ensures True` self-annotation contract. Placed AFTER
+  the `@mutable_state` block (which already lowers a string comp to `list_comp_string`), so it
+  fires only for non-mutable-state files — the two never disagree.
+- `ir_scanner.py::uses_str_split_comp` + `preamble.py` `needs_array` wiring — a `ListComp` over
+  a `.split`/`.rsplit` iterator now triggers `use array.Array` (else `str_split_op : array string`
+  hits `unbound type symbol 'array'` in a file with no other array). Loose scanner (no dataflow):
+  it also fires on a non-string-receiver split-comp (`pycsl.py::args.provers.split(",,")`), whose
+  recognizer does NOT fire — a harmless unused `use array.Array` import; the file still proves.
+
+**Converted:** `types.py::_split_tuple_type` (`rt.strip(); inner[1:-1]; [p.strip() for p in
+inner.split(",")]`) — the census's measured blocker — now full-file-proves. `\trusted` 1237 → 1236.
+
+**Gates (all green):** type-safety — mirror `types.py` full-file `Verification SUCCESS`; fidelity
+— `self-annotate-mirror-check` 52/52 in sync; corpus inertness — **byte-diff 0** over 759 corpus
+files (reliable in-tree baseline; the worktree baseline was invalid — no `.venv`) with all 3 emitter
+files changed; ledger — **==3**, `src/formal-semantics` + `proof_axiom_allowlist` untouched, NO new
+axiom (`str_split_op` is a `val` with a sound length law), NO new value shape (`array string`
+pre-existing → no certificate); suite — the changed-emission mirrors (`types`/`pycsl`/`preamble`) all
+re-proved, unchanged-emission mirrors byte-identical to HEAD (no other split-comp in the mirror tree).
+Reference fixture **0885** (positive) proves under the feature emitter.
+
+**Outcome:** +1 marker (1236), a reusable faithful whole-list `str.split` lowering banked. The next
+whole-list-split string method in the mirror is now convertible on the same op.
+
+---
+
+### Iteration — 2026-07-09 · Track A (census): V1 `Dict[str,Any]` hard core · count held 1236
+
+**Trigger:** user chose **A — CENSUS V1** (the hard core, §11 V1: default leave-trusted unless a
+census proves otherwise). Whole-body-proof census of the generic-dict class.
+
+**Enumerated:** 26 `\trusted` methods with an explicit `Dict[str, Any]` param (the ~85 estimate
+counted `List[Dict[str,Any]]` + generic dict-walk bodies without the exact annotation). Static shape
+triage → whole-body proof on survivors (§10.1).
+
+**Verdict — V1 yields 0 clean conversions (the §10.3 leave-trusted core, confirmed):**
+- **22 / 26 out-of-frontier by shape:** STR-EMIT (the emitter's string-generation dispatch —
+  `_handle_*_stmt`, `_stmts_to_whyml`, `_emit_body_code`, `_handle_return/assign/ghost_assign_stmt`);
+  SELF-STATE + multi-SIBLING composition (`_compute_shared_module_maps` 14 siblings, `_stmts_to_whyml`
+  19, `_typed_local_vars` 10, `_emit_prefunctions_infra` 9); ANY-WALK generic tree walkers
+  (`_collect_field_decode_str_locals`, `_emit_frame_condition`).
+- **4 static survivors, all out-of-frontier:** `_handle_augassign_stmt` / `_handle_expr_stmt` — giant
+  string-emit statement dispatchers; `_print_soundness_report` — pure I/O + `json.dumps` (unmodellable);
+  `_build_soundness_report` — **GROUNDED, measured:** the mirror already carries the full body (a
+  `\trusted` method, not a `{}` stub); removed `\trusted` → **L3-tc FAILED** (`but is expected to have
+  type int`). Its return `{"file": …, "summary": counts, "vcs": [<dict>…]}` is a heterogeneous nested
+  `Dict[str,Any]` (string / `Dict[str,int]` / `List[Dict[str,Any]]` values in one dict) — the exact
+  nested-pyval shape the V2 `_build_method_*_map` family also fails on. Reverted, 1236.
+
+**Outcome:** V1 is the emitter's string-generation dispatch + generic Any-walkers + nested-pyval
+builders — a documented leave-trusted class, now census-confirmed at 0. No conversion (correct: the
+census proved the default). The self-annotation `\trusted` residual is at the honest floor for the
+value-model tracks: V2 (banked, 1 str.split feature converted), V1 (leave-trusted, confirmed), with
+V3 (~13 emitter string/self-state, some real bugs) the only un-censused sub-class.
+
+---
+
+### Iteration — 2026-07-09 · Track A (census): V3 emitter-defect RE-CENSUS · count held 1236
+
+**Trigger:** user chose **A — CENSUS V3** (the last un-censused sub-class). V3 was already censused
+0/13 on 2026-07-07 (`tier5-value-model-census.md`, `emission-defect-spike-findings.md`), but that
+predates THIS session's string/array-string advances (faithful `str.split -> array string`, str-list
+literals) — so I re-probed whether the str-list value-model gaps that blocked V3 have narrowed.
+
+**Re-probed the best B1-free lead `_strip_outer_parens`** (pure string fn, no `Dict[str,Any]` behind —
+the census's single best fix-then-convert candidate). Ported the whole body, typechecked under the
+CURRENT emitter → **L3-tc FAILED** with THREE distinct emission defects, none touched by the string-op
+work:
+1. **Broken parameter emission** — `_strip_outer_parens(s: str)` (a `@staticmethod` with a
+   `for i, ch in enumerate(s)` loop) emits signature `(self) (i: int) (ch: int) : string` — the emitter
+   took the loop TUPLE-TARGET `i, ch` as parameters and **dropped `s`**, so `let s = ref (str_strip_op !s)`
+   references `!s` before binding → the census's "unbound 's'" (a genuine staticmethod + tuple-unpack-loop
+   param-extraction defect, NOT a `--fun` artifact).
+2. **`enumerate(s)` over a string** → undeclared `iter_length` / `enumerate_1` / `iter_get` (the recurring
+   `iter_length` defect, shared with `_emit_metatype_tags`).
+3. **Char `ch` modeled as `int`** (`ch = 747334986`, the hash of `"("`) — char-level string iteration is
+   not modeled.
+
+**Verdict — V3 stays 0/13.** The string-op advances (`str.split`, str-list literals) do NOT reach V3's
+blockers: char-level string iteration (`for ch in s` / `enumerate(s)`), the `iter_length` root-cause, and
+the staticmethod-param/tuple-unpack-loop emission bug. Each is a distinct feature/defect fix, not a
+narrowing of the str-list gap. Consistent with the 2026-07-07 finding (even the best emission-defect lead
+`_call_returns_string_collection` is not a clean self-verified −1 — its fix re-proves a verified method).
+
+**Outcome:** all three value-model tracks census-confirmed at their floor this session — V2 banked (+1
+`str.split`), V1 leave-trusted (0), V3 emitter-defect (0). No V3 conversion. Tree clean, ledger==3, 1236.
+
+**§12 external-reviewer report produced:** `value-model-wall-stand-alone.md` (repo root) — the
+value-model wall (heterogeneous `Dict[str,Any]` + string-as-character-sequence) confirmed research-grade
+across V1/V3, globally framed (3-axiom ledger, LINK-3, scope cut, coupling rule), measured evidence
+(verbatim L3-tc failures for `_build_soundness_report` B1 / `_strip_outer_parens` B3), what's certified
+(`pyval`/`pydict`/`sdict`), SOTA-tagged open questions, frozen benchmark B0/B1/B2/B3. Distinct from the
+CONTROL-shape wall reports (`wall-plan-v2-phase2c-stand-alone.md`, `ir-traversal-residual-stand-alone.md`).
+
+---
+
+### Campaign — 2026-07-09 · EXECUTED `value-model-wall-stand-alone-plan-2.md` (7 phases) · 1236 → 1235
+
+Spike-gated, single-writer, every agent claim independently re-verified (re-prove / worktree byte-diff /
+ledger / count / fidelity). Phase-by-phase measured verdicts:
+
+- **E0 (param-extraction fix)** — `92cef465`. `functions.py::_build_param_list` method branch iterated the
+  polluted `symbol_table` (loop tuple-targets + locals) and skipped `local_refs`, so `for i,ch in ...`
+  promoted `i,ch` to method params AND dropped a reassigned param (`s=s.strip()` → `unbound 's'`). Fixed:
+  iterate `_formal_params` (like the standalone branch). Regression fixture 0886. **Byte-diff 0** over 760
+  corpus (re-verified). No marker change; ledger==3.
+- **W2 (char-level string iteration)** — `544775d0`. A char IS a 1-char `str_sub_op` string; `enumerate(s)`/
+  `for ch in s` → integer-indexed `while` with the arithmetic variant `String.length s - !i` (no seq-char
+  theory, no new value shape, no certificate); `ch=="("` via `str_eq_op` as an unconstrained boolean.
+  Needed: preserve for-loop tuple-targets through the IR (`ForStmt.tuple_targets`, Module5+ir_schema) +
+  a reassigned-string-param entry-shadow fix (`_typed_local_vars`). **Converted `_strip_outer_parens`**
+  (--fun proof SUCCESS: invariant preservation + variant decrease + postcondition Valid). Byte-diff 0 over
+  761 corpus (re-verified); the two mirrors whose emission shifted differ ONLY by `+mutable tuple_targets:
+  int` (byte-identical bodies) + L3-tc ✓ ⇒ proofs preserved. Fixture 0887. **\trusted 1236→1235.**
+- **S1 (record-threading spike)** — verdict **PASS**, folded into `c9cee5f5`. `@dataclass`/`TypedDict`
+  already lower to native WhyML records with faithful per-field types; a generated record type threads
+  value-level across an independent call boundary; bare `Dict[str,Any]` is NOT route R (opaque map).
+  **Certificate = branch (a): none** — the record shape is already certified axiom-free
+  (`Phase2b_RecordVal.v` + `RecordVal.lean` BOTH present; S1's "no Lean mirror" flag was wrong); ledger 3.
+- **R (record route)** — `c9cee5f5`. Honest yield **0 pure-R conversions** of real `\trusted` methods
+  (measured): the closed-key-record census = 3, all non-pure-R — `as_dict` is already a verified TypedDict
+  method (false hit) and a fresh un-trust attempt FAILS L3-tc (int-vs-string in the self-field/`message()`
+  construction); `_build_soundness_report` + `_to_cache_payload` carry heterogeneous nested fields = route
+  U. The `_build_method_*_map` B2 family = homogeneous dynamic-key maps, NOT route R. Banked the **B1
+  capability fixture 0888** (@dataclass producer+consumer, value contracts, proves). Mechanism done+
+  certified; residual pure-R applicability = 0 without U.
+- **S2 (U corpus-inertness)** — measured: the corpus DOES exercise the route-U shapes (7 `Dict[str,Any]`,
+  10 `.get("…")`, 4 `.values()/.items()` walks over 844 programs), so a corpus-facing U recognizer is NOT
+  byte-diff-0-safe → **corpus-facing U inadmissible; the non-mirror walker residue is a partial B0**
+  (documented `TRUSTED(essential)`). U0 stays mirror-only (inert by construction).
+- **U0 / B1' (mirror defensive projection)** — **not built; measured ~0 yield.** A U0 spike on the most
+  favorable ANY-WALK method (`_collect_field_decode_str_locals`, Set[str] return) failed L3-tc on
+  `array int` vs `int` — a **collection/array-typing** blocker, NOT the generic-dict read pyval-routing
+  would fix. Confirmed by the V1 census (0/26, blockers = nested-pyval returns + composition + string-emit).
+  B1' (`_build_soundness_report`) is blocked on the nested-heterogeneous **return** (the full pyval value
+  model). So U0 does not address the actual walls; the value-model residual IS the research boundary
+  already documented in `value-model-wall-stand-alone.md` (benchmarks B0/B1'/B2). No build (measure-before-
+  build, §10.2).
+
+**Net:** 1236 → 1235 (**+1** real conversion via W2) + an emitter correctness fix (E0) + route-R
+capability confirmed/certified (B1 fixture) + three grounded spike verdicts (S1 PASS, S2 partial-B0, U0
+~0) that sharpen the research boundary. Ledger held at 3, corpus byte-diff 0 throughout, fidelity green,
+suite-affected mirrors proof-preserved. The plan is fully executed; the value-model wall's bounded faces
+(char-iteration, closed-key records) are banked, and its dynamic face (heterogeneous nested Dict[str,Any])
+is the documented open problem.
+
+**U0/B1' RE-EXECUTED as a real build (2026-07-09, `0bbf5504`)** — superseding the prior spike-only
+close. U0 mirror-only defensive-pyval-projection was actually BUILT (sdict params + slookup-routed
+`d.get("k")` + mirror-mode gate; corpus byte-diff 0 by construction) and MEASURED: census of 70
+generic-dict-read `\trusted` methods → the read is **never the sole blocker** (always composed with a
+string-set-membership / collection-element / nested-return / self-state / emit_ir-`size`-collision wall)
+→ **net-new U0 unblocks = 0** → the 5-file build **REVERTED as gold-plating** (no-unused-facade rule,
+[[track_b_opacity]] precedent). Census surfaced **1 latent stub** `_should_auto_trust_map_return` that
+proves whole-body at HEAD without U0 (+1, **1234**, counted honestly — type-safety+frame only). **B1'**
+measured wall: `_build_soundness_report` stalls at its first statement `ir_data.get("functions", [])`
+(collection-valued read, not covered by scalar U0 projection; pycsl.mlw:341) — the documented research
+boundary. Sub-finding: the certified `pyval.size` collides by name with the `emit_ir.size` ADT measure,
+so a mirror file emitting the emit_ir ADT cannot also host the pyval theory (a concrete theory-composition
+boundary). Ledger==3, fidelity 52/52, why3-semantics untouched.
+
+---
+
+### Census — 2026-07-09 · collection-valued-read cluster (the U0 lead) · count held 1234
+
+**Trigger:** SL loop re-entered at 1234; user chose **A — CENSUS** the ~10 methods the U0 census flagged
+as blocked on a collection-valued read (`.get(k, [])`/`{}`, `List[Dict]` iteration), to measure whether a
+`PList`/`PDict` pyval projection would unblock them BEFORE building (§10.2).
+
+**Verdict — the cluster is NOT a `PList`/`PDict` opportunity; build refuted.** Enumerated 26 collection-
+valued-read `\trusted` candidates; the tractable subset's reads are **not over generic `Dict[str,Any]`
+pyval** but over distinct value shapes, each a separate gap:
+- **emit_ir ADT args (dominant)** — `val_ir.get("elts", [])` reads the emit_ir node's args as `array
+  emit_ir`; iterating/coercing them clashes with `array int`. **Grounded:** `_seq_init_expr` un-trusted →
+  L3-tc `array emit_ir vs array int`; `_handle_ghost_assign_stmt` is self-documented as this exact gap
+  (`len(val_ir.get("elts"))` over a MkTuple emit_ir → opaque `iter_length` int vs `array emit_ir` args,
+  emit_ir-reflection value-model-gapped, generic-dict-str-and.md). This is emit_ir-args `Array.length`
+  routing, NOT pyval-list projection.
+- **array-element typing** — `_collect_field_decode_str_locals` → `array int` vs `int` (measured earlier).
+- **module-constant tuple-keyed map** — `triggers_for` → `TRIGGERS.get(op_key, [])`, a `Tuple`-keyed const
+  map returning `List[Trigger]` (list-of-record); a different shape again.
+- the rest are giant orchestrators (`transpile`, `_run_pipeline`, `_run_proofs`, `_transpile_modular`) or
+  I/O (`_print_soundness_report`) — not read-shaped conversions.
+
+**Outcome:** a `PList`/`PDict` pyval projection would convert **~0** of the cluster — the collection-valued
+reads are emit_ir-ADT-args / array-element / module-const-map, distinct from generic pyval dicts. The
+bounded-looking lead dissolves on measurement. The dominant surfaced gap is **emit_ir-args reflection**
+(`Array.length`/element routing for `array emit_ir`), a separate value-model piece feeding the same
+documented research wall — not pursued (census-only; distinct from PList/PDict). No build; no conversion;
+tree clean, ledger==3, 1234.
+
+---
+
+### Census — 2026-07-09 · emit_ir-args reflection gap · count held 1234
+
+**Trigger:** the collection-valued census surfaced emit_ir-args reflection (`val_ir.get("elts")` →
+`array emit_ir`) as the dominant blocker; user chose **A — CENSUS** whether routing `len`/`Array.length`/
+element for emit_ir args unblocks a worthwhile cluster before building.
+
+**Verdict — refuted; ~0 bounded conversions.** The emit_ir-args model ALREADY exists (`preamble.py`:
+`nargs_of (e: emit_ir) : int` for the arg count, `args_of : array emit_ir` for the args). The
+`\trusted` methods reading emit_ir args = **only 3**, and ALL are composition-walled, not length-only:
+- `_seq_init_expr` — iterates `val_ir.get("elts")` building `Seq.cons`, coercing each via
+  `_coerce_to_int(_expr_to_whyml(e))` (grounded earlier: L3-tc `array emit_ir vs array int`).
+- `_emit_array_local_reassign` — iterate/process.
+- `_handle_ghost_assign_stmt` — a giant `ghost_type` string-emit dispatcher that **indexes** the args
+  (`val_ir["elts"][0]`/`[1]`), mutates self-state (`_ghost_*_vars`, `_array_locals`), and composes four
+  siblings (`_e`, `_expr_to_whyml`, `_expr_to_whyml_string_ctx`, `_resolve_effective_ghost_type`); the
+  `len(...get("elts"))` is one incidental op.
+
+None is count-only, so the already-built `nargs_of` converts 0; the methods need emit_ir **element access
+routed to the expr-emitter** (`_expr_to_whyml`, a giant sibling) + self-state — the out-of-frontier
+composition wall, not a bounded length/element routing. Census refutes the lead. No build, no conversion.
+
+**Session close-out (all bounded value-model leads now measured-refuted).** V1/V2/V3 censuses,
+route R (done+certified, 0 pure-R residual), route U (corpus-facing inadmissible; U0 mirror-only 0
+net-new), the PList/PDict collection-valued lead, and now emit_ir-args reflection — every bounded lead
+dissolves on whole-body measurement into the SAME wall: the generic/ADT read's **composition** with the
+surrounding collection/self-state/giant-sibling machinery. The residual is the documented research
+boundary (`value-model-wall-stand-alone.md`); the honest floor for bounded work is **1234**.
+
+---
+
+### Spike — 2026-07-09 · extended S-dec (composition-wall M1+M2 falsifier) · count held 1234
+
+Executed `09-2223-fix.md` Appendix (extended S-dec) — a falsifier for M1+M2 of the composition-wall plan
+`09-2223-plan.md`. Hand-written target `.mlw` (zero source edits); every verdict independently re-verified
+(re-emit / Alt-Ergo+Z3 / ledger audit). Full record: `09-2223-sdec-findings.md`; evidence in
+`getting-better/composition-wall/`.
+
+**Verdict: M1+M2 CONFIRMED at the TARGET level — the composition wall is dissolvable for B-comp.**
+- **M1** (rename pyval `size`→`pv_size` so `pyval` + `emit_ir` co-host): two-theory module type-checks + all
+  goals discharge best-of-N (Z3 clears the 4 emit_ir size-decrease lemmas Alt-Ergo times out on). Rename is
+  WhyML-emission-only — certs define their own `size` → `Print Assumptions`/`#print axioms` unchanged.
+- **C2 linchpin REFUTED for B-comp:** `_collect_calls` emits as `(obj: pyval) : map string bool` (an
+  already-verified pydict catamorphism) — pyval-NATIVE, so the decoder's `fn_body: pyval` feeds it and the
+  clash does NOT relocate. (Overturns the plan/brief hypothesis that the sibling wanted `array int`/`emit_ir`.)
+- **M2** whole-body `_build_soundness_report'vc` + `_collect_calls'vc` prove — **20/20 Valid** through the
+  sibling chain. Sole plan correction: `sorted` payload must be immutable `seq`/`list string`, not
+  `array string` (WhyML region wall; already-solved nested-container class).
+- **C1 certificate = branch (a):** records-over-certified-fields + a structural pyval-`size` fold → no new
+  Rocq/Lean theorem; the 20 SMT VCs ARE the per-instance proof; ledger diff empty. (Nuance: a real build
+  should still confirm the meta-theory covers a `pyval → list<record>` ELIMINATOR under the coupling rule.)
+- **Correction:** M1 is UNEXERCISED by B-comp (its module has 0 `emit_ir` refs; only M2 needed); M1 enables
+  a different class.
+
+**Scope (critical):** the spike proves the decoder TARGET is reachable/provable/axiom-clean — NOT that the
+emitter can GENERATE it from source. The **M2 emitter build** (recognizer → decode boundary, mirror-gated,
+byte-diff-0, fidelity-verbatim) + the **C5 census** (IR-shaped & pyval-native-sibling vs not) are the next
+phase. My brief's research-grade pessimism is overturned at the target level for IR-shaped reflection with a
+pyval-native sibling; the open question shifts to emitter-generability + per-method reach.
+
+### Iteration 2026-07-22 — cheap-win census + verbatim-port batch (base loop, non-interactive)
+
+Global `\trusted` grep count **981 → 943** (net **38** converted across 5 commits, all mirror-only,
+`src/pycsl` untouched → no byte-diff sweep needed; ledger held at 3; allowlist untouched).
+
+Method (measure-before-build, §10.1/§10.2): a 981-stub census found 72 stubs whose mirror body was
+ALREADY byte-verbatim to live (marker present but body real) and ~305 more small stubs portable
+verbatim. Each candidate ran **port → L3-tc → per-function emitted-vacuity → whole-file Why3 proof**;
+only whole-file-proof-green AND non-vacuous ports were booked. The per-function vacuity pre-gate
+(replicating `bin/check-emitted-vacuity.py` cross-check on one function) caught int-hash-erased
+"conversions" (wall-lessons (l)) BEFORE booking, so 9 vacuous ports were rejected, not committed.
+
+**Converted (38):**
+- `pycsl.py::_check_goal_conservation` (already-verbatim vein)
+- `frontend/pure_ast.py` — 28 `_Unparser`/`_Parser` visitor + helper stubs
+- `frontend/exec_splice.py` — `_is_constant_exec`, `splice_constant_exec`
+- `frontend/module_collect.py::_module_const_int`; `proof2why3/canonical.py::alpha_normalize`;
+  `proof2why3/emit_why3.py::ir_to_whyml_axiom_body`; `proof2why3/sertop.py::{sertop_available,_extract_stmid}`
+- `frontend/Module5_IREmitter.py::{_comprehension_generators_to_ir,_wrap_optional}`
+
+**Rejected-and-left-`\trusted` (measured, not skipped):**
+- VACUOUS (emitted body erases the input the live body uses): `Module2_Parser::{_err,parse_contract}`,
+  `import_classifier::_stub_set`, `pure_ast::{_Parser.error,_Parser.unsupported,_Unparser.get_type_comment}`,
+  `Module5_IREmitter::{_csl_proj,_should_skip_method}`, `monomorphize::_rewrite_call_sites`,
+  `extract_lean_meta::lean_meta_available`, `core_ir_semantic::{_check_span,_collect_noreturn_names,_conc_check_shared_access}`
+- WHOLE-FILE-PROOF fails/times-out with the verbatim body:
+  `pure_ast::{visit_ListComp (termination Timeout, 122M steps),set_precedence}`,
+  `exec_splice::_contains_exec`, `proof2why3/{crosscheck,crosscheck_ir}::_load_axiom_registry`,
+  `from_lean_json::_linearize_app`, `core_ir_semantic::{_conc_stmts,_cp_walk}` (generic `.values()` walkers, V1),
+  `module6_whyml/stmt_control_flow.py::_try_local_decl_kind` (whole-file proof EXIT=124 at 3000s — reverted).
+
+Gates each increment: whole-file Why3 SUCCESS; `check-self-annotate-sync.sh` = 5 DIVERGED (documented
+baseline, unchanged); `self-annotate-mirror-check.sh` 52/52; mirror-wide L3-tc sweep 52/52; vacuity
+`--emit` exit 0 (no NEW erasure, 12 known); count strictly decreasing.

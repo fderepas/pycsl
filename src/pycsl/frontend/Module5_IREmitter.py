@@ -7,7 +7,14 @@ from errors import PyCSLIRError
 from ir_schema import IR_VERSION
 from frontend.module5.memoization_rt import MemoizationRTMixin
 from frontend.module5.construction_synth import ConstructionSynthMixin
-from frontend.module_collect import collect_module_constants, collect_module_globals
+from frontend.module_collect import (collect_module_constants,
+                                      collect_module_const_dicts,
+                                      collect_module_const_int_dicts,
+                                      collect_module_const_compound_dicts,
+                                      collect_module_const_str_pairs,
+                                      collect_module_const_pair_dicts,
+                                      collect_module_const_str_sets,
+                                      collect_module_globals)
 from frontend.Module2_Parser import (
     CSLNode, ContractWrapper,
     Requires, Ensures, LoopInvariant, LoopVariant,
@@ -50,6 +57,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "functions": [],
         }
         self._current_class: Optional[str] = None
+        # Lever-7 (val-inherit): stack of the `#@ \trusted` status of the
+        # ENCLOSING functions currently on the visit path. A nested `def` is
+        # lifted (via `generic_visit`) to a standalone WhyML function; when it
+        # sits inside a `\trusted` parent (whose body is NOT verified), the lifted
+        # helper is semantically PART of that trusted body and must inherit the
+        # parent's trusted status — otherwise it acquires spurious verification
+        # goals (e.g. a `termination` VC) the trusted parent never has to discharge.
+        # `any(self._enclosing_trusted_stack)` is True exactly while building a def
+        # nested inside a trusted function; empty/all-False at module/top-method
+        # scope → the `trusted_parent` flag is ABSENT there (byte-inert).
+        self._enclosing_trusted_stack: List[bool] = []
         # scc3.md Phase B: the current function's symbol table, set while building its
         # contracts so `_csl_in` can dispatch `x in S` on the collection's type (a set
         # → key membership, a list → positional `exists`). Empty outside that window.
@@ -80,7 +98,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # write). Plumbed into `program_ir["final_registry"]` (omitted when empty,
         # so byte-identical for Final-free modules). Consumed by
         # `core_ir_semantic._check_final` (a static write-site check, NOT a VC).
-        self._final_registry: List[Dict[str, Any]] = []
+        # self-tcb-reduction Tier-5 (K2): typed `List[Dict[str, PyVal]]` (PyVal ~ Any) so
+        # the self-annotation mirror models it as a faithful `seq hval` self-field (K1),
+        # letting `_collect_final_registry`'s `.append` lower to a real record write-back.
+        # `from __future__ import annotations` keeps this a string annotation at runtime
+        # (PyVal need not be a runtime name); behaviour on real modules is unchanged.
+        self._final_registry: List[Dict[str, PyVal]] = []
         # refactor.md B-final wedge: the set of module-level shared-variable names
         # (from `csl_shared_decls`). Module5 now builds the function symbol_table
         # itself (see `_build_function_symbol_table`), and — like Module4's
@@ -115,12 +138,98 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # keys, populated from the same `csl_shared_decls`).
         self._shared_var_names = {d.variable for d in shared_decls}
 
+        # (#49) ROUTE #116 — THE CLASS-BY-NAME FACTORY RECOGNIZER'S JUSTIFICATION, CHECKED.
+        # `_py_expr_call` resolves `F("X")(...)` to a direct call of `X` because
+        # "`pure_ast._N(name)` is `return _g[name]`" — a fact about ONE helper, and the arm
+        # never looked at which `F` it had. `Pick("inc")(3)` on a callable class was lowered
+        # to `(inc 3)` and PROVED `\result == 4` while CPython returned 2. Record here the
+        # module-level functions for which the fact actually HOLDS: exactly one parameter, no
+        # decorators, a body that is the single statement `return G[<param>]`, where `G` is a
+        # module-level name bound exactly once to a bare `globals()` call, and neither the
+        # function name nor `globals` is rebound at module level. Only those callees may use
+        # the recognizer; every other `F(...)(...)` keeps the ordinary computed-callee path.
+        _m116_assigned: Dict[str, int] = {}
+        _m116_globals: Set[str] = set()
+        for _st116 in node.body:
+            _tg116: List[str] = []
+            if isinstance(_st116, ast.Assign):
+                _tg116 = [t.id for t in _st116.targets if isinstance(t, ast.Name)]
+                if (len(_st116.targets) == 1 and len(_tg116) == 1
+                        and isinstance(_st116.value, ast.Call)
+                        and isinstance(_st116.value.func, ast.Name)
+                        and _st116.value.func.id == "globals"
+                        and not _st116.value.args and not _st116.value.keywords):
+                    _m116_globals.add(_tg116[0])
+            elif isinstance(_st116, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                _tg116 = [_st116.name]
+            elif isinstance(_st116, (ast.AnnAssign, ast.AugAssign)) and isinstance(_st116.target, ast.Name):
+                _tg116 = [_st116.target.id]
+            elif isinstance(_st116, (ast.Import, ast.ImportFrom)):
+                _tg116 = [(a.asname or a.name).split(".")[0] for a in _st116.names]
+            for _n116 in _tg116:
+                _m116_assigned[_n116] = _m116_assigned.get(_n116, 0) + 1
+        self._globals_lookup_funcs: Set[str] = set()
+        if "globals" not in _m116_assigned:
+            for _st116 in node.body:
+                if not (isinstance(_st116, ast.FunctionDef)
+                        and _m116_assigned.get(_st116.name) == 1
+                        and not _st116.decorator_list
+                        and len(_st116.args.args) == 1
+                        and not _st116.args.posonlyargs and not _st116.args.kwonlyargs
+                        and _st116.args.vararg is None and _st116.args.kwarg is None
+                        and len(_st116.body) == 1
+                        and isinstance(_st116.body[0], ast.Return)):
+                    continue
+                _rv116 = _st116.body[0].value
+                if (isinstance(_rv116, ast.Subscript)
+                        and isinstance(_rv116.value, ast.Name)
+                        and _rv116.value.id in _m116_globals
+                        and _m116_assigned.get(_rv116.value.id) == 1
+                        and isinstance(_rv116.slice, ast.Name)
+                        and _rv116.slice.id == _st116.args.args[0].arg):
+                    self._globals_lookup_funcs.add(_st116.name)
+
         # Store CSL nodes so _get_mutex_invariant_ir can look them up later
         self._mutex_invariants_csl = dict(mutex_invs)
 
         if shared_decls:
+            # (#49) gen #31 — THE MODULE-LEVEL INITIALISER OF A `#@ shared` GLOBAL.
+            # `#@ mutex_invariant` could not be discharged IN ANY PROGRAM: the emitted
+            # `_check_initial_<mutex>` asserts the invariant of `val <v> : ref int`, an
+            # UNCONSTRAINED ref, because the module's own `counter = 0` was dropped. So the
+            # obligation was unprovable for every invariant that is not vacuously true,
+            # independently of the program — which is why all 19 corpus drivers that declare
+            # a `#@ mutex_invariant` pass `--no-proof`, and why NONE of the five concurrent
+            # drivers that DO run the prover declares one. Measured and recorded in
+            # `getting-better/open-routes/finding-mutex-invariant-initial-check-unprovable.md`.
+            #
+            # `collect_module_constants` deliberately EXCLUDES `#@ shared` globals (they are
+            # mutable state and must not be inlined as literals in contracts), so the value
+            # has to be carried here instead. Emitted only when the module-level binding is
+            # an INT LITERAL — anything else stays the abstract `val` it is today.
+            _sv_init = {}
+            for _ch_sv in getattr(node, "body", []):
+                _tgt_sv = None
+                _val_sv = None
+                if (isinstance(_ch_sv, ast.Assign) and len(_ch_sv.targets) == 1
+                        and isinstance(_ch_sv.targets[0], ast.Name)):
+                    _tgt_sv, _val_sv = _ch_sv.targets[0].id, _ch_sv.value
+                elif (isinstance(_ch_sv, ast.AnnAssign)
+                      and isinstance(_ch_sv.target, ast.Name)):
+                    _tgt_sv, _val_sv = _ch_sv.target.id, _ch_sv.value
+                if _tgt_sv is None or _val_sv is None:
+                    continue
+                if isinstance(_val_sv, ast.Constant) and type(_val_sv.value) is int:
+                    _sv_init[_tgt_sv] = _val_sv.value
+                elif (isinstance(_val_sv, ast.UnaryOp)
+                      and isinstance(_val_sv.op, ast.USub)
+                      and isinstance(_val_sv.operand, ast.Constant)
+                      and type(_val_sv.operand.value) is int):
+                    _sv_init[_tgt_sv] = -_val_sv.operand.value
             self.program_ir["shared_vars"] = [
-                {"name": d.variable, "mutex": d.mutex}
+                dict({"name": d.variable, "mutex": d.mutex},
+                     **({"init": _sv_init[d.variable]}
+                        if d.variable in _sv_init else {}))
                 for d in shared_decls
             ]
         if mutex_invs:
@@ -165,11 +274,130 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if imports_ir:
             self.program_ir["imports"] = imports_ir
 
+        # W8 (ii, token-kind concreteness): `import tokenize as _tokenize` +
+        # `t.type == _tokenize.OP`. Without this the kind constant lowers to the opaque
+        # `(get_OP _tokenize)` — an UNCONSTRAINED int with no relation to any other kind
+        # constant, so nothing about token-kind disjointness is expressible and the
+        # comparison carries no content. Resolve `<alias>.<CONST>` to the CONCRETE
+        # integer instead.
+        #
+        # FAITHFULNESS: the value is read from the very `tokenize`/`token` module the
+        # annotated code imports at runtime — NOT a hardcoded table — so the emitted
+        # literal is by construction the exact int the live comparison performs, on this
+        # interpreter, with no version drift and no axiom.
+        #
+        # SCOPE: restricted to the two CPython token-code modules and to int-valued
+        # ALL-CAPS attributes. No corpus or `pycsl_lib` file imports either module, so
+        # this map is empty everywhere except the `pure_ast` mirror -> byte-inert.
+        _tok_kinds: Dict[str, int] = {}
+        for _lo, _orig, _mod, _lvl, _is_mod in imports_ir:
+            if not _is_mod or _mod not in ("tokenize", "token"):
+                continue
+            try:
+                _m = __import__(_mod)
+            except ImportError:                                  # pragma: no cover
+                continue
+            for _an in dir(_m):
+                if not (_an.isupper() and _an.isidentifier()):
+                    continue
+                _av = getattr(_m, _an, None)
+                if type(_av) is int:
+                    _tok_kinds[f"{_lo}.{_an}"] = _av
+        if _tok_kinds:
+            self.program_ir["token_kind_constants"] = _tok_kinds
+
+        # W8 (ii, companion): `import keyword as _keyword` + `t.string in _keyword.kwlist`
+        # — the Python KEYWORD TABLE. Without this the membership collapsed to
+        # `contains_check (str_hash_op t.string) (get_kwlist _keyword)`: an int-HASH of
+        # the needle against an opaque getter, with no `ensures` anywhere — the exact
+        # facade shape this campaign rejects. Resolve the table to its ACTUAL contents so
+        # the membership is the same real `seq_mem_str` the vararg path uses.
+        # FAITHFULNESS: read from the very `keyword` module the annotated code imports,
+        # so the emitted table IS the interpreter's keyword set. Restricted to `keyword`
+        # and to list-of-`str` attributes; no corpus or `pycsl_lib` file imports it.
+        _mod_str_lists: Dict[str, List[str]] = {}
+        for _lo, _orig, _mod, _lvl, _is_mod in imports_ir:
+            if not _is_mod or _mod != "keyword":
+                continue
+            try:
+                _m = __import__(_mod)
+            except ImportError:                                  # pragma: no cover
+                continue
+            for _an in dir(_m):
+                if _an.startswith("_"):
+                    continue
+                _av = getattr(_m, _an, None)
+                if (isinstance(_av, list) and _av
+                        and all(type(_x) is str for _x in _av)):
+                    _mod_str_lists[f"{_lo}.{_an}"] = list(_av)
+        if _mod_str_lists:
+            self.program_ir["module_str_list_constants"] = _mod_str_lists
+
         # module-constants-plan: module-level int constants (`K_IHDR = 0`) →
         # resolved to their literal in Module 6 (body and contract).
         module_consts = collect_module_constants(node)
         if module_consts:
             self.program_ir["module_constants"] = module_consts
+
+        # module-const-dict-get: module-level constant str->str dict literals
+        # (`OP_MAP = {"==":"=", ...}`) → recognized at a `NAME.get(k, default)`
+        # site in Module 6 as a chained string if-then-else. Additive: no corpus
+        # program uses a module-const-dict `.get`, so this field is absent for all
+        # existing files (byte-identical emission).
+        module_const_dicts = collect_module_const_dicts(node)
+        if module_const_dicts:
+            self.program_ir["module_const_dicts"] = module_const_dicts
+
+        # class-variant-impl.md T-string: module-level str->int const dicts
+        # (`_BINOP_PREC = {"->": _PREC_ARROW, ...}`) → consumed ONLY by the Module-6
+        # term->string catamorphism emitter (gated on the term-pp recognizer). No
+        # corpus program has a term ADT, so this field is inert everywhere else.
+        module_const_int_dicts = collect_module_const_int_dicts(node)
+        if module_const_int_dicts:
+            self.program_ir["module_const_int_dicts"] = module_const_int_dicts
+
+        # compound-key const-map lowering: a module-const dict with a COMPOUND
+        # (tuple) key and a LIST value (`TRIGGERS: Dict[Tuple[str, Optional[str]],
+        # List[Trigger]]`) lowers to an opaque `val constant NAME : map <key>
+        # (option (list <elem>))` and a `NAME.get(k, [])` defaulting lookup. Tightly
+        # gated on the tuple-key + list-value shape → absent for every plain-dict
+        # corpus program (byte-identical emission).
+        module_const_compound_dicts = collect_module_const_compound_dicts(node)
+        if module_const_compound_dicts:
+            self.program_ir["module_const_compound_dicts"] = module_const_compound_dicts
+
+        # module-const-str-pairs: module-level constant list-of-str-pair literals
+        # (`_PREFIX_STRIPS = [("Nat.gcd", "gcd"), ...]`) → recognized at a linear
+        # first-match scan site (`for s, d in NAME: if x == s: return d`) in Module 6
+        # as a chained string if-then-else. Additive: the field is set only when the
+        # tightly-gated collector returns non-empty, so it is absent for every program
+        # without such a const literal (byte-identical emission).
+        module_const_str_pairs = collect_module_const_str_pairs(node)
+        if module_const_str_pairs:
+            self.program_ir["module_const_str_pairs"] = module_const_str_pairs
+
+        # module-const-PAIR-dicts: module-level `str -> (str, int)` const dict literals
+        # (`frontend/pure_ast._BINOP = {"|": ("BitOr", 4), ...}`), the THIRD member of the
+        # module-const-dict family after str->str and str->int. Recognized in Module 6 at
+        # two sites: a `<key> in NAME` membership guard (the faithful `str_eq_op`
+        # disjunction over the dict's own keys) and a `a, b = NAME[<key>]` tuple-unpack
+        # read (one chained ITE per slot). Additive: the field is set only when the
+        # tightly-gated collector returns non-empty, so it is absent for every program
+        # without such a const literal (byte-identical emission).
+        module_const_pair_dicts = collect_module_const_pair_dicts(node)
+        if module_const_pair_dicts:
+            self.program_ir["module_const_pair_dicts"] = module_const_pair_dicts
+
+        # module-const-str-sets: module-level constant string set / frozenset literals
+        # (`KNOWN_EXCEPTIONS = frozenset({"IndexError", ...})`) → recognized at a
+        # whole-body finite-membership-table site (`return sorted(NAME)`) in Module 6
+        # as the exact constant `array string` literal (elements sorted at emit time,
+        # a compile-time fold). Additive: the field is set only when the tightly-gated
+        # collector returns non-empty, so it is absent for every program without such a
+        # const literal (byte-identical emission; fires on 0/3130 corpus programs).
+        module_const_str_sets = collect_module_const_str_sets(node)
+        if module_const_str_sets:
+            self.program_ir["module_const_str_sets"] = module_const_str_sets
 
         # inline.md Phase 1: module-level global object instances `g = C(...)`. Modeled
         # in Module 6 as a Why3 mutable-record global `let g : c = <ctor>`; the ctor
@@ -248,6 +476,54 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # module with no recognized Tuple annotation.
         self._synthesize_tuple_records(node)
 
+        # wrong-lowering.md §WL-04 (record residual, WL-04b): pre-collect the names
+        # of classes that lower to a RECORD (a `@dataclass`, a `NamedTuple`
+        # subclass, or a synthesized record already in `type_decls` — the
+        # tuple/namedtuple/typeddict records), so a `List[<record>]` element can be
+        # recognized during FUNCTION build (which, under `generic_visit`, may precede
+        # the element's class in source order). Then compute the set of record names
+        # that appear as a FLAT `List[R]` ELEMENT anywhere (parameter or return), so
+        # Module6 emits those records PURE (immutable fields) — Why3 forbids a
+        # MUTABLE element inside `array` (the same constraint the nested `array (seq τ)`
+        # model met). A record used ONLY as a direct value keeps its mutable emission
+        # (byte-identical); a `List[R]` record is read-only at the element position
+        # (tuples are immutable; a mutated dataclass-in-a-list fails closed at Why3
+        # type-check, never a silent unsound update).
+        self._m5_record_class_names: Set[str] = {
+            td.get("name") for td in self.program_ir["type_decls"]
+            if td.get("kind") == "record"
+        }
+        for _c in node.body:
+            if isinstance(_c, ast.ClassDef) and (
+                    self._is_dataclass_decorated(_c)
+                    or self._is_namedtuple_class(_c)
+                    # WL-04e (wrong-lowering-to-fix.md §WL-04 record residual): a
+                    # PLAIN class with an explicit positional `__init__` that assigns
+                    # every field from a same-named param (`class Point: def
+                    # __init__(self, x, y): self.x = x; self.y = y`) is a
+                    # CONTENT-FAITHFUL data record (its ctor is faithful — verified:
+                    # `Point(1, 2).x` proves `== 1`, not `== 0`) and is emitted as a
+                    # record type_decl by `visit_ClassDef`, so a flat `List[Point]`
+                    # element resolves to `array <record>` exactly like a
+                    # `@dataclass`/`NamedTuple` element (element read `a[i].field`
+                    # projects the faithful field). Recognized here (pre-`generic_visit`,
+                    # so source order between the using function and the class is
+                    # irrelevant, mirroring the dataclass/NamedTuple pre-scan).
+                    or self._m5_is_plain_positional_record_class(_c)
+                    # W8/W1: a plain class whose `__init__` DECLARES every field with a
+                    # type annotation is already emitted as a record type_decl by
+                    # `_collect_class_fields`; recognize it here too so a `List[<it>]`
+                    # element keeps the record (the mirror `_Tok` token shape).
+                    or self._m5_is_annotated_field_record_class(_c)):
+                self._m5_record_class_names.add(_c.name)
+        _list_elem_recs: Set[str] = set()
+        for _child in ast.walk(node):
+            _re = self._m5_get_list_record_elem(_child)
+            if _re is not None:
+                _list_elem_recs.add(_re)
+        if _list_elem_recs:
+            self.program_ir["list_element_record_types"] = sorted(_list_elem_recs)
+
         # sum-types: `#@ datatype Name = C1 | C2(int) | …` → a variant type_decl, and a
         # constructor registry so a `C1` / `C2(x)` value and a `case C1()` pattern resolve.
         for dt in getattr(node, 'csl_datatypes', []):
@@ -299,6 +575,68 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             self.program_ir["typevar_registry"] = typevar_registry
 
         self.generic_visit(node)
+
+        # (#49) ROUTE #99 — THE UB-7.7 MEMOIZATION GATE MOVED HERE, FROM THE POST-CLASSDEF
+        # HOOK, BECAUSE ITS OLD HOME'S COVERAGE PREMISE WAS FALSE.
+        #
+        # Route #94 put this at the end of `visit_ClassDef` and wrote down why: *"run HERE
+        # rather than in `_check_memoization_soundness`, because that runs per-function
+        # during the walk and the mutator is usually defined AFTER the memoized reader — so
+        # the set of mutated fields is empty at that point. By here `generic_visit` has
+        # emitted every method of the class, SO THE SET IS COMPLETE."*
+        #
+        # >>> "SO THE SET IS COMPLETE" IS THE FALSE PREMISE. What is true is that every
+        # >>> method OF THAT CLASS is emitted. A MODULE-LEVEL function defined after the
+        # >>> class — `def bump(c: C): c.a = c.a + 1`, the ordinary way a free function
+        # >>> mutates an object handed to it — has not been visited yet, so it is absent
+        # >>> from `program_ir["functions"]` and the mutated-field set is STILL empty.
+        #
+        # This is campaign generator #8 landing on the campaign's own gate: *when a
+        # soundness argument names a COVERAGE premise ("every write site", "all paths",
+        # "the set is complete"), go and COUNT the cases the code covers — the premise is a
+        # claim about a COLLECTOR, and the collector is the thing nobody re-reads.*
+        #
+        # MEASURED: with the mutator defined BEFORE the class the gate fires and refuses;
+        # with the identical mutator defined AFTER it, the file reported `Verification
+        # SUCCESS! All contracts formally proven.` while CPython gives `total=0, a=1` after
+        # one `bump()` — the proved `ensures \result == self.a` is FALSE in the running
+        # language. Route #94 moved this check ONE level (function -> class) and it needed
+        # to move TWO (function -> class -> MODULE). Its own lesson — *a check needing a
+        # whole-program fact cannot live in a per-node visitor* — was right, and a class is
+        # still a node.
+        #
+        # HERE the set really is complete: `generic_visit` above has walked every top-level
+        # statement, so every FunctionDef in the module, at class scope or module scope and
+        # in any order, has been emitted into `program_ir["functions"]`. No-op for modules
+        # with no memoized function (the population guard is the pass's first line).
+        self._check_memoized_field_reads()
+
+        # WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): a record
+        # constructed as an element of a FAITHFUL `List[<record>]` LITERAL
+        # (`[Point(1, 2), Point(3, 4)]`) is realized as an `array <record>` element by
+        # Module6's ArrayLit seam, so it too must be emitted PURE (Why3 forbids a
+        # mutable element inside `array`). Computed AFTER `generic_visit` so every
+        # record `type_decl` (incl. class-based NamedTuples appended during function/
+        # class visitation) is populated. Only records whose constructor sets EVERY
+        # field from a positional param are matched — a `@dataclass` whose ctor drops
+        # its args is NOT content-faithful, its literal stays fail-closed (opaque /
+        # TYPEERR), and it is NOT flagged pure (byte-identical).
+        _faithful_recs: Set[str] = set()
+        for _td in self.program_ir["type_decls"]:
+            if _td.get("kind") != "record":
+                continue
+            _fnames = {f.get("name") for f in _td.get("fields", [])}
+            _covered = {e.get("field") for e in _td.get("init_body", [])}
+            if _td.get("init_params") and _fnames and _fnames <= _covered:
+                _faithful_recs.add(_td.get("name"))
+        _lit_recs: Set[str] = set()
+        for _child in ast.walk(node):
+            _re = self._m5_list_literal_record_elem(_child, _faithful_recs)
+            if _re is not None:
+                _lit_recs.add(_re)
+        if _lit_recs:
+            _existing = set(self.program_ir.get("list_element_record_types", []))
+            self.program_ir["list_element_record_types"] = sorted(_existing | _lit_recs)
 
     def _get_mutex_invariant_ir(self, mutex: str) -> Optional[Dict[str, Any]]:
         """Return the IR form of the mutex invariant, or None if not declared."""
@@ -516,8 +854,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # Subscript — the SAME IR the body path produces for `a[i].x`, so the
         # abstract getter `get_<field>` denotes one value across the driver's
         # `\result[k] == a[k].x` and the projection-comprehension content law.
-        base = ({"type": "Result"} if node.array == "\\result"
-                else {"type": "Var", "name": node.array})
+        # SELF-FIELD base (`self.<field>[i].<sub>`): the parser carries the base as
+        # the dotted string `"self.<field>"`, which lowers to the SAME `FieldGet`
+        # `_csl_field_subscript` produces for `self.<field>[i]` — so the projection
+        # reaches Module6's self-field array-read projector (`expressions.py` W8
+        # capability (iii)), not the opaque/unbound `subscript_get`.
+        if node.array.startswith("self."):
+            base = {"type": "FieldGet", "object": "self",
+                    "field": node.array[len("self."):]}
+        else:
+            base = ({"type": "Result"} if node.array == "\\result"
+                    else {"type": "Var", "name": node.array})
         return {"type": "Attribute",
                 "object": {"type": "Subscript",
                            "value": base,
@@ -642,6 +989,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # uses `string.String` and imports it). Desugaring it to the positional array
         # `exists … Array.length …` would use the wrong theory and leave `Array.length`
         # unbound. Defer to Module6 (as set/dict already do) by keeping the `in` BinOp.
+        # W8 (ii): the `*vals: str` vararg is a `seq string`, not an `array` — defer
+        # `x in vals` to Module6 (same rule as set/dict/str above) so it lowers to the
+        # SEQ existential / `seq_mem_str`, not the array-positional desugaring.
+        if _coll_nm is not None and _coll_nm == getattr(self, "_cur_func_vararg_str", None):
+            return {"type": "BinOp", "op": "in",
+                    "left": self._csl_to_ir(node.element),
+                    "right": self._csl_to_ir(node.collection)}
         if _coll_nm is not None and self._cur_func_symtab.get(_coll_nm) in (
                 "set", "dict", "frozenset", "str"):
             return {"type": "BinOp", "op": "in",
@@ -872,6 +1226,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ast.Attribute:  "_py_expr_attribute",
         ast.Dict:       "_py_expr_dict",
         ast.Set:        "_py_expr_set",
+        ast.GeneratorExp: "_py_expr_genexp",
         ast.ListComp:   "_py_expr_listcomp",
         ast.SetComp:    "_py_expr_setcomp",
         ast.DictComp:   "_py_expr_dictcomp",
@@ -917,7 +1272,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                          for b in expr.value],
             }
         if expr.value is ...:
-            return {"type": "Number", "value": 0}
+            # FLAGGED, NOT REPAIRED (relaunch #12): the `...` literal has NO IR node of its
+            # own and lowers to the integer ZERO — a silent WRONG-VALUE erasure, the same
+            # class as the `p.x = v` no-op and the dropped chained-assignment target. It is
+            # left alone deliberately: giving `...` a real node type would make every
+            # existing consumer meet an unknown IR kind, turning a silent 0 into a hard
+            # compile error for any program that writes `...` in an expression — a
+            # user-visible behaviour change outside this campaign's mandate. The
+            # zero-blast-radius repair was BUILT AND MEASURED: an ADDITIVE `py_ellipsis`
+            # marker key (no existing consumer reads anything but `type` and `value`, so
+            # the corpus byte-diff is 0 BY CONSTRUCTION) that lets the `Constant.value`
+            # payload slot emit the certified `PVEllipsis` arm instead of `PVInt 0`. It was
+            # reverted with the `atom` spike that was its only consumer.
+            # `py_ellipsis` is an ADDITIVE marker key: every existing consumer of a
+            # "Number" node reads only `type` and `value`, so the corpus byte-diff is 0
+            # BY CONSTRUCTION. It is the ONLY thing that can tell `...` apart from a
+            # literal `0` downstream, and the `Constant.value` `pyconst_val` payload slot
+            # uses it to emit the certified `PVEllipsis` arm instead of `PVInt 0`.
+            return {"type": "Number", "value": 0, "py_ellipsis": True}
         if isinstance(expr.value, complex):
             return {"type": "Number", "value": int(expr.value.real)}
         return {"type": "Number", "value": expr.value}
@@ -942,13 +1314,129 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return result
 
     def _py_expr_call(self, expr: ast.Call) -> Dict[str, Any]:
+        # `_fin`-FAMILY POSITION WRAPPER (self-tcb-reduction, pure_ast `_Parser`).
+        # `self._fin(X, t[, e])`, `self._fin_pos(X, t, e)` and `self._fin_block(X, t)` set
+        # ONLY the four ASDL LOCATION ATTRIBUTES (`lineno`, `col_offset`, `end_lineno`,
+        # `end_col_offset`) on `X` and return `X` UNCHANGED — read off the live bodies;
+        # `_fin`'s only other action is the read `self.toks[max(self.i - 1, 0)]`, which does
+        # not move the cursor.
+        # WHY LOWERING TO `X` IS FAITHFUL: the harvested `_NODE_SPEC` records carry the ASDL
+        # *fields* only — `_PURE_AST_FIELD_TABLE` lists no `lineno`/`col_offset`/
+        # `end_lineno`/`end_col_offset`, and the emitted records confirm it — so the four
+        # location attributes are OUTSIDE the model entirely (exactly as an `expr_context`
+        # `ctx` leaf is carried as an opaque int). In the model these wrappers ARE the
+        # identity. Without this the whole call falls to the `UnknownPyExpr` catch-all and
+        # the CONSTRUCTED NODE ERASES to a bare `0` — the same erasure the class-by-name
+        # factory was built to remove, one level up.
+        # FAIL-CLOSED, and it fails closed on the thing that could go wrong: the FIRST
+        # argument must ITSELF be the `_N("<literal>")(...)` construction, so an `_fin` over
+        # any other value (a variable, a sibling call, a node built some other way) is left
+        # exactly as it is today. If the harvest is ever widened to include the location
+        # ATTRIBUTES as record fields, this recognizer must be re-gated — the assertion it
+        # rests on is "the record has no location field", and it is checked below.
+        if (isinstance(expr.func, ast.Attribute)
+                and isinstance(expr.func.value, ast.Name)
+                and expr.func.value.id == "self"
+                and expr.func.attr in ("_fin", "_fin_pos", "_fin_block")
+                and not expr.keywords
+                and len(expr.args) >= 1
+                # ... and the first argument is ITSELF the class-by-name construction
+                # `_N("<literal>")(...)` that the factory branch below resolves. Spelled
+                # INLINE rather than as a helper method: a new method on this class becomes a
+                # new abstract `val` in the emission of EVERY mirror that imports it (measured:
+                # `frontend/__init__` and `frontend/ir_resolve` both gained a declaration
+                # line), turning a 1-of-52 mirror diff into a 3-of-52 one and obliging two
+                # extra whole-file re-proofs for nothing.
+                and isinstance(expr.args[0], (ast.Call, ast.Name))):
+            # Imported LAZILY: `ir_resolve` is a post-Module5 pass and importing it at module
+            # scope would close a cycle.
+            from frontend.ir_resolve import _PURE_AST_FIELD_TABLE as _PAFT
+            _loc = {"lineno", "col_offset", "end_lineno", "end_col_offset"}
+            if (isinstance(expr.args[0], ast.Call)
+                    and isinstance(expr.args[0].func, ast.Call)
+                    and isinstance(expr.args[0].func.func, ast.Name)
+                    and len(expr.args[0].func.args) == 1
+                    and not expr.args[0].func.keywords
+                    and isinstance(expr.args[0].func.args[0], ast.Constant)
+                    and isinstance(expr.args[0].func.args[0].value, str)):
+                _cls = expr.args[0].func.args[0].value
+                _flds = [f for (f, _t) in _PAFT.get(_cls, [])]
+                if not (_loc & set(_flds)):
+                    return self._py_expr_to_ir(expr.args[0])
+            elif (isinstance(expr.args[0], ast.Call)
+                  and isinstance(expr.args[0].func, ast.Call)
+                  and isinstance(expr.args[0].func.func, ast.Name)
+                  and len(expr.args[0].func.args) == 1
+                  and not expr.args[0].func.keywords
+                  and isinstance(expr.args[0].func.args[0], ast.Name)):
+                # VARIABLE-CLASS-NAME form (relaunch #8): `self._fin_block(_N(cls)(…), t)`,
+                # where `cls` is a LOCAL holding a ternary of two class-name literals. The
+                # wrapper is the identity for exactly the same reason as for a literal
+                # construction, and the guard generalizes the same way as the bare-Name
+                # branch below: it is enough that NO table entry carries a location field.
+                # Without this the whole `try_stmt` return falls to the abstract
+                # `self__fin_block_2`, whose parameters are int-typed, and the constructed
+                # node ill-types against it — the erasure one level up.
+                if not any(_loc & {f for (f, _t) in _e} for _e in _PAFT.values()):
+                    return self._py_expr_to_ir(expr.args[0])
+            elif isinstance(expr.args[0], ast.Name):
+                # PYTHON-AST NODE CTOR FAMILY (increment 15): the first argument is a
+                # LOCAL holding an already-built node (`tup = _N("Tuple")(...); return
+                # self._fin(tup, t)` — `testlist_star_expr`'s shape). The wrapper is the
+                # identity here for exactly the same reason as for an inline construction,
+                # and the guard the inline branch rests on generalizes: the harvest reads
+                # `_NODE_SPEC[cls][1]`, the FIELDS tuple, while the location attributes
+                # live in slot 2 and are never harvested — so it is enough to check that
+                # NO table entry carries one. Without this the call falls to the abstract
+                # `self__fin_3`, whose second parameter is int-typed from every other call
+                # site, and the token argument ill-types against it.
+                if not any(_loc & {f for (f, _t) in _e} for _e in _PAFT.values()):
+                    return self._py_expr_to_ir(expr.args[0])
         if isinstance(expr.func, ast.Name):
             if expr.func.id == "deque":
                 # collections-plan: `deque(...)` reduces to the list/array model. Lower
                 # it to an empty array literal so it reuses the append/index/len
-                # machinery verbatim (identical to `dq = []`). A seeded iterable is
-                # modelled as empty (sound under-approximation); left-end ops
+                # machinery verbatim (identical to `dq = []`). Left-end ops
                 # (appendleft/popleft) and pop are out of scope.
+                #
+                # (#49) ROUTE #78 — A SEEDED `deque(...)` WAS MODELLED AS EMPTY, AND THE
+                # COMMENT THAT AUTHORISED IT WAS FALSE. This arm used to discard EVERY
+                # argument and return the empty `ArrayLit` below for any `deque(...)`,
+                # justified as "a seeded iterable is modelled as empty (sound
+                # under-approximation)". **THAT IS NOT AN UNDER-APPROXIMATION.** An EMPTY
+                # array is not a weaker fact about a three-element one — it is a DIFFERENT
+                # CONCRETE VALUE, and the emitter then proves definite facts from it. A real
+                # under-approximation would be an UNCONSTRAINED value. MEASURED, before this
+                # refusal:
+                #     dq = deque([1, 2, 3])
+                #     return len(dq)
+                #     #@ ensures \result == 0      <-- FALSE OF THE PROGRAM (Python: 3)
+                #     [+] Verification SUCCESS! All contracts formally proven.
+                # The element read `dq[0]` is a second carrier (proved 0 where Python gives
+                # 5), the TRUE twin `\result == 3` was REFUSED, and the stale length also
+                # DISCHARGED A CALLEE'S `requires` at a call site. The #69 class: a false
+                # postcondition about ordinary TOTAL Python, no `no_exception`, no opt-in.
+                #
+                # THE EMPTY FORM IS FAITHFUL AND IS THE CONTROL THAT BOUNDS THIS REFUSAL —
+                # `deque()` really is `[]`, it proves its true claim, and corpus 0501 relies
+                # on it. So only the SEEDED form is refused. Census: `deque()` at 0501 is the
+                # ONLY use in either verified corpus and the mirror has NO `deque(` at all,
+                # so this guard is byte-inert BY CONSTRUCTION — it only RAISES or FALLS
+                # THROUGH and never alters emitted text.
+                if expr.args or getattr(expr, "keywords", None):
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        "`deque(<iterable>)` with arguments is not modelled: the lowering "
+                        "reduces a deque to the list/array model and DISCARDS every "
+                        "argument, so a seeded deque would be modelled as EMPTY while the "
+                        "run still reported 'All contracts formally proven'. Measured: "
+                        "`dq = deque([1, 2, 3]); return len(dq)` proved `\\result == 0` "
+                        "while Python returns 3. Build the sequence explicitly instead "
+                        "(`dq = deque()` followed by `dq.append(...)` per element), which "
+                        "is modelled faithfully.",
+                        stage="ir-emit",
+                        code="PYCSL-M5-SEEDED-DEQUE-UNMODELLED",
+                    )
                 return {"type": "ArrayLit", "elts": []}
             # typing-engagement ty1 / 26-0000-typing-spec-2 §2.2 (LR4):
             # `isinstance(v, Literal[...])` is not supported — `typing.Literal`
@@ -967,24 +1455,141 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     "isinstance: a typing.Literal alias is not a valid second "
                     "argument (LR4 / PEP 586 — use a concrete value equality test)",
                     stage="ir-emit")
-            return {"type": "Call", "func": expr.func.id,
-                    "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
+            call_ir: Dict[str, Any] = {
+                "type": "Call", "func": expr.func.id,
+                "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
+            # WL-07 (wrong-lowering-to-fix.md §WL-07): capture EXPLICIT keyword
+            # arguments (`Point(x=1, y=2)`) so a record constructor can bind its
+            # fields by name — faithfully, exactly like positional args. Before this
+            # the keywords were DROPPED, so a keyword-constructed record fell every
+            # field to its zero default and a driver could PROVE `Point(x=1).x == 0`
+            # (fail-OPEN, severity-1 UNSOUND — the same class as the positional
+            # arg-drop). A `**kwargs` splat (`kw.arg is None`) is NOT captured (it
+            # stays a documented fail-open residual — the field default). Gated on
+            # non-empty keywords so a keyword-free call emits NO `keywords` key
+            # (byte-identical IR / emission for every existing driver).
+            kw_ir = [{"arg": kw.arg, "value": self._py_expr_to_ir(kw.value)}
+                     for kw in expr.keywords if kw.arg is not None]
+            if kw_ir:
+                call_ir["keywords"] = kw_ir
+            return call_ir
         elif isinstance(expr.func, ast.Attribute):
             parts: List[str] = []
             node = expr.func
             while isinstance(node, ast.Attribute):
                 parts.append(node.attr)
                 node = node.value
+            # KEYWORD ACTUALS ON A DOTTED CALL: capture them exactly as the bare-name
+            # branch above does (WL-07). Before this they were DROPPED at IR-emission
+            # time, so `self.for_stmt(async_=False)` reached Module 6 with `args: []`
+            # and emitted the PARTIAL application `(_parser__for_stmt self)` of type
+            # `int -> emit_ir` — which then ill-types wherever the result is used
+            # (measured on `statement`'s one-element statement lists). Same fail-closed
+            # shape as WL-07: a `**kwargs` splat (`kw.arg is None`) is not captured, and
+            # a keyword-free call emits NO `keywords` key, so every existing dotted call
+            # is byte-identical.
+            _dkw = [{"arg": kw.arg, "value": self._py_expr_to_ir(kw.value)}
+                    for kw in expr.keywords if kw.arg is not None]
             if isinstance(node, ast.Name):
                 parts.append(node.id)
                 parts.reverse()
-                return {"type": "Call", "func": ".".join(parts),
-                        "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
+                _d_ir: Dict[str, Any] = {
+                    "type": "Call", "func": ".".join(parts),
+                    "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
+                if _dkw:
+                    _d_ir["keywords"] = _dkw
+                return _d_ir
             receiver_ir = self._py_expr_to_ir(node)
             parts.reverse()
-            return {"type": "Call", "func": ".".join(parts),
-                    "args": [self._py_expr_to_ir(arg) for arg in expr.args],
-                    "receiver": receiver_ir}
+            _r_ir: Dict[str, Any] = {
+                "type": "Call", "func": ".".join(parts),
+                "args": [self._py_expr_to_ir(arg) for arg in expr.args],
+                "receiver": receiver_ir}
+            if _dkw:
+                _r_ir["keywords"] = _dkw
+            return _r_ir
+        # CLASS-BY-NAME FACTORY (self-tcb-reduction, pure_ast `_N`): a call whose callee is
+        # itself a ONE-ARGUMENT call on a bare name with a STRING-LITERAL argument —
+        # `_N("alias")(name=…, asname=…)`. `pure_ast._N(name)` is `return _g[name]`, a lookup
+        # into the namespace `_build_nodes` fills from the module-level `_NODE_SPEC` ASDL
+        # table, so at a literal call site the class is STATICALLY KNOWN and this is exactly
+        # a construction of that class. RESOLVING it to a direct `<Class>(…)` Call is
+        # therefore faithful, and it means the whole existing record-construction path
+        # (keyword binding included, WL-07) applies unchanged — no new lowering, no new
+        # value shape. Without it the expression falls to the `{"type": "UnknownPyExpr"}`
+        # catch-all below and the constructed node ERASES: measured on `_import_as_name` and
+        # `_dotted_as_name`, whose bodies compute `name`/`asname` correctly and then return a
+        # bare `0`.
+        # FAIL-CLOSED: the callee must be a call to a BARE NAME with exactly one positional
+        # argument that is a STRING literal and no keywords. Measured across the whole tree:
+        # 171 `_N` sites, 161 with a string-literal argument, all in `pure_ast.py`; the
+        # reference corpus has none.
+        if (isinstance(expr.func, ast.Call)
+                and isinstance(expr.func.func, ast.Name)
+                and expr.func.func.id in getattr(self, "_globals_lookup_funcs", set())
+                and len(expr.func.args) == 1
+                and not expr.func.keywords
+                and isinstance(expr.func.args[0], ast.Constant)
+                and isinstance(expr.func.args[0].value, str)):
+            _cls_ir: Dict[str, Any] = {
+                "type": "Call", "func": expr.func.args[0].value,
+                "args": [self._py_expr_to_ir(a) for a in expr.args]}
+            _kw = [{"arg": kw.arg, "value": self._py_expr_to_ir(kw.value)}
+                   for kw in expr.keywords if kw.arg is not None]
+            if _kw:
+                _cls_ir["keywords"] = _kw
+            return _cls_ir
+        # CLASS-BY-NAME FACTORY, VARIABLE-NAME form (self-tcb-reduction, relaunch #8):
+        # `_N(cls)(…)` where `cls` is not a literal but an EXPRESSION — the shape
+        # `try_stmt`/`funcdef`/`for_stmt`/`with_stmt` use to pick between two sibling ASDL
+        # classes (`cls = "TryStar" if is_star else "Try"`). Carry the class-name
+        # EXPRESSION through instead of letting the whole construction fall to the
+        # `UnknownPyExpr` catch-all (which erases the node and every child with it);
+        # Module 6 resolves it, and DECLINES unless it reduces to a choice between two
+        # KNOWN family classes. FAIL-CLOSED at both ends: here the callee must still be a
+        # one-argument, keyword-free call on a bare name, and the argument must NOT be a
+        # string literal (that is the resolved form above, unchanged).
+        if (isinstance(expr.func, ast.Call)
+                and isinstance(expr.func.func, ast.Name)
+                and expr.func.func.id in getattr(self, "_globals_lookup_funcs", set())
+                and len(expr.func.args) == 1
+                and not expr.func.keywords
+                and isinstance(expr.func.args[0], (ast.Name, ast.Subscript))):
+            _cn_ir: Dict[str, Any] = {
+                "type": "ClassByNameCall",
+                "class_expr": self._py_expr_to_ir(expr.func.args[0]),
+                "args": [self._py_expr_to_ir(a) for a in expr.args]}
+            _ckw = [{"arg": kw.arg, "value": self._py_expr_to_ir(kw.value)}
+                    for kw in expr.keywords if kw.arg is not None]
+            if _ckw:
+                _cn_ir["keywords"] = _ckw
+            return _cn_ir
+        # L2 DISPATCH-EXPANSION (self-tcb-reduction, `_py_expr_to_ir`): an INDIRECT
+        # self-method call `getattr(self, <local>)(<args>)` — the shape a
+        # `type -> handler-method-name` table is consumed through. Without this it
+        # falls to the catch-all `{"type": "UnknownPyExpr"}` below, which is
+        # indistinguishable from every other unsupported expression, so Module 6
+        # could not tell a real dispatch from an erased one. Carrying the handler
+        # LOCAL and the argument list lets `functions.py::_recognize_pyx_dispatcher`
+        # match the dispatcher body FAIL-CLOSED (it requires this exact node, the
+        # `self.<TABLE>.get(type(<param>))` bind that produced the local, and the
+        # `is not None` guard) instead of pattern-matching on an erasure tag.
+        # FAIL-CLOSED: `getattr` with exactly two arguments, the first the literal
+        # `self`, the second a bare local NAME (a string-literal attribute is the
+        # ordinary static path and is untouched). Measured across the whole tree:
+        # exactly ONE call site has this shape (the mirror's own `_py_expr_to_ir`),
+        # so the reference corpus and every other mirror are byte-identical.
+        if (isinstance(expr.func, ast.Call)
+                and isinstance(expr.func.func, ast.Name)
+                and expr.func.func.id == "getattr"
+                and len(expr.func.args) == 2
+                and not expr.func.keywords
+                and isinstance(expr.func.args[0], ast.Name)
+                and expr.func.args[0].id == "self"
+                and isinstance(expr.func.args[1], ast.Name)):
+            return {"type": "SelfGetattrDispatch",
+                    "handler": expr.func.args[1].id,
+                    "args": [self._py_expr_to_ir(arg) for arg in expr.args]}
         return {"type": "UnknownPyExpr"}
 
     def _py_expr_tuple(self, expr: ast.Tuple) -> Dict[str, Any]:
@@ -992,14 +1597,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _py_expr_subscript(self, expr: ast.Subscript) -> Dict[str, Any]:
         value = self._py_expr_to_ir(expr.value)
-        slice_node = expr.slice
-        if isinstance(slice_node, ast.Index):
-            slice_node = slice_node.value
-        if isinstance(slice_node, ast.Slice):
-            slice_ir = self._py_expr_to_ir(slice_node)
+        slice_ir = self._py_expr_to_ir(expr.slice)
+        if slice_ir.get("type") == "Slice":
             return {"type": "SliceAccess", "value": value, "slice": slice_ir}
-        index = self._py_expr_to_ir(slice_node)
-        return {"type": "Subscript", "value": value, "index": index}
+        return {"type": "Subscript", "value": value, "index": slice_ir}
 
     def _py_expr_list(self, expr: ast.List) -> Dict[str, Any]:
         return {"type": "ArrayLit", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
@@ -1017,6 +1618,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _py_expr_set(self, expr: ast.Set) -> Dict[str, Any]:
         return {"type": "SetLit", "elts": [self._py_expr_to_ir(e) for e in expr.elts]}
+
+    def _py_expr_genexp(self, expr: ast.GeneratorExp) -> Dict[str, Any]:
+        # genexp-erasure-wall R2a: a generator expression previously had NO handler, so
+        # `_py_expr_to_ir` returned `{"type": "UnknownPyExpr"}` and the predicate + bound
+        # variable were destroyed at IR construction — which is why `any(p(x) for x in xs)`
+        # bottomed out at the unconstrained `any_1 (Array.make 1 0)` oracle. Structurally a
+        # genexp is a ListComp, so the IR mirrors it; laziness is not observable for the
+        # bounded any/all fold this exists to feed.
+        return {"type": "GenExp", "elt": self._py_expr_to_ir(expr.elt),
+                "generators": self._comprehension_generators_to_ir(expr.generators)}
 
     def _py_expr_listcomp(self, expr: ast.ListComp) -> Dict[str, Any]:
         return {"type": "ListComp", "elt": self._py_expr_to_ir(expr.elt),
@@ -1037,7 +1648,27 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if isinstance(v, ast.Constant):
                 parts.append({"type": "String", "value": str(v.value)})
             elif isinstance(v, ast.FormattedValue):
-                parts.append(self._py_expr_to_ir(v.value))
+                # (#49) ROUTE #231 — `f"{v!c:spec}"` IS `format(conv(v), spec)`, NOT `f"{v}"`.
+                # This arm used to keep only `v.value` and DROP `.conversion` and
+                # `.format_spec`, so `f"{b:02x}" == f"{b}"` and `f"{s!r}" == f"{s}"` were
+                # IR-identical and PROVED (CPython: False, False). A part that carries a
+                # conversion or a spec is now a `FormattedValue` node holding both; Module 6
+                # lowers it to an OPAQUE string term keyed by (conversion, spec, operand type)
+                # that the solver cannot identify with the plain rendering. ADDITIVE: a part
+                # with neither (`conversion == -1`, `format_spec is None`) keeps the bare
+                # operand, so every plain f-string's IR is byte-identical. A nested spec
+                # (`f"{x:{w}}"`) is itself a JoinedStr and recurses through this method.
+                if v.conversion == -1 and v.format_spec is None:
+                    parts.append(self._py_expr_to_ir(v.value))
+                else:
+                    fv: Dict[str, Any] = {"type": "FormattedValue",
+                                          "value": self._py_expr_to_ir(v.value)}
+                    if v.conversion != -1:
+                        # the CPython code point (115 's', 114 'r', 97 'a'); Module 6 maps it
+                        fv["conversion"] = v.conversion
+                    if v.format_spec is not None:
+                        fv["format_spec"] = self._py_expr_fstring(v.format_spec)
+                    parts.append(fv)
             else:
                 parts.append(self._py_expr_to_ir(v))
         return {"type": "FString", "parts": parts}
@@ -1093,7 +1724,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ast.Eq: "==", ast.NotEq: "!=", ast.Lt: "<", ast.LtE: "<=", ast.Gt: ">", ast.GtE: ">=",
         ast.USub: "-", ast.UAdd: "+", ast.Not: "not", ast.Invert: "~",
         ast.In: "in", ast.NotIn: "not in",
-        ast.Is: "==", ast.IsNot: "!=",
+        # ROUTE #42 (relaunch #48) — `is` GETS ITS OWN IR OPERATOR. It used to map to
+        # `==`/`!=` here, and together with Module 6's bool-as-int convention that made
+        # `is` and `==` THE SAME OPERATOR on a bool literal: `x = 1; if x is True:`
+        # proved `\result == 7` while Python's `1 is True` is False. Identity is not
+        # equality, and the IR must be able to say so. `pycsl.py::_run_pipeline` narrows
+        # the distinct op back to `==`/`!=` for every downstream consumer (carrying it as
+        # the ADDITIVE `py_is` marker, so the corpus emission is byte-inert), and Module
+        # 6's `_handle_binop` reads that marker to WHITELIST the bool-singleton test.
+        ast.Is: "is", ast.IsNot: "is not",
         ast.BitAnd: "&", ast.BitOr: "|", ast.BitXor: "^",
         ast.LShift: "<<", ast.RShift: ">>", ast.Pow: "**",
     }
@@ -1151,11 +1790,65 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         target = stmt.targets[0]
         if isinstance(target, ast.Name):
             ir_stmts.append({"stmt": "Assign", "target": target.id, "value": self._py_expr_to_ir(stmt.value)})
-        elif (isinstance(target, ast.Attribute) and
-              isinstance(target.value, ast.Name) and
-              target.value.id == 'self'):
-            ir_stmts.append({"stmt": "FieldAssign", "object": "self", "field": target.attr,
-                             "value": self._py_expr_to_ir(stmt.value)})
+        elif isinstance(target, ast.Attribute):
+            # wrong-lowering-to-fix.md §WL-05d (record/list PARAM field-mutation).
+            if isinstance(target.value, ast.Name) and target.value.id == 'self':
+                ir_stmts.append({"stmt": "FieldAssign", "object": "self", "field": target.attr,
+                                 "value": self._py_expr_to_ir(stmt.value)})
+            elif (isinstance(target.value, ast.Name)
+                  and target.value.id in self._cur_func_symtab):
+                # A field store to a record-typed PARAMETER or LOCAL var (`p.x = v`,
+                # `p` in the function's symbol table). Python objects are passed BY
+                # REFERENCE, so a store to a record PARAM field escapes to the caller.
+                # This IR was previously NOT emitted (no matching arm) → the store was
+                # a SILENT NO-OP, an UNSOUND fail-OPEN: a caller/body could prove the
+                # field UNCHANGED after a real mutation (`p.x = 5` then `ensures p.x
+                # == <old>` proved Valid). Emit a `FieldAssign` on the named base;
+                # Module 6 lowers a MUTABLE record to `p.x <- v` (Why3 infers the
+                # `writes {p.x}` frame → caller-visible + sound) and REJECTS a PURE
+                # (list-element-pinned) record. A module-GLOBAL singleton store
+                # (`g.v = n`, base NOT in the function symtab) is deliberately EXCLUDED
+                # here and keeps its prior no-op — a separate boundary (HAPPY subsystem
+                # ownership tests 0611–0613), byte-identical.
+                ir_stmts.append({"stmt": "FieldAssign", "object": target.value.id,
+                                 "field": target.attr,
+                                 "value": self._py_expr_to_ir(stmt.value)})
+            elif not (isinstance(target.value, ast.Name)):
+                # A field store through a NON-Name base — `a[i].f = v` (subscript base),
+                # `x.y.f = v` (nested attribute). A `List[<record>]` element is emitted
+                # PURE/immutable (Why3 forbids a mutable element inside `array`), so there
+                # is NO sound `<-` store for `a[i].f`; the prior silent DROP was a fail-OPEN
+                # (`a[0].x = 5` then `ensures a[0].x == <old>` proved Valid). Fail CLOSED with
+                # a clear diagnostic rather than emit an unsound no-op. (No corpus program
+                # uses this shape → byte-identical.)
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"in-place field mutation `<{type(target.value).__name__} base>.{target.attr} = ...` "
+                    f"is out of scope: a record reached through a subscript/nested base "
+                    f"(e.g. a `List[<record>]` element `a[i].{target.attr}`) is modelled as a "
+                    f"PURE (immutable) record — Why3 forbids a mutable element inside `array`, "
+                    f"so the field store cannot be made caller-visible. Rebuild the element "
+                    f"(`a[i] = Record(...)`) or mutate a local record and store it back.",
+                    stage="ir-emit",
+                    code="PYCSL-WHYML-PARAM-COLLECTION-MUT",
+                )
+            else:
+                # (#44) ROUTE #28 — THE MODULE-GLOBAL SINGLETON STORE WAS A SILENT NO-OP,
+                # and it PROVED A FALSE POSTCONDITION. `g = C()` at module level emits a
+                # real global mutable record (`let g : c = { v = 0 }`), so `g.v = n` has
+                # always been expressible; it was simply never emitted. MEASURED (corpus
+                # witness 1000): `g.v = 7; return g.v` under `#@ requires g.v == 0` /
+                # `#@ ensures \result == 0` printed "Verification SUCCESS" while Python
+                # returns 7. The store vanished and the read returned the initialiser.
+                # This was the LAST arm of `_py_stmt_assign` with no branch, recorded as a
+                # "separate boundary (HAPPY ownership tests 0611-0613), byte-identical" —
+                # a documented no-op, never probed. Emitting the real `FieldAssign` is a
+                # CAPABILITY, not a refusal: Module 6 lowers it to `g.v <- n`, and a
+                # function that writes a global without declaring it in `#@ assigns` is
+                # then rejected BY WHY3's frame check rather than silently believed.
+                ir_stmts.append({"stmt": "FieldAssign", "object": target.value.id,
+                                 "field": target.attr,
+                                 "value": self._py_expr_to_ir(stmt.value)})
         elif isinstance(target, ast.Subscript):
             array_ir = self._py_expr_to_ir(target.value)
             slice_node = target.slice
@@ -1181,6 +1874,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                              "value": self._py_expr_to_ir(stmt.value)})
 
     def _py_stmt_augassign(self, stmt: ast.AugAssign, ir_stmts: List[Dict[str, Any]]) -> None:
+        _aa_refuse = False
+        _aa_kind = ""
         if isinstance(stmt.target, ast.Name):
             ir_stmts.append({"stmt": "AugAssign", "target": stmt.target.id,
                              "op": self._py_op_to_str(stmt.op), "value": self._py_expr_to_ir(stmt.value)})
@@ -1189,22 +1884,111 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
               stmt.target.value.id == 'self'):
             ir_stmts.append({"stmt": "FieldAugAssign", "object": "self", "field": stmt.target.attr,
                              "op": self._py_op_to_str(stmt.op), "value": self._py_expr_to_ir(stmt.value)})
+        elif (isinstance(stmt.target, ast.Attribute)
+              and isinstance(stmt.target.value, ast.Name)
+              and stmt.target.value.id in self._cur_func_symtab):
+            # (#44) ROUTE #23(b) — `p.f op= v` on a record-typed PARAMETER or LOCAL.
+            # This arm did not exist, and an `elif` chain with no `else` DROPS what it
+            # does not match: `e = E(); e.v += 5; return e.v` under `#@ ensures
+            # \result == 0` printed "Verification SUCCESS" while Python returns 5. The
+            # plain twin `e.v = e.v + 5` was ALREADY handled (the `FieldAssign` arm
+            # directly above, added for exactly this fail-open on the plain form) and
+            # correctly FAILS — so the augmented spelling was the only way through.
+            # Desugared to that same proven arm, exactly as `c[k] op= v` is desugared to
+            # the `ArraySet` arm below: `p.f = (p.f) op v`.
+            ir_stmts.append({
+                "stmt": "FieldAssign", "object": stmt.target.value.id,
+                "field": stmt.target.attr,
+                "value": {"type": "BinOp", "op": self._py_op_to_str(stmt.op),
+                          "left": self._py_expr_to_ir(stmt.target),
+                          "right": self._py_expr_to_ir(stmt.value)}})
         elif isinstance(stmt.target, ast.Subscript):
-            # collections-plan: `c[k] op= v` (subscript augmented assignment) was
-            # silently dropped (no arm here). Desugar to a plain subscript store of
-            # `(c[k]) op v` — reusing the proven ArraySet path (→ map_update_some for
-            # a dict / Counter, Array.set for a list). Also fixes `arr[i] += v`.
-            slice_node = stmt.target.slice
-            if isinstance(slice_node, ast.Index):  # <3.9 compatibility
-                slice_node = slice_node.value
-            if not isinstance(slice_node, ast.Slice):
-                read_ir = self._py_expr_to_ir(stmt.target)  # c[k] (read)
+            # `c[k] op= v` — desugar to a subscript store of `(c[k]) op v` (the proven
+            # ArraySet path). Output-side slice-discrimination (the `_py_expr_subscript`
+            # precedent): lower the slice once and discriminate on the lowered kind; the
+            # dead `ast.Index` unwrap (Python <3.9) is dropped (byte-identical on 3.9+).
+            slice_ir = self._py_expr_to_ir(stmt.target.slice)
+            if not (slice_ir.get("type") == "Slice"):
+                read_ir = self._py_expr_to_ir(stmt.target)
                 ir_stmts.append({
                     "stmt": "ArraySet",
                     "array": self._py_expr_to_ir(stmt.target.value),
-                    "index": self._py_expr_to_ir(slice_node),
+                    "index": slice_ir,
                     "value": {"type": "BinOp", "op": self._py_op_to_str(stmt.op),
                               "left": read_ir, "right": self._py_expr_to_ir(stmt.value)}})
+            else:
+                _aa_kind = "a SLICE target `a[lo:hi] op= v`"
+                _aa_refuse = True
+            # fall through to the shared refusal below
+        else:
+            _t = stmt.target
+            # NOTE the formatting: f-strings, not `%`. A `%` operator anywhere in this
+            # LIVE function's source makes the self-annotation preamble emit its
+            # `pycsl_div`/`pycsl_mod` helpers into every mirror that imports this module,
+            # which moved two mirror emissions for no reason at all. Measured, then
+            # avoided.
+            if isinstance(_t, ast.Attribute) and isinstance(_t.value, ast.Subscript):
+                _aa_kind = f"a field of a SUBSCRIPTED base, `a[i].{_t.attr} op= v`"
+            elif isinstance(_t, ast.Attribute) and isinstance(_t.value, ast.Attribute):
+                _aa_kind = (f"a field of a NESTED attribute base, "
+                            f"`x.y.{_t.attr} op= v`")
+            elif isinstance(_t, ast.Attribute):
+                _aa_kind = (f"a field of a base that is not a local, parameter or "
+                            f"`self`, `<global>.{_t.attr} op= v`")
+            else:
+                # A literal rather than `type(_t).__name__`: the reflective form lowers to
+                # `int_to_string (get___name__ (py_type _t))` in the self-annotation model
+                # and `_t` is an `emit_ir` there, not an int — an L3-tc rejection. The
+                # remaining shapes are the tuple/list/starred targets, which Python itself
+                # rejects for an augmented assignment ("illegal expression for augmented
+                # assignment"), so the branch is unreachable from parseable source and the
+                # name adds nothing.
+                _aa_kind = "a target shape this lowering does not model"
+            _aa_refuse = True
+        if _aa_refuse:
+            # (#44) ROUTE #23 — FAIL CLOSED on an augmented store this lowering cannot
+            # model. `_py_stmt_augassign` was an `if/elif/elif` with NO `else`, so every
+            # target shape outside the three it named was SILENTLY DROPPED — the exact
+            # structural defect this campaign has now found twenty-three times.
+            # MEASURED: a `List[<record>]` element `self.items[0].v += 5` emitted a body
+            # containing only the READ, and `#@ ensures \result == 0` printed
+            # "Verification SUCCESS" while Python returns 5 (corpus witness 0993).
+            #
+            # THE CONTROL IS WHAT MAKES IT A GAP RATHER THAN A LIMITATION: the PLAIN twin
+            # `a[i].f = v` is ALREADY refused here, by `_py_stmt_assign`, with the reason
+            # spelled out (a `List[<record>]` element is emitted PURE/immutable — Why3
+            # forbids a mutable element inside `array` — so there is no sound `<-`
+            # write-back). The augmented form inherits that boundary and now inherits its
+            # refusal. Two spellings of one mutation, one refused and one silently
+            # dropped, is the shape this campaign keeps finding.
+            #
+            # CENSUS (AST scan of both corpora, `src/pycsl`, `src/self-annotate/src`,
+            # `src/pycsl_lib` and `tests/`): 1310 augmented assignments — 1208 Name, 77
+            # `self.f`, 25 `a[k]`, all modelled. Exactly TWO fall off the end:
+            # `pure_ast._merge_str_constants`'s `out[-1].value += v.value` (the LIVE
+            # emitter, never lowered; the MIRROR's copy of that function is `\trusted`
+            # with a `pass` body, so it is not lowered either — which refutes the ratchet
+            # comment's claim that refusing this "would reject pure_ast.py itself") and
+            # one in `tests/to_annotate/`. ZERO in either corpus. Byte-inert by
+            # measurement, not by hope.
+            #
+            # REOPENING CAPABILITY (the subscript-base case): a sound write-back for a
+            # mutable object reached through a subscript — the same one
+            # `_py_stmt_assign`'s refusal names, and the same one routes #13/#17/#18 need.
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"augmented assignment to {_aa_kind} is not modelled: this lowering "
+                f"handles `x op= v`, `self.f op= v`, `p.f op= v` (p a local/param) and "
+                f"`a[k] op= v`, and SILENTLY DROPPED everything else — so the mutation "
+                f"vanished from the model while the run still reported 'All contracts "
+                f"formally proven'. Measured: `self.items[0].v += 5` then "
+                f"`ensures \\result == 0` proved, while Python returns 5. Rewrite it as "
+                f"an explicit assignment (`a[i] = Record(...)`, or mutate a local record "
+                f"and store it back), which is the same repair the plain `a[i].f = v` "
+                f"form already asks for.",
+                stage="ir-emit",
+                code="PYCSL-WHYML-AUGASSIGN-UNMODELLED",
+            )
 
     def _py_stmt_return(self, stmt: ast.Return, ir_stmts: List[Dict[str, Any]]) -> None:
         ir_stmts.append({"stmt": "Return", "value": self._py_expr_to_ir(stmt.value) if stmt.value else None})
@@ -1228,15 +2012,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ir_stmts.append(ir_node)
 
     def _py_stmt_raise(self, stmt: ast.Raise, ir_stmts: List[Dict[str, Any]]) -> None:
-        exc_ir: Dict[str, Any] = {"stmt": "Raise", "exc_type": None, "exc_value": None}
+        # Compute-then-append (runtime-identical to the former build-a-dict-then-mutate
+        # form: same three keys, same order, same values) so the appended node is a single
+        # literal — the shape Module 6 lowers to the `SRaise iropt_str iropt_ir` stmt_ir
+        # constructor. `exc` binds the non-None exception expression once; the two
+        # `Optional[...]` locals carry genuine absence (a bare `raise`, a dotted/computed
+        # exception, `raise E` with no argument) instead of a placeholder.
+        exc_type: Optional[str] = None
+        exc_value: Optional[Dict[str, Any]] = None
         if stmt.exc is not None:
-            if isinstance(stmt.exc, ast.Call) and isinstance(stmt.exc.func, ast.Name):
-                exc_ir["exc_type"] = stmt.exc.func.id
-                if stmt.exc.args:
-                    exc_ir["exc_value"] = self._py_expr_to_ir(stmt.exc.args[0])
-            elif isinstance(stmt.exc, ast.Name):
-                exc_ir["exc_type"] = stmt.exc.id
-        ir_stmts.append(exc_ir)
+            exc = stmt.exc
+            if isinstance(exc, ast.Call) and isinstance(exc.func, ast.Name):
+                exc_type = exc.func.id
+                if exc.args:
+                    exc_value = self._py_expr_to_ir(exc.args[0])
+            elif isinstance(exc, ast.Name):
+                exc_type = exc.id
+        ir_stmts.append({"stmt": "Raise", "exc_type": exc_type,
+                         "exc_value": exc_value})
 
     def _py_stmt_annassign(self, stmt: ast.AnnAssign, ir_stmts: List[Dict[str, Any]]) -> None:
         if isinstance(stmt.target, ast.Name) and stmt.value is not None:
@@ -1290,7 +2083,112 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         ir_stmts.append({"stmt": "Break"})
 
     def _py_stmt_delete(self, stmt: ast.Delete, ir_stmts: List[Dict[str, Any]]) -> None:
-        ir_stmts.append({"stmt": "Pass"})  # model as no-op
+        # wrong-lowering-to-fix.md §WL-05c (T7): a SUBSCRIPT delete `del d[k]` is a
+        # real collection mutation — modelling it as a bare no-op is UNSOUND (it let a
+        # caller/body prove the deleted key is STILL present; a severity-1 fail-OPEN).
+        # Emit a typed `DelSubscript` IR so Module 6 can lower it with full type
+        # context: a LOCAL dict/set → the FAITHFUL `map_update_none` (key cleared), a
+        # dict/set PARAMETER → the WL-05 caller-visible-mutation REJECTION (fail-closed).
+        # A `del name` / `del obj.attr` (rebinding / attribute delete) stays the
+        # unmodelled no-op it always was — out of the collection-mutation scope.
+        #
+        # (#49) ROUTE #77 — THE SLICE FORM WAS ROUTE #17's DEFECT ONE STEP OVER, AND THE
+        # STEP CROSSED THIS MODULE BOUNDARY. Route #17 closed the ELEMENT delete with a
+        # refusal in `module6_whyml/statements.py`, but that guard is a BLOCKLIST KEYED ON
+        # THE EMITTED STRING (`if code.strip() == "()"`), and the slice form never reached
+        # it: the `else` arm below dropped `del seq[i:j]` to a literal `Pass`, byte-
+        # indistinguishable from a user's `pass`, one stage EARLIER than the guard. So the
+        # guard and the hazard lived in different modules and the blocklist failed OPEN.
+        # MEASURED, before this refusal:
+        #     xs: List[int] = [1, 2, 3]
+        #     del xs[0:2]
+        #     return xs[0]
+        #     #@ ensures \result == 1      <-- FALSE OF THE PROGRAM (Python returns 3)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # Why3 printed `unused variable xs` on that same run: the delete is erased and the
+        # read is then constant-folded, so the list never reaches the solver. THREE carriers
+        # proved a false claim (the element read, the `len()` read, and `del xs[:]`) and the
+        # TRUE TWIN OF EACH WAS REFUSED, and the stale value also DISCHARGED A CALLEE'S
+        # `requires` at a call site, so the defect propagated across the call graph.
+        # REFUSED rather than modelled, for route #17's reason: Python's slice `del` shifts
+        # every later element left and SHRINKS the sequence, so a faithful model needs the
+        # length as part of the value model, and a wrong shift is worse than no shift.
+        # The guard only RAISES or FALLS THROUGH — it never alters emitted text — and a
+        # census found ZERO slice-deletes in either corpus, in the mirror, in `src/pycsl/`
+        # and in `src/pycsl_lib/`, so it is byte-inert BY CONSTRUCTION.
+        # NOTE the one-token alternative that was REJECTED BY MEASUREMENT: merely dropping
+        # the `not isinstance(slice_node, ast.Slice)` conjunct would route the slice form
+        # into the `DelSubscript` path and let #17's refusal fire, but for a LOCAL DICT
+        # receiver that path does NOT fall through to the `()` no-op — it emits a faithful
+        # `map_update_none` keyed on a coerced slice, i.e. it would MODEL `del d[i:j]` as a
+        # key delete where CPython raises `KeyError`. That trades an old wrong model for a
+        # new one. Refuse explicitly instead.
+        #
+        # (#49) ROUTE #80 — `del obj.attr` IS #77's OWN RESIDUE, AND THE RESIDUE WAS HALF
+        # WRONG. #77 filed `del name` / `del obj.attr` together as out of scope "because
+        # the program raises". That is true of `del name` (UnboundLocalError) and FALSE of
+        # `del obj.attr`: Python's attribute lookup FALLS BACK TO THE CLASS ATTRIBUTE, so
+        # the program runs to completion and returns a DIFFERENT value. MEASURED, before
+        # this refusal:
+        #     class C:
+        #         x: int = 5          # the class-attribute fallback
+        #         def __init__(self) -> None: self.x = 10
+        #     c = C(); del c.x; return c.x
+        #     #@ ensures \result == 10     <-- FALSE OF THE PROGRAM (Python returns 5)
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # The TRUE TWIN (`\result == 5`) was REFUSED, which is what makes it a route and
+        # not a gap. LESSON: "out of scope because it raises" is itself a CLAIM ABOUT
+        # PYTHON and must be PROBED, not reasoned about — one language feature turned a
+        # non-total residue into a total soundness route. Census: ZERO attribute deletes
+        # across `test-suite/corpus/`, `src/self-annotate/`, `src/pycsl/` and
+        # `src/pycsl_lib/` (3636 files parsed), so the guard is byte-inert BY
+        # CONSTRUCTION, exactly like #77's.
+        for tgt in stmt.targets:
+            slice_node = getattr(tgt, "slice", None)
+            if isinstance(slice_node, ast.Index):  # py<3.9 wrapper
+                slice_node = slice_node.value
+            if isinstance(tgt, ast.Subscript) and isinstance(slice_node, ast.Slice):
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "`del <seq>[i:j]` (a SLICE delete) is not modelled: Python's slice "
+                    "`del` REMOVES a whole range, shifting every later element left and "
+                    "SHRINKING the sequence, and the lowering here was a NO-OP, so the "
+                    "model would keep the original sequence while the run still reported "
+                    "'All contracts formally proven'. Measured: `xs = [1, 2, 3]; "
+                    "del xs[0:2]; return xs[0]` proved `\\result == 1` while Python "
+                    "returns 3. Rewrite the deletion as an explicit shift loop, or delete "
+                    "the elements one at a time from a dict/set.",
+                    stage="ir-emit",
+                    code="PYCSL-M5-SLICE-DELETE-UNMODELLED",
+                )
+            if isinstance(tgt, ast.Attribute):
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "`del <obj>.<attr>` (an ATTRIBUTE delete) is not modelled: it was "
+                    "lowered to a bare no-op, so the model KEEPS the deleted instance "
+                    "field while Python removes it and a later read FALLS BACK TO THE "
+                    "CLASS ATTRIBUTE — a different value, in a program that still runs "
+                    "to completion. Measured: `class C: x: int = 5` with "
+                    "`__init__` setting `self.x = 10`, then `del c.x; return c.x` proved "
+                    "`\\result == 10` while Python returns 5. Remove the field's class-level "
+                    "default, or model the reset explicitly with an assignment.",
+                    stage="ir-emit",
+                    code="PYCSL-M5-ATTR-DELETE-UNMODELLED",
+                )
+            if isinstance(tgt, ast.Subscript) and not isinstance(slice_node, ast.Slice):
+                ir_stmts.append({
+                    "stmt": "DelSubscript",
+                    "array": self._py_expr_to_ir(tgt.value),
+                    "index": self._py_expr_to_ir(slice_node),
+                })
+            else:
+                # `del name` (a rebinding delete) — stays the unmodelled no-op it always
+                # was (outside the dict/set item-delete scope), and it is SAFE here only
+                # because a later read of the deleted name RAISES `UnboundLocalError`,
+                # so no total program can observe the stale binding. The SLICE form no
+                # longer reaches here (refused above, route #77) and neither does the
+                # ATTRIBUTE form (route #80).
+                ir_stmts.append({"stmt": "Pass"})
 
     def _py_stmt_match(self, stmt: Any, ir_stmts: List[Dict[str, Any]]) -> None:
         subject_ir = self._py_expr_to_ir(stmt.subject)
@@ -1317,7 +2215,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _process_for(self, node: ast.For) -> Dict[str, Any]:
         target = node.target.id if isinstance(node.target, ast.Name) else "_for_target"
-        return {
+        d: Dict[str, Any] = {
             "stmt": "For",
             "line": getattr(node, "lineno", 0),  # §4.4 statement-level span (refactor.md B4a)
             "target": target,
@@ -1330,6 +2228,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "allow_iteration_mutation": bool(getattr(node, 'csl_allow_iteration_mutation', False)),
             "lineno": getattr(node, "lineno", 0),
         }
+        # W2 char-iteration: a tuple loop target (`for i, ch in enumerate(s)`)
+        # binds several names at once; keep them so Module6 can bind both the
+        # index and the element (the single `target` collapses them to
+        # `_for_target`, losing `i`/`ch`). Emitted ONLY for a tuple target, so a
+        # plain `for x in …` dict stays byte-identical (the key is absent).
+        if isinstance(node.target, ast.Tuple):
+            d["tuple_targets"] = [
+                e.id if isinstance(e, ast.Name) else "_" for e in node.target.elts]
+        return d
 
     def _process_if(self, node: ast.If) -> Dict[str, Any]:
         return {
@@ -1494,6 +2401,81 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             nm = None
         return nm if nm in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR") else None
 
+    # option-field-type regression fix (scoped allow-list): b18932b8 typed EVERY
+    # `Optional[str]`/`Optional[ExprIR]` @dataclass field as `option string`/`option
+    # emit_ir`, but the CONSUMER mirrors (module6_whyml/statements.py,
+    # stmt_control_flow.py) read sibling `Optional[ExprIR]` fields (ArraySliceSetStmt.
+    # upper, ReturnStmt.value, RaiseStmt.exc_*, CriticalSectionStmt.*) as BARE
+    # always-present `emit_ir` (`if stmt.upper is not None:`). The over-broad option
+    # typing mis-lowered those consumers to `option emit_ir <> int` — a hard typecheck
+    # error. Only the CONSTRUCTION conversions of this campaign actually build these
+    # fields as option: `_csl_forall`/`_csl_exists` (Forall/Exists binder_type+domain)
+    # and `_csl_function_variant` (FunctionVariant.ordering). This allow-list, keyed on
+    # (class-name, field-name), restricts the option typing to exactly those fields;
+    # every other `Optional[...]` field keeps the sealed always-present `emit_ir`/int
+    # model. (Slice lower/upper/step take the DISTINCT ir_resolve `_OPTIONAL_FIELDS`
+    # "OptExprIR" path, unaffected by this method.)
+    _M5_OPTION_FIELD_ALLOWLIST = frozenset({
+        ("Forall", "binder_type"), ("Forall", "domain"),
+        ("Exists", "binder_type"), ("Exists", "domain"),
+        ("FunctionVariant", "ordering"),
+        # crosscheck_ir.py self-state carrier (class-variant-impl.md §OUTCOME-CC):
+        # the `IRCrossCheckResult` `Optional[Term]` canon fields become an
+        # inhabitable `option` (value_type "opaque_term" -> `option int` in
+        # Module6) so a presence test (`self.rocq_canon is not None`) is
+        # non-vacuous. The base `Term` union has no local structure here, so the
+        # payload stays opaque; `registry_skipped` reads presence only.
+        ("IRCrossCheckResult", "rocq_canon"),
+        ("IRCrossCheckResult", "lean_canon"),
+        ("IRCrossCheckResult", "registry_canon"),
+    })
+
+    @staticmethod
+    def _m5_get_option_field_inner(annotation, class_name=None, field_name=None):
+        """optional-field builder (monomorphic-option ADTs): if `annotation` is
+        `Optional[str]` or `Optional[<IR-node>]` (ExprIR/StmtIR/IRNode/
+        ContractExprIR — bare Name or forward-ref string), return the option's
+        inner value-type tag ("string" / "emit_ir") so the record field is a
+        faithful `option string` / `option emit_ir` (`Forall`/`Exists`
+        `binder_type`/`domain`). NOT for `Optional[List/Dict/Set/...]` (those keep
+        their list/int collapse) nor `Optional[<other class>]` (int) — else None.
+        Consulted ONLY at record-field collection; the WhyML mapping is further
+        gated on @mutable_state / IR-node param, so the corpus stays byte-inert.
+
+        Scoped by `_M5_OPTION_FIELD_ALLOWLIST` (option-field-type regression fix):
+        an annotation matching the shape but whose (class_name, field_name) is NOT a
+        construction-conversion field returns None, so it follows the exact sealed
+        always-present path (the consumer mirrors read it as bare `emit_ir`)."""
+        if (class_name is not None
+                and (class_name, field_name)
+                not in PyCSLToJSONEmitter._M5_OPTION_FIELD_ALLOWLIST):
+            return None
+        a = annotation
+        if type(a).__name__ != "Subscript":
+            return None
+        av = getattr(a, "value", None)
+        if type(av).__name__ != "Name" or getattr(av, "id", None) != "Optional":
+            return None
+        inner = getattr(a, "slice", None)
+        itn = type(inner).__name__
+        if itn == "Name":
+            nm = getattr(inner, "id", None)
+        elif itn == "Constant" and isinstance(getattr(inner, "value", None), str):
+            nm = inner.value
+        else:
+            return None  # Optional[List[..]]/Optional[Dict[..]]/etc — not a scalar
+        if nm == "str":
+            return "string"
+        if nm in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR"):
+            return "emit_ir"
+        if nm == "Term":
+            # crosscheck_ir.py self-state carrier: `Optional[Term]` -> an
+            # inhabitable `option` with an OPAQUE payload (Module6 maps
+            # "opaque_term" -> `option int`). Scoped by the (class, field)
+            # allow-list above -> corpus/other-mirror byte-inert.
+            return "opaque_term"
+        return None
+
     def _field_type_from_annotation(annotation: Optional[ast.expr]) -> str:
         """Lower a Python type annotation to the IR field-type tag.
 
@@ -1520,7 +2502,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # 07-2333-rev2 TP-3 (Gap 6): a `str` field is a faithful Why3 `string`
                 # (the WhyML record emitter maps the "str" tag to `string`), not int.
                 return "str"
-            if name in ("int", "bool", "float"):
+            if name == "float":
+                # wrong-lowering-to-fix.md §WL-03b: a `float`-annotated record FIELD
+                # (`@dataclass P: f: float`, `self.f: float`, NamedTuple `f: float`)
+                # is the faithful Why3 `real` (τ(float)=real, no-more-int Stage D) —
+                # NOT the unsound int collapse that truncated `p.f == 2.5` to `2`.
+                # The record emitter maps this "real" tag to a `real` field.
+                return "real"
+            if name in ("int", "bool"):
                 return "int"
             # Unrecognised plain name — treat as int (e.g. user types).
             return "int"
@@ -1624,15 +2613,19 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     _GENERIC_BASE_NAMES = {"Generic"}
 
-    def _collect_type_params(self, node) -> List[Dict[str, Any]]:
+    def _collect_type_params(self, node: TParamNode) -> List[Dict[str, PyVal]]:
         """Return the IR `type_params` list for a generic ClassDef/FunctionDef, or
         `[]` if it is not generic. Each entry is `{"name": str, "bound": Optional[str],
         "kind": str}` where kind is "TypeVar" (the only interpreted kind —
         ParamSpec/TypeVarTuple are schema-only and loud-fail in the monomorphization
         pass, GT3). The PEP 695 `type_params` attribute is the primary source; the
-        legacy `Generic[T]` base / `TypeVar("T", bound=B)` call is recognized too."""
+        legacy `Generic[T]` base / `TypeVar("T", bound=B)` call is recognized too.
+
+        (`PyVal` is an alias for `Any` — the self-tcb-reduction pyval value-model
+        sentinel; the `{"name","bound","kind"}` entries are heterogeneous Python
+        dicts, lowered faithfully as `pyval` in the self-annotation mirror.)"""
         tparams = getattr(node, "type_params", None) or []
-        out: List[Dict[str, Any]] = []
+        out: List[Dict[str, PyVal]] = []
         for tp in tparams:
             kind = type(tp).__name__  # TypeVar / ParamSpec / TypeVarTuple
             name = getattr(tp, "name", None)
@@ -1665,7 +2658,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         return out
 
     @staticmethod
-    def _extract_generic_arg_names(slice_node) -> List[str]:
+    def _extract_generic_arg_names(slice_node: "ExprIR") -> List[str]:
         """Extract the TypeVar names from `Generic[T]` / `Generic[T, U]` slice."""
         if isinstance(slice_node, ast.Name):
             return [slice_node.id]
@@ -1677,12 +2670,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return names
         return []
 
-    def _collect_typevar_registry(self, node: ast.Module) -> Dict[str, Dict[str, Any]]:
+    def _collect_typevar_registry(self, node: ast.Module) -> Dict[str, Dict[str, PyVal]]:
         """Scan module-level assigns for `T = TypeVar("T"[, bound=B])` and return
         `{name: {"bound": Optional[str]}}`. The legacy PEP 484 spelling; the
         PEP 695 `class C[T]` form needs no registry (its `type_params` carry the
-        bound directly)."""
-        registry: Dict[str, Dict[str, Any]] = {}
+        bound directly).
+
+        (`PyVal` is an alias for `Any` — the self-tcb-reduction pyval value-model
+        sentinel that lets the self-annotation mirror lower this heterogeneous
+        `{"bound": Optional[str]}` dict faithfully instead of int-erasing it.)"""
+        registry: Dict[str, Dict[str, PyVal]] = {}
         for stmt in node.body:
             if not isinstance(stmt, ast.Assign) or len(stmt.targets) != 1:
                 continue
@@ -2020,7 +3017,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `str` → `string`. A `float`/container/class slot returns None → fall back
     # to the current (collapsed) behaviour rather than emitting an unfaithful
     # `real`→int record field (record-field `float` is not modeled as `real`).
-    _M5_TUPLE_SLOT_TAGS = {"int": "int", "bool": "int", "str": "str"}
+    # wrong-lowering-to-fix.md §WL-03b: a `float` slot is the faithful Why3 `real`
+    # (τ(float)=real, no-more-int Stage D) — NOT the int collapse. So a recognized
+    # `Tuple[int, float]` synthesizes a per-slot record whose float slot is `real`
+    # and `t[1]` reads the fractional value (was truncated to int). int/bool→int,
+    # str→string, float→real; a container/class slot stays unrecognized (collapse).
+    _M5_TUPLE_SLOT_TAGS = {"int": "int", "bool": "int", "str": "str", "float": "real"}
 
     @staticmethod
     def _m5_tuple_slot_tags(annotation: ast.expr) -> Optional[List[str]]:
@@ -2220,9 +3222,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         f"provide member '{m}'. Conformance requires every protocol "
                         f"member to be present with a refining contract.")
                 base_method = f"{proto_lower}__{m}"
+                # (#49) ROUTE #224 — PROVENANCE, so the refinement goal can follow the
+                # DIRECTIVE rather than the flag. `overrides` carries two kinds of pair:
+                # ordinary INHERITANCE overrides (implicit, discovered by
+                # `ir_resolve.apply_inheritance`) and CONFORMANCE pairs (explicit, written
+                # by the user as `#@ conforms_to P`). Only `--check-behavioral-subtyping`
+                # ever turned either into a goal, so a declared conformance was UNCHECKED
+                # by default and the run still said "All contracts formally proven".
+                # Tagging the conformance pairs lets Module 6 emit THEIR goals always,
+                # while the implicit Liskov obligation stays opt-in as before — the
+                # distinction route #224's repair 2 rests on ("the directive is an
+                # explicit, opt-in declaration, so the goal it names could simply follow
+                # it"). Emitted only on conformance pairs, so an `overrides` list built
+                # purely by inheritance is byte-identical and no golden moves.
                 self.program_ir.setdefault("overrides", []).append({
                     "sub_method": sub_method, "base_method": base_method,
                     "sub_type": sub_lower, "base_type": proto_lower,
+                    "from_conforms_to": True,
                 })
 
     def _collect_class_fields(self, node: ast.ClassDef) -> Tuple[List[Dict[str, Any]], Dict[str, int]]:
@@ -2238,6 +3254,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         fields: List[Dict[str, Any]] = []
         field_names_seen: Set[str] = set()
         field_defaults: Dict[str, int] = {}
+        # (#49) ROUTE #145 side-channel, reset per class: `@dataclass` class-body fields
+        # whose declared default is name-free but COMPUTED, and so has no captured value.
+        # They join route #83's `init_unknown_fields` (→ `(any int)`) rather than taking
+        # `_field_default`'s definite literal `0`. Empty for every class in the corpora,
+        # the mirrors and `pycsl_lib`, so the key stays absent and emission is unchanged.
+        self._m5_dc_unknown: List[str] = []
         for child in node.body:
             if isinstance(child, ast.FunctionDef) and child.name == '__init__':
                 for stmt in ast.walk(child):
@@ -2251,6 +3273,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 # explicit annotation is present.
                                 rhs = stmt.value
                                 ftype = "int"
+                                _vt_pa = None
                                 if isinstance(rhs, ast.Dict):
                                     ftype = "dict"
                                 elif isinstance(rhs, ast.Set):
@@ -2260,14 +3283,102 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 elif isinstance(rhs, ast.Call) and isinstance(rhs.func, ast.Name):
                                     if rhs.func.id in ("set", "frozenset", "dict", "list"):
                                         ftype = rhs.func.id
-                                fields.append({"name": target.attr, "type": ftype, "mutable": True})
+                                # (#49) gen #31 — `self.<f> = <ANNOTATED __init__ PARAM>`.
+                                # This branch infers a field's type from the RHS SHAPE and
+                                # nothing else, so the single most common way a Python class
+                                # stores a typed collection —
+                                #     def __init__(self, m: Dict[int, List[X]]) -> None:
+                                #         self.m = m
+                                # — has an `ast.Name` RHS, falls through to `"int"`, and sets
+                                # NO `value_type` at all. MEASURED: `self.m[k]` then reads as
+                                # an int where a list belongs (`This expression has type int,
+                                # but is expected to have type array.Array.array`), which is
+                                # what blocks `Module3_Weaver.visit_FunctionDef` — a SEVEN-line
+                                # body in the cheapest mirror file in the tree to re-prove.
+                                #
+                                # The ANNOTATED sibling branch below already does the right
+                                # thing; the annotation is simply on the PARAMETER instead of
+                                # on the assignment, and it is just as binding. Resolve
+                                # through the SAME three resolvers so the two paths cannot
+                                # disagree.
+                                #
+                                # CENSUS (lesson d3): 111 `self.<f> = <annotated __init__
+                                # param>` sites across both corpora, `src/pycsl`,
+                                # `src/self-annotate/src` and `src/pycsl_lib`; by annotation
+                                # head, int 85 · str 9 · ast.AST 4 · Any 3 · List 3 · bool 2 ·
+                                # Dict 2 · float 1 · T 1 · Path 1. Only FIVE are containers
+                                # (Module3_Weaver's `contracts_map` and `extracted_data`, live
+                                # and mirror, plus proof2why3/parser.py's `toks`) and **ZERO
+                                # are in either corpus** — so this is corpus-byte-inert by
+                                # construction and moves exactly the two mirror emissions the
+                                # repair exists to unblock.
+                                # `float` IS EXCLUDED, and it is the only exclusion. MEASURED:
+                                # with it in, `def __init__(self, *, r: float = 2.5)` gives
+                                # the field the type `real` while the CONSTRUCTION literal
+                                # stays the int `0` —
+                                #     type cy = { mutable r: real }
+                                #     let c = { r = 0 } in        <- ill-typed
+                                # so corpus `1480`/`1483` (routes #148 and #149) stopped
+                                # failing for their own reason and started failing on
+                                # "This expression has type int, but is expected to have type
+                                # real". Fail-closed, and WRONG: a route witness that fails
+                                # because the module is malformed is no longer testing its
+                                # route. Routes #148/#149 mark a non-integral float default
+                                # UNKNOWN precisely because the field is int-typed; giving
+                                # the field a real type walks around that repair without
+                                # replacing it. ONE of the 111 census sites is a float, so
+                                # the exclusion costs a single site and keeps two closed
+                                # routes closed.
+                                elif isinstance(rhs, ast.Name):
+                                    _ann_pa = None
+                                    for _a_pa in (list(child.args.args)
+                                                  + list(child.args.kwonlyargs)):
+                                        if _a_pa.arg == rhs.id and _a_pa.annotation is not None:
+                                            _ann_pa = _a_pa.annotation
+                                            break
+                                    if (isinstance(_ann_pa, ast.Name)
+                                            and _ann_pa.id == "float"):
+                                        _ann_pa = None
+                                    if _ann_pa is not None:
+                                        ftype = self._field_type_from_annotation_inst(
+                                            _ann_pa, node.name)
+                                        _vt_pa = (self._m5_get_dict_value_type(_ann_pa)
+                                                  or self._m5_get_list_elem_type(_ann_pa)
+                                                  or self._m5_get_list_record_elem(_ann_pa))
+                                _fld_pa = {"name": target.attr, "type": ftype,
+                                           "mutable": True}
+                                if _vt_pa is not None:
+                                    _fld_pa["value_type"] = _vt_pa
+                                fields.append(_fld_pa)
                                 field_names_seen.add(target.attr)
-                                if isinstance(rhs, ast.Constant) and isinstance(rhs.value, (int, float)):
+                                # (#49) ROUTE #148 — `int(2.5)` is 2: a NON-INTEGRAL float is
+                                # not a value this int-typed field can hold, so it is not a
+                                # default at all (route #79 marks the field UNKNOWN instead).
+                                # MEASURED: `self.r = 2.5`, `c.r > 2` false, `== 0` PROVED.
+                                if (isinstance(rhs, ast.Constant)
+                                        and isinstance(rhs.value, (int, float))
+                                        and not (isinstance(rhs.value, float)
+                                                 and not rhs.value.is_integer())):
                                     field_defaults[target.attr] = int(rhs.value)
                                 else:
-                                    sz = self._array_init_size(rhs)
-                                    if sz is not None:
-                                        field_defaults[target.attr] = sz
+                                    # (#49) ROUTE #139 — PYTHON'S PARSER DOES NOT FOLD, so a
+                                    # NEGATIVE literal is `UnaryOp(USub, Constant)` and misses
+                                    # `isinstance(rhs, ast.Constant)`. `construction_synth`'s
+                                    # deferral ("a Constant RHS is already handled by
+                                    # `field_defaults`") and route #79's own exemption ("a
+                                    # LITERAL RHS is deliberately NOT marked") both read that
+                                    # premise off the WORD "constant" rather than off this
+                                    # rule, so `self.start = -7` fell to the definite witness
+                                    # 0 and `\result == 0` PROVED (CPython -7). The sibling
+                                    # collector `_collect_class_constants` has always used
+                                    # `_const_int_value`, which handles the unary minus.
+                                    _cv139 = self._const_int_value(rhs)
+                                    if _cv139 is not None:
+                                        field_defaults[target.attr] = _cv139
+                                    else:
+                                        sz = self._array_init_size(rhs)
+                                        if sz is not None:
+                                            field_defaults[target.attr] = sz
                     elif isinstance(stmt, ast.AnnAssign):
                         if (isinstance(stmt.target, ast.Attribute) and
                                 isinstance(stmt.target.value, ast.Name) and
@@ -2275,7 +3386,48 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 stmt.target.attr not in field_names_seen):
                             ftype = self._field_type_from_annotation_inst(
                                 stmt.annotation, node.name)
-                            fields.append({"name": stmt.target.attr, "type": ftype, "mutable": True})
+                            _fld_i = {"name": stmt.target.attr, "type": ftype,
+                                      "mutable": True}
+                            # K2 (seq-pyval self-field append, self-tcb-reduction Tier-5):
+                            # carry a `self.<f>: List[Dict[str, PyVal]]` / `List[PyVal]`
+                            # __init__-declared field's element value_type ("hval") so the
+                            # record field lowers to `seq hval` (K1 field branch) instead of
+                            # the int-erased `array int`. Parallels the @dataclass class-body
+                            # path (`_m5_get_dict_value_type` then `_m5_get_list_elem_type`).
+                            # `PyVal` is a NEW element sentinel absent from the corpus, and the
+                            # downstream `seq hval`/`array string`/`array emit_ir` branches are
+                            # @mutable_state/IR-node gated (both False for the corpus) -> the
+                            # 767-file reference corpus emits byte-identically.
+                            _vt_i = (self._m5_get_dict_value_type(stmt.annotation)
+                                     or self._m5_get_list_elem_type(stmt.annotation))
+                            # parser-primitives-wall-impl-2.md Gate S: a
+                            # `self.<f>: List[<record>]` __init__-declared field carries
+                            # its element RECORD name as value_type, so the record field
+                            # lowers to `array <record>` (Module6 list branch, gated on
+                            # @mutable_state / IR-node param) instead of the element-erased
+                            # `array int`. The element record is pinned PURE via the
+                            # AST-walk `list_element_record_types` pre-scan (visit_Module).
+                            # No corpus record field is `List[<record>]`, and the Module6
+                            # branch is @mutable_state-gated -> byte-inert for the 767-file
+                            # reference corpus.
+                            if _vt_i is None:
+                                _vt_i = self._m5_get_list_record_elem(stmt.annotation)
+                            if _vt_i is not None:
+                                _fld_i["value_type"] = _vt_i
+                            # K6 (map-pyval self-field read, self-tcb-reduction Tier-5):
+                            # record the field's KEY type κ for an `__init__`-declared
+                            # `self.<f>: Dict[str, ν]` dict field (only the @dataclass
+                            # class-body path did — line ~2599). Without it a
+                            # `Dict[str, PyVal]` field lowered to `map int (option ...)`
+                            # and `self.f.get(k)` int-HASHED the key (`str_hash_op`), a
+                            # WhyML type error against the native-string store. With κ the
+                            # field is `map string (option hval)`, native key. `PyVal` is a
+                            # corpus-absent sentinel and the pyval field branch is
+                            # @mutable_state-gated -> corpus byte-identical.
+                            _kt_i = self._m5_get_field_key_type(stmt.annotation)
+                            if _kt_i:
+                                _fld_i["key_type"] = _kt_i
+                            fields.append(_fld_i)
                             field_names_seen.add(stmt.target.attr)
                             if (stmt.value and isinstance(stmt.value, ast.Constant) and
                                     isinstance(stmt.value.value, (int, float))):
@@ -2284,6 +3436,70 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 sz = self._array_init_size(stmt.value)
                                 if sz is not None:
                                     field_defaults[stmt.target.attr] = sz
+        # (#49) ROUTE #88 — THE UNIT IS THE FIELD'S **LAST** TOP-LEVEL STORE, NOT ITS
+        # FIRST. The walk above guards every store with `target.attr not in
+        # field_names_seen`, so the FIRST store to a field decided its `field_defaults`
+        # entry and every LATER store was skipped outright. MEASURED:
+        #     class C:
+        #         n: int
+        #         def __init__(self) -> None:
+        #             self.n = 1
+        #             self.n = 2
+        #     C().n       #@ ensures \result == 0 ... == 1   <-- PROVED; CPython returns 2
+        # The emitted WhyML is literally `let c = { n = 1 } in c.n`; the TRUE twin
+        # (`== 2`) was REFUSED, THREE stores kept the first of three, and the stale `1`
+        # DISCHARGED a callee's `requires m == 1` while the runtime value was 2.
+        # Route #79's own comment in `module5/construction_synth.py` already states this
+        # rule — "A field written twice must be judged by the write that decides its
+        # value" — and implements it for the UNKNOWN-MARKING decision only. **A RULE
+        # STATED IN A COMMENT IS NOT A RULE THE OTHER FUNCTIONS OBEY.**
+        #
+        # STRICTLY ADDITIVE, AND MEASURED SO: this pass touches a field ONLY on its
+        # SECOND-OR-LATER **TOP-LEVEL** store, and a census of 1167 pycsl-reference +
+        # 2217 python-reference files, the 74-file mirror, src/pycsl and src/pycsl_lib
+        # finds **ZERO** fields with two top-level stores. NESTED stores are deliberately
+        # NOT considered here: they are route #83's territory (`_init_unknown` overrides
+        # the default with `(any int)`), and the five multi-store sites that DO exist are
+        # all one-top-level-plus-one-nested — leaving them to #83 is what keeps this
+        # byte-inert, including the three in `src/pycsl_lib`, which no byte-diff corpus
+        # contains and only the reference SUITE would price.
+        for _c88 in node.body:
+            if not (isinstance(_c88, ast.FunctionDef) and _c88.name == '__init__'):
+                continue
+            _seen88: Set[str] = set()
+            for _s88 in _c88.body:  # TOP-LEVEL ONLY, in source order
+                _t88 = _r88 = None
+                if isinstance(_s88, ast.Assign) and len(_s88.targets) == 1:
+                    _t88, _r88 = _s88.targets[0], _s88.value
+                elif isinstance(_s88, ast.AnnAssign) and _s88.value is not None:
+                    _t88, _r88 = _s88.target, _s88.value
+                if not (isinstance(_t88, ast.Attribute)
+                        and isinstance(_t88.value, ast.Name)
+                        and _t88.value.id == 'self'):
+                    continue
+                if _t88.attr not in _seen88:
+                    # the FIRST top-level store is exactly what the walk above used
+                    _seen88.add(_t88.attr)
+                    continue
+                if (isinstance(_r88, ast.Constant)
+                        and isinstance(_r88.value, (int, float))
+                        and not (isinstance(_r88.value, float)
+                                 and not _r88.value.is_integer())):
+                    # ROUTE #148: a non-integral float falls through to the pop below.
+                    field_defaults[_t88.attr] = int(_r88.value)
+                elif self._const_int_value(_r88) is not None:
+                    # (#49) ROUTE #139 — the same unary-minus miss, on the last-wins arm.
+                    field_defaults[_t88.attr] = self._const_int_value(_r88)
+                else:
+                    _sz88 = self._array_init_size(_r88)
+                    if _sz88 is not None:
+                        field_defaults[_t88.attr] = _sz88
+                    else:
+                        # A later store the capture rule cannot express SUPERSEDES the
+                        # earlier default: keeping it would be a definite FALSE fact.
+                        # The field then falls to construction_synth's param capture, or
+                        # to #79/#83's unconstrained `(any int)`.
+                        field_defaults.pop(_t88.attr, None)
         # b14 B1 (ir-schema-spec.md): a `@dataclass` has no `__init__` — its
         # fields are CLASS-BODY AnnAssigns (`target: str`, `value: "ExprIR"`).
         # The synthesized `__init__` walk above finds none, so the class would
@@ -2301,12 +3517,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     ftype = self._field_type_from_annotation_inst(
                         stmt.annotation, node.name)
                     _fld2 = {"name": stmt.target.id, "type": ftype, "mutable": True}
+                    # optional-field builder (monomorphic-option ADTs): an
+                    # `Optional[str]`/`Optional[ExprIR]` field is `option string`/
+                    # `option emit_ir` (Forall/Exists binder_type/domain). Overrides
+                    # the scalar tag ftype ("int" for Optional[str]; "ExprIR" for the
+                    # `_irnode_ann_name`-unwrapped Optional[ExprIR]) with the option
+                    # tag + inner value_type. The record emitter gates the WhyML.
+                    _optin2 = self._m5_get_option_field_inner(
+                        stmt.annotation, node.name, stmt.target.id)
+                    if _optin2 is not None:
+                        _fld2["type"] = "option"
+                        _fld2["value_type"] = _optin2
                     # self-field-dict-reflection (typed-ir §12): a `dict[str, str]` field's
                     # value type, so `self.<field>.get(k)` reads a string.
-                    _vt2 = self._m5_get_dict_value_type(stmt.annotation)
+                    _vt2 = self._m5_get_dict_value_type(stmt.annotation) if _optin2 is None else None
                     if _vt2:
                         _fld2["value_type"] = _vt2
-                    else:
+                    elif _optin2 is None:
                         _le2 = self._m5_get_list_elem_type(stmt.annotation)
                         # cf6.md M1.2: MatchStmt.cases (imported @dataclass) → array emit_ir.
                         if _le2 is None and self._cf6_is_cases_list_of_dict(
@@ -2321,9 +3548,82 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         _fld2["key_type"] = _kt2
                     fields.append(_fld2)
                     field_names_seen.add(stmt.target.id)
-                    if (stmt.value is not None and isinstance(stmt.value, ast.Constant)
-                            and isinstance(stmt.value.value, (int, float))):
-                        field_defaults[stmt.target.id] = int(stmt.value.value)
+                    # (#49) ROUTE #145 — THE CLASS-BODY DEFAULT COLLECTOR KEYED ON
+                    # `isinstance(value, ast.Constant)`, AND PYTHON'S PARSER DOES NOT FOLD.
+                    #
+                    # This is gen #27's route #139 ONE LEVEL UP, found by CARRIER-RERUN on
+                    # that very repair: #139 taught the `__init__`-BODY collector to fold a
+                    # unary-minus literal with `_const_int_value`, and left THIS collector —
+                    # the one every `@dataclass` uses — on the raw `ast.Constant` test. A
+                    # field with no `field_defaults` entry falls to `_field_default`'s
+                    # **definite** literal `0`. MEASURED at `2887ba44`, each PROVING with
+                    # CPython contradicting:
+                    #     @dataclass
+                    #     class Pee: xfld: int = -7            # UnaryOp   -> proved 0, CPython -7
+                    #     class Pee: xfld: int = 2 + 3         # BinOp     -> proved 0, CPython  5
+                    #     class Pee: xfld: int = field(default=5)   # Call -> proved 0, CPython  5
+                    #
+                    # THREE ARMS, IN ORDER, AND THE ORDER IS LOAD-BEARING:
+                    #  1. `field(default=<x>)` is UNWRAPPED first — it is the dataclass
+                    #     spelling of a default and the wrapper hides every shape below it.
+                    #     `field(default_factory=...)` and a bare `field()` carry NO default
+                    #     and are left exactly as they were: the typed default they already
+                    #     get (an empty map for `default_factory=dict`) is FAITHFUL, and the
+                    #     13 corpus sites are all of that form.
+                    #  2. a NUMERIC `ast.Constant` keeps the pre-existing `int(...)` path
+                    #     VERBATIM (so `True`/`2.5` behave exactly as before — byte-identical),
+                    #     then `_const_int_value` folds the unary-minus literal.
+                    #  3. anything else that is name-free-but-COMPUTED is marked UNKNOWN
+                    #     (`(any int)`), never given a witness value — the lesson that a
+                    #     completeness fix supplying a witness is a soundness route waiting to
+                    #     happen. STRING/None/bool constants and collection literals or factory
+                    #     calls are EXCLUDED from that arm because they are carried by their own
+                    #     channels (#51's `field_str_defaults`, #85's map literals, #87's list
+                    #     literals); disturbing them here would re-price working corpus files.
+                    # CENSUS over the two corpora, the 53 mirrors and `pycsl_lib`: 48 numeric
+                    # class-body defaults (arm 2, unchanged), 161 non-numeric `ast.Constant`
+                    # and 14 collection literals/factory calls (all excluded), and ZERO
+                    # UnaryOp/BinOp/Name — so arms 1 and 3 have LIVE POPULATION 0 and the
+                    # emission is byte-inert.
+                    _rhs145 = stmt.value
+                    _isfield145 = False
+                    _factory145 = False
+                    if isinstance(_rhs145, ast.Call):
+                        _ff145 = _rhs145.func
+                        if ((isinstance(_ff145, ast.Name) and _ff145.id == "field")
+                                or (isinstance(_ff145, ast.Attribute)
+                                    and _ff145.attr == "field")):
+                            _isfield145 = True
+                            _factory145 = any(_k145.arg == "default_factory"
+                                              for _k145 in _rhs145.keywords)
+                            _rhs145 = next((_k145.value for _k145 in _rhs145.keywords
+                                            if _k145.arg == "default"), None)
+                    if _rhs145 is None and _factory145:
+                        # (#49) ROUTE #145, carrier-rerun on this very arm: a
+                        # `default_factory` RUNS A FUNCTION at construction time, and its
+                        # result is not a value this front end can know. For a COLLECTION
+                        # field that is harmless — the typed default (`{}`/empty array)
+                        # IS what `dict`/`set`/`list` produce, and `init_unknown_fields`
+                        # is `_NONSCALAR`-gated in Module 6 so those 13 corpus sites are
+                        # untouched. For a SCALAR field it was a DEFINITE 0:
+                        #     xfld: int = field(default_factory=five)
+                        #     Pee().xfld    #@ ensures \result == 0  <-- PROVED; CPython 5
+                        # so the field is marked UNKNOWN and the scalar case fails closed.
+                        self._m5_dc_unknown.append(stmt.target.id)
+                    elif _rhs145 is None:
+                        pass
+                    elif (isinstance(_rhs145, ast.Constant)
+                            and isinstance(_rhs145.value, (int, float))):
+                        field_defaults[stmt.target.id] = int(_rhs145.value)
+                    elif self._const_int_value(_rhs145) is not None:
+                        field_defaults[stmt.target.id] = self._const_int_value(_rhs145)
+                    elif isinstance(_rhs145, (ast.Constant, ast.Dict, ast.List,
+                                              ast.Set, ast.Tuple)):
+                        pass
+                    elif isinstance(_rhs145, ast.Call) and not _isfield145:
+                        pass
+                    else:
+                        self._m5_dc_unknown.append(stmt.target.id)
         return fields, field_defaults
 
     @staticmethod
@@ -2337,6 +3637,108 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if isinstance(target, ast.Attribute) and target.attr == "dataclass":
                 return True
         return False
+
+    @staticmethod
+    def _m5_is_plain_positional_record_class(node: ast.ClassDef) -> bool:
+        """WL-04e (wrong-lowering-to-fix.md §WL-04 record residual): True if `node` is
+        a PLAIN class (NOT a `@dataclass` / `NamedTuple` / `TypedDict` / `Protocol` —
+        those are recognized by their own predicates) whose explicit `__init__` is a
+        CONTENT-FAITHFUL POSITIONAL constructor: every `self.<field>` assignment sets
+        the field from a same-position `__init__` positional parameter (an `ast.Name`
+        bound to a positional arg). Such a class is emitted as a record type_decl by
+        `visit_ClassDef` and its ctor is faithful (`Point(1, 2).x` proves `== 1`, not
+        `== 0`), so a flat `List[Point]` element can be realized as `array <record>`
+        (WL-04b), reading `a[i].field` at the faithful field.
+
+        Requires at least one such positional field assignment AND rejects (returns
+        False, keeping the pre-existing `array int` collapse — fail-closed) if ANY
+        `self.<attr>` assignment's RHS is NOT a positional-param `Name` (a constant, a
+        computed expression, a keyword-only/default-bound param): such a ctor is not a
+        pure positional data record, so it must not be threaded into the faithful array
+        element path (its store-and-read-back value would not be sound). Purely a
+        recognition test — no IR mutation; additive (a plain class NOT used as a flat
+        `List[R]` element never reaches `_m5_get_list_record_elem`, so a bigger
+        recognition set changes nothing unless a `List[<plain-class>]` annotation
+        exists)."""
+        if not isinstance(node, ast.ClassDef):
+            return False
+        if (PyCSLToJSONEmitter._is_dataclass_decorated(node)
+                or PyCSLToJSONEmitter._is_namedtuple_class(node)):
+            return False
+        init = next((s for s in node.body
+                     if isinstance(s, ast.FunctionDef) and s.name == "__init__"),
+                    None)
+        if init is None:
+            return False
+        pos_params = {a.arg for a in
+                      (list(getattr(init.args, "posonlyargs", []) or [])
+                       + list(init.args.args))
+                      if a.arg != "self"}
+        if not pos_params:
+            return False
+        saw_field = False
+        for stmt in ast.walk(init):
+            tgt = None
+            rhs = None
+            if isinstance(stmt, ast.Assign) and len(stmt.targets) == 1:
+                tgt, rhs = stmt.targets[0], stmt.value
+            elif isinstance(stmt, ast.AnnAssign):
+                tgt, rhs = stmt.target, stmt.value
+            if not (isinstance(tgt, ast.Attribute)
+                    and isinstance(tgt.value, ast.Name)
+                    and tgt.value.id == "self"):
+                continue
+            # A `self.<attr>` set from anything OTHER than a positional param Name
+            # (constant / computation / keyword-only param) breaks the pure
+            # positional-record shape → not recognized (fail-closed to `array int`).
+            if not (isinstance(rhs, ast.Name) and rhs.id in pos_params):
+                return False
+            saw_field = True
+        return saw_field
+
+    @staticmethod
+    def _m5_is_annotated_field_record_class(node: ast.ClassDef) -> bool:
+        """W8/W1 (parser-primitives): True if `node` is a PLAIN class whose `__init__`
+        declares EVERY `self.<field>` with an explicit type annotation
+        (`self.type: int = t.type`). `_collect_class_fields` already emits exactly such
+        a class as a record `type_decl` with those declared field types — this predicate
+        only brings the `_m5_record_class_names` PRE-SCAN (which runs before any class is
+        visited, so it cannot consult `type_decls`) into agreement with that emission, so
+        a `List[<such class>]` element resolves to `array <record>` (WL-04b) instead of
+        collapsing to `array int`.
+
+        Fail-closed exactly like `_m5_is_plain_positional_record_class`: rejects a
+        `@dataclass`/`NamedTuple` (owned by their own predicates), a `@mutable_state`
+        class (a stateful record must never sit at an `array` element position — Why3
+        forbids a mutable element inside `array`), a class with no `__init__`, and any
+        class with even ONE UNANNOTATED `self.<attr> = ...` assignment (its field type
+        would be the inferred coarse tag, so the record is not fully declared)."""
+        if not isinstance(node, ast.ClassDef):
+            return False
+        if (PyCSLToJSONEmitter._is_dataclass_decorated(node)
+                or PyCSLToJSONEmitter._is_namedtuple_class(node)
+                or PyCSLToJSONEmitter._is_mutable_state_decorated(node)):
+            return False
+        init = next((s for s in node.body
+                     if isinstance(s, ast.FunctionDef) and s.name == "__init__"),
+                    None)
+        if init is None:
+            return False
+        saw_field = False
+        for stmt in ast.walk(init):
+            if isinstance(stmt, ast.Assign):
+                for tgt in stmt.targets:
+                    if (isinstance(tgt, ast.Attribute)
+                            and isinstance(tgt.value, ast.Name)
+                            and tgt.value.id == "self"):
+                        return False          # unannotated field → fail closed
+            elif isinstance(stmt, ast.AnnAssign):
+                tgt = stmt.target
+                if (isinstance(tgt, ast.Attribute)
+                        and isinstance(tgt.value, ast.Name)
+                        and tgt.value.id == "self"):
+                    saw_field = True
+        return saw_field
 
     @staticmethod
     def _is_mutable_state_decorated(node: ast.ClassDef) -> bool:
@@ -2418,6 +3820,107 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if iv is not None:
                 constants[target] = iv
         return constants
+
+    def _collect_class_str_set_constants(self, node: ast.ClassDef,
+                                         field_names: Set[str]) -> Dict[str, List[str]]:
+        """7b (self-tcb-reduction L4b): collect class-body STRING-SET constants
+        (`_GENERIC_BASE_NAMES = {"Generic"}`) — a top-level `Name = {<str-lit>, ...}`
+        (or `frozenset({...})`) assignment whose elements are all string literals.
+        Returns `{name: [member, ...]}` in source order. These let a `<x> in
+        self.<CONST>` membership lower to a FAITHFUL `str_eq_op` disjunction over the
+        ACTUAL members (Module 6), not an int-hash of the set's NAME (a facade that is
+        invariant under the set's contents). Names already used as instance fields are
+        skipped."""
+        out: Dict[str, List[str]] = {}
+        for child in node.body:
+            target: Optional[str] = None
+            value: Optional[ast.expr] = None
+            if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                    and isinstance(child.targets[0], ast.Name)):
+                target = child.targets[0].id
+                value = child.value
+            elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+                target = child.target.id
+                value = child.value
+            if target is None or value is None or target in field_names:
+                continue
+            # `frozenset({...})` unwraps to the inner set literal.
+            if (isinstance(value, ast.Call) and isinstance(value.func, ast.Name)
+                    and value.func.id in ("frozenset", "set") and len(value.args) == 1):
+                value = value.args[0]
+            if not isinstance(value, ast.Set):
+                continue
+            members: List[str] = []
+            ok = True
+            for elt in value.elts:
+                if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
+                    members.append(elt.value)
+                else:
+                    ok = False
+                    break
+            if ok and members:
+                out[target] = members
+        return out
+
+    def _collect_class_type_str_constants(self, node: ast.ClassDef,
+                                          field_names: Set[str]
+                                          ) -> Dict[str, List[List[str]]]:
+        """L2 dispatch-expansion: collect class-body TYPE-KEYED STRING tables — a
+        top-level `Name = {<mod>.<Cls>: "<str>", ...}` (optionally annotated
+        `Dict[type, str]`) whose every key is a dotted attribute naming a class and every
+        value is a string literal. `_PY_OP_MAP` is the motivating one (26 entries).
+
+        Returns `{name: [[<Cls>, <value>], ...]}` IN SOURCE ORDER — the order matters,
+        because Module 6 lowers `self.<CONST>.get(type(x), <default>)` to a nested
+        if-chain of type-tag tests and a Python dict's first matching key wins.
+
+        Why this must reach Module 6 at all: without it the whole `.get` collapses to one
+        opaque `val self__<CONST>_get_2 (x0: int) (x1: int) : int` — a lookup that is
+        int-typed (so it cannot even feed a `str` return) AND invariant under the table's
+        contents, i.e. a facade of exactly the kind the campaign exists to remove. With
+        the table in hand the lookup becomes a finite chain of tag tests over the REAL
+        entries, and only the type-tag extraction stays uninterpreted.
+
+        Names already used as instance fields are skipped. Empty for every class without
+        such a table -> additive, byte-inert."""
+        out: Dict[str, List[List[str]]] = {}
+        for child in node.body:
+            target: Optional[str] = None
+            value: Optional[ast.expr] = None
+            if (isinstance(child, ast.Assign) and len(child.targets) == 1
+                    and isinstance(child.targets[0], ast.Name)):
+                target = child.targets[0].id
+                value = child.value
+            elif isinstance(child, ast.AnnAssign) and isinstance(child.target, ast.Name):
+                target = child.target.id
+                value = child.value
+            if target is None or value is None or target in field_names:
+                continue
+            if not isinstance(value, ast.Dict):
+                continue
+            entries: List[List[str]] = []
+            ok = bool(value.keys)
+            for k, v in zip(value.keys, value.values):
+                if not (isinstance(v, ast.Constant) and isinstance(v.value, str)):
+                    ok = False
+                    break
+                # A key names a CLASS, either dotted (`ast.Name` — the `_PY_OP_MAP` /
+                # `_PY_EXPR_HANDLERS` shape, a module-qualified class) or BARE (`CSLBinOp` —
+                # the `_CSL_HANDLERS` shape, a directly-imported class). Both denote the same
+                # thing to `type(x)`, and dropping the bare form silently excluded the
+                # 77-entry CSL dispatch table from the expansion. The recorded key is the
+                # class's OWN name in both cases, so downstream (`_pyx_dispatch_tables`,
+                # `_class_type_str_table_get`) is unchanged.
+                if isinstance(k, ast.Attribute) and isinstance(k.value, ast.Name):
+                    entries.append([k.attr, v.value])
+                elif isinstance(k, ast.Name):
+                    entries.append([k.id, v.value])
+                else:
+                    ok = False
+                    break
+            if ok and entries:
+                out[target] = entries
+        return out
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Collect fields from __init__, extract class invariants, record base
@@ -2513,13 +4016,384 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                    "type": self._mixin_field_type(s.type_str),
                                    "mutable": True})
                     field_defaults.setdefault(s.name, 0)
+        # tcb: register EVERY @mutable_state-decorated class name, regardless of
+        # whether it gets a "record" type_decl below (a stateless class with no
+        # fields/bases stays a scalar `type c = int` alias — a WhyML record cannot
+        # carry zero fields, so it is never forced into one). Module 6's
+        # `_mutable_state_classes` unions this with the record-kind type_decl scan,
+        # so the emit_ir attribute-projection gate (`_handle_attribute_expr`) fires
+        # for a @mutable_state class's methods even when the class itself never
+        # becomes a populated record. Every corpus @mutable_state class already has
+        # ≥1 field (so `fields or bases` is True and it is captured by the existing
+        # type_decl scan too) → this is additive-only (duplicate, harmless) there.
+        if self._is_mutable_state_decorated(node):
+            self.program_ir.setdefault("mutable_state_class_names", []).append(node.name)
+        # self-tcb-reduction (_collect_mutations): class-body string-SET constants must
+        # reach Module 6 even for a fields-less/bases-less UTILITY class (`IRScanner`,
+        # which holds `_MUTATING_METHODS = {...}` but has no instance fields, so it never
+        # becomes a record type_decl and its str-set constant was otherwise dropped). A
+        # program-level `class_str_set_constants` registry — keyed by class name — is the
+        # class-scope analogue of `module_const_str_sets`, letting a Module-6 recognizer
+        # lower `<x> in IRScanner._MUTATING_METHODS` to a FAITHFUL `str_eq_op` disjunction
+        # over the ACTUAL members. Additive: populated only when the (tightly-gated)
+        # collector returns non-empty, so ABSENT for every class without such a constant
+        # (byte-identical emission — consumed only by a name-gated mirror-only recognizer).
+        _class_ssc = self._collect_class_str_set_constants(
+            node, {f["name"] for f in fields})
+        if _class_ssc:
+            self.program_ir.setdefault("class_str_set_constants", {})[node.name] = {
+                k: list(v) for k, v in _class_ssc.items()}
+        # L2 dispatch-expansion: the TYPE-KEYED STRING table (`_PY_OP_MAP`) travels by the
+        # same program-level, class-name-keyed registry, for the same reason — the class
+        # holding it may have no instance fields and so never become a record type_decl.
+        # Additive: absent for every class without such a table -> byte-identical.
+        _class_tsc = self._collect_class_type_str_constants(
+            node, {f["name"] for f in fields})
+        if _class_tsc:
+            self.program_ir.setdefault("class_type_str_constants", {})[node.name] = {
+                k: [list(e) for e in v] for k, v in _class_tsc.items()}
+        # (#49) ROUTE #150 — which classes DEFINE `__post_init__`. A derived `@dataclass`'s
+        # synthesized constructor calls the INHERITED hook too (measured: `B(A)` over an
+        # `A.__post_init__` storing 7 proved `B(1).get() == 1`). Records carry a flag; a
+        # class that is not a record (no fields, no bases) goes on a module-level list.
+        # Both are side channels consumed and POPPED by `apply_inheritance`.
+        _hpi150 = any(isinstance(_c, ast.FunctionDef) and _c.name == "__post_init__"
+                      for _c in node.body)
+        if _hpi150 and not (fields or bases):
+            self.program_ir.setdefault("post_init_nonrecord150", []).append(node.name)
         if fields or bases:
             class_invariants_ir = [self._csl_to_ir(inv.expr)
                                    for inv in getattr(node, 'csl_class_invariants', [])]
             field_witness = {f["name"]: field_defaults.get(f["name"], 0) for f in fields}
             constants = self._collect_class_constants(node, {f["name"] for f in fields})
+            str_set_constants = self._collect_class_str_set_constants(
+                node, {f["name"] for f in fields})
             init_params, init_body = self._collect_init_construction(node)
+            # (#49) ROUTE #85 — A NON-EMPTY DICT/SET LITERAL STORED TO A FIELD IN
+            # `__init__` WAS MODELLED AS THE **EMPTY MAP**, AND MEMBERSHIP AND CONTENTS
+            # WERE THEN DECIDED ON. `_field_default` answered every dict/set field with
+            # `(const (None: option int))` — a DEFINITE value, not an unknown one — so
+            # `Map.get d k` was decidably `None`. MEASURED at HEAD:
+            #     class C:
+            #         d: Dict[int, int]
+            #         def __init__(self) -> None:
+            #             self.d = {1: 5}
+            #     `1 in c.d`        #@ ensures \result == 0   <-- PROVED; CPython gives 1
+            #     `c.d.get(1, 0)`   #@ ensures \result == 0   <-- PROVED; CPython gives 5
+            # and the empty map DISCHARGED a callee's `#@ requires 1 not in d` that the
+            # running program VIOLATES, so the defect crossed the call graph. The true
+            # twin was refused in every case.
+            #
+            # A LOCAL dict literal has ALWAYS been lowered FAITHFULLY, to a
+            # `map_update_some (const (None: option int)) k v` chain — only the FIELD arm
+            # dropped it. So the information exists and the repair is a FAITHFUL CAPTURE,
+            # not an unconstrained value: route #82's rule, and it makes the TRUE claim
+            # provable (spiked in Why3 before this was written — the chain gives
+            # `Goal f'vc — Valid`, the old empty map gives the false claim instead).
+            #
+            # Fields whose literal is NOT reconstructible (a non-constant key or value, or
+            # a SET literal, whose element lowering is int-erased) are marked UNKNOWN and
+            # get a polymorphic unconstrained map instead — also spiked: it type-checks
+            # against any key/value type AND the false claim stops proving.
+            # UNKNOWN WINS over a captured literal for the same field: it is the
+            # conservative merge when a field is written more than once.
+            # NOTE: written INLINE with no new `def`. `check-mirror-coverage` ratchets on
+            # every `ast.FunctionDef` in this mirrored file, nested ones included.
+            _m85lit: Dict[str, Any] = {}
+            _m85unk: List[str] = []
+            _l87lit: Dict[str, Any] = {}
+            _l87unk: List[str] = []
+            # (#49) finding-0700 / Gap 2a — a `str` FIELD had NO default witness at all:
+            # `_field_default`'s fallback is `rec_info['defaults'].get(fn, 0)`, an INT, so a
+            # `string`-typed field emitted `{ template = 0 }` — ILL-TYPED, hence a refusal.
+            # That is fail-closed, and 0700 is the ONE corpus file it costs (measured: a
+            # sweep of all 993 pycsl-ref + 2203 python-ref emissions finds exactly one
+            # `string`/`real` field defaulted to an int literal, and it is 0700's).
+            # THE DOCUMENTED FIX WAS "default a `str` field to the EMPTY STRING `""`", AND
+            # THAT WOULD HAVE OPENED A ROUTE OF THE FAMILY THIS GENERATION SPENT ITS DAY
+            # CLOSING: an empty-string witness is a DEFINITE value, so a field really
+            # initialised to "abc" would make `len(c.s) == 0` provable — #85's shape exactly.
+            # So the capture is FAITHFUL (the literal's own text) and a str field WITHOUT a
+            # constant literal keeps its ill-typed int, i.e. keeps REFUSING. Minimal by
+            # design: this turns a refusal into an emission ONLY where the emission is
+            # provably the right one.
+            _s70lit: Dict[str, Any] = {}
+            # (#49) ROUTE #183 — a field whose ONLY initialiser is the literal `None` is not
+            # the integer 0. `self.v: Optional[int] = None` lowered to `{ v = 0 }`, so
+            # `c.v == 0` PROVED True (CPython False) — route #56's shape on a FIELD. The
+            # names are carried so Module 6 can default them to route #44's opaque
+            # `pycsl_none` instead of a definite zero (a field later assigned a real value
+            # in `__init__` is NOT collected).
+            _n183: List[str] = []
+            for _c183 in node.body:
+                if not (isinstance(_c183, ast.FunctionDef) and _c183.name == '__init__'):
+                    continue
+                _none183: Dict[str, bool] = {}
+                for _s183 in ast.walk(_c183):
+                    _t183 = _r183 = None
+                    if isinstance(_s183, ast.Assign) and len(_s183.targets) == 1:
+                        _t183, _r183 = _s183.targets[0], _s183.value
+                    elif isinstance(_s183, ast.AnnAssign):
+                        _t183, _r183 = _s183.target, _s183.value
+                    if not (isinstance(_t183, ast.Attribute)
+                            and isinstance(_t183.value, ast.Name)
+                            and _t183.value.id == 'self'):
+                        continue
+                    _isnone183 = (isinstance(_r183, ast.Constant) and _r183.value is None)
+                    if _t183.attr in _none183:
+                        _none183[_t183.attr] = _none183[_t183.attr] and _isnone183
+                    else:
+                        _none183[_t183.attr] = _isnone183
+                for _k183, _v183 in _none183.items():
+                    if _v183 and _k183 not in _n183:
+                        _n183.append(_k183)
+            _n183.sort()
+            for _c85 in node.body:
+                if not (isinstance(_c85, ast.FunctionDef) and _c85.name == '__init__'):
+                    continue
+                for _s85 in ast.walk(_c85):
+                    _t85 = _r85 = None
+                    if isinstance(_s85, ast.Assign) and len(_s85.targets) == 1:
+                        _t85, _r85 = _s85.targets[0], _s85.value
+                    elif isinstance(_s85, ast.AnnAssign):
+                        _t85, _r85 = _s85.target, _s85.value
+                    if not (isinstance(_t85, ast.Attribute)
+                            and isinstance(_t85.value, ast.Name)
+                            and _t85.value.id == 'self' and _r85 is not None):
+                        continue
+                    if (isinstance(_r85, ast.Constant)
+                            and isinstance(_r85.value, str)):
+                        _s70lit[_t85.attr] = _r85.value
+                    elif isinstance(_r85, ast.List) and _r85.elts:
+                        # (#49) ROUTE #87 — the LIST arm of the same allocation-site
+                        # erasure. `_field_default` answered a list field with
+                        # `(Array.make <len> 0)`: the LENGTH is captured but every ELEMENT
+                        # is a DEFINITE ZERO. MEASURED: `self.xs = [1, 2, 3]` then
+                        # `c.xs[0]` PROVED `\result == 0` where CPython returns 1, the
+                        # true twin was refused, and the zero-filled array DISCHARGED a
+                        # callee's `#@ requires xs[0] == 0` that the program violates.
+                        # A LOCAL list literal has always been faithful
+                        # (`let _alit = Array.make 3 (1) in _alit[1] <- 2; ... ; _alit`),
+                        # so the information exists and the capture is FAITHFUL.
+                        _el87 = []
+                        for _e87 in _r85.elts:
+                            if (isinstance(_e87, ast.Constant)
+                                    and isinstance(_e87.value, int)
+                                    and not isinstance(_e87.value, bool)):
+                                _el87.append(int(_e87.value))
+                            else:
+                                _el87 = None
+                                break
+                        # CARRY THE KEY ONLY WHEN IT CHANGES THE ANSWER. An ALL-ZERO
+                        # literal already lowers FAITHFULLY to the `(Array.make n 0)` the
+                        # emitter has always produced, so recording it would add an IR key
+                        # that moves a FROZEN CONFORMANCE GOLDEN (0595's `[0]*8`) while
+                        # changing no emitted byte. Rule (k) forbids refreshing a golden to
+                        # make a gate green, and the right answer here was not to re-bless
+                        # it but to stop emitting information that carries none: an
+                        # all-ZERO literal is already right, an all-EQUAL NON-ZERO literal
+                        # (`[7,7,7]` -> the old `Array.make 3 0`) is NOT and must be
+                        # captured, and a non-uniform one takes the full chain.
+                        if _el87 and any(_v87 != 0 for _v87 in _el87):
+                            _l87lit[_t85.attr] = _el87
+                        elif _el87 is None and _t85.attr not in _l87unk:
+                            _l87unk.append(_t85.attr)
+                    elif isinstance(_r85, ast.Set) and _r85.elts:
+                        if _t85.attr not in _m85unk:
+                            _m85unk.append(_t85.attr)
+                    elif isinstance(_r85, ast.Dict) and _r85.keys:
+                        _items85 = []
+                        for _k85, _v85 in zip(_r85.keys, _r85.values):
+                            if (isinstance(_k85, ast.Constant)
+                                    and isinstance(_k85.value, int)
+                                    and not isinstance(_k85.value, bool)
+                                    and isinstance(_v85, ast.Constant)
+                                    and isinstance(_v85.value, int)
+                                    and not isinstance(_v85.value, bool)):
+                                _items85.append([int(_k85.value), int(_v85.value)])
+                            else:
+                                _items85 = None
+                                break
+                        if _items85:
+                            _m85lit[_t85.attr] = _items85
+                        elif _t85.attr not in _m85unk:
+                            _m85unk.append(_t85.attr)
+                break
+            for _f85 in _m85unk:
+                _m85lit.pop(_f85, None)
+            for _f87 in _l87unk:
+                _l87lit.pop(_f87, None)
+            _kwo = getattr(self, "_init_kwonly", ([], {}))
+            _pd149 = getattr(self, "_init_posdef", ({}, []))
+            _unk = list(getattr(self, "_init_unknown", []) or [])
+            # (#49) ROUTE #145 — the class-body `@dataclass` computed-default fields join
+            # the SAME channel. `_collect_class_fields` ran above, and
+            # `_collect_init_construction` (which resets `_init_unknown`) runs after it,
+            # so the two lists are merged here rather than in either collector.
+            for _u145 in (getattr(self, "_m5_dc_unknown", []) or []):
+                if _u145 not in _unk:
+                    _unk.append(_u145)
+            # (#49) ROUTE #89 — the control-flow-only subset, for the COLLECTION arms.
+            _unkcf = list(getattr(self, "_init_unknown_cf", []) or [])
+            # (#49) ROUTE #235 — a COLLECTION field whose last top-level `__init__` store
+            # is a non-captured expression over a parameter (`self.items = list(xs)`)
+            # took `_field_default`'s DEFINITE empty value (`Array.make 0 0` /
+            # `Seq.empty` / `const None`): `if c.items:` was decided False for a
+            # 3-element `xs`. Joined to the collection channel ONLY for collection-typed
+            # fields, so a scalar's IR (and every frozen golden) is unchanged; the scalar
+            # case is already fenced by `init_unknown_fields`.
+            # The same holds for an OMITTED `@dataclass` actual whose `default_factory` is
+            # NOT the bare `list`/`dict`/`set`/`frozenset` builtin (`lambda: [1, 2, 3]`):
+            # route #145 marks it unknown for the scalar arm only, and the collection arm
+            # answered the definite empty value. Scanned here, inline, from the class body
+            # (no new `self` attribute: the mirror's `assigns` clauses would not carry it).
+            _ft235 = {_fd235.get("name"): _fd235.get("type")
+                      for _fd235 in fields if isinstance(_fd235, dict)}
+            # (#49) ROUTE #236 — A `@dataclass` CLASS-BODY DEFAULT THE COLLECTOR `pass`ED
+            # READ AS THE DEFINITE `0`. `_collect_class_fields` sends a `None` / `str` /
+            # other non-numeric constant default to `pass` ("carried by its own channel")
+            # and no channel carried it, so an OMITTED actual took `_field_default`'s
+            # `defaults.get(fn, 0)`. MEASURED at `3501dd72`, each PROVING with CPython
+            # contradicting: `k: Optional[int] = None` -> `P(c).k == 0`; the same through
+            # `field(default=None)` and a keyword-only `field(default=None, kw_only=True)`;
+            # `b: Optional[bool] = None` -> `p.b == False`; `k: int = None`;
+            # `name: Optional[str] = "w"` -> `p.name == "w"` decided False; `k: int = "w"`
+            # and `Union[int, str] = "w"` -> `p.k == 0`; and a non-integral float on an
+            # int field, `k: int = 2.5` (or `field(default=2.5)`), TRUNCATED to 2 —
+            # route #148's shape on the class-body collector.
+            # Route #183's channel is reused: a `None` default joins `field_none_defaults`
+            # (Module 6 answers route #44's opaque `pycsl_none`, or route #50's
+            # `pycsl_none_str` for a `string` field); a `str` default on a `str` field is
+            # the FAITHFUL literal (finding-0700's `field_str_defaults`); a `str` default on
+            # any other field, and a non-integral float on a non-`float` field, is UNKNOWN
+            # (route #145's channel -> `(any int)`), never a wrong witness. Scanned inline
+            # from the class body (no new `self` attribute, no new `def`), for a dataclass
+            # that SYNTHESIZES its `__init__` — the only one whose class-body defaults are
+            # what an omitted actual takes.
+            if (self._is_dataclass_decorated(node)
+                    and not any(isinstance(_i236, ast.FunctionDef)
+                                and _i236.name == "__init__" for _i236 in node.body)):
+                for _st236 in node.body:
+                    if not (isinstance(_st236, ast.AnnAssign)
+                            and isinstance(_st236.target, ast.Name)
+                            and _st236.value is not None):
+                        continue
+                    _fn236 = _st236.target.id
+                    _rv236 = _st236.value
+                    if (isinstance(_rv236, ast.Call)
+                            and ((isinstance(_rv236.func, ast.Name)
+                                  and _rv236.func.id == "field")
+                                 or (isinstance(_rv236.func, ast.Attribute)
+                                     and _rv236.func.attr == "field"))):
+                        _rv236 = next((_k236.value for _k236 in _rv236.keywords
+                                       if _k236.arg == "default"), None)
+                    if (isinstance(_rv236, ast.UnaryOp)
+                            and isinstance(_rv236.op, (ast.USub, ast.UAdd))
+                            and isinstance(_rv236.operand, ast.Constant)
+                            and isinstance(_rv236.operand.value, float)):
+                        _rv236 = _rv236.operand   # only its integrality is consulted
+                    if not isinstance(_rv236, ast.Constant):
+                        continue
+                    if _rv236.value is None:
+                        if _fn236 not in _n183:
+                            _n183.append(_fn236)
+                    elif isinstance(_rv236.value, str):
+                        if _ft235.get(_fn236) in ("str", "string"):
+                            _s70lit.setdefault(_fn236, _rv236.value)
+                        elif _fn236 not in _unk:
+                            _unk.append(_fn236)
+                    elif (isinstance(_rv236.value, float)
+                            and not _rv236.value.is_integer()
+                            and _ft235.get(_fn236) not in ("float", "real")
+                            and _fn236 not in _unk):
+                        _unk.append(_fn236)
+                _n183.sort()
+            _c235 = list(getattr(self, "_init_unknown_c235", []) or [])
+            if (self._is_dataclass_decorated(node)
+                    and not any(isinstance(_i235, ast.FunctionDef)
+                                and _i235.name == "__init__" for _i235 in node.body)):
+                for _st235 in node.body:
+                    if not (isinstance(_st235, ast.AnnAssign)
+                            and isinstance(_st235.target, ast.Name)
+                            and isinstance(_st235.value, ast.Call)
+                            and ((isinstance(_st235.value.func, ast.Name)
+                                  and _st235.value.func.id == "field")
+                                 or (isinstance(_st235.value.func, ast.Attribute)
+                                     and _st235.value.func.attr == "field"))):
+                        continue
+                    _fac235 = next((_k235.value for _k235 in _st235.value.keywords
+                                    if _k235.arg == "default_factory"), None)
+                    if _fac235 is not None and not (
+                            isinstance(_fac235, ast.Name)
+                            and _fac235.id in ("list", "dict", "set", "frozenset")):
+                        _c235.append(_st235.target.id)
+            for _f235 in _c235:
+                if (_ft235.get(_f235) in ("list", "array", "dict", "set", "frozenset")
+                        and _f235 not in _unkcf):
+                    _unkcf.append(_f235)
+            # (#49) ROUTE #150 — an opaque constructor effect: EVERY field is unknown, on
+            # both channels (a helper can change a collection's length as easily as a
+            # scalar's value).
+            if getattr(self, "_init_opaque150", False):
+                for _f150 in fields:
+                    _fn150 = _f150.get("name") if isinstance(_f150, dict) else _f150
+                    if _fn150 and _fn150 not in _unk:
+                        _unk.append(_fn150)
+                    if _fn150 and _fn150 not in _unkcf:
+                        _unkcf.append(_fn150)
+            # (#49) ROUTE #144 — "these `init_params` were synthesized from a
+            # `@dataclass`'s own field declarations", the precondition for
+            # `apply_inheritance` to prepend the base dataclasses' parameters.
+            _dcs144 = bool(getattr(self, "_init_dc_synth", False))
+            _dcf144 = list(getattr(self, "_init_dc_fields", []) or [])
+            _dck146 = list(getattr(self, "_init_dc_kwonly", []) or [])
+            # (#49) ROUTE #147 — this class declares NO `__init__` of its own and is NOT
+            # `@dataclass`-decorated, so Python gives it the FIRST `__init__` in its MRO
+            # VERBATIM. That is a different operation from route #144's SYNTHESIZE (which
+            # builds a signature out of the merged field list): here nothing is built, a
+            # constructor is INHERITED, and an annotation the subclass happens to declare
+            # is inert because the decorator never runs on it.
+            _own147 = any(isinstance(_s147, ast.FunctionDef)
+                          and _s147.name == "__init__" for _s147 in node.body)
+            # A `@dataclass(init=False)` generates no constructor either, so it inherits
+            # exactly like an undecorated class (gen #29 carrier, see
+            # `_dc_decorator_init_false`).
+            _inh147 = (bool(bases) and not _own147
+                       and not (self._is_dataclass_decorated(node)
+                                and not self._dc_decorator_init_false(node)))
             init_ensures = self._collect_init_ensures(node)
+            # (#49) ROUTE #123 — a CLASS-BODY BINDING (`m = lambda self: 2`,
+            # `m = staticmethod(abs)`, `group = _color_match_group`) OVERRIDES an inherited
+            # method of that name, and `apply_inheritance` cloned the base's method over it
+            # (measured: `B().m()` proved `A.m`'s contract while Python ran the lambda; the
+            # same through an IMPORTED base and a grandchild). The names bound directly in the
+            # class body (not by a `def`) are carried so the clone can be skipped (fail-closed:
+            # the call then has no inherited contract). Emitted ONLY for a class WITH bases and
+            # a non-empty set, so every other type_decl — and every frozen IR golden — is
+            # unchanged.
+            _cbb123: List[str] = []
+            if bases:
+                _cbq123: list = list(node.body)
+                while _cbq123:
+                    _cbx123 = _cbq123.pop()
+                    if isinstance(_cbx123, ast.ClassDef) and _cbx123.name not in _cbb123:
+                        _cbb123.append(_cbx123.name)   # a nested class binds its name too
+                    if isinstance(_cbx123, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+                                            ast.Lambda)):
+                        continue
+                    if (isinstance(_cbx123, ast.Name)
+                            and isinstance(_cbx123.ctx, (ast.Store, ast.Del))
+                            and _cbx123.id not in _cbb123):
+                        _cbb123.append(_cbx123.id)
+                    elif isinstance(_cbx123, (ast.Import, ast.ImportFrom)):
+                        for _cba123 in _cbx123.names:
+                            _cbn123 = (_cba123.asname or _cba123.name).split(".")[0]
+                            if _cbn123 != "*" and _cbn123 not in _cbb123:
+                                _cbb123.append(_cbn123)
+                    _cbq123.extend(ast.iter_child_nodes(_cbx123))
+                _cbb123.sort()
+            _icc = self._collect_init_contract_check(node)
+            _tp695 = self._collect_type_params(node)
             self.program_ir["type_decls"].append({
                 "kind": "record", "name": node.name, "fields": fields,
             "mutable_state": self._is_mutable_state_decorated(node),
@@ -2528,8 +4402,86 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "has_hash": has_hash, "has_eq": has_eq,
                 "is_unhashable": has_eq and not has_hash,
                 "constants": constants, "bases": bases,
+                **({"class_body_bindings": _cbb123} if _cbb123 else {}),
+                # 7b (self-tcb-reduction L4b): class-body string-set constants, so a
+                # `<x> in self.<CONST>` membership lowers to a faithful `str_eq_op`
+                # disjunction. Emitted only when non-empty (additive) → byte-identical
+                # for every class without such a constant.
+                **({"str_set_constants": str_set_constants}
+                   if str_set_constants else {}),
                 "init_params": init_params, "init_body": init_body,
+                # (#49) ROUTE #144: this class's `init_params` were SYNTHESIZED from its
+                # own `@dataclass` field declarations, so Python's synthesized `__init__`
+                # ALSO takes the base dataclasses' fields first — `apply_inheritance`
+                # prepends them. Emitted ONLY for such a class (absent for every explicit
+                # `__init__` and every non-dataclass), so the IR of the whole corpus, the
+                # 53 mirrors and all 38 frozen conformance goldens is byte-identical
+                # wherever no `@dataclass` without an explicit `__init__` is declared.
+                **({"init_dataclass_synth": True} if _dcs144 else {}),
+                # (#49) ROUTE #144: this class's OWN `@dataclass` field names — what a
+                # DERIVED dataclass inherits, `ClassVar`s excluded. Carried separately
+                # from `init_params` because a `@dataclass` with an explicit `__init__`
+                # publishes `__dataclass_fields__` (so a subclass inherits these names)
+                # while its OWN signature is the explicit one. Emitted only for a
+                # `@dataclass` with at least one field.
+                **({"dataclass_fields": _dcf144} if _dcf144 else {}),
+                # (#49) ROUTE #146: the KEYWORD-ONLY half of the same list, kept apart so
+                # a subclass inherits a keyword-only field AS keyword-only and never binds
+                # it from a positional argument.
+                **({"dataclass_kwonly_fields": _dck146} if _dck146 else {}),
+                # (#49) ROUTE #147: this class INHERITS its constructor. Emitted only for a
+                # based, undecorated class with no `__init__` of its own.
+                **({"init_inherits": True} if _inh147 else {}),
+                # (#49) ROUTE #150: an opaque constructor effect. A SIDE CHANNEL to
+                # `apply_inheritance`, which widens the unknown lists to the MERGED base
+                # fields too (a `super().__init__(...)` sets exactly those) and POPS it, so
+                # the resolved IR never carries the key.
+                **({"init_opaque150": True}
+                   if getattr(self, "_init_opaque150", False) else {}),
+                **({"has_post_init150": True} if _hpi150 else {}),
+                **({"init_super150": getattr(self, "_init_super150")}
+                   if getattr(self, "_init_super150", None) is not None else {}),
+                # (#49) ROUTE #82: the KEYWORD-ONLY constructor parameters (and their
+                # constant defaults), carried SEPARATELY from `init_params` because
+                # that list is the POSITIONAL binding list. Emitted ONLY when the
+                # constructor actually has keyword-only parameters -> absent for
+                # every other class, so the IR of the whole corpus, the mirror and
+                # all 38 frozen conformance goldens is byte-identical.
+                **({"init_kwonly_params": _kwo[0]} if _kwo[0] else {}),
+                **({"init_kwonly_defaults": _kwo[1]} if _kwo[1] else {}),
+                # (#49) ROUTE #149: the POSITIONAL parameter defaults and the parameters
+                # (either kind) whose default the model cannot state. Emitted ONLY when
+                # non-empty — census: 8 classes with a positional default in both corpora,
+                # the mirrors and `src/pycsl_lib`, NONE among the 38 frozen goldens.
+                **({"init_param_defaults": _pd149[0]} if _pd149[0] else {}),
+                **({"init_default_unknown": _pd149[1]} if _pd149[1] else {}),
+                # (#49) ROUTE #83: fields stored inside control flow in `__init__`, whose
+                # value at construction time is UNKNOWN. Emitted ONLY when non-empty, so
+                # absent for every constructor with only top-level stores and therefore
+                # byte-identical there and in all 38 frozen conformance goldens.
+                **({"init_unknown_fields": _unk} if _unk else {}),
+                **({"init_unknown_cf_fields": _unkcf} if _unkcf else {}),
+                # (#49) ROUTE #85: a dict field's CONSTANT literal items, and the fields
+                # whose non-empty dict/set literal is not reconstructible. Both emitted
+                # ONLY when non-empty, so absent for every class without such an
+                # initialiser -> byte-identical there and in all 38 frozen goldens.
+                **({"field_map_literals": _m85lit} if _m85lit else {}),
+                **({"field_map_unknown": _m85unk} if _m85unk else {}),
+                # (#49) ROUTE #87: the same pair for LIST fields.
+                **({"field_list_literals": _l87lit} if _l87lit else {}),
+                **({"field_list_unknown": _l87unk} if _l87unk else {}),
+                # (#49) finding-0700: constant STRING field initialisers.
+                **({"field_str_defaults": _s70lit} if _s70lit else {}),
+                # (#49) ROUTE #183: fields whose only initialiser is the literal `None`.
+                **({"field_none_defaults": _n183} if _n183 else {}),
                 "init_ensures": init_ensures,
+                # (#43) route #15: the constructor's NON-TRIVIAL `#@ requires`/`#@ ensures`
+                # plus its parameter annotations, so Module 6 can emit a CHECKING-ONLY
+                # `let <class>__init` beside the (untouched) allocation-site inlining.
+                # Emitted ONLY when a clause is non-trivial -> absent for every mirror class
+                # (all 24 of theirs are `True`), so the IR of the whole mirror and of every
+                # frozen conformance golden is byte-identical.
+                **({"init_contract_check": _icc} if _icc else {}),
                 "is_mixin": is_mixin, "compose_from": compose_from,
                 # typing-engagement ty3 / 33-1700-typing-spec-9: PEP 695 type
                 # parameters of a generic class (`class C[T]:`) or the legacy
@@ -2537,8 +4489,40 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # (emitted only when non-empty → byte-identical for unaffected
                 # drivers, additive IR v1.4). Consumed by the monomorphization
                 # IR-resolution pass (frontend/monomorphize.apply_monomorphization).
-                **({"type_params": self._collect_type_params(node)}
-                   if getattr(node, "type_params", None) else {}),
+                # (#49) gen #31 — THE GUARD USED TO BE `if getattr(node,
+                # "type_params", None)`, i.e. the PEP 695 ATTRIBUTE, and that made the
+                # legacy branch of `_collect_type_params` DEAD CODE BY CONSTRUCTION. That
+                # helper has a whole second half for `class C(Generic[T])` — it resolves
+                # the TypeVar names against `program_ir["typevar_registry"]`, which
+                # `_collect_typevar_registry` populates from module-level
+                # `T = TypeVar("T"[, bound=B])` assigns, and it has its own helper
+                # `_extract_generic_arg_names`. None of it could ever run: for the legacy
+                # spelling `node.type_params` is `[]`, so the helper was never called.
+                #
+                # MEASURED, the same program in the two spellings of the same construct:
+                #   class Box[T]         + `b: Box[int]`  ->  type box_int  (monomorphized)
+                #   class Box(Generic[T])+ `b: Box[int]`  ->  type box      (NOT)
+                # and with `Any`:
+                #   class Box[T]         + `b: Box[Any]`  ->  REFUSED (PYCSL-TY3-GT1)
+                #   class Box(Generic[T])+ `b: Box[Any]`  ->  VERIFICATION SUCCESS
+                # so every TY3 loud-fail — GT1 (`Any` never instantiates a TypeVar, "the
+                # consistency relation is deliberately unsound"), GT2 (the bound is an
+                # instantiation-time obligation), GT3 (ParamSpec/TypeVarTuple), GT4
+                # (polymorphic recursion) — was silently inert for a spelling
+                # annotations.md §12.16 lists in its SURFACE, and `T` was modelled as
+                # plain `int`.
+                #
+                # Calling the helper first and testing ITS result is the whole fix; the
+                # local keeps it to one call. `visit_ClassDef`'s mirror twin is `\trusted`,
+                # so this body owes no verbatim sync and no re-proof.
+                #
+                # CENSUS BEFORE LANDING (lesson d3): ZERO corpus files, ZERO `pycsl_lib`
+                # and ZERO mirror/live sources declare `class C(Generic[T])` or call
+                # `TypeVar(...)` outside comments and string literals, so no IR gains the
+                # key and no conformance golden moves. The whole observable effect is on
+                # programs nobody has written yet — which is exactly why a dead branch
+                # could sit here with documentation describing what it would have done.
+                **({"type_params": _tp695} if _tp695 else {}),
             })
         self.generic_visit(node)
         # typing-engagement ty2 / 32-1700-typing-spec-8: populate the per-method
@@ -2548,17 +4532,73 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # discharges the per-method refinement goal (P2/P4). Byte-identical for
         # classes without `csl_conforms_to` (the population is a no-op).
         self._populate_protocol_conformance(node)
+        # (#49) ROUTE #99 — THE ROUTE #94 CALL THAT USED TO SIT HERE HAS MOVED TO THE END OF
+        # `visit_Module`. Its comment claimed that by this point "the set is complete"; that
+        # was true only of the CLASS's own methods, and a module-level mutator defined after
+        # the class was invisible, which reopened the whole of UB-7.7 for a foreign receiver.
+        # See the moved call site for the measurement. Do not move it back: a check needing a
+        # whole-program fact cannot live in a per-node visitor, and a class is still a node.
         self._current_class = None
 
+    # (#49) gen #31 — THE TWO DUNDERS THAT STAY SKIPPED, each for a measured reason and
+    # neither for "dunders are unsupported".
+    #   `__new__`   is not a method, it is a static constructor hook, and UB-7.6 already
+    #               pins it to the trivial form. MEASURED (the emit-dunders review, O9):
+    #               `def __new__(cls) -> "N": return object.__new__(cls)` is SUCCESS today
+    #               and a Why3 TYPE ERROR when emitted; corpus 0496 survives only because it
+    #               carries no return annotation, i.e. the trigger is the annotation.
+    #   `__post_init__` is a dataclass hook that ROUTE #150 ALREADY OWNS, with a dedicated
+    #               mechanism (`has_post_init150` / `post_init_nonrecord150`) that refuses
+    #               rather than answering wrongly. SPIKED before deciding: a `@dataclass`
+    #               whose `__post_init__` sets `self.a = 7`, read back through `D(1).a`,
+    #               FAILS today under BOTH `\result == 1` and `== 7`. Emitting it closes
+    #               nothing and costs a failing synthesized-frame goal on every honest
+    #               dataclass (the hook exists to write fields and almost never declares
+    #               `#@ assigns`). REOPENING CAPABILITY: if route #150's mechanism is ever
+    #               replaced by a real field-initialisation model, this hook should be
+    #               re-examined WITH it — they are one question, not two.
     def _should_skip_method(self, node: ast.FunctionDef) -> bool:
-        """Return True if this method should be skipped (dunders, @property)."""
+        """Return True if this method should be skipped: the CONSTRUCTOR HOOKS ONLY.
+
+        (#49) The docstring used to say "(dunders, @property)" and it had been WRONG since
+        the `@property` branch was removed — a `@property` getter is emitted as an ordinary
+        nullary method now, which is what retired the recorded [UNEMITTABLE @property]
+        boundary. Measured two ways rather than read off the code: a `@property` with
+        `#@ ensures \result == 5` over a body returning 7 FAILS (so the contract is
+        CHECKED, not assumed), and `bin/check-emitted-function-coverage.py` finds ZERO
+        non-dunder functions dropped across 914 corpus files. A docstring that names a
+        skip the code no longer performs sends the next reader looking for a branch that
+        is not there — and `getting-better/driver-backlog.md` still prices six `\trusted`
+        markers as "trusted purely because" of it.
+        """
         if not self._current_class:
             return False
         if node.name.startswith('__') and node.name.endswith('__'):
-            return True
-        if any(isinstance(d, ast.Name) and d.id == 'property'
-               for d in node.decorator_list):
-            return True
+            # (#49) gen #31 — ROUTE #219. Every OTHER dunder is now emitted as an ordinary
+            # method, because dropping it switched off EVERY check that iterates
+            # `ir_data["functions"]`: a `#@ no_exception \all` over `10 // 0` reported "All
+            # contracts formally proven" inside `__enter__` and FAILED one identifier away
+            # in `enter`; UB-7.1's HARD REFUSAL was evaded by moving the loop into a dunder;
+            # and a `#@ happy ... postcond` SECURITY policy targeting a dunder was accepted
+            # by Module 3 (which walks the AST, where dunders are present) and then never
+            # checked. Other method kinds were measured and are clean — plain, static,
+            # class, property, nested and module-level all FAIL or are REFUSED — so the
+            # repair is exactly this and nothing wider.
+            # THREE EXPLICIT EQUALITIES, not a set membership, and the reason is the
+            # MIRROR. This method's un-trusted twin is a FAITHFUL LOWERING built from
+            # `str_startswith_op`/`str_endswith_op` over `func_name_ast node`; a
+            # `name in self._KEEP_SKIPPED_DUNDERS` has no lowering there, while `==` on a
+            # string does (`str_eq_op`). The live body is the specification the mirror must
+            # copy VERBATIM, so its shape is constrained by what the mirror can prove —
+            # which is the self-annotation discipline working as designed, not a
+            # concession.
+            if node.name == '__init__':
+                return True
+            if node.name == '__new__':
+                return True
+            if node.name == '__post_init__':
+                return True
+            return False
         return False
 
     # --- refactor.md B-final wedge: Module5 builds the IR symbol_table itself ---
@@ -2584,6 +4624,21 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     _UNION_ARM_TAGS = {"int", "bool", "str", "bytes", "float", "list", "dict", "set"}
 
+    # Bare (unsubscripted) `typing` / ABC aliases that are capitalized but are
+    # NOT classes carrying an opaque value. They keep the historical `Any`
+    # (dropped) lowering — a bare `List` arm has no element type to carry.
+    _TYPING_ALIAS_ARMS = {
+        "Any", "Optional", "Union", "List", "Dict", "Set", "FrozenSet", "Tuple",
+        "Callable", "Iterable", "Iterator", "Sequence", "Mapping",
+        "MutableMapping", "MutableSequence", "MutableSet", "AbstractSet",
+        "Collection", "Container", "Reversible", "Sized", "Hashable",
+        "Generator", "Awaitable", "Coroutine", "AsyncIterable", "AsyncIterator",
+        "Deque", "DefaultDict", "OrderedDict", "Counter", "ChainMap",
+        "Text", "AnyStr", "Type", "NoReturn", "Never", "Self", "Literal",
+        "Final", "ClassVar", "Annotated", "TypeVar", "Generic", "Protocol",
+        "NamedTuple", "TypedDict", "Bytes", "ByteArray", "Ellipsis", "None",
+    }
+
     def _union_arm_tag(self, elt: ast.expr) -> Optional[str]:
         """Lower one Union arm AST to an IR type tag, or None if it is `Any`
         (GT1 — dropped) / unrecognised. `None` (the singleton) is returned as
@@ -2598,7 +4653,58 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if elt.id in ("int", "bool", "float", "str", "bytes",
                           "list", "dict", "set", "frozenset", "tuple", "bytearray"):
                 return "int" if elt.id in ("int", "bool") else elt.id
+            # W8 capability (v): a DECLARED RECORD CLASS arm (`Optional[_Tok]`)
+            # is a REAL arm carrying that record, not an `Any` to be dropped.
+            # Dropping it collapsed the synthesized variant to the vacuous
+            # `Arm_<i>_None`-only type, so `return <record>` could not be
+            # injected into any constructor and the file failed L3-tc. The tag
+            # is the class name; Module6's `_fmt_variant` resolves it to the
+            # record's WhyML type (the same resolution it already does for a
+            # payload naming another VARIANT). Gated on the record registry, so
+            # a non-record class arm still degrades to `Any` exactly as before.
+            #
+            # The gate is the EMITTED `record` type_decl set — deliberately
+            # narrower than `_m5_declared_record_names()` (which also carries the
+            # pre-`generic_visit` class pre-scan). A class in the pre-scan but
+            # WITHOUT a record type_decl has no Why3 record type, so Module6 would
+            # silently resolve its payload to the `int` default: an int-ERASED arm,
+            # i.e. exactly the kind of facade this capability exists to remove.
+            # Matching Module6's `_record_payload_types` domain byte-for-byte means
+            # an arm is emitted iff it can be typed faithfully; otherwise the class
+            # falls back to `Any` (dropped, GT1) as before.
+            if any(td.get("kind") == "record" and td.get("name") == elt.id
+                   for td in self.program_ir.get("type_decls", [])):
+                return elt.id
+            # relaunch #17 capability: THE OPAQUE `Some`-ARM PAYLOAD.
+            # A CLASS-shaped arm that has no WhyML record type is still a REAL
+            # arm — the value it carries is opaque, but its PRESENCE is not.
+            # Dropping it (the old `return "Any"`) collapsed `Optional[X]` to
+            # the single-inhabitant `type _union_… = Arm_i_None`, which makes
+            # every `x is None` guard lower to a literal `true` (lesson (bl))
+            # and every `Optional[X]` PARAMETER declare that the argument is
+            # ALWAYS absent — a positive FALSE claim. Emitting the arm with the
+            # class name as its payload tag makes Module6 resolve it through
+            # `_record_payload_types.get(t, "int")`: to the record's WhyML type
+            # when one exists, else to the OPAQUE `int` default. An opaque int
+            # payload claims nothing about the value (lesson (ca): a decline
+            # that lands on a havoc is fine; one that lands on a CONSTANT is an
+            # assertion) while restoring the two-inhabitant presence test.
+            # Gated on a leading CAPITAL (Python class-naming convention) minus
+            # the bare `typing` aliases, so a lowercase/unknown arm still
+            # degrades to `Any` exactly as before.
+            if elt.id[:1].isupper() and elt.id not in self._TYPING_ALIAS_ARMS:
+                return elt.id
             return "Any"
+        # self-tcb-reduction giants (generic class-body lowering): an `ast.<expr-node>`
+        # arm (`Optional[ast.expr]` — the `value` local of `_collect_class_constants`)
+        # carries the already-lowered emit_ir sub-node, so the synthesized Optional union
+        # arm is `Arm_i_0 emit_ir`. Byte-safe: no corpus program annotates a Union arm
+        # with an `ast.<Node>` type. Gated below by the `emit_ir` -> `emit_ir` _VPAY entry
+        # (module6). Only `ast.expr`/`ast.stmt`/`ast.AST` — the emit_ir-modelled AST bases.
+        if (isinstance(elt, ast.Attribute) and isinstance(elt.value, ast.Name)
+                and elt.value.id == "ast"
+                and elt.attr in ("expr", "stmt", "AST")):
+            return "emit_ir"
         if isinstance(elt, ast.Subscript) and isinstance(elt.value, ast.Name):
             head = elt.value.id
             if head in ("List", "list"):
@@ -2618,17 +4724,56 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         """Return the list of arm AST expressions if `ann_expr` is one of the
         four Union surface forms, else None (caller falls back to existing
         logic). Flattens nested `|` (left-assoc BinOp BitOr) and degenerate
-        `Union[X]` (non-Tuple slice)."""
+        `Union[X]` (non-Tuple slice).
+
+        A QUOTED IR-NODE arm (`Optional["ExprIR"]`) is rewritten to the `ast.expr`
+        spelling `_union_arm_tag` already maps to the `emit_ir` payload. `"ExprIR"` is
+        the codebase's standard way of saying "an IR node" in a module that cannot import
+        the name at runtime — `pure_ast.py` has no `typing` import and MUST NOT get one
+        (wall-lessons (ss)) — and Module6 already resolves it at the RETURN seam. Inside a
+        Union it was invisible: the arm fell to `Any`, was DROPPED (GT1), and the
+        synthesized variant collapsed to a None-only VACUOUS type.
+        Rewritten HERE because THIS method's mirror is `\trusted` while `_union_arm_tag`'s
+        is CONVERTED, so it carries no §10.4 re-port and no Module5 mirror re-proof
+        (wall-lessons (vv)); and as a NESTED function rather than a new method, because a
+        new method on this class becomes an abstract `val` in EVERY mirror that imports it
+        (wall-lessons (yy)). Additive — no reference-corpus program spells a quoted Union
+        arm, which the byte-diff measures."""
+        # NOTE ON SHAPE: the rewrite is spelled INLINE, three times, rather than as a helper.
+        # Measured (wall-lessons (yy) and its extension): a new METHOD on this class, a
+        # NESTED `def`, and even a MODULE-LEVEL function ALL become an abstract `val` in the
+        # emission of every mirror that imports this module — `val
+        # pycsltojsonemitter___q (self: …) (e: int) : int` / `val _m5_quoted_irnode_arm
+        # (e: int) : int` appeared in `frontend/__init__.mlw` and `frontend/ir_resolve.mlw`,
+        # turning a 1-of-52 mirror diff into 3-of-52 and obliging two whole-file re-proofs
+        # for a declaration line. Duplication is the cheaper option here.
         if isinstance(ann_expr, ast.Subscript) and isinstance(ann_expr.value, ast.Name):
             head = ann_expr.value.id
             if head == "Union":
                 inner = ann_expr.slice
                 if isinstance(inner, ast.Tuple):
-                    return list(inner.elts)
-                return [inner]
+                    return [(ast.Attribute(value=ast.Name(id="ast", ctx=ast.Load()),
+                                           attr="expr", ctx=ast.Load())
+                             if (isinstance(e, ast.Constant) and isinstance(e.value, str)
+                                 and e.value in ("ExprIR", "StmtIR", "IRNode",
+                                                 "ContractExprIR"))
+                             else e)
+                            for e in inner.elts]
+                return [(ast.Attribute(value=ast.Name(id="ast", ctx=ast.Load()),
+                                       attr="expr", ctx=ast.Load())
+                         if (isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+                             and inner.value in ("ExprIR", "StmtIR", "IRNode",
+                                                 "ContractExprIR"))
+                         else inner)]
             if head == "Optional":
                 inner = ann_expr.slice
-                return [inner, ast.Constant(value=None)]
+                return [(ast.Attribute(value=ast.Name(id="ast", ctx=ast.Load()),
+                                       attr="expr", ctx=ast.Load())
+                         if (isinstance(inner, ast.Constant) and isinstance(inner.value, str)
+                             and inner.value in ("ExprIR", "StmtIR", "IRNode",
+                                                 "ContractExprIR"))
+                         else inner),
+                        ast.Constant(value=None)]
         if isinstance(ann_expr, ast.BinOp) and isinstance(ann_expr.op, ast.BitOr):
             arms: List[ast.expr] = []
             stack = [ann_expr]
@@ -2643,15 +4788,73 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             return arms
         return None
 
+    def _m5_declared_record_names(self) -> Set[str]:
+        """The set of class names that lower to a native WhyML record (a
+        `@dataclass` / `TypedDict` class / `NamedTuple` / synthesized functional
+        record / plain positional-record class). Queried dynamically off
+        `program_ir["type_decls"]` (kind == "record") PLUS the pre-`generic_visit`
+        `_m5_record_class_names` pre-scan, so a record defined BEFORE its use
+        (the ordinary case — `class ValIRBoolView(TypedDict)` above the mixin)
+        is recognized during the using method's param resolution."""
+        names: Set[str] = set(getattr(self, "_m5_record_class_names", set()) or set())
+        for td in self.program_ir.get("type_decls", []):
+            if td.get("kind") == "record" and td.get("name"):
+                names.add(td["name"])
+        return names
+
+    def _optional_record_arm(self, ann_expr: ast.expr) -> Optional[str]:
+        """option-of-record projection (boundary-1 G1 extension): if `ann_expr`
+        is EXACTLY the doubleton `Optional[R]` / `R | None` / `Union[R, None]`
+        where `R` is a DECLARED record type (a `@dataclass`/`TypedDict`/…), return
+        `R`'s class name; else None.
+
+        Tightly gated to the record|None doubleton — a second non-None arm, a
+        bare `Any`/builtin arm, or a non-record `R` all return None, so the
+        general `_normalize_union_annotation` (synthesizing a per-site variant,
+        dropping `Any` per GT1) and every non-record `Optional` stay
+        byte-identical. The caller renders the returned name as an `option
+        <record>` symtype (`"option:<R>"`)."""
+        arms = self._collect_union_arms(ann_expr)
+        if arms is None:
+            return None
+        rec_names = self._m5_declared_record_names()
+        rec_arm: Optional[str] = None
+        saw_none = False
+        for elt in arms:
+            if isinstance(elt, ast.Constant) and elt.value is None:
+                saw_none = True
+                continue
+            if isinstance(elt, ast.Name) and elt.id == "None":
+                saw_none = True
+                continue
+            if isinstance(elt, ast.Name) and elt.id in rec_names:
+                if rec_arm is not None:
+                    return None          # two record arms — not the doubleton
+                rec_arm = elt.id
+                continue
+            return None                  # any other arm (builtin/Any/nested/subscript)
+        if rec_arm is not None and saw_none:
+            return rec_arm
+        return None
+
     def _normalize_union_annotation(self, ann_expr: ast.expr,
-                                    scope_name: str) -> str:
+                                    scope_name: str, dedup: bool = False) -> str:
         """Recognize `Union`/`Optional`/`|` annotations and synthesize a per-site
         variant `type_decl`. Returns the variant name (registered in
         `symbol_table` and `program_ir["type_decls"]`), OR the existing IR tag
         for non-Union annotations (byte-identical fallback).
 
         `scope_name` is the enclosing function/method name used for deterministic
-        per-site mangling (`_union_<func>_<idx>`)."""
+        per-site mangling (`_union_<func>_<idx>`).
+
+        `dedup` (tool-feature-5): when True, STRUCTURALLY-identical Union sites in
+        the same scope share ONE synthesized type (via `_union_synth_cache`). Set
+        ONLY at the function LOCAL-declaration and RETURN-annotation seams, so a
+        mutable `x: Optional[τ] = None` local and the `-> Optional[τ]` return share
+        a type (Why3 sum types are nominal — else `return x` type-clashes). Left
+        False (per-site fresh variant, byte-identical) for FIELD/param annotations,
+        so record fields with several identical `Optional[τ]` slots keep distinct
+        per-site types exactly as before."""
         arms_ast = self._collect_union_arms(ann_expr)
         if arms_ast is None:
             return self._m5_get_type_name_legacy(ann_expr)
@@ -2681,9 +4884,23 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if not lowered and not none_present:
             # All arms were Any — refuse to synthesize a universal sink.
             return "int"
+        safe_scope = "".join(c if c.isalnum() else "_" for c in scope_name) or "anon"
+        # tool-feature-5 (Optional MUTABLE local): de-duplicate STRUCTURALLY-identical
+        # Union/Optional sites WITHIN one scope so a mutable local `x: Optional[τ] = None`
+        # and the enclosing function's `-> Optional[τ]` return share ONE synthesized union
+        # type. Why3 sum types are NOMINAL, so without this the local's `_union_f_0` and the
+        # return's `_union_f_1` are distinct types and `return x` (`!x : _union_f_0` vs the
+        # `_union_f_1` return type) fails to type-check. Key = (scope, ordered arm tags,
+        # None-arm present, Any-dropped). Only at the local-decl/return seams (`dedup=True`),
+        # so record fields keep distinct per-site types (byte-identical).
+        _sig = (safe_scope, tuple(tag for tag, _ in lowered), none_present, any_dropped)
+        _cache = getattr(self, "_union_synth_cache", None)
+        if _cache is None:
+            _cache = self._union_synth_cache = {}
+        if dedup and _sig in _cache:
+            return _cache[_sig]
         idx = self._fresh_var_counter
         self._fresh_var_counter += 1
-        safe_scope = "".join(c if c.isalnum() else "_" for c in scope_name) or "anon"
         variant_name = f"_union_{safe_scope}_{idx}"
         # Build the variant constructors: one per arm tag + a nullary Arm_None.
         # Constructor names are mangled per-variant (`Arm_<idx>_<i>`) so they
@@ -2708,6 +4925,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 "type": variant_name, "arity": c["arity"]}
         if any_dropped:
             self.program_ir.setdefault("union_gt1_sites", []).append(variant_name)
+        if dedup:
+            _cache[_sig] = variant_name
         return variant_name
 
     # --- Final normalization (typing-engagement ty1 / 27-0000-typing-spec-3) ---
@@ -3069,6 +5288,49 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     "consistency relation is deliberately unsound).",
                     stage="ir-emit", code="PYCSL-TY3-GT1",
                 )
+            # (#49) gen #31 — THE DOCUMENTED C5 SCOPE LIMIT, WHICH WAS NOT ENFORCED.
+            # annotations.md §12.17 says only `int`/`bool`/`str`/`float` and
+            # record/variant names are admissible, and that
+            # "`bytes`/`list`/`dict`/`set`/`Any`/nested-`Callable`/ellipsis" are
+            # "rejected with `PYCSL-TY3-CALLABLE-SCOPE`". Five of the seven were: `Any`
+            # above, the nested/subscripted forms below, the ellipsis at the caller, and
+            # `List[int]`/`Dict[...]`/`Set[...]` only because they are SUBSCRIPTS. The BARE
+            # spellings were not — `Callable[[bytes], int]`, `Callable[[list], int]`,
+            # `Callable[[dict], int]`, `Callable[[set], int]` are bare `Name` nodes, fell
+            # through to `return tag`, and Module 6 then had no record/variant of that name
+            # and defaulted the arrow domain to `int`. MEASURED: all four emit
+            # `let function apply (f: int -> int) (x: int) : int`, identical to
+            # `Callable[[int], int]`.
+            #
+            # The class constant `_CALLABLE_SCALAR_TAGS` sitting two screens above is the
+            # residue of the check that was meant to be here: defined, and referenced
+            # NOWHERE in the file.
+            #
+            # An EXPLICIT EQUALITY CHAIN, not a set membership or a `frozenset` literal.
+            # This method's mirror twin is UN-TRUSTED and a verbatim body port, so the text
+            # has to lower faithfully; route #218's dunder-hook test is written the same way
+            # for the same reason (`==` lowers via `str_eq_op`, a set literal does not).
+            #
+            # NOT EXTENDED TO AN UNKNOWN CLASS NAME, deliberately. A typo'd record name
+            # (`Callable[[Rekt], int]`) is silently `int -> int` too, and refusing it needs
+            # the record/variant table — which lives in Module 6, not here. Recorded as the
+            # open half in `finding-callable-scope-limit-not-enforced.md` rather than
+            # half-implemented.
+            if (tag == "bytes" or tag == "bytearray" or tag == "list" or tag == "dict"
+                    or tag == "set" or tag == "frozenset" or tag == "tuple"):
+                raise PyCSLSemanticError(
+                    f"Callable arg/return type `{tag}` is not an admissible arrow domain "
+                    f"(C5 sound scope limit, stricter than S1): only `int`, `bool`, `str`, "
+                    f"`float` and bare record/variant class names lower to a WhyML "
+                    f"function-type parameter. A collection type has no value-semantic "
+                    f"arrow domain here, and `bytes` is modelled as a (loc, len) pair "
+                    f"rather than a single type. Until this refusal it was accepted and "
+                    f"the domain silently became `int`, so `Callable[[{tag}], R]` and "
+                    f"`Callable[[int], R]` emitted the SAME arrow. FIX: use a scalar or a "
+                    f"record/variant class, or pass the collection as a separate parameter "
+                    f"beside a `Callable` over scalars.",
+                    stage="ir-emit", code="PYCSL-TY3-CALLABLE-SCOPE",
+                )
             # Primitive scalar OR a bare class name (record/variant) — Module 6
             # resolves the class name against the known record/variant types.
             return tag
@@ -3086,9 +5348,40 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             stage="ir-emit", code="PYCSL-TY3-CALLABLE-SCOPE",
         )
 
+    # The `pathlib` classes whose values ARE paths. `Path`/`PurePath` and the
+    # concrete flavours; a same-named USER class would also be modelled as a string,
+    # which is why the recognizer is a closed list of the pathlib names rather than
+    # "any name ending in Path".
+    _M5_PATH_TYPE_NAMES = frozenset({
+        "Path", "PurePath", "PosixPath", "WindowsPath",
+        "PurePosixPath", "PureWindowsPath",
+    })
+
+    def _m5_path_ann_tag(self, annotation) -> Optional[str]:
+        """`"str"` if `annotation` denotes a `pathlib` path type — bare (`Path`),
+        dotted (`pathlib.Path`), quoted (`"Path"`), or `Optional[Path]` — else None.
+        `Optional[Path]` collapses to the same `str` tag because the model has no
+        separate null path; a `None` path is already indistinguishable from an
+        unconstrained string here, and that is strictly what was true before."""
+        a = annotation
+        if isinstance(a, ast.Constant) and isinstance(a.value, str):
+            return "str" if a.value in self._M5_PATH_TYPE_NAMES else None
+        if isinstance(a, ast.Name):
+            return "str" if a.id in self._M5_PATH_TYPE_NAMES else None
+        if isinstance(a, ast.Attribute):
+            return "str" if a.attr in self._M5_PATH_TYPE_NAMES else None
+        if isinstance(a, ast.Subscript) and isinstance(a.value, ast.Name) \
+                and a.value.id == "Optional":
+            inner = a.slice
+            if type(inner).__name__ == "Index":
+                inner = inner.value
+            return self._m5_path_ann_tag(inner)
+        return None
+
     def _m5_get_type_name(self, annotation: ast.expr,
                           scope_name: str = "",
-                          param_name: str = "") -> str:
+                          param_name: str = "",
+                          dedup: bool = False) -> str:
         """Public entry: try Final normalization first (resolving the inner type
         tag `τ(T)` — F3, no narrowing), then Literal normalization (synthesizing
         a ground `requires` clause), then Union normalization (synthesizing a
@@ -3118,6 +5411,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # legacy path (byte-identical) on any non-PyCSLIRError exception.
         if self._irnode_ann_name(annotation) is not None:
             return "ExprIR"              # typed-ir-for-b-ceiling.md B-C2 (param)
+        # #31 PATH MODEL: a `pathlib.Path` IS its string form in the value model
+        # (`str(p)` is total and the only observable the emitter ever needs), so a
+        # `Path`-annotated parameter / local / return resolves to the SAME `"str"` tag
+        # as a `str` one and inherits every existing string mechanism for free —
+        # `string` parameter type, `_is_string_expr` on a read, the `-> str` return
+        # disjunct, `str_concat_op` on `+`. Before this, `Path` fell through to the
+        # unrecognised-name `int` default, and the emitter then lowered `p / "name"`
+        # (path composition) through the WL-02 TRUE-DIVISION rule as
+        # `float_truediv_op (a b: int) : real` — a WRONG LOWERING that also made every
+        # `Path`-taking body an L3-tc failure. `pathlib` is ABSENT from the reference
+        # corpus, so this is byte-inert there (verified, not assumed).
+        _pth = self._m5_path_ann_tag(annotation)
+        if _pth is not None:
+            return _pth
         # wrong-lowering.md §WL-03: a recognized fixed-length `Tuple[T1, ..., Tn]`
         # param resolves to its synthesized per-slot record (registered by
         # `_synthesize_tuple_records`), so `_param_type_str` emits the record
@@ -3147,9 +5454,22 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # non-PyCSLIRError exception. PyCSLIRError (L4a/L5c rejections)
                 # MUST propagate — they are deliberate static rejections.
                 pass
+        # option-of-record projection (boundary-1 G1 extension): `Optional[R]` /
+        # `R | None` where R is a DECLARED record → the `option <record>` symtype
+        # `"option:<R>"` (Module6 renders `option <wn>` + registers the param so a
+        # None-guarded `val_ir.get("k")` projects the field from the Some arm). Runs
+        # BEFORE the general Union normalization (which drops the record arm as `Any`
+        # per GT1, collapsing to a vacuous `Arm_None`-only variant). Tightly gated to
+        # the record|None doubleton, so every non-record Union stays byte-identical.
+        try:
+            _optrec = self._optional_record_arm(annotation)
+            if _optrec is not None:
+                return f"option:{_optrec}"
+        except Exception:
+            pass
         if scope_name:
             try:
-                return self._normalize_union_annotation(annotation, scope_name)
+                return self._normalize_union_annotation(annotation, scope_name, dedup=dedup)
             except Exception:
                 # Never let a Union-recognition bug perturb a non-Union driver:
                 # fall back to the legacy path (byte-identical) on any error.
@@ -3201,6 +5521,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # (the emit_ir IR-node sum), so a `body_stmts[-1]` read is an emit_ir node.
             if _en in ("StmtIR", "ExprIR", "IRNode", "ContractExprIR"):
                 return "emit_ir"
+            # K1 (seq-pyval self-field append, self-tcb-reduction Tier-5): a
+            # `List[PyVal]` / `List[Dict[str, PyVal]]` element is the faithful
+            # heterogeneous value carrier `hval`, so the field lowers to `seq hval`
+            # (Module6 `_emit_type_decls` list branch) and `.append` writes back
+            # `self.f <- Seq.snoc self.f (<pyval-wrap x>)` (statements.py append site),
+            # NOT the int-erased `array int` + shadow-local facade. `PyVal` is a NEW
+            # sentinel absent from the whole corpus -> byte-inert.
+            if _en == "PyVal":
+                return "hval"
+            if PyCSLToJSONEmitter._m5_get_dict_value_type(sl) == "hval":
+                return "hval"
         return None
 
     @staticmethod
@@ -3230,6 +5561,79 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if sl.id == "float":
                 return "real"
         return None
+
+    def _m5_get_list_record_elem(self, annotation: ast.expr) -> Optional[str]:
+        """WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): for a FLAT
+        `List[R]` param/return whose element `R` is a KNOWN RECORD, return the
+        record CLASS NAME (the `type_decls` key, e.g. `"Point"` or
+        `"pytuple_int_str"`), so Module6's `_param_type_str` emits
+        `array <record-whyml>` (NOT the collapsed `array int`) and a use-site read
+        `a[i]` reads a real record — `a[i].field` then projects the faithful field.
+
+        A KNOWN RECORD element is EITHER a recognized fixed-length `Tuple[T1, …]`
+        (→ its synthesized per-slot record `pytuple_<tags>`, reusing the WL-03 seam)
+        OR a user record class (a `@dataclass` / `NamedTuple` / an already-declared
+        synthesized record), resolved against the pre-collected
+        `_m5_record_class_names`. Returns None for a scalar/str/float element (owned
+        by `_m5_get_list_flat_elem_whyml`), a nested `List[<container>]` element
+        (owned by `_m5_get_list_nested_elem_whyml`), an unrecognized class, and any
+        non-`List` annotation. This is the record-leaf analog of the str/float flat
+        element analysis (WL-04)."""
+        if not (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("List", "list")):
+            return None
+        sl = annotation.slice
+        if isinstance(sl, ast.Index):          # py<3.9 compat
+            sl = sl.value
+        # recognized `Tuple[T1, …, Tn]` element → its synthesized per-slot record.
+        _tags = self._m5_tuple_slot_tags(sl)
+        if _tags is not None:
+            return self._m5_tuple_record_name(_tags)
+        # user record class element (dataclass / NamedTuple / declared record).
+        if isinstance(sl, ast.Name):
+            nm = sl.id
+            if nm in getattr(self, "_m5_record_class_names", set()):
+                return nm
+        # self-tcb-reduction (relaunch #8): an IR-NODE element (`List["ExprIR"]`,
+        # `List[StmtIR]`) is `emit_ir` — the SAME total sum type a bare `node: "ExprIR"`
+        # param already gets through `_irnode_ann_name`. Without this a statement/
+        # expression LIST param collapses to `array int`, so a caller holding a real
+        # `seq emit_ir` cannot pass it and every element read is int-erased.
+        # `_param_type_str` emits `array emit_ir` for a `_fe` that is not a declared
+        # record, so no Module6 change is needed for the signature itself. Byte-safe:
+        # no corpus program annotates a param with the IR-node base names.
+        if self._irnode_ann_name(sl) is not None:
+            return "emit_ir"
+        return None
+
+    @staticmethod
+    def _m5_list_literal_record_elem(node: ast.AST,
+                                     faithful_recs: Set[str]) -> Optional[str]:
+        """WL-04c (wrong-lowering-to-fix.md §WL-04 record LITERAL residual): for an
+        `ast.List` LITERAL whose elements are ALL full-arity positional constructor
+        CALLS to the SAME content-faithful record (`[Point(1, 2), Point(3, 4)]`,
+        `Point` in `faithful_recs`), return the record CLASS NAME — so Module6 emits
+        that record PURE (Why3 forbids a mutable element inside `array`, and the
+        literal is realized as `array <record>`). Returns None for a non-List node,
+        an empty list, a mixed / non-Call element, a keyword or under/over-arity
+        call, or a non-faithful record (e.g. a `@dataclass` whose ctor drops args)."""
+        if not (isinstance(node, ast.List) and node.elts):
+            return None
+        rec_name: Optional[str] = None
+        for e in node.elts:
+            if not (isinstance(e, ast.Call) and isinstance(e.func, ast.Name)):
+                return None
+            nm = e.func.id
+            if nm not in faithful_recs:
+                return None
+            if e.keywords or any(isinstance(a, ast.Starred) for a in e.args):
+                return None
+            if rec_name is None:
+                rec_name = nm
+            elif nm != rec_name:
+                return None
+        return rec_name
 
     # nested-list.md S1: ONE recursive annotation -> WhyML *element-position* type.
     # An element-position type is a PURE Why3 type (Why3 forbids a mutable element
@@ -3322,12 +5726,29 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             v = annotation.slice.elts[1]
             if isinstance(v, ast.Name) and v.id == "str":
                 return "string"
+            # pyval-value-model-wall (self-tcb-reduction, heterogeneous value model):
+            # `Dict[str, PyVal]` is the faithful heterogeneous Python-value dict — the
+            # value carrier is the `hval` sum (HStr/HInt/HArr/HMap/HNode), so the dict
+            # lowers to `map string (option hval)` and each value is tagged by its IR
+            # kind (Module6 `_build_dict_literal_map` hval branch). `PyVal` is a NEW
+            # sentinel value-type name absent from the whole corpus, so this is
+            # byte-inert (no existing `Dict[str, X]` annotation is affected). See
+            # getting-better/pyval-value-model-wall-impl.md.
+            if isinstance(v, ast.Name) and v.id == "PyVal":
+                return "hval"
             if (isinstance(v, ast.Subscript)
                     and isinstance(v.value, ast.Name)
                     and v.value.id in ("Dict", "dict")
                     and isinstance(v.slice, ast.Tuple)
                     and len(v.slice.elts) == 2):
                 _ki, vi = v.slice.elts
+                # J2/J3 convergence (self-tcb-reduction): `Dict[str, Dict[str, PyVal]]` —
+                # the INNER heterogeneous dict is `map string (option hval)` (native
+                # string key, hval-tagged value), so the outer value type carries the
+                # faithful hval inner map, NOT the int-erased default. Byte-inert (no
+                # corpus `Dict[str, Dict[str, PyVal]]`).
+                if isinstance(vi, ast.Name) and vi.id == "PyVal":
+                    return "map string (option hval)"
                 vw = "string" if (isinstance(vi, ast.Name) and vi.id == "str") else "int"
                 # nested-map.md: the INNER map is int-keyed (str keys hashed via `str_hash_op`),
                 # matching the model's uniform `dict[str,_] ~ map int (option _)` convention, so
@@ -3341,6 +5762,28 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # lowers to `seq`), so the field is `map int (option (seq T))`. `List[str]`→`seq
                 # string` (was unhandled → flattened to int); `List[int]`→`seq int` (unchanged).
                 return "seq string" if v.slice.id == "str" else "seq int"
+        return None
+
+    @staticmethod
+    def _m5_get_set_elem_type(annotation: ast.expr) -> Optional[str]:
+        """set-value-model-wall (self-tcb-reduction, Tier-5 value-model wall): the
+        faithful WhyML element type of a `Set[str]`/`set[str]`/`FrozenSet[str]`
+        annotation → `"string"`; None for every other set (`Set[int]`, a bare
+        `set`, `Set[<record>]`, …) so those stay byte-identical. Only the string
+        element is recognized here — the executable `set.SetApp[string]` value
+        model (`scope StrSet` in preamble.py) is the sole consumer. GATED so
+        tightly (str element only) that the corpus's `Set[int]` locals (0823/0833)
+        and the `Set[str]` *field*/`= None` local (0775) are untouched — the
+        `_prescan_str_set_locals` recogniser additionally requires a `= set()`
+        initializer, which 0775 (`= None`) lacks."""
+        if (isinstance(annotation, ast.Subscript)
+                and isinstance(annotation.value, ast.Name)
+                and annotation.value.id in ("Set", "set", "FrozenSet", "frozenset")):
+            inner = annotation.slice
+            if type(inner).__name__ == "Index":  # <3.9 AST compat
+                inner = getattr(inner, "value", inner)
+            if isinstance(inner, ast.Name) and inner.id == "str":
+                return "string"
         return None
 
     @staticmethod
@@ -3388,6 +5831,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         scope: Dict[str, str] = {}
         dict_value_types: Dict[str, str] = {}
         dict_key_types: Dict[str, str] = {}
+        # set-value-model-wall (self-tcb-reduction, Tier-5): local/param name ->
+        # WhyML set element type ("string" for `Set[str]`). Drives the executable
+        # `set.SetApp[string]` value model (empty/add/mem). Empty for every corpus
+        # function (no `Set[str] = set()` local) -> byte-inert.
+        set_value_types: Dict[str, str] = {}
         shared = self._shared_var_names
         _scope_name = node.name
 
@@ -3406,7 +5854,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # `List[int]`/`List[bool]` and nested list (byte-identical `array int`
         # / `array (seq τ)`).
         param_list_flat_elem: Dict[str, str] = {}
-        for arg in node.args.args:
+        # (#49) ROUTE #232 — ALL THREE NAMED PARAMETER KINDS ARE PARAMETERS. Python keeps
+        # positional-only (`a, /`) and keyword-only (`*, k`) parameters in the SIBLING
+        # fields `posonlyargs` / `kwonlyargs`; reading `args` alone DROPPED them from the
+        # scope, the signature and the call sites, and a body read of `k` fell through to
+        # an auto-declared opaque `val constant k : int` SHARED by every call — measured,
+        # `f(k=3) == f(k=4)` PROVED (CPython False). Python's own order: posonly, args,
+        # kwonly (route #82 already reads the same three fields for `__init__`).
+        for arg in (list(node.args.posonlyargs) + list(node.args.args)
+                    + list(node.args.kwonlyargs)):
             if arg.arg == 'self':
                 continue
             # self-tcb-reduction T1.a: an `Optional[Dict[K,V]]` param is modeled as the `Dict[K,V]`
@@ -3422,6 +5878,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     and (arg.annotation.value.endswith("Expr")
                          or arg.annotation.value.endswith("Stmt"))):
                 _eff_ann = ast.Name(id=arg.annotation.value)
+            # W-IPM prerequisite P1 (int-erasure seam): a QUOTED forward-reference param
+            # annotation that is a PLAIN IDENTIFIER naming a known record class
+            # (`other: "AuditReport"`) is the bare name `AuditReport` — exactly what
+            # `from __future__ import annotations` already makes the unquoted spelling.
+            # Before this it fell to `int` (`_record_param_classes` empty) and every
+            # `other.f` became an opaque `get_f other`. Nothing fancier than an identifier
+            # (no `"List[C]"`, no dotted names) is resolved.
+            elif (isinstance(arg.annotation, ast.Constant)
+                    and isinstance(arg.annotation.value, str)
+                    and arg.annotation.value.isidentifier()
+                    and arg.annotation.value in getattr(self, "_m5_record_class_names", set())):
+                _eff_ann = ast.Name(id=arg.annotation.value)
             if (isinstance(arg.annotation, ast.Subscript)
                     and isinstance(arg.annotation.value, ast.Name)
                     and arg.annotation.value.id == "Optional"):
@@ -3431,7 +5899,16 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 if (isinstance(_inner, ast.Subscript) and isinstance(_inner.value, ast.Name)
                         and _inner.value.id in ("Dict", "dict")):
                     _eff_ann = _inner
-            arg_type = (self._m5_get_type_name(_eff_ann, _scope_name, arg.arg)
+            # UNION IDENTITY AT THE PARAM SEAM (relaunch #16). `dedup=True` makes two
+            # PARAMETERS of one function that carry the STRUCTURALLY IDENTICAL
+            # `Optional[τ]` annotation share ONE synthesized union type. Why3 sum types
+            # are NOMINAL, so without it `def cmp(a: Optional[Term], b: Optional[Term])`
+            # gives `a: _union_cmp_6`, `b: _union_cmp_7` and the body's `return a == b`
+            # is an L3-tc type error — the [SYNTHESIZED-UNION IDENTITY] wall. This is the
+            # SAME mechanism `tool-feature-5` already applies at the local-declaration and
+            # return seams for exactly the same reason; only the FIELD seam is deliberately
+            # left per-site (record slots keep distinct types).
+            arg_type = (self._m5_get_type_name(_eff_ann, _scope_name, arg.arg, dedup=True)
                         if _eff_ann else "Any")
             # self-tcb-reduction T1.a: an IR-node-typed PARAM (`node: "ExprIR"`, `stmt: "StmtIR"`)
             # is `emit_ir` — so the `_handle_*_expr` handlers reflect on it (`name_of node`).
@@ -3457,6 +5934,17 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _fe = self._m5_get_list_flat_elem_whyml(arg.annotation)
                 if _fe is not None:
                     param_list_flat_elem[arg.arg] = _fe
+                # WL-04b (record residual): a flat `List[<record>]` element — a
+                # recognized `Tuple[…]` or a user record class — carries the
+                # record CLASS NAME, so Module6 emits `array <record-whyml>` and a
+                # use-site `a[i].field` projects the faithful field. Only fires
+                # when the str/float and nested paths did NOT (a record element is
+                # a bare Name that is neither str/float nor a container). Shares the
+                # `param_list_flat_elem` map; Module6 resolves a record name via
+                # `_record_types`, else emits `array {value}` directly.
+                _re = self._m5_get_list_record_elem(arg.annotation)
+                if _re is not None:
+                    param_list_flat_elem[arg.arg] = _re
             # no-more-int emitter L4b: preserve the param's annotated type as a
             # scalar-dict field on the func IR (like `return_annotation`), so it
             # survives import injection — which rebuilds `symbol_table` with `Any`
@@ -3477,7 +5965,60 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if isinstance(child, ast.Assign):
                 for target in child.targets:
                     if isinstance(target, ast.Name) and target.id not in shared:
-                        scope[target.id] = "Any"
+                        # tool-feature-5 (Optional MUTABLE local): a reassignment
+                        # `x = v` of a local that was ALREADY declared with a synthesized
+                        # Optional/Union type by its `x: Optional[τ] = None` AnnAssign
+                        # (processed FIRST by BFS `ast.walk` since the declaration is
+                        # shallower than the branch-local reassignment) must NOT clobber
+                        # that union type back to `Any`. Byte-inert: only a local that is
+                        # both union-declared AND plain-reassigned is affected — no corpus
+                        # program has an Optional-typed mutable local.
+                        if not str(scope.get(target.id, "")).startswith("_union_"):
+                            scope[target.id] = "Any"
+                        # WL-06b (faithful bytes value content): a local bound to a
+                        # `bytes` LITERAL (`b = b"abc"`) is the τ-blessed `bytes=int†`
+                        # array-int buffer AND is IMMUTABLE. Classify it as "bytes" so
+                        # (a) a byte read `b[i]` / `len(b)` routes to the native array
+                        # backing (Array.get / Array.length — same branch as WL-06's
+                        # param read) and (b) `_check_subscript_assignments` REJECTS a
+                        # `b[i] = v` element write (Python TypeError: 'bytes' object does
+                        # not support item assignment). The literal's ArrayLit already
+                        # carries the REAL byte values (Module5 `_py_expr_constant`), so
+                        # `b[0] == 97` PROVES. Byte-identical: no corpus local binds a
+                        # bare bytes literal; a `bytes(...)`/`bytearray(...)` CONSTRUCTOR
+                        # call stays "Any" (unchanged — 0616/0658/0665 untouched).
+                        if (isinstance(child.value, ast.Constant)
+                                and isinstance(child.value.value, bytes)):
+                            scope[target.id] = "bytes"
+                        # (#49) ROUTE #217 — AND THE GAP WITNESS 1725 NAMED AS "pre-existing
+                        # and separate". A local bound from the `bytes(...)` CONSTRUCTOR was
+                        # typed "Any" by the branch above, and `PYCSL-SEM-SUBSCRIPT`'s
+                        # IMMUTABILITY refusal keys on the symbol table saying "bytes". So
+                        #
+                        #     b = bytes([1, 2, 3]); b[0] = 9; return b[0]
+                        #
+                        # PROVED `\result == 9` while CPython raises
+                        # `TypeError: 'bytes' object does not support item assignment`.
+                        # The count form `b = bytes(2)` is the same hole and is what 1725
+                        # pins; the ITERABLE form had no witness at all.
+                        #
+                        # MEASURED BEFORE LANDING, whole corpus, both sides emitted fresh:
+                        # 1303 baseline .mlw, **0 MOVED, 0 APPEARED, and exactly 1 GONE** —
+                        # `1725_gen30_bytes_count_form_excluded`, which is
+                        # `# pycsl-expected: FAIL` and now fails BY THE REFUSAL instead of
+                        # by the ill-typedness its own docstring says was doing the
+                        # enforcing. `src/pycsl_lib/os/UnixInodeFileSystem` (the only
+                        # `pycsl_lib` site) emits byte-identically; the mirror and the live
+                        # tree contain ZERO such locals.
+                        #
+                        # The handoff's guess that typing the ITERABLE form could make reads
+                        # MORE faithful (`b[0] == 65` provable from `_py_expr_constant`'s
+                        # real byte values) was checked and is WRONG: every one of the five
+                        # surviving corpus emissions is byte-identical.
+                        if (isinstance(child.value, ast.Call)
+                                and isinstance(child.value.func, ast.Name)
+                                and child.value.func.id == "bytes"):
+                            scope[target.id] = "bytes"
                         # local-dict-value-type: a `d = {"a": "x", ...}` literal with all-STRING
                         # values is a `dict[_, str]`, so `d[k]` reads a `string` (default "") not the
                         # int default. Infer the value type from a homogeneous string-valued DictLit
@@ -3501,10 +6042,66 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             dict_key_types.setdefault(target.id, "string")
             elif isinstance(child, ast.AnnAssign):
                 if isinstance(child.target, ast.Name) and child.target.id not in shared:
-                    scope[child.target.id] = (
-                        self._m5_get_type_name(child.annotation, _scope_name)
-                        if child.annotation else "Any"
-                    )
+                    # `Optional[<IR-node tag>]` LOCAL -> a REAL union carrier.
+                    # `_m5_get_type_name` collapses `Optional[ExprIR]` to plain `ExprIR`
+                    # (`_irnode_ann_name`, "emit_ir is total") — correct for a PARAM or a
+                    # FIELD, and deliberately so: commit b18932b8's over-broad
+                    # `option emit_ir` FIELD typing broke every consumer mirror that reads
+                    # such a field as a bare always-present node. But for a LOCAL declared
+                    # `x: Optional[ExprIR] = None` and later bound from a node, the collapse
+                    # ERASES the `None`: the local becomes a bare `emit_ir` ref initialised
+                    # to `IrOther ""`, so a value-less path models as a NODE, and binding it
+                    # to a genuinely `option emit_ir` record field is an L3 type error. The
+                    # LOCAL seam is DISJOINT from the param/field seams, so the union is
+                    # synthesized HERE only and b18932b8's regression cannot recur. Gated on
+                    # the explicit `Optional[...]` wrapper around an IR-node tag, so every
+                    # other annotation is byte-identical.
+                    _ann = child.annotation
+                    _opt_ir = (isinstance(_ann, ast.Subscript)
+                               and isinstance(_ann.value, ast.Name)
+                               and _ann.value.id == "Optional"
+                               and self._irnode_ann_name(_ann) is not None)
+                    # W8 capability (v), LOCAL seam: `Optional[<declared RECORD class>]`
+                    # (the token cursor's `last_sig: Optional[_Tok] = None`) is the SAME
+                    # real-union case as `Optional[<IR-node tag>]` above, one type-class
+                    # over. `_union_arm_tag` ALREADY emits a REAL record arm for a class
+                    # with an emitted `record` type_decl — that is how `accept_op`'s
+                    # `-> Optional[_Tok]` RETURN gets `Arm_0_0 _tok`. Without this
+                    # disjunct the LOCAL fell through to `_m5_get_type_name`, which
+                    # collapses it to the `int` default: `last_sig := 0`, and every
+                    # projection off it degenerated to an opaque `get_type`/`get_string`
+                    # pair over an int with the `":"` test collapsed to a string HASH
+                    # (lesson (ba), measured). Gated on the EMITTED record type_decl set,
+                    # byte-for-byte the same gate `_union_arm_tag` uses -> the local is
+                    # admitted iff its arm can be typed FAITHFULLY, else it degrades
+                    # exactly as before.
+                    _opt_rec = False
+                    if (isinstance(_ann, ast.Subscript)
+                            and isinstance(_ann.value, ast.Name)
+                            and _ann.value.id == "Optional"):
+                        _inner = _ann.slice
+                        if isinstance(_inner, getattr(ast, "Index", ())):
+                            _inner = _inner.value
+                        if isinstance(_inner, ast.Name):
+                            _opt_rec = any(
+                                td.get("kind") == "record"
+                                and td.get("name") == _inner.id
+                                for td in self.program_ir.get("type_decls", []))
+                    if (_opt_ir or _opt_rec) and _scope_name:
+                        try:
+                            scope[child.target.id] = self._normalize_union_annotation(
+                                _ann, _scope_name, dedup=True)
+                        except Exception:
+                            scope[child.target.id] = self._m5_get_type_name(
+                                _ann, _scope_name, dedup=True)
+                    else:
+                        # tool-feature-5: `dedup=True` at the LOCAL-declaration seam so a
+                        # mutable `x: Optional[τ] = None` shares the enclosing function's
+                        # `-> Optional[τ]` return union (nominal identity for `return x`).
+                        scope[child.target.id] = (
+                            self._m5_get_type_name(child.annotation, _scope_name, dedup=True)
+                            if child.annotation else "Any"
+                        )
                     if child.annotation is not None:
                         nu = self._m5_get_dict_value_type(child.annotation)
                         if nu is not None:
@@ -3512,6 +6109,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         kappa = self._m5_get_dict_key_type(child.annotation)
                         if kappa is not None:
                             dict_key_types[child.target.id] = kappa
+                        # set-value-model-wall: a `Set[str]` local element type.
+                        sve = self._m5_get_set_elem_type(child.annotation)
+                        if sve is not None:
+                            set_value_types[child.target.id] = sve
             elif isinstance(child, ast.For):
                 if isinstance(child.target, ast.Name) and child.target.id not in shared:
                     scope[child.target.id] = "Any"
@@ -3598,7 +6199,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
         return (scope, dict_value_types, dict_key_types, param_annotations,
                 param_list_elem_types, param_list_nested_elem,
-                param_list_flat_elem)
+                param_list_flat_elem, set_value_types)
 
     def _build_function_ir(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Build the core function IR dict (name, contracts, body)."""
@@ -3615,16 +6216,64 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # refactor.md B-final wedge: Module5 computes the scope itself rather than
         # copying Module4's `node.csl_symbol_table` (etc.). Byte-identical by design.
         (_sym, _dvt, _dkt, _pann, _plet, _plne,
-         _plfe) = self._build_function_symbol_table(node)
+         _plfe, _svt) = self._build_function_symbol_table(node)
         symbol_table = {k: v for k, v in _sym.items() if k != 'self'}
         # scc3.md Phase B: expose this function's symbol table to `_csl_in` (built
         # below for contracts/body) so `x in S` dispatches on the collection type.
         self._cur_func_symtab = symbol_table
+        # W8 capability (ii): this function's `*vals: str` vararg name (or None),
+        # computed here (BEFORE contract desugaring) so `_csl_in` can keep `x in vals`
+        # as an `in` BinOp for Module6's faithful `seq string` lowering instead of
+        # desugaring it to the ARRAY-positional `exists … Array.length …` (which would
+        # leave `Array.length`/`subscript_get` unbound against a `seq`). Reused below
+        # for the IR field. None for every function without a str-annotated vararg.
+        # ladder 1a (relaunch #21): an UNANNOTATED `*args` is recorded the same way,
+        # with element type `int` (the pyval model every other unannotated value uses),
+        # instead of being DROPPED from the signature. Dropping it made a bare read of
+        # the vararg resolve to an opaque `val constant args : int` and discarded the
+        # payload of every variadic call; carrying it as a `seq int` puts it in the SAME
+        # model as the rest of the function and needs no source annotation.
+        self._cur_func_vararg_str = None
+        self._cur_func_vararg_elem = "string"
+        _va0 = getattr(node.args, "vararg", None)
+        if _va0 is not None:
+            _vann0 = getattr(_va0, "annotation", None)
+            if isinstance(_vann0, ast.Name) and _vann0.id == "str":
+                self._cur_func_vararg_str = _va0.arg
+            elif _vann0 is None:
+                # ...EXCEPT when the vararg is STAR-FORWARDED (`g(*args)`) to another
+                # callee. A starred argument lowers to the bare inner value
+                # (`expressions._expr_to_whyml`, "Starred"), so the callee would receive
+                # the whole `seq int` where it declares a scalar — an L3-tc error — and
+                # modelling it correctly needs Python's positional re-binding of an
+                # UNKNOWN-length sequence against the callee's arity. That is a separate
+                # capability (STARRED-ARGUMENT FORWARDING); until it exists, a
+                # star-forwarding function keeps the historical drop-the-vararg
+                # behaviour, which is exactly byte-identical to before.
+                if not any(isinstance(_n, ast.Starred)
+                           and isinstance(getattr(_n, "value", None), ast.Name)
+                           and _n.value.id == _va0.arg
+                           for _n in ast.walk(node)):
+                    self._cur_func_vararg_str = _va0.arg
+                    self._cur_func_vararg_elem = "int"
         # STEP 1 (B-final): surface name for the \proj-index guard in `_csl_proj`.
         self._cur_func_name = f"function '{node.name}'"
         return_annotation = None
         return_value_type = None
         is_noreturn = False
+        # #31 PATH MODEL: a `-> Path` / `-> pathlib.Path` / `-> "Path"` return carries the
+        # SAME `"str"` tag as `-> str` (a path IS its string form — see
+        # `_m5_path_ann_tag`), so the existing `-> str` disjunct in
+        # `_compute_return_type` announces `string` instead of the unrecognised-name `int`
+        # default. Restricted to the UNPARAMETRIC forms: a `Optional[Path]` return goes
+        # through `_normalize_union_annotation`, which REGISTERS a variant `type_decl` as a
+        # side effect, and silently retagging it here would leave that declaration dangling.
+        if (node.returns is not None
+                and not isinstance(node.returns, (ast.Subscript, ast.BinOp))
+                and self._m5_path_ann_tag(node.returns) is not None):
+            node_returns_is_path = True
+        else:
+            node_returns_is_path = False
         if node.returns:
             if isinstance(node.returns, ast.Name):
                 if node.returns.id == "NoReturn":
@@ -3640,10 +6289,26 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     return_annotation = node.returns.id
             elif isinstance(node.returns, ast.Constant):
                 return_annotation = str(node.returns.value)
+                # NR1, STRING-ANNOTATION FORM: `-> "NoReturn"`. A quoted return
+                # annotation is the codebase's standard idiom for a name that is not
+                # imported at runtime (`-> "ExprIR"` throughout the mirror), and
+                # `pure_ast.py` has neither `from __future__ import annotations` nor a
+                # `typing` import, so the BARE `-> NoReturn` there would be EVALUATED and
+                # raise NameError. Without this branch the quoted form silently became an
+                # ordinary return type: the diverging call emitted as a `: unit` val and the
+                # continuation stayed REACHABLE, so a guard whose live body raises modelled
+                # as falling through — a raise-erasure, not merely a weaker contract.
+                # Treated identically to the bare form (NR1). Additive: no reference-corpus
+                # program spells the quoted form (measured), so emission is byte-identical.
+                if return_annotation == "NoReturn":
+                    is_noreturn = True
+                    return_annotation = None
             elif isinstance(node.returns, ast.BinOp) and isinstance(node.returns.op, ast.BitOr):
                 # PEP 604 `X | Y` return — route through Union normalization.
+                # tool-feature-5 `dedup=True`: share the union with a mutable
+                # `x: Optional[τ] = None` local of the SAME type (see local seam).
                 return_annotation = self._normalize_union_annotation(
-                    node.returns, node.name)
+                    node.returns, node.name, dedup=True)
             elif isinstance(node.returns, ast.Subscript):
                 # Parametric annotations like `List[str]`, `Tuple[int, int]`,
                 # `Dict[str, Any]`, `Optional[int]`. Capture the head identifier
@@ -3663,8 +6328,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         # `Optional[T]` / `Union[...]` return — synthesize a
                         # per-site variant (typing-engagement ty1), so the
                         # return type is a real sum type, not a collapsed int.
+                        # tool-feature-5 `dedup=True`: share the union with a mutable
+                        # `x: Optional[τ] = None` local of the SAME type.
                         return_annotation = self._normalize_union_annotation(
-                            node.returns, node.name)
+                            node.returns, node.name, dedup=True)
                     else:
                         return_annotation = head.lower()
                         # item34.md CF5: capture a `List[str]`/`List[int]` return's ELEMENT
@@ -3673,6 +6340,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         # name-list stubs), not the default `array int`.
                         if head in ("List", "list"):
                             return_value_type = self._m5_get_list_elem_type(node.returns)
+                            # WL-04a (wrong-lowering-to-fix.md §WL-04 list-literal residual):
+                            # a `-> List[float]` return is `array real` — the flat float
+                            # leaf that `_m5_get_list_elem_type` (str/emit_ir only) does not
+                            # capture. Fall back to the flat-element analysis so Module6
+                            # emits `array real`, matching a float list-literal body.
+                            if return_value_type is None:
+                                _flat = self._m5_get_list_flat_elem_whyml(node.returns)
+                                if _flat == "real":
+                                    return_value_type = "real"
+                            # WL-04b (record residual): a `-> List[<record>]` return
+                            # is `array <record-whyml>`, so a pass-through record-list
+                            # return (`return a`) types coherently. The record CLASS
+                            # NAME is captured; Module6 `_compute_return_type` resolves
+                            # it via `_record_types`.
+                            if return_value_type is None:
+                                _rre = self._m5_get_list_record_elem(node.returns)
+                                if _rre is not None:
+                                    return_value_type = _rre
             elif isinstance(node.returns, ast.Attribute):
                 # `typing.NoReturn` (Attribute value=Name "typing", attr
                 # "NoReturn") — the qualified spelling of the PEP 484 marker.
@@ -3692,17 +6377,90 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # decide which pre_decl_vars should be shadowed via
         # `let X = ref X in` (formal params) vs `let X = ref 0 in`
         # (other locals).
-        formal_params = [a.arg for a in node.args.args if a.arg != 'self']
+        # (#49) ROUTE #232: positional-only + positional-or-keyword, in Python's order
+        # (the keyword-only ones are appended AFTER any vararg below).
+        formal_params = [a.arg for a in (list(node.args.posonlyargs) + list(node.args.args))
+                         if a.arg != 'self']
+        # W8 capability (ii) — varargs-membership. A `*vals: str` parameter (a
+        # STRING-annotated vararg) is a real, faithfully-modelled parameter: the tuple
+        # of extra positional arguments, lowered by Module6 to an immutable
+        # `seq string`. Without this the vararg was DROPPED from the signature entirely
+        # and every read of it fell back to an unconstrained module-level
+        # `val constant vals : int` — so `t.string in vals` became
+        # `contains_check (str_hash_op t.string) vals`, an opaque int-hash over a
+        # value with no relation to the actual arguments (a total facade).
+        # Gated on the `: str` annotation: an UNANNOTATED `*args` keeps the legacy
+        # drop, so every corpus and `pycsl_lib` function is byte-identical.
+        _vararg_str: Optional[str] = getattr(self, "_cur_func_vararg_str", None)
+        if _vararg_str:
+            formal_params.append(_vararg_str)
+        # (#49) ROUTE #232 — KEYWORD-ONLY PARAMETERS ARE ORDINARY PARAMETERS, emitted
+        # after the positional ones; Module 6 binds them at a call site BY NAME only
+        # (`kwonly_params` below tells it which formals a positional actual may never
+        # reach). A keyword-only parameter behind a modelled vararg would need the vararg
+        # packing to stop before it — not built, so that combination is REFUSED.
+        _kwonly232 = [a.arg for a in node.args.kwonlyargs if a.arg != 'self']
+        _posonly232 = [a.arg for a in node.args.posonlyargs if a.arg != 'self']
+        if _kwonly232 and _vararg_str:
+            raise PyCSLIRError(
+                f"function '{node.name}': keyword-only parameter(s) "
+                f"{', '.join(repr(_k) for _k in _kwonly232)} after a `*{_vararg_str}` "
+                "vararg are not supported (route #232: the vararg packing would absorb "
+                "them) -- refused fail-closed", stage="ir-emit")
+        formal_params.extend(_kwonly232)
+        # (#49) ROUTE #232 — a `**kwargs` parameter is NOT modelled: it is dropped from
+        # the signature, so a body READ of it would fall to the opaque `val constant`
+        # every call shares (measured: `f(a=3) == f(a=4, b=5)` with `return len(kw)`
+        # PROVED; CPython False). Recorded here as `kwarg_read`; Module 6 refuses it when
+        # (and only when) it EMITS that body — an imported library function or a
+        # `\trusted` one is a bodiless `val` there, and its read is never lowered.
+        _kwarg232 = getattr(node.args, "kwarg", None)
+        _kwread232 = False
+        if _kwarg232 is not None:
+            _kwn232 = _kwarg232.arg
+            _stk232: List[Any] = list(node.body)
+            while _stk232 and not _kwread232:
+                _x232 = _stk232.pop()
+                if isinstance(_x232, ast.Name) and _x232.id == _kwn232:
+                    _kwread232 = True
+                # A `**kw` SPLAT forwarded into a call (`g(**kw)`) is not a value read:
+                # the call IR drops a splat keyword entirely (WL-07's documented
+                # residual), so no opaque constant is minted for it.
+                if (isinstance(_x232, ast.keyword) and _x232.arg is None
+                        and isinstance(_x232.value, ast.Name) and _x232.value.id == _kwn232):
+                    continue
+                _stk232.extend(ast.iter_child_nodes(_x232))
         # 1111-spec R7: positional default values (param name -> default IR), so a
         # cross-module call passing fewer args than the callee arity can fill the
         # missing trailing params from these defaults at the call site.
+        # (#49) ROUTE #232: `defaults` aligns with the TAIL of posonlyargs + args (one
+        # list in CPython's ASDL), not of `args` alone — `def f(a=1, /, b=2)` paired
+        # `b` with `1` when only `args` was read.
         param_defaults: Dict[str, Any] = {}
-        _pos_args = node.args.args
+        _pos_args = list(node.args.posonlyargs) + list(node.args.args)
         _defs = node.args.defaults
         if _defs:
             for _a, _d in zip(_pos_args[len(_pos_args) - len(_defs):], _defs):
                 if _a.arg != 'self':
                     param_defaults[_a.arg] = self._py_expr_to_ir(_d)
+        # (#49) ROUTE #232: a keyword-only default fills an OMITTED keyword at the call
+        # site through the SAME R7 machinery — which lowers the default expression in
+        # the CALLER's scope. Only a context-free LITERAL (a constant — `None` lowers to
+        # the same `pycsl_none`/faithful-zero the positional R7 fill uses — or a negated
+        # numeric one) is safe there; any other default (a NAME the caller could shadow,
+        # a call, ...) is left out, so a call omitting that keyword is REFUSED by the R7
+        # arity check (fail-closed).
+        for _a232, _d232 in zip(node.args.kwonlyargs, node.args.kw_defaults):
+            if _d232 is None or _a232.arg == 'self':
+                continue
+            _lit232 = (_d232.operand if (isinstance(_d232, ast.UnaryOp)
+                                         and isinstance(_d232.op, ast.USub))
+                       else _d232)
+            if (isinstance(_lit232, ast.Constant)
+                    and (_lit232 is _d232
+                         or (isinstance(_lit232.value, (int, float))
+                             and not isinstance(_lit232.value, bool)))):
+                param_defaults[_a232.arg] = self._py_expr_to_ir(_d232)
         # Front-end resolution of a Python-specific fact for the core's no-mutable-default
         # check (refactor.md AST-only #3): is any default arg mutable — a list/dict/set
         # literal, or a list()/dict()/set() call — over ALL defaults (positional + keyword
@@ -3733,10 +6491,229 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 acts_ir.append({"kind": "complete", "names": list(_a.names)})
             elif isinstance(_a, Disjoint):
                 acts_ir.append({"kind": "disjoint", "names": list(_a.names)})
-        return {
+        # self-tcb-reduction giants (generic class-body lowering): preserve the RAW
+        # `ast.<Node>` annotation of a param (`node: ast.ClassDef`), which the type
+        # resolver otherwise collapses to `int`. Module6's `_uses_pyast_stmt` /
+        # `py_classdef_node` param-typing read this to lower `node.body` faithfully.
+        # Empty for every non-`ast.<Node>`-annotated param -> byte-identical.
+        _past_node_types: Dict[str, str] = {}
+        for _arg in list(getattr(node.args, "posonlyargs", []) or []) + list(node.args.args):
+            _ann = getattr(_arg, "annotation", None)
+            if (isinstance(_ann, ast.Attribute) and isinstance(_ann.value, ast.Name)
+                    and _ann.value.id == "ast"):
+                _past_node_types[_arg.arg] = _ann.attr
+        # (#34) NAMES THIS FUNCTION WRITES THROUGH A `nonlocal` DECLARATION.
+        # `ast.Nonlocal` has NO `_PY_STMT_HANDLERS` entry, so the declaration is dropped;
+        # the nested `def` is LIFTED to a sibling top-level function and its `x = 2`
+        # becomes a write to a FRESH LOCAL. Measured before this field existed:
+        #     #@ ensures \result == 1              <-- FALSE OF THE PROGRAM
+        #     def outer() -> int:
+        #         x: int = 1
+        #         def inner() -> None:
+        #             nonlocal x
+        #             x = 2
+        #         inner()
+        #         return x
+        #     [+] Verification SUCCESS! All contracts formally proven.
+        # emitting `let inner () : unit = let x = ref 0 in x := 2`, while Python returns 2.
+        # The refusal CANNOT live in the front end: `module6_whyml/generic_fold.py` carries
+        # hand-synthesized BESPOKE lowerings for exactly this shape (the `hit = False` /
+        # nested `_walk` / `nonlocal hit` existence walk of
+        # `preamble._inductive_refs_global_or_axiom_func` and `._class_inv_refs_axiom_func`)
+        # that PAIR the outer wrapper with its lifted `_walk` sibling — those two are
+        # faithful and must keep working. So the fact is carried into the IR and the
+        # refusal is made in Module 6's GENERIC emission, which is the only layer that
+        # knows whether a bespoke model claimed the function.
+        # Collected from THIS function's own statements only: the walk stops at a nested
+        # `def`/`class`, because a nested function's `nonlocal` belongs to the nested
+        # function, which Module 5 lifts and builds separately.
+        _nonlocal_writes: List[str] = []
+        _nl_stack = list(node.body)
+        while _nl_stack:
+            _nl = _nl_stack.pop()
+            if isinstance(_nl, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if isinstance(_nl, ast.Nonlocal):
+                for _nm in _nl.names:
+                    if _nm not in _nonlocal_writes:
+                        _nonlocal_writes.append(_nm)
+                continue
+            for _f in ("body", "orelse", "finalbody"):
+                _v = getattr(_nl, _f, None)
+                if isinstance(_v, list):
+                    _nl_stack.extend(x for x in _v if isinstance(x, ast.stmt))
+            for _h in getattr(_nl, "handlers", []) or []:
+                _nl_stack.extend(_h.body)
+            for _c in getattr(_nl, "cases", []) or []:
+                _nl_stack.extend(_c.body)
+        # (#43) ROUTE #20 — `with ... as v:` DROPS THE BINDING. `_py_stmt_with` reads
+        # `stmt.body` and the `csl_critical_mutex` / `csl_acquires` markers and NEVER reads
+        # `stmt.items`, so both the context-manager expression and the `as v` binding
+        # vanish and the body is inlined against the PRE-`with` value of `v`. That is the
+        # `CTXBIND` population `bin/check-dropped-mutation.py` has been ratcheting at 50.
+        # MEASURED, before the refusal (corpus 0989):
+        #     class CM:  #@ ensures \result == 7
+        #                def __enter__(self) -> int:  return 7
+        #     def f() -> int:
+        #         v: int = 0
+        #         with CM() as v:  return v
+        #     #@ ensures \result == 0      <-- FALSE OF THE PROGRAM (Python returns 7)
+        #     [+] Verification SUCCESS!    emitted body: `let v = ref 0 in v := 0; !v`
+        # Carried into the IR and refused in Module 6's GENERIC emission for the same
+        # reason `nonlocal_writes` is: a `\trusted` / `\abstract` function emits as a
+        # bodyless `val` and must stay exempt, and only Module 6 knows that. A BARE
+        # `with <lock>:` has no binding and is modelled through `CriticalSection`, so it is
+        # untouched — this keys on the `as` clause alone. Same walk discipline as
+        # `nonlocal_writes`: stops at a nested `def`/`class`.
+        _with_bindings: List[str] = []
+        _wb_stack = list(node.body)
+        while _wb_stack:
+            _wb = _wb_stack.pop()
+            if isinstance(_wb, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if isinstance(_wb, (ast.With, ast.AsyncWith)):
+                for _it in _wb.items:
+                    _ov = getattr(_it, "optional_vars", None)
+                    if _ov is None:
+                        continue
+                    _nm = (_ov.id if isinstance(_ov, ast.Name) else "<target>")
+                    if _nm not in _with_bindings:
+                        _with_bindings.append(_nm)
+            for _f in ("body", "orelse", "finalbody"):
+                _v = getattr(_wb, _f, None)
+                if isinstance(_v, list):
+                    _wb_stack.extend(x for x in _v if isinstance(x, ast.stmt))
+            for _h in getattr(_wb, "handlers", []) or []:
+                _wb_stack.extend(_h.body)
+            for _c in getattr(_wb, "cases", []) or []:
+                _wb_stack.extend(_c.body)
+        # (#49) ROUTE #129 — a WRITE THROUGH `global` IS DROPPED: the store lowers to a FRESH
+        # local `let n = ref ...`, while every read of a non-constant module variable is one
+        # opaque `val constant` — so `a = N; setn(); return a - N` proved `0` (Python -2), under
+        # a false `assigns \nothing` the honest `assigns N` could not even spell. Same carrier
+        # and same layer as `nonlocal_writes`: the names this function declares `global` AND
+        # stores, from its own statements (a nested def's `global` is its own). Module 6
+        # refuses unless the name is a modelled `#@ shared` variable.
+        _global_decl: List[str] = []
+        _global_stored: set = set()
+        _gw_stack: list = list(node.body)
+        while _gw_stack:
+            _gw = _gw_stack.pop()
+            if isinstance(_gw, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)):
+                continue
+            if isinstance(_gw, ast.Global):
+                for _nm in _gw.names:
+                    if _nm not in _global_decl:
+                        _global_decl.append(_nm)
+            if isinstance(_gw, ast.Name) and not isinstance(_gw.ctx, ast.Load):
+                _global_stored.add(_gw.id)
+            _gw_stack.extend(ast.iter_child_nodes(_gw))
+        _global_writes = [_nm for _nm in _global_decl if _nm in _global_stored]
+        # (#49) ROUTE #230 — CONTAINERS WHOSE DECLARED ELEMENT/VALUE TYPE ADMITS `None`.
+        # `d: Dict[int, Optional[int]]` (a param, or a local filled elsewhere) can hand back a
+        # `None` that this function never stored, and `param_annotations` keeps only `"dict"`,
+        # so Module 6's container-None fence could not see it: measured, `v = d[k]; return
+        # v - v + 3` under `#@ requires k in d` PROVED `\result == 3` (CPython TypeError when
+        # the caller stored None). Recorded by NAME for params and annotated locals whose
+        # annotation is a subscripted container with `Optional`/`None` anywhere inside it.
+        # Emitted ONLY when non-empty, so every other function's IR is byte-identical.
+        _r230_opt: set = set()
+        _r230_anns = [(a.arg, a.annotation) for a in (list(node.args.args)
+                       + list(node.args.kwonlyargs)) if a.annotation is not None]
+        _r230_stack: list = list(node.body)
+        while _r230_stack:
+            _r230_n = _r230_stack.pop()
+            if isinstance(_r230_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+                                    ast.Lambda)):
+                continue
+            if (isinstance(_r230_n, ast.AnnAssign) and isinstance(_r230_n.target, ast.Name)
+                    and _r230_n.annotation is not None):
+                _r230_anns.append((_r230_n.target.id, _r230_n.annotation))
+            _r230_stack.extend(ast.iter_child_nodes(_r230_n))
+        for _r230_nm, _r230_ann in _r230_anns:
+            if not isinstance(_r230_ann, ast.Subscript):
+                continue
+            for _r230_x in ast.walk(_r230_ann.slice):
+                if ((isinstance(_r230_x, ast.Name) and _r230_x.id == "Optional")
+                        or (isinstance(_r230_x, ast.Attribute) and _r230_x.attr == "Optional")
+                        or (isinstance(_r230_x, ast.Constant) and _r230_x.value is None)):
+                    _r230_opt.add(_r230_nm)
+                    break
+        # (#49) ROUTE #249 — CONTAINERS WHOSE ELEMENTS ARE `Any`. `List[Any]`, `Dict[str, Any]`,
+        # `Set[Any]`, `Tuple[Any, int]`, or a TypeVar element: `param_annotations` keeps only `"list"`/`"dict"`, so Module 6 could not
+        # tell `xs[0] == xs[1]` on a `List[Any]` from the same read on a `List[int]`, and
+        # lowered both to Why3 `=` (measured: `requires xs[0] == xs[1]` PROVED `ensures xs[1]
+        # == xs[0]`; CPython breaks it with an asymmetric user `__eq__`). Recorded by NAME ->
+        # which part is erased: "k" (a list/set/tuple ELEMENT, a dict KEY: what `in` tests)
+        # and/or "v" (what a subscript / `.get` reads). Emitted ONLY when non-empty, so every
+        # other function's IR is byte-identical. Same population as route #230's scan
+        # (params + annotated locals), plus positional-only params.
+        _r249_cont: Dict[str, str] = {}
+        _r249_tv = set((self.program_ir.get("typevar_registry") or {}).keys())
+        _r249_anns = list(_r230_anns) + [
+            (a.arg, a.annotation) for a in list(node.args.posonlyargs)
+            if a.annotation is not None]
+        for _r249_nm, _r249_ann in _r249_anns:
+            _r249_a = _r249_ann
+            for _r249_k in range(4):
+                if (isinstance(_r249_a, ast.Subscript)
+                        and ((isinstance(_r249_a.value, ast.Name)
+                              and _r249_a.value.id == "Optional")
+                             or (isinstance(_r249_a.value, ast.Attribute)
+                                 and _r249_a.value.attr == "Optional"))):
+                    _r249_a = _r249_a.slice
+                    if type(_r249_a).__name__ == "Index":
+                        _r249_a = _r249_a.value
+            _r249_base = (_r249_a.value if isinstance(_r249_a, ast.Subscript) else _r249_a)
+            _r249_bn = (_r249_base.id if isinstance(_r249_base, ast.Name)
+                        else _r249_base.attr if isinstance(_r249_base, ast.Attribute) else "")
+            _r249_map = _r249_bn in ("Dict", "dict", "Mapping", "MutableMapping",
+                                     "DefaultDict", "defaultdict", "OrderedDict")
+            if _r249_bn not in ("List", "list", "Set", "set", "FrozenSet", "frozenset",
+                                "Tuple", "tuple", "Sequence", "MutableSequence", "Iterable",
+                                "Collection", "Deque", "deque", "AbstractSet") and not _r249_map:
+                continue
+            if not isinstance(_r249_a, ast.Subscript):
+                # A BARE `list`/`dict`/`set` is NOT recorded: PyCSL reads it as an `int`-element
+                # container (translational reference §T.Ann.2, rows 3a/3b), the same declared-
+                # type trust as `x: int`. Measured: recording it moved 87 corpus files, >= 65
+                # PASS -> FAIL (`ensures \result == a[i]` needs reflexivity). Route doc residual.
+                continue
+            _r249_sl = _r249_a.slice
+            if type(_r249_sl).__name__ == "Index":
+                _r249_sl = _r249_sl.value
+            _r249_parts = ([("k", _r249_sl.elts[0]), ("v", _r249_sl.elts[1])]
+                           if (_r249_map and isinstance(_r249_sl, ast.Tuple)
+                               and len(_r249_sl.elts) == 2)
+                           else [("kv", _r249_sl)])
+            _r249_tag = ""
+            for _r249_p, _r249_e in _r249_parts:
+                for _r249_x in ast.walk(_r249_e):
+                    if ((isinstance(_r249_x, ast.Name)
+                         and (_r249_x.id in ("Any", "object") or _r249_x.id in _r249_tv))
+                            or (isinstance(_r249_x, ast.Attribute)
+                                and _r249_x.attr in ("Any",))
+                            or (isinstance(_r249_x, ast.Constant)
+                                and isinstance(_r249_x.value, str)
+                                and _r249_x.value in ("Any", "object"))):
+                        _r249_tag += _r249_p
+                        break
+            if _r249_tag:
+                _r249_cont[_r249_nm] = "".join(sorted(set(_r249_tag)))
+        _r233_fir = {
             "name": func_name,
+            **({"global_writes": sorted(_global_writes)} if _global_writes else {}),
+            **({"r230_optional_containers": sorted(_r230_opt)} if _r230_opt else {}),
+            **({"r249_erased_containers": dict(sorted(_r249_cont.items()))}
+               if _r249_cont else {}),
+            # (#34) emitted ONLY when non-empty, so the IR of every function without a
+            # `nonlocal` is byte-identical and the frozen conformance goldens do not move.
+            **({"nonlocal_writes": sorted(_nonlocal_writes)} if _nonlocal_writes else {}),
+            # (#43) same discipline for route #20's `with ... as` bindings.
+            **({"with_bindings": sorted(_with_bindings)} if _with_bindings else {}),
             "symbol_table": symbol_table,
             "param_annotations": _pann,
+            "param_ast_node_types": _past_node_types,
             "param_list_elem_types": dict(_plet),
             # nested-list.md S2: outer-list element type for a `List[<container>]`
             # param (`seq ..`/`map ..`). Empty for flat lists → byte-identical.
@@ -3753,8 +6730,30 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # have no entry and keep the `map int (option int)` path.
             "dict_value_types": dict(_dvt),
             "dict_key_types": dict(_dkt),
+            # set-value-model-wall (self-tcb-reduction, Tier-5): set local -> WhyML
+            # element type ("string" for `Set[str]`). Empty for the whole corpus
+            # (no `Set[str]` local) -> byte-inert.
+            "set_value_types": dict(_svt),
             "formal_params": formal_params,
-            "return_annotation": return_annotation,
+            # (#49) ROUTE #232: which formals are keyword-only / positional-only, so a
+            # call site binds the former by NAME only and the latter by POSITION only.
+            # Emitted only when non-empty -> every other function's IR is byte-identical.
+            **({"kwonly_params": _kwonly232} if _kwonly232 else {}),
+            **({"posonly_params": _posonly232} if _posonly232 else {}),
+            **({"kwarg_param": _kwarg232.arg} if _kwarg232 is not None else {}),
+            **({"kwarg_read": True} if _kwread232 else {}),
+            # W8 (ii): name of the `*vals: str` vararg parameter (`seq string`), or
+            # absent. Omitted for every function without a str-annotated vararg.
+            **({"vararg_str_param": _vararg_str} if _vararg_str else {}),
+            # ladder 1a: WhyML element type of the vararg sequence — "string" for a
+            # `*vals: str` vararg (W8 (ii), unchanged), "int" for an UNANNOTATED
+            # `*args` (the pyval model). Emitted only when it is NOT the default
+            # "string" -> the IR of every str-annotated vararg is byte-identical.
+            **({"vararg_elem_type": getattr(self, "_cur_func_vararg_elem", "string")}
+               if (_vararg_str
+                   and getattr(self, "_cur_func_vararg_elem", "string") != "string")
+               else {}),
+            "return_annotation": ("str" if node_returns_is_path else return_annotation),
             "return_value_type": return_value_type,
             # typing-engagement ty1 / 28-0000-typing-spec-4: `-> NoReturn` (PEP
             # 484) sets the IR flag consumed by Module 6 (`ensures { false }`,
@@ -3843,7 +6842,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "method_deps": [
                 {"method": d["method"], "sig": d["sig"], "kind": d["kind"],
                  "requires": self._csl_list_to_ir(d["requires"]),
-                 "ensures": self._csl_list_to_ir(d["ensures"])}
+                 "ensures": self._csl_list_to_ir(d["ensures"]),
+                 # (#32) the dependency's declared FRAME, same shape as a method's own
+                 # `assigns` (a flat list of lowered targets). Absent -> [] -> the
+                 # frameless behaviour every existing program already has.
+                 "assigns": [self._csl_to_ir(t)
+                             for a in (d.get("assigns") or []) for t in a.targets]}
                 for d in getattr(node, 'csl_method_deps', []) or []
             ],
             # Field classification (D1): names this mixin method declared it may touch.
@@ -3852,6 +6856,183 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "touches_field": [{"name": s.name, "type": s.type_str}
                               for s in getattr(node, 'csl_touches_field', []) or []],
         }
+        # (#49) ROUTE #233 — A `match` CAPTURE NAME IS A REAL LOCAL. The `match` lowering
+        # never bound a capture: `case y:` / `case P as y:` produced an arm whose body read
+        # `y`, and that read fell through Module 6's last-branch opaque `val constant y`,
+        # SHARED by every read in the module — measured, `match x: case y: r = y` then
+        # `match x + 1: case y: s = y` PROVED `r - s == 0` (CPython -1). A capture whose path
+        # from the arm head runs only through `as`/or-patterns binds the SUBJECT itself, so
+        # it becomes an explicit `y = <subject>` at the head of the arm body — an ordinary
+        # assignment every Module 6 scanner already sees (a real local, read after the
+        # `match` too, as in Python). Fail-closed where that is not faithful: a GUARDED
+        # capture arm (Python binds BEFORE the guard and keeps the binding when the guard
+        # fails), a subject that is not side-effect free (it would be evaluated twice), and
+        # a capture of a `global` name. A capture nested in a constructor pattern is bound
+        # by Why3's native `match` INSIDE its arm only, so every other use of that name in
+        # the function (a read outside a binding arm, a contract, any assignment) is
+        # REFUSED — after the `match` Python reads the payload, the model read an opaque
+        # constant. Emitted IR changes ONLY for functions with such a capture.
+        _r233_pure = {"Var", "Number", "Bool", "String", "None", "BinOp", "UnaryOp",
+                      "Attribute", "FieldGet", "Subscript", "Tuple"}
+        _r233_ctor: set = set()
+        _r233_stack: list = [_r233_fir.get("body", [])]
+        while _r233_stack:
+            _r233_n = _r233_stack.pop()
+            if isinstance(_r233_n, list):
+                _r233_stack.extend(_r233_n)
+                continue
+            if not isinstance(_r233_n, dict):
+                continue
+            if _r233_n.get("stmt") == "Match":
+                # (#49) ROUTE #234 — A GUARDED ARM OF A NATIVE (constructor) `match` falls
+                # through, when its guard fails, to the FIRST WILDCARD arm's body (or to
+                # `()`), skipping every arm in between: measured, `case MSome(n) if n > 0:
+                # r = 1 / case MSome(n): r = 2` on `MSome(-5)` PROVED `r` unchanged
+                # (CPython 2). That fall-through is the Python one only when the guarded
+                # arm is the LAST arm or is followed DIRECTLY by an unguarded `case _:`;
+                # every other guarded arm (and a guarded wildcard, whose guard the
+                # fall-through ignores) is refused. The if-chain lowering (no constructor
+                # arm) threads guards faithfully and is untouched.
+                _r234_cs = _r233_n.get("cases", []) or []
+                _r234_native = False
+                for _r234_c in _r234_cs:
+                    _r234_ps: list = [(_r234_c.get("pattern") or {})]
+                    while _r234_ps:
+                        _r234_p = _r234_ps.pop()
+                        if isinstance(_r234_p, dict):
+                            if _r234_p.get("pattern") == "Constructor":
+                                _r234_native = True
+                            elif _r234_p.get("pattern") == "Or":
+                                _r234_ps.extend(_r234_p.get("alternatives", []) or [])
+                for _r234_i, _r234_c in enumerate(_r234_cs if _r234_native else []):
+                    if _r234_c.get("guard") is None:
+                        continue
+                    _r234_nx = (_r234_cs[_r234_i + 1]
+                                if _r234_i + 1 < len(_r234_cs) else None)
+                    if ((_r234_c.get("pattern") or {}).get("pattern") == "Wildcard"
+                            or (_r234_nx is not None
+                                and not ((_r234_nx.get("pattern") or {}).get("pattern")
+                                         == "Wildcard"
+                                         and _r234_nx.get("guard") is None))):
+                        raise PyCSLIRError(
+                            f"function '{node.name}': a guarded arm of a `match` over "
+                            "constructor patterns must be the last arm or be followed "
+                            "directly by an unguarded `case _:` (route #234: when the "
+                            "guard fails the native Why3 `match` falls through to the "
+                            "wildcard body, skipping the arms in between) -- refused "
+                            "fail-closed.", stage="ir-emit")
+                for _r233_c in _r233_n.get("cases", []) or []:
+                    _r233_top: List[str] = []
+                    _r233_ps: list = [(_r233_c.get("pattern") or {}, True)]
+                    while _r233_ps:
+                        _r233_p, _r233_at_top = _r233_ps.pop()
+                        if not isinstance(_r233_p, dict):
+                            continue
+                        _r233_k = _r233_p.get("pattern")
+                        if _r233_k == "Capture":
+                            _r233_nm = _r233_p.get("name") or "_"
+                            if _r233_nm != "_":
+                                if _r233_at_top:
+                                    if _r233_nm not in _r233_top:
+                                        _r233_top.append(_r233_nm)
+                                else:
+                                    _r233_ctor.add(_r233_nm)
+                            _r233_ps.append((_r233_p.get("inner"), _r233_at_top))
+                        elif _r233_k == "Or":
+                            for _r233_a in _r233_p.get("alternatives", []) or []:
+                                _r233_ps.append((_r233_a, _r233_at_top))
+                        else:
+                            for _r233_key in ("captures", "elts", "alternatives"):
+                                for _r233_a in _r233_p.get(_r233_key, []) or []:
+                                    _r233_ps.append((_r233_a, False))
+                            if isinstance(_r233_p.get("inner"), dict):
+                                _r233_ps.append((_r233_p.get("inner"), False))
+                    if _r233_top:
+                        _r233_why = ""
+                        if _r233_c.get("guard") is not None:
+                            _r233_why = ("the arm has a guard, and Python binds the capture "
+                                         "BEFORE evaluating it and keeps the binding when "
+                                         "the guard fails")
+                        elif any(_g in _global_decl for _g in _r233_top):
+                            _r233_why = "the capture rebinds a `global` name"
+                        else:
+                            _r233_sx: list = [_r233_n.get("subject")]
+                            while _r233_sx and not _r233_why:
+                                _r233_s = _r233_sx.pop()
+                                if isinstance(_r233_s, list):
+                                    _r233_sx.extend(_r233_s)
+                                elif isinstance(_r233_s, dict):
+                                    if _r233_s.get("type") not in _r233_pure:
+                                        _r233_why = ("the `match` subject is not a "
+                                                     "side-effect-free expression, so "
+                                                     "binding it again would evaluate it "
+                                                     "twice")
+                                    _r233_sx.extend(_r233_s.values())
+                        if _r233_why:
+                            raise PyCSLIRError(
+                                f"function '{node.name}': `match` capture "
+                                f"{', '.join(repr(_t) for _t in _r233_top)} is not "
+                                f"supported here: {_r233_why} (route #233: an unbound "
+                                "capture read as an opaque module constant) -- refused "
+                                "fail-closed. Bind the subject to a local first and "
+                                "use `case _:`.", stage="ir-emit")
+                        _r233_c["body"] = ([{"stmt": "Assign", "target": _t,
+                                             "value": json.loads(json.dumps(
+                                                 _r233_n.get("subject")))}
+                                            for _t in _r233_top]
+                                           + list(_r233_c.get("body", []) or []))
+            _r233_stack.extend(_r233_n.values())
+        if _r233_ctor:
+            _r233_bad = ""
+            _r233_w: list = [(_r233_fir.get("contracts", {}), frozenset()),
+                             (_r233_fir.get("body", []), frozenset())]
+            while _r233_w and not _r233_bad:
+                _r233_n, _r233_b = _r233_w.pop()
+                if isinstance(_r233_n, list):
+                    _r233_w.extend((_x, _r233_b) for _x in _r233_n)
+                    continue
+                if not isinstance(_r233_n, dict):
+                    continue
+                if _r233_n.get("type") == "Var" and _r233_n.get("name") in _r233_ctor \
+                        and _r233_n.get("name") not in _r233_b:
+                    _r233_bad = f"{_r233_n.get('name')!r} is read outside the arm that binds it"
+                    break
+                if "stmt" in _r233_n:
+                    for _r233_key in ("target", "targets", "tuple_targets"):
+                        _r233_t = _r233_n.get(_r233_key)
+                        _r233_ts = _r233_t if isinstance(_r233_t, list) else [_r233_t]
+                        for _r233_x in _r233_ts:
+                            if isinstance(_r233_x, str) and _r233_x in _r233_ctor:
+                                _r233_bad = f"{_r233_x!r} is also assigned"
+                if _r233_n.get("stmt") == "Match":
+                    _r233_w.append((_r233_n.get("subject"), _r233_b))
+                    for _r233_c in _r233_n.get("cases", []) or []:
+                        _r233_cb: set = set()
+                        _r233_ps2: list = [_r233_c.get("pattern") or {}]
+                        while _r233_ps2:
+                            _r233_p = _r233_ps2.pop()
+                            if not isinstance(_r233_p, dict):
+                                continue
+                            if _r233_p.get("pattern") == "Capture":
+                                _r233_cb.add(_r233_p.get("name") or "_")
+                            for _r233_key in ("captures", "elts", "alternatives"):
+                                _r233_ps2.extend(_r233_p.get(_r233_key, []) or [])
+                            if isinstance(_r233_p.get("inner"), dict):
+                                _r233_ps2.append(_r233_p.get("inner"))
+                        _r233_cb2 = _r233_b | frozenset(_r233_cb)
+                        _r233_w.append((_r233_c.get("guard"), _r233_cb2))
+                        _r233_w.append((_r233_c.get("body", []), _r233_cb2))
+                    continue
+                _r233_w.extend((_v, _r233_b) for _v in _r233_n.values())
+            if _r233_bad:
+                raise PyCSLIRError(
+                    f"function '{node.name}': a `match` capture bound inside a "
+                    f"constructor pattern is used outside its arm: {_r233_bad} (route "
+                    "#233: Why3's native `match` binds it only inside the arm, and any "
+                    "other use read an opaque module constant or a different variable) "
+                    "-- refused fail-closed. Copy the payload into a fresh local inside "
+                    "the arm.", stage="ir-emit")
+        return _r233_fir
 
     def _detect_array_dimensions(self, func_ir: Dict[str, Any]) -> None:
         """Detect 2D and 1D array params from contracts and body access patterns."""
@@ -3888,6 +7069,15 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         _inner_mut = self._collect_inner_mutated_params(func_ir["body"], _nested)
         _matrix_routed = {p for p in _inner_mut if _plne.get(p) == "seq int"}
         array2d -= (_nested - _matrix_routed)
+        # WL-04b (wrong-lowering-to-fix.md §WL-04 record residual): a flat
+        # `List[<record>]` param (e.g. `List[Tuple[int, str]]`) whose element is a
+        # RECORD must NOT be hijacked into the rectangular `matrix int` model — a
+        # slot read `a[i][1]` is the tuple-record field, not a matrix cell. Subtract
+        # those record-list params (their `param_list_flat_elem` value names a known
+        # record) so they stay on the `array <record>` element model.
+        _plfe = func_ir.get("param_list_flat_elem", {})
+        _rec_names = getattr(self, "_m5_record_class_names", set())
+        array2d -= {p for p, v in _plfe.items() if v in _rec_names}
         for _p in _matrix_routed:
             # a matrix-routed param is mutable `matrix int`, NOT `array (seq int)`; drop
             # its nested-elem tag so Module6 does not also emit the read-only seq model.
@@ -4115,6 +7305,56 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         if self._should_skip_method(node):
+            # (#49) ROUTE #218 — A SKIPPED DUNDER'S SELF-WRITES MUST SURVIVE THE SKIP.
+            #
+            # `_should_skip_method` drops every dunder before any IR is built, so Module 6
+            # knows nothing about `__enter__` at all: an explicit `c.__enter__()` call mints
+            # an abstract `val c___enter___0 (self: c) : int` with NO `writes`, and Why3
+            # reads a `val` with no `writes` as PURE. MEASURED (the route carrier): with a
+            # body setting `self.v = 7`, `before = c.v; c.__enter__(); after = c.v; return
+            # before - after` PROVED `\result == 0` while CPython answers -7, and the TRUE
+            # twin (`== -7`) FAILED. The `#@ assigns` clause is NOT the trigger — deleting
+            # the dunder's annotations changes nothing; a BODY that writes self state is
+            # enough. The NON-dunder control (`def enter`) correctly FAILS, which is what
+            # pins the defect to the skip.
+            #
+            # So the skip records, per `<class_lower>__<dunder>` key, the self-attribute
+            # names the dropped body writes (plain store, augmented store, annotated store,
+            # element store — the carve-out `ir_resolve.self_field_writes` already carries
+            # for mixins). Module 6's `_resolve_dotted_signature` reads the table and frames
+            # the minted `val` with `writes { self.<f>, ... }`, turning a FALSE purity claim
+            # into an ABSENT one. It does NOT resurrect the dunder's contract or body — that
+            # is the larger "emit dunders" build witness 1800 and route #216 wait on.
+            #
+            # INLINE ON PURPOSE, not extracted into a helper. A new live METHOD is a new
+            # UNMIRRORED def (`check-mirror-coverage`'s ratchet went 549 -> 550) AND a new
+            # abstract `val` in two mirror emissions that import this module, which owes two
+            # whole-file re-proofs for a function nothing calls. Both costs vanish inline,
+            # and `visit_FunctionDef`'s mirror twin is `\trusted`, so the live body is free.
+            cls218 = self._current_class
+            if cls218:
+                written218: Set[str] = set()
+                for sub218 in ast.walk(node):
+                    tgts218: List[Any] = []
+                    if isinstance(sub218, ast.Assign):
+                        tgts218 = list(sub218.targets)
+                    elif isinstance(sub218, (ast.AugAssign, ast.AnnAssign)):
+                        tgts218 = [sub218.target]
+                    for t218 in tgts218:
+                        if (isinstance(t218, ast.Attribute)
+                                and isinstance(t218.value, ast.Name)
+                                and t218.value.id == "self"):
+                            written218.add(t218.attr)
+                        elif isinstance(t218, ast.Subscript):
+                            b218 = t218.value
+                            if (isinstance(b218, ast.Attribute)
+                                    and isinstance(b218.value, ast.Name)
+                                    and b218.value.id == "self"):
+                                written218.add(b218.attr)
+                if written218:
+                    tbl218 = self.program_ir.setdefault("skipped_dunder_writes", {})
+                    key218 = f"{str(cls218).lower()}__{node.name}"
+                    tbl218[key218] = sorted(set(tbl218.get(key218, [])) | written218)
             return
         # typing-engagement ty2 / 31-1700-typing-spec-7 §1.3: an `@overload`
         # stub (`@overload def f(x: T) -> R: ...`) is collected into
@@ -4131,6 +7371,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 self._pending_overloads.setdefault(node.name, []).extend(guarded)
             return
         func_ir = self._build_function_ir(node)
+        # `@property` SUPPORT (relaunch #16): flag a decorated getter so Module 6 can
+        # route a `<recv>.<name>` READ to the emitted nullary method rather than to an
+        # unbound bare symbol. Emitting the getter without this makes it a definition
+        # nothing can reach; the two halves are one capability. Absent for every
+        # undecorated method -> byte-identical wherever no `@property` is declared.
+        if any(isinstance(d, ast.Name) and d.id == 'property'
+               for d in node.decorator_list):
+            func_ir["is_property"] = True
         # typing-engagement ty2 / 31-1700-typing-spec-7 §1.3 step 3: attach the
         # collected guarded postconditions to the implementation's ensures (O6).
         # Appended AFTER `_build_function_ir` (which already merged user-written
@@ -4156,8 +7404,34 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if self._current_class:
             func_ir["kind"] = "method"
             func_ir["self_type"] = self._current_class
+        # Lever-7 (val-inherit): a lifted nested `def` whose enclosing function is
+        # `#@ \trusted` inherits that trusted status — it is part of the parent's
+        # unverified body, so Module 6 emits it as a bodyless `val` (contract only,
+        # no goals) exactly as the trusted parent does, instead of a `let` that
+        # accretes spurious VCs (e.g. an unprovable `termination` goal). Set ONLY
+        # when an enclosing frame is trusted → the key is ABSENT for every
+        # top-level / non-nested function and every nested def of a NON-trusted
+        # parent (byte-identical emission there). This does NOT set `trusted` (the
+        # 0-trusted policy / --soundness-report bucket are unchanged); it is a
+        # distinct provenance consumed only by the emit-as-val gate.
+        if self._enclosing_trusted_stack and any(self._enclosing_trusted_stack):
+            func_ir["trusted_parent"] = True
+        # (#49) ROUTES #122/#126: the lifted-def facts marked by the weaver, carried ONLY when
+        # present (absent for every top-level function -> byte-identical IR there).
+        if getattr(node, "csl_closure_captures", None):
+            func_ir["closure_captures"] = list(node.csl_closure_captures)
+        if getattr(node, "csl_lifted_collision", False):
+            func_ir["lifted_name_collision"] = True
         self.program_ir["functions"].append(func_ir)
-        self.generic_visit(node)
+        # Push THIS function's effective-trusted status (its own `\trusted`, or an
+        # already-trusted enclosing frame) so a def nested inside it inherits too.
+        self._enclosing_trusted_stack.append(
+            bool(getattr(node, 'csl_trusted', False))
+            or (bool(self._enclosing_trusted_stack) and any(self._enclosing_trusted_stack)))
+        try:
+            self.generic_visit(node)
+        finally:
+            self._enclosing_trusted_stack.pop()
 
     # typing-engagement ty2 / 31-1700-typing-spec-7 — @overload (PEP 484) helpers.
     # The static plane treats an @overload family as a guarded contract family
@@ -4265,6 +7539,86 @@ class Module5_IREmitter:
         self.tree = tree
 
     def generate_json(self, indent: int = 2) -> str:
+        # (#33) CHAINED-COMPARISON NORMALIZATION, the single choke point both Module 5
+        # entry paths go through (`pycsl.py`'s pipeline and `ir_resolve.resolve`'s
+        # dependency sub-pipeline). `a < b < c` is `a < b and b < c` in Python;
+        # `_py_expr_compare` reads only `ops[0]`/`comparators[0]`, so an un-normalized
+        # chain lost its tail and the ELSE branch was proved over a strict SUBSET of the
+        # reachable states. Normalizing here rather than in `_py_expr_compare` is
+        # deliberate: that method is CONVERTED and its model is a hand-synthesized bespoke
+        # lowering keyed on the method name, so editing its body would leave every gate
+        # green while the model stopped being the body. See `frontend/desugar.py`.
+        from frontend.desugar import (desugar_chained_comparisons,
+                                      normalize_stores, reject_unmodelled)
+        reject_unmodelled(self.tree)
+        normalize_stores(self.tree)
         emitter = PyCSLToJSONEmitter()
-        emitter.visit(self.tree)
+        emitter.visit(desugar_chained_comparisons(self.tree))
+        # ROUTE #42 (relaunch #48) — `is` IS NOT `==`, AND THE BOOL SINGLETON PROVED IT.
+        #
+        #   `_PY_OP_MAP` used to map `ast.Is`/`ast.IsNot` straight onto `"=="`/`"!="`, and
+        #   Module 6's documented bool-as-int convention rewrites a `Bool` literal operand
+        #   of `==`/`!=` to `1`/`0`. Each convention is defensible alone; together they
+        #   made `is` and `==` THE SAME OPERATOR on a bool literal, and Python says they
+        #   are not. MEASURED in the default hoare model, no flags, with Python run to
+        #   confirm every right-hand column:
+        #
+        #     x = 1; if x is True:     return 7  -> `\result == 7` PROVED. Python gives 0.
+        #     x = 0; if x is False:    return 7  -> `\result == 7` PROVED. Python gives 0.
+        #     x = 1; if x is not True: return 7  -> `\result == 0` PROVED. Python gives 7.
+        #     x = 1; if x == True:     return 7  -> PROVED, and CORRECT — the control that
+        #                                           localizes the defect to `is`.
+        #
+        #   THIS IS THE CAMPAIGN'S GENERAL SHAPE A FIFTH TIME: A PYTHON SINGLETON MODELLED
+        #   AS AN INTEGER LITERAL IS INDISTINGUISHABLE FROM THAT INTEGER INSIDE THE MODEL
+        #   (route #40 was `Ellipsis`, route #43 the complex literal, the `None` residue a
+        #   third). A genuine `int` is never the `True` singleton, so `<int> is True` is
+        #   False in Python for EVERY int, 1 included.
+        #
+        #   THE FIX IS THE ONE THE ROUTE FILE NAMED: GIVE THE IR A DISTINCT `is` OPERATOR
+        #   (`_PY_OP_MAP` now maps `ast.Is` -> `"is"`, `ast.IsNot` -> `"is not"`) and
+        #   narrow it back HERE, where the identity fact survives as the ADDITIVE `py_is`
+        #   key. The narrowing is deliberately SHAPE-PRESERVING: every existing recognizer
+        #   — the `is None` union/optional-carrier paths, the `is Ellipsis` PVEllipsis arm,
+        #   `_optfield_guard_name`, `recognize_collect_field_sites`, every `op == "=="`
+        #   test in Module 6, `ir_scanner`, `auto_trust`, `types` — sees EXACTLY the string
+        #   it saw before, and no existing consumer reads `py_is`, so THE CORPUS EMISSION
+        #   IS BYTE-INERT BY CONSTRUCTION (the `py_ellipsis` precedent of route #40).
+        #
+        #   PLACED HERE, IN `generate_json`, FOR THE REASON THE CHAINED-COMPARISON
+        #   NORMALIZATION ABOVE IS: it is the SINGLE CHOKE POINT both Module 5 entry paths
+        #   go through. The first draft of this pass sat in `pycsl.py::_run_pipeline` and
+        #   MEASURABLY MISSED the `ir_resolve.resolve` dependency sub-pipeline, which runs
+        #   its own `Module5_IREmitter(...)` — four mirror emissions changed, and two
+        #   bespoke recognizers (`recognize_collect_field_sites`, `_frame_trigger_term`)
+        #   silently fell back to abstract `val` stubs because their `!=` shape had become
+        #   `is not` in the imported module's IR. `generate_json` is `\trusted` in the
+        #   mirror, so this placement also costs no mirror-body sync.
+        #
+        #   THE REFUSAL ITSELF IS NOT HERE, AND THAT PLACEMENT IS LOAD-BEARING. A
+        #   frontend-level refusal walks EVERY function, including the eighteen
+        #   `classify(...) is not False` / `r is True` tri-state sites in the mirror's own
+        #   `module6_whyml/functions.py` — sites whose `Optional[bool]` IS modelled, by the
+        #   bespoke `(bool, bool)` lowerings in `module6_whyml/generic_fold.py`, and which
+        #   a blanket refusal would break outright. Those bespoke bodies never reach the
+        #   generic expression lowering, so the whitelist lives in `expressions.py`'s
+        #   `_expr_to_whyml`, where it sees exactly the sites the generic path decides.
+        #   WRITTEN AS AN INLINE EXPLICIT-STACK WALK, NOT A NESTED `def`, and that is not
+        #   a style choice: relaunch #46 recorded that a nested `def` inside a refusal broke
+        #   `bin/check-mirror-coverage.py` 550 -> 551, because a new LIVE function has no
+        #   mirror counterpart and the plane counts it. MEASURED AGAIN HERE — the first
+        #   draft of this pass was a nested `def` and the ratchet broke exactly that way,
+        #   with `val module5_iremitter___r42_normalize_identity_ops` appearing in the
+        #   `frontend/__init__` and `frontend/ir_resolve` mirror emissions.
+        _r42_stack: List[Any] = [emitter.program_ir]
+        while _r42_stack:
+            _r42_n = _r42_stack.pop()
+            if isinstance(_r42_n, dict):
+                if (_r42_n.get("type") == "BinOp"
+                        and _r42_n.get("op") in ("is", "is not")):
+                    _r42_n["op"] = "==" if _r42_n.get("op") == "is" else "!="
+                    _r42_n["py_is"] = True
+                _r42_stack.extend(_r42_n.values())
+            elif isinstance(_r42_n, list):
+                _r42_stack.extend(_r42_n)
         return json.dumps(emitter.program_ir, indent=indent)

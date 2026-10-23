@@ -1,0 +1,395 @@
+{
+  "ir_version": "1.4",
+  "source_language": "python",
+  "type_decls": [
+    {
+      "kind": "record",
+      "name": "pytuple_str_str",
+      "fields": [
+        {
+          "name": "field0",
+          "type": "str",
+          "mutable": true
+        },
+        {
+          "name": "field1",
+          "type": "str",
+          "mutable": true
+        }
+      ],
+      "class_invariants": [],
+      "field_defaults": {},
+      "has_hash": false,
+      "has_eq": false,
+      "is_unhashable": false,
+      "constants": {},
+      "bases": [],
+      "init_params": [
+        "field0",
+        "field1"
+      ],
+      "init_body": [
+        {
+          "field": "field0",
+          "value": {
+            "type": "Var",
+            "name": "field0"
+          }
+        },
+        {
+          "field": "field1",
+          "value": {
+            "type": "Var",
+            "name": "field1"
+          }
+        }
+      ],
+      "init_ensures": [],
+      "is_mixin": false,
+      "compose_from": [],
+      "is_namedtuple": true
+    },
+    {
+      "kind": "variant",
+      "name": "_union__type_str_0",
+      "type_params": [],
+      "constructors": [
+        {
+          "name": "Arm_0_0",
+          "arity": 1,
+          "payload": [
+            "str"
+          ]
+        },
+        {
+          "name": "Arm_0_None",
+          "arity": 0,
+          "payload": []
+        }
+      ]
+    },
+    {
+      "kind": "variant",
+      "name": "_union__sanitize_type_name_1",
+      "type_params": [],
+      "constructors": [
+        {
+          "name": "Arm_1_0",
+          "arity": 1,
+          "payload": [
+            "str"
+          ]
+        },
+        {
+          "name": "Arm_1_None",
+          "arity": 0,
+          "payload": []
+        }
+      ]
+    },
+    {
+      "kind": "variant",
+      "name": "_union__extract_ast_subscript_2",
+      "type_params": [],
+      "constructors": [
+        {
+          "name": "Arm_2_0",
+          "arity": 1,
+          "payload": [
+            "list"
+          ]
+        },
+        {
+          "name": "Arm_2_None",
+          "arity": 0,
+          "payload": []
+        }
+      ]
+    },
+    {
+      "kind": "variant",
+      "name": "_union__specialize_function_3",
+      "type_params": [],
+      "constructors": [
+        {
+          "name": "Arm_3_0",
+          "arity": 1,
+          "payload": [
+            "str"
+          ]
+        },
+        {
+          "name": "Arm_3_None",
+          "arity": 0,
+          "payload": []
+        }
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "name": "_find_subscript_calls",
+      "symbol_table": {
+        "body": "list",
+        "generic_names": "set",
+        "out": "list",
+        "stmt": "Any"
+      },
+      "param_annotations": {
+        "body": "list",
+        "generic_names": "set"
+      },
+      "param_ast_node_types": {},
+      "param_list_elem_types": {},
+      "param_list_nested_elem": {},
+      "param_list_flat_elem": {},
+      "param_defaults": {},
+      "has_mutable_default": false,
+      "acts": [],
+      "dict_value_types": {},
+      "dict_key_types": {},
+      "set_value_types": {},
+      "formal_params": [
+        "body",
+        "generic_names"
+      ],
+      "return_annotation": "list",
+      "return_value_type": "pytuple_str_str",
+      "contracts": {
+        "requires": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "ensures": [
+          {
+            "type": "Bool",
+            "value": true
+          }
+        ],
+        "assigns": [
+          {
+            "type": "Nothing"
+          }
+        ],
+        "raises": [],
+        "no_exception": [],
+        "no_exception_all": false
+      },
+      "body": [
+        {
+          "stmt": "Assign",
+          "target": "out",
+          "value": {
+            "type": "ArrayLit",
+            "elts": []
+          }
+        },
+        {
+          "stmt": "For",
+          "line": 61,
+          "target": "stmt",
+          "iter": {
+            "type": "Var",
+            "name": "body"
+          },
+          "invariants": [],
+          "variants": [],
+          "body": [
+            {
+              "stmt": "Expr",
+              "value": {
+                "type": "Call",
+                "func": "out.extend",
+                "args": [
+                  {
+                    "type": "Call",
+                    "func": "_scan_node_for_subscript_calls",
+                    "args": [
+                      {
+                        "type": "Var",
+                        "name": "stmt"
+                      },
+                      {
+                        "type": "Var",
+                        "name": "generic_names"
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          ],
+          "allow_iteration_mutation": false,
+          "lineno": 61
+        },
+        {
+          "stmt": "Return",
+          "value": {
+            "type": "Var",
+            "name": "out"
+          }
+        }
+      ],
+      "function_variants": [],
+      "diverges": false,
+      "no_inline": false,
+      "sibling_concrete": false,
+      "verify_module": "",
+      "propagate_frame": false,
+      "fresh_globals": false,
+      "trusted": false,
+      "abstract": false,
+      "preserves": false,
+      "lemma": false,
+      "uses": [],
+      "interface": {},
+      "reveal": [],
+      "memoized": false,
+      "reviewer": "",
+      "bounded_int": null,
+      "proof": [],
+      "provides": [],
+      "method_deps": [],
+      "shared_state": [],
+      "touches_field": [],
+      "line": 54,
+      "col": 0,
+      "pure": true
+    }
+  ],
+  "trusted_funcs": [
+    "_check_gt4_polymorphic_recursion",
+    "_collect_generic_decls",
+    "_collect_instantiations",
+    "_emit_specializations",
+    "_mangled_name",
+    "_match_generic_annotation",
+    "_record_classification",
+    "_rewrite_annotation_str",
+    "_rewrite_annotations",
+    "_rewrite_call_sites",
+    "_rewrite_subscript_calls_in_stmt",
+    "_rewrite_subscript_to_name",
+    "_specialize_decl",
+    "_specialize_function",
+    "apply_monomorphization"
+  ],
+  "imports": [
+    [
+      "annotations",
+      "annotations",
+      "__future__",
+      0,
+      false
+    ],
+    [
+      "copy",
+      "copy",
+      "copy",
+      0,
+      true
+    ],
+    [
+      "re",
+      "re",
+      "re",
+      0,
+      true
+    ],
+    [
+      "Any",
+      "Any",
+      "typing",
+      0,
+      false
+    ],
+    [
+      "Dict",
+      "Dict",
+      "typing",
+      0,
+      false
+    ],
+    [
+      "List",
+      "List",
+      "typing",
+      0,
+      false
+    ],
+    [
+      "Optional",
+      "Optional",
+      "typing",
+      0,
+      false
+    ],
+    [
+      "Set",
+      "Set",
+      "typing",
+      0,
+      false
+    ],
+    [
+      "Tuple",
+      "Tuple",
+      "typing",
+      0,
+      false
+    ],
+    [
+      "PyCSLSemanticError",
+      "PyCSLSemanticError",
+      "errors",
+      0,
+      false
+    ],
+    [
+      "_ast",
+      "pure_ast",
+      "frontend",
+      0,
+      false
+    ]
+  ],
+  "list_element_record_types": [
+    "pytuple_str_str"
+  ],
+  "constructors": {
+    "Arm_0_0": {
+      "type": "_union__type_str_0",
+      "arity": 1
+    },
+    "Arm_0_None": {
+      "type": "_union__type_str_0",
+      "arity": 0
+    },
+    "Arm_1_0": {
+      "type": "_union__sanitize_type_name_1",
+      "arity": 1
+    },
+    "Arm_1_None": {
+      "type": "_union__sanitize_type_name_1",
+      "arity": 0
+    },
+    "Arm_2_0": {
+      "type": "_union__extract_ast_subscript_2",
+      "arity": 1
+    },
+    "Arm_2_None": {
+      "type": "_union__extract_ast_subscript_2",
+      "arity": 0
+    },
+    "Arm_3_0": {
+      "type": "_union__specialize_function_3",
+      "arity": 1
+    },
+    "Arm_3_None": {
+      "type": "_union__specialize_function_3",
+      "arity": 0
+    }
+  }
+}

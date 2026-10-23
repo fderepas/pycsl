@@ -1,0 +1,41 @@
+emitted 1262 of 1598 source file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAJ/corpus_cand (6 jobs)
+emitted 2199 of 2217 python-reference file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAJ/corpus_cand/pyref (6 jobs)
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAJ/mirror_cand
+    Compare with: bin/byte-diff-compare.py <baseline> /tmp/claude-1000/-home-fabrice-git-pycsl/69f68cf5-e1c5-4519-a158-7330cb73ad67/scratchpad/emitAJ/mirror_cand --min-files 45
+== COMPARE corpus
+[!]   MOVED 0471.mlw
+[!]   MOVED 0473.mlw
+[!]   MOVED 0490.mlw
+[!]   MOVED 0513.mlw
+[!]   MOVED 0605.mlw
+[!]   MOVED 0702.mlw
+[!]   MOVED 0708.mlw
+[!]   MOVED 0712.mlw
+[!]   MOVED 0765.mlw
+[!]   MOVED 0766.mlw
+[!]   MOVED 0768.mlw
+[!]   MOVED 0885.mlw
+[!]   MOVED 0887.mlw
+[!]   MOVED 1160_route67_str_index_out_of_range.mlw
+[!]   MOVED 1161_route67_str_index_in_range.mlw
+[!]   MOVED 1542_route159_string_index_past_the_end.mlw
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 1257 baseline / 1261 candidate .mlw; 16 MOVED, 0 GONE (0 unexpected), 0 APPEARED, 4 new source file(s) ignored.
+rc=1
+== COMPARE pyref
+[*] byte-diff-compare: 2199 baseline / 2199 candidate .mlw; 0 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+rc=0
+== COMPARE mirrors
+[!]   MOVED audit_proof.mlw
+[!]   MOVED frontend__Module1_Ingestor.mlw
+[!]   MOVED frontend__Module5_IREmitter.mlw
+[!]   MOVED frontend__pure_ast.mlw
+[!]   MOVED module6_whyml__expressions.mlw
+[!]   MOVED module6_whyml__statements.mlw
+[!]   MOVED module6_whyml__stmt_control_flow.mlw
+[!]   MOVED module6_whyml__types.mlw
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 8 MOVED, 0 GONE (0 unexpected), 0 APPEARED.
+rc=1
+EMISSION-DONE 11:46:31Z

@@ -1,0 +1,37 @@
+diff --git a/src/pycsl/module6_whyml/functions.py b/src/pycsl/module6_whyml/functions.py
+index d879a1ff..a629afab 100644
+--- a/src/pycsl/module6_whyml/functions.py
++++ b/src/pycsl/module6_whyml/functions.py
+@@ -3766,6 +3766,19 @@ class FunctionEmissionMixin:
+         return out
+ 
+     def _emit_function(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
++        # PROBE: SCC-keyword post-process for BESPOKE group emitters.
++        lines = self._emit_function_inner(func, scc_info)
++        _sx, _sp, _ss = scc_info.get(func["name"], (0, 0, 1))
++        if _ss > 1 and lines:
++            _n = whyml_ident(func["name"])
++            if _sp > 0 and lines[0].startswith(f"  let {_n} "):
++                lines[0] = f"  with {_n} " + lines[0][len(f"  let {_n} "):]
++            elif _sp == 0 and lines[0].startswith(f"  let {_n} "):
++                lines[0] = f"  let rec {_n} " + lines[0][len(f"  let {_n} "):]
++        return lines
++
++    def _emit_function_inner(self, func: Dict[str, Any], scc_info: Dict[str, tuple]) -> List[str]:
++        self._scc_info_stash = scc_info          # PROBE
+         """Emit one WhyML let/val function block. Returns the list of output lines."""
+         name = whyml_ident(func["name"])
+         # PB-TRIO FUSION (preamble/generic_fold): the `{_pb_stmt,_pb_body,
+diff --git a/src/self-annotate/src/frontend/Module5_IREmitter.py b/src/self-annotate/src/frontend/Module5_IREmitter.py
+index ed855155..fccbbec1 100644
+--- a/src/self-annotate/src/frontend/Module5_IREmitter.py
++++ b/src/self-annotate/src/frontend/Module5_IREmitter.py
+@@ -740,6 +740,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
+     # derived FROM THIS TABLE in source order. What was assumed before: the table AND the
+     # dispatch AND the result. What is assumed now: only `pyx_view`, the uninterpreted
+     # node view, pinned to the node's runtime class by the concrete `pyx_kind_of` law.
++    #@ sibling_concrete
++    #@ sibling_concrete
+     #@ requires True
+     #@ ensures True
+     #@ assigns \nothing

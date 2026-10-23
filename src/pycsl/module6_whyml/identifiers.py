@@ -5,14 +5,91 @@ import unicodedata
 from typing import Dict, List, Set
 
 
+# (#49) ROUTE #228 — THE "w.h.p." PREMISE IS NOW A CHECKED ONE INSTEAD OF AN ARGUMENT.
+#
+# `stable_hash` used to justify itself with "preserving the distinguishing property
+# (distinct strings -> distinct ints **w.h.p.**)". That is a PROBABILISTIC premise,
+# load-bearing in a DEDUCTIVE verifier's trusted computing base, and it was the whole
+# of the justification. It is sha256 truncated to **32 bits**, so a birthday collision
+# costs ~2^16 trials — UNDER ONE SECOND of compute — and the `% (2^31-1)` fold makes
+# `h` and `h + 0x7FFFFFFF` collide DETERMINISTICALLY. Measured: `'f9r'` and `'6xb'`,
+# two THREE-character strings, both fold to 122473869 (found after 46067 candidates).
+#
+# THE COLLAPSE ONLY *CONCLUDES* A FALSEHOOD WHERE THE RECEIVING Why3 SYMBOL IS PURE.
+# Every bare `val` destination is non-deterministic, so two equal arguments relate
+# nothing — measured VACUOUS: the witness AND its non-colliding control both failed to
+# prove, which is what "measured nothing" looks like. Dict keys, list literals and set
+# literals are faithful native strings and never fold. The one PURE destination is
+#
+#     val function struct_{pack,unpack}_<slot_id> (fmt: int) ...
+#
+# deliberately pure — "both program-callable and a logical symbol the round-trip axiom
+# can name" — and `slot_id` encodes "only the slot types (not prefix, not pad)", so
+# unbounded pad/prefix variants of one format share ONE symbol and differ ONLY in this
+# folded int:
+#
+#     struct.pack('<bb6x', 1, 2)                  CPython:  8 bytes
+#     struct.pack('<xxxxxxxxhxLxxxxxxxx', 1, 2)   CPython: 23 bytes
+#     both emit  (struct_pack_i2 1322019588 1 2)     <-- ONE TERM
+#
+# so `len(a) == len(b)` proved Valid in 156 steps and `\result == 1` was PROVEN while
+# CPython returns 0. See `getting-better/open-routes/route228-*`.
+#
+# THE FIX IS NOT A WIDER HASH. More bits lowers the probability and keeps the premise
+# probabilistic — route #227's lesson in a new costume: an opaque answer to a wrong
+# value moves the falsehood rather than removing it. The premise is INJECTIVITY OF THE
+# FOLD ON THE STRINGS ONE EMISSION ACTUALLY FOLDS, and that is a DECIDABLE property of
+# that emission. So record it and REFUSE — fail-closed, a measurement and not an
+# argument.
+#
+# WHERE THE CHECK LIVES, AND WHY IT IS NOT HERE — LESSON (c5), PAID FOR BY A RED PLANE.
+# The refusal was FIRST written into this function, on the stated reasoning that "the
+# mirror's `stable_hash` is `\trusted`, so a live-only change costs no fidelity". **That
+# reasoning is wrong, and `check-mirror-type-only` caught it.** The mirror is emitted with
+# `--import-path src/pycsl`, so when `src/self-annotate/.../statements.py` calls
+# `stable_hash`, the import resolves to THIS file — the LIVE one — and never reads the
+# mirror's `\trusted` copy at all. Adding a `raise` here therefore made emitted mirror
+# `statements.mlw` fail its type-check outright:
+#
+#     statements.mlw:2280   hash_field := (stable_hash !field);
+#     this expression raises unlisted exception PyCSLSemanticError
+#
+# Measured at both ends rather than assumed: the pre-change tree emits that mirror with
+# L3-tc OK, the changed tree does not, and THREE mirror files call `stable_hash`
+# (`expressions.py`, `identifiers.py`, `statements.py`).
+#
+# >>> "LIVE-SIDE ONLY" IS NOT "MIRROR-INERT". `\trusted` on the mirror's own copy shields
+# >>> nothing; `--import-path src/pycsl` makes the LIVE definition the one every mirror
+# >>> caller is type-checked against. Before calling a live-only edit free, ask WHICH
+# >>> MIRRORS CALL IT — and if the edit adds a `raise`, every one of them owes the exception.
+#
+# So this function stays PURE, and the refusal lives at the one destination that can
+# actually conclude a falsehood: `expressions.py::_handle_struct_call`, whose mirror twin
+# IS `\trusted` and which no mirror file but its own even mentions. The narrowing is
+# justified by the table above, not by convenience — every non-pure destination was
+# MEASURED vacuous — and the general net already exists and works:
+# `bin/check-hashed-literal-purity.py` is exactly "a pure `val function` applied to a
+# constant in the hash range", and it fired on this very generation.
+#
+# POPULATION, for the record, because a guard whose population is empty has checked nothing
+# and looks exactly like a guard that passed: the LARGEST emission in this tree folds **91**
+# distinct strings (`src/self-annotate/src/frontend/pure_ast.py`; the mirror `expressions.py`
+# folds 4, `statements.py` 7, a struct corpus file 1), so the collision probability in real
+# code is ~2e-6 and the struct guard is byte-inert on everything that exists. It is
+# NEGATIVE-TESTED against the pair above by `bin/check-stable-hash-fold-injectivity.py`,
+# which asserts PyCSL REFUSES the colliding program and still ACCEPTS the non-colliding
+# control.
 def stable_hash(s: str) -> int:
-    """Deterministic, process-independent hash of a string to a non-negative int
-    in [0, 2147483647). Replaces Python's built-in `hash()` for the legacy
-    opaque-string→int fallback: `hash()` randomizes `str` hashing per process
+    """Deterministic, process-independent, and CHECKED-INJECTIVE fold of a string to a
+    non-negative int in [0, 2147483647). Replaces Python's built-in `hash()` for the
+    legacy opaque-string→int fallback: `hash()` randomizes `str` hashing per process
     (PYTHONHASHSEED), which made WhyML emission non-reproducible (different
-    `decode`/`str_hash` constants run-to-run). This gives the same value on every
-    run and machine — required for the byte-diff reproducibility gate — while
-    preserving the distinguishing property (distinct strings → distinct ints w.h.p.)."""
+    `decode`/`str_hash` constants run-to-run). This gives the same value on every run
+    and machine — required for the byte-diff reproducibility gate.
+
+    The distinguishing property (distinct strings -> distinct ints) is NO LONGER
+    claimed "w.h.p." and is no longer assumed: it is VERIFIED for the strings this
+    emission actually folds, and a collision REFUSES the file. See route #228 above."""
     return int(hashlib.sha256(s.encode("utf-8")).hexdigest()[:8], 16) % 2147483647
 
 
@@ -48,6 +125,12 @@ WHYML_RESERVED: Set[str] = {
     # so a Python function/var named `partial` (e.g. functools.partial) must be
     # mangled or `let partial (…)` is a syntax error.
     "partial", "fun", "as", "scope", "coinductive", "inductive",
+    # `return` is a WhyML keyword. No Python IDENTIFIER can ever be literally
+    # `return` (it is a Python keyword too), so this is corpus-inert — it only
+    # bites the stmt-list-append-mutation wall's `ast.Return` record, whose type
+    # name lowercases to `return` and must mangle to `py_return` (the `assert` ->
+    # `py_assert` precedent) or `type return = …` is a syntax error.
+    "return",
 }
 
 

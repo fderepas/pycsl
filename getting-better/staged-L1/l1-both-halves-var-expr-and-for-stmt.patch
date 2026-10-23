@@ -1,0 +1,50 @@
+diff --git a/src/self-annotate/src/module6_whyml/expressions.py b/src/self-annotate/src/module6_whyml/expressions.py
+index 0dc441e4..6fc430a0 100644
+--- a/src/self-annotate/src/module6_whyml/expressions.py
++++ b/src/self-annotate/src/module6_whyml/expressions.py
+@@ -1009,6 +1009,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+             return whyml_ident(name)
+         if name in self._record_locals:
+             return whyml_ident(name)
++        if name in getattr(self, "_iropt_ir_local_vars", set()):
++            # OPTIONAL-NODE LOCAL (relaunch #11): a VALUE read of an `iropt_ir` carrier
++            # local where an `emit_ir` is required (`_subscript_item`'s `return lower`)
++            # projects through the DEFINED total `iropt_val`. The two positions that must
++            # NOT go through here are handled before ever reaching a Var read: an
++            # `iropt_ir` PAYLOAD SLOT binds the carrier itself (`expressions.
++            # _call_irnode_constructor`), and a carrier-to-carrier chained-assignment alias
++            # copies it (`statements._handle_assign_stmt`) — so an absent optional child is
++            # never turned into a present sentinel node.
++            return f"(iropt_val !{whyml_ident(name)})"
++        if name in getattr(self, "_optional_union_locals", set()):
++            # tool-feature-5 (giants read-projection): a VALUE read of a mutable
++            # Optional-union local `x` (a `ref _union_*`) projects the carrier of its
++            # Some-arm (`match !x with Arm_i_0 _v -> _v | _ -> <sentinel>`) so `x` used as
++            # its underlying τ (a string key, an emit_ir arg) type-checks. The `is None`
++            # guard uses the RAW `!x` (handled in `_handle_binop`); the assignment TARGET
++            # is not a read; so only value reads project. Sentinel picks the carrier's
++            # zero (string "", emit_ir `IrOther ""`, real 0.0, else 0).
++            _proj = self._union_local_read_projection(name)
++            if _proj is not None:
++                return _proj
+         # K7 (pyval-chained `.get`, self-tcb-reduction Tier-5): a pyval chain local is
+         # `let`-bound IMMUTABLE (single-assignment), so a read is the BARE name — never
+         # the `!x` deref (which would type-clash: it is not a ref). Comes before the
+diff --git a/src/self-annotate/src/module6_whyml/stmt_control_flow.py b/src/self-annotate/src/module6_whyml/stmt_control_flow.py
+index 618313ee..bdba2dc6 100644
+--- a/src/self-annotate/src/module6_whyml/stmt_control_flow.py
++++ b/src/self-annotate/src/module6_whyml/stmt_control_flow.py
+@@ -282,11 +282,12 @@ class ControlFlowStmtMixin:
+                            idx: str) -> Tuple[str, str, bool]:
+         return ("", "", False)
+ 
++    #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+     # Frame completed: `self._classify_iterable(...)` (above) writes `_for_idx_init`, which
+     # this body reads back as `idx_init`; the callee's effect propagates into this frame.
+-    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._for_idx_init, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
++    #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._for_idx_init, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._in_loop_spec, self._in_spec, self._keyword_locals, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyval_locals, self._string_local_vars, self._todict_arg_wants_pymap, self._tparam_locals, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+     def _handle_for_stmt(self, stmt: ForStmt, rest: List[Dict[str, Any]],
+                           local_refs: Set[str], declared_refs: Set[str],
+                           indent: str, in_loop: bool) -> str:

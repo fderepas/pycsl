@@ -1,0 +1,142 @@
+diff --git a/src/pycsl/module6_whyml/expressions.py b/src/pycsl/module6_whyml/expressions.py
+index 9a83bd7a..6a89da2b 100644
+--- a/src/pycsl/module6_whyml/expressions.py
++++ b/src/pycsl/module6_whyml/expressions.py
+@@ -342,6 +342,13 @@ _EMIT_IR_GET_KEY_PROJ_BY_FUNC = {
+     # leaving these two entries to serve ONLY the FieldGet standalone reads. SCOPED via
+     # `_current_emitting_func` so every other `.get("object")`/`.get("field")` is byte-inert.
+     "_field_type_of": {"object": "fgobject_of", "field": "field_of"},
++    # self-tcb-reduction _namedtuple_positional_access: `index_ir.get("value")` (NO default)
++    # after a `type == "Number"` guard reads the Number leaf's INT payload (`num_of`), NOT
++    # the `svalue_of` emit_ir sub-node. An empty scoped entry is enough — it makes
++    # `_scoped2 is not None`, so the `.get("value")` disambiguation below routes to `num_of`
++    # (no empty-dict default). Every other key falls through to the global table. SCOPED via
++    # `_current_emitting_func` -> corpus/other-mirror byte-inert.
++    "_namedtuple_positional_access": {},
+ }
+ # self-tcb-reduction Layer-2: SCOPED extra emit_ir-NODE keys for the recognizer's
+ # flow-typing. Globally `lower`/`upper`/`step` are NOT node keys (the R4 SliceExpr readers
+@@ -4239,6 +4246,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         if (atype == "Var" and arg_ir.get("name")
+                 and arg_ir.get("name") == getattr(self, "_vararg_str_param", None)):
+             return f"(Seq.length {whyml_ident(arg_ir['name'])})"
++        # self-tcb-reduction _namedtuple_positional_access: `len(fields)` where `fields` is a
++        # pyval-local hval COLLECTION (`fields = rec_info["fields"]`, an HArr) is the
++        # hval-list length (`hval_len`), NOT the opaque `iter_length : int -> int` (which
++        # mistypes against hval). Gated on `_pyval_locals` -> corpus/mirror byte-inert.
++        if (atype == "Var" and arg_ir.get("name")
++                and arg_ir.get("name") in getattr(self, "_pyval_locals", set())):
++            return f"(hval_len {whyml_ident(arg_ir['name'])})"
+         # §B′: len(d[k]) where d is a seq-valued dict (`Dict[_, List[int]]`) — the
+         # read is a `seq int`, so its length is `Seq.length`.
+         if atype == "Subscript":
+@@ -8065,6 +8079,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+         if (isinstance(value, dict) and value.get("type") == "Var"
+                 and value.get("name") in getattr(self, "_pyval_locals", set())):
+             _pv = whyml_ident(value.get("name"))
++            _iir = expr.get("index", {})
++            # self-tcb-reduction _namedtuple_positional_access: an INT-index subscript on a
++            # pyval-local hval COLLECTION (`fields[idx_val]`, `fields` = an HArr) reads the
++            # idx-th `HStr` as a `string` -> `hval_nth_str`. A String-KEY subscript
++            # (`rec_info["whyml_name"]`) is the DOUBLED map read (`pairs_get`). Disambiguated
++            # by the index IR node type.
++            if isinstance(_iir, dict) and _iir.get("type") == "Number":
++                return f"(hval_nth_str {_pv} {index})"
+             return (f"(match {_pv} with HMap m_pvs -> "
+                     f"(match pairs_get m_pvs {index} with Some (HStr _s) -> _s "
+                     f"| _ -> \"\" end) | _ -> \"\" end)")
+diff --git a/src/pycsl/module6_whyml/preamble.py b/src/pycsl/module6_whyml/preamble.py
+index ece6f661..7db84c13 100644
+--- a/src/pycsl/module6_whyml/preamble.py
++++ b/src/pycsl/module6_whyml/preamble.py
+@@ -6759,6 +6759,24 @@ class PreambleEmissionMixin:
+             "      end",
+             "  let function hval_str_mem (h: hval) (x: string) : bool =",
+             "    match h with HArr l -> hval_list_str_mem l x | _ -> false end",
++            "  (* self-tcb-reduction _namedtuple_positional_access: an hval collection"
++            " (`rec_info[\"fields\"]`, an `HArr` of `HStr`) viewed as an ordered SEQUENCE —"
++            " its LENGTH (`len(fields)`) and its i-th element as a `string` (`fields[idx]`)."
++            " Total definitional recursion over the bespoke `hval_list` carrier, descends"
++            " the REAL structure (non-vacuous), NO axiom. *)",
++            "  let rec function hval_list_len (l: hval_list) : int",
++            "    variant { l }",
++            "    = match l with HNil -> 0 | HCons _ t -> 1 + hval_list_len t end",
++            "  let function hval_len (h: hval) : int =",
++            "    match h with HArr l -> hval_list_len l | _ -> 0 end",
++            "  let rec function hval_list_nth (l: hval_list) (i: int) : hval",
++            "    variant { l }",
++            "    = match l with",
++            "      | HNil -> HInt 0",
++            "      | HCons x t -> if i <= 0 then x else hval_list_nth t (i - 1)",
++            "      end",
++            "  let function hval_nth_str (h: hval) (i: int) : string =",
++            "    match h with HArr l -> hstr_of (hval_list_nth l i) | _ -> \"\" end",
+             "  (* hval-retype (self-tcb-reduction Tier-5): the abstract `.values()`"
+             " iterator over a `map string (option hval)` field — a native Why3 `map` is"
+             " not finitely iterable, so the ENUMERATION is over-approximated (arbitrary"
+diff --git a/src/self-annotate/src/module6_whyml/expressions.py b/src/self-annotate/src/module6_whyml/expressions.py
+index c0cbc18f..a7be5c72 100644
+--- a/src/self-annotate/src/module6_whyml/expressions.py
++++ b/src/self-annotate/src/module6_whyml/expressions.py
+@@ -689,12 +689,58 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
+     def _typeddict_record_literal(self, expr: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
+         return None
+ 
+-    #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True
+     #@ ensures True
+     #@ assigns self._in_spec, self._quant_record_binders, self._quant_scalar_binders
+-    def _namedtuple_positional_access(self, value: int, index_ir: int, local_refs: int, invariant_ctx: bool, subst: int) -> Optional[str]:
+-        return None
++    def _namedtuple_positional_access(self, value: "ExprIR", index_ir: "ExprIR", local_refs: Set[str], invariant_ctx: bool, subst: Optional[Dict[str, str]]) -> Optional[str]:
++        if index_ir.get("type") != "Number":
++            return None
++        idx_val = index_ir.get("value")
++        if not isinstance(idx_val, int) or idx_val < 0:
++            return None
++        rec_name = None
++        if value.get("type") == "Var":
++            sym = getattr(self, "_current_symbol_table", {}).get(value.get("name", ""))
++            if sym and sym in getattr(self, "_record_types", {}):
++                if self._record_types[sym].get("is_namedtuple"):
++                    rec_name = sym
++        if rec_name is None and value.get("type") in ("Attribute", "FieldGet"):
++            ft = self._field_type_of(value)
++            if ft and ft in getattr(self, "_record_types", {}):
++                if self._record_types[ft].get("is_namedtuple"):
++                    rec_name = ft
++        # WL-04b (record residual): `a[i][k]` on a flat `List[Tuple[…]]` param — the
++        # inner read `a[i]` is a namedtuple record (the synthesized `pytuple_<tags>`),
++        # so the outer integer subscript `[k]` is its k-th positional slot. Hoist the
++        # element read into a `let` (it may carry a body-context bounds-assert block).
++        _wrap_let = False
++        if (rec_name is None and value.get("type") == "Subscript"
++                and isinstance(value.get("value"), dict)
++                and value["value"].get("type") == "Var"):
++            _nm = value["value"].get("name", "")
++            # WL-04c: a record-array LOCAL (`a = [Pt(1,2), …]`) shares the WL-04b
++            # `a[i][k]` slot path with a record-array PARAM.
++            _rn = (getattr(self, "_record_array_params", {}).get(_nm)
++                   or getattr(self, "_record_array_locals", {}).get(_nm))
++            if _rn is not None:
++                # `_rn` is the whyml_name; find the record class whose whyml_name matches.
++                for _cls, _info in getattr(self, "_record_types", {}).items():
++                    if _info.get("whyml_name") == _rn and _info.get("is_namedtuple"):
++                        rec_name = _cls
++                        _wrap_let = True
++                        break
++        if rec_name is None:
++            return None
++        rec_info = self._record_types[rec_name]
++        fields = rec_info["fields"]
++        if idx_val >= len(fields):
++            return None
++        field_name = fields[idx_val]
++        rec_lower = rec_info["whyml_name"]
++        base = self._expr_to_whyml(value, local_refs, invariant_ctx, subst)
++        if _wrap_let:
++            return f"(let _rec_ = {base} in _rec_.{self._field_label(rec_lower, field_name)})"
++        return f"{base}.{self._field_label(rec_lower, field_name)}"
+ 
+     #@ \trusted reviewer: pycsl-self-annotate
+     #@ requires True

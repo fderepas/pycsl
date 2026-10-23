@@ -7,19 +7,25 @@ module PyCSL_Program
     invariant { (base_v >= 0) }
     by { base_v = 0 }
 
+  goal _check_class_inv_base : forall base_v : int. base_v = 0 -> ((base_v >= 0))
+
   type sub = { mutable sub_v: int }
     invariant { (sub_v >= 0) }
     by { sub_v = 0 }
 
+  goal _check_class_inv_sub : forall sub_v : int. sub_v = 0 -> ((sub_v >= 0))
+
   let base__f (self: base) (x: int) : int
     requires { (x >= 0) }
     ensures  { (result >= x) } (* linear *)
+    ensures  { self.base_v = old self.base_v }
   =
     (x + self.base_v)
 
   let sub__f (self: sub) (x: int) : int
     requires { (x >= (- 5)) }
     ensures  { (result >= (x + 1)) } (* linear *)
+    ensures  { self.sub_v = old self.sub_v }
   =
     ((x + self.sub_v) + 1)
 

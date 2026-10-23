@@ -20,6 +20,9 @@ class Bank:
         return amount                          # guarded op — assumes the capability
 
     #@ requires True
+    # (#34) HONEST FRAME: this method writes `self.session_authenticated`, and a method
+    # with NO `#@ assigns` at all was assumed by callers to write nothing.
+    #@ assigns self.session_authenticated
     def handle(self, amount: int) -> int:
         self.session_authenticated = 1         # grant AFTER (mock) token validation
         return self.transfer(amount)           # call-site precond `session_authenticated==1` holds
