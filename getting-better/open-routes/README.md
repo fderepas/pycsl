@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #316 + #317 REPAIRED (r316 executor, off 6821931b; inline in `transpile` / `_handle_dotted_call` /
+##   `_emit_function_block` (mirror twins `\trusted` or absent); no new def/field (result kept under `self.ir["_r316_writes"]`);
+##   no frontend IR change; ledger 3). Every function's parameter WRITE SET is inferred from its body (store roots, in-place
+##   mutators, argument mutators, two-level local aliasing, fixpoint over calls; dict/set params and string-keyed stores stay
+##   with WL-05/#244) — the effect Why3 infers for a plain `let`. Method call stubs gain `writes { x_i }` per written array
+##   position; a `\trusted`/imported `val` with no `assigns` gains `writes { p }` (#317). Refusals: PYCSL-METHOD-FRAME (declared
+##   frame omits a written param), PYCSL-METHOD-GLOBAL-WRITE, PYCSL-OVERRIDE-FRAME (override writes a position its base does
+##   not), PYCSL-METHOD-ARG-UNFRAMED / PYCSL-VAL-ARG-UNFRAMED (record argument written). Witnesses 4071-4077, 4079-4081 PROVED
+##   -> FAIL; 4070, 4078, 4082, 4083, 4085 PROVED -> REFUSED; 4084 FAIL -> REFUSED; controls 4088-4091 PASS. Root 1 MOVED
+##   (3195, expected FAIL, `assigns xs[0]` stub gains `writes { x0 }`, FAIL -> FAIL), pyref 0/0/0, mirror 0/0/0 (nothing OWED;
+##   no latent false proof). Residuals: syntactic alias analysis; dict aliasing via elements (WL-05); record args refused not
+##   framed; global writes from methods refused even if declared; element-precise `assigns` unchecked (as for plain functions).
 ## gen #37 (2026-10-23): #318 (range bound re-read every iteration), #319 (list parameter rebound in a nested block is lost after
 ##   the block; later writes hit the caller), #320 (literal rebind of a local list overwrites the same array in place) OPENED (red team 17);
 ##   6/6 sample driver-reproduced rc=0, CPython violates.
