@@ -7,8 +7,8 @@
 ##   defaultdict factory only `int` / `lambda: 0`; a defaultdict local is admitted only when its key set is unobservable or every
 ##   read is fused into a same-key store (CPython's read inserts), else refused. #323: the itertools length model resolves the
 ##   callee through the import table (user/shadowed names fall through to the user's function; `chain as ch` now resolves);
-##   keyword/starred operands refused. Witnesses 4150-4169, 4175 (14 PROVED -> REFUSED, 3 PROVED -> FAIL [4162/4165/4166],
-##   4169 PROVED -> FAIL, 4161/4175 FAIL -> REFUSED, k01/k06/k09 -> REFUSED); controls 4170-4174 PASS. Root 1 MOVED (1076:
+##   keyword/starred operands refused. Witnesses 4150-4169, 4175 (15 PROVED -> REFUSED [4150-4160, 4163, 4164, 4167, 4168],
+##   4 PROVED -> FAIL [4162, 4165, 4166, 4169], 2 FAIL -> REFUSED [4161, 4175]); controls 4170-4174 PASS. Root 1 MOVED (1076:
 ##   constant renamed by the Counter tag, FAIL -> FAIL), pyref 0/0/0; mirror 2 MOVED (`raises` clauses only, L3-tc OK, whole-file
 ##   proofs OWED, no call site); fast planes 61/61; sync/mirror-check/doc-coherency/assumed-facts/raises/refusal-coverage rc=0.
 ##   Residuals: syntactic per-function scan (closures unseen); dotted `collections.X(..)` and module-level defaultdicts not this
