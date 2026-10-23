@@ -5663,6 +5663,235 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"would be proved of the wrong program. Validate the argument "
                             f"before constructing, or move the check out of the constructor.",
                             stage="whyml-emit", code="PYCSL-R179-RAISING-CONSTRUCTOR")
+    # (#49) ROUTE #315 — A CONSTRUCTOR'S BODY IS NEVER EMITTED, SO ITS EFFECTS ON ANYTHING BUT
+    # `self` AND ITS CALLEES' PRECONDITIONS ARE NOT IN THE PROOF. `K(xs)` lowers to a record
+    # literal built from `__init__`'s recognized `self.<f> = ...` stores (routes #79/#83/#150
+    # make the rest UNKNOWN); every other effect of the body is dropped. MEASURED (gen #37):
+    # `a[0] += 1` in `__init__`, `self.n = inc(a)` (`inc` assigns `a[0]`), the same call in a
+    # list/dict/slice/`sorted` initialiser, in a `print`, in an `if` test, an explicit
+    # `#@ assigns a[0]` contract, `self.xs = a; self.xs[0] = 5`, and a user exception `E(xs)`
+    # whose `__init__` bumps `xs[0]` — each PROVED the caller's `\result == 0` (CPython 1);
+    # `self.n = first(a)` (`requires len(a) >= 1`) under `K([])` PROVED `\result == 1`
+    # (CPython IndexError). FAIL-CLOSED: a class's constructor (its own `__init__` /
+    # `__post_init__`, else the nearest base's) is MODELLED only when its body is a field
+    # initialiser — stores to `self.<f>` or to a local name, `if`/`for`/`match`/`raise`/
+    # `return`/`pass` (already modelled by routes #83/#150/#152/#179), calls only to total
+    # builtins, builtin exceptions, `setattr(self, ...)`, a `super().__init__(...)` whose bases
+    # are modelled, and constructors of modelled classes; no subscript READ (a slice is total)
+    # or STORE, no division/shift by a non-literal, no `while`/`try`/`with`/`assert`/`global`/`del` of a
+    # non-`self` target. A non-trusted function of the main file (or a `#@ fresh_globals`
+    # module body) that constructs any other class is refused.
+    if _t175 is not None:
+        import builtins as _bi315
+        _tot315 = {"len", "isinstance", "issubclass", "bool", "list", "set", "dict", "tuple",
+                   "frozenset", "sorted", "reversed", "str", "repr", "range", "sum", "any",
+                   "all", "abs", "bytearray", "bytes", "object", "type", "zip", "enumerate",
+                   "id", "callable", "super"}
+        _cdefs315 = {}
+        for _c315 in _ast175.walk(_tall175):
+            if isinstance(_c315, _ast175.ClassDef):
+                _cdefs315.setdefault(_c315.name, []).append(_c315)
+        # per class: the reason its constructor is NOT a field initialiser ("" = modelled),
+        # and the user classes it depends on (constructed in its body / its bases)
+        _why315 = {}
+        _dep315 = {}
+        for _cn315, _cl315 in _cdefs315.items():
+            _why315[_cn315] = ""
+            _dep315[_cn315] = set()
+            for _c315 in _cl315:
+                _bn315 = [(_b.id if isinstance(_b, _ast175.Name) else _b.attr)
+                          for _b in _c315.bases if isinstance(_b, (_ast175.Name, _ast175.Attribute))]
+                _hooks315 = [_m for _m in _c315.body
+                             if isinstance(_m, (_ast175.FunctionDef, _ast175.AsyncFunctionDef))
+                             and _m.name in ("__init__", "__post_init__")]
+                if not any(_m.name == "__init__" for _m in _hooks315):
+                    # no own `__init__`: the inherited one runs (a dataclass's synthesized one
+                    # is a pure field initialiser; its `__post_init__` is checked below)
+                    _dep315[_cn315] |= {_b for _b in _bn315 if _b in _cdefs315 and _b != _cn315}
+                for _m315 in _hooks315:
+                    if isinstance(_m315, _ast175.AsyncFunctionDef):
+                        _why315[_cn315] = _why315[_cn315] or "an `async` constructor"
+                        continue
+                    _st315 = list(_m315.body)
+                    while _st315 and not _why315[_cn315]:
+                        _s315 = _st315.pop()
+                        _ex315 = []
+                        _tg315 = []
+                        if isinstance(_s315, (_ast175.Pass, _ast175.Break, _ast175.Continue)):
+                            pass
+                        elif isinstance(_s315, _ast175.Expr):
+                            _ex315.append(_s315.value)
+                        elif isinstance(_s315, _ast175.Assign):
+                            _tg315.extend(_s315.targets)
+                            _ex315.append(_s315.value)
+                        elif isinstance(_s315, _ast175.AnnAssign):
+                            _tg315.append(_s315.target)
+                            if _s315.value is not None:
+                                _ex315.append(_s315.value)
+                        elif isinstance(_s315, _ast175.AugAssign):
+                            _tg315.append(_s315.target)
+                            _ex315.append(_s315.value)
+                            # `xs += [v]` / `s |= {v}` / `xs *= 2` mutate the target IN PLACE,
+                            # and the target may alias an argument: only `+=`/`-=` of a number
+                            if not (isinstance(_s315.op, (_ast175.Add, _ast175.Sub))
+                                    and isinstance(_s315.value, _ast175.Constant)
+                                    and type(_s315.value.value) in (int, float)):
+                                _why315[_cn315] = (f"the augmented store `{_ast175.unparse(_s315)}`"
+                                                   f" (line {_s315.lineno}), which may mutate "
+                                                   f"an argument in place")
+                                break
+                        elif isinstance(_s315, _ast175.Delete):
+                            _tg315.extend(_s315.targets)
+                        elif isinstance(_s315, _ast175.If):
+                            _ex315.append(_s315.test)
+                            _st315.extend(_s315.body + _s315.orelse)
+                        elif isinstance(_s315, _ast175.For):
+                            _tg315.append(_s315.target)
+                            _ex315.append(_s315.iter)
+                            _st315.extend(_s315.body + _s315.orelse)
+                        elif isinstance(_s315, _ast175.Match):
+                            _ex315.append(_s315.subject)
+                            for _k315 in _s315.cases:
+                                if _k315.guard is not None:
+                                    _ex315.append(_k315.guard)
+                                _st315.extend(_k315.body)
+                        elif isinstance(_s315, _ast175.Raise):
+                            _ex315.extend(_x for _x in (_s315.exc, _s315.cause) if _x is not None)
+                        elif isinstance(_s315, _ast175.Return):
+                            if _s315.value is not None:
+                                _ex315.append(_s315.value)
+                        else:
+                            _why315[_cn315] = (f"a `{type(_s315).__name__}` statement "
+                                               f"(line {_s315.lineno})")
+                            break
+                        _tq315 = list(_tg315)
+                        while _tq315 and not _why315[_cn315]:
+                            _t315 = _tq315.pop()
+                            if isinstance(_t315, (_ast175.Tuple, _ast175.List)):
+                                _tq315.extend(_t315.elts)
+                            elif isinstance(_t315, _ast175.Starred):
+                                _tq315.append(_t315.value)
+                            elif isinstance(_t315, _ast175.Name):
+                                pass
+                            elif (isinstance(_t315, _ast175.Attribute)
+                                  and isinstance(_t315.value, _ast175.Name)
+                                  and _t315.value.id == "self"):
+                                pass
+                            else:
+                                _why315[_cn315] = (f"a store to `{_ast175.unparse(_t315)}` "
+                                                   f"(line {_t315.lineno}), which is not a "
+                                                   f"field of `self` and may alias an argument")
+                        for _e315 in _ex315:
+                            if _why315[_cn315]:
+                                break
+                            for _q315 in _ast175.walk(_e315):
+                                if isinstance(_q315, (_ast175.Await, _ast175.Yield,
+                                                      _ast175.YieldFrom)):
+                                    _why315[_cn315] = f"`{type(_q315).__name__}`"
+                                elif (isinstance(_q315, _ast175.Subscript)
+                                      and isinstance(_q315.ctx, _ast175.Load)
+                                      and not isinstance(_q315.slice, _ast175.Slice)):
+                                    _why315[_cn315] = (f"the subscript `{_ast175.unparse(_q315)}`"
+                                                       f" (line {_q315.lineno}), whose "
+                                                       f"IndexError/KeyError is not modelled")
+                                elif (isinstance(_q315, _ast175.BinOp)
+                                      and isinstance(_q315.op, (_ast175.Div, _ast175.FloorDiv,
+                                                                _ast175.Mod, _ast175.LShift,
+                                                                _ast175.RShift))
+                                      and not (isinstance(_q315.right, _ast175.Constant)
+                                               and type(_q315.right.value) is int
+                                               and _q315.right.value > 0)
+                                      and not (isinstance(_q315.op, _ast175.Mod)
+                                               and isinstance(_q315.left, _ast175.Constant)
+                                               and isinstance(_q315.left.value, str))):
+                                    _why315[_cn315] = (f"`{_ast175.unparse(_q315)}` (line "
+                                                       f"{_q315.lineno}), whose raise is not "
+                                                       f"modelled")
+                                elif isinstance(_q315, _ast175.Call):
+                                    _f315 = _q315.func
+                                    _fn315 = (_f315.id if isinstance(_f315, _ast175.Name)
+                                              else _f315.attr if isinstance(_f315, _ast175.Attribute)
+                                              else None)
+                                    _bx315 = getattr(_bi315, _fn315 or "", None)
+                                    if (isinstance(_f315, _ast175.Name) and _fn315 in _cdefs315):
+                                        _dep315[_cn315].add(_fn315)
+                                    elif (isinstance(_f315, _ast175.Name) and _fn315 in _tot315):
+                                        pass
+                                    elif (isinstance(_f315, _ast175.Name)
+                                          and isinstance(_bx315, type)
+                                          and issubclass(_bx315, BaseException)):
+                                        pass
+                                    elif (isinstance(_f315, _ast175.Name) and _fn315 == "setattr"
+                                          and _q315.args and isinstance(_q315.args[0], _ast175.Name)
+                                          and _q315.args[0].id == "self"):
+                                        pass
+                                    elif (isinstance(_f315, _ast175.Attribute)
+                                          and _f315.attr in ("__init__", "__post_init__")
+                                          and isinstance(_f315.value, _ast175.Call)
+                                          and isinstance(_f315.value.func, _ast175.Name)
+                                          and _f315.value.func.id == "super"):
+                                        _dep315[_cn315] |= {_b for _b in _bn315
+                                                            if _b in _cdefs315 and _b != _cn315}
+                                    else:
+                                        _why315[_cn315] = (f"the call `{_ast175.unparse(_f315)}"
+                                                           f"(...)` (line {_q315.lineno}), whose "
+                                                           f"effects, precondition and raises "
+                                                           f"are not modelled")
+                                if _why315[_cn315]:
+                                    break
+        # a class depending on an unmodelled one is unmodelled too
+        _chg315 = True
+        while _chg315:
+            _chg315 = False
+            for _cn315 in sorted(_why315):
+                if _why315[_cn315]:
+                    continue
+                for _d315 in sorted(_dep315[_cn315]):
+                    if _why315.get(_d315):
+                        _why315[_cn315] = f"its use of `{_d315}`, whose constructor is unmodelled"
+                        _chg315 = True
+                        break
+        if any(_why315.values()):
+            _trusted315 = {str(_f.get("name", ""))
+                           for _f in ir_data.get("functions", [])
+                           if _f.get("trusted") or _f.get("abstract") or _f.get("trusted_parent")}
+            _owner315 = {}
+            for _k315 in _ast175.walk(_tall175):
+                if isinstance(_k315, _ast175.ClassDef):
+                    for _m315 in _k315.body:
+                        if isinstance(_m315, (_ast175.FunctionDef, _ast175.AsyncFunctionDef)):
+                            _owner315[id(_m315)] = _k315.name
+            _sites315 = []
+            for _d315 in _ast175.walk(_t175):
+                if (not isinstance(_d315, (_ast175.FunctionDef, _ast175.AsyncFunctionDef))
+                        or _d315.name in ("__init__", "__post_init__", "__new__")
+                        or (f"{_owner315[id(_d315)].lower()}__{_d315.name}"
+                            if id(_d315) in _owner315 else _d315.name) in _trusted315):
+                    continue
+                _sites315.append((_d315.name, _d315))
+            if any(_f.get("fresh_globals") for _f in (ir_data.get("functions", []) or [])):
+                _sites315.append(("<module body>", _ast175.Module(
+                    body=[_s for _s in _t175.body if not isinstance(
+                        _s, (_ast175.FunctionDef, _ast175.AsyncFunctionDef, _ast175.ClassDef))],
+                    type_ignores=[])))
+            for _sn315, _d315 in _sites315:
+                for _q315 in _ast175.walk(_d315):
+                    if not isinstance(_q315, _ast175.Call):
+                        continue
+                    _fn315 = (_q315.func.id if isinstance(_q315.func, _ast175.Name)
+                              else _q315.func.attr if isinstance(_q315.func, _ast175.Attribute)
+                              else None)
+                    if _fn315 and _why315.get(_fn315):
+                        from errors import PyCSLSemanticError as _PyCSLSemErr315
+                        raise _PyCSLSemErr315(
+                            f"{_sn315!r} constructs `{_fn315}` (line {_q315.lineno}), whose "
+                            f"constructor is not a field initialiser: {_why315[_fn315]} "
+                            f"(ROUTE #315). A construction is lowered to a record literal of "
+                            f"the `self.<f>` stores and the rest of the body is never emitted, "
+                            f"so its effects on the arguments, its callees' preconditions and "
+                            f"its raises would be missing from the proof. Move that work out "
+                            f"of the constructor (into a function called before or after it).",
+                            stage="whyml-emit", code="PYCSL-R315-UNMODELLED-CONSTRUCTOR")
     # (#49) ROUTE #187 — `#@ fresh_globals` ASSUMES THE CONSTRUCTOR POST-STATE, AND THE
     # MODULE BODY'S OWN MUTATIONS OF THE GLOBAL ARE INVISIBLE TO IT. The directive
     # re-establishes each module-global singleton's `__init__` post-state as an ASSUMED
