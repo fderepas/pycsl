@@ -9874,7 +9874,7 @@ class FunctionEmissionMixin:
                                       func_exceptions, func_is_noreturn)
         # (#49) ROUTES #316 / #317 — THE FRAME OF A METHOD AND OF A BODYLESS `val`.
         # `transpile` computed, per function, the parameters its body may write (a
-        # conservative fixpoint, `self.ir["_r316_writes"]`). Three uses, all fail-closed:
+        # conservative fixpoint, `func["_r316_frame"]`). Three uses, all fail-closed:
         #   * a `\trusted` / IMPORTED function emitted as a bodyless `val` with NO `assigns`
         #     used to get NO `writes` — an INVENTED "writes nothing" frame (route #317,
         #     `from helper import poke` with `poke(xs): xs[0] = 5` proved `ys[0] == 0`).
@@ -9891,7 +9891,7 @@ class FunctionEmissionMixin:
         #   * an OVERRIDE writing a parameter position its overridden base does not write is
         #     REFUSED: a base-typed call goes through the BASE stub (r01, route #277's
         #     refinement compares contracts only).
-        _r316 = ((self.ir or {}).get("_r316_writes") or {}).get(whyml_ident(func["name"]))
+        _r316 = func.get("_r316_frame")
         if _r316:
             _x316 = (set((getattr(self, "_func_stmt_seq_mut_params", {}) or {}).get(
                 func["name"], set()) or set())
@@ -9920,8 +9920,10 @@ class FunctionEmissionMixin:
             for _ov316 in (self.ir.get("overrides", []) or []):
                 if not isinstance(_ov316, dict) or _ov316.get("sub_method") != func["name"]:
                     continue
-                _b316 = ((self.ir or {}).get("_r316_writes") or {}).get(
-                    whyml_ident(str(_ov316.get("base_method", ""))))
+                _b316 = next((_bf316.get("_r316_frame") for _bf316 in (
+                    self.ir.get("functions", []) or [])
+                    if isinstance(_bf316, dict)
+                    and _bf316.get("name") == _ov316.get("base_method")), None)
                 if _b316 is None:
                     continue
                 _bp316 = set(_b316.get("positions", []))

@@ -8716,12 +8716,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # of that name (more `writes` is strictly less caller knowledge). A written
         # position the stub cannot frame (a by-value record/map) is REFUSED when the callee
         # is resolved exactly.
-        _m316 = (self.ir or {}).get("_r316_writes") or {}
-        _e316 = _m316.get(_r100n)
+        _m316 = [_f316["_r316_frame"] for _f316 in (self.ir.get("functions", []) or [])
+                 if isinstance(_f316, dict) and _f316.get("_r316_frame")]
+        _e316 = next((_v316 for _v316 in _m316 if _v316.get("wname") == _r100n), None)
         _t316 = func_name.rsplit(".", 1)[-1]
         _c316 = ([_e316] if _e316 else
-                 [_v316 for _k316, _v316 in _m316.items()
-                  if _v316.get("method") and _k316.endswith("__" + _t316)])
+                 [_v316 for _v316 in _m316
+                  if _v316.get("method") and str(_v316.get("wname", "")).endswith("__" + _t316)])
         _pos316: Set[int] = set()
         for _v316 in _c316:
             _x316 = (set((getattr(self, "_func_stmt_seq_mut_params", {}) or {}).get(

@@ -579,8 +579,8 @@ class Module6_WhyMLTranspiler(
         # the method-call stub (`_handle_dotted_call`: `writes { x_i }`), the bodyless
         # `val` of a `\trusted`/imported function with no `assigns` (`_emit_function_block`)
         # and the method refusals (PYCSL-METHOD-FRAME, PYCSL-METHOD-GLOBAL-WRITE,
-        # PYCSL-OVERRIDE-FRAME, also in `_emit_function_block`). Result: the map
-        # `self.ir["_r316_writes"]`, keyed by WhyML name.
+        # PYCSL-OVERRIDE-FRAME, also in `_emit_function_block`). Result: each function's
+        # IR dict carries `_r316_frame`.
         _SCAL316 = ("int", "float", "bool", "str", "string", "None", "bytes", "complex")
         _MUTM316 = ("append", "extend", "insert", "remove", "pop", "clear", "sort",
                     "reverse", "add", "discard", "update", "setdefault", "popitem",
@@ -926,13 +926,14 @@ class Module6_WhyMLTranspiler(
                     if not _add316 <= _eff316[_nm316]:
                         _eff316[_nm316] |= _add316
                         _chg316 = True
-        # Kept under a key of the IR dict (not a new transpiler field: a field would move
-        # the record type of every mirror that imports this module, lesson (a4)).
-        _out316: Dict[str, Dict[str, Any]] = {}
-        self.ir["_r316_writes"] = _out316
+        # Kept ON EACH FUNCTION'S IR dict (`func["_r316_frame"]`, the `func["uses"]`
+        # precedent): not a new transpiler field (it would move the record type of every
+        # mirror that imports this module, lesson (a4)) and not a write to a declared field.
+        _byf316 = {f["name"]: f for f in _fs316}
         for _nm316, _i316 in _info316.items():
             _wp316 = [p for p in _i316["params"] if p in _eff316[_nm316]]
-            _out316[whyml_ident(_nm316)] = {
+            _byf316[_nm316]["_r316_frame"] = {
+                "wname": whyml_ident(_nm316),
                 "name": _nm316, "params": list(_i316["params"]), "written": _wp316,
                 "positions": [i for i, p in enumerate(_i316["params"]) if p in _wp316],
                 "global": "<global>" in _eff316[_nm316],
