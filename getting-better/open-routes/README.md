@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #316 (method writes to arguments / module objects invisible to callers: method stubs take writes only
+##   from assigns on self; body checked only against a self frame) and #317 (imported function without contract assumed to write
+##   nothing) OPENED (red team 16); 6/6 sample driver-reproduced rc=0, CPython violates.
+
 ## gen #37 (2026-10-23): #311-#315 OPENED (red team 15; 23 witnesses, 9 driver-reproduced rc=0 on main 65b22999, CPython violates):
 ##   #311 slice bounds evaluated right-to-left; #312 slice/sorted/list_new operand coerced to (any int) drops its calls;
 ##   #313 dict/set values lowered to (any_map ()) drop effects (display args, dict-returning calls, field stores);
