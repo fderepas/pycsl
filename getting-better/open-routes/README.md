@@ -22,6 +22,17 @@
 ##   the block; later writes hit the caller), #320 (literal rebind of a local list overwrites the same array in place) OPENED (red team 17);
 ##   6/6 sample driver-reproduced rc=0, CPython violates.
 
+## gen #37 (2026-10-23): #318 + #319 + #320 REPAIRED (r318 executor, off 8610363c; inline; no new def/field; ledger 3; both new
+##   raises in `_handle_assign_stmt` (`\trusted` twin already declares them); no IR change). #318: a `range` stop that the #29
+##   hoist did not bind and that is not a literal / `!`-free name / `len` of one is captured once (`let _stop_<idx> = .. in`).
+##   #319: a formal parameter whose first binding is nested -> `PYCSL-M6-PARAM-REBIND-NESTED-BLOCK` (a `ref` over an array
+##   parameter is ill-typed in Why3, measured). #320: a literal rebind of an array local that may have another holder (value
+##   use, non-literal binding, rebind inside a `for` over it) -> `PYCSL-M6-LIST-LITERAL-REBIND-ALIASED`. Witnesses 4110-4114
+##   PROVED -> FAIL; 4117-4120, 4122-4124 PROVED -> REFUSED; 4125 FAIL -> REFUSED; controls 4115/4116 FAIL -> PASS,
+##   4121/4126/4127 PASS both. Root 1 MOVED (0708, re-proved) / 3 GONE (r300 expected-FAIL 3578/3580/3582 -> REFUSED), pyref
+##   0/0/0, mirror 1 MOVED (Module3_Weaver `_desugar_for`, L3-tc rc=0; proof see route318). Residuals: `range(a,b,step)` /
+##   `enumerate(range)` stay opaque; #320 is coarse (any user-callee argument refuses).
+
 ## gen #37 (2026-10-23): #316 (method writes to arguments / module objects invisible to callers: method stubs take writes only
 ##   from assigns on self; body checked only against a self frame) and #317 (imported function without contract assumed to write
 ##   nothing) OPENED (red team 16); 6/6 sample driver-reproduced rc=0, CPython violates.
