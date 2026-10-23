@@ -595,6 +595,10 @@ class Module6_WhyMLTranspiler(
         _glob316 = {g.get("name") for g in (self.ir.get("module_globals") or [])
                     if isinstance(g, dict) and g.get("name")}
         _fs316 = [f for f in functions if isinstance(f, dict) and f.get("name")]
+        _rec316 = {td.get("name") for td in (type_decls or [])
+                   if isinstance(td, dict) and td.get("kind") == "record" and td.get("name")}
+        _modn316 = {f["name"] for f in _fs316}
+        _modt316 = {f["name"].rsplit("__", 1)[-1] for f in _fs316 if "__" in f["name"]}
         _info316: Dict[str, Any] = {}
         for _f316 in _fs316:
             _nm316 = _f316["name"]
@@ -620,7 +624,15 @@ class Module6_WhyMLTranspiler(
             # taint: name -> sources it may alias ({param} / {"self"} / {"<global>"})
             _src316: Dict[str, Set[str]] = {}
             for _p316 in _pp316:
-                if _ann316.get(_p316) not in _SCAL316:
+                # a dict/set parameter is governed by WL-05 / route #244 (a write is a
+                # caller-visible `ref (map ..)`, a local shadow with a call-site refusal,
+                # or refused), so only the other mutable kinds are seeded here.
+                # Seeded: a list / bytearray, a user record class, or an unannotated
+                # parameter. An IR-node / immutable-ADT parameter (the mirror's `emit_ir`,
+                # `stmt_ir`) cannot be written in the model at all (cf6 M1.4).
+                if (_ann316.get(_p316) in ("list", "bytearray", None)
+                        or _ann316.get(_p316) in _rec316) and _st316.get(_p316) not in (
+                        "dict", "set", "frozenset"):
                     _src316[_p316] = {_p316}
             if _f316.get("kind") == "method":
                 _src316["self"] = {"self"}
@@ -628,9 +640,12 @@ class Module6_WhyMLTranspiler(
             _bind316: List[tuple] = []
             for _s316 in _stm316:
                 _k316 = _s316.get("stmt")
-                if _k316 in ("Assign", "AugAssign", "GhostAssign") and isinstance(
+                # (an augmented assignment keeps the target's identity: not an alias edge)
+                if _k316 in ("Assign", "GhostAssign") and isinstance(
                         _s316.get("target"), str):
                     _bind316.append((_s316["target"], _s316.get("value")))
+                    _loc316.add(_s316["target"])
+                elif _k316 == "AugAssign" and isinstance(_s316.get("target"), str):
                     _loc316.add(_s316["target"])
                 elif _k316 == "For":
                     for _t316 in ([_s316.get("target")] + list(_s316.get("tuple_targets") or [])):
@@ -649,6 +664,15 @@ class Module6_WhyMLTranspiler(
             for _g316 in _glob316:
                 if _g316 not in _loc316:
                     _src316[_g316] = {"<global>"}
+            # TWO alias levels per local: `_src316` (IDENTITY: the local may BE the tainted
+            # object or an element/field of it — through a name, subscript, attribute,
+            # conditional, `or`/`and`, a dotted call on a tainted receiver (`d.get(k)`), a
+            # call to a function/method of this module or to an element-returning builtin)
+            # and `_any316` (CONTAINMENT: the tainted object may be reachable inside it —
+            # anything the value mentions). A literal, comprehension, constructor or
+            # arithmetic result is a FRESH object: a store INTO it (`n.lineno = ...`) writes
+            # nothing the caller holds, but a store two levels down (`a[0][0] = v`) may.
+            _any316: Dict[str, Set[str]] = {k: set(v) for k, v in _src316.items()}
             _chg316 = True
             while _chg316:
                 _chg316 = False
@@ -659,17 +683,59 @@ class Module6_WhyMLTranspiler(
                     _wv316: List[Any] = [_v316]
                     while _wv316:
                         _y316 = _wv316.pop()
+                        if isinstance(_y316, list):
+                            _wv316.extend(_y316)
+                            continue
+                        if not isinstance(_y316, dict):
+                            continue
+                        _ty316 = _y316.get("type")
+                        if _ty316 == "Var" and _y316.get("name") in _src316:
+                            _acc316 |= _src316[_y316["name"]]
+                        if _ty316 in ("FieldGet", "Attribute") and \
+                                isinstance(_y316.get("object"), str):
+                            _acc316 |= _src316.get(_y316["object"].split(".")[0], set())
+                        if _ty316 in ("Subscript", "SliceAccess", "NamedExpr", "Starred"):
+                            _wv316.append(_y316.get("value"))
+                        elif _ty316 in ("FieldGet", "Attribute"):
+                            _wv316.append(_y316.get("object"))
+                        elif _ty316 == "IfExpr":
+                            _wv316.extend([_y316.get("body"), _y316.get("orelse")])
+                        elif _ty316 == "BinOp" and _y316.get("op") in ("or", "and", "||", "&&"):
+                            _wv316.extend([_y316.get("left"), _y316.get("right")])
+                        elif _ty316 == "Call" and isinstance(_y316.get("func"), str):
+                            _cf316 = _y316["func"]
+                            if "." in _cf316:
+                                _wv316.append({"type": "Var", "name": _cf316.split(".")[0]})
+                            _wv316.append(_y316.get("receiver"))
+                            if (_cf316 in _modn316 or _cf316.rsplit(".", 1)[-1] in _modt316
+                                    or _cf316 in ("next", "max", "min", "getattr", "iter",
+                                                  "reversed", "enumerate", "zip", "filter",
+                                                  "map")):
+                                _wv316.extend(list(_y316.get("args") or [])
+                                              + [_q316.get("value") for _q316 in (
+                                                  _y316.get("keywords") or [])
+                                                 if isinstance(_q316, dict)])
+                    if not _acc316 <= _src316.get(_t316, set()):
+                        _src316[_t316] = _src316.get(_t316, set()) | _acc316
+                        _chg316 = True
+                    _acc316 = set()
+                    _wv316 = [_v316]
+                    while _wv316:
+                        _y316 = _wv316.pop()
                         if isinstance(_y316, dict):
-                            if _y316.get("type") == "Var" and _y316.get("name") in _src316:
-                                _acc316 |= _src316[_y316["name"]]
+                            if _y316.get("type") == "Var" and _y316.get("name") in _any316:
+                                _acc316 |= _any316[_y316["name"]]
                             if _y316.get("type") in ("FieldGet", "Attribute") and \
                                     isinstance(_y316.get("object"), str):
-                                _acc316 |= _src316.get(_y316["object"].split(".")[0], set())
+                                _acc316 |= _any316.get(_y316["object"].split(".")[0], set())
+                            if _y316.get("type") == "Call" and isinstance(
+                                    _y316.get("func"), str) and "." in _y316["func"]:
+                                _acc316 |= _any316.get(_y316["func"].split(".")[0], set())
                             _wv316.extend(v for v in _y316.values() if isinstance(v, (dict, list)))
                         elif isinstance(_y316, list):
                             _wv316.extend(_y316)
-                    if not _acc316 <= _src316.get(_t316, set()):
-                        _src316[_t316] = _src316.get(_t316, set()) | _acc316
+                    if not _acc316 <= _any316.get(_t316, set()):
+                        _any316[_t316] = _any316.get(_t316, set()) | _acc316
                         _chg316 = True
             # direct writes: the ROOT of every store target
             _w316: Set[str] = set()
@@ -677,6 +743,12 @@ class Module6_WhyMLTranspiler(
             for _s316 in _stm316:
                 _k316 = _s316.get("stmt")
                 if _k316 in ("ArraySet", "ArraySliceSet", "DelSubscript"):
+                    # a STRING-keyed item store writes a dict (a by-value map in the model,
+                    # governed by WL-05 / route #244) or an immutable IR node (cf6 M1.4) —
+                    # never a list element
+                    if isinstance(_s316.get("index"), dict) and \
+                            _s316["index"].get("type") == "String":
+                        continue
                     _roots316.append(_s316.get("array"))
                 elif _k316 in ("FieldAssign", "FieldAugAssign"):
                     _roots316.append(_s316.get("object"))
@@ -694,9 +766,13 @@ class Module6_WhyMLTranspiler(
                 if isinstance(_r316, dict) and _r316.get("type") == "Var":
                     _r316 = _r316.get("name")
                 if isinstance(_r316, str) and _r316:
+                    _d316 += _r316.count(".")
                     _r316 = _r316.split(".")[0]
-                    if _r316 in _src316:
-                        _w316 |= _src316[_r316]
+                    if _r316 in _src316 or _r316 in _any316:
+                        # a store INTO the object (depth 1) writes what it IS; deeper,
+                        # whatever it CONTAINS
+                        _w316 |= (_src316.get(_r316, set()) if _d316 <= 1
+                                  else _any316.get(_r316, set()))
                     elif _r316 not in _loc316 and _r316 != "self":
                         _w316.add("<global>")
                 else:
@@ -724,27 +800,52 @@ class Module6_WhyMLTranspiler(
                         if _y316.get("type") in ("FieldGet", "Attribute") and \
                                 isinstance(_y316.get("object"), str):
                             _rs316 |= _src316.get(_y316["object"].split(".")[0], set())
-                        _wv316.extend(v for v in _y316.values() if isinstance(v, (dict, list)))
+                        # descend only through IDENTITY-PRESERVING positions (the value may BE
+                        # the tainted object or an element/field of it): a literal, comprehension
+                        # or arithmetic result is a FRESH object, so a store into it writes nothing
+                        # the caller holds. A call result may alias its arguments (conservative).
+                        _ty316 = _y316.get("type")
+                        if _ty316 in ("Subscript", "SliceAccess", "NamedExpr", "Starred"):
+                            _wv316.append(_y316.get("value"))
+                        elif _ty316 in ("FieldGet", "Attribute"):
+                            _wv316.append(_y316.get("object"))
+                        elif _ty316 == "IfExpr":
+                            _wv316.extend([_y316.get("body"), _y316.get("orelse")])
+                        elif _ty316 == "BinOp" and _y316.get("op") in ("or", "and", "||", "&&"):
+                            _wv316.extend([_y316.get("left"), _y316.get("right")])
+                        elif _ty316 == "Call":
+                            _wv316.extend(list(_y316.get("args") or []) + [_y316.get("receiver")]
+                                          + [_q316.get("value") for _q316 in (_y316.get("keywords") or [])
+                                             if isinstance(_q316, dict)])
+                            if isinstance(_y316.get("func"), str) and "." in _y316["func"]:
+                                _wv316.append({"type": "Var", "name": _y316["func"].split(".")[0]})
                     elif isinstance(_y316, list):
                         _wv316.extend(_y316)
                 if ("." in _fn316 or isinstance(_rv316, dict)) and _tail316 in _MUTM316:
                     _w316 |= _rs316
+                # a user method writing `self` may write anything reachable from the receiver
+                if "." in _fn316:
+                    _rs316 = _rs316 | _any316.get(_fn316.split(".")[0], set())
                 _as316: List[Set[str]] = []
                 _kw316: Dict[str, Set[str]] = {}
                 _all316: List[tuple] = [(None, _a) for _a in (_e316.get("args") or [])]
                 _all316 += [(_kw.get("arg"), _kw.get("value"))
                             for _kw in (_e316.get("keywords") or []) if isinstance(_kw, dict)]
                 for _key316, _a316 in _all316:
+                    # an argument hands the callee everything reachable from it
                     _acc316 = set()
                     _wv316 = [_a316]
                     while _wv316:
                         _y316 = _wv316.pop()
                         if isinstance(_y316, dict):
-                            if _y316.get("type") == "Var" and _y316.get("name") in _src316:
-                                _acc316 |= _src316[_y316["name"]]
+                            if _y316.get("type") == "Var" and _y316.get("name") in _any316:
+                                _acc316 |= _any316[_y316["name"]]
                             if _y316.get("type") in ("FieldGet", "Attribute") and \
                                     isinstance(_y316.get("object"), str):
-                                _acc316 |= _src316.get(_y316["object"].split(".")[0], set())
+                                _acc316 |= _any316.get(_y316["object"].split(".")[0], set())
+                            if _y316.get("type") == "Call" and isinstance(
+                                    _y316.get("func"), str) and "." in _y316["func"]:
+                                _acc316 |= _any316.get(_y316["func"].split(".")[0], set())
                             _wv316.extend(v for v in _y316.values() if isinstance(v, (dict, list)))
                         elif isinstance(_y316, list):
                             _wv316.extend(_y316)
