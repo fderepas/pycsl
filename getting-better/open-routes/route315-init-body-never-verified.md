@@ -32,7 +32,35 @@ main-file function (or a `#@ fresh_globals` module body) constructing any other 
 
 Probe table (`pycsl.py` whole-file; CPython ground truth in each file's `__main__`):
 
-PROBE_TABLE
+| witness | CPython | d4e39ef2 | after |
+|---|---|---|---|
+| 4040_gen37_r315_init_arg_element_store | violates | PROVED | REFUSED (route #315) |
+| 4041_gen37_r315_init_effectful_call_field | violates | PROVED | REFUSED (route #315) |
+| 4042_gen37_r315_init_effectful_call_in_list_field | violates | PROVED | REFUSED (route #315) |
+| 4043_gen37_r315_init_effectful_call_in_dict_field | violates | PROVED | REFUSED (route #315) |
+| 4044_gen37_r315_init_print_of_effectful_call | violates | PROVED | REFUSED (route #315) |
+| 4045_gen37_r315_init_effectful_call_in_slice_bound | violates | PROVED | REFUSED (route #315) |
+| 4046_gen37_r315_init_effectful_call_in_if_test | violates | PROVED | REFUSED (route #315) |
+| 4047_gen37_r315_init_effectful_call_under_sorted | violates | PROVED | REFUSED (route #315) |
+| 4048_gen37_r315_init_explicit_assigns_ignored | violates | PROVED | REFUSED (route #315) |
+| 4049_gen37_r315_init_callee_requires_unchecked | violates | PROVED | REFUSED (route #315) |
+| 4050_gen37_r315_exception_init_mutates_argument | violates | PROVED | REFUSED (route #315) |
+| 4051_gen37_r315_inherited_impure_init | violates | PROVED | REFUSED (route #315) |
+| 4052_gen37_r315_nested_construction_of_impure_class | violates | PROVED | REFUSED (route #315) |
+| 4053_gen37_r315_init_store_through_field_alias_of_argument | violates | PROVED | REFUSED (route #315) |
+| 4054_gen37_r315_post_init_effectful_call | violates | PROVED | REFUSED (route #315) |
+| 4055_gen37_r315_init_conditional_division_raise | violates | PROVED | REFUSED (route #315) |
+| 4056_gen37_r315_init_conditional_index_raise | violates | PROVED | REFUSED (route #315) |
+| 4057_gen37_r315_exception_init_effectful_call | violates | PROVED | REFUSED (route #315) |
+| 4058_gen37_r315_initvar_post_init_mutates_argument | violates | PROVED | REFUSED (route #315) |
+| 4059_gen37_r315_pure_initialiser_control | ok | PROVED | PROVED |
+| 4060_gen37_r315_dataclass_namedtuple_control | ok | PROVED | PROVED |
+| 4061_gen37_r315_exception_class_control | ok | PROVED | PROVED |
+| 4062_gen37_r315_super_init_control | ok | PROVED | PROVED |
+| 4063_gen37_r315_init_inplace_augassign_through_alias | violates | PROVED | REFUSED (route #315) |
+
+Scratch probes (not in corpus): q01 `#@ requires n >= 1` on `__init__` with `K(0)` PROVED both sides (residual 4, CPython-unobservable);
+q02/q03/q06 top-level captured `10 // d` / `a[0]` FAIL at base (the captured initialiser keeps its obligation) -> REFUSED.
 
 Blast radius: corpus root 0 MOVED / 7 GONE (declared: 1495, 1496, 1498 (#150), 1517, 1518, 1519 (#154), 2014 (#235) — all
 `pycsl-expected: FAIL` witnesses, FAIL -> REFUSED; a constructor that calls `self._setup()` / `init_p(self)` / `xs.items()`,
