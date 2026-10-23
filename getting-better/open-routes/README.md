@@ -1,5 +1,11 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #307 (effectful operands evaluated right-to-left: nested WhyML applications, Why3 evaluates args RTL;
+##   binops/calls/compare/walrus/literals/aug-assign) OPENED (red team 14); 20 witnesses, CPython violates.
+## gen #37 (2026-10-23): #308 (`c[k] op= v` lowers the index twice) OPENED (red team 14); 5 witnesses.
+## gen #37 (2026-10-23): #309 (getattr(o, name, call/collection default) -> shared hashed constant even when the attribute
+##   exists: receiver and default effects ignored) OPENED (red team 14); 3 witnesses.
+
 ## gen #37 (2026-10-23): #305 REPAIRED (r305 executor, off 370e1875; inline in `_run_pipeline` (`\trusted` mirror twin); no new
 ##   def; no IR change; ledger 3). Any binding (class at any depth; def/import/store/param/except-as in a module or function
 ##   scope; main file + #181 dependency modules) of a name in EXCEPTION_BASES ∪ KNOWN_EXCEPTIONS ∪ {EnvironmentError, IOError}
