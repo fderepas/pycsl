@@ -14,3 +14,12 @@ test-suite/corpus/pycsl-reference/1073_route47_same_default_equal.py	0	2
 test-suite/corpus/pycsl-reference/1691_route197_an_unknown_typed_getattr_was_its_default.py	0	1
 test-suite/corpus/pycsl-reference/1692_route197_an_absent_field_still_returns_its_default.py	1	0
 test-suite/corpus/pycsl-reference/2760_gen36_route214_two_unknown_receivers_getattr_eq_closed.py	0	2
+test-suite/corpus/pycsl-reference/3940_gen37_r309_getattr_default_call_dropped.py	0	1
+test-suite/corpus/pycsl-reference/3941_gen37_r309_getattr_shared_constant_two_receivers.py	0	3
+test-suite/corpus/pycsl-reference/3942_gen37_r309_getattr_constant_across_write.py	0	2
+test-suite/corpus/pycsl-reference/3943_gen37_r309_getattr_absent_default_effect.py	0	1
+test-suite/corpus/pycsl-reference/3944_gen37_r309_getattr_unknown_receiver_call_default.py	0	1
+test-suite/corpus/pycsl-reference/3945_gen37_r309_getattr_empty_default_ctor_locals.py	0	2
+test-suite/corpus/pycsl-reference/3946_gen37_r309_getattr_nonliteral_name_known_record.py	0	1
+test-suite/corpus/pycsl-reference/3948_gen37_r309_getattr_absent_call_default_control.py	0	1
+test-suite/corpus/pycsl-reference/3949_gen37_r309_getattr_ctor_local_call_default_control.py	0	1

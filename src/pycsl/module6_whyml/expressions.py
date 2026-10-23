@@ -14628,7 +14628,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _ga_t = getattr(self, "_current_self_type", None)
         _ga_lbls = (getattr(self, "_emitted_record_field_labels", {})
                     or {}).get(str(_ga_t).lower()) if _ga_t else None
-        if _ga_lbls is None:
+        # (#49) ROUTE #309 follow-up: a NON-literal name never establishes absence (the
+        # emitter's two consumers below already treat it as UNKNOWN), so the census
+        # classifies it UNKNOWN too rather than ABSENT. Emission-neutral (measured).
+        if _ga_lbls is None or _ga_n == "<nonliteral>":
             _ga_cls = "UNKNOWN"      # no field list for this type at all
         elif (_ga_n != "<nonliteral>"
               and self._field_label(str(_ga_t).lower(), _ga_n) in _ga_lbls):
