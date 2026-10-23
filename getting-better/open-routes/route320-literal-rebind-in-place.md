@@ -36,7 +36,9 @@ fidelity `check-self-annotate-sync.sh` rc=0 (926 verbatim), `self-annotate-mirro
 rc=0; `check-assumed-facts` rc=0 (85 facts, unchanged); raises-honesty rc=0 (ratchet 61 silent, unchanged: both new raises sit
 in `_handle_assign_stmt`, whose `\trusted` twin already declares `#@ raises PyCSLSemanticError`); `check-dropped-mutation`
 rc=0 (0/51/5/0); `check-refusal-witness-coverage` (no flags) rc=0 (261 demonstrated, 5 undemonstrated = base; census rows for
-4110-4114/4117-4120/4122-4125 produced by `_census_row`); fast soundness planes: see README entry. Ledger 3; no gate
+4110-4114/4117-4120/4122-4125 produced by `_census_row`); `run-soundness-planes.sh` (fast) rc=0, 61/61. Moved mirror function `pycslweaver___desugar_for` re-proved
+(`--fun`, rc=0); the whole-file `src/self-annotate/src/frontend/Module3_Weaver.py` proof is OWED (`HEAVY_LOW=1 heavy.sh
+.venv/bin/python3 src/pycsl/pycsl.py src/self-annotate/src/frontend/Module3_Weaver.py --import-path src/pycsl`). Ledger 3; no gate
 loosened; no new def / field / IR change (lesson a4: inline walks).
 **Residuals:** coarse — passing the list to any user callee before a literal rebind refuses even when the callee keeps no
 reference; a lambda/closure capture is refused only via the value-position test.

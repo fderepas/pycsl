@@ -30,7 +30,7 @@
 ##   use, non-literal binding, rebind inside a `for` over it) -> `PYCSL-M6-LIST-LITERAL-REBIND-ALIASED`. Witnesses 4110-4114
 ##   PROVED -> FAIL; 4117-4120, 4122-4124 PROVED -> REFUSED; 4125 FAIL -> REFUSED; controls 4115/4116 FAIL -> PASS,
 ##   4121/4126/4127 PASS both. Root 1 MOVED (0708, re-proved) / 3 GONE (r300 expected-FAIL 3578/3580/3582 -> REFUSED), pyref
-##   0/0/0, mirror 1 MOVED (Module3_Weaver `_desugar_for`, L3-tc rc=0; proof see route318). Residuals: `range(a,b,step)` /
+##   0/0/0, mirror 1 MOVED (Module3_Weaver `_desugar_for`, L3-tc rc=0, `_desugar_for` re-proved, whole file OWED); fast planes 61/61. Residuals: `range(a,b,step)` /
 ##   `enumerate(range)` stay opaque; #320 is coarse (any user-callee argument refuses).
 
 ## gen #37 (2026-10-23): #316 (method writes to arguments / module objects invisible to callers: method stubs take writes only
