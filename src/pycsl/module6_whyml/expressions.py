@@ -13794,10 +13794,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "    ensures { result <-> (a = b) }")
                 def _cmp(kk: str) -> str:
                     return f"(str_eq_op {k} {whyml_string_literal(kk)})"
+            # (#49) ROUTE #306 — Python evaluates the key ONCE and then the default,
+            # EAGERLY; the chain repeats `k` in every test and puts the default in the last
+            # `else` only. A non-atomic key / default is bound first, in that order, so its
+            # effects and raises happen once, on every path (atomic ones byte-identical).
+            _a306 = expr.get("args") or []
+            _b306 = ""
+            if not self._in_spec:
+                if not (isinstance(_a306[0] if _a306 else None, dict)
+                        and _a306[0].get("type") in ("Number", "String", "Bool", "None", "Var")):
+                    _b306 = f"let k_r306 = {k} in "
+                    k = "k_r306"
+                _d306 = (_a306[1:2] or [None])[0]
+                if (isinstance(_d306, dict)
+                        and not (_d306.get("type") in ("Number", "String", "Bool", "None", "Var")
+                                 or (_d306.get("type") == "UnaryOp"
+                                     and isinstance(_d306.get("expr"), dict)
+                                     and _d306["expr"].get("type") == "Number")
+                                 or (_d306.get("type") in ("DictLit", "SetLit", "ArrayLit", "List")
+                                     and not _d306.get("keys") and not _d306.get("elts")
+                                     and not _d306.get("values")))):
+                    _b306 = f"{_b306}let dflt_r306 = {chain} in "
+                    chain = "dflt_r306"
             for kk, vv in reversed(list(_mcd.items())):
                 chain = (f"(if {_cmp(kk)} then {whyml_string_literal(vv)} "
                          f"else {chain})")
-            return chain
+            return f"({_b306}{chain})" if _b306 else chain
         # compound-key const-map get: a module-const dict with a tuple key + list
         # value (`TRIGGERS`) read as `NAME.get(k, [])` lowers to the FAITHFUL defaulting
         # lookup over the opaque `map <key> (option (list <elem>))` constant:
