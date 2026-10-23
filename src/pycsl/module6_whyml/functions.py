@@ -9872,6 +9872,92 @@ class FunctionEmissionMixin:
         lines += self._emit_contracts(contract_src, spec_refs,
                                       func_variants, func_diverges,
                                       func_exceptions, func_is_noreturn)
+        # (#49) ROUTES #316 / #317 — THE FRAME OF A METHOD AND OF A BODYLESS `val`.
+        # `transpile` computed, per function, the parameters its body may write (a
+        # conservative fixpoint, `self.ir["_r316_writes"]`). Three uses, all fail-closed:
+        #   * a `\trusted` / IMPORTED function emitted as a bodyless `val` with NO `assigns`
+        #     used to get NO `writes` — an INVENTED "writes nothing" frame (route #317,
+        #     `from helper import poke` with `poke(xs): xs[0] = 5` proved `ys[0] == 0`).
+        #     Its default frame is now the one a local function gets: the parameters its
+        #     body writes (`writes { xs }`); a written parameter that is not a list cannot
+        #     be framed and is refused.
+        #   * a verified METHOD whose body writes a parameter its declared `assigns` does
+        #     not name (`#@ assigns \nothing` / `#@ assigns self.n` with `xs[0] = 5`) is
+        #     REFUSED: nothing else compares the declared frame with parameter writes
+        #     (route #316, e06b/e32). With NO `assigns` the write is INFERRED and every
+        #     call stub carries it (`_handle_dotted_call`), like a plain function's effect.
+        #   * a METHOD writing a module-level object (`gq.n += 1`) is REFUSED: its call stub
+        #     is declared before the global exists, so no `writes` can name it (w11).
+        #   * an OVERRIDE writing a parameter position its overridden base does not write is
+        #     REFUSED: a base-typed call goes through the BASE stub (r01, route #277's
+        #     refinement compares contracts only).
+        _r316 = ((self.ir or {}).get("_r316_writes") or {}).get(whyml_ident(func["name"]))
+        if _r316:
+            _x316 = (set((getattr(self, "_func_stmt_seq_mut_params", {}) or {}).get(
+                func["name"], set()) or set())
+                | set((getattr(self, "_func_mutated_collection_params", {}) or {}).get(
+                    func["name"], set()) or set()))
+            if is_method and not emit_as_val and _r316.get("global"):
+                raise PyCSLIRError(
+                    "PYCSL-METHOD-GLOBAL-WRITE: the method `" + str(func["name"])
+                    + "` may write a MODULE-LEVEL object (a store rooted at a global, or a "
+                    "call that writes one). Every call of a method goes through an abstract "
+                    "`val` declared before the module's globals, so no `writes` clause can "
+                    "name that object and every caller would assume it UNCHANGED across the "
+                    "call (route #316). Move the write into a module-level function (whose "
+                    "effect callers see), or pass the object as a parameter.")
+            _u316 = [p for p in _r316.get("undeclared", []) if p not in _x316]
+            if is_method and not emit_as_val and _r316.get("has_assigns") and _u316:
+                raise PyCSLIRError(
+                    "PYCSL-METHOD-FRAME: the method `" + str(func["name"]) + "` declares "
+                    "`#@ assigns` but its body may write the parameter(s) "
+                    + ", ".join("`" + p + "`" for p in _u316) + " (a store rooted at it, "
+                    "an in-place mutator, or forwarding it to a callee that writes it), "
+                    "which the declared frame does not name. Callers read the declared "
+                    "frame, so they would assume the argument UNCHANGED across the call "
+                    "(route #316). Add the parameter to the frame (`#@ assigns "
+                    + _u316[0] + "[..]`), or stop writing it.")
+            for _ov316 in (self.ir.get("overrides", []) or []):
+                if not isinstance(_ov316, dict) or _ov316.get("sub_method") != func["name"]:
+                    continue
+                _b316 = ((self.ir or {}).get("_r316_writes") or {}).get(
+                    whyml_ident(str(_ov316.get("base_method", ""))))
+                if _b316 is None:
+                    continue
+                _bp316 = set(_b316.get("positions", []))
+                _sp316 = [i for i, p in enumerate(_r316.get("params", []))
+                          if p in _r316.get("written", []) and p not in _x316]
+                _bad316 = [i for i in _sp316 if i not in _bp316]
+                if _bad316:
+                    raise PyCSLIRError(
+                        "PYCSL-OVERRIDE-FRAME: the override `" + str(func["name"])
+                        + "` may write its parameter(s) " + ", ".join(
+                            "`" + str(_r316["params"][i]) + "`" for i in _bad316)
+                        + " but the overridden `" + str(_ov316.get("base_method"))
+                        + "` does not write that position. A call through a base-typed "
+                        "receiver is lowered with the BASE method's frame, so the caller "
+                        "would assume the argument UNCHANGED while the override writes it "
+                        "(route #316). Make the base write (or declare) the same "
+                        "parameter, or stop writing it in the override.")
+            if emit_as_val and not is_method and not _r316.get("has_assigns"):
+                _wv316: List[str] = []
+                for _p316 in _r316.get("written", []):
+                    if _p316 in _x316:
+                        continue
+                    _pa316 = (func.get("param_annotations", {}) or {}).get(_p316)
+                    if _pa316 in ("list", "bytearray"):
+                        _wv316.append(whyml_ident(_p316))
+                    else:
+                        raise PyCSLIRError(
+                            "PYCSL-VAL-ARG-UNFRAMED: `" + str(func["name"]) + "` is emitted "
+                            "as a bodyless `val` (`\\trusted` or imported) with no `#@ "
+                            "assigns`, and its body may write the parameter `" + _p316
+                            + "`, which is not a list, so no `writes` clause can name it. "
+                            "Without one every caller would assume the argument UNCHANGED "
+                            "(route #317). Declare the frame with `#@ assigns`, or verify "
+                            "the function instead of trusting it.")
+                if _wv316:
+                    lines.append("    writes   { " + ", ".join(_wv316) + " }")
         # (#34) FRAME PRESERVATION — the CHECK that makes the avatar's frame CLAIM
         # honest. A method's `#@ assigns` is lowered into `writes { self.f }` on the
         # arity-suffixed AVATAR every call site goes through, but the CONCRETE `let`

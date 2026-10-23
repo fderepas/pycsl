@@ -560,6 +560,287 @@ class Module6_WhyMLTranspiler(
         type_decls = self.ir.get("type_decls", [])
         all_bodies = [func["body"] for func in functions]
 
+        # (#49) ROUTES #316/#317 — THE CALLEE'S WRITE EFFECT ON ITS ARGUMENTS. A call to a
+        # user METHOD goes through a generated abstract `val` whose `writes` came ONLY from
+        # `assigns self.<f>`, and a `\trusted`/IMPORTED function with no `assigns` became a
+        # `val` with NO `writes` — so a body doing `xs[0] = 5` (directly, through `+=`, by
+        # forwarding `xs` to a mutator, or through a sibling `self.m(xs)`) was invisible to
+        # every caller, and `assigns \nothing` / `assigns self.n` on a method was never
+        # compared with its parameter writes. MEASURED (witnesses-r316 / -r317, 14 probes):
+        # each proved `\result == 0` while CPython returns 5. A PLAIN verified function is
+        # faithful because its caller applies the real `let`, whose effect Why3 INFERS from
+        # the body. This block computes the same effect for EVERY function, syntactically
+        # and CONSERVATIVELY (an over-approximation is the sound direction: more `writes` is
+        # strictly less caller knowledge): the set of its formal parameters it may write
+        # (a store rooted at the parameter or at a local that may alias it, an in-place
+        # list mutator on it, or forwarding it to a callee position that is written —
+        # a fixpoint over the module's functions and methods), `self` (for receiver
+        # propagation) and `<global>` (a store rooted at a module-level object). Consumers:
+        # the method-call stub (`_handle_dotted_call`: `writes { x_i }`), the bodyless
+        # `val` of a `\trusted`/imported function with no `assigns` (`_emit_function_block`)
+        # and the method refusals (PYCSL-METHOD-FRAME, PYCSL-METHOD-GLOBAL-WRITE,
+        # PYCSL-OVERRIDE-FRAME, also in `_emit_function_block`). Result: the map
+        # `self.ir["_r316_writes"]`, keyed by WhyML name.
+        _SCAL316 = ("int", "float", "bool", "str", "string", "None", "bytes", "complex")
+        _MUTM316 = ("append", "extend", "insert", "remove", "pop", "clear", "sort",
+                    "reverse", "add", "discard", "update", "setdefault", "popitem",
+                    "difference_update", "intersection_update",
+                    "symmetric_difference_update", "__setitem__", "__delitem__",
+                    "__iadd__", "__imul__")
+        _ARGM316 = ("heapq.heapify", "heapq.heappush", "heapq.heappop",
+                    "heapq.heappushpop", "heapq.heapreplace", "random.shuffle",
+                    "bisect.insort", "bisect.insort_left", "bisect.insort_right",
+                    "struct.pack_into", "operator.setitem", "operator.delitem",
+                    "operator.iadd", "operator.iconcat")
+        _glob316 = {g.get("name") for g in (self.ir.get("module_globals") or [])
+                    if isinstance(g, dict) and g.get("name")}
+        _fs316 = [f for f in functions if isinstance(f, dict) and f.get("name")]
+        _info316: Dict[str, Any] = {}
+        for _f316 in _fs316:
+            _nm316 = _f316["name"]
+            _pp316 = list(_f316.get("formal_params", []) or [])
+            _ann316 = _f316.get("param_annotations", {}) or {}
+            _st316 = _f316.get("symbol_table", {}) or {}
+            # one generic walk: every statement dict (has "stmt") and expression dict
+            # (has "type") anywhere in the body, nested bodies/handlers/lambdas included.
+            _stm316: List[Dict[str, Any]] = []
+            _exp316: List[Dict[str, Any]] = []
+            _wk316: List[Any] = [_f316.get("body", []) or []]
+            while _wk316:
+                _x316 = _wk316.pop()
+                if isinstance(_x316, dict):
+                    if "stmt" in _x316:
+                        _stm316.append(_x316)
+                    elif "type" in _x316:
+                        _exp316.append(_x316)
+                    _wk316.extend(v for v in _x316.values() if isinstance(v, (dict, list)))
+                elif isinstance(_x316, list):
+                    _wk316.extend(_x316)
+            _loc316 = set(_st316.keys()) | set(_pp316)
+            # taint: name -> sources it may alias ({param} / {"self"} / {"<global>"})
+            _src316: Dict[str, Set[str]] = {}
+            for _p316 in _pp316:
+                if _ann316.get(_p316) not in _SCAL316:
+                    _src316[_p316] = {_p316}
+            if _f316.get("kind") == "method":
+                _src316["self"] = {"self"}
+            # alias edges: (target-name, value-expr) from every binding form
+            _bind316: List[tuple] = []
+            for _s316 in _stm316:
+                _k316 = _s316.get("stmt")
+                if _k316 in ("Assign", "AugAssign", "GhostAssign") and isinstance(
+                        _s316.get("target"), str):
+                    _bind316.append((_s316["target"], _s316.get("value")))
+                    _loc316.add(_s316["target"])
+                elif _k316 == "For":
+                    for _t316 in ([_s316.get("target")] + list(_s316.get("tuple_targets") or [])):
+                        if isinstance(_t316, str):
+                            _bind316.append((_t316, _s316.get("iter")))
+                            _loc316.add(_t316)
+                elif _k316 == "TupleUnpack":
+                    for _t316 in (_s316.get("targets") or []):
+                        if isinstance(_t316, str):
+                            _bind316.append((_t316, _s316.get("value")))
+                            _loc316.add(_t316)
+            for _e316 in _exp316:
+                if _e316.get("type") == "NamedExpr" and isinstance(_e316.get("target"), str):
+                    _bind316.append((_e316["target"], _e316.get("value")))
+                    _loc316.add(_e316["target"])
+            for _g316 in _glob316:
+                if _g316 not in _loc316:
+                    _src316[_g316] = {"<global>"}
+            _chg316 = True
+            while _chg316:
+                _chg316 = False
+                for _t316, _v316 in _bind316:
+                    if _st316.get(_t316) in _SCAL316:
+                        continue
+                    _acc316: Set[str] = set()
+                    _wv316: List[Any] = [_v316]
+                    while _wv316:
+                        _y316 = _wv316.pop()
+                        if isinstance(_y316, dict):
+                            if _y316.get("type") == "Var" and _y316.get("name") in _src316:
+                                _acc316 |= _src316[_y316["name"]]
+                            if _y316.get("type") in ("FieldGet", "Attribute") and \
+                                    isinstance(_y316.get("object"), str):
+                                _acc316 |= _src316.get(_y316["object"].split(".")[0], set())
+                            _wv316.extend(v for v in _y316.values() if isinstance(v, (dict, list)))
+                        elif isinstance(_y316, list):
+                            _wv316.extend(_y316)
+                    if not _acc316 <= _src316.get(_t316, set()):
+                        _src316[_t316] = _src316.get(_t316, set()) | _acc316
+                        _chg316 = True
+            # direct writes: the ROOT of every store target
+            _w316: Set[str] = set()
+            _roots316: List[Any] = []
+            for _s316 in _stm316:
+                _k316 = _s316.get("stmt")
+                if _k316 in ("ArraySet", "ArraySliceSet", "DelSubscript"):
+                    _roots316.append(_s316.get("array"))
+                elif _k316 in ("FieldAssign", "FieldAugAssign"):
+                    _roots316.append(_s316.get("object"))
+                elif _k316 == "AugAssign" and isinstance(_s316.get("target"), str) \
+                        and _st316.get(_s316["target"]) not in _SCAL316:
+                    # `xs += [..]` on a list EXTENDS it in place
+                    _roots316.append(_s316["target"])
+            for _r316 in _roots316:
+                _d316 = 0
+                while (isinstance(_r316, dict) and _d316 < 64 and _r316.get("type") in (
+                        "Subscript", "Attribute", "FieldGet", "SliceAccess")):
+                    _r316 = _r316.get("value") if _r316.get("type") in (
+                        "Subscript", "SliceAccess") else _r316.get("object")
+                    _d316 += 1
+                if isinstance(_r316, dict) and _r316.get("type") == "Var":
+                    _r316 = _r316.get("name")
+                if isinstance(_r316, str) and _r316:
+                    _r316 = _r316.split(".")[0]
+                    if _r316 in _src316:
+                        _w316 |= _src316[_r316]
+                    elif _r316 not in _loc316 and _r316 != "self":
+                        _w316.add("<global>")
+                else:
+                    # a store through a computed object (`f()[0] = v`) may write
+                    # whatever that object aliases: every tainted name in it, and a global
+                    _w316.add("<global>")
+            # calls: in-place mutators on a tainted receiver are direct writes; every
+            # call with a tainted receiver/argument is a fixpoint edge.
+            _edges316: List[tuple] = []
+            for _e316 in _exp316:
+                if _e316.get("type") != "Call" or not isinstance(_e316.get("func"), str):
+                    continue
+                _fn316 = _e316["func"]
+                _rs316: Set[str] = set()
+                _tail316 = _fn316.rsplit(".", 1)[-1]
+                if "." in _fn316:
+                    _rs316 = set(_src316.get(_fn316.split(".")[0], set()))
+                _rv316 = _e316.get("receiver")
+                _wv316 = [_rv316] if isinstance(_rv316, dict) else []
+                while _wv316:
+                    _y316 = _wv316.pop()
+                    if isinstance(_y316, dict):
+                        if _y316.get("type") == "Var" and _y316.get("name") in _src316:
+                            _rs316 |= _src316[_y316["name"]]
+                        if _y316.get("type") in ("FieldGet", "Attribute") and \
+                                isinstance(_y316.get("object"), str):
+                            _rs316 |= _src316.get(_y316["object"].split(".")[0], set())
+                        _wv316.extend(v for v in _y316.values() if isinstance(v, (dict, list)))
+                    elif isinstance(_y316, list):
+                        _wv316.extend(_y316)
+                if ("." in _fn316 or isinstance(_rv316, dict)) and _tail316 in _MUTM316:
+                    _w316 |= _rs316
+                _as316: List[Set[str]] = []
+                _kw316: Dict[str, Set[str]] = {}
+                _all316: List[tuple] = [(None, _a) for _a in (_e316.get("args") or [])]
+                _all316 += [(_kw.get("arg"), _kw.get("value"))
+                            for _kw in (_e316.get("keywords") or []) if isinstance(_kw, dict)]
+                for _key316, _a316 in _all316:
+                    _acc316 = set()
+                    _wv316 = [_a316]
+                    while _wv316:
+                        _y316 = _wv316.pop()
+                        if isinstance(_y316, dict):
+                            if _y316.get("type") == "Var" and _y316.get("name") in _src316:
+                                _acc316 |= _src316[_y316["name"]]
+                            if _y316.get("type") in ("FieldGet", "Attribute") and \
+                                    isinstance(_y316.get("object"), str):
+                                _acc316 |= _src316.get(_y316["object"].split(".")[0], set())
+                            _wv316.extend(v for v in _y316.values() if isinstance(v, (dict, list)))
+                        elif isinstance(_y316, list):
+                            _wv316.extend(_y316)
+                    if _key316 is None:
+                        _as316.append(_acc316)
+                    elif isinstance(_key316, str):
+                        _kw316[_key316] = _acc316
+                if _fn316 in _ARGM316:
+                    for _acc316 in _as316:
+                        _w316 |= _acc316
+                if _rs316 or any(_as316) or any(_kw316.values()):
+                    _edges316.append((_fn316, _rs316, _as316, _kw316))
+            # declared frame: roots of `assigns` targets
+            _dcl316: Set[str] = set()
+            _asg316 = (_f316.get("contracts", {}) or {}).get("assigns", []) or []
+            for _a316 in _asg316:
+                _r316 = _a316
+                _d316 = 0
+                while isinstance(_r316, dict) and _d316 < 64 and _r316.get("type") in (
+                        "Subscript", "Attribute", "FieldGet", "AssignsRegion", "SliceAccess"):
+                    _r316 = (_r316.get("base") if _r316.get("type") == "AssignsRegion"
+                             else _r316.get("value") if _r316.get("type") in (
+                                 "Subscript", "SliceAccess") else _r316.get("object"))
+                    _d316 += 1
+                if isinstance(_r316, dict) and _r316.get("type") == "Var":
+                    _r316 = _r316.get("name")
+                if isinstance(_r316, str) and _r316:
+                    _r316 = _r316.split(".")[0]
+                    _dcl316.add(_r316 if (_r316 in _pp316 or _r316 == "self")
+                                else "<global>")
+            _info316[_nm316] = {"params": _pp316, "direct": set(_w316),
+                                "edges": _edges316, "declared": _dcl316,
+                                "has_assigns": bool(_asg316),
+                                "trusted": bool(_f316.get("trusted") or _f316.get("abstract")),
+                                "method": _f316.get("kind") == "method",
+                                "init": _nm316.endswith("____init__")}
+        # effective frame: a body-less/trusted callee with a declared frame is taken at its
+        # word (the contract is assumed); everything else is its body's effect (plus any
+        # declared targets, which a caller must also assume written).
+        _eff316: Dict[str, Set[str]] = {}
+        for _nm316, _i316 in _info316.items():
+            if _i316["trusted"] and _i316["has_assigns"]:
+                _eff316[_nm316] = set(_i316["declared"])
+            else:
+                _eff316[_nm316] = set(_i316["direct"]) | set(_i316["declared"])
+        _names316 = list(_info316.keys())
+        _chg316 = True
+        while _chg316:
+            _chg316 = False
+            for _nm316, _i316 in _info316.items():
+                if _i316["trusted"] and _i316["has_assigns"]:
+                    continue
+                for _fn316, _rs316, _as316, _kw316 in _i316["edges"]:
+                    _tail316 = _fn316.rsplit(".", 1)[-1]
+                    if "." in _fn316:
+                        _cands316 = [c for c in _names316 if c.endswith("__" + _tail316)]
+                    elif _fn316 in _info316:
+                        _cands316 = [_fn316]
+                    else:
+                        _cands316 = [c for c in _names316
+                                     if c == _fn316.lower() + "____init__"]
+                    _add316: Set[str] = set()
+                    for _c316 in _cands316:
+                        _ce316 = _eff316.get(_c316, set())
+                        _cp316 = _info316[_c316]["params"]
+                        for _ix316, _acc316 in enumerate(_as316):
+                            if _ix316 < len(_cp316) and _cp316[_ix316] in _ce316:
+                                _add316 |= _acc316
+                            elif _ix316 >= len(_cp316) and (_ce316 - {"self", "<global>"}):
+                                _add316 |= _acc316
+                        for _k316, _acc316 in _kw316.items():
+                            if _k316 in _ce316:
+                                _add316 |= _acc316
+                        if "self" in _ce316 and "." in _fn316:
+                            _add316 |= _rs316
+                        if "<global>" in _ce316:
+                            _add316.add("<global>")
+                    if not _add316 <= _eff316[_nm316]:
+                        _eff316[_nm316] |= _add316
+                        _chg316 = True
+        # Kept under a key of the IR dict (not a new transpiler field: a field would move
+        # the record type of every mirror that imports this module, lesson (a4)).
+        _out316: Dict[str, Dict[str, Any]] = {}
+        self.ir["_r316_writes"] = _out316
+        for _nm316, _i316 in _info316.items():
+            _wp316 = [p for p in _i316["params"] if p in _eff316[_nm316]]
+            _out316[whyml_ident(_nm316)] = {
+                "name": _nm316, "params": list(_i316["params"]), "written": _wp316,
+                "positions": [i for i, p in enumerate(_i316["params"]) if p in _wp316],
+                "global": "<global>" in _eff316[_nm316],
+                "undeclared": [p for p in _i316["params"]
+                               if p in _eff316[_nm316] and p not in _i316["declared"]],
+                "declared": sorted(_i316["declared"]),
+                "has_assigns": _i316["has_assigns"], "trusted": _i316["trusted"],
+                "method": _i316["method"], "init": _i316["init"]}
+
         self._all_record_fields = self._collect_record_fields(type_decls)
         self._mutable_state_classes = {
             whyml_ident(td["name"].lower()) for td in type_decls

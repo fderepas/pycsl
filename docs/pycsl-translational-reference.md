@@ -3742,6 +3742,25 @@ only for a class whose constructor is a field initialiser, closed over construct
 and inherited constructors; any other construction in a non-trusted function is REFUSED
 (`PYCSL-R315-UNMODELLED-CONSTRUCTOR`). Emission is byte-identical wherever it is admitted.
 
+### §T.6.22  The write effect of a method stub and of a bodyless `val` (routes #316 / #317)
+
+A plain verified function is applied as its `let`, and Why3 infers its effect from the body,
+so a caller of `def g(xs): xs[0] = 5` sees `xs` written. A METHOD call is
+$\mathcal{T}_e(o.m(\vec a)) = (\texttt{val } o\_m\_n\ \vec x)$, and a `\trusted` / imported
+function is a bodyless `val`: their effect is only what the declaration states. Before
+routes #316/#317 that was `writes { self.f }` from `assigns self.f` and nothing else, so a
+method or an imported helper doing `xs[0] = 5` was read as leaving `xs` unchanged (measured:
+12 method shapes, an imported function and an imported class method each proved
+`ys[0] == 0`, CPython 5). Now, with $W(F)$ the conservative parameter write set of
+static-semantics "routes #316 / #317": the method stub carries
+$\texttt{writes}\ \{ x_i \mid a_i \in W(m),\ x_i : \texttt{array}\ \tau \}$ (the whole-array effect
+Why3 infers for a `let`); the bodyless `val` of a function with no `assigns` carries
+$\texttt{writes}\ \{ p \mid p \in W(F) \}$; a declared method frame that omits a written parameter,
+a method writing a global, and an override writing a position its base does not are refused.
+`self`-field writes stay checked by the method body's `ensures { self.f = old self.f }`
+frame (route #34). Emission is byte-identical for every method/stub whose body writes no
+parameter.
+
 ## §T.7  Memory Models
 
 _Corresponds to `annotations.md` §5._

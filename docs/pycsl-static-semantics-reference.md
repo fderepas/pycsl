@@ -2779,6 +2779,34 @@ Complete catalogue of errors raised during static analysis.
 |------|-----------|-----------|
 | `PYCSL-R315-UNMODELLED-CONSTRUCTOR` | A non-trusted function of the main file (or a `#@ fresh_globals` module body) calls `K(...)` / `m.K(...)` where class `K` (declared in the main file or a dependency module it imports) has a constructor that is not a field initialiser (annotations.md §7.9): a call outside the total builtins / builtin exceptions / `setattr(self, ...)` / `super().__init__` / modelled constructors, a subscript read, a subscript or non-`self` attribute store, an in-place augmented store, a division/shift by a non-literal, or a `while`/`try`/`with`/`assert`/`global`/`nonlocal`/`del` of a non-`self` target. Transitive over constructors constructed in the body and over bases of a class without its own `__init__`. A base not declared in the parsed sources is assumed modelled. | `4040`-`4058`, `4063` (controls `4059`-`4062`) |
 
+### Frame refusals and default frames added by routes #316 / #317 (Module 6, `_emit_function_block` / `_handle_dotted_call`)
+
+`transpile` computes, for every function and method of the module, the set $W(F)$ of formal
+parameters its body may write: the root of every store target (`a[i] = v`, `a[i] op= v`,
+slice store, `del a[i]`, `a.f = v`, `a += ...` on a list) and every in-place mutator receiver
+(`append extend insert remove pop clear sort reverse add discard update setdefault popitem
+*_update __setitem__ __delitem__ __iadd__ __imul__`), mapped back through local aliasing
+(any binding whose value mentions the name: assignment, `for`, tuple unpack, walrus) to the
+parameter(s), `self` or `<global>` (a module-level object, or a store through a computed
+object) it may alias; closed by a fixpoint over calls (a tainted argument at a position the
+callee writes; a tainted receiver of a method that writes `self`; a callee that writes a
+global; a `heapq`/`random.shuffle`/`bisect.insort*`/`operator.i*`... argument mutator). A
+dotted call takes the union over every method of that name. A `\trusted` callee with an
+`#@ assigns` is taken at its declared frame.
+
+| Code | Condition | Witnesses |
+|------|-----------|-----------|
+| `PYCSL-METHOD-FRAME` | A verified method declares `#@ assigns` (including `\nothing` / only `self.<f>`) and $W$ contains a parameter the frame does not name. | `4070`, `4078` |
+| `PYCSL-METHOD-GLOBAL-WRITE` | A verified method may write a module-level object (directly or through a callee). | `4083` |
+| `PYCSL-OVERRIDE-FRAME` | An override writes a parameter position its overridden base method does not write (route #277 pairs). | `4082` |
+| `PYCSL-METHOD-ARG-UNFRAMED` | A call resolved exactly to a method that writes a parameter whose stub type is not an `array`. | — (no witness: every corpus/mirror written parameter is a list) |
+| `PYCSL-VAL-ARG-UNFRAMED` | A `\trusted` / imported function emitted as a bodyless `val` with no `#@ assigns` writes a non-list parameter. | — (same) |
+
+Default frames (no refusal): a method with no `#@ assigns` — its call stub carries
+`writes { x_i }` for each written list position (witnesses `4071`-`4077`, `4079`, `4081`);
+a `\trusted` / imported function with no `#@ assigns` — its `val` carries `writes { p }` for
+each written list parameter (witness `4080`; controls `4088`-`4091`).
+
 ---
 
 ## 10. Gap Analysis

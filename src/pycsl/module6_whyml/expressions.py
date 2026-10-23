@@ -8703,6 +8703,60 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                  if getattr(self, "_module_func_raises", {}).get(whyml_ident(_n186))]
                     if _raise186:
                         _amb186 = True
+        # (#49) ROUTE #316 / #317 — THE STUB MUST CARRY THE CALLEE'S WRITES TO ITS ARGUMENTS.
+        # `writes_clause` above holds only the callee's `assigns self.<f>`; a method (or an
+        # imported/`\trusted` method with no `assigns`) whose body writes a LIST ARGUMENT
+        # (`xs[0] = 5`, `xs[0] += 1`, forwarding `xs` to a mutator) was a `val` that Why3
+        # reads as leaving every argument untouched — MEASURED: 12 method shapes and the
+        # imported `h.poke(ys)` each proved `ys[0] == 0` while CPython returns 5. The callee's
+        # parameter write set is computed once per module (`transpile`, conservative
+        # fixpoint); each written position whose stub type is an `array` gains
+        # `writes { x_i }` — the same whole-array effect Why3 infers for a plain function's
+        # `let`. A receiver resolved to no single callee takes the UNION over every method
+        # of that name (more `writes` is strictly less caller knowledge). A written
+        # position the stub cannot frame (a by-value record/map) is REFUSED when the callee
+        # is resolved exactly.
+        _m316 = (self.ir or {}).get("_r316_writes") or {}
+        _e316 = _m316.get(_r100n)
+        _t316 = func_name.rsplit(".", 1)[-1]
+        _c316 = ([_e316] if _e316 else
+                 [_v316 for _k316, _v316 in _m316.items()
+                  if _v316.get("method") and _k316.endswith("__" + _t316)])
+        _pos316: Set[int] = set()
+        for _v316 in _c316:
+            _x316 = (set((getattr(self, "_func_stmt_seq_mut_params", {}) or {}).get(
+                _v316["name"], set()) or set())
+                | set((getattr(self, "_func_mutated_collection_params", {}) or {}).get(
+                    _v316["name"], set()) or set()))
+            for _i316, _p316 in enumerate(_v316.get("params", [])):
+                if _p316 in _v316.get("written", []) and _p316 not in _x316:
+                    _pos316.add(_i316)
+            if len(args) > len(_v316.get("params", [])) and [
+                    _p316 for _p316 in _v316.get("written", []) if _p316 not in _x316]:
+                _pos316 |= set(range(len(_v316.get("params", [])), len(args)))
+        _w316: List[str] = []
+        for _i316 in sorted(_pos316):
+            if _i316 >= len(param_types):
+                continue
+            _pt316 = str(param_types[_i316]).strip()
+            if _pt316.startswith("array") or _pt316.startswith("(array"):
+                _w316.append(f"x{_i316}")
+            elif _e316 is not None:
+                raise PyCSLIRError(
+                    "PYCSL-METHOD-ARG-UNFRAMED: the method `" + str(_e316.get("name"))
+                    + "` may write its argument `" + str(_e316["params"][_i316])
+                    + "` (a store rooted at it, an in-place mutator, or forwarding it to a "
+                    "callee that writes it), but the argument lowers to `" + _pt316
+                    + "`, which a `writes` clause cannot name, so every caller would "
+                    "assume the argument UNCHANGED across the call (route #316). Pass a "
+                    "list, return the updated value instead of mutating the argument, or "
+                    "mark the method `#@ \\trusted` with an explicit `#@ assigns`.")
+        if _w316:
+            if writes_clause:
+                writes_clause = (writes_clause.rstrip()[:-1].rstrip() + ", "
+                                 + ", ".join(_w316) + " }")
+            else:
+                writes_clause = "\n    writes { " + ", ".join(_w316) + " }"
         # (#49) ROUTE #166 — ONE STUB NAME, TWO CALLEES. The stub name is built from the
         # call's SPELLING (`<receiver-name>_<method>_<arity>`), so `o.get()` on a `C` in one
         # function and `o.get()` on a `D` in another both register `o_get_0`, and

@@ -1350,6 +1350,15 @@ imported module is a local `.py` file, its functions are extracted as trusted
 stubs (contracts assumed, bodies not verified). The main file's functions
 are then verified against those contracts.
 
+**Default frame of an imported / `\trusted` stub (route #317).** A stub's contract is
+assumed, but a stub with NO `#@ assigns` does not thereby claim to write nothing: its
+default frame is the one a local function gets — the parameters its body may write (a
+store rooted at the parameter or at a local aliasing it, an in-place list mutator, or
+forwarding it to a callee position that is written; a conservative fixpoint over the
+module), emitted as `writes { xs }` on the bodyless `val`. A written parameter that is not
+a list cannot be framed and is refused (`PYCSL-VAL-ARG-UNFRAMED`). A stub WITH `#@ assigns`
+is taken at its declared frame. Witnesses `4080`-`4081`; control `4091`.
+
 ```python
 # dir2/file2.py
 from dir1.file1 import double_int   # auto-resolved if dir1/file1.py exists
@@ -1583,6 +1592,24 @@ class is refused with `PYCSL-R315-UNMODELLED-CONSTRUCTOR`; move the work out of 
 constructor. A `#@ requires` on `__init__` is still not checked at the construction site
 (route #15: the body of a field initialiser cannot observe its violation). Witnesses
 `4040`-`4058`, `4063`; controls `4059`-`4062`.
+### 7.11 A method's writes to its arguments (route #316)
+
+A call to a method (instance, `@staticmethod`, a sibling `self.m(...)`, a base-typed
+receiver) is lowered through an abstract `val`, so the caller sees only the frame that `val`
+declares. That frame is: the `self.<f>` targets of `#@ assigns`, plus `writes { x_i }` for
+every list parameter the method's body may write (a store rooted at the parameter or at a
+local aliasing it, `+=`, an in-place mutator, or forwarding it to a callee position that is
+written — a conservative fixpoint over the module's functions and methods; a call resolved to
+no single method takes the union over every method of that name). This is the whole-array
+effect Why3 infers for a plain function's `let`. Fail-closed rules:
+`PYCSL-METHOD-FRAME` — a method that declares `#@ assigns` but may write a parameter the
+frame does not name (`#@ assigns \nothing` / `#@ assigns self.n` with `xs[0] = 5`);
+`PYCSL-METHOD-GLOBAL-WRITE` — a method that may write a module-level object (the stub is
+declared before the global, so no `writes` can name it); `PYCSL-OVERRIDE-FRAME` — an
+override that writes a parameter position its overridden base does not;
+`PYCSL-METHOD-ARG-UNFRAMED` — a written parameter that lowers to a non-array type. Writes to
+`self` fields stay checked by the method body's frame postconditions. Witnesses
+`4070`-`4079`, `4082`-`4083`; controls `4088`-`4090`.
 
 ---
 
