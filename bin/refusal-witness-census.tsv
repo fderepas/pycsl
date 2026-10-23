@@ -1290,3 +1290,16 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 3784_gen37_r305_local_class_keyerror.py	REFUSAL	[whyml-emit]: a class at line 7 (of this file or a module it imports) binds `KeyError`, a name the exception model keys on (ROUTE #305): handler matching and the WhyML exception tag read the BUILTIN `KeyError` (its hierarchy, its implicit raises) by name, so a user definition under that name would be conflated with the builtin and a handler / `no_exception` claim proved of the wrong class. Give the class (or binding) its own name.
 3785_gen37_r305_nested_class_keyerror.py	REFUSAL	[whyml-emit]: a class at line 5 (of this file or a module it imports) binds `KeyError`, a name the exception model keys on (ROUTE #305): handler matching and the WhyML exception tag read the BUILTIN `KeyError` (its hierarchy, its implicit raises) by name, so a user definition under that name would be conflated with the builtin and a handler / `no_exception` claim proved of the wrong class. Give the class (or binding) its own name.
 3786_gen37_r305_imported_module_keyerror.py	REFUSAL	[whyml-emit]: a class at line 4 (of this file or a module it imports) binds `KeyError`, a name the exception model keys on (ROUTE #305): handler matching and the WhyML exception tag read the BUILTIN `KeyError` (its hierarchy, its implicit raises) by name, so a user definition under that name would be conflated with the builtin and a handler / `no_exception` claim proved of the wrong class. Give the class (or binding) its own name.
+3800_gen37_r306_get_default_callee_local.py	VERIFY-FAIL	
+3801_gen37_r306_get_default_divzero.py	VERIFY-FAIL	
+3802_gen37_r306_get_default_callee_param.py	VERIFY-FAIL	
+3803_gen37_r306_get_default_index.py	VERIFY-FAIL	
+3804_gen37_r306_selffield_get_default_divzero.py	VERIFY-FAIL	
+3805_gen37_r306_get_default_divzero_param.py	VERIFY-FAIL	
+3806_gen37_r306_typeddict_get_default_callee.py	VERIFY-FAIL	
+3807_gen37_r306_typeddict_get_default_divzero.py	VERIFY-FAIL	
+3808_gen37_r306_strkey_get_default_divzero.py	VERIFY-FAIL	
+3809_gen37_r306_strkey_get_default_callee.py	VERIFY-FAIL	
+3810_gen37_r306_get_key_before_default.py	VERIFY-FAIL	
+3811_gen37_r306_hval_get_default_divzero.py	VERIFY-FAIL	
+3813_gen37_r306_max_default_callee_refused.py	REFUSAL	`max(..., default=...)` is not modelled: a builtin's keyword arguments are DISCARDED by its lowering, so the builtin would be modelled as if the keyword were absent while the run still reported 'All contracts formally proven'. Measured: `sorted(xs, reverse=True)` proved ASCENDING order and `sum(xs, start=10)` proved `== 3` (CPython: descending; 13) (route #275). The keyword spellings that ARE modelled: `sorted` with `reverse=<bool literal>` and `key=None` or a lambda whose body invokes nothing; `max`/`min` with a `default` that is a literal, a name or an empty collection (route #306); `print` with `sep`/`end` (str literal or None), `flush` (bool literal) and `file=sys.stdout`/`sys.stderr`.
