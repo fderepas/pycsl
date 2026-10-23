@@ -55,8 +55,19 @@ default, shared constant -> receiver-keyed device; re-proved: FAIL = its label),
 emitting sources ignored; 2048 base / 2060 candidate); pyref 0/0/0 (2186/2186); mirror 3 MOVED / 0 / 0 (53/53):
 `frontend__desugar` (`getattr(sub, "keywords", [])`), `frontend__exec_splice` (`getattr(call, "args", [])`),
 `module6_whyml__functions` (`getattr(self, ..., set())` on the mixin self, UNKNOWN) — all three the UNKNOWN +
-empty-collection arm; L3-tc rc=0 each. Whole-file proofs: see Gates.
-Gates: see README gen #37 #308/#309 entry.
+empty-collection arm; L3-tc rc=0 each. Whole-file proofs: desugar rc=0, exec_splice rc=0 (PROVED); functions OWED:
+`HEAVY_LOW=1 /home/fabrice/git/pycsl/scratchpad/heavy/heavy.sh env PYTHONHASHSEED=0 .venv/bin/python3 src/pycsl/pycsl.py
+src/self-annotate/src/module6_whyml/functions.py --import-path src/pycsl` (the move: 3 `contains_check (...) <set>` reads
+of `getattr(self, "_x", set())` became `(pycsl_getattr_unknown_<site> self)` instead of one shared constant).
+Gates (both routes, one landing; logs in the r308 worktree `scratch-r308/`): witnesses table above and route #308's;
+byte-diff-compare root rc=0 with `--expect-moved 2760_...` (2760 re-proved FAIL), pyref rc=0; mirror-emit-sweep base/after
+rc=0, compare `--min-files 50` rc=1 with exactly the 3 movers above (L3-tc ok); check-self-annotate-sync.sh rc=0 (926
+verbatim); self-annotate-mirror-check.sh rc=0; run-soundness-planes.sh fast 61/61 rc=0 (final tree; the first run was
+RED 2/61 on my own additions — two control helpers `z()` with a tail-return-only contract (vacuous-drivers ratchet) and
+the walrus-default raise with no witness (witness-coverage ceiling) — both fixed: helpers uncontracted, witness 3950);
+doc-coherency --check rc=0; check-assumed-facts rc=0; check-trusted-raises-honesty rc=0 (61 SILENT, unchanged);
+check-refusal-witness-coverage rc=0 (254 demonstrated / 5); census rows for 3930-3936, 3940-3946, 3950 by `_census_row`.
+Ledger 3. Latent false proofs found: none (no previously-proved corpus file moved).
 Residuals: seeded-map constant (above); `pycsl_nonempty_<name>`; the UNKNOWN + scalar-literal default keeps the
 per-site keyed device (sound, value-opaque); a constructor local reassigned from two classes resolves to the last
 `c = C()` (a mixed-type local is an L3-tc rejection, fail-closed).

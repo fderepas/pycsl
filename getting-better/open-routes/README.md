@@ -8,6 +8,7 @@
 ##   an empty-collection default on an unknown receiver -> the receiver-keyed device (no shared constant). Witnesses
 ##   3930-3936 / 3940-3946 PROVED -> REFUSED/FAIL (3935/3944/3950 FAIL -> REFUSED); controls 3937-3939, 3947 PASS both,
 ##   3948/3949 FAIL -> PASS. Root 1 MOVED (2760, FAIL = label), pyref 0/0/0, mirror 3 MOVED (desugar, exec_splice,
+##   functions; L3-tc ok; desugar/exec_splice whole-file PROVED, functions OWED); fast 61/61. Residuals: seeded-map constant (L3-tc-closed), `pycsl_nonempty_<name>`, load-vs-v order (#307).
 ##   functions; L3-tc ok). Residuals: seeded-map constant (L3-tc-closed), `pycsl_nonempty_<name>`, load-vs-v order (#307).
 ## gen #37 (2026-10-23): #307 REPAIRED (r307 executor, off f48adff0; inline at the `_expr_to_whyml` choke point (`\trusted` twin) + the
 ##   dict-literal folds (no twin); no new def/field; one new raise site; no IR change; ledger 3). Why3 1.8.2 measured RIGHT-TO-LEFT
