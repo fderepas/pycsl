@@ -1,5 +1,13 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #306 REPAIRED (r306 executor, off 370e1875; inline; no new def/raise; no IR change; ledger 3; mirror twins
+##   `\trusted` or absent). A non-atomic `.get` default (not a literal / name / empty collection) is let-bound BEFORE the lookup,
+##   a non-atomic key before it (Python order): body/param dict, self-field dict, hval (plain + R5 + K7), module-const str dict
+##   chained ITE (key no longer repeated); record/TypedDict `.get` evaluates the dropped default (`let _ = D in t.f`);
+##   `max`/`min` `default=` non-atomic REFUSED (route #275 gate). Witnesses 3800-3813 PROVED -> FAIL/REFUSED (3804/3810 FAIL
+##   both); controls 3814-3819 PASS, 3817 FAIL -> PASS. Root 0/0/0, pyref 0/0/0, mirror 0/0/0 (nothing owed); fast 61/61.
+##   Residuals: mirror-only emit_ir `.get` projections drop a (so far always literal) default; walrus-rebinding default.
+
 ## gen #37 (2026-10-23): #307 (effectful operands evaluated right-to-left: nested WhyML applications, Why3 evaluates args RTL;
 ##   binops/calls/compare/walrus/literals/aug-assign) OPENED (red team 14); 20 witnesses, CPython violates.
 ## gen #37 (2026-10-23): #308 (`c[k] op= v` lowers the index twice) OPENED (red team 14); 5 witnesses.
