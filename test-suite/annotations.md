@@ -1562,7 +1562,7 @@ discards it — value and effects — and a keyword CPython rejects would be mod
 normal call), except `list.sort(key=, reverse=)` (its own lowering) and a string-literal
 `encoding=`/`errors=` of `encode`/`decode`, rewritten to its positional slot (route #314).
 Witnesses `3990`-`4014`; controls `4015`-`4020`.
-### 7.9 A constructor is modelled only as a field initialiser (route #315)
+### 7.10 A constructor is modelled only as a field initialiser (route #315)
 
 `K(args)` is lowered to a record literal built from `__init__`'s `self.<f> = ...` stores
 (routes #79/#83/#88/#150/#152/#154 make every field they cannot state UNKNOWN); the rest of

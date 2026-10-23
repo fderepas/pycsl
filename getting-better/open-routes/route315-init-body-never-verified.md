@@ -73,7 +73,7 @@ Gates: witnesses PROVED -> REFUSED (table); controls PASS both sides; byte-diff-
 movers, nothing OWED); check-self-annotate-sync.sh rc=0 (926 verbatim); self-annotate-mirror-check.sh rc=0;
 run-soundness-planes.sh fast rc=0 (61/61); doc-coherency --check rc=0; check-assumed-facts rc=0; trusted-raises-honesty rc=0
 (61 silent, ratchet 61); check-refusal-witness-coverage rc=0 (258 demonstrated / 5 undemonstrated, ceiling 5). Ledger 3.
-Docs: annotations.md §7.9, static-semantics "Source refusal added by route #315", translational §T.6.20.
+Docs: annotations.md §7.10, static-semantics "Source refusal added by route #315", translational §T.6.21.
 OWED: none (no mirror mover).
 Residuals: (1) a base class not declared in the parsed sources (unresolved import, `src/pycsl_lib` stubs reached through the
 import classifier, dynamically created classes such as `pure_ast`'s node types) is assumed to have a modelled constructor;

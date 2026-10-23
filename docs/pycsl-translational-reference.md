@@ -3724,7 +3724,7 @@ keyword argument of a builtin-type method is refused in `_reset_function_state` 
 `sort` and a string-literal `encoding`/`errors` of `encode`/`decode`, rewritten
 positionally ($s.\texttt{decode}(e, \texttt{errors}{=}r) \equiv s.\texttt{decode}(e, r)$, CPython's
 signature).
-### §T.6.20  A construction is a field initialiser or refused (route #315)
+### §T.6.21  A construction is a field initialiser or refused (route #315)
 
 $\mathcal{T}_e(K(\vec a))$ is the record literal $\{ f_i = \sigma(e_i) \}$ of `__init__`'s
 recognised stores $\texttt{self.}f_i = e_i$ under the parameter substitution $\sigma$
@@ -3737,7 +3737,7 @@ $\sigma(e_i)$ keeps its own division/bounds obligation). Measured at d4e39ef2: `
 dataclass `__post_init__` (also through an `InitVar`) and a user exception's `__init__` each
 proved a caller claim CPython falsifies; `self.n = first(a)` under `K([])` proved past a
 violated `requires` (CPython IndexError); a conditional `10 // d` / `a[0]` lost its raise.
-The source scan in `_run_pipeline` (annotations.md §7.9) therefore admits $\mathcal{T}_e(K(\vec a))$
+The source scan in `_run_pipeline` (annotations.md §7.10) therefore admits $\mathcal{T}_e(K(\vec a))$
 only for a class whose constructor is a field initialiser, closed over constructed classes
 and inherited constructors; any other construction in a non-trusted function is REFUSED
 (`PYCSL-R315-UNMODELLED-CONSTRUCTOR`). Emission is byte-identical wherever it is admitted.
