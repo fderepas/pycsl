@@ -1592,6 +1592,32 @@ class is refused with `PYCSL-R315-UNMODELLED-CONSTRUCTOR`; move the work out of 
 constructor. A `#@ requires` on `__init__` is still not checked at the construction site
 (route #15: the body of a field initialiser cannot observe its violation). Witnesses
 `4040`-`4058`, `4063`; controls `4059`-`4062`.
+### 7.12 `range` stops, nested parameter rebinds and literal list rebinds (routes #318-#320)
+
+`for i in range(start, stop)` evaluates `start` and `stop` ONCE, before the first iteration.
+The counter is initialised from `start` and the `stop` is bound to a fresh immutable
+`let _stop_<idx>` ahead of the loop whenever it is not an integer literal, an immutable
+name, or `len` of one, so a body that rebinds `n`, `s`, a field or appends to the list a
+`range(len(xs))` reads does not move the loop's end (route #318). The source loop
+invariants and variant are unchanged; nothing is assumed about the new binding beyond its
+value at loop entry.
+
+A formal parameter whose FIRST binding in source order sits inside an `if` / `for` /
+`while` / `try` / `with` / `match` block is refused with
+`PYCSL-M6-PARAM-REBIND-NESTED-BLOCK`: the lowering is a block-scoped `let`, so after the
+block the name would denote the caller's object again (reads and writes, and so the
+`assigns` frame, would be the argument's). A rebind at the top level of the body is a
+`let` scoping the rest of the function and stays supported (route #319).
+
+Rebinding a list local held as a fixed array plus a length counter to a list literal
+overwrites that array in place. It is refused with
+`PYCSL-M6-LIST-LITERAL-REBIND-ALIASED` when another holder of the old list may exist:
+anywhere in the function the local is used as a value other than an element read/store,
+slice, `len`/`sum`/`min`/`max`/`sorted`/`any`/`all`/`list`/`tuple`/`set`/`str`/`repr`/
+`print`/`bool` argument, comparison, plain `return` or `for` iterable; it is bound from a
+non-literal (`ys = xs; ys = [7, 8]`), a tuple unpack or a `for` target; or the rebind is
+inside a `for` that iterates it (route #320). Witnesses `4110`-`4114`, `4117`-`4120`,
+`4122`-`4125`; controls `4115`, `4116`, `4121`, `4126`, `4127`.
 ### 7.11 A method's writes to its arguments (route #316)
 
 A call to a method (instance, `@staticmethod`, a sibling `self.m(...)`, a base-typed

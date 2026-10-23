@@ -1607,6 +1607,25 @@ class ControlFlowStmtMixin:
                      or _len_is_program_val)):
             _len_hoist = (f"_len{idx}", len_expr)
             len_expr = f"_len{idx}"
+        # (#49) ROUTE #318 — `for i in range(<stop>)` evaluates `<stop>` ONCE, before the
+        # first iteration (`range` is a value). The loop test `while !idx < <stop>`
+        # re-read it EVERY iteration, so `n = 2; for i in range(n): n = 5` ran five times
+        # (CPython: twice) and `\result == 5` PROVED; same for `range(len(s))` with `s`
+        # rebound, `range(n + 1)`, a field / subscript bound, a seq-promoted
+        # `Seq.length !xs` grown by `.append`. When the #29 hoist above did not already
+        # bind it, the stop is captured into a fresh IMMUTABLE `let` ahead of the loop.
+        # NO `invariant`/`variant` is added (a source variant may be present; the counter
+        # may start below 0). The start is the counter's `ref` initialiser, read once; a
+        # start/stop pair that is evaluation-order sensitive is refused by #307. Left
+        # alone (byte-identical): an integer literal, a bare IMMUTABLE identifier (no
+        # `!`), and `Array.length` / `str_length_op` of one -- none can change in the loop.
+        _rcap318 = None
+        if (is_range and _len_hoist is None
+                and not re.match(r"^\(?(-?\d+|[A-Za-z_]\w*|Array\.length [A-Za-z_]\w*"
+                                 r"|str_length_op [A-Za-z_]\w*)\)?$",
+                                 str(len_expr).strip())):
+            _rcap318 = (f"_stop{idx}", len_expr)
+            len_expr = f"_stop{idx}"
 
         while_parts = [f"{loop_indent}while !{idx} < {len_expr} do"]
         # seq-model-pivot.md SQ5: a @mutable_state for-loop (the emitter's `for var in
@@ -1964,6 +1983,10 @@ class ControlFlowStmtMixin:
         # materialisation wrap so the length may reference the materialised name.
         if _len_hoist is not None:
             idx_decl = (f"{loop_indent}let {_len_hoist[0]} = {_len_hoist[1]} in\n"
+                        f"{idx_decl}")
+        # route #318: the captured `range` stop, bound once before the counter.
+        if _rcap318 is not None:
+            idx_decl = (f"{loop_indent}let {_rcap318[0]} = {_rcap318[1]} in\n"
                         f"{idx_decl}")
 
         if has_direct_ret and not self._has_early_ret and not in_loop:

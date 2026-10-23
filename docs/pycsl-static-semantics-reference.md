@@ -2779,6 +2779,15 @@ Complete catalogue of errors raised during static analysis.
 |------|-----------|-----------|
 | `PYCSL-R315-UNMODELLED-CONSTRUCTOR` | A non-trusted function of the main file (or a `#@ fresh_globals` module body) calls `K(...)` / `m.K(...)` where class `K` (declared in the main file or a dependency module it imports) has a constructor that is not a field initialiser (annotations.md §7.9): a call outside the total builtins / builtin exceptions / `setattr(self, ...)` / `super().__init__` / modelled constructors, a subscript read, a subscript or non-`self` attribute store, an in-place augmented store, a division/shift by a non-literal, or a `while`/`try`/`with`/`assert`/`global`/`nonlocal`/`del` of a non-`self` target. Transitive over constructors constructed in the body and over bases of a class without its own `__init__`. A base not declared in the parsed sources is assumed modelled. | `4040`-`4058`, `4063` (controls `4059`-`4062`) |
 
+### Lowering refusals added by routes #319 / #320 (`_handle_assign_stmt`)
+
+| Code | Condition | Witnesses |
+|------|-----------|-----------|
+| `PYCSL-M6-PARAM-REBIND-NESTED-BLOCK` | A formal parameter (not `self`) whose first `Assign` in source order is not a top-level statement of the body (inside `if`/`for`/`while`/`try`/`with`/`match`), and which the lowering binds with a block-scoped `let` (not a pre-declared `ref`). | `4117`-`4120` (control `4121`) |
+| `PYCSL-M6-LIST-LITERAL-REBIND-ALIASED` | A list literal assigned to an existing array local (in-place lowering) when, anywhere in the function, the local is used as a value other than an element read/store, slice, comparison, plain `return`, `for` iterable or argument of `len sum min max sorted any all list tuple set str repr print bool`; or is bound from anything but a list literal/comprehension, a tuple unpack or a `for` target; or the rebind is inside a `for` whose iterable mentions it. | `4122`-`4125` (controls `4126`, `4127`) |
+
+Route #318 (`range` stop captured once) adds no refusal; witnesses `4110`-`4114` now FAIL
+to verify, controls `4115`, `4116` PASS.
 ### Frame refusals and default frames added by routes #316 / #317 (Module 6, `_emit_function_block` / `_handle_dotted_call`)
 
 `transpile` computes, for every function and method of the module, the set $W(F)$ of formal

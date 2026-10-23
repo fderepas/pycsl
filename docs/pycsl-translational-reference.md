@@ -3741,6 +3741,26 @@ The source scan in `_run_pipeline` (annotations.md §7.10) therefore admits $\ma
 only for a class whose constructor is a field initialiser, closed over constructed classes
 and inherited constructors; any other construction in a non-trusted function is REFUSED
 (`PYCSL-R315-UNMODELLED-CONSTRUCTOR`). Emission is byte-identical wherever it is admitted.
+### §T.6.23  `range` stops captured once; nested and aliased list rebinds refused (routes #318-#320)
+
+$\mathcal{T}_s(\texttt{for } i \texttt{ in range}(a, b)\texttt{: } B) =
+\texttt{let } \_stop = \mathcal{T}_e(b) \texttt{ in let } \_idx = \texttt{ref } \mathcal{T}_e(a)
+\texttt{ in while } !\_idx < \_stop \texttt{ do } \ldots$ whenever $\mathcal{T}_e(b)$ is not an
+integer literal, an immutable identifier, or `Array.length`/`str_length_op` of one (those
+cannot change in the loop and keep their text; the #29 program-length hoist `_len_<idx>`
+is unchanged). Previously the guard was `!_idx < T_e(b)`, re-evaluated per iteration
+(route #318: `n = 2; for i in range(n): n = 5` iterated five times). A start/stop pair that
+is evaluation-order sensitive is refused by route #307 before this point.
+
+A first binding $p = e$ of a formal parameter lowers to
+$\texttt{let } p = \mathcal{T}_e(e) \texttt{ in } \mathcal{T}_s(\text{rest of the block})$; this
+is the Python scope only when the block is the function body, so a parameter whose first
+binding is nested is refused (`PYCSL-M6-PARAM-REBIND-NESTED-BLOCK`, route #319; a
+`ref` over an `array` parameter is ill-typed in Why3 once a fresh array is assigned).
+$\mathcal{T}_s(xs = [v_1..v_n])$ for an array local is
+$xs\_len := 0;\ xs[!xs\_len] \leftarrow v_1; \ldots$ — the SAME array — which is the Python
+rebinding only when no other name, container, callee or running `for` holds it; otherwise
+`PYCSL-M6-LIST-LITERAL-REBIND-ALIASED` (route #320).
 
 ### §T.6.22  The write effect of a method stub and of a bodyless `val` (routes #316 / #317)
 

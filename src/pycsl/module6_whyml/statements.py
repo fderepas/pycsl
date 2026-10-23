@@ -1402,6 +1402,53 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # the first-binding-only guard (measured at 388cd100: `h: Dict[str, int] = {..};
         # h = g; h["G"] = 5; return g["G"]` PROVED 0, also via the chained `h = k = g`).
         _first59 = target not in declared_refs
+        # (#49) ROUTE #319 — A PARAMETER REBOUND INSIDE A NESTED BLOCK. A first binding of a
+        # non-`ref` formal parameter lowers to `let <p> = <rhs> in <rest of the BLOCK>`, which
+        # is faithful only at the TOP of the body, where the block is the rest of the
+        # function. Inside an `if`/`for`/`while`/`try`/`with` the `let` ends with the block
+        # and `<p>` denotes the CALLER's object again. MEASURED at 8610363c, each PROVED
+        # (CPython disagrees): `if b: xs = [7, 7, 7]` then `return len(xs)` == 2; the same
+        # rebind in a `for` / nested `if` / element read; and `if b: xs = [7, 7]; xs[0] = 5`
+        # then `xs[0] = 9` PROVED `#@ ensures xs[0] == 9` with `#@ assigns xs[0]` although
+        # the caller's list is untouched (a wrong caller-visible frame). A `ref` over the
+        # parameter is ill-typed in Why3 (assigning a fresh array to it prohibits every later
+        # use of the parameter, the postcondition included), so the rebind is REFUSED when
+        # the parameter's FIRST binding in source order is not a top-level statement.
+        # Walked inline over the raw IR (lesson a4: no new helper).
+        if (_first59 and target != "self"
+                and target in (getattr(self, "_formal_params", []) or [])):
+            _d319 = None
+            _stack319: List[Tuple[Any, int]] = []
+            for _f319 in (self.ir.get("functions", []) or []):
+                if (isinstance(_f319, dict) and _f319.get("name")
+                        == getattr(self, "_current_sig_func_name", None)):
+                    _stack319.extend((_s319, 0) for _s319 in reversed(_f319.get("body") or []))
+            while _stack319 and _d319 is None:
+                _n319, _dp319 = _stack319.pop()
+                if isinstance(_n319, list):
+                    _stack319.extend((_x319, _dp319) for _x319 in reversed(_n319))
+                    continue
+                if not isinstance(_n319, dict):
+                    continue
+                if (_n319.get("stmt") in ("Assign", "AnnAssign")
+                        and _n319.get("target") == target):
+                    _d319 = _dp319
+                    continue
+                _stack319.extend((_v319, _dp319 + 1) for _v319 in reversed(
+                    [_v for _v in _n319.values() if isinstance(_v, (dict, list))]))
+            if _d319 is None or _d319 > 0:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"rebinding the parameter `{target}` inside a nested block is out of "
+                    f"scope: the new binding is a block-scoped `let`, so after the "
+                    f"`if`/`for`/`while`/`try` the name denotes the CALLER's object again "
+                    f"and every later read and write is answered from / applied to the "
+                    f"argument (route #319). Measured: `if b: xs = [7, 7, 7]` then "
+                    f"`return len(xs)` proved `\\result == 2` (CPython 3). Bind the new "
+                    f"value to a FRESH local name, or rebind the parameter at the top "
+                    f"level of the function body.",
+                    stage="module6-assign",
+                    code="PYCSL-M6-PARAM-REBIND-NESTED-BLOCK")
         if _first59 or (target in getattr(self, "_dict_locals", set())
                         or getattr(self, "_current_symbol_table", {}).get(target)
                         in ("dict", "set", "frozenset")):
@@ -1554,6 +1601,108 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 return code + rest_code
 
         if target in self._array_locals:
+            # (#49) ROUTE #320 — A LITERAL REBIND IS AN IN-PLACE OVERWRITE. The array local
+            # is a fixed `Array.make` + length counter, so `xs = [7, 8]` lowers to
+            # `xs_len := 0; xs[!xs_len] <- 7; ...` INTO THE SAME ARRAY, while Python binds
+            # `xs` to a FRESH list and leaves the old object untouched. Every other holder
+            # of the old object saw the new contents. MEASURED at 8610363c, each PROVED
+            # (CPython disagrees): `ys = xs; xs = [7, 8]; return ys[0]` == 7 (also with the
+            # rebind inside an `if`), and `for x in xs: t += x; xs = [100, ..]` summed the
+            # overwritten elements (`\result != 10`, CPython 10). The in-place lowering is
+            # kept only where no other holder can exist: the rebind is REFUSED when, anywhere
+            # in the function body, the local is used as a VALUE (aliased `ys = xs`, passed
+            # to a callee other than a copying/reducing builtin, stored in a container or
+            # field, returned through a conditional, captured by a lambda) or the rebind
+            # sits inside a `for` that iterates it. Element reads/stores, `len`, slicing,
+            # comparisons, method calls through the name and a plain `return xs` are not
+            # aliases. Coarse (flow-insensitive): it can refuse a dead alias, never accept
+            # a live one. Walked inline over the raw IR (lesson a4: no new helper).
+            if val_ir.get("type") == "ArrayLit":
+                _bad320 = None
+                _stack320: List[Tuple[Any, Any, Any, bool]] = []
+                for _f320 in (self.ir.get("functions", []) or []):
+                    if (isinstance(_f320, dict) and _f320.get("name")
+                            == getattr(self, "_current_sig_func_name", None)):
+                        _stack320.append((_f320.get("body") or [], None, None, False))
+                if not _stack320:
+                    _bad320 = "the enclosing function body could not be located"
+                while _stack320 and _bad320 is None:
+                    _n320, _par320, _key320, _iter320 = _stack320.pop()
+                    if isinstance(_n320, list):
+                        _stack320.extend((_x320, _par320, _key320, _iter320) for _x320 in _n320)
+                        continue
+                    if not isinstance(_n320, dict):
+                        continue
+                    if (_n320.get("type") == "Var" and _n320.get("name") == target
+                            and isinstance(_par320, dict)):
+                        _ok320 = (
+                            (_key320 == "value" and _par320.get("type") in (
+                                "Subscript", "SliceAccess", "Slice"))
+                            or (_key320 == "array" and _par320.get("stmt") in (
+                                "ArraySet", "ArraySliceSet", "DelSubscript"))
+                            or (_key320 == "args" and _par320.get("type") == "Call"
+                                and _par320.get("func") in (
+                                    "len", "sum", "min", "max", "sorted", "any", "all",
+                                    "list", "tuple", "set", "str", "repr", "print", "bool"))
+                            or (_par320.get("type") in ("BinOp", "Compare")
+                                and _par320.get("op") in (
+                                    "==", "!=", "<", "<=", ">", ">=", "in", "not in",
+                                    "is", "is not"))
+                            or (_key320 == "value" and _par320.get("stmt") == "Return")
+                            or _key320 == "test"
+                            or (_par320.get("type") == "UnaryOp"
+                                and _par320.get("op") in ("not", "Not"))
+                            or (_key320 == "iter" and _par320.get("stmt") == "For"))
+                        if not _ok320:
+                            _bad320 = "it is used as a value that another name can hold"
+                        continue
+                    # the REBOUND name may itself be the alias: `ys = xs; ys = [7, 8]` writes
+                    # into the array `xs` holds. Any binding of the local from something
+                    # other than a fresh list constructor refuses.
+                    if (_n320.get("stmt") in ("Assign", "AnnAssign")
+                            and _n320.get("target") == target
+                            and not (isinstance(_n320.get("value"), dict)
+                                     and _n320["value"].get("type") in (
+                                         "ArrayLit", "ListComp", "ListComprehension"))):
+                        _bad320 = "it is bound from a value another name may hold"
+                        continue
+                    if ((_n320.get("stmt") == "TupleUnpack"
+                         and target in (_n320.get("targets") or []))
+                            or (_n320.get("stmt") == "For"
+                                and (_n320.get("target") == target
+                                     or target in (_n320.get("tuple_targets") or [])))):
+                        _bad320 = "it is bound from a value another name may hold"
+                        continue
+                    if _n320.get("stmt") == "For":
+                        _ir320 = repr(_n320.get("iter"))
+                        if ("'name': " + repr(target)) in _ir320:
+                            _bstack320 = [_n320.get("body") or []]
+                            while _bstack320 and _bad320 is None:
+                                _b320 = _bstack320.pop()
+                                if isinstance(_b320, list):
+                                    _bstack320.extend(_b320)
+                                elif isinstance(_b320, dict):
+                                    if (_b320.get("stmt") == "Assign"
+                                            and _b320.get("target") == target):
+                                        _bad320 = "it is rebound while a `for` iterates it"
+                                    _bstack320.extend(_b320.values())
+                    for _k320, _v320 in _n320.items():
+                        if _k320 in ("invariants", "variants"):
+                            continue
+                        if isinstance(_v320, (dict, list)):
+                            _stack320.append((_v320, _n320, _k320, False))
+                if _bad320 is not None:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"rebinding the list local `{target}` to a list literal is out of "
+                        f"scope here because {_bad320}: the array model overwrites the "
+                        f"SAME array in place (`{target}_len := 0; {target}[..] <- ..`), "
+                        f"while Python binds `{target}` to a FRESH list and every other "
+                        f"holder of the old one keeps its contents (route #320). Measured: "
+                        f"`ys = xs; xs = [7, 8]; return ys[0]` proved `\\result == 7` "
+                        f"(CPython 1). Bind the new list to a FRESH name.",
+                        stage="module6-assign",
+                        code="PYCSL-M6-LIST-LITERAL-REBIND-ALIASED")
             code = self._emit_array_local_reassign(
                 target, safe_target, indent, val_ir, local_refs)
             if rest:
