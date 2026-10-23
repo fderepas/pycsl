@@ -20222,7 +20222,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _eff307.append((_ef307, _wal307))
                 _last307 = max((_i307 for _i307, (_e307, _w307) in enumerate(_eff307) if _e307),
                                default=-1)
-                # INERT operands: a literal, or a read of a LOCAL when no operand of the node
+                # INERT operands: a literal (or a unary op on a numeric literal, `-1`), or a
+                # read of a LOCAL when no operand of the node
                 # contains a walrus (a call cannot rebind a caller's local). An inert operand
                 # is never bound, and an operand followed only by inert operands needs no
                 # binding (nothing after it can observe or be observed by it).
@@ -20230,6 +20231,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _inert307 = [(_o307[1].get("type") in ("Number", "String", "Bool", "None",
                                                        "Nothing")
                               or bool(_o307[1].get("_pycsl_seq"))
+                              or (_o307[1].get("type") == "UnaryOp"
+                                  and isinstance(_o307[1].get("expr"), dict)
+                                  and _o307[1]["expr"].get("type") in ("Number", "Bool"))
                               or (_o307[1].get("type") == "Var" and not _any_wal307
                                   and _o307[1].get("name") in
                                   (getattr(self, "_current_symbol_table", None) or {})))
@@ -20237,6 +20241,63 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _bind307: List[int] = [
                     _i307 for _i307 in range(min(_last307, len(_r307_ops) - 2) + 1)
                     if not _inert307[_i307] and not all(_inert307[_i307 + 1:])]
+                # REFERENCE vs VALUE. Python evaluates an operand to an OBJECT; a mutable
+                # container (dict, set, list) is observed by its consumer AFTER the later
+                # operands ran, and Why3 models dicts/sets/growable lists as immutable
+                # VALUES (`map`/`seq`) read through a ref or a field. Binding such an operand
+                # would SNAPSHOT the container before a later operand mutates it in place,
+                # which Python does not do (`f(self.d, self.add(5))` sees key 5). So an
+                # operand with evidence of a container type (a field declared non-scalar,
+                # an element of a dict/list whose value type is non-scalar, a call annotated
+                # to return a container) is left INLINE — late, which is how Python observes
+                # its contents; if that operand is itself effectful, it can be neither bound
+                # nor left inline, and the node is REFUSED.
+                for _i307 in list(_bind307):
+                    _n307 = _r307_ops[_i307][1]
+                    _nt307 = _n307.get("type")
+                    _ty307: List[str] = []
+                    if _nt307 in ("FieldGet", "Attribute"):
+                        _fd307 = _n307.get("field") if _nt307 == "FieldGet" else _n307.get("attr")
+                        _ty307 = [str((_ri307.get("field_types") or {}).get(_fd307))
+                                  for _ri307 in (getattr(self, "_record_types", {}) or {}).values()
+                                  if isinstance(_ri307, dict)
+                                  and _fd307 in (_ri307.get("field_types") or {})]
+                    elif _nt307 == "Subscript" and isinstance(_n307.get("value"), dict):
+                        _sv307 = _n307["value"]
+                        if _sv307.get("type") == "Var":
+                            _ty307 = [str(_t307) for _t307 in (
+                                (getattr(self, "_dict_value_types", {}) or {}).get(
+                                    _sv307.get("name")),) if _t307]
+                        elif _sv307.get("type") in ("FieldGet", "Attribute"):
+                            _fd307 = (_sv307.get("field") if _sv307.get("type") == "FieldGet"
+                                      else _sv307.get("attr"))
+                            _ty307 = [str((_ri307.get("field_value_types") or {}).get(_fd307))
+                                      for _ri307 in (getattr(self, "_record_types", {})
+                                                     or {}).values()
+                                      if isinstance(_ri307, dict)
+                                      and (_ri307.get("field_value_types") or {}).get(_fd307)]
+                    elif _nt307 == "Call" and isinstance(_n307.get("func"), str):
+                        _ra307 = getattr(self, "_module_method_return_annotations", {}) or {}
+                        _tl307 = _n307["func"].rsplit(".", 1)[-1]
+                        _ty307 = [str(_t307) for _k307, _t307 in _ra307.items()
+                                  if _t307 and (_k307 == _n307["func"]
+                                                or ("." in _n307["func"]
+                                                    and _k307.endswith("__" + _tl307)))]
+                    if any(re.sub(r"^(optional|typing\.)\[?", "", _t307.strip().lower()).split(
+                            "[")[0].strip() in ("dict", "list", "set", "defaultdict", "deque",
+                                                "bytearray", "counter", "ordereddict",
+                                                "mutablemapping", "mutablesequence",
+                                                "mutableset")
+                           for _t307 in _ty307):
+                        if _eff307[_i307][0]:
+                            raise PyCSLIRError(
+                                "an EFFECTFUL operand that evaluates to a mutable container is "
+                                "followed by an operand Python evaluates after it; binding it "
+                                "would snapshot the container (Why3 models it as a value) and "
+                                "leaving it in place would run its effects after the later "
+                                "operand (Why3 evaluates application arguments right-to-left) "
+                                "(route #307). FIX: assign that operand to a local first.")
+                        _bind307.remove(_i307)
                 if _bind307 and _r307_k == "DictLit":
                     # A dict literal is ALSO rebuilt outside this choke point (the
                     # assignment lowering `_build_dict_literal_map` / `_build_pyval_inner_map`
