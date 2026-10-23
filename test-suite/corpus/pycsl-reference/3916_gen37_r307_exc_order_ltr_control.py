@@ -1,4 +1,4 @@
-r"""Test 3916 -- gen #37 route #307 (expected PASS): CONTROL: `boom(ys) + inc(xs)` in try/except: the raise preempts `inc`, `xs[0]` stays 0.
+r"""Test 3916 -- gen #37 route #307 (expected PASS): CONTROL: `boom(ys) + inc(xs)` in try/except (boom returns normally only when `b[0] != 0`): the raise preempts `inc`, `xs[0]` stays 0.
 """
 # pycsl-expected: PASS
 from typing import List
@@ -12,7 +12,7 @@ def inc(a: List[int]) -> int:
 
 #@ requires len(b) >= 1
 #@ assigns b[0]
-#@ ensures b[0] == 5 and \result == 1
+#@ ensures \old(b[0]) != 0 and b[0] == 5 and \result == 1
 #@ raises ValueError when b[0] == 0
 def boom(b: List[int]) -> int:
     if b[0] == 0:
