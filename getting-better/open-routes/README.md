@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #305 (user exception class named like a builtin is conflated with the builtin: shared WhyML tag + builtin
+##   EXCEPTION_BASES, handler matching wrong under no_exception) OPENED (red team 13); 4 witnesses rc=0, CPython violates.
+## gen #37 (2026-10-23): #306 (`d.get(k, default)` evaluates default lazily on the None arm: its writes and raises vanish when the
+##   key is present) OPENED (red team 13); 5 witnesses rc=0 (2 without no_exception), CPython violates.
+
 ## gen #37 (2026-10-22): #304 REPAIRED (r304 executor, off 1d2401a5; inline; no new def; no IR change; ledger 3; no mirror twin touched).
 ##   `_emit_function_block` splits the body's escaping own raises against the DECLARED `no_exception` (`\all` = any class;
 ##   named = class or ancestor, builtin closure + class bases snapshotted by `_run_pipeline` before the inheritance merge;
