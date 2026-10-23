@@ -229,6 +229,20 @@ to the function's inferred `raises`; it is a reachability obligation
 under `requires`, and FAILS otherwise. An uncovered raise keeps the
 inferred `raises { E }`. Without `no_exception` nothing changes.
 
+**A user class named like a builtin exception (route #305).** Handler
+matching and the WhyML exception tag read a builtin exception (its
+hierarchy, its implicit raises) by NAME, so a user `class KeyError(Exception)`
+or `class LookupError(Exception)` would share the builtin's tag and bases
+(a `raise` of the user class "caught" by `except LookupError`, the implicit
+`KeyError` of `d[k]` "caught" by `except KeyError` naming the user class).
+Any binding of such a name — a `class` statement at any depth, or a
+`def` / import binding / assignment target / parameter / `except ... as`
+name in a module or function scope, in the main file or a module it
+imports — is refused (`PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED`). The
+names are `exception_model.EXCEPTION_BASES`, `KNOWN_EXCEPTIONS`,
+`EnvironmentError` and `IOError`; `from builtins import KeyError` is
+accepted. A subclass under its own name (`class E(KeyError)`) is unaffected.
+
 **Known exceptions (Phase 1):** `ZeroDivisionError`, `IndexError`,
 `KeyError`, `ValueError`, `StopIteration`. The authoritative set lives
 in `exception_model.KNOWN_EXCEPTIONS`. Adding a new exception requires

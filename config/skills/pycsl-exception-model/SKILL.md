@@ -146,6 +146,15 @@ included) is a reachability obligation at the raise (`try ... with E ->
 assert false; absurd`), never an inferred `raises { E }` on its own `let`.
 Corpus 3720-3732 (FAIL), 3733 (controls).
 
+Exception classes are identified by NAME (the WhyML tag is the bare name and
+`handler_catches` reads `EXCEPTION_BASES` by name), so a program may not BIND
+a builtin exception name itself (route #305): a user `class KeyError(Exception)`
+(any depth), or a def / import / assignment / parameter / `except ... as`
+binding of a name in `EXCEPTION_BASES ∪ KNOWN_EXCEPTIONS ∪ {EnvironmentError,
+IOError}`, in the main file or an imported module, is refused
+(`PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED`). Corpus 3780-3786 (refused),
+3787-3789 (controls).
+
 ## Test-corpus cross-references
 
 Numbering blocks under `test-suite/corpus/pycsl-reference/` (reserved in

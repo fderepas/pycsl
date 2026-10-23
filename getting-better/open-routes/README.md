@@ -1,5 +1,11 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #305 REPAIRED (r305 executor, off 370e1875; inline in `_run_pipeline` (`\trusted` mirror twin); no new
+##   def; no IR change; ledger 3). Any binding (class at any depth; def/import/store/param/except-as in a module or function
+##   scope; main file + #181 dependency modules) of a name in EXCEPTION_BASES ∪ KNOWN_EXCEPTIONS ∪ {EnvironmentError, IOError}
+##   is refused (PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED); `from builtins import N` accepted. Witnesses 3780-3784 PROVED ->
+##   REFUSED, 3785/3786 FAIL -> REFUSED; controls 3787-3789 PASS both; #304 witnesses unchanged. Root 0/0/0, pyref 0/0/0,
+##   mirror 0/0/0 (nothing owed); fast 61/61. Residual: refusal is by binding, not use.
 ## gen #37 (2026-10-23): #305 (user exception class named like a builtin is conflated with the builtin: shared WhyML tag + builtin
 ##   EXCEPTION_BASES, handler matching wrong under no_exception) OPENED (red team 13); 4 witnesses rc=0, CPython violates.
 ## gen #37 (2026-10-23): #306 (`d.get(k, default)` evaluates default lazily on the None arm: its writes and raises vanish when the

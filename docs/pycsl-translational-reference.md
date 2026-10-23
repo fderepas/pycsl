@@ -1880,6 +1880,11 @@ refused outright.
 `raise` inside `__init__` vanished into the record literal a construction lowers to. Both are refused
 now, reading the SOURCE (the resolved IR has already merged inheritance away) of the main file AND of
 the modules it imports; plain-name aliases of an exception class are resolved.
+**A user class named like a builtin (route #305):** the tag of a user exception is its bare name, so
+a user `class KeyError(Exception)` was the builtin `KeyError` tag with the builtin's `EXCEPTION_BASES`
+row (`with LookupError -> ... | KeyError -> ...` caught it; the implicit `KeyError` of `d[5]` was
+caught by the user class's handler). Any binding of a builtin exception name is refused before emission
+(`PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED`); no distinct tag is emitted.
 **Builtin subclasses (route #260):** `exception_model.EXCEPTION_BASES` lists every CPython builtin
 exception class with all its ancestors, so a handler `except LookupError` / `ArithmeticError` /
 `ValueError` / `Exception` / `BaseException` gets one Why3 `with` arm per raised subclass tag

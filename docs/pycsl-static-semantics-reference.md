@@ -1544,7 +1544,13 @@ KNOWN_EXCEPTIONS : ∅)` and `TRIGGERS` is the table in
 escapes `f` is covered when `no_exception_all(f)` — any class — or when
 `E` or an ancestor of `E` is in `no_exception_set(f)`; a covered raise
 owes `Γ, P ⊢ false` at its site, i.e. it must be unreachable, and is not
-added to the inferred `raises` of `f`.) (Route #281: the row `("call", "int_str")`
+added to the inferred `raises` of `f`.) (Route #305: `E` is identified by NAME
+— a program binding a name of `exception_model.EXCEPTION_BASES ∪
+KNOWN_EXCEPTIONS ∪ {EnvironmentError, IOError}` by a `class` statement at
+any depth, or by a def / import / assignment / parameter / `except ... as`
+in a module or function scope, of the main file or an imported module, is
+ill-formed: refusal `PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED`; `from
+builtins import E` is accepted.) (Route #281: the row `("call", "int_str")`
 gives every int -> decimal-string conversion — `str`/`repr`/`format`
 of an int, a non-string `print` argument, an int f-string part
 rendered in decimal, an int `%` operand — the `ValueError` trigger
