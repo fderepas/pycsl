@@ -1343,3 +1343,24 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 3945_gen37_r309_getattr_empty_default_ctor_locals.py	VERIFY-FAIL	
 3946_gen37_r309_getattr_nonliteral_name_known_record.py	VERIFY-FAIL	
 3950_gen37_r309_getattr_default_walrus_rebinds_receiver.py	REFUSAL	getattr(o, name, default) with an assignment expression in the default is not modelled (route #309: the default is evaluated after the receiver and may rebind it) -- refused fail-closed.
+3960_gen37_r310_tuple_local_call_dropped.py	VERIFY-FAIL	
+3961_gen37_r310_set_local_call_dropped.py	VERIFY-FAIL	
+3962_gen37_r310_tuple_local_second_elt_call.py	VERIFY-FAIL	
+3963_gen37_r310_underscore_tuple_call_dropped.py	VERIFY-FAIL	
+3964_gen37_r310_nested_tuple_local_call_dropped.py	VERIFY-FAIL	
+3965_gen37_r310_len_tuple_display_fold.py	VERIFY-FAIL	
+3966_gen37_r310_len_list_display_fold.py	VERIFY-FAIL	
+3967_gen37_r310_max_tuple_display_coerced.py	VERIFY-FAIL	
+3968_gen37_r310_tuple_display_subscript_coerced.py	VERIFY-FAIL	
+3969_gen37_r310_print_tuple_display_arg.py	VERIFY-FAIL	
+3970_gen37_r310_ifexp_tuple_arm_refused.py	REFUSAL	an effectful expression is erased here (route #310): a `Tuple` display containing a call that is not known pure (or a walrus/yield/await) reaches a position of this `IfExpr` that has no model for its value, and it cannot be evaluated at its Python position (a conditional arm, or after an earlier operand). FIX: assign the effectful element to a local first.
+3971_gen37_r310_for_over_tuple_display.py	VERIFY-FAIL	
+3972_gen37_r310_dict_literal_tuple_value.py	VERIFY-FAIL	
+3973_gen37_r310_dict_store_tuple_value.py	VERIFY-FAIL	
+3974_gen37_r310_list_store_tuple_value.py	VERIFY-FAIL	
+3975_gen37_r310_append_tuple_display.py	VERIFY-FAIL	
+3976_gen37_r310_raise_tuple_arg_dropped.py	VERIFY-FAIL	
+3977_gen37_r310_raise_call_arg_dropped.py	VERIFY-FAIL	
+3978_gen37_r310_raise_second_arg_refused.py	REFUSAL	[ir-semantic] /home/fabrice/git/pycsl-r310/test-suite/corpus/pycsl-reference/3978_gen37_r310_raise_second_arg_refused.py line 17: an effectful expression is erased here (route #310): line 17 raises an exception whose second/keyword argument, `from` cause or computed exception expression contains a call (or a walrus/yield/await), and the model keeps only the exception class and its first argument, so that call's effects would be dropped. FIX: evaluate it into a local before the `raise`.
+3979_gen37_r310_method_call_in_tuple_local.py	VERIFY-FAIL	
+3980_gen37_r310_any_receiver_method_tuple_arg.py	VERIFY-FAIL	

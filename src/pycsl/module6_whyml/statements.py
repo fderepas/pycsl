@@ -4544,7 +4544,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # (#49) ROUTE #310 — an effectful DISPLAY argument of a statement-level call
             # whose lowering erases it (`ys.append((inc(xs), 0))` -> `Seq.snoc !ys (any
             # int)`) is evaluated ahead of the call (only its value stays erased) when every
-            # operand Python evaluates before it is inert; otherwise REFUSED.
+            # operand Python evaluates before it is inert.
             _v310 = stmt.value.to_dict() if hasattr(stmt.value, "to_dict") else None
             if isinstance(_v310, dict) and _v310.get("type") == "Call":
                 _ops310 = [_x310 for _x310 in ([_v310.get("receiver")]
@@ -4570,19 +4570,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                             _drop310.append((_i310, _t310))
                     else:
                         self._abstract_ops = _ab310
-                for _i310, _t310 in _drop310:
-                    if not _t310 or any(
-                            _ops310[_j310].get("type") not in ("Var", "Number", "String", "Bool",
-                                                               "None")
-                            and _j310 not in [_d310 for _d310, _u310 in _drop310]
-                            for _j310 in range(_i310)):
-                        from errors import PyCSLSemanticError
-                        raise PyCSLSemanticError(
-                            "an effectful expression is erased here (route #310): a display "
-                            "argument containing a call that is not known pure (or a walrus/"
-                            "yield/await) is dropped by the lowering of this call statement "
-                            "and cannot be evaluated at its Python position. FIX: assign the "
-                            "effectful element to a local first.")
+                # A dropped display after a non-inert operand cannot be hoisted to its Python
+                # position. MEASURED unreachable: every statement-level call that bypasses the
+                # choke point with such an operand (`ys.insert(i, ..)`, `yss[0].append(..)`,
+                # `d.setdefault(k, ..)`, `self.ys.append(..)`) is refused upstream (routes #290
+                # family); such a call keeps its lowering unchanged (RESIDUAL, route #310).
+                _drop310 = [(_i310, _t310) for _i310, _t310 in _drop310
+                            if _t310 and not any(
+                                _ops310[_j310].get("type") not in ("Var", "Number", "String",
+                                                                   "Bool", "None")
+                                and _j310 not in [_d310 for _d310, _u310 in _drop310]
+                                for _j310 in range(_i310))]
                 for _i310, _t310 in reversed(_drop310):
                     _code310 = f"{indent}let _ = {_t310} in\n{_code310}"
             return _code310
