@@ -883,13 +883,19 @@ class ControlFlowStmtMixin:
         # sequencing the display before a copy of itself), it is MATERIALISED as a `let`
         # ahead of the loop and only its value stays erased.
         _r310r = repr(iter_ir)
+        _ab310 = dict(self._abstract_ops)
         if (iter_expr != _raw310 and isinstance(iter_ir, dict)
                 and iter_ir.get("type") in ("Tuple", "SetLit", "MkTuple", "ArrayLit", "DictLit")
+                and not (iter_ir.get("type") == "DictLit"
+                         and getattr(self, "_current_self_type", None)
+                         in (getattr(self, "_mutable_state_classes", None) or set()))
                 and ("'Call'" in _r310r or "'NamedExpr'" in _r310r or "'Yield" in _r310r
                      or "'Await'" in _r310r)
                 and self._expr_to_whyml({"type": "Tuple", "elts": [iter_ir, iter_ir]},
                                         local_refs).startswith("(let _pycsl_seq")):
             self._for_iter_materialize = (f"_pycsl_it310{idx}", _raw310)
+        else:
+            self._abstract_ops = _ab310
         self._add_abstract_op("val iter_length (x: int) : int")
         self._add_abstract_op("val iter_get (x: int) (i: int) : int")
         return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False

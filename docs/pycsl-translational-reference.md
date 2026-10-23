@@ -3681,6 +3681,29 @@ operand the lowering drops entirely keeps only its binder). Spec contexts are un
 (logic terms have no effects); dict literals of an `@mutable_state` emitter-model class
 (IR-node constructions, mirror-only) keep their unsequenced emission.
 
+### §T.6.19  Erased values are still evaluated (route #310)
+
+A value with no model is erased to Why3's unconstrained `(any int)`: the binding of a
+tuple/set local, and `_coerce_to_int`'s tuple / array / map arms wherever a display reaches
+an `int` position. Erasing the TEXT erased the evaluation with it: `xs = [0]; t = (inc(xs),
+0); return xs[0]` proved `\result == 0` (CPython 1). With $D$ an EFFECTFUL display (route
+#307's predicate, probed as "$D$ is sequenced before a copy of itself"):
+
+$$\mathcal{T}_s(t = D) = t \mathrel{:=} (\texttt{let \_ = } \mathcal{T}_e(D) \texttt{ in (any int)})$$
+
+and, in $\mathcal{T}_e$, a node whose effectful display operand $D$ (not bound by §T.6.18) is
+absent from the node's lowering (coerced, `len` folded from its shape, dropped by a
+fallback) is lowered as $\texttt{let \_ = } \mathcal{T}_e(D) \texttt{ in } \mathcal{T}_e(node)$ when
+every operand before $D$ is inert or bound and none after it is bound; a conditional arm or
+any other position is REFUSED (PyCSLIRError, "route #310"). Statement sites: a subscript
+store evaluates an erased value display before the store; an expression-statement call
+evaluates an erased display argument before the call (refused if a non-inert operand
+precedes it); a `for` over an erased display materialises it once before the loop; the
+dict-literal fold evaluates an erased value display at its position; `raise E(a)` evaluates
+an effectful `a` before `raise E`, and a `raise` whose dropped parts (second/keyword
+arguments, `from` cause, computed exception) contain a call is refused
+(`PYCSL-SEM-ERASED-EFFECT-R310`). Pure displays keep their emission byte-for-byte.
+
 ## §T.7  Memory Models
 
 _Corresponds to `annotations.md` §5._

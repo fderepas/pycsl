@@ -1527,6 +1527,24 @@ default it is the per-site, state- and receiver-keyed opaque read of routes
 #197/#213/#239. A walrus in such a default is refused (`3950`). Witnesses `3940`-`3946`;
 controls `3947`-`3949`.
 
+### 7.8 An erased value is still evaluated (route #310)
+
+Some values have no model and are erased to an unconstrained `(any int)`: a tuple or set
+bound to a local (`t = (a, b)`), a tuple/list/set/dict display coerced into an `int`
+position (`max((a, b))`, `(a, b)[1]`, `print((a, b))`, a dict-literal value, a stored
+element, `ys.append((a, b))`), a display whose `len` folds from its shape, a `for` over a
+display, and the argument of `raise E(arg)`. Python still EVALUATES such an expression, so
+when it contains a call that is not known pure (route #307's predicate: not an
+`assigns \nothing`/raise-free user function, a pure builtin or a query method), a walrus,
+`yield` or `await`, the lowering evaluates it at its Python position and erases only the
+value (`let _ = <display> in (any int)`; a `for` iterable is materialised once before the
+loop). Where that position cannot be reproduced (a conditional-expression arm, a display
+after a non-inert operand of the same node) it is refused ("an effectful expression is
+erased here (route #310)"); a `raise` whose second/keyword argument, `from` cause or
+computed exception contains a call is refused with `PYCSL-SEM-ERASED-EFFECT-R310` (only
+the class and first argument are modelled). Witnesses `3960`-`3980`; controls
+`3981`-`3989`.
+
 ---
 
 ## 10. Concurrent Model Annotations

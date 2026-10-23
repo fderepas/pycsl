@@ -234,6 +234,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 # binder when the display is order-sensitive, else every other operand is
                 # inert): `(let _ = <display> in <stored value>)`.
                 _r310r = repr(v_ir)
+                _ops310 = dict(self._abstract_ops)
                 if (v_low and v_low not in v_str and isinstance(v_ir, dict)
                         and v_ir.get("type") in ("Tuple", "SetLit", "MkTuple", "ArrayLit",
                                                  "DictLit")
@@ -243,6 +244,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                                 local_refs or set()).startswith(
                                                     "(let _pycsl_seq")):
                     v_str = f"(let _ = {v_low} in {v_str})"
+                else:
+                    self._abstract_ops = _ops310
             if _seq307:
                 _lets307 += [(f"_pycsl_dk{len(_lets307) // 2}", k_str),
                              (f"_pycsl_dv{len(_lets307) // 2}", v_str)]
@@ -1193,12 +1196,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # elements) and erases only its VALUE: `(let _ = <display> in (any int))`.
         if vt in ("Tuple", "SetLit"):
             _r310r = repr(val_ir)
+            _ops310 = dict(self._abstract_ops)
             if (("'Call'" in _r310r or "'NamedExpr'" in _r310r or "'Yield" in _r310r
                  or "'Await'" in _r310r)
                     and self._expr_to_whyml({"type": "Tuple", "elts": [val_ir, val_ir]},
                                             local_refs).startswith("(let _pycsl_seq")):
                 val = f"(let _ = {val} in (any int))"
             else:
+                # the probe registers nothing a pure display needs (it was lowered above)
+                self._abstract_ops = _ops310
                 val = "0"
         # (#49) ROUTE #239 — AN ERASED BINDING IS A FRESH VALUE PER EXECUTION. Route #41 made
         # a READ of such a local the per-NAME constant `pycsl_erased_<x>` and left this
@@ -2853,8 +2859,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # stays erased.
         _r310v = stmt.value.to_dict() if hasattr(stmt.value, "to_dict") else stmt.value
         _r310r = repr(_r310v)
+        _ops310 = dict(self._abstract_ops)
         if (isinstance(_r310v, dict)
                 and _r310v.get("type") in ("Tuple", "SetLit", "MkTuple", "ArrayLit", "DictLit")
+                and not (_r310v.get("type") == "DictLit"
+                         and getattr(self, "_current_self_type", None)
+                         in (getattr(self, "_mutable_state_classes", None) or set()))
                 and ("'Call'" in _r310r or "'NamedExpr'" in _r310r or "'Yield" in _r310r
                      or "'Await'" in _r310r)
                 and self._expr_to_whyml({"type": "Tuple", "elts": [_r310v, _r310v]},
@@ -2862,6 +2872,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             _r310r = self._expr_to_whyml(_r310v, local_refs)
             if _r310r and _r310r not in code:
                 code = f"{indent}let _ = {_r310r} in\n{code}"
+        else:
+            self._abstract_ops = _ops310
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
@@ -4544,7 +4556,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _drop310: List[Tuple[int, str]] = []
                 for _i310, _o310 in enumerate(_ops310):
                     _r310r = repr(_o310)
+                    _ab310 = dict(self._abstract_ops)
                     if (_o310.get("type") in ("Tuple", "SetLit", "MkTuple", "ArrayLit", "DictLit")
+                            and not (_o310.get("type") == "DictLit"
+                                     and getattr(self, "_current_self_type", None)
+                                     in (getattr(self, "_mutable_state_classes", None) or set()))
                             and ("'Call'" in _r310r or "'NamedExpr'" in _r310r
                                  or "'Yield" in _r310r or "'Await'" in _r310r)
                             and self._expr_to_whyml({"type": "Tuple", "elts": [_o310, _o310]},
@@ -4552,6 +4568,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         _t310 = self._expr_to_whyml(_o310, local_refs)
                         if not _t310 or _t310 not in _code310:
                             _drop310.append((_i310, _t310))
+                    else:
+                        self._abstract_ops = _ab310
                 for _i310, _t310 in _drop310:
                     if not _t310 or any(
                             _ops310[_j310].get("type") not in ("Var", "Number", "String", "Bool",
@@ -4602,12 +4620,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _a310 = [_v310]
                 _t310 = {"type": "Tuple", "elts": _a310}
                 _r310r = repr(_a310)
+                _ab310 = dict(self._abstract_ops)
                 if (_a310 and ("'Call'" in _r310r or "'NamedExpr'" in _r310r
                                or "'Yield" in _r310r or "'Await'" in _r310r)
                         and self._expr_to_whyml({"type": "Tuple", "elts": [_t310, _t310]},
                                                 local_refs).startswith("(let _pycsl_seq")):
                     return (f"{indent}let _ = {self._expr_to_whyml(_t310, local_refs)} in "
                             f"raise {exc_type}")
+                self._abstract_ops = _ab310
             return f"{indent}raise {exc_type}"
 
         if isinstance(stmt, ProofAssertStmt):

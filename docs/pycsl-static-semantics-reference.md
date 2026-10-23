@@ -2763,12 +2763,13 @@ Complete catalogue of errors raised during static analysis.
 
 **Total:** 15 error sites (1 in Module3, 14 in Module4).
 
-### Lowering refusals added by routes #308 / #309 (raised in Module 6 when a body is lowered)
+### Lowering refusals added by routes #308 / #309 / #310 (raised in Module 6 when a body is lowered; #310's `raise` scan in `_run_pipeline`)
 
 | Code | Condition | Witnesses |
 |------|-----------|-----------|
 | `PYCSL-SEM-AUGASSIGN-R308` | `c[k] op= v` / `p.f op= v` whose container or index has an effect (a call other than `len`/`abs`, walrus, `await`, `yield`, lambda, comprehension), or — when `v` has an effect — reads anything but locals/parameters/`self`, literals and `+ - *`, or names a local a walrus in `v` rebinds. Recorded by Module 5 as `aug_target_refused` (the route #301 pattern); a `\trusted`/abstract body is never lowered, so never refused. Rule: the `c[k] = c[k] op v` desugar evaluates `c`, `k` twice and after `v`; Python evaluates them once, then the load, then `v`. | `3930`-`3936` (controls `3937`-`3939`) |
 | `PYCSL-SEM-GETATTR-DEFAULT-R309` | `getattr(o, name, D)` with `D` not a literal / name / negative number / empty collection / argument-less builtin constructor, when `o`'s class is unknown or `name` is not a literal; a walrus in `D`. For a known class `D` is sequenced before the field read (declared literal name) or IS the answer (undeclared name). | `3940`-`3946`, `3950` (controls `3947`-`3949`) |
+| `PYCSL-SEM-ERASED-EFFECT-R310` (source scan, `_run_pipeline`) and the uncoded route #310 lowering refusals (`_expr_to_whyml`, `_stmts_to_whyml`: "an effectful expression is erased here (route #310)") | A `raise` whose second / keyword argument, `from` cause or dotted / computed exception expression contains a call outside `str repr len int float bool type format hex oct bin abs isinstance chr ord`, a walrus, `await` or `yield` (Module 5 keeps only the class and first argument). An effectful tuple/list/set/dict display (route #307's verdict) whose value the lowering erases, when it cannot be evaluated at its Python position: a conditional-expression arm, or a display after a non-inert unbound operand of the same node / call statement. Every other erased effectful display is evaluated (`let _ = <display> in ...`). | `3970`, `3978` (evaluated: `3960`-`3969`, `3971`-`3977`, `3979`-`3980`; controls `3981`-`3989`) |
 
 ---
 
