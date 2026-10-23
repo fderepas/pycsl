@@ -57,7 +57,7 @@ refusing `sort(key=..)` (2260 and 5 mirror files via Module1_Ingestor) and `deco
 proved corpus file fails; no latent false proof surfaced.
 Gates: witnesses (tables); controls 4015-4020 FAIL -> PASS; byte-diff-compare root rc=0 (`--expect-moved 0425`), pyref
 rc=0; mirror-emit-sweep base/after rc=0, compare `--min-files 50` rc=0 (0 movers); check-self-annotate-sync.sh rc=0
-(926 verbatim); self-annotate-mirror-check.sh rc=0; run-soundness-planes.sh fast: see README entry; doc-coherency
+(926 verbatim); self-annotate-mirror-check.sh rc=0; run-soundness-planes.sh fast 61/61 rc=0 (first run 59/61, see README); doc-coherency
 --check rc=0; check-assumed-facts rc=0; trusted-raises-honesty rc=0; trusted-frame-honesty rc=0;
 check-refusal-witness-coverage rc=0 (258 demonstrated / 5, was 257; rows for 3990-4014 via `_census_row`). Ledger 3.
 Docs: annotations.md §7.9, static-semantics refusal table, translational §T.6.20.

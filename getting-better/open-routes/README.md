@@ -20,7 +20,7 @@
 ##   string-literal `encoding`/`errors` of encode/decode rewritten positionally). Witnesses 3990, 3993-4001, 4003-4008
 ##   PROVED -> FAIL; 4009-4011 PROVED -> REFUSED; 4012-4014 FAIL -> REFUSED; 3991 near-miss FAIL -> FAIL; controls 4015-4020
 ##   FAIL -> PASS. Root 1 MOVED (0425, PASS -> PASS, positional decode), pyref 0/0/0, mirror 0/0/0 (nothing OWED);
-##   fast planes PLANES_TBD. Residuals: sequenced slice then indexed is fail-closed L3-tc; statements ~3285 field-store
+##   fast planes 61/61 rc=0 (first run 59/61: control 4019 carried empty `gd/gs/gl` placeholders — vacuous-drivers and contract-truth; de-placeholdered). Residuals: sequenced slice then indexed is fail-closed L3-tc; statements ~3285 field-store
 ##   havoc text-keyed (census: unreachable with an effect); probe that raises out of position gives no verdict.
 ## gen #37 (2026-10-23): #315 REPAIRED (r315 executor, off d4e39ef2; sound refusal, inline in `_run_pipeline` (`\trusted` twin);
 ##   no new def/field; no IR change; ledger 3). A class whose constructor (`__init__`/`__post_init__`, else the base's) is not a
