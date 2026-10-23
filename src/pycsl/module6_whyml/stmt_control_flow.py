@@ -884,8 +884,9 @@ class ControlFlowStmtMixin:
         # ahead of the loop and only its value stays erased.
         _r310r = repr(iter_ir)
         _ab310 = dict(self._abstract_ops)
+        # (#49) ROUTE #312 — any erased effectful iterable, not only a display:
+        # `for _ in ys[0:inc(xs)]` (a slice coerced to `(any int)`) dropped its call too.
         if (iter_expr != _raw310 and isinstance(iter_ir, dict)
-                and iter_ir.get("type") in ("Tuple", "SetLit", "MkTuple", "ArrayLit", "DictLit")
                 and not (iter_ir.get("type") == "DictLit"
                          and getattr(self, "_current_self_type", None)
                          in (getattr(self, "_mutable_state_classes", None) or set()))

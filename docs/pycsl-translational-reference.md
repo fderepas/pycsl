@@ -3704,6 +3704,26 @@ an effectful `a` before `raise E`, and a `raise` whose dropped parts (second/key
 arguments, `from` cause, computed exception) contain a call is refused
 (`PYCSL-SEM-ERASED-EFFECT-R310`). Pure displays keep their emission byte-for-byte.
 
+### §T.6.20  Every erased operand; slice bounds; method keywords (routes #311-#314)
+
+§T.6.19 extends to every operand $O$ of an n-ary node (§T.6.18's operand lists, plus the
+slice access $\texttt{SliceAccess}(v, lo, hi, st)$ whose operands are $v, lo, hi, st$ in that
+order): when $O$ is effectful and not bound, its standalone lowering $\mathcal{T}_e(O)$ is a
+PROBE (the node is re-emitted unchanged, so a position-dependent lowering keeps its text, and
+abstract operations the probe registered are withdrawn); if $\mathcal{T}_e(O)$ is absent from
+$\mathcal{T}_e(node)$ the node is lowered as $\texttt{let \_ = } \mathcal{T}_e(O) \texttt{ in }
+\mathcal{T}_e(node)$ under §T.6.19's position conditions, else REFUSED — also when a
+not-known-pure call of $O$ reappears in $\mathcal{T}_e(node)$ (re-derived: it would run twice).
+$O$ is left dropped when every not-known-pure call in it lowers to an application of an
+abstract `val` with no `writes`/`raises`/`requires`/`reads`/`diverges`, to `(any T)`, or to an
+application-free text (no effect in the model). A `for` over any erased effectful iterable
+is materialised before the loop. Slice bounds: $\mathcal{T}_e(v[lo:hi]) =
+\texttt{let } s_{lo} = \mathcal{T}_e(lo) \texttt{ in Array.sub } v\ s_{lo}\ (\mathcal{T}_e(hi) - s_{lo})$
+whenever $hi$ is effectful and $lo$ non-inert (route #311). Method keywords (route #314): a
+keyword argument of a builtin-type method is refused in `_reset_function_state` except
+`sort` and a string-literal `encoding`/`errors` of `encode`/`decode`, rewritten
+positionally ($s.\texttt{decode}(e, \texttt{errors}{=}r) \equiv s.\texttt{decode}(e, r)$, CPython's
+signature).
 ### §T.6.20  A construction is a field initialiser or refused (route #315)
 
 $\mathcal{T}_e(K(\vec a))$ is the record literal $\{ f_i = \sigma(e_i) \}$ of `__init__`'s

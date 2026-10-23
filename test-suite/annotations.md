@@ -1545,6 +1545,23 @@ computed exception contains a call is refused with `PYCSL-SEM-ERASED-EFFECT-R310
 the class and first argument are modelled). Witnesses `3960`-`3980`; controls
 `3981`-`3989`.
 
+### 7.9 Every erased operand is evaluated; slice bounds in order; method keywords (routes #311-#314)
+
+Route #310's rule covers EVERY effectful operand, not only displays: a slice or
+`sorted(..)` coerced to `(any int)` (`ys[0:f()][0]`, `sum(ys[0:f()])`, `for _ in ys[0:f()]`,
+`print(..)`, an unannotated or constructor parameter), a dict display lowered to
+`(any_map ())`, a dict/set-returning call passed to a `Dict`/`Set` parameter or stored in a
+field, are evaluated at their Python position and only the value is erased
+(`let _ = <operand> in ...`). The decision is keyed on the IR operand (route #307's
+effect predicate), not on the emitted text; an operand whose not-known-pure calls all lower
+to effect-free opaque `val`s (`chain(a, b)`, `s.encode()`) has nothing to evaluate in the
+model and is left dropped. Slice bounds are operands of the slice (`ys[a:f()]`): the
+receiver and the bounds are let-sequenced left to right (route #311). A keyword argument of
+a `str`/`bytes`/`list`/`dict`/`set`/`tuple`/`int`/`float` method is REFUSED (its lowering
+discards it — value and effects — and a keyword CPython rejects would be modelled as a
+normal call), except `list.sort(key=, reverse=)` (its own lowering) and a string-literal
+`encoding=`/`errors=` of `encode`/`decode`, rewritten to its positional slot (route #314).
+Witnesses `3990`-`4014`; controls `4015`-`4020`.
 ### 7.9 A constructor is modelled only as a field initialiser (route #315)
 
 `K(args)` is lowered to a record literal built from `__init__`'s `self.<f> = ...` stores

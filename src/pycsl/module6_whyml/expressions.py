@@ -20228,13 +20228,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (isinstance(expr, OpaqueExpr) and isinstance(expr.raw, dict)
                 and expr.raw.get("_pycsl_seq")):
             return expr.raw["_pycsl_seq"]
+        # Route #311-#314's re-emission of a node whose effectful operands were only probed
+        # (below) carries `_pycsl_r311n`; it is stripped so nothing downstream sees it.
+        _nr311 = isinstance(expr, dict) and bool(expr.get("_pycsl_r311n"))
+        if _nr311:
+            expr = {_k311: _v311 for _k311, _v311 in expr.items() if _k311 != "_pycsl_r311n"}
         _r307_k = expr.get("type") if isinstance(expr, dict) else getattr(expr, "kind", None)
         # RESIDUAL (mirror-only): a dict literal inside an `@mutable_state` emitter-model class
         # is an IR-node construction (`_lower_irnode_construction` /
         # `_lower_stmt_ir_construction`) that re-derives its fields from their SHAPE and cannot
         # consume a binder; it keeps its unsequenced emission rather than refuse the mirror.
         if (_r307_k in ("BinOp", "StrConcat", "Subscript", "Slice", "Call", "Tuple",
-                        "ArrayLit", "SetLit", "MkTuple", "DictLit", "FString", "IfExpr")
+                        "ArrayLit", "SetLit", "MkTuple", "DictLit", "FString", "IfExpr",
+                        "SliceAccess")
                 and not getattr(self, "_in_spec", False) and not invariant_ctx
                 and not (_r307_k == "DictLit" and getattr(self, "_current_self_type", None)
                          in (getattr(self, "_mutable_state_classes", None) or set()))):
@@ -20256,6 +20262,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                              (("index",), _r307_d.get("index"))]
             elif _r307_k == "Slice":
                 _r307_ops = [((_s307,), _r307_d.get(_s307)) for _s307 in ("lower", "upper", "step")]
+            elif _r307_k == "SliceAccess":
+                # (#49) ROUTE #311 — `ys[a:b:c]`: Python evaluates the receiver, then the
+                # bounds left-to-right; the slice lowering decomposes the bounds itself
+                # (`Array.sub ys (a) ((b) - a)`), so they are operands of THIS node.
+                _r307_ops = [(("value",), _r307_d.get("value"))]
+                if isinstance(_r307_d.get("slice"), dict):
+                    _r307_ops += [(("slice", _s307), _r307_d["slice"].get(_s307))
+                                  for _s307 in ("lower", "upper", "step")]
             elif _r307_k == "Call":
                 _r307_ops = [(("receiver",), _r307_d.get("receiver"))]
                 _r307_ops += [(("args", _i307), _a307)
@@ -20285,7 +20299,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if len(_r307_ops) >= 1:
                 _fns307: Optional[List[Dict[str, Any]]] = None
                 _eff307: List[Tuple[bool, bool]] = []
+                _ic311: List[List[Dict[str, Any]]] = []
+                _ny311: List[bool] = []
                 for _p307, _n307 in _r307_ops:
+                    _ic311.append([])
+                    _ny311.append(False)
                     _wk307: List[Any] = [_n307]
                     _ef307 = False
                     _wal307 = False
@@ -20302,6 +20320,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         if _t307 in ("NamedExpr", "Yield", "YieldFrom", "Await"):
                             _ef307 = True
                             _wal307 = _wal307 or _t307 == "NamedExpr"
+                            _ny311[-1] = True
                         elif _t307 == "Call":
                             _f307 = _x307.get("func") if isinstance(_x307.get("func"), str) else ""
                             if _fns307 is None:
@@ -20350,6 +20369,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                     "zfill", "center", "ljust", "rjust", "splitlines",
                                     "partition", "rpartition"))
                             _ef307 = _ef307 or not _pc307
+                            if not _pc307:
+                                _ic311[-1].append(_x307)
                         _wk307.extend(_v307 for _v307 in _x307.values()
                                       if isinstance(_v307, (dict, list)))
                     _eff307.append((_ef307, _wal307))
@@ -20470,11 +20491,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # was erased: it is evaluated FIRST (`let _ = <display> in <node>`), which
                 # is its Python position when every non-inert operand before it is bound
                 # and none after it is — otherwise, or for a conditional arm, REFUSED.
+                # (#49) ROUTES #312/#313/#314 — the same holds for EVERY effectful operand, not
+                # only displays: a slice / `sorted(..)` coerced to `(any int)` (#312), a
+                # dict-returning call or a dict display lowered to `(any_map ())` (#313), a
+                # keyword argument an opaque str-method stub ignores (#314) all dropped their
+                # calls. The decision is keyed on the IR operand's effectfulness (#307's
+                # verdict), never on the emitted text.
                 _r310c: List[int] = [
                     _i310 for _i310, (_e310, _w310) in enumerate(_eff307)
                     if _e310 and _i310 not in _bind307
-                    and _r307_ops[_i310][1].get("type") in ("Tuple", "SetLit", "MkTuple",
-                                                            "ArrayLit", "DictLit")
+                    and not (_nr311 and _r307_ops[_i310][1].get("type") not in (
+                        "Tuple", "SetLit", "MkTuple", "ArrayLit", "DictLit"))
                     and not (_r307_ops[_i310][1].get("type") == "DictLit"
                              and getattr(self, "_current_self_type", None)
                              in (getattr(self, "_mutable_state_classes", None) or set()))]
@@ -20483,9 +20510,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _h307 = stable_hash(repr(_r307_d))
                     _lets307: List[Tuple[str, str]] = []
                     _txt310: Dict[int, str] = {}
+                    _ab311: Dict[int, Set[str]] = {}
+                    _pr311: List[int] = []
                     for _i307 in sorted(_bind307 + _r310c):
                         _p307, _n307 = _r307_ops[_i307]
                         _nm307 = f"_pycsl_seq{_h307}_{_i307}"
+                        if _i307 in _r310c:
+                            _ab311[_i307] = set(getattr(self, "_abstract_ops", {}) or {})
+                        if (_i307 in _r310c and _n307.get("type") not in (
+                                "Tuple", "SetLit", "MkTuple", "ArrayLit", "DictLit")):
+                            # A non-display operand is NOT marked: its lowering may depend
+                            # on its position (a callee's parameter type selects the
+                            # conversion of a `.to_dict()` argument), so the node is
+                            # re-emitted unchanged and the operand's standalone text is
+                            # only a PROBE (abstract operations it registers withdrawn); a
+                            # probe the operand cannot pass out of position is no verdict.
+                            _ab2311 = dict(getattr(self, "_abstract_ops", {}) or {})
+                            try:
+                                _txt310[_i307] = self._expr_to_whyml(_n307, local_refs,
+                                                                     invariant_ctx, subst)
+                                _pr311.append(_i307)
+                            except PyCSLIRError:
+                                pass
+                            self._abstract_ops = _ab2311
+                            continue
                         if _i307 in _r310c:
                             _nm307 = self._expr_to_whyml(_n307, local_refs, invariant_ctx, subst)
                             _txt310[_i307] = _nm307
@@ -20496,6 +20544,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _mk307["_pycsl_seq"] = _nm307
                         if len(_p307) == 1:
                             _md307[_p307[0]] = _mk307
+                        elif isinstance(_p307[1], str):
+                            _sd311 = dict(_md307.get(_p307[0]) or {})
+                            _sd311[_p307[1]] = _mk307
+                            _md307[_p307[0]] = _sd311
                         else:
                             _l307 = list(_md307.get(_p307[0]) or [])
                             if len(_p307) == 3:
@@ -20505,6 +20557,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             else:
                                 _l307[_p307[1]] = _mk307
                             _md307[_p307[0]] = _l307
+                    if _pr311:
+                        _md307["_pycsl_r311n"] = True
                     _body307 = self._expr_to_whyml(_md307, local_refs, invariant_ctx, subst)
                     for _nm307, _s307 in _lets307:
                         # An operand the lowering DROPS (the dict-literal fallback
@@ -20524,24 +20578,75 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                 "operand. FIX: assign the effectful operand to a local first.")
                             break
                     _drop310 = [_i310 for _i310 in _r310c if _why307 is None
+                                and _i310 in _txt310
                                 and (not _txt310[_i310].strip()
                                      or _txt310[_i310] not in _body307)]
+                    # (#49) ROUTES #312-#314 — a dropped operand whose every not-known-pure
+                    # call lowers to an application of an abstract `val` with no `writes`,
+                    # `raises`, `requires` or `diverges` (an opaque library call such as
+                    # `chain(a, b)` or `s.encode()`) has NO effect IN THE MODEL: there is
+                    # nothing to evaluate, so it stays dropped and the abstract operations
+                    # registered only for its (unused) text are withdrawn (byte-inertness).
+                    for _i310 in list(_drop310):
+                        if _ny311[_i310] or not _ic311[_i310]:
+                            continue
+                        _ok311 = True
+                        _ab311[_i310] = set(getattr(self, "_abstract_ops", {}) or {})
+                        for _x311 in _ic311[_i310]:
+                            _c311 = self._expr_to_whyml(_x311, local_refs, invariant_ctx, subst)
+                            _m311 = re.match(r"\(*\s*([A-Za-z_][A-Za-z0-9_']*)", _c311 or "")
+                            _d311 = str((getattr(self, "_abstract_ops", {}) or {}).get(
+                                _m311.group(1) if _m311 else "") or "")
+                            # a havoc `(any T)` or an application-free text (a record of
+                            # literals, `{ x = 0 }`) evaluates nothing in the model either
+                            if (re.fullmatch(r"\(any [A-Za-z0-9_' .]*\)", _c311.strip())
+                                    or not any(_q311 in _c311 for _q311 in (
+                                        "(", "[", "<-", ":=", "raise", "assert", "absurd"))):
+                                continue
+                            if (not _d311.startswith("val ") or any(
+                                    _w311 in _d311 for _w311 in (
+                                        "writes", "raises", "requires", "diverges", "reads"))):
+                                _ok311 = False
+                                break
+                        if not _ok311:
+                            continue
+                        _drop310.remove(_i310)
+                        for _k311 in [_k311 for _k311 in list(self._abstract_ops)
+                                      if _k311 not in _ab311[_i310]]:
+                            _dp311 = str(self._abstract_ops[_k311]).split()
+                            _dn311 = (_dp311[2] if len(_dp311) > 2 and _dp311[1] in (
+                                "constant", "function") else
+                                      (_dp311[1] if len(_dp311) > 1 else _k311))
+                            if not re.search(r"\b" + re.escape(_dn311) + r"\b", _body307 + "\n".join(
+                                    str(_v311) for _q311, _v311 in self._abstract_ops.items()
+                                    if _q311 != _k311)):
+                                del self._abstract_ops[_k311]
                     for _i310 in _drop310:
                         if (_r307_k == "IfExpr" and _i310 > 0
                                 or not _txt310[_i310].strip()
+                                # a dropped operand whose impure call the lowering RE-DERIVED
+                                # from its shape would run twice once evaluated first
+                                or any(_c311.strip() and _c311 in _body307 for _c311 in (
+                                    self._expr_to_whyml(_x311, local_refs, invariant_ctx, subst)
+                                    for _x311 in _ic311[_i310]))
                                 or any(_j310 > _i310 for _j310 in _bind307)
                                 or any(not _inert307[_j310] and _j310 not in _bind307
                                        for _j310 in range(_i310))):
                             raise PyCSLIRError(
                                 f"an effectful expression is erased here (route #310): a "
-                                f"`{_r307_ops[_i310][1].get('type')}` display containing a call "
+                                f"`{_r307_ops[_i310][1].get('type')}` operand containing a call "
                                 f"that is not known pure (or a walrus/yield/await) reaches a "
                                 f"position of this `{_r307_k}` that has no model for its value, "
                                 f"and it cannot be evaluated at its Python position (a "
-                                f"conditional arm, or after an earlier operand). FIX: assign "
-                                f"the effectful element to a local first.")
+                                f"conditional arm, after an earlier operand, or re-derived from "
+                                f"its shape). FIX: assign the effectful expression to a local "
+                                f"first.")
                     if _why307 is None:
                         for _i310 in reversed(_drop310):
+                            if _i310 in _pr311:
+                                # the probe's registrations were withdrawn: lower it for real
+                                _txt310[_i310] = self._expr_to_whyml(
+                                    _r307_ops[_i310][1], local_refs, invariant_ctx, subst)
                             _body307 = f"(let _ = {_txt310[_i310]} in {_body307})"
                         for _nm307, _s307 in reversed(_lets307):
                             _body307 = f"(let {_nm307} = {_s307} in {_body307})"

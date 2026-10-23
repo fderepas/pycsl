@@ -1805,6 +1805,65 @@ class FunctionEmissionMixin:
                                 "`default` that is a literal, a name or an empty collection "
                                 "(route #306); `print` with `sep`/`end` (str literal or None), "
                                 "`flush` (bool literal) and `file=sys.stdout`/`sys.stderr`.")
+                # (#49) ROUTE #314 — THE SAME HOLDS FOR A BUILTIN TYPE'S METHODS. A keyword
+                # argument of `s.format(..)`, `s.split(..)`, `s.encode(..)`, `d.get(..)` was
+                # dropped by the opaque method lowering (`format_1 <hash of the receiver>`),
+                # with its effects AND its value: `'{a}'.format(a=inc(xs))` PROVED
+                # `xs[0] == 0` (CPython 1); the value of `'{a}'.format(a=1)` ignored the
+                # keyword; a keyword CPython rejects (`startswith(prefix=..)`,
+                # `d.get(k, default=..)`: TypeError) was modelled as a normal call. No
+                # lowering of a str/bytes/list/dict/set/tuple/int/float method reads a
+                # keyword, so a method call with one whose name is such a method and that
+                # no user definition shadows is REFUSED.
+                # `list.sort(key=.., reverse=..)` has its own in-place havoc lowering (gen #36
+                # ch16; an effectful key is refused there) and is not this route's. The
+                # `encoding`/`errors` keywords of `encode`/`decode` are positional-or-keyword
+                # in CPython, so a STRING-LITERAL keyword is rewritten to its positional slot
+                # (`decode('utf-8', errors='ignore')` IS `decode('utf-8', 'ignore')`;
+                # `encoding` defaults to 'utf-8') and reaches the lowering as an argument.
+                _r314_m = _r275_f.rsplit(".", 1)[-1] if isinstance(_r275_f, str) else ""
+                if (_r275_n.get("type") == "Call" and _r275_kws
+                        and _r314_m in ("encode", "decode")
+                        and ("." in _r275_f or isinstance(_r275_n.get("receiver"), dict))
+                        and len(_r275_n.get("args") or []) <= 1
+                        and all(isinstance(_r314_k, dict)
+                                and _r314_k.get("arg") in ("encoding", "errors")
+                                and isinstance(_r314_k.get("value"), dict)
+                                and _r314_k["value"].get("type") == "String"
+                                for _r314_k in _r275_kws)
+                        and len({_r314_k.get("arg") for _r314_k in _r275_kws}) == len(_r275_kws)
+                        and not (_r275_n.get("args") and any(
+                            _r314_k.get("arg") == "encoding" for _r314_k in _r275_kws))):
+                    _r314_kv = {_r314_k["arg"]: _r314_k["value"] for _r314_k in _r275_kws}
+                    _r314_a = list(_r275_n.get("args") or []) or [
+                        _r314_kv.get("encoding") or {"type": "String", "value": "utf-8"}]
+                    if "errors" in _r314_kv:
+                        _r314_a.append(_r314_kv["errors"])
+                    _r275_n["args"] = _r314_a
+                    _r275_n["keywords"] = []
+                    _r275_kws = []
+                if (_r275_n.get("type") == "Call" and _r275_kws and _r314_m
+                        and _r314_m != "sort" and not _r314_m.startswith("_")
+                        and ("." in _r275_f or isinstance(_r275_n.get("receiver"), dict))
+                        and any(callable(getattr(_r314_t, _r314_m, None)) for _r314_t in (
+                            str, bytes, bytearray, list, dict, set, frozenset, tuple, int,
+                            float))
+                        and not any(str(_r314_g).rsplit("__", 1)[-1].rsplit(".", 1)[-1]
+                                    == _r314_m for _r314_g in list(_r275_user) + [
+                                        _r314_d.get("name") for _r314_d in (
+                                            (self.ir.get("functions") or [])
+                                            if isinstance(getattr(self, "ir", None), dict)
+                                            else []) if isinstance(_r314_d, dict)])):
+                    raise PyCSLIRError(
+                        f"`.{_r314_m}(..., "
+                        f"{(_r275_kws[0] or {}).get('arg') if isinstance(_r275_kws[0], dict) else '**'}"
+                        f"=...)` is not modelled: a keyword argument of a str/bytes/list/dict/"
+                        "set/tuple/int/float method is DISCARDED by its lowering — its value "
+                        "and the effects of evaluating it vanish, and a keyword CPython "
+                        "rejects (TypeError) is modelled as a normal call. Measured: "
+                        "`'{a}'.format(a=inc(xs))` proved `xs[0] == 0` (CPython: 1) (route "
+                        "#314). FIX: pass the argument positionally, or compute the value "
+                        "outside the verified fragment.")
                 _r275_work.extend(v for v in _r275_n.values()
                                   if isinstance(v, (dict, list)))
             elif isinstance(_r275_n, (list, tuple)):
