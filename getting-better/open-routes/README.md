@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #321-#324 OPENED (red team 18, stdlib/builtin model; 9/9 sample driver-reproduced rc=0): #321 Counter/
+##   OrderedDict/defaultdict model (seed keyed on source text, kw seeds dropped, factory ignored, read does not insert); #322 float literals
+##   truncated in abs()/sum() folds, float module constants as ints; #323 itertools length model (kwargs dropped, short-name match,
+##   starred arg); #324 contract-side str slice uses raw substring.
+
 ## gen #37 (2026-10-23): #316 + #317 REPAIRED (r316 executor, off 6821931b; inline in `transpile` / `_handle_dotted_call` /
 ##   `_emit_function_block` (mirror twins `\trusted` or absent); no new def/field (result kept on each function IR dict, `func["_r316_frame"]`);
 ##   no frontend IR change; ledger 3). Every function's parameter WRITE SET is inferred from its body (store roots, in-place
