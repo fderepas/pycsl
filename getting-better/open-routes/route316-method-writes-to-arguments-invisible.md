@@ -13,7 +13,7 @@ Repair: make method stubs carry the same frame discipline as plain functions: th
 `assigns` for ALL locations (params, globals, self), the default frame (no assigns) must be inferred/checked like plain functions (or
 the call refused), and the stub's `writes` must include every parameter/global location the method may write.
 
-## REPAIR (2026-10-23, r316 executor off 6821931b; commits 20735828 (code+docs), 9acacbb3 (alias precision), 9e68a1d7 (witnesses + census), + this docs commit)
+## REPAIR (2026-10-23, r316 executor off 6821931b; commits 20735828 (code+docs), 9acacbb3 (alias precision), 9e68a1d7 (witnesses + census), d4c98191 (route docs), d3a934a9 (frame kept on the function IR dicts), + this docs commit)
 **How PLAIN functions are faithful (read first).** A verified plain function is applied as its `let`; Why3 INFERS its
 write effect from the body, so `def g(xs): xs[0] = 5` havocs the caller's `ys` (an `assigns xs[0]` adds nothing in the
 Hoare model — the effect is always the whole array). A method is applied through an abstract `val` stub, and a
@@ -21,7 +21,7 @@ Hoare model — the effect is always the whole array). A method is applied throu
 { self.f }` from `assigns self.f` and nothing else.
 
 **Design: infer the same effect for every function and put it on the stub (b)+(c); refuse what a stub cannot carry.**
-`transpile` (mirror twin `\trusted`; result under `self.ir["_r316_writes"]`, no new transpiler field, no new def) computes
+`transpile` (mirror twin `\trusted`; result kept on each function's IR dict as `func["_r316_frame"]` — the `func["uses"]` precedent — no new transpiler field, no new def; a first cut stored it under `self.ir[...]`, which `check-assigns-underdeclaration` correctly flagged as a write to an undeclared field of `transpile`'s frame) computes
 per function the set W of formal parameters its body may write — the root of every store target (`a[i]=`, `a[i] op=`,
 slice store, `del a[i]`, `a.f=`, `a += ..`), in-place mutator receivers (`append extend insert ... __iadd__`), the
 `heapq`/`random.shuffle`/`bisect.insort*`/`operator.i*` argument mutators — through local aliases at TWO levels

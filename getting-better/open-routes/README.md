@@ -1,7 +1,7 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 ## gen #37 (2026-10-23): #316 + #317 REPAIRED (r316 executor, off 6821931b; inline in `transpile` / `_handle_dotted_call` /
-##   `_emit_function_block` (mirror twins `\trusted` or absent); no new def/field (result kept under `self.ir["_r316_writes"]`);
+##   `_emit_function_block` (mirror twins `\trusted` or absent); no new def/field (result kept on each function IR dict, `func["_r316_frame"]`);
 ##   no frontend IR change; ledger 3). Every function's parameter WRITE SET is inferred from its body (store roots, in-place
 ##   mutators, argument mutators, two-level local aliasing, fixpoint over calls; dict/set params and string-keyed stores stay
 ##   with WL-05/#244) — the effect Why3 infers for a plain `let`. Method call stubs gain `writes { x_i }` per written array
