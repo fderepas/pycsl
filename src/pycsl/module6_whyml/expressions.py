@@ -20077,6 +20077,220 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # isinstance below; un-converted kinds fall through to the legacy dict
         # body (`node.to_dict()`). Byte-identical at every kind conversion.
         if not expr: return ""
+        # (#49) ROUTE #307 — PYTHON EVALUATES OPERANDS LEFT-TO-RIGHT; WHY3 EVALUATES THE
+        # ARGUMENTS OF AN APPLICATION (and the operands of an infix operator, and the
+        # components of a tuple) RIGHT-TO-LEFT. Measured on Why3 1.8.2: `sub (x := 1; !x) !x`
+        # is 1, `(x := 1; !x) - !x` is 1, `((x := 1; !x), !x)` is (1, 0), and in
+        # `(raise E) + (x := 1; !x)` the write HAPPENS before the raise. Every n-ary
+        # construct was emitted as one nested application, so an effectful operand ran
+        # BEFORE the operands to its left: `x = 0; return x - (x := 1) + 1` PROVED
+        # `\result == 1` (CPython 0); `inc(xs) - inc(xs)` proved 1 (CPython -1);
+        # `xs[0] + inc(xs)` read the element AFTER the write; in `boom(ys) + inc(xs)` the
+        # model ran `inc` before `boom` raised, so a write Python never performs was proved.
+        # Witnesses 3890-3912.
+        #
+        # THE RULE, at the one choke point every operand passes through: for a program-
+        # context n-ary node (binary operator other than the lazy `and`/`or`, string
+        # concatenation, subscript, slice, call incl. receiver and keyword arguments,
+        # tuple/list/set literal, dict literal in key,value order, f-string), let k be the
+        # LAST operand that is EFFECTFUL — it contains a walrus, a yield/await, or a call
+        # that is not KNOWN pure (a module function or `self.` method whose contract says
+        # `assigns \nothing` with no `raises`, or a builtin query (`len`, `getattr`, ...) /
+        # str-dict query method that no user function shadows; their arguments are walked
+        # like any other subexpression). Operands 0..min(k, n-2) that are not INERT (a literal, or
+        # a local read when the node has no walrus) and are followed by a non-inert operand
+        # are let-bound LEFT-TO-RIGHT into temporaries `_pycsl_seq<H>_<i>` (H = hash of the
+        # node, so a nested node never reuses its ancestor's name), and the node is
+        # re-emitted with those operands MARKED so that their emission is the temporary. A node with no effectful operand is
+        # untouched (byte-inert). If the construct's lowering does not consume a marked
+        # operand (it re-derived the operand from its shape), the node is REFUSED: the
+        # temporary would then be dead and the operand evaluated at its old position.
+        if isinstance(expr, dict) and expr.get("_pycsl_seq"):
+            return expr["_pycsl_seq"]
+        if (isinstance(expr, OpaqueExpr) and isinstance(expr.raw, dict)
+                and expr.raw.get("_pycsl_seq")):
+            return expr.raw["_pycsl_seq"]
+        _r307_k = expr.get("type") if isinstance(expr, dict) else getattr(expr, "kind", None)
+        if (_r307_k in ("BinOp", "StrConcat", "Subscript", "Slice", "Call", "Tuple",
+                        "ArrayLit", "SetLit", "MkTuple", "DictLit", "FString")
+                and not getattr(self, "_in_spec", False) and not invariant_ctx):
+            _r307_d = (expr if isinstance(expr, dict) else
+                       (expr.raw if isinstance(expr, OpaqueExpr) else expr.to_dict()))
+            _r307_ops: List[Any] = []
+            if not isinstance(_r307_d, dict):
+                _r307_d = {}
+            if _r307_k == "BinOp":
+                if _r307_d.get("op") not in ("and", "or", "->", "<->", "implies", "iff",
+                                             "&&", "||"):
+                    _r307_ops = [(("left",), _r307_d.get("left")),
+                                 (("right",), _r307_d.get("right"))]
+            elif _r307_k == "StrConcat":
+                _r307_ops = [(("left",), _r307_d.get("left")),
+                             (("right",), _r307_d.get("right"))]
+            elif _r307_k == "Subscript":
+                _r307_ops = [(("value",), _r307_d.get("value")),
+                             (("index",), _r307_d.get("index"))]
+            elif _r307_k == "Slice":
+                _r307_ops = [((_s307,), _r307_d.get(_s307)) for _s307 in ("lower", "upper", "step")]
+            elif _r307_k == "Call":
+                _r307_ops = [(("receiver",), _r307_d.get("receiver"))]
+                _r307_ops += [(("args", _i307), _a307)
+                              for _i307, _a307 in enumerate(_r307_d.get("args") or [])]
+                _r307_ops += [(("keywords", _i307, "value"), _a307.get("value"))
+                              for _i307, _a307 in enumerate(_r307_d.get("keywords") or [])
+                              if isinstance(_a307, dict)]
+            elif _r307_k in ("Tuple", "ArrayLit", "SetLit", "MkTuple"):
+                _r307_ops = [(("elts", _i307), _a307)
+                             for _i307, _a307 in enumerate(_r307_d.get("elts") or [])]
+            elif _r307_k == "DictLit":
+                _v307 = _r307_d.get("values") or []
+                for _i307, _a307 in enumerate(_r307_d.get("keys") or []):
+                    _r307_ops.append((("keys", _i307), _a307))
+                    if _i307 < len(_v307):
+                        _r307_ops.append((("values", _i307), _v307[_i307]))
+            elif _r307_k == "FString":
+                _r307_ops = [(("parts", _i307), _a307)
+                             for _i307, _a307 in enumerate(_r307_d.get("parts") or [])]
+            _r307_ops = [(_p307, _n307) for _p307, _n307 in _r307_ops if isinstance(_n307, dict)]
+            if len(_r307_ops) >= 2:
+                _fns307: Optional[List[Dict[str, Any]]] = None
+                _eff307: List[Tuple[bool, bool]] = []
+                for _p307, _n307 in _r307_ops:
+                    _wk307: List[Any] = [_n307]
+                    _ef307 = False
+                    _wal307 = False
+                    while _wk307:
+                        _x307 = _wk307.pop()
+                        if isinstance(_x307, list):
+                            _wk307.extend(_x307)
+                            continue
+                        if not isinstance(_x307, dict) or _x307.get("_pycsl_seq"):
+                            continue
+                        _t307 = _x307.get("type")
+                        if _t307 == "Lambda":
+                            continue
+                        if _t307 in ("NamedExpr", "Yield", "YieldFrom", "Await"):
+                            _ef307 = True
+                            _wal307 = _wal307 or _t307 == "NamedExpr"
+                        elif _t307 == "Call":
+                            _f307 = _x307.get("func") if isinstance(_x307.get("func"), str) else ""
+                            if _fns307 is None:
+                                _fns307 = [_g307 for _g307 in ((self.ir.get("functions") or [])
+                                                               if isinstance(self.ir, dict)
+                                                               else [])
+                                           if isinstance(_g307, dict)]
+                            _tl307 = _f307.rsplit(".", 1)[-1]
+                            if "." not in _f307 and not isinstance(_x307.get("receiver"), dict):
+                                _pc307 = (any(_g307.get("name") == _f307 and (
+                                    (_g307.get("contracts") or {}).get("assigns")
+                                    == [{"type": "Nothing"}]
+                                    and not (_g307.get("contracts") or {}).get("raises")
+                                    and not _g307.get("diverges")) for _g307 in _fns307) or (
+                                    not any(str(_g307.get("name") or "").rsplit("__", 1)[-1]
+                                            .rsplit(".", 1)[-1] == _f307 for _g307 in _fns307)
+                                    and _f307 in ("len", "abs", "isinstance", "issubclass",
+                                                  "getattr", "hasattr", "callable", "type",
+                                                  "id", "range", "sorted",
+                                                  "list", "tuple", "set", "frozenset", "dict",
+                                                  "sum", "any", "all", "enumerate", "zip",
+                                                  "reversed", "min", "max")
+                                    and (_f307 not in ("min", "max")
+                                         or (len(_x307.get("args") or []) >= 2
+                                             and not _x307.get("keywords")))))
+                            elif (_f307.startswith("self.") and _f307.count(".") == 1
+                                  and not isinstance(_x307.get("receiver"), dict)):
+                                _pc307 = any(
+                                    _g307.get("name") == f"{self._current_self_type}__{_tl307}"
+                                    and (_g307.get("contracts") or {}).get("assigns")
+                                    == [{"type": "Nothing"}]
+                                    and not (_g307.get("contracts") or {}).get("raises")
+                                    and not _g307.get("diverges") for _g307 in _fns307)
+                            else:
+                                _pc307 = (not any(str(_g307.get("name") or "").rsplit("__", 1)[-1]
+                                                  .rsplit(".", 1)[-1] == _tl307
+                                                  for _g307 in _fns307) and _tl307 in (
+                                    "get", "keys", "values", "items", "startswith", "endswith",
+                                    "upper", "lower", "strip", "lstrip", "rstrip", "split",
+                                    "rsplit", "join", "replace", "find", "rfind", "count",
+                                    "isdigit", "isalpha", "isalnum", "isspace", "isupper",
+                                    "islower", "copy", "casefold", "title", "capitalize",
+                                    "zfill", "center", "ljust", "rjust", "splitlines",
+                                    "partition", "rpartition"))
+                            _ef307 = _ef307 or not _pc307
+                        _wk307.extend(_v307 for _v307 in _x307.values()
+                                      if isinstance(_v307, (dict, list)))
+                    _eff307.append((_ef307, _wal307))
+                _last307 = max((_i307 for _i307, (_e307, _w307) in enumerate(_eff307) if _e307),
+                               default=-1)
+                # INERT operands: a literal, or a read of a LOCAL when no operand of the node
+                # contains a walrus (a call cannot rebind a caller's local). An inert operand
+                # is never bound, and an operand followed only by inert operands needs no
+                # binding (nothing after it can observe or be observed by it).
+                _any_wal307 = any(_w307 for _e307, _w307 in _eff307)
+                _inert307 = [(_o307[1].get("type") in ("Number", "String", "Bool", "None",
+                                                       "Nothing")
+                              or bool(_o307[1].get("_pycsl_seq"))
+                              or (_o307[1].get("type") == "Var" and not _any_wal307
+                                  and _o307[1].get("name") in
+                                  (getattr(self, "_current_symbol_table", None) or {})))
+                             for _o307 in _r307_ops]
+                _bind307: List[int] = [
+                    _i307 for _i307 in range(min(_last307, len(_r307_ops) - 2) + 1)
+                    if not _inert307[_i307] and not all(_inert307[_i307 + 1:])]
+                if _bind307 and _r307_k == "DictLit":
+                    # A dict literal is ALSO rebuilt outside this choke point (the
+                    # assignment lowering `_build_dict_literal_map` / `_build_pyval_inner_map`
+                    # folds `map_update_some` over the raw keys and values, a nested
+                    # application evaluated right-to-left), so its sequencing cannot be
+                    # guaranteed here: an order-sensitive dict literal is REFUSED.
+                    raise PyCSLIRError(
+                        "a dict literal whose keys/values Python evaluates in an order a later "
+                        "effectful key or value (a call that may write or raise, or a walrus) "
+                        "can observe is not modelled: its lowering evaluates them right-to-left "
+                        "(route #307). FIX: assign the effectful key/value to a local first.")
+                if _bind307 and _r307_d.get("_pycsl_range_hdr"):
+                    raise PyCSLIRError(
+                        "`for ... in range(start, stop)` whose `start` must be evaluated "
+                        "before an effectful `stop` (or is itself effectful before a `stop` "
+                        "that reads state) is not modelled: the loop header evaluates `stop` "
+                        "first (route #307). FIX: bind `start` and `stop` to locals before the "
+                        "loop, in that order.")
+                if _bind307:
+                    _md307: Dict[str, Any] = dict(_r307_d)
+                    _h307 = stable_hash(repr(_r307_d))
+                    _lets307: List[Tuple[str, str]] = []
+                    for _i307 in _bind307:
+                        _p307, _n307 = _r307_ops[_i307]
+                        _nm307 = f"_pycsl_seq{_h307}_{_i307}"
+                        _lets307.append((_nm307, self._expr_to_whyml(_n307, local_refs,
+                                                                     invariant_ctx, subst)))
+                        _mk307 = dict(_n307)
+                        _mk307["_pycsl_seq"] = _nm307
+                        if len(_p307) == 1:
+                            _md307[_p307[0]] = _mk307
+                        else:
+                            _l307 = list(_md307.get(_p307[0]) or [])
+                            if len(_p307) == 3:
+                                _kw307 = dict(_l307[_p307[1]])
+                                _kw307[_p307[2]] = _mk307
+                                _l307[_p307[1]] = _kw307
+                            else:
+                                _l307[_p307[1]] = _mk307
+                            _md307[_p307[0]] = _l307
+                    _body307 = self._expr_to_whyml(_md307, local_refs, invariant_ctx, subst)
+                    for _nm307, _s307 in _lets307:
+                        if not re.search(r"\b" + _nm307 + r"\b", _body307):
+                            raise PyCSLIRError(
+                                "an operand that Python evaluates BEFORE a later effectful "
+                                "operand (a call that may write or raise, or a walrus) is not "
+                                "consumed by this construct's lowering, which would evaluate it "
+                                "AFTER that operand (Why3 evaluates application arguments "
+                                f"right-to-left) (route #307). Construct: `{_r307_k}`. FIX: "
+                                "assign the effectful operand to a local first, in the order "
+                                "Python evaluates it.")
+                    for _nm307, _s307 in reversed(_lets307):
+                        _body307 = f"(let {_nm307} = {_s307} in {_body307})"
+                    return _body307
         # ROUTE #40 (relaunch #46) — THE `...` LITERAL IS NOT THE INTEGER ZERO.
         #
         #   Module 5 lowers `...` to `{"type":"Number","value":0,"py_ellipsis":True}`

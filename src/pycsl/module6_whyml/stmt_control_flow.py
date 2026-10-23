@@ -703,6 +703,17 @@ class ControlFlowStmtMixin:
         if is_range and len(iter_ir.get("args", [])) == 2:
             # `range(start, stop)` — initialise the idx at `start` and loop
             # while `!idx < stop`. The loop variable IS the idx.
+            # (#49) ROUTE #307 — the loop header binds `stop` (`let _len_<idx> = stop in`)
+            # BEFORE it initialises the idx at `start`, so `range(inc(c), inc(c))` ran the
+            # second call first (Python evaluates `start` then `stop`). Whether the pair is
+            # order-sensitive is decided by the expression choke point itself: the 2-tuple
+            # of the two arguments, flagged `_pycsl_range_hdr`, is REFUSED there exactly when
+            # it would need let-sequencing (`_expr_to_whyml`, route #307); otherwise the
+            # emitted tuple is discarded.
+            if all(isinstance(_x307, dict) and _x307.get("type") not in (
+                    "Number", "String", "Bool", "None") for _x307 in iter_ir["args"]):
+                self._expr_to_whyml({"type": "Tuple", "elts": list(iter_ir["args"]),
+                                     "_pycsl_range_hdr": True}, local_refs)
             start = self._expr_to_whyml(iter_ir["args"][0], local_refs)
             stop = self._expr_to_whyml(iter_ir["args"][1], local_refs)
             self._for_idx_init = start
