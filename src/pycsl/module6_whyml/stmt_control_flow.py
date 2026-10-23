@@ -874,7 +874,22 @@ class ControlFlowStmtMixin:
         if not self._value_semantic:
             iter_expr = self._expr_to_whyml(iter_ir, local_refs)
             return f"{iter_expr}_len", f"Map.get !{self._heap_var} ({iter_expr} + !{idx})", False
-        iter_expr = self._coerce_to_int(self._expr_to_whyml(iter_ir, local_refs))
+        _raw310 = self._expr_to_whyml(iter_ir, local_refs)
+        iter_expr = self._coerce_to_int(_raw310)
+        # (#49) ROUTE #310 — `for _ in (inc(xs), 0)`: the display is coerced to `(any int)`
+        # (no model for its value) and its element call vanished, so `xs[0] == 0` PROVED
+        # after the loop (CPython: 1). Python evaluates the iterable ONCE, before the loop:
+        # when the coercion erased an effectful display (route #307's verdict, probed by
+        # sequencing the display before a copy of itself), it is MATERIALISED as a `let`
+        # ahead of the loop and only its value stays erased.
+        _r310r = repr(iter_ir)
+        if (iter_expr != _raw310 and isinstance(iter_ir, dict)
+                and iter_ir.get("type") in ("Tuple", "SetLit", "MkTuple", "ArrayLit", "DictLit")
+                and ("'Call'" in _r310r or "'NamedExpr'" in _r310r or "'Yield" in _r310r
+                     or "'Await'" in _r310r)
+                and self._expr_to_whyml({"type": "Tuple", "elts": [iter_ir, iter_ir]},
+                                        local_refs).startswith("(let _pycsl_seq")):
+            self._for_iter_materialize = (f"_pycsl_it310{idx}", _raw310)
         self._add_abstract_op("val iter_length (x: int) : int")
         self._add_abstract_op("val iter_get (x: int) (i: int) : int")
         return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False

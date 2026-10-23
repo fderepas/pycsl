@@ -1859,6 +1859,42 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             filename=args.file, line=_ln290,
             stage="ir-semantic", code="PYCSL-SEM-MUTATION-BY-ANOTHER-NAME")
 
+    # (#49) ROUTE #310 — A `raise` WHOSE LOWERING DISCARDS PART OF THE RAISED EXPRESSION.
+    # Module 5 keeps the exception CLASS name and its FIRST argument only (Module 6
+    # evaluates that argument when it has an effect); a second argument, a keyword, the
+    # `from` cause, and a dotted / computed exception (`raise self.err(..)`,
+    # `raise errs[i](..)`) are DROPPED, and a call inside them went with them:
+    # `try: raise ValueError("m", inc(xs)) except ValueError: pass` would prove
+    # `xs[0] == 0` (CPython: 1). Such a discarded part that contains a call outside a few
+    # pure builtins, a walrus, a yield or an await is REFUSED (source AST, inline —
+    # `_run_pipeline`'s twin is `\trusted` and already raises).
+    _PURE310 = frozenset(("str", "repr", "len", "int", "float", "bool", "type", "format",
+                          "hex", "oct", "bin", "abs", "isinstance", "chr", "ord"))
+    for _n310 in _ast.walk(unified_ast):
+        if not isinstance(_n310, _ast.Raise) or _n310.exc is None:
+            continue
+        _e310 = _n310.exc
+        _dr310 = [_n310.cause] if _n310.cause is not None else []
+        if isinstance(_e310, _ast.Call) and isinstance(_e310.func, _ast.Name):
+            _dr310 += list(_e310.args[1:]) + [_k310.value for _k310 in _e310.keywords]
+        elif not isinstance(_e310, _ast.Name):
+            _dr310.append(_e310)
+        for _x310 in [_y310 for _d310 in _dr310 for _y310 in _ast.walk(_d310)]:
+            if (isinstance(_x310, (_ast.NamedExpr, _ast.Await, _ast.Yield, _ast.YieldFrom))
+                    or (isinstance(_x310, _ast.Call)
+                        and not (isinstance(_x310.func, _ast.Name)
+                                 and _x310.func.id in _PURE310))):
+                from errors import PyCSLSemanticError as _PyCSLSemErr310
+                raise _PyCSLSemErr310(
+                    "an effectful expression is erased here (route #310): line %d raises an "
+                    "exception whose second/keyword argument, `from` cause or computed "
+                    "exception expression contains a call (or a walrus/yield/await), and the "
+                    "model keeps only the exception class and its first argument, so that "
+                    "call's effects would be dropped. FIX: evaluate it into a local before "
+                    "the `raise`." % getattr(_n310, "lineno", 0),
+                    filename=args.file, line=getattr(_n310, "lineno", 0),
+                    stage="ir-semantic", code="PYCSL-SEM-ERASED-EFFECT-R310")
+
     # (#49) gen #31 — A `#@ lemma` WITH NO `#@ assigns` CLAUSE AT ALL. annotations.md
     # §2.1.16 states five hard-error rules for a lemma; four were enforced and the fifth
     # only half was. `core_ir_semantic._check_lemma` rejects a DECLARED frame that is not

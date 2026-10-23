@@ -20234,7 +20234,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `_lower_stmt_ir_construction`) that re-derives its fields from their SHAPE and cannot
         # consume a binder; it keeps its unsequenced emission rather than refuse the mirror.
         if (_r307_k in ("BinOp", "StrConcat", "Subscript", "Slice", "Call", "Tuple",
-                        "ArrayLit", "SetLit", "MkTuple", "DictLit", "FString")
+                        "ArrayLit", "SetLit", "MkTuple", "DictLit", "FString", "IfExpr")
                 and not getattr(self, "_in_spec", False) and not invariant_ctx
                 and not (_r307_k == "DictLit" and getattr(self, "_current_self_type", None)
                          in (getattr(self, "_mutable_state_classes", None) or set()))):
@@ -20275,8 +20275,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             elif _r307_k == "FString":
                 _r307_ops = [(("parts", _i307), _a307)
                              for _i307, _a307 in enumerate(_r307_d.get("parts") or [])]
+            elif _r307_k == "IfExpr":
+                # Route #310 only (below): the arms are CONDITIONAL, never sequenced.
+                _r307_ops = [((_s307,), _r307_d.get(_s307)) for _s307 in ("test", "body", "orelse")]
             _r307_ops = [(_p307, _n307) for _p307, _n307 in _r307_ops if isinstance(_n307, dict)]
-            if len(_r307_ops) >= 2:
+            # (#49) ROUTE #310 — a ONE-operand node (`len((inc(xs), 0))`, `max(..)`, `print(..)`)
+            # is walked too: #307 binds nothing for it (it needs a later operand), so the
+            # relaxation is byte-inert there; route #310 below needs its effect verdicts.
+            if len(_r307_ops) >= 1:
                 _fns307: Optional[List[Dict[str, Any]]] = None
                 _eff307: List[Tuple[bool, bool]] = []
                 for _p307, _n307 in _r307_ops:
@@ -20376,7 +20382,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                              for _o307 in _r307_ops]
                 _bind307: List[int] = [
                     _i307 for _i307 in range(min(_last307, len(_r307_ops) - 2) + 1)
-                    if not _inert307[_i307] and not all(_inert307[_i307 + 1:])]
+                    if not _inert307[_i307] and not all(_inert307[_i307 + 1:])
+                    and _r307_k != "IfExpr"]
                 # REFERENCE vs VALUE. Python evaluates an operand to an OBJECT; a mutable
                 # container (dict, set, list) is observed by its consumer AFTER the later
                 # operands ran, and Why3 models dicts/sets/growable lists as immutable
@@ -20450,15 +20457,41 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         "effectful `stop` (or is itself effectful before a `stop` that reads "
                         "state), and the loop header evaluates `stop` first. FIX: bind `start` "
                         "and `stop` to locals before the loop, in that order.")
-                if _bind307 and _why307 is None:
+                # (#49) ROUTE #310 — A DISPLAY WHOSE VALUE THE CONSUMER ERASES MUST STILL BE
+                # EVALUATED. A tuple/set/list/dict display reaching a position that has no
+                # model for it is coerced to Why3's `(any int)` (`_coerce_to_int`'s tuple /
+                # array / map arms), folded from its SHAPE (`len((a, b))` -> 2), or dropped
+                # by a fallback (`print_1 (any int)`, `subscript_get (any int) 1`) — and an
+                # element CALL went with it: `len((inc(xs), 0))`, `max((inc(xs), 0))`,
+                # `(inc(xs), 0)[1]` and `print((inc(xs), 0))` all PROVED `xs[0] == 0`
+                # (CPython: 1). Each EFFECTFUL display operand (route #307's verdict above)
+                # that #307 does not bind is lowered once and MARKED with its own text; the
+                # node is re-emitted, and an operand whose text is ABSENT from the result
+                # was erased: it is evaluated FIRST (`let _ = <display> in <node>`), which
+                # is its Python position when every non-inert operand before it is bound
+                # and none after it is — otherwise, or for a conditional arm, REFUSED.
+                _r310c: List[int] = [
+                    _i310 for _i310, (_e310, _w310) in enumerate(_eff307)
+                    if _e310 and _i310 not in _bind307
+                    and _r307_ops[_i310][1].get("type") in ("Tuple", "SetLit", "MkTuple",
+                                                            "ArrayLit", "DictLit")
+                    and not (_r307_ops[_i310][1].get("type") == "DictLit"
+                             and getattr(self, "_current_self_type", None)
+                             in (getattr(self, "_mutable_state_classes", None) or set()))]
+                if (_bind307 or _r310c) and _why307 is None:
                     _md307: Dict[str, Any] = dict(_r307_d)
                     _h307 = stable_hash(repr(_r307_d))
                     _lets307: List[Tuple[str, str]] = []
-                    for _i307 in _bind307:
+                    _txt310: Dict[int, str] = {}
+                    for _i307 in sorted(_bind307 + _r310c):
                         _p307, _n307 = _r307_ops[_i307]
                         _nm307 = f"_pycsl_seq{_h307}_{_i307}"
-                        _lets307.append((_nm307, self._expr_to_whyml(_n307, local_refs,
-                                                                     invariant_ctx, subst)))
+                        if _i307 in _r310c:
+                            _nm307 = self._expr_to_whyml(_n307, local_refs, invariant_ctx, subst)
+                            _txt310[_i307] = _nm307
+                        else:
+                            _lets307.append((_nm307, self._expr_to_whyml(_n307, local_refs,
+                                                                         invariant_ctx, subst)))
                         _mk307 = dict(_n307)
                         _mk307["_pycsl_seq"] = _nm307
                         if len(_p307) == 1:
@@ -20490,7 +20523,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                 "instead of consuming its binder, so it would run AFTER that "
                                 "operand. FIX: assign the effectful operand to a local first.")
                             break
+                    _drop310 = [_i310 for _i310 in _r310c if _why307 is None
+                                and (not _txt310[_i310].strip()
+                                     or _txt310[_i310] not in _body307)]
+                    for _i310 in _drop310:
+                        if (_r307_k == "IfExpr" and _i310 > 0
+                                or not _txt310[_i310].strip()
+                                or any(_j310 > _i310 for _j310 in _bind307)
+                                or any(not _inert307[_j310] and _j310 not in _bind307
+                                       for _j310 in range(_i310))):
+                            raise PyCSLIRError(
+                                f"an effectful expression is erased here (route #310): a "
+                                f"`{_r307_ops[_i310][1].get('type')}` display containing a call "
+                                f"that is not known pure (or a walrus/yield/await) reaches a "
+                                f"position of this `{_r307_k}` that has no model for its value, "
+                                f"and it cannot be evaluated at its Python position (a "
+                                f"conditional arm, or after an earlier operand). FIX: assign "
+                                f"the effectful element to a local first.")
                     if _why307 is None:
+                        for _i310 in reversed(_drop310):
+                            _body307 = f"(let _ = {_txt310[_i310]} in {_body307})"
                         for _nm307, _s307 in reversed(_lets307):
                             _body307 = f"(let {_nm307} = {_s307} in {_body307})"
                         return _body307

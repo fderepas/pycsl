@@ -229,6 +229,20 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     self._add_abstract_op("val function pycsl_none : int")
                     v_low = "pycsl_none"
                 v_str = self._dv_store_value(nu, v_low)
+                # (#49) ROUTE #310 — a value display the store coerces away (`{1: (inc(xs),
+                # 0)}` -> `(any int)`) is still EVALUATED, here at its Python position (its
+                # binder when the display is order-sensitive, else every other operand is
+                # inert): `(let _ = <display> in <stored value>)`.
+                _r310r = repr(v_ir)
+                if (v_low and v_low not in v_str and isinstance(v_ir, dict)
+                        and v_ir.get("type") in ("Tuple", "SetLit", "MkTuple", "ArrayLit",
+                                                 "DictLit")
+                        and ("'Call'" in _r310r or "'NamedExpr'" in _r310r
+                             or "'Yield" in _r310r or "'Await'" in _r310r)
+                        and self._expr_to_whyml({"type": "Tuple", "elts": [v_ir, v_ir]},
+                                                local_refs or set()).startswith(
+                                                    "(let _pycsl_seq")):
+                    v_str = f"(let _ = {v_low} in {v_str})"
             if _seq307:
                 _lets307 += [(f"_pycsl_dk{len(_lets307) // 2}", k_str),
                              (f"_pycsl_dv{len(_lets307) // 2}", v_str)]
@@ -1169,8 +1183,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         self._pyval_get_raw_coll = _prev_pgrc
         self._decode_to_string = _prev_dts
         # Tuple/Set literals can't be stored in int refs; use 0 as placeholder
+        # (#49) ROUTE #310 — ...but the display is still EVALUATED. `t = (inc(xs), 0)`
+        # replaced the lowered tuple by the placeholder and the call `inc(xs)` (with its
+        # `assigns a[0]`) vanished: `xs = [0]; t = (inc(xs), 0); return xs[0]` PROVED
+        # `\result == 0` (CPython: 1). When route #307's verdict finds an effectful element
+        # (the probe below is #307's own: a display is sequenced before a copy of itself
+        # exactly when it contains a call not known pure, a walrus, a yield or an await),
+        # the binding evaluates the display in Python order (#307 already let-sequenced its
+        # elements) and erases only its VALUE: `(let _ = <display> in (any int))`.
         if vt in ("Tuple", "SetLit"):
-            val = "0"
+            _r310r = repr(val_ir)
+            if (("'Call'" in _r310r or "'NamedExpr'" in _r310r or "'Yield" in _r310r
+                 or "'Await'" in _r310r)
+                    and self._expr_to_whyml({"type": "Tuple", "elts": [val_ir, val_ir]},
+                                            local_refs).startswith("(let _pycsl_seq")):
+                val = f"(let _ = {val} in (any int))"
+            else:
+                val = "0"
         # (#49) ROUTE #239 — AN ERASED BINDING IS A FRESH VALUE PER EXECUTION. Route #41 made
         # a READ of such a local the per-NAME constant `pycsl_erased_<x>` and left this
         # binding the literal `0`, so every value the name ever held was ONE TERM: `x = (1,
@@ -2817,6 +2846,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 hv = self._heap_var
                 code = (f"{indent}{hv} := Map.set !{hv} "
                         f"({array_expr} + {index_expr}) {val_expr}")
+        # (#49) ROUTE #310 — `ys[0] = (inc(xs), 0)` / `d[0] = (inc(xs), 0)`: the stored
+        # display is coerced to `(any int)` and its element call vanished (`xs[0] == 0`
+        # PROVED, CPython 1). Python evaluates the VALUE first, so an erased effectful
+        # display (route #307's verdict) is evaluated ahead of the store; only its value
+        # stays erased.
+        _r310v = stmt.value.to_dict() if hasattr(stmt.value, "to_dict") else stmt.value
+        _r310r = repr(_r310v)
+        if (isinstance(_r310v, dict)
+                and _r310v.get("type") in ("Tuple", "SetLit", "MkTuple", "ArrayLit", "DictLit")
+                and ("'Call'" in _r310r or "'NamedExpr'" in _r310r or "'Yield" in _r310r
+                     or "'Await'" in _r310r)
+                and self._expr_to_whyml({"type": "Tuple", "elts": [_r310v, _r310v]},
+                                        local_refs).startswith("(let _pycsl_seq")):
+            _r310r = self._expr_to_whyml(_r310v, local_refs)
+            if _r310r and _r310r not in code:
+                code = f"{indent}let _ = {_r310r} in\n{code}"
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
@@ -4482,7 +4527,47 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if isinstance(stmt, ForStmt):
             return self._handle_for_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
         if isinstance(stmt, ExprStmt):
-            return self._handle_expr_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
+            _code310 = self._handle_expr_stmt(stmt, rest, local_refs, declared_refs, indent,
+                                              in_loop)
+            # (#49) ROUTE #310 — an effectful DISPLAY argument of a statement-level call
+            # whose lowering erases it (`ys.append((inc(xs), 0))` -> `Seq.snoc !ys (any
+            # int)`) is evaluated ahead of the call (only its value stays erased) when every
+            # operand Python evaluates before it is inert; otherwise REFUSED.
+            _v310 = stmt.value.to_dict() if hasattr(stmt.value, "to_dict") else None
+            if isinstance(_v310, dict) and _v310.get("type") == "Call":
+                _ops310 = [_x310 for _x310 in ([_v310.get("receiver")]
+                                               + list(_v310.get("args") or [])
+                                               + [_k310.get("value") for _k310 in
+                                                  (_v310.get("keywords") or [])
+                                                  if isinstance(_k310, dict)])
+                           if isinstance(_x310, dict)]
+                _drop310: List[Tuple[int, str]] = []
+                for _i310, _o310 in enumerate(_ops310):
+                    _r310r = repr(_o310)
+                    if (_o310.get("type") in ("Tuple", "SetLit", "MkTuple", "ArrayLit", "DictLit")
+                            and ("'Call'" in _r310r or "'NamedExpr'" in _r310r
+                                 or "'Yield" in _r310r or "'Await'" in _r310r)
+                            and self._expr_to_whyml({"type": "Tuple", "elts": [_o310, _o310]},
+                                                    local_refs).startswith("(let _pycsl_seq")):
+                        _t310 = self._expr_to_whyml(_o310, local_refs)
+                        if not _t310 or _t310 not in _code310:
+                            _drop310.append((_i310, _t310))
+                for _i310, _t310 in _drop310:
+                    if not _t310 or any(
+                            _ops310[_j310].get("type") not in ("Var", "Number", "String", "Bool",
+                                                               "None")
+                            and _j310 not in [_d310 for _d310, _u310 in _drop310]
+                            for _j310 in range(_i310)):
+                        from errors import PyCSLSemanticError
+                        raise PyCSLSemanticError(
+                            "an effectful expression is erased here (route #310): a display "
+                            "argument containing a call that is not known pure (or a walrus/"
+                            "yield/await) is dropped by the lowering of this call statement "
+                            "and cannot be evaluated at its Python position. FIX: assign the "
+                            "effectful element to a local first.")
+                for _i310, _t310 in reversed(_drop310):
+                    _code310 = f"{indent}let _ = {_t310} in\n{_code310}"
+            return _code310
         if isinstance(stmt, TryStmt):
             return self._handle_try_stmt(stmt, rest, local_refs, declared_refs, indent, in_loop)
         if isinstance(stmt, MatchStmt):
@@ -4504,6 +4589,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
         if isinstance(stmt, RaiseStmt):
             exc_type = safe_exc_name(stmt.exc_type or "PyCSL_Exception")
+            # (#49) ROUTE #310 — `raise ValueError(inc(xs))` lowered to `raise ValueError`
+            # and DISCARDED the exception's construction, so the call's write vanished
+            # (`xs[0] == 0` PROVED after `try: raise ValueError(inc(xs)) except ...`,
+            # CPython 1). Python evaluates the raised expression first: when the argument
+            # Module 5 keeps (`exc_value`, the constructor's FIRST argument; the rest is
+            # refused in `_run_pipeline`) has an effect (route #307's verdict) it is
+            # evaluated, and only the exception object stays unmodelled.
+            _v310 = (stmt.exc_value.to_dict() if hasattr(stmt.exc_value, "to_dict")
+                     else stmt.exc_value)
+            if isinstance(_v310, dict):
+                _a310 = [_v310]
+                _t310 = {"type": "Tuple", "elts": _a310}
+                _r310r = repr(_a310)
+                if (_a310 and ("'Call'" in _r310r or "'NamedExpr'" in _r310r
+                               or "'Yield" in _r310r or "'Await'" in _r310r)
+                        and self._expr_to_whyml({"type": "Tuple", "elts": [_t310, _t310]},
+                                                local_refs).startswith("(let _pycsl_seq")):
+                    return (f"{indent}let _ = {self._expr_to_whyml(_t310, local_refs)} in "
+                            f"raise {exc_type}")
             return f"{indent}raise {exc_type}"
 
         if isinstance(stmt, ProofAssertStmt):
