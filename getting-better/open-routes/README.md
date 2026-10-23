@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #321 + #323 REPAIRED (r321 executor, off 67edf13c; inline in the seeded-map arm of `_call_named_builtins`,
+##   `_iter_len_expr` and `_reset_function_state` (mirror twins `\trusted`; the two expression stubs now declare `#@ raises
+##   PyCSLIRError`); no new def/field (scan result rides on `_r249_scope["r321_dd"]`); ledger 3). #321: Counter/OrderedDict/
+##   defaultdict refuse keyword/starred/over-arity args and NON-LITERAL seeds (literal IR repr = value; Counter seeds keyed apart);
+##   defaultdict factory only `int` / `lambda: 0`; a defaultdict local is admitted only when its key set is unobservable or every
+##   read is fused into a same-key store (CPython's read inserts), else refused. #323: the itertools length model resolves the
+##   callee through the import table (user/shadowed names fall through to the user's function; `chain as ch` now resolves);
+##   keyword/starred operands refused. Witnesses 4150-4169, 4175 (14 PROVED -> REFUSED, 3 PROVED -> FAIL [4162/4165/4166],
+##   4169 PROVED -> FAIL, 4161/4175 FAIL -> REFUSED, k01/k06/k09 -> REFUSED); controls 4170-4174 PASS. Root 1 MOVED (1076:
+##   constant renamed by the Counter tag, FAIL -> FAIL), pyref 0/0/0; mirror 2 MOVED (`raises` clauses only, L3-tc OK, whole-file
+##   proofs OWED, no call site); fast planes 61/61; sync/mirror-check/doc-coherency/assumed-facts/raises/refusal-coverage rc=0.
+##   Residuals: syntactic per-function scan (closures unseen); dotted `collections.X(..)` and module-level defaultdicts not this
+##   arm's (L3-tc FAIL today); islice negative stop outside `no_exception`; short-name oracles `_os_path_split_slot` /
+##   `_IR_DISPATCHERS` censused, not changed.
 ## gen #37 (2026-10-23): #321-#324 OPENED (red team 18, stdlib/builtin model; 9/9 sample driver-reproduced rc=0): #321 Counter/
 ##   OrderedDict/defaultdict model (seed keyed on source text, kw seeds dropped, factory ignored, read does not insert); #322 float literals
 ##   truncated in abs()/sum() folds, float module constants as ints; #323 itertools length model (kwargs dropped, short-name match,
