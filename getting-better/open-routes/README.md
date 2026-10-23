@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #318 (range bound re-read every iteration), #319 (list parameter rebound in a nested block is lost after
+##   the block; later writes hit the caller), #320 (literal rebind of a local list overwrites the same array in place) OPENED (red team 17);
+##   6/6 sample driver-reproduced rc=0, CPython violates.
+
 ## gen #37 (2026-10-23): #316 (method writes to arguments / module objects invisible to callers: method stubs take writes only
 ##   from assigns on self; body checked only against a self frame) and #317 (imported function without contract assumed to write
 ##   nothing) OPENED (red team 16); 6/6 sample driver-reproduced rc=0, CPython violates.
