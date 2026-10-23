@@ -41,7 +41,11 @@ Gates (logs under `.r321tmp/`, removed at hand-off): witnesses table above + rou
 `--expect-moved 1076_route48_counter_seed_dropped` (rc=1 without it, that single mover), pyref rc=0; mirror-emit-sweep
 base/after rc=0 (53/53), compare `--min-files 50` rc=0 with `--expect-moved Module6_WhyMLTranspiler
 module6_whyml__expressions`; both movers L3-tc rc=0; check-self-annotate-sync.sh rc=0 (926 verbatim);
-self-annotate-mirror-check.sh rc=0 (53); run-soundness-planes.sh fast rc=0 (61/61); doc-coherency --check rc=0;
+self-annotate-mirror-check.sh rc=0 (53); run-soundness-planes.sh fast rc=0 (61/61); `--slow` rc=1, 82/84 green, the two RED
+planes PRE-EXISTING at 67edf13c and unrelated: check-getattr-erasure (no `getattr-erasure-sites.tsv` rows for route #309's
+3946/3948/3949) and check-stdlib-modules-verify (16 REFUSED vs 13 baselined: `re/__init__` PYCSL-VAL-ARG-UNFRAMED from #317,
+`dc` and `os/__init__` refused by #252's erased-slot rule — each reproduced emit-only on the base worktree; no stdlib module
+constructs a collections map or calls itertools, and no refusal of this repair fires there); doc-coherency --check rc=0;
 check-assumed-facts rc=0; check-trusted-raises-honesty rc=0 (17 declared / 61 silent, ratchet 61 — it read 63 > 61
 until the two mirror stubs declared `#@ raises`); check-refusal-witness-coverage (no flags) rc=0 (270 demonstrated, 5
 undemonstrated = ceiling) after 21 rows appended via `_census_row` (16 REFUSAL, 5 VERIFY-FAIL).
