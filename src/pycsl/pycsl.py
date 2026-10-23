@@ -1181,6 +1181,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _r322_names[str(_im322[0])] = f"{_im322[2]}.{_im322[1]}"
         elif not _im322[4] and _im322[2] == "sys" and _im322[1] == "float_info":
             _r322_names[str(_im322[0])] = "sys.float_info"
+        elif not _im322[4] and _im322[1] == "*" and _im322[2] in ("math", "cmath", "sys"):
+            # `from math import *` binds every constant by its bare name (MEASURED: `pi % 1
+            # == 0` PROVED through `val constant pi : int`); any read of such a name refuses.
+            for _f322 in (("float_info",) if _im322[2] == "sys" else sorted(_r322_floats)):
+                _r322_names[_f322] = f"{_im322[2]}.{_f322}"
     if _r322_mods or _r322_names:
         _st322 = [_v322 for _k322, _v322 in ir_data.items() if _k322 != "imports"]
         # A MODULE- or CLASS-level binding (`PI = math.pi`) is not in the IR at all: the
@@ -1207,6 +1212,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         and isinstance(_a322.ctx, _ast322.Load)
                         and _a322.id in _r322_names):
                     _st322.append({"type": "Var", "name": _a322.id})
+                elif (isinstance(_a322, _ast322.Call)
+                        and isinstance(_a322.func, _ast322.Name)
+                        and _a322.func.id == "getattr" and _a322.args
+                        and isinstance(_a322.args[0], _ast322.Name)
+                        and _a322.args[0].id in _r322_mods):
+                    _st322.append({"type": "Call", "func": "getattr", "args": [
+                        {"type": "Var", "name": _a322.args[0].id},
+                        ({"type": "String", "value": _a322.args[1].value}
+                         if (len(_a322.args) > 1
+                             and isinstance(_a322.args[1], _ast322.Constant)
+                             and isinstance(_a322.args[1].value, str))
+                         else {"type": "Var", "name": "?"})]})
         while _st322:
             _n322 = _st322.pop()
             if isinstance(_n322, list):
@@ -1225,6 +1242,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _hit322 = "sys.float_info"
             elif _n322.get("type") == "Var" and _n322.get("name") in _r322_names:
                 _hit322 = _r322_names[_n322.get("name")]
+            elif (_n322.get("type") == "Call" and _n322.get("func") == "getattr"
+                    and isinstance(_n322.get("args"), list) and _n322["args"]
+                    and isinstance(_n322["args"][0], dict)
+                    and _n322["args"][0].get("type") == "Var"
+                    and _n322["args"][0].get("name") in _r322_mods):
+                # `getattr(math, "pi")` reads the same constant through an opaque
+                # `pycsl_getattr_missing_* : int` (MEASURED: `% 1 == 0` PROVED); a
+                # non-literal attribute name may name it too.
+                _m322 = _r322_mods[_n322["args"][0]["name"]]
+                _a2322 = _n322["args"][1] if len(_n322["args"]) > 1 else None
+                _an322 = (_a2322.get("value") if isinstance(_a2322, dict)
+                          and _a2322.get("type") == "String" else None)
+                if (_an322 is None
+                        or (_m322 in ("math", "cmath") and _an322 in _r322_floats)
+                        or (_m322 == "sys" and _an322 == "float_info")):
+                    _hit322 = f"getattr({_m322}, {_an322 or '<non-literal>'})"
             if _hit322 is not None:
                 raise _PyCSLSemanticError(
                     f"{args.file}: PYCSL-R322-FLOAT-MODULE-CONSTANT (route #322) — "
