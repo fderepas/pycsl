@@ -1,5 +1,11 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #311-#315 OPENED (red team 15; 23 witnesses, 9 driver-reproduced rc=0 on main 65b22999, CPython violates):
+##   #311 slice bounds evaluated right-to-left; #312 slice/sorted/list_new operand coerced to (any int) drops its calls;
+##   #313 dict/set values lowered to (any_map ()) drop effects (display args, dict-returning calls, field stores);
+##   #314 str-method keyword arguments dropped; #315 __init__ bodies never emitted/verified (argument mutations,
+##   callee preconditions, explicit __init__ contracts all ignored).
+
 ## gen #37 (2026-10-23): #310 REPAIRED (r310 executor, off 09e2b7c9; inline; no new def/field; ledger 3; mirror twins `\trusted`;
 ##   no IR change). An erased value is still EVALUATED: an effectful display (route #307's predicate) bound to a tuple/set
 ##   local -> `(let _ = <display> in (any int))`; one coerced / `len`-folded / dropped inside an expression -> `let _ =
