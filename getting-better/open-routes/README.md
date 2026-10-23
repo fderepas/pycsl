@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #310 (a tuple assigned to a name is havocked to `(any ..)`, dropping the effects of calls inside it)
+##   OPENED (r307 executor census); witness rc=0, CPython violates.
+
 ## gen #37 (2026-10-23): #306 REPAIRED (r306 executor, off 370e1875; inline; no new def/raise; no IR change; ledger 3; mirror twins
 ##   `\trusted` or absent). A non-atomic `.get` default (not a literal / name / empty collection) is let-bound BEFORE the lookup,
 ##   a non-atomic key before it (Python order): body/param dict, self-field dict, hval (plain + R5 + K7), module-const str dict
