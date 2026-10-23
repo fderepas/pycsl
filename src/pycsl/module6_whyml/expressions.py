@@ -20270,6 +20270,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # to return a container) is left INLINE — late, which is how Python observes
                 # its contents; if that operand is itself effectful, it can be neither bound
                 # nor left inline, and the node is REFUSED.
+                _why307: Optional[str] = None
                 for _i307 in list(_bind307):
                     _n307 = _r307_ops[_i307][1]
                     _nt307 = _n307.get("type")
@@ -20294,6 +20295,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                                      or {}).values()
                                       if isinstance(_ri307, dict)
                                       and (_ri307.get("field_value_types") or {}).get(_fd307)]
+                    elif (_nt307 == "Call" and _n307.get("func") == "getattr"
+                          and len(_n307.get("args") or []) >= 2
+                          and isinstance(_n307["args"][1], dict)
+                          and _n307["args"][1].get("type") == "String"):
+                        _fd307 = _n307["args"][1].get("value")
+                        _ty307 = [str((_ri307.get("field_types") or {}).get(_fd307))
+                                  for _ri307 in (getattr(self, "_record_types", {}) or {}).values()
+                                  if isinstance(_ri307, dict)
+                                  and _fd307 in (_ri307.get("field_types") or {})]
                     elif _nt307 == "Call" and isinstance(_n307.get("func"), str):
                         _ra307 = getattr(self, "_module_method_return_annotations", {}) or {}
                         _tl307 = _n307["func"].rsplit(".", 1)[-1]
@@ -20305,25 +20315,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             "[")[0].strip() in ("dict", "list", "set", "defaultdict", "deque",
                                                 "bytearray", "counter", "ordereddict",
                                                 "mutablemapping", "mutablesequence",
-                                                "mutableset")
+                                                "mutableset", "mapping", "sequence",
+                                                "abstractset", "collection", "iterable")
                            for _t307 in _ty307):
-                        if _eff307[_i307][0]:
-                            raise PyCSLIRError(
-                                "an EFFECTFUL operand that evaluates to a mutable container is "
-                                "followed by an operand Python evaluates after it; binding it "
-                                "would snapshot the container (Why3 models it as a value) and "
-                                "leaving it in place would run its effects after the later "
-                                "operand (Why3 evaluates application arguments right-to-left) "
-                                "(route #307). FIX: assign that operand to a local first.")
+                        if _eff307[_i307][0] and _why307 is None:
+                            _why307 = (
+                                "an EFFECTFUL operand evaluates to a mutable container and is "
+                                "followed by an operand Python evaluates after it: binding it "
+                                "would snapshot the container (Why3 models it as a value), "
+                                "leaving it in place would run its effects late. FIX: assign "
+                                "that operand to a local first.")
                         _bind307.remove(_i307)
-                if _bind307 and _r307_d.get("_pycsl_range_hdr"):
-                    raise PyCSLIRError(
-                        "`for ... in range(start, stop)` whose `start` must be evaluated "
-                        "before an effectful `stop` (or is itself effectful before a `stop` "
-                        "that reads state) is not modelled: the loop header evaluates `stop` "
-                        "first (route #307). FIX: bind `start` and `stop` to locals before the "
-                        "loop, in that order.")
-                if _bind307:
+                if _bind307 and _r307_d.get("_pycsl_range_hdr") and _why307 is None:
+                    _why307 = (
+                        "`for ... in range(start, stop)` needs `start` evaluated before an "
+                        "effectful `stop` (or is itself effectful before a `stop` that reads "
+                        "state), and the loop header evaluates `stop` first. FIX: bind `start` "
+                        "and `stop` to locals before the loop, in that order.")
+                if _bind307 and _why307 is None:
                     _md307: Dict[str, Any] = dict(_r307_d)
                     _h307 = stable_hash(repr(_r307_d))
                     _lets307: List[Tuple[str, str]] = []
@@ -20357,17 +20366,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                 and _s307 and _s307 not in _body307):
                             continue
                         if not re.search(r"\b" + _nm307 + r"\b", _body307):
-                            raise PyCSLIRError(
-                                "an operand that Python evaluates BEFORE a later effectful "
-                                "operand (a call that may write or raise, or a walrus) is not "
-                                "consumed by this construct's lowering, which would evaluate it "
-                                "AFTER that operand (Why3 evaluates application arguments "
-                                f"right-to-left) (route #307). Construct: `{_r307_k}`. FIX: "
-                                "assign the effectful operand to a local first, in the order "
-                                "Python evaluates it.")
-                    for _nm307, _s307 in reversed(_lets307):
-                        _body307 = f"(let {_nm307} = {_s307} in {_body307})"
-                    return _body307
+                            _why307 = (
+                                f"the lowering of this `{_r307_k}` re-derives an operand Python "
+                                "evaluates BEFORE a later effectful operand from its shape "
+                                "instead of consuming its binder, so it would run AFTER that "
+                                "operand. FIX: assign the effectful operand to a local first.")
+                            break
+                    if _why307 is None:
+                        for _nm307, _s307 in reversed(_lets307):
+                            _body307 = f"(let {_nm307} = {_s307} in {_body307})"
+                        return _body307
+                if _why307 is not None:
+                    # ONE refusal site for every route-#307 shape that cannot be sequenced.
+                    raise PyCSLIRError(
+                        "operand evaluation order is not modelled here: Python evaluates "
+                        "operands LEFT-TO-RIGHT, Why3 evaluates application arguments "
+                        "RIGHT-TO-LEFT (route #307): " + _why307)
         # ROUTE #40 (relaunch #46) — THE `...` LITERAL IS NOT THE INTEGER ZERO.
         #
         #   Module 5 lowers `...` to `{"type":"Number","value":0,"py_ellipsis":True}`

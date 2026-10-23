@@ -1304,3 +1304,27 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 3811_gen37_r306_hval_get_default_divzero.py	VERIFY-FAIL	
 3813_gen37_r306_max_default_callee_refused.py	REFUSAL	`max(..., default=...)` is not modelled: a builtin's keyword arguments are DISCARDED by its lowering, so the builtin would be modelled as if the keyword were absent while the run still reported 'All contracts formally proven'. Measured: `sorted(xs, reverse=True)` proved ASCENDING order and `sum(xs, start=10)` proved `== 3` (CPython: descending; 13) (route #275). The keyword spellings that ARE modelled: `sorted` with `reverse=<bool literal>` and `key=None` or a lambda whose body invokes nothing; `max`/`min` with a `default` that is a literal, a name or an empty collection (route #306); `print` with `sep`/`end` (str literal or None), `flush` (bool literal) and `file=sys.stdout`/`sys.stderr`.
 3812_gen37_r306_constdict_get_default_index.py	VERIFY-FAIL	
+3890_gen37_r307_g04_method_self_order.py	VERIFY-FAIL	
+3891_gen37_r307_g05_field_read_then_call.py	VERIFY-FAIL	
+3892_gen37_r307_g06b_walrus_rtl.py	VERIFY-FAIL	
+3893_gen37_r307_o01b_binop_rtl.py	VERIFY-FAIL	
+3894_gen37_r307_o02b_binop_sub_rtl.py	VERIFY-FAIL	
+3895_gen37_r307_o10_call_args.py	VERIFY-FAIL	
+3896_gen37_r307_o12_cmp.py	VERIFY-FAIL	
+3897_gen37_r307_q01b_exc_order.py	VERIFY-FAIL	
+3898_gen37_r307_q05_if_cond.py	VERIFY-FAIL	
+3899_gen37_r307_q08b_ret_read_after_call.py	VERIFY-FAIL	
+3900_gen37_r307_q10_aug_elem_call.py	VERIFY-FAIL	
+3901_gen37_r307_q11_aug_field_call.py	VERIFY-FAIL	
+3902_gen37_r307_q14_dict_read_then_call.py	VERIFY-FAIL	
+3903_gen37_r307_q16_walrus_lhs.py	VERIFY-FAIL	
+3906_gen37_r307_q17c_range_len.py	VERIFY-FAIL	
+3907_gen37_r307_q18_walrus_arg.py	VERIFY-FAIL	
+3908_gen37_r307_r01_dict_lit.py	VERIFY-FAIL	
+3909_gen37_r307_r02_min_builtin.py	VERIFY-FAIL	
+3910_gen37_r307_r08_list_index_read_after.py	VERIFY-FAIL	
+3911_gen37_r307_t04_ret_tuple.py	VERIFY-FAIL	
+3912_gen37_r307_t05_if_walrus.py	VERIFY-FAIL	
+3904_gen37_r307_q17_range_args.py	REFUSAL	operand evaluation order is not modelled here: Python evaluates operands LEFT-TO-RIGHT, Why3 evaluates application arguments RIGHT-TO-LEFT (route #307): `for ... in range(start, stop)` needs `start` evaluated before an effectful `stop` (or is itself effectful before a `stop` that reads state), and the loop header evaluates `stop` first. FIX: bind `start` and `stop` to locals before the loop, in that order.
+3905_gen37_r307_q17b_range_first_iter.py	REFUSAL	operand evaluation order is not modelled here: Python evaluates operands LEFT-TO-RIGHT, Why3 evaluates application arguments RIGHT-TO-LEFT (route #307): `for ... in range(start, stop)` needs `start` evaluated before an effectful `stop` (or is itself effectful before a `stop` that reads state), and the loop header evaluates `stop` first. FIX: bind `start` and `stop` to locals before the loop, in that order.
+3925_gen37_r307_effectful_container_operand_refused.py	REFUSAL	operand evaluation order is not modelled here: Python evaluates operands LEFT-TO-RIGHT, Why3 evaluates application arguments RIGHT-TO-LEFT (route #307): an EFFECTFUL operand evaluates to a mutable container and is followed by an operand Python evaluates after it: binding it would snapshot the container (Why3 models it as a value), leaving it in place would run its effects late. FIX: assign that operand to a local first.
