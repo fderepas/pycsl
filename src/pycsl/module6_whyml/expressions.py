@@ -20222,9 +20222,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _eff307.append((_ef307, _wal307))
                 _last307 = max((_i307 for _i307, (_e307, _w307) in enumerate(_eff307) if _e307),
                                default=-1)
-                # INERT operands: a literal (or a unary op on a numeric literal, `-1`), or a
-                # read of a LOCAL when no operand of the node
-                # contains a walrus (a call cannot rebind a caller's local). An inert operand
+                # INERT operands: a literal (or a unary op on a numeric literal, `-1`, or a
+                # list/tuple/set display of literals), or a NAME read when no operand of the
+                # node contains a walrus: a call cannot rebind a caller's local, and a module
+                # global is rebound only through `global`, which is refused unless `#@ shared`
+                # (a `#@ shared` name is NOT inert: a call may write it; a mutable container
+                # behind an inert name is observed late, as in Python —
+                # see REFERENCE vs VALUE below). An inert operand
                 # is never bound, and an operand followed only by inert operands needs no
                 # binding (nothing after it can observe or be observed by it).
                 _any_wal307 = any(_w307 for _e307, _w307 in _eff307)
@@ -20235,8 +20239,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                   and isinstance(_o307[1].get("expr"), dict)
                                   and _o307[1]["expr"].get("type") in ("Number", "Bool"))
                               or (_o307[1].get("type") == "Var" and not _any_wal307
-                                  and _o307[1].get("name") in
-                                  (getattr(self, "_current_symbol_table", None) or {})))
+                                  and _o307[1].get("name") not in
+                                  (getattr(self, "_shared_var_names", None) or set()))
+                              or (_o307[1].get("type") in ("ArrayLit", "Tuple", "SetLit",
+                                                           "MkTuple")
+                                  and all(isinstance(_l307, dict) and _l307.get("type") in (
+                                      "Number", "String", "Bool", "None")
+                                          for _l307 in (_o307[1].get("elts") or []))))
                              for _o307 in _r307_ops]
                 _bind307: List[int] = [
                     _i307 for _i307 in range(min(_last307, len(_r307_ops) - 2) + 1)

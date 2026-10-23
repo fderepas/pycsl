@@ -3648,6 +3648,34 @@ reached from `_handle_len_call`.
 
 ---
 
+### §T.6.18  Operand evaluation order (route #307)
+
+Python evaluates the operands of an operator, the receiver and arguments of a call, the
+elements of a literal and the parts of an f-string LEFT-TO-RIGHT. Why3 evaluates the
+arguments of an application (and the operands of an infix operator, and the components of a
+tuple) RIGHT-TO-LEFT — measured on Why3 1.8.2: `sub (x := 1; !x) !x` is 1, and in
+`(raise E) + (x := 1; !x)` the write happens before the raise. Emitted as one nested
+application, `x - (x := 1) + 1` proved `\result == 1` (CPython 0).
+
+$\mathcal{T}_e$ therefore sequences an n-ary program node (binary operator other than the lazy
+`and`/`or`, string concatenation, subscript, slice, call with its receiver and keyword
+arguments, tuple/list/set/dict literal, f-string) whose operand $k$ is EFFECTFUL — it
+contains a walrus, a `yield`/`await`, or a call not known pure (a module function or `self.`
+method whose contract is `assigns \nothing` with no `raises`, or a builtin / `str`-`dict` query
+method no user function shadows):
+
+$$\mathcal{T}_e(op(e_0,\dots,e_{n-1})) = \texttt{let } t_0 = \mathcal{T}_e(e_0) \texttt{ in } \dots \texttt{ let } t_j = \mathcal{T}_e(e_j) \texttt{ in } op(t_0,\dots,t_j,\mathcal{T}_e(e_{j+1}),\dots)$$
+
+for the operands $e_i$, $i \le \min(k, n-2)$, that are not INERT (a literal, a unary operator
+on a numeric literal, or a read of a local when the node contains no walrus) and are followed
+by a non-inert operand. An operand with evidence of a mutable-container type (a dict/list/set
+field, element or call result) stays inline: Python observes a container's contents when it
+is CONSUMED, and Why3 models dicts/sets/growable lists as values, so a binder would snapshot
+it. REFUSED (PyCSLIRError, "route #307"): an effectful container operand that would need
+binding; a dict literal or a `for ... in range(start, stop)` header that needs sequencing
+(both are rebuilt outside the expression emitter); and any construct whose lowering does not
+consume a bound operand. Spec contexts are untouched (logic terms have no effects).
+
 ## §T.7  Memory Models
 
 _Corresponds to `annotations.md` §5._
