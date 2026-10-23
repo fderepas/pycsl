@@ -806,3 +806,87 @@ convert ctx (expected L3-tc clean; whole-file proof of expressions.py would be o
 Soundness: none found (fail-closed throughout; route #252, #280, MCYCLE all fire as designed).
 Gates: no source change, so no battery run; `check-trusted-reasons.py` rc0 (420 <-> 420),
 `grep -cF '#@ \trusted'` sum 448 (unchanged). Witness IDs 3830-3859 unused. OWED: none.
+
+## Re-measurement at HEAD — ch36 (gen #37)
+
+Measured 2026-10-23 on worktree `pycsl-g37ch36` (base `f99d3575`). Scope: ranked-next item 3,
+MUTRECV (41 markers). Method: `census.py --keep-msig` full chain (no `--first`) on a scratch copy
+of `src/` (verified identical to `src/` afterwards); past each MUTRECV blocker the census applies
+its existing measurement rewrites (`x = r.pop()` -> `x = r[-1]`, `r.setdefault(k, v)` ->
+`r.get(k, v)`, statement mutators -> `pass`), so the chain shows what a faithful arm would leave
+behind. Rows: `ch36-chains.jsonl` (40 rows; the 41st, `_handle_dotted_call` `del _ops186[:]`,
+455 stmts, not re-measured: L by size). **Result: REFUTATION EXIT -- 0 conversions (420 -> 420),
+no source change.**
+
+Census by (method, receiver kind) of the 41 first blockers:
+
+| arm | receiver | markers |
+|---|---|---|
+| `.pop()` / `.pop(0)` | local list | 11 (`bases_closure`, `_collect_union_arms`, `_render_callee_condition`, `_parse_rocq_file`, `_content_string_method`, `_handle_fstring_expr`, `_stmts_to_whyml`, `_emit_type_decls`, `_handle_subscript`, `_expand_happy_properties`, `_sexp_parse`) |
+| `.extend` | local list 7 / self-field 1 | 8 |
+| `.update` | local set 3 / hashlib 1 | 4 |
+| `.pop(k, None)` | local dict 2 / self-field dict 2 | 4 |
+| `.setdefault` | local dict 1 / param 1 / self-field 1 | 3 |
+| `.add` / `.append` | self-field set/list | 5 |
+| `.insert` 2, `.reverse` 1, `.sort` 1, `.discard` 1, slice `del` 1 | local | 6 |
+
+Largest arm = local-list `.pop()` (11). Its full chains (blocker(s) behind the pop):
+
+| marker | stmts | chain behind `.pop()` | verdict |
+|---|---|---|---|
+| `bases_closure` | 10 | `.extend` (same worklist), `list(<dict>.get(.., ()))` tuple vs int, `set()` map vs int, `seen.add`, `b in seen` | SET/TUPLE (M) |
+| `_collect_union_arms` | 23 | `arms.reverse()`, then 4 return-type walls (list of `ast.Attribute` vs union record) -> TCOK only after neutralising every return | RECORD (L) |
+| `_render_callee_condition` | 26 | `.extend`, dict `.pop(k, None)`, `except Exception` meant to catch `PyCSLSemanticError` (route #175 refusal) | EXC (M) |
+| `_parse_rocq_file` | 41 | 2 more `.pop()`, `path.read_text()` int vs string, `s.split()` array, `':=' in toks` | LISTSTR (M) |
+| `_content_string_method` | 55 | `.extend`, ir-semantic WRITE refusals on `self._expr_to_whyml` x3, `_is_string_expr` | OPAQUEWRITE (L) |
+| `_handle_fstring_expr` | 84 | `.extend` x2, nested `def _part` (unfaithful lift), ir-semantic | NESTED (M/L) |
+| `_stmts_to_whyml` | 114 | 2nd `.pop()`, `.extend` x4, MCYCLE | MCYCLE (L) |
+| `_emit_type_decls` | 318 | set `.update`, self-field `.add` x3, nested defs x2, ELEMSTORE | L |
+| `_handle_subscript` | 319 | `.extend` x2, `.update`, emit_ir erasure x9 (CAP-ROUNDS) | L |
+| `_expand_happy_properties` | 335 | APPENDLEN, `.sort`, TUPALIAS, 2 more `.pop()` (CAP-ROUNDS) | L |
+| `_sexp_parse` (`pop(0)`) | 15 | 2nd `pop(0)`, `out: List[object]` seq vs int | ERASED/LISTSTR (M) |
+
+Every `.pop()` chain has an M/L blocker behind; 7/11 also need `.extend` on the same receiver
+(the worklist idiom), so even a combined pop+extend arm makes none honest.
+
+Other arms (full chain, `--keep-msig`):
+
+| marker | arm | chain behind | verdict |
+|---|---|---|---|
+| `_maybe_emit_no_exception_assert` | set `.update` | `exc_name not in active` (set membership type wall); TCOK after, but facade marks getattr 3 / hash 3 / zeroary 1 (`getattr(self, "_in_spec", False)`, `template.format(*..)`) | FACADE (nearest miss) |
+| `_wrap_call_with_callee_raises_assert` | set `.update` | `self.ir.get('functions')` array vs int, `&=` set, `_module_func_*` maps x2, membership | DICT (L) |
+| `_inline_calls` | set `.update` | ELEMSTORE | L |
+| `_sha256_file` | `hashlib.update` | `hashlib.sha256()` int vs string | EXT (not a collection) |
+| `_extract_happy_properties` | `.extend` | dict-param store `contracts_map[line] = kept` (MUTPARAM), list-comp | FACADE |
+| `_hoist_calls_in_expr` / `inline_stmts` | `.extend` | MCYCLE self-recursion + `{**node, ..}` dict returns, pyval, ELEMSTORE | DICT (L) |
+| `pure_ast.parse` | `.extend` | Why3: unbound symbol `pycsl_py_eq` (emitter gap, fail-closed) | M |
+| `parse_format` | `.extend` x2 | Why3: "top-level exception Return__union_parse_format_0 has mutable components" (fail-closed) | M |
+| `_flatten_foralls` | `.extend` | `term` ADT vs int x5, MCYCLE | L |
+| `_parse_lean_file` | `.extend` | 2 more `.pop()`, str/array walls | LISTSTR (M) |
+| `_index_proofs_dir_by_file` / `_record_classification` / `_add_abstract_op` | `.setdefault` | `dict` map vs int, ERASED callee; ELEMSTORE x2 | DICT/ELEMSTORE (M/L) |
+| `_specialize_decl` / `_specialize_function` | dict `.pop(k, None)` | ir-semantic RAISES refusals, ELEMSTORE | L |
+| `_pop_quant_binder` / `_emit_module_globals` | self dict `.pop(k, None)` | tuple-unpack of a union, write in pure position; ELEMSTORE | M/L |
+| `ConcurrencyChecker.check` | self set `.add` | record-list field walls x4; TCOK after, facade getattr 4 / hash 4 | FACADE |
+| `_Harvester._build` | self list `.append` | MCYCLE self-recursion in a list-comp store (`tgt.child_suites = [self._build(..)]`) | MCYCLE (L) |
+| `visit_Module` / `_precompute_axiom_logic_funcs` / `_normalize_literal_annotation` | self `.add` / `.append` | APPENDLEN, nested `def _walk`, record/emit_ir walls | L |
+| `_Unparser.write` | self list `.extend` | TCOK but FACADE (body = the erased `self._source` effect only) | FACADE |
+| `_linearize_app` | `.insert(0, ..)` | TCOK, but mirror sig `ast: int`: `isinstance(cur, dict)` / `cur["arg"]` over an int-erased JSON dict (anyval 1, hash 3); `while` over `cur = cur["fn"]` has no model variant | FACADE |
+| `_detect_seq_promotion` | set `.discard` | `func_ir` int, subscript-assign refusals x14 (CAP) | L |
+| `_py_expr_call` / `_str_literal_helper` / `_insert_abstract_val_block` | `.reverse` / `.sort` / `.insert` | set `&`, nested def, str/array walls (CAP) | M/L |
+
+Refutation: no MUTRECV arm (alone, or pop+extend combined) makes any of the 40 measured markers
+honest; the short TCOK-after-arm rows (`_maybe_emit_no_exception_assert`, `check`, `write`,
+`_linearize_app`, `_extract_happy_properties`) are facades over getattr/hash/int-erased inputs.
+The certified `.pop()` lowering was therefore NOT implemented (it would add emitter surface and a
+`len > 0` IndexError obligation with zero markers converted). The real walls behind MUTRECV are
+the value-model ones already ranked (SET/DICT membership, ERASED JSON dicts, MCYCLE, ELEMSTORE).
+Option for a later generation: a seq-local `.pop()` arm (`let v = Seq.get !s (len-1) in s :=
+Seq.([..]) !s 0 (len-1)`, `assert { 0 < Seq.length !s }` under `no_exception IndexError`) only
+together with a SET membership model, which is what `bases_closure` and the `.update` rows need.
+
+Soundness: none found. Two fail-closed emitter gaps observed (Why3 rejects, no false PASS):
+`pure_ast.parse` ported body -> unbound `pycsl_py_eq`; `struct_format.parse_format` -> a
+`Return__union_*` exception with mutable components. Repro: `census.py <scratch-tree> out.jsonl
+--keep-msig --only frontend/pure_ast.py::parse` (resp. `module6_whyml/struct_format.py::parse_format`).
+Gates: no source change, so no battery run; `check-trusted-reasons.py` rc0 (420 <-> 420),
+`grep -cF '#@ \trusted'` sum 448 (unchanged). Witness IDs 3860-3889 unused. OWED: none.
