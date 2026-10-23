@@ -1524,7 +1524,7 @@ lowered default. A receiver whose class is unknown, or a non-literal attribute n
 with such a default is refused with `PYCSL-SEM-GETATTR-DEFAULT-R309` (it used to be ONE
 constant `pycsl_getattr_default_<hash>` shared by every receiver); with a literal
 default it is the per-site, state- and receiver-keyed opaque read of routes
-#197/#213/#239. A walrus in such a default is refused. Witnesses `3940`-`3946`;
+#197/#213/#239. A walrus in such a default is refused (`3950`). Witnesses `3940`-`3946`;
 controls `3947`-`3949`.
 
 ---

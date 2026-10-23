@@ -5,7 +5,6 @@ class K:
     def __init__(self, v: int) -> None:
         self.n = v
 
-#@ ensures \result == 0
 def z() -> int:
     return 0
 

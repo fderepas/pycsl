@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-23): #308 + #309 REPAIRED (r308 executor, off 35748ef0; inline; no new def; ledger 3). #308: Module 5
+##   records (`aug_target_refused`, the #301 pattern) and Module 6 refuses (`PYCSL-SEM-AUGASSIGN-R308`) a `c[k] op= v` /
+##   `p.f op= v` whose container/index has an effect, or reads mutable state while `v` has one; census 0 of 81 refused.
+##   #309: a non-trivial getattr default is sequenced before the field read (ctor locals via the `c = C()` scan), IS the
+##   answer for an absent attribute, REFUSED (`PYCSL-SEM-GETATTR-DEFAULT-R309`) for an unknown receiver / non-literal name;
+##   an empty-collection default on an unknown receiver -> the receiver-keyed device (no shared constant). Witnesses
+##   3930-3936 / 3940-3946 PROVED -> REFUSED/FAIL (3935/3944/3950 FAIL -> REFUSED); controls 3937-3939, 3947 PASS both,
+##   3948/3949 FAIL -> PASS. Root 1 MOVED (2760, FAIL = label), pyref 0/0/0, mirror 3 MOVED (desugar, exec_splice,
+##   functions; L3-tc ok). Residuals: seeded-map constant (L3-tc-closed), `pycsl_nonempty_<name>`, load-vs-v order (#307).
 ## gen #37 (2026-10-23): #307 REPAIRED (r307 executor, off f48adff0; inline at the `_expr_to_whyml` choke point (`\trusted` twin) + the
 ##   dict-literal folds (no twin); no new def/field; one new raise site; no IR change; ledger 3). Why3 1.8.2 measured RIGHT-TO-LEFT
 ##   for application args, infix operands, tuples, raise-vs-write. An n-ary program node whose later operand is effectful (walrus,
