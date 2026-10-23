@@ -6391,6 +6391,77 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         f"answering incorrectly; unpack by index (`t = e[len(e) - 1]`, "
                         f"`u = p[0]`, `v = p[1]`) or bind a flat tuple of names first.")
                     break
+        # (#308) ROUTE #308 — `c[k] op= v` EVALUATES THE CONTAINER AND THE INDEX TWICE.
+        # `_py_stmt_augassign` desugars `c[k] op= v` to `ArraySet(c, k, BinOp(c[k], v))`
+        # (and `p.f op= v` to `FieldAssign(p, f, BinOp(p.f, v))`), lowering `c` and `k`
+        # TWICE, and Why3 evaluates the store's arguments right to left (v, then k, then
+        # c). Python evaluates c, k ONCE, then loads c[k], then v. MEASURED: `ys[nxt(cnt)]
+        # += 1` emitted `ys[(nxt cnt)] <- (ys[(nxt cnt)] + 1)` and PROVED `cnt[0] == 2`
+        # (CPython 1) and a store into the wrong slot (witnesses 3930-3934). The desugar
+        # is EXACT when (a) the container and index have no effect — every node is a name,
+        # literal, arithmetic, attribute / subscript read, or a call of the pure builtins
+        # `len`/`abs` — and (b) when `v` has an effect (a call, walrus, await, yield), they
+        # also read no state `v` could change: only locals / parameters / `self`, literals
+        # and `+ - *` (no attribute, subscript or call — `v` may reassign `self.xs` or
+        # append to the list `len` reads), and no walrus in `v` rebinds one of those
+        # names. Anything else is REFUSED (PYCSL-SEM-AUGASSIGN-R308), recorded here as
+        # `aug_target_refused` and raised by Module 6 when it lowers the body (#301's
+        # pattern). CENSUS (both corpora, the mirror, pycsl_lib, tests): 81 subscript /
+        # attribute augmented targets, all effect-free with an effect-free `v` -> 0 refused.
+        # Inline (no helper: lesson a4; the mirror twin of `_py_stmt_augassign` stays
+        # untouched).
+        _aug308: Optional[str] = None
+        for _n308 in ast.walk(node):
+            if _aug308 is not None:
+                break
+            if not (isinstance(_n308, ast.AugAssign)
+                    and isinstance(_n308.target, (ast.Subscript, ast.Attribute))):
+                continue
+            _t308 = _n308.target
+            _r308: List[Any] = [_t308.value]
+            if isinstance(_t308, ast.Subscript):
+                _r308.append(_t308.slice)
+            _veff308 = any(isinstance(_x308, (ast.Call, ast.NamedExpr, ast.Await,
+                                              ast.Yield, ast.YieldFrom))
+                           for _x308 in ast.walk(_n308.value))
+            _wal308 = {_x308.target.id for _x308 in ast.walk(_n308.value)
+                       if isinstance(_x308, ast.NamedExpr)
+                       and isinstance(_x308.target, ast.Name)}
+            _bad308 = None
+            for _p308 in _r308:
+                for _x308 in ast.walk(_p308):
+                    if (isinstance(_x308, (ast.NamedExpr, ast.Await, ast.Yield,
+                                           ast.YieldFrom, ast.Lambda, ast.ListComp,
+                                           ast.SetComp, ast.DictComp, ast.GeneratorExp))
+                            or (isinstance(_x308, ast.Call)
+                                and not (isinstance(_x308.func, ast.Name)
+                                         and _x308.func.id in ("len", "abs")
+                                         and _x308.func.id not in symbol_table
+                                         and not _x308.keywords))):
+                        _bad308 = "the target's container or index has a side effect"
+                    elif _veff308 and not (
+                            isinstance(_x308, (ast.Constant, ast.BinOp, ast.UnaryOp,
+                                               ast.Add, ast.Sub, ast.Mult, ast.USub,
+                                               ast.UAdd, ast.Load))
+                            or (isinstance(_x308, ast.Name)
+                                and (_x308.id in symbol_table or _x308.id == "self")
+                                and _x308.id not in _wal308)):
+                        _bad308 = ("the right-hand side has a side effect and the "
+                                   "target's container or index reads state it may change")
+                    if _bad308 is not None:
+                        break
+                if _bad308 is not None:
+                    break
+            if _bad308 is not None:
+                _aug308 = (
+                    f"function '{node.name}': `{ast.unparse(_n308)}` (line "
+                    f"{getattr(_n308, 'lineno', 0)}): {_bad308}. Python evaluates the "
+                    f"container and the index ONCE, then loads the element, then the "
+                    f"right-hand side; the `c[k] = c[k] op v` desugar evaluates them twice "
+                    f"and after the right-hand side (route #308; measured: `ys[nxt(cnt)] "
+                    f"+= 1` proved `cnt[0] == 2` while CPython has 1). Refusing instead of "
+                    f"answering incorrectly; bind the container and the index to locals "
+                    f"first (`i = nxt(cnt); ys[i] += 1`).")
         return_annotation = None
         return_value_type = None
         is_noreturn = False
@@ -6878,6 +6949,8 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # (#301) a dropped unpacking / loop target shape (refused by Module 6 when
             # it lowers this body). Absent for every other function -> byte-identical IR.
             **({"unpack_target_refused": _unpack301} if _unpack301 else {}),
+            # (#308) an augmented store whose desugar evaluates the target twice.
+            **({"aug_target_refused": _aug308} if _aug308 else {}),
             # W8 (ii): name of the `*vals: str` vararg parameter (`seq string`), or
             # absent. Omitted for every function without a str-annotated vararg.
             **({"vararg_str_param": _vararg_str} if _vararg_str else {}),

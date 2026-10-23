@@ -1498,6 +1498,35 @@ Reference cases: `pycsl-reference/0242` (single-param), `0243` (multi-param),
 `0745` (lexical capture) — all Valid. Passing a lambda *as a function argument*
 is not supported (a documented Phase-8 non-goal).
 
+### 7.6 Augmented Assignment to a Subscript or Field (route #308)
+
+`c[k] op= v` is lowered as `c[k] = c[k] op v` and `p.f op= v` as `p.f = p.f op v`,
+which reads the container and the index TWICE and after `v`. Python evaluates `c` and
+`k` once, then loads `c[k]`, then `v`. The desugar is kept only where both orders agree:
+the container and index contain no call (other than `len`/`abs`), walrus, `await`,
+`yield`, lambda or comprehension, AND — when `v` itself has an effect (a call, walrus,
+`await`, `yield`) — they read only locals, parameters, `self`, literals and `+ - *`,
+with no walrus in `v` rebinding one of them. Anything else is refused with
+`PYCSL-SEM-AUGASSIGN-R308` (raised when the body is lowered; `\trusted`/abstract bodies
+are never lowered): bind the index first, `i = nxt(cnt); ys[i] += 1`. Witnesses
+`3930`-`3936`, controls `3937`-`3939`. (`f().n op= v` and `a[i].f op= v` were already
+refused — route #23.)
+
+### 7.7 `getattr(o, name, default)` (route #309)
+
+Python evaluates `o`, `name` and the default BEFORE the lookup, whether or not the
+attribute exists. A default that is not a literal, a name, a negative number, an empty
+collection or an argument-less builtin constructor (`set()`, `dict()`, ...) is
+sequenced first (`let _ = <default> in o.f`) when the receiver's class is known (a
+typed parameter / local, `self`, or a constructor-assigned local `a = K(...)`) and
+declares the literal attribute name; when it does not declare it, the answer IS the
+lowered default. A receiver whose class is unknown, or a non-literal attribute name,
+with such a default is refused with `PYCSL-SEM-GETATTR-DEFAULT-R309` (it used to be ONE
+constant `pycsl_getattr_default_<hash>` shared by every receiver); with a literal
+default it is the per-site, state- and receiver-keyed opaque read of routes
+#197/#213/#239. A walrus in such a default is refused. Witnesses `3940`-`3946`;
+controls `3947`-`3949`.
+
 ---
 
 ## 10. Concurrent Model Annotations

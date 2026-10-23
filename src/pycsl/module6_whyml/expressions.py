@@ -14266,6 +14266,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         obj_ir = args_ir[0]
         name_ir = args_ir[1] if len(args_ir) > 1 else {}
         default_ir = args_ir[2] if len(args_ir) > 2 else {"type": "Number", "value": 0}
+        # (#49) ROUTE #309 — PYTHON EVALUATES THE DEFAULT EAGERLY, WHETHER OR NOT THE
+        # ATTRIBUTE EXISTS. `getattr(o, "f", D)` evaluates `o`, `"f"` and then `D` before
+        # the lookup; every arm below either read the field and DROPPED `D`, or replaced the
+        # whole call by `pycsl_getattr_default_<hash of D>` — ONE constant shared by every
+        # receiver. MEASURED at 35748ef0: `getattr(k, "n", inc(xs))` lost `inc`'s write
+        # (xs[0] == 0 PROVED, CPython 1), and `getattr(a, "n", z()) - getattr(b, "n", z())
+        # == 0` PROVED for `a.n = 4`, `b.n = 5` (witnesses 3940-3942). `_triv309`: a default
+        # with no effect and no raise (literal, name, negative number, empty collection
+        # literal or argument-less builtin constructor) — every site the corpus and the
+        # mirror have (census: 0 non-trivial defaults), so those stay byte-identical.
+        # Otherwise `_pre309` binds `D` first (program context only: a spec is a logic
+        # term) and every arm that answers without `D` sequences it before its read.
+        _d309t = default_ir.get("type") if isinstance(default_ir, dict) else ""
+        _triv309 = (len(args_ir) <= 2 or not isinstance(default_ir, dict)
+                    or _d309t in ("Number", "String", "Bool", "None", "Var")
+                    or (_d309t == "UnaryOp" and isinstance(default_ir.get("expr"), dict)
+                        and default_ir["expr"].get("type") == "Number")
+                    or (_d309t in ("DictLit", "SetLit", "ArrayLit", "List", "Tuple")
+                        and not default_ir.get("keys") and not default_ir.get("elts")
+                        and not default_ir.get("values") and not default_ir.get("elements"))
+                    or (_d309t == "Call" and not default_ir.get("args")
+                        and not default_ir.get("keywords")
+                        and default_ir.get("func") in ("set", "dict", "list", "frozenset",
+                                                       "tuple", "str", "int", "bool",
+                                                       "float")))
+        _pre309 = ("let _ = %s in " % args[2]
+                   if (not _triv309 and len(args) > 2
+                       and not getattr(self, "_in_spec", False)) else "")
+        if not _triv309 and "'NamedExpr'" in repr(default_ir):
+            # A walrus in the default may rebind the receiver AFTER Python read it; the
+            # sequenced read below would see the new binding. Not modelled: refused.
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                "getattr(o, name, default) with an assignment expression in the default "
+                "is not modelled (route #309: the default is evaluated after the receiver "
+                "and may rebind it) -- refused fail-closed.",
+                code="PYCSL-SEM-GETATTR-DEFAULT-R309")
         # `_compute_return_type` PATH(b): `getattr(self, "_compound_map_getter", None)`
         # reads the opaque `Optional[Dict[str, str]]` self-field -> `compound_map_getter_of
         # self : option (map string (option string))` (the option-of-map reader), NOT the
@@ -14310,6 +14347,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     attr = name_ir.get("value", "")
                     if attr in fields:
                         rec_lower = obj_type.lower()
+                        # (#49) ROUTE #309: the default runs first (`_pre309`), then the read.
+                        if _pre309:
+                            return (f"({_pre309}"
+                                    f"{whyml_ident(obj_name)}.{self._field_label(rec_lower, attr)})")
                         return f"{whyml_ident(obj_name)}.{self._field_label(rec_lower, attr)}"
             # self-tcb-reduction _typeddict_record_literal (cap-1): `getattr(self,
             # "<field>", <default>)` on a MODELED self record-field (the defensive
@@ -14345,6 +14386,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # Fail-closed: a field NOT in `_all_record_fields` still takes the
                 # default path, and a type disagreement at the use site is an L3-tc
                 # rejection (WL-02), never a silent coercion.
+                if _pre309:
+                    return (f"({_pre309}self."
+                            f"{self._field_label(self._current_self_type, name_ir['value'])})")
                 return f"self.{self._field_label(self._current_self_type, name_ir['value'])}"
         # (#44) ROUTE #22 — THE DECLARED-FIELD GUARD, AND WHY THE COMMENT BELOW WAS
         # FALSE WITHOUT IT. The fall-through emits the DEFAULT, justified by "getattr
@@ -14382,6 +14426,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _ga_labels:
                     _ga_lbl = self._field_label(_ga_rec, name_ir.get("value", ""))
                     if _ga_lbl in _ga_labels:
+                        if _pre309:
+                            return f"({_pre309}{whyml_ident(_ga_obj)}.{_ga_lbl})"
                         return f"{whyml_ident(_ga_obj)}.{_ga_lbl}"
         # THE RESIDUE, MEASURED RATHER THAN ASSUMED. Reaching here means the read was
         # NOT resolved to a declared field, and there are two very different reasons:
@@ -14544,6 +14590,76 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op("val function %s (s: int) (o: 'a) : int" % _r47)
             return "(%s !_pyobj_state %s)" % (_r47, _rv239)
         nt = default_ir.get("type") if isinstance(default_ir, dict) else ""
+        # (#49) ROUTE #309 — THE SHARED DEFAULT CONSTANT STANDS FOR THE DEFAULT ONLY WHERE
+        # THE ATTRIBUTE IS KNOWN ABSENT, AND ONLY FOR A LITERAL. The arm below answered
+        # `pycsl_getattr_default_<hash of D>` for EVERY receiver that reached here,
+        # including a constructor-assigned local (`a = K(4)`, which the symbol table does
+        # not type — route #214) whose class DECLARES the attribute: the receiver, the
+        # attribute and D's effects were all ignored. Before it:
+        #   * the receiver's class is also taken from `_current_record_var_classes` (the
+        #     `c = C()` scan method calls already use) — a declared field is then the real
+        #     read, D sequenced first; a literal name it does not declare is ABSENT;
+        #   * a NON-literal name never establishes absence (it is UNKNOWN);
+        #   * ABSENT + a non-trivial default that is not a pure literal tree is the lowered default
+        #     itself (its effects and value, nothing shared);
+        #   * UNKNOWN + a non-trivial default is REFUSED (PYCSL-SEM-GETATTR-DEFAULT-R309);
+        #     UNKNOWN + an empty-collection default takes the per-site, state- and
+        #     receiver-keyed device of the scalar arm below (routes #197/#213/#239), never
+        #     a constant shared across receivers.
+        if nt in ("DictLit", "ArrayLit", "SetLit", "Call") or not _triv309:
+            _c309 = _ga_cls
+            _l309 = None
+            if _ga_n == "<nonliteral>":
+                _c309 = "UNKNOWN"
+            elif (_c309 == "UNKNOWN" and isinstance(obj_ir, dict)
+                    and obj_ir.get("type") == "Var"):
+                _k309 = (getattr(self, "_current_record_var_classes", {}) or {}).get(_ga_o)
+                _lb309 = ((getattr(self, "_emitted_record_field_labels", {}) or {})
+                          .get(str(_k309).lower()) if _k309 else None)
+                if _lb309:
+                    _l309 = self._field_label(str(_k309).lower(), _ga_n)
+                    _c309 = "DECLARED" if _l309 in _lb309 else "ABSENT"
+            if _c309 == "DECLARED" and _l309:
+                return f"({_pre309}{whyml_ident(_ga_o)}.{_l309})"
+            _lit309 = True
+            _stk309: List[Any] = [default_ir]
+            while _stk309 and _lit309:
+                _x309 = _stk309.pop()
+                if isinstance(_x309, list):
+                    _stk309.extend(_x309)
+                elif isinstance(_x309, dict):
+                    if _x309.get("type") not in ("DictLit", "ArrayLit", "SetLit", "Tuple",
+                                                  "List", "Number", "String", "Bool",
+                                                  "None", "UnaryOp"):
+                        _lit309 = False
+                    for _kk309 in ("elts", "keys", "values", "expr", "elements"):
+                        if _kk309 in _x309:
+                            _stk309.append(_x309[_kk309])
+            if _c309 == "ABSENT" and not _lit309 and not _triv309:
+                return f"({args[2]})" if len(args) > 2 else "0"
+            if _c309 == "UNKNOWN" and not _triv309:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"getattr({_ga_o}, {_ga_n!r}, <{nt}>): the receiver's class is not "
+                    f"known (or the attribute name is not a literal), so neither the "
+                    f"attribute's presence nor its absence can be established, and the "
+                    f"default is not a literal (route #309: this lowered to ONE constant "
+                    f"shared by every receiver, dropping the default's effects; measured: "
+                    f"`getattr(a, \"n\", z()) - getattr(b, \"n\", z()) == 0` proved for "
+                    f"a.n = 4, b.n = 5). Refusing instead of answering incorrectly; read "
+                    f"the attribute directly or evaluate the default into a local first.",
+                    code="PYCSL-SEM-GETATTR-DEFAULT-R309")
+            if _c309 == "UNKNOWN":
+                _r309 = "pycsl_getattr_unknown_%d" % (stable_hash(repr(expr)) & 0xffffffff)
+                _rv309 = args[0] if args else "0"
+                if not re.fullmatch(r"!?[A-Za-z_][A-Za-z0-9_'.]*", _rv309):
+                    _rv309 = "(%s)" % _rv309
+                if not _ga_keyable:
+                    self._add_abstract_op("val function %s (o: 'a) : int" % _r309)
+                    return "(%s %s)" % (_r309, _rv309)
+                self._add_abstract_op("val _pyobj_state : ref int")
+                self._add_abstract_op("val function %s (s: int) (o: 'a) : int" % _r309)
+                return "(%s !_pyobj_state %s)" % (_r309, _rv309)
         if nt in ("DictLit", "ArrayLit", "SetLit", "Call"):
             _r47 = "pycsl_getattr_default_%d" % (
                 stable_hash(repr(default_ir)) & 0xffffffff)
@@ -14564,7 +14680,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # on the call's IR so two reads of the SAME `getattr` expression agree (which
         # `(any int)` would NOT give — it is fresh at every evaluation, and losing that
         # equality is a real loss of faithfulness for no gain).
-        if _ga_cls == "UNKNOWN":
+        # (#49) ROUTE #309: a NON-literal attribute name never establishes absence, even
+        # on a known record (`_ga_cls` calls it ABSENT): it is UNKNOWN.
+        if _ga_cls == "UNKNOWN" or _ga_n == "<nonliteral>":
             # (#49) ROUTE #213, the other arm of the same claim — the THREE-ARGUMENT
             # spelling has the identical defect, because an UNKNOWN receiver takes the
             # per-site constant whether or not a default is written (carrier

@@ -2763,6 +2763,13 @@ Complete catalogue of errors raised during static analysis.
 
 **Total:** 15 error sites (1 in Module3, 14 in Module4).
 
+### Lowering refusals added by routes #308 / #309 (raised in Module 6 when a body is lowered)
+
+| Code | Condition | Witnesses |
+|------|-----------|-----------|
+| `PYCSL-SEM-AUGASSIGN-R308` | `c[k] op= v` / `p.f op= v` whose container or index has an effect (a call other than `len`/`abs`, walrus, `await`, `yield`, lambda, comprehension), or — when `v` has an effect — reads anything but locals/parameters/`self`, literals and `+ - *`, or names a local a walrus in `v` rebinds. Recorded by Module 5 as `aug_target_refused` (the route #301 pattern); a `\trusted`/abstract body is never lowered, so never refused. Rule: the `c[k] = c[k] op v` desugar evaluates `c`, `k` twice and after `v`; Python evaluates them once, then the load, then `v`. | `3930`-`3936` (controls `3937`-`3939`) |
+| `PYCSL-SEM-GETATTR-DEFAULT-R309` | `getattr(o, name, D)` with `D` not a literal / name / negative number / empty collection / argument-less builtin constructor, when `o`'s class is unknown or `name` is not a literal; a walrus in `D`. For a known class `D` is sequenced before the field read (declared literal name) or IS the answer (undeclared name). | `3940`-`3946` (controls `3947`-`3949`) |
+
 ---
 
 ## 10. Gap Analysis

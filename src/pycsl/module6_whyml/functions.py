@@ -342,6 +342,14 @@ class FunctionEmissionMixin:
             raise PyCSLSemanticError(
                 "dropped unpacking / loop target refused (route #301) -- "
                 + str(func["unpack_target_refused"]))
+        # (#308) ROUTE #308 — Module 5 records an augmented store `c[k] op= v` whose
+        # `c[k] = c[k] op v` desugar would evaluate an effectful container / index twice
+        # (or after an effectful right-hand side) as `aug_target_refused`.
+        if func.get("aug_target_refused") and not (func.get("trusted") or func.get("abstract")):
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                "augmented assignment target evaluated twice refused (route #308) -- "
+                + str(func["aug_target_refused"]), code="PYCSL-SEM-AUGASSIGN-R308")
         # (#303) ROUTE #303 — A COLLECTION ALIASED THROUGH A TUPLE-UNPACKING TARGET. `h, k =
         # g, 1` binds `h` to the SAME object as `g` in Python, but lowers to `let (_tu_h,
         # _tu_k) = (!g, 1) in h := _tu_h` — a map/seq COPY — and routes #59/#279/#283/#295
