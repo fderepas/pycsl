@@ -139,6 +139,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         values = val_ir.get("values", []) or []
         if not keys:
             return base
+        # (#49) ROUTE #307 — this fold is a nested application, which Why3 evaluates RIGHT-
+        # TO-LEFT; Python evaluates a dict display k0, v0, k1, v1, ... The expression choke
+        # point decides whether the keys and values are order-sensitive (it let-sequences
+        # their tuple exactly then); if so every lowered key and value is let-bound in
+        # Python order (`_pycsl_dk<i>` / `_pycsl_dv<i>`) before the fold.
+        _elts307 = [_x307 for _kv307 in zip(keys, values) for _x307 in _kv307]
+        _seq307 = len(_elts307) >= 2 and self._expr_to_whyml(
+            {"type": "Tuple", "elts": _elts307}, local_refs or set()).startswith(
+                "(let _pycsl_seq")
+        _lets307: List[Tuple[str, str]] = []
         self._add_abstract_op(
             "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
             ": map 'k (option 'v)\n"
@@ -146,7 +156,14 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         acc = base
         for k_ir, v_ir in zip(keys, values):
             k_low = self._expr_to_whyml(k_ir, local_refs)
-            acc = f"(map_update_some {acc} {k_low} {self._pyval_wrap(v_ir, local_refs)})"
+            v_low307 = self._pyval_wrap(v_ir, local_refs)
+            if _seq307:
+                _lets307 += [(f"_pycsl_dk{len(_lets307) // 2}", k_low),
+                             (f"_pycsl_dv{len(_lets307) // 2}", v_low307)]
+                k_low, v_low307 = _lets307[-2][0], _lets307[-1][0]
+            acc = f"(map_update_some {acc} {k_low} {v_low307})"
+        for _n307, _s307 in reversed(_lets307):
+            acc = f"(let {_n307} = {_s307} in {acc})"
         return acc
 
     def _build_dict_literal_map(self, val_ir: Dict[str, Any], target: str,
@@ -172,6 +189,16 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         values = val_ir.get("values", [])
         if not keys:
             return base
+        # (#49) ROUTE #307 — this fold is a nested application, which Why3 evaluates RIGHT-
+        # TO-LEFT; Python evaluates a dict display k0, v0, k1, v1, ... The expression choke
+        # point decides whether the keys and values are order-sensitive (it let-sequences
+        # their tuple exactly then); if so every lowered key and value is let-bound in
+        # Python order (`_pycsl_dk<i>` / `_pycsl_dv<i>`) before the fold.
+        _elts307 = [_x307 for _kv307 in zip(keys, values) for _x307 in _kv307]
+        _seq307 = len(_elts307) >= 2 and self._expr_to_whyml(
+            {"type": "Tuple", "elts": _elts307}, local_refs or set()).startswith(
+                "(let _pycsl_seq")
+        _lets307: List[Tuple[str, str]] = []
         kappa = self._dict_key_types.get(target)
         self._add_abstract_op(
             "val map_update_some (m: map 'k (option 'v)) (k: 'k) (v: 'v) "
@@ -202,7 +229,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     self._add_abstract_op("val function pycsl_none : int")
                     v_low = "pycsl_none"
                 v_str = self._dv_store_value(nu, v_low)
+            if _seq307:
+                _lets307 += [(f"_pycsl_dk{len(_lets307) // 2}", k_str),
+                             (f"_pycsl_dv{len(_lets307) // 2}", v_str)]
+                k_str, v_str = _lets307[-2][0], _lets307[-1][0]
             acc = f"(map_update_some {acc} {k_str} {v_str})"
+        for _n307, _s307 in reversed(_lets307):
+            acc = f"(let {_n307} = {_s307} in {acc})"
         return acc
 
     # --- tool-feature-5: Optional-typed MUTABLE program locals -----------------

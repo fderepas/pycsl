@@ -3671,10 +3671,15 @@ on a numeric literal, or a read of a local when the node contains no walrus) and
 by a non-inert operand. An operand with evidence of a mutable-container type (a dict/list/set
 field, element or call result) stays inline: Python observes a container's contents when it
 is CONSUMED, and Why3 models dicts/sets/growable lists as values, so a binder would snapshot
-it. REFUSED (PyCSLIRError, "route #307"): an effectful container operand that would need
-binding; a dict literal or a `for ... in range(start, stop)` header that needs sequencing
-(both are rebuilt outside the expression emitter); and any construct whose lowering does not
-consume a bound operand. Spec contexts are untouched (logic terms have no effects).
+it. The dict-literal assignment fold (`map_update_some` over the keys and values) binds
+every lowered key and value in Python order (`_pycsl_dk<i>`/`_pycsl_dv<i>`) when the same
+predicate finds the display order-sensitive. REFUSED (PyCSLIRError, "route #307"): an
+effectful container operand that would need binding; a `for ... in range(start, stop)`
+header that needs sequencing (the loop header binds `stop` first); and any construct whose
+lowering RE-DERIVES a bound operand from its shape instead of consuming the binder (an
+operand the lowering drops entirely keeps only its binder). Spec contexts are untouched
+(logic terms have no effects); dict literals of an `@mutable_state` emitter-model class
+(IR-node constructions, mirror-only) keep their unsequenced emission.
 
 ## §T.7  Memory Models
 

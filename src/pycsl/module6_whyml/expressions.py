@@ -20111,9 +20111,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 and expr.raw.get("_pycsl_seq")):
             return expr.raw["_pycsl_seq"]
         _r307_k = expr.get("type") if isinstance(expr, dict) else getattr(expr, "kind", None)
+        # RESIDUAL (mirror-only): a dict literal inside an `@mutable_state` emitter-model class
+        # is an IR-node construction (`_lower_irnode_construction` /
+        # `_lower_stmt_ir_construction`) that re-derives its fields from their SHAPE and cannot
+        # consume a binder; it keeps its unsequenced emission rather than refuse the mirror.
         if (_r307_k in ("BinOp", "StrConcat", "Subscript", "Slice", "Call", "Tuple",
                         "ArrayLit", "SetLit", "MkTuple", "DictLit", "FString")
-                and not getattr(self, "_in_spec", False) and not invariant_ctx):
+                and not getattr(self, "_in_spec", False) and not invariant_ctx
+                and not (_r307_k == "DictLit" and getattr(self, "_current_self_type", None)
+                         in (getattr(self, "_mutable_state_classes", None) or set()))):
             _r307_d = (expr if isinstance(expr, dict) else
                        (expr.raw if isinstance(expr, OpaqueExpr) else expr.to_dict()))
             _r307_ops: List[Any] = []
@@ -20196,7 +20202,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                                   "reversed", "min", "max")
                                     and (_f307 not in ("min", "max")
                                          or (len(_x307.get("args") or []) >= 2
-                                             and not _x307.get("keywords")))))
+                                             and not _x307.get("keywords"))))) or (
+                                    _f307 == "bool" and not any(
+                                        str(_g307.get("name") or "").endswith(
+                                            ("__bool__", "__len__")) for _g307 in _fns307))
                             elif (_f307.startswith("self.") and _f307.count(".") == 1
                                   and not isinstance(_x307.get("receiver"), dict)):
                                 _pc307 = any(
@@ -20307,17 +20316,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                 "operand (Why3 evaluates application arguments right-to-left) "
                                 "(route #307). FIX: assign that operand to a local first.")
                         _bind307.remove(_i307)
-                if _bind307 and _r307_k == "DictLit":
-                    # A dict literal is ALSO rebuilt outside this choke point (the
-                    # assignment lowering `_build_dict_literal_map` / `_build_pyval_inner_map`
-                    # folds `map_update_some` over the raw keys and values, a nested
-                    # application evaluated right-to-left), so its sequencing cannot be
-                    # guaranteed here: an order-sensitive dict literal is REFUSED.
-                    raise PyCSLIRError(
-                        "a dict literal whose keys/values Python evaluates in an order a later "
-                        "effectful key or value (a call that may write or raise, or a walrus) "
-                        "can observe is not modelled: its lowering evaluates them right-to-left "
-                        "(route #307). FIX: assign the effectful key/value to a local first.")
                 if _bind307 and _r307_d.get("_pycsl_range_hdr"):
                     raise PyCSLIRError(
                         "`for ... in range(start, stop)` whose `start` must be evaluated "
@@ -20349,6 +20347,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             _md307[_p307[0]] = _l307
                     _body307 = self._expr_to_whyml(_md307, local_refs, invariant_ctx, subst)
                     for _nm307, _s307 in _lets307:
+                        # An operand the lowering DROPS (the dict-literal fallback
+                        # `(any_map ())`, a keyword argument an opaque constructor stub does not
+                        # take) is not re-derived: its emission text is absent from the body,
+                        # and the binder keeps its evaluation (and effects) in Python order. An
+                        # operand neither consumed nor dropped was RE-DERIVED from its shape and
+                        # would be evaluated at its old position: REFUSED.
+                        if (not re.search(r"\b" + _nm307 + r"\b", _body307)
+                                and _s307 and _s307 not in _body307):
+                            continue
                         if not re.search(r"\b" + _nm307 + r"\b", _body307):
                             raise PyCSLIRError(
                                 "an operand that Python evaluates BEFORE a later effectful "
