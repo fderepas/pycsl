@@ -755,3 +755,54 @@ OWED (exact command, from the worktree root, why3 on PATH via `. scratchpad/g29/
 Observed, not fixed: `--fun lex` on the `proof2why3/parser.py` mirror emits `variant` on a
 `val` (`_parser__parse_quant`) -> L3-tc error "unexpected 'variant' clause"; the whole-file
 proof is unaffected. `_build_overload_param_guard` (VERIFIED) still skips any arg named `self`.
+
+## Re-measurement at HEAD — ch35 (gen #37)
+
+Measured 2026-10-23 on worktree `pycsl-g37ch35` (base `636b090d`). Scope: ranked-next item 2, the
+ERASED (route #252) sub-clusters `whyml_ident(name)` (8 distinct markers; the ch32 "9" counted
+`_emit_membership` twice) and Module5 `scope_name` -> `_typeddict_field_type` /
+`_field_type_from_annotation_inst` / `_m5_get_type_name` (6). Method: `census.py` full chain (no
+`--first`) with two NEW flags: `--keep-msig` (keep the MIRROR's def header -- its modelling-layer
+annotations, e.g. `ir: "ExprIR"`, the emit_ir keystone -- and port only the live BODY; the sync
+gate ignores annotations) and `--diverges` (add `#@ \diverges`, the MCYCLE refusal's own remedy,
+used by 151 mirror methods). Rows: `ch35-chains.jsonl`. **Result: REFUTATION EXIT -- 0 conversions
+(420 -> 420), no source change.**
+
+Finding 1 (measurement artefact): the ch32 census ported the LIVE signature (`ir: Dict[str, Any]`,
+the `string -> option int` DICT model), so `ir.get("name", "")` was an erased-container read and
+route #252 fired. Under the mirror's own typed signature (`ir: "ExprIR"`) the same read lowers to
+the typed IR projection `name_of ir : string` and ERASED DISAPPEARS for 6 of the 8 whyml_ident
+markers (`_expr_to_whyml_string_ctx`, `_to_bool`, `_emit_membership`, `_handle_len_call`,
+`_handle_isinstance`, `_emit_function`): the "typed IR read" lever already exists. No `HStr`
+projection is needed there (the source is not an hval). It persists where the source really is an
+untyped dict/AST read: `_compute_shared_module_maps` (`func['name']` over `List[Dict[str, Any]]`,
+x14), `_emit_frame_condition` (`a.get('object')`), and all 6 Module5 markers (`node.name` of an
+`ast.ClassDef`, `annotation` reads). Route #252's refusal is correct in every remaining case.
+
+Per-marker full chain (mirror signature kept):
+
+| marker | stmts | chain behind / instead of ERASED | verdict |
+|---|---|---|---|
+| `ExpressionEmissionMixin._expr_to_whyml_string_ctx` | 15 | ERASED gone (`name_of ir`) -> MCYCLE self-recursion (`\diverges`, S) -> mirror sig `local_refs: int` vs `_expr_to_whyml`'s `Set[str]` (S, no other mirror caller) -> `whyml_string_literal` ABSENT from the identifiers mirror (`val whyml_string_literal_1 (x0: int) : int`). Porting it verified (spike): `_WHYML_STR_ESCAPES.get(ch)` -> hash-keyed abstract `get` vs `none`, `ch.encode("utf-8")` -> receiver-DROPPED input-blind `ch_encode_1 <hash>`, `'"' + .. + '"'` -> hashed int concat: FACADE/M. Landing ctx would need a NEW `\trusted` stub for `whyml_string_literal`: count 420 -> 420 (trust moved, not reduced; no other trusted marker is unlocked by that stub: its other live callers are 220+-stmt markers or methods absent from the mirror) | M (nearest miss; NOT converted) |
+| `_to_bool` | 113 | ERASED gone; DICT literal `_kindname = {..}` map vs int, emit_ir vs int (`_expr_is_pyval(ir_expr if isinstance ..)`), int/str returns, write-effect in pure position (8 rounds) | DICT (L) |
+| `_emit_membership` | 236 | ERASED gone; 14 rounds CAP: str/int subscript erasure, `reversed(..)`, `whyml_ident(<int-erased>)`, `_ssc.get` array typing, join | CAP (L) |
+| `_handle_len_call` | 118 | ERASED gone; 12 rounds: `expr.get('args',[{}])[0]` array/int, `set(..) | set(..)`, record `.get('fields')`, `_r297_vals` map/None | LISTSTR/DICT (M/L) |
+| `_handle_isinstance` | 219 | MUTRECV `self._abstract_ops.update(..)` first, then dict-of-dict literal, `elts` array/string, list-comp | MUTRECV (M) |
+| `FunctionEmissionMixin._emit_function` | 40 | MUTRECV `_nd.add(..)`, COMPRECV `.discard` on a computed receiver x3 | MUTRECV/COMPRECV (M) |
+| `StatementEmissionMixin._emit_frame_condition` | 82 | ERASED persists (`a.get('object')`), DEFASSIGN `obj`/`objname` x3, ERASED again | ERASED+DEFASSIGN (M) |
+| `Module6_WhyMLTranspiler._compute_shared_module_maps` | 44 | ERASED x14 (every `f['name']` over `List[Dict[str, Any]]`), CAP | ERASED (L: needs the IR function list typed) |
+| `PyCSLToJSONEmitter._emit_typeddict_record` | 18 | ERASED (`scope_name = node.name`, `ast.ClassDef`); with it neutralised (`scope_name = ""`, measurement only): COMPRECV route #280 `self.program_ir["type_decls"].append(..)` | COMPRECV/ELEMSTORE (L) |
+| `_synthesize_typeddict_functional` / `_emit_namedtuple_record` / `_synthesize_namedtuple_functional` | 30/31/39 | ERASED (scope_name), census STUCK-PH; same `program_ir["type_decls"].append` behind | COMPRECV (L) |
+| `_collect_class_fields` | 136 | ERASED (scope_name), STUCK-PH | L |
+| `_build_function_symbol_table` | 123 | ERASED x6 (`_scope_name = node.name`, annotations), DEFASSIGN `arg_type` | ERASED+DEFASSIGN (L) |
+
+Refutation: every marker's chain behind (or instead of) ERASED is M/L; the one short chain
+(`_expr_to_whyml_string_ctx`) ends at a mirror-absent leaf whose honest verification is M and whose
+`\trusted` stub would make the conversion count-neutral, which the loop's L-plane (count strictly
+decreases) rejects. Option for a later generation: add `whyml_string_literal` to the identifiers
+mirror as a `\trusted` floor leaf (pure string escaper) only together with a second consumer, then
+convert ctx (expected L3-tc clean; whole-file proof of expressions.py would be owed).
+
+Soundness: none found (fail-closed throughout; route #252, #280, MCYCLE all fire as designed).
+Gates: no source change, so no battery run; `check-trusted-reasons.py` rc0 (420 <-> 420),
+`grep -cF '#@ \trusted'` sum 448 (unchanged). Witness IDs 3830-3859 unused. OWED: none.

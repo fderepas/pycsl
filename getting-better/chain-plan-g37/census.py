@@ -19,6 +19,11 @@ if "--budget" in a: BUDGET = int(a[a.index("--budget") + 1])
 if "--only" in a: ONLY = set(a[a.index("--only") + 1].split(","))
 PURGE = "--purge" in a
 FIRST = "--first" in a
+# ch35: --keep-msig keeps the MIRROR's def header (its modelling-layer annotations, e.g. the
+# `ir: "ExprIR"` emit_ir keystone) and ports only the live BODY; --diverges adds `#@ \\diverges`
+# (the MCYCLE refusal's partial-correctness remedy, used by 151 mirror methods).
+KEEPMSIG = "--keep-msig" in a
+DIVERGES = "--diverges" in a
 if "--only-file" in a: ONLY = set(l.strip() for l in open(a[a.index("--only-file") + 1]) if l.strip())
 PY = "/home/fabrice/git/pycsl/.venv/bin/python3"
 HEAVY = "/home/fabrice/git/pycsl/scratchpad/heavy/heavy.sh"
@@ -123,7 +128,12 @@ def port(rel, qual):
     mi = len(ml[m.lineno - 1]) - len(ml[m.lineno - 1].lstrip())
     li = len(ll[l.lineno - 1]) - len(ll[l.lineno - 1].lstrip())
     new = []
-    for x in ll[l.lineno - 1:l.end_lineno]:
+    if KEEPMSIG:
+        new = ml[m.lineno - 1:m.body[0].lineno - 1]
+        bi = len(ml[m.body[0].lineno - 1]) - len(ml[m.body[0].lineno - 1].lstrip())
+        lbi = len(ll[l.body[0].lineno - 1]) - len(ll[l.body[0].lineno - 1].lstrip())
+        mi, li = bi, lbi
+    for x in (ll[l.body[0].lineno - 1:l.end_lineno] if KEEPMSIG else ll[l.lineno - 1:l.end_lineno]):
         if not x.strip(): new.append(""); continue
         if mi >= li: new.append(" " * (mi - li) + x)
         else: new.append(x[li - mi:] if x[:li - mi].strip() == "" else x.lstrip())
@@ -136,6 +146,8 @@ def port(rel, qual):
         i -= 1
     if killed is None: return "nomarker"
     del out[killed]
+    if DIVERGES and not any(out[j].strip() == "#@ \\diverges" for j in range(max(0, first - 12), first)):
+        out.insert(first - 1, " " * (len(ml[m.lineno - 1]) - len(ml[m.lineno - 1].lstrip())) + "#@ \\diverges")
     open(mp, "w").write("\n".join(out))
     return "ok"
 
