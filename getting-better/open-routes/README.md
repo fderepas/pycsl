@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #327 + #329 REPAIRED, candidate (r327 executor off aa1cf01c; commits 329d3a10, 2a1e8474 (code), edf5b05e
+##   (corpus, census, docs) + route docs; inline, no new def/raise-site class, ledger 3; mirror twins `\trusted`). #327: an injective
+##   encoding was measured out (~1962 root / ~48 pyref / ~48 mirror files re-emit); instead `_run_pipeline` refuses
+##   PYCSL-R327-IDENT-COLLISION when two distinct names map to one `whyml_ident` in a scope (per function: params + Var reads incl.
+##   globals + binding targets of body and contracts + `_tu_*`; module level: functions + module-level value bindings; classes
+##   folding by `.lower()`); `c = C()` and the class operand of `isinstance` are not values. #329: the #42/#52 `is` refusals were
+##   keyed on a wire dict and skipped every NESTED `is` (an `OpaqueExpr` under `not`, an if-expression test, `and`/`or`, filters);
+##   they now read the opaque node's raw dict. Witnesses 4300-4306, 4315-4320, 4322, 4323 PROVED -> REFUSED; 4307/4308 FAIL ->
+##   REFUSED; 4311 REFUSED(#325) -> REFUSED(#327); controls 4309, 4310, 4326, 4327 PROVED. Root 0 MOVED / 0 GONE (4260 refusal
+##   message R325 -> R327, census row updated), pyref 0/0/0, mirror 53/53 0/0/0 (no OWED proof). Residuals: field-name folds
+##   (Why3 rejects: fail-closed), `safe_exc_name` `_E`/`E`, erased `assert` under `no_exception \all` (new suspicion).
+
 ## gen #37 (2026-10-24): #332 (assert erased even under no_exception \all; CPython raises AssertionError) OPENED (r327 executor finding); driver-reproduced.
 
 ## gen #37 (2026-10-24): #326 REPAIRED, candidate (r326 executor off 0da66911; commits 61c98f12, d89ee890, 38757ff2, dfc5305d,
