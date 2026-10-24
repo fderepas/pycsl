@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #325 REPAIRED, candidate (r325 executor off 0da66911; commits f727109a, 4890e1d3, 6562aec2, 06382014,
+##   da90b338 + route docs; inline in `_run_pipeline` on the EMITTED WhyML (mirror twin `\trusted`), no new def, ledger 3).
+##   An opaque-int fallback standing for a module-level value (global, import / module alias, class, class-level attribute,
+##   `getattr`, imported/builtin call) and everything derived from it (locals, getters, subscripts, containers, returns,
+##   user-function parameters, receiver-dropped method stubs) may only be bound / passed / returned / discarded / compared
+##   `==` against a different value; any int use is REFUSED (PYCSL-R325-OPAQUE-INT-FALLBACK); known-int values exempt.
+##   Subsumes #322's bypasses (#322 kept as first layer). Witnesses 4230-4251, 4253-4263 PROVED -> REFUSED (13 of them new
+##   shapes: alias chain, param flow, list store, nan, lambda case-fold, method return, abs, receiver), 4252 FAIL -> REFUSED;
+##   controls 4264-4271 PROVED. Root 0 MOVED / 5 GONE (1066, 2702, 2706, 3432, 3433: expected-FAIL, FAIL -> REFUSED), pyref
+##   0/0/0, mirror 53/53 0/0/0 (no OWED proof). Fast planes 61/61, getattr-erasure + stdlib-modules-verify, sync/mirror-check/
+##   doc-coherency/assumed-facts/raises/refusal-coverage rc=0 (census +#322's owed rows). Residuals: attributes / subscripts /
+##   method results over PARAMETERS, locals and instance attributes; int-encoded string/collection model ops; user-module int
+##   attributes over-refused.
+
 ## gen #37 (2026-10-24): #325 (every unmodelled value falls back to an opaque int: int laws proved of floats/strings/lists; subsumes #322's
 ##   bypasses) and #326 (module resolution differs from CPython: stdlib shadowing, package vs module, sys.path) OPENED (red team 19);
 ##   10/10 sample driver-reproduced rc=0, CPython violates.
