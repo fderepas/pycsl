@@ -7288,6 +7288,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # it (step 6). Unresolved free names and method calls on parameters / locals are not.
     import builtins as _bi325
     _origin325 = set(_bound325)
+    # `from m import *` binds names this file does not spell: every free fallback name may
+    # be one of them
+    _star325 = any(n == "*" for n, _m in [(v[1], v[0]) for v in _inam325.values()])
     _mcall325 = set()
     if _tree325 is not None:
         for _a325 in _ast325.walk(_tree325):
@@ -7330,7 +7333,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             del _S325[_nm325]
         elif _fam325 == "call" and _re325.sub(r"_\d+$", "", _nm325) in _kicall325:
             del _S325[_nm325]
-        elif ((_fam325 == "constant" and _nm325 not in _origin325)
+        elif ((_fam325 == "constant" and _nm325 not in _origin325 and not _star325)
               or _fam325 in ("attribute", "subscript")
               or (_fam325 == "call"
                   and _re325.sub(r"_\d+$", "", _nm325) not in _mcall325)):
