@@ -10,8 +10,8 @@ name collides with any other exception tag, builtin or user); (b) reserve EVERY 
 generated binders and refuse user names in those namespaces (extend PYCSL-R327-IDENT-COLLISION), or rename generated binders into a namespace
 no Python identifier can produce.
 
-## REPAIR (2026-10-24, r333 executor off 0c2d49cc; commits 432e5fff, 0e8af983, 2448673c (code + corpus), census row commit + route docs)
-**Design (measured first).** Both repair shapes were priced on the base emission of every file (`.r333tmp/census/`):
+## REPAIR (2026-10-24, r333 executor off 0c2d49cc; commits 432e5fff, 0e8af983, 2448673c (code + corpus), 9ba21f16 (census), e3115268 (docs))
+**Design (measured first).** Both repair shapes were priced on the base emission of every file (scratch scripts in the r333 worktree, removed after the run):
 | option | root (2203 emitted) | pyref (2186) | mirror (53) |
 |---|---|---|---|
 | RENAME every generated binder into a namespace no Python name reaches (e.g. a `'`-marked name) | 586 files re-emit (93 for `_idx_` alone) | 12 (3) | 37 (17): whole-file proofs re-OWED |
@@ -32,7 +32,7 @@ def, mirror twin `\trusted`, ledger 3):
   as user-spelled — both fixed, measured 0/0/0 after.
 
 **Census of generated identifiers** (empirical: every binder of the 2203 + 2186 + 53 base emissions not equal to a source
-name, cross-checked against the emitter's literal / f-string binders; `.r333tmp/census/gen.txt`):
+name, cross-checked against the emitter's literal / f-string binders):
 - RESERVED (scope can enclose user code, or cheap to reserve): prefixes `_idx_` (for-range counter, stmt_control_flow 997),
   `_len_idx_`, `_stop_idx_`, `_hv_idx_`, `_rl_idx_`, `_callit_idx_`, `_split_idx_`, `_seqlit_idx_`, `_pycsl_` (desugar
   `_pycsl_cmp_` / `_pycsl_multi_`, `_pycsl_seq*`, `_pycsl_it310*`, `_pycsl_dk*`/`_pycsl_dv*`, `_pycsl_range_hdr`),
