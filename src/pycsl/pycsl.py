@@ -8701,6 +8701,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     _cf330.id in _ev334[0] or _cf330.id in _ev334[1])))
                             _pl334 = (not _e325.keywords and not any(
                                 isinstance(x, _ast325.Starred) for x in _e325.args))
+                            _rc338 = None   # ROUTE #338: the class of a `k.m()` receiver
+                            if (isinstance(_cf330, _ast325.Attribute)
+                                    and isinstance(_cf330.value, _ast325.Name)
+                                    and _ev334 is not None):
+                                if _cf330.value.id in _ev334[1]:
+                                    _rc338 = {(v.func.id if isinstance(v, _ast325.Call)
+                                               and isinstance(v.func, _ast325.Name)
+                                               and v.func.id in _ini334 else None)
+                                              for v in _ev334[1][_cf330.value.id]}
+                                    _rc338 = next(iter(_rc338)) if len(_rc338) == 1 else None
+                                elif isinstance(_ev334[0].get(_cf330.value.id), _ast325.Name):
+                                    _rc338 = _ev334[0][_cf330.value.id].id
                             if (isinstance(_cf330, _ast325.Name) and not _shd334
                                     and _cf330.id in ("len", "int", "ord", "hash", "id",
                                                       "bool")):
@@ -8729,6 +8741,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                   and ((_cf330.value.id == _sl334
                                         and _cf330.attr in _mint334.get(
                                             _meth334[id(_fd334)][0], ()))
+                                       # ROUTE #338: a receiver typed / constructed as a
+                                       # class of this file (`k = K(); k.bump()`): its
+                                       # `-> int` is kept by every override (R5)
+                                       or _cf330.attr in _mint334.get(_rc338, ())
                                        or (_cf330.value.id in _imod325
                                            and (_imod325[_cf330.value.id], _cf330.attr)
                                            in _KI_CALL325))):
