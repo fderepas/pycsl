@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #339 (Enum members as ints), #340 (nested def bare-name default evaluated at call time), #341 (computed/aliased
+##   class base drops inheritance), #342 (constructor-invariant goal reads only plain self.f stores; __class__ reassignment) OPENED
+##   (red team 24; 10/10 sample driver-reproduced rc=0, CPython violates).
+
 ## gen #37 (2026-10-24): #338 REPAIRED, candidate (r338 executor off d175a70d; code e8c3d3e5 / 5d96d6e1 / ef4c3d57, corpus f8c6d9aa /
 ##   355942e6, census 88901d08, docs 2e529ccc + route docs; inline in `_run_pipeline`, no new def, ledger 3). (a) Override rule R5: an
 ##   override's return annotation must be a subtype of the base's and each base parameter annotation a subtype of the override's
