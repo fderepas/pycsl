@@ -2821,6 +2821,7 @@ each written list parameter (witness `4080`; controls `4088`-`4091`).
 | Code | Condition | Witnesses |
 |------|-----------|-----------|
 | `PYCSL-R322-FLOAT-MODULE-CONSTANT` | The program reads a float constant of `math` / `cmath` (`pi e tau inf nan infj nanj`, via `import m [as a]` + `a.c`, `from m import c [as n]`, `from m import *` + `c`, or `getattr(a, "c")` / `getattr(a, <non-literal>)`) or `sys.float_info`, anywhere in the IR (bodies, contracts) or in a module/class-level `=` / `: T =` / `op=` binding. | `4194`-`4198` |
+| `PYCSL-R325-OPAQUE-INT-FALLBACK` | A value with no model (a module-level name, a module / class attribute, a subscript of one, a call of an imported or builtin callable) lowered to an opaque `int`, or a value derived from one (local, component, container, return, parameter, method receiver), is used as an integer: an int operator or ordering, an argument of a modelled function, a contract term, or a reflexive comparison (route #325, annotations.md §7.15; decided on the emitted WhyML in `_run_pipeline`). Known-int values (int module/class bindings, `sys.maxsize`, `len`/`id`/`random.randint`, a user `-> int` function) are exempt. | `4230`-`4263` |
 
 Fold domain (no refusal): the emission-time folds of `abs(<lit>)`, `sum([<lits>])`, `sum(<known
 local>)`, the known-element maps of list/dict literals, and NamedTuple / `__init__` annotated /

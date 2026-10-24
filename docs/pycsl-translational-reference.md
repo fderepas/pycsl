@@ -3799,6 +3799,29 @@ $x' = \texttt{if}\ x < 0\ \texttt{then}\ \max(x + |s|, 0)\ \texttt{else}\ x$; Wh
 `substring` (empty for an offset outside $[0, |s|)$ or a length $\le 0$, clipped at the end)
 then coincides with CPython's step-1 slice. The body side keeps route #190's guarded
 `str_sub_op`.
+### §T.6.26  The opaque-int fallback is not an int model (route #325)
+
+_Corresponds to `annotations.md` §7.15._
+
+Where $\mathcal{T}_e$ has no image for a value it emits a fresh uninterpreted symbol of type
+`int`: $\texttt{val constant}\ n : \texttt{int}$, $(\texttt{get\_}x\ r)$,
+$(\texttt{getattr\_}C\ \textit{self}\ h)$, $(\texttt{subscript\_get}\ r\ i)$,
+$(m\_f\_k\ \vec a) : \texttt{int}$. Its Why3 meaning is "SOME integer", so every theorem of
+$\mathbb{Z}$ holds of it — sound only if the Python value IS an int. The check runs on the
+emitted module, after every lowering (`_run_pipeline`, before Why3): an ORIGIN is such a
+symbol standing for a module-level name of the file, an import / module or class object, a
+class-level attribute, a `getattr(...)` fallback, or a call of an imported / builtin
+callable, minus the KNOWN-INT set of annotations.md §7.15. Taint flows through `let x = e in`,
+`x := e`, a getter / subscript / opaque operation applied to a tainted term, a tuple, a
+constructor or container builder, `raise (Return e)` / a declaration's tail (the function is
+then tainted), a user function's parameter, and a call stub `r_m_k` whose receiver $r$ is
+tainted (Module 6 drops the receiver). A tainted occurrence is admitted only as an argument of
+an opaque operation, the right-hand side of a binding, a return, a discarded statement, or one
+side of a program `=` / `<>` whose other side holds no term of the same origin (no
+reflexivity: a NaN is not equal to itself). Any other position — an int operator or ordering,
+a modelled function, a contract term — is refused. Binders follow WhyML scoping (a `let`
+scopes from its `in` to its enclosing group or block; `F` and `f` fold to one WhyML name).
+
 ### §T.6.24  Collections constructors and the itertools length model (routes #321 / #323)
 
 $\mathcal{T}_e(\texttt{Counter}()) = \mathcal{T}_e(\texttt{OrderedDict}()) =

@@ -1675,6 +1675,31 @@ slice semantics: a bound that is not a non-negative int literal is normalised as
 (`b < 0` reads `max(b + len(s), 0)`), so `len(s[1:-1])` is `len(s) - 2`, not 0. Witnesses
 `4190`-`4202`; controls `4203`-`4211`.
 
+### 7.15 An unmodelled value is not an int (route #325)
+
+A value PyCSL has no model of falls back to an OPAQUE `int` in the emitted WhyML, whatever
+its Python type: a module-level name (`EPS = 0.5`, `T = (0.5, 1)`, `X = mk()`, `M = math`,
+`from m import PI`), an attribute of a module or class object (`consts.F`, `C.R`, `self.R`
+for a class attribute, `Color.RED.value`, `importlib.import_module("math").pi`), a subscript
+of one (`T[0]`), and the result of a call of an imported or builtin callable (`time.time()`,
+`random.random()`, `os.getcwd()`, `float.fromhex(...)`, `__import__(...)`). Every value
+derived from such a fallback — a local bound to it, a component read from it, a container or
+tuple built from it, a function that returns it, a user function's parameter that receives
+it, a method called on it — may only be bound, passed on, returned, discarded, or compared
+with `==` / `!=` in the BODY against a different value. Any other use (`+ - * // %`, an
+ordering, `abs`, `int()`, a contract term, a reflexive `x == x`) is REFUSED
+(`PYCSL-R325-OPAQUE-INT-FALLBACK`): there every claim true of all integers (`x % 1 == 0`,
+`x * 0 == 0`, `x < e or x >= e + 1 or x == e`) was proved of a float, a string or a list.
+A value KNOWN to be an int keeps its int model: an int expression bound at module or class
+level in the file (`K = 5`, `N = K * 2 + 1`, `C.R = 5`), `sys.maxsize` / `maxunicode` /
+`hexversion` / `api_version` and the int fields of `sys.float_info`, `len` / `id` / `hash`
+/ `ord` / `int` / `range` and `random.randint` / `randrange` / `getrandbits`, `os.getpid`,
+`time.*_ns`, `math.gcd` / `lcm` / `isqrt` / `factorial` / `comb` / `perm`, and a user
+function annotated `-> int` / `-> bool` whose body does not return a fallback. Subsumes
+route #322's float-constant bypasses (a re-export, an alias, `importlib`, `__import__`); the
+#322 refusal stays as the first, name-keyed layer. Witnesses `4230`-`4263`; controls
+`4264`-`4271`.
+
 ---
 
 ## 10. Concurrent Model Annotations
