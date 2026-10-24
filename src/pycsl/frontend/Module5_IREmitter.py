@@ -319,6 +319,37 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             f"is not modelled (the argument may be a tuple or a mapping proxy, "
                             f"whose store raises TypeError). Annotate it `List[T]` / "
                             f"`Dict[K, V]`, or copy it into a local list first.")
+                # (#49) ROUTE #337 — AN OPERATOR ON `self` IS THE USER'S DUNDER (or a TypeError).
+                # A class the model does not lower to a record is `type c = int`, so `self - self`
+                # / `self < self` / `-self` inside its methods carried the int laws (measured:
+                # `self - self == 0` PROVED with a user `__sub__` returning 1; `self < self`
+                # PROVED `False` under `no_exception \all`, CPython TypeError). No corpus,
+                # pyref or mirror method applies an arithmetic / ordering operator to `self`.
+                _sa337 = list(_fa336.posonlyargs) + list(_fa336.args)
+                if _sa337 and _sa337[0].arg == "self":
+                    for _ln336 in ast.walk(_fn336):
+                        _hit337 = False
+                        if isinstance(_ln336, ast.BinOp):
+                            _hit337 = any(isinstance(_o337, ast.Name) and _o337.id == "self"
+                                          for _o337 in (_ln336.left, _ln336.right))
+                        elif isinstance(_ln336, ast.UnaryOp) and not isinstance(_ln336.op, ast.Not):
+                            _hit337 = (isinstance(_ln336.operand, ast.Name)
+                                       and _ln336.operand.id == "self")
+                        elif isinstance(_ln336, ast.AugAssign):
+                            _hit337 = (isinstance(_ln336.target, ast.Name)
+                                       and _ln336.target.id == "self")
+                        elif isinstance(_ln336, ast.Compare):
+                            _hit337 = any(isinstance(_c337, (ast.Lt, ast.LtE, ast.Gt, ast.GtE))
+                                          for _c337 in _ln336.ops) and any(
+                                isinstance(_o337, ast.Name) and _o337.id == "self"
+                                for _o337 in [_ln336.left] + list(_ln336.comparators))
+                        if _hit337 and not getattr(_fn336, "r337_self_op", None):
+                            _fn336.r337_self_op = (
+                                f"in '{_fn336.name}' (line {getattr(_ln336, 'lineno', 0)}), an "
+                                f"arithmetic or ordering operator is applied to `self`. Python "
+                                f"runs the class's own dunder (or raises TypeError), while the "
+                                f"model would apply the int laws of `type <class> = int`. Call "
+                                f"the method explicitly (`self.__sub__(o)`) or compare fields.")
                 if _fn336.returns is not None:
                     _slots336.append((_fn336, "returns"))
                 for _ln336 in ast.walk(_fn336):
@@ -6596,6 +6627,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _build_function_ir(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Build the core function IR dict (name, contracts, body)."""
+        if getattr(node, "r337_self_op", None):
+            raise PyCSLIRError("PYCSL-R337-SELF-OPERATOR (route #337) — "
+                               + str(getattr(node, "r337_self_op")), stage="ir-emit",
+                               code="PYCSL-R337-SELF-OPERATOR")
         if getattr(node, "r336_ro_refusal", None):
             raise PyCSLIRError("PYCSL-R336-READONLY-VIEW-STORE (route #336) — "
                                + str(getattr(node, "r336_ro_refusal")), stage="ir-emit",
