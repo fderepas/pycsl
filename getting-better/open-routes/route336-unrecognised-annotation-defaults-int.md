@@ -15,7 +15,7 @@ types of every supported container constructor), else REFUSE (named refusal) or 
 every int-default site in the type-lowering code.
 
 ## REPAIR (2026-10-24, r336b finishing executor off ebd6f814; the r336 draft committed as found b48c7f0b)
-Commits: b48c7f0b (draft), 49ff7298 / 28681a0d / a84af1ca / 834f9df4 / bba6e1b4 / 3a2ba7bc `self`-operator (code), 4d5afb39 (corpus 4480-4529),
+Commits: b48c7f0b (draft), 49ff7298 / 28681a0d / a84af1ca / 834f9df4 / bba6e1b4 / 3a2ba7bc + 5a4e958c `self`-operator (code), 4d5afb39 (corpus 4480-4529),
 45cac885 (docs annotations §7.23 / translational §T.6.34), 231438aa (census rows), this section. Inline, no new def, ledger 3.
 
 Probe table (full `pycsl.py`, corpus flags; CPython ground truth in each file's `__main__`; base = ebd6f814):
@@ -59,7 +59,7 @@ Module 3's rebinding check on the two mirrors importing the live Module 5; the `
 and 4 new false proofs left (q1 `Optional[Fraction]`, q5 `-> Fraction`, read-only view stores); final root 9 MOVED / 0 GONE.
 The #325-taint narrowing was not needed (movers far below the ~80 threshold).
 
-Blast radius (M1 vs ebd6f814; final candidate bba6e1b4): corpus root 9 MOVED / 0 GONE / 0 APPEARED (2227 base / 2269, 42 new
+Blast radius (M1 vs ebd6f814; final candidate 5a4e958c): corpus root 9 MOVED / 0 GONE / 0 APPEARED (2227 base / 2269, 42 new
 sources); pyref 0/0/0 (2186/2186); mirror 2 MOVED / 0 GONE / 0 APPEARED (53/53). Every mover re-proved to its label:
 - 0892 (PASS): `Trigger = Tuple[str, str]` alias resolved (tuple record fields immutable) -> PROVED.
 - 0962 / 0963 / 0964 / 0965 (PASS): unused `_union_ircrosscheckresult_*` decls of `Optional[Term]` (non-record `Term`) dropped -> PROVED.
@@ -75,7 +75,7 @@ No previously-proved corpus/pyref file now fails (no latent false proof surfaced
 
 Gates (rc): witnesses table above; corpus + pyref byte-diff (above); mirror-emit-sweep `--min-files 50` (above);
 check-self-annotate-sync 0 (926 verbatim), self-annotate-mirror-check 0; run-soundness-planes fast 0 (61/61); check-getattr-erasure 0;
-check-stdlib-modules-verify (see README entry); doc-coherency --check 0; check-assumed-facts 0; check-trusted-raises-honesty 0
+check-stdlib-modules-verify 0 (the known 21 non-verifying modules); doc-coherency --check 0; check-assumed-facts 0; check-trusted-raises-honesty 0
 (61, ratchet kept by raising from the already-raising `_build_function_ir`); check-refusal-witness-coverage 0 (282 / 5 / 10, no
 flags); check-dropped-mutation 0; check-corpus-contract-truth 0, -args 0; check-assigns-underdeclaration 0 (TRAP 3; the refusal
 message rides on the def node, not a new emitter field). Ledger 3, no gate loosened.

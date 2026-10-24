@@ -1,7 +1,7 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 ## gen #37 (2026-10-24): #336 + #337 REPAIRED, candidate (r336b finishing executor off ebd6f814; r336 draft committed as found b48c7f0b,
-##   code 49ff7298 / 28681a0d / a84af1ca / 834f9df4 / bba6e1b4 / 3a2ba7bc, corpus 4d5afb39, docs 45cac885 (annotations 7.23 / T.6.34),
+##   code 49ff7298 / 28681a0d / a84af1ca / 834f9df4 / bba6e1b4 / 3a2ba7bc / 5a4e958c, corpus 4d5afb39, docs 45cac885 (annotations 7.23 / T.6.34),
 ##   census 231438aa; inline, no new def, ledger 3). Module 5 resolves module aliases (TypeAlias / type / TypeAliasType / plain),
 ##   Annotated, Sequence/tuple[T, ...] -> List, Mapping -> Dict, Literal[None] -> None before any type reader (emission byte-identical
 ##   to the direct spelling); a store / mutating call / non-builtin call on a read-only view param is REFUSED
