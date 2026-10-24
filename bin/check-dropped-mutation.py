@@ -287,8 +287,13 @@ DANGLING_EXEMPT = frozenset({
 # a bound that quietly absorbs its own witness stops distinguishing "a new `with ... as`
 # appeared in code we lower" from "someone added a test". The ratchet keeps its meaning
 # and the exemption states exactly which file it covers and why.
+#
+# (#49) gen #37, route #342: the same treatment for 4560, the witness whose whole point is a
+# `with open(..) as self.x` target in an invariant-carrying constructor. It is `pycsl-expected:
+# FAIL` and REFUSED (PYCSL-R342-CONSTRUCTOR-STORE-FORM) before any lowering.
 CTXBIND_EXEMPT = frozenset({
     "1784_gen30_witness_with_as_binding_unmodelled.py",
+    "4560_gen37_r342_own_with_target_store.py",
 })
 
 
