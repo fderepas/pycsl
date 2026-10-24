@@ -10,6 +10,7 @@
 ##   stores); PYCSL-R342-EXTERNAL-INVARIANT-STORE (NEW latent: module-level / `__main__` stores of invariant fields). Witnesses
 ##   4550-4571 + 3 new latent 4577-4579 (25 PROVED at base) -> REFUSED; controls 4572-4576 PROVED. Root 0/0/0, pyref 0/0/0, mirror
 ##   53/53 0/0/0 (no OWED); fast planes 61/61. Residuals: #226's computed straight-line store, per-file check, over-refusals (see REPAIR).
+
 ## gen #37 (2026-10-24): #339 (Enum members as ints), #340 (nested def bare-name default evaluated at call time), #341 (computed/aliased
 ##   class base drops inheritance), #342 (constructor-invariant goal reads only plain self.f stores; __class__ reassignment) OPENED
 ##   (red team 24; 10/10 sample driver-reproduced rc=0, CPython violates).
