@@ -3876,6 +3876,39 @@ provably-int fields stay int. Two sinks were added to keep the mirror emitting: 
 a `'a`-typed parameter of a `val` (`str_mod_op "fmt" (a, u)`: no int theory applies there), the
 head found skipping string-literal arguments.
 
+### §T.6.35  Override annotation refinement (R5) and the any-code field-store census (route #338)
+
+_Corresponds to `annotations.md` §7.24._
+
+R5 joins R1-R4 in the route #278 block of `_run_pipeline` (inline; mirror twin `\trusted`). For
+a recorded pair (sub $P.t$ refines base $X.t$) it reads both Python defs from the source AST
+(the IR flattens `Optional[int]` to a `_union_*` name) and, writing $\lfloor a \rfloor$ for the
+member set of an annotation (`Union` / `Optional` / `|` split; `None` a member; `typing.` and
+`List`/`Dict`/`Set`/`Tuple` capitalisation normalised; absent = $\{\mathtt{Any}\}$), requires
+$\lfloor \mathit{ret}_P \rfloor \sqsubseteq \lfloor \mathit{ret}_X \rfloor$ and, per
+positional parameter $i \ge 1$, $\lfloor \mathit{par}^i_X \rfloor \sqsubseteq \lfloor
+\mathit{par}^i_P \rfloor$, where $L \sqsubseteq H$ iff the wider side is absent, or $H$ meets
+$\{\mathtt{Any}, \mathtt{object}\}$, or every $m \in L$ has $\uparrow m \cap H \ne
+\emptyset$, $\uparrow m$ being $m$, its ancestors among the file's classes, and `int` for
+`bool`. A failure raises `PYCSL-SEM-OVERRIDE-REFINEMENT`. No goal is emitted: the lowering of
+`b.m()` (a `val` typed by $X.t$'s annotation) is unchanged, R5 only makes it faithful.
+
+The §T.6.32 store set becomes $\mathit{St}(C, f) \cup \mathit{Ext}(C, f)$. $\mathit{Ext}$ walks
+the whole module (enclosing def tracked) for every attribute store NOT already counted as a
+`self` store — assignment / annotated / augmented (`0 op e`, plus an unknown dict-value store)
+/ `for` / `with` / comprehension targets, tuple targets paired element-wise, `del x.f` and
+`delattr` / `object.__delattr__` (value: a non-int marker), `setattr` / `object.__setattr__`
+(dynamic name: `*`), `x.f[k] = e`, `x.f.update / setdefault / __setitem__`, and `__dict__` /
+`vars(x)` stores (`*`). The receiver $x$ resolves to a class $K$ (a method's `self`, a parameter
+annotated $K$, a local every binding of which is `K(..)`): the store joins $K$'s set (hence its
+bases' and descendants' views, as in §T.6.32); a parameter annotated with builtin scalar /
+container names only joins no set; any other receiver joins every class storing $f$. In the
+kind walk, an UNANNOTATED parameter of the storing def is INT unless the names mentioned by
+unverified module code (every statement outside a def body: module level, `__main__`, class
+bodies, decorators, defaults; class bases excluded) meet $\{$the def, its class, the class's
+descendants$\}$, where it is UNK; and `k.m()` on a receiver resolved to $K$ is INT when $m$ is
+annotated `-> int` / `-> bool` in $K$ or a base.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

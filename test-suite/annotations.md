@@ -1813,7 +1813,7 @@ tuple targets paired element by element, starred / `for` / `with` targets, `self
 / `.update` / `.setdefault`. A value is PROVABLY int when it is an int / bool literal, an int
 operator over provably-int operands (`+ - * // % << >> & | ^`, `**` by a non-negative int
 literal), a local of the storing function every binding of which is provably int, a walrus over
-one, an `int`-annotated (or unannotated) parameter, a known-int global, another provably-int
+one, an `int`-annotated (or unannotated, §7.24) parameter, a known-int global, another provably-int
 field, `len` / `int` / `ord` / `hash` / `id` / `bool` / `round(x)`, `abs` / `min` / `max` of
 provably-int arguments, or a user function / method annotated `-> int` / `-> bool`. A value SHOWN
 non-int (a float / str / None literal, `/`, `2 ** -1`, a display, an f-string, `float(..)`, a
@@ -1829,6 +1829,35 @@ operand of a comparison (CPython compares an int and a float exactly): `c.r > 1`
 true claim, is now refused). A VALUE of a bare `dict` / `Dict` / `Mapping` parameter is under
 BARE-CONTAINER-INT (§7.18), dropped by `--strict-bare-containers`. Witnesses `4420`-`4439`
 (`4427` strict); controls `4440`-`4442`, `4444`, `4445`; assumption counterexample `4443`.
+
+### 7.24 Overrides keep the base's annotations; field stores from ANY code count (route #338)
+
+Two holes of §7.21 / route #277. (1) OVERRIDE ANNOTATIONS. A caller holding `b: B` types
+`b.m()` by `B.m`'s RETURN annotation, and §7.21 trusts a `-> int` method as an int field
+initialiser (`self.r = self.m()`), but the default override check (rules R1-R4 of
+`PYCSL-SEM-OVERRIDE-REFINEMENT`) compared contracts only: `B.m -> int` overridden `S.m ->
+float` gave the goal `true -> true` and `b.m() % 1 == 0` PROVED. Rule R5 now refuses an override
+whose return annotation is not a SUBTYPE of the base's (covariance) or whose parameter
+annotation is not a SUPERTYPE of the base's at the same position (contravariance). Per member
+of a `Union` / `Optional` / `X | Y`: the same type (`List[int]` = `list[int]`), `bool` under
+`int`, a class of the file under one of its ancestors, anything under `Any` / `object`. `int` is
+NOT taken under `float` (the model types them `int` / `real`). A missing annotation is `Any`:
+no constraint on the wider side, refused on the narrower one (an unannotated override of `->
+int`, an annotated override parameter where the base's is unannotated). `--assume-class-exact`
+turns R5 off with R1-R4 (CLASS-EXACT). (2) EXTERNAL STORES. §7.21 counted the stores of the
+class, its bases and its descendants only; `c.r = 0.5`, `setattr(c, "r", .25)`, `c.r += 0.5`,
+`del c.r`, `delattr(c, "r")`, `c.d["a"] = 0.5` from module level, `__main__`, another function
+or a method of another class now join the census: of the receiver's class when the receiver
+is a parameter annotated with a class of the file (or a local every binding of which
+constructs one), of NO class when it is annotated with builtin scalar / container types only
+(annotation trust), and of EVERY class of the file storing a field of that name otherwise. A
+deletion is a non-int store; a dynamic name (`setattr(c, n, v)`, a `__dict__` / `vars()`
+store) taints every field. (3) An UNANNOTATED parameter stored into a field (`self.r = v`) stays
+int only while every caller is VERIFIED (WhyML types the record literal): when unverified code
+of the module (module level, `__main__`, a default, a decorator) names the storing def, its
+class or a descendant, the value is of unknown type (`U(0.5)` in `__main__`). A `k.m()` call
+on a receiver typed / constructed as a class of the file is int when `m` is annotated `-> int`
+there (R5 keeps it so). Witnesses `4530`-`4540`; controls `4541`-`4544`.
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

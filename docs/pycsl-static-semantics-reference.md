@@ -3131,7 +3131,10 @@ X does not declare, or X's `no_exception` excludes, or raises one undeclared whe
 only under a condition; (R2) drops X's `no_exception` claim; (R3) assigns a location X's
 declared `assigns` does not name — except a location rooted at a `self` field class X does not
 have, which no X-typed receiver can observe; (R4) takes fewer positional parameters than X, or
-moves one X's contract mentions. `--assume-class-exact` turns all of this off (CLASS-EXACT);
+moves one X's contract mentions; (R5, route #338) has a return annotation that is not a
+subtype of X's (`bool` <: `int`, a class <: its ancestors, members of `Union`/`Optional` each
+covered, `Any`/`object` cover all, `int` NOT <: `float`, absent = `Any`) or a parameter annotation
+that is not a supertype of X's at the same position. `--assume-class-exact` turns all of this off (CLASS-EXACT);
 `#@ conforms_to` pairs are checked in both modes (route #224). Cost of the default (measured,
 gen #37): 11 of 1792 + 2186 corpus files gain goals; 0445 (the negative case, now expected FAIL),
 1348 and python-reference 0206 (each a genuine Liskov violation of its program, now run with
