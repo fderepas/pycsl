@@ -82,7 +82,7 @@ false proofs are the red-team / scratch shapes 4420-4439.
 **Gates** (logs `.r334btmp/g/`, removed at the end; rc): witnesses 4420-4439 base full proof 20/20 PROVED rc=0 -> after 20/20 REFUSED
 rc=1; controls 4440-4445 + 1490 full proof rc=0; byte-diff-compare root rc=0 (`--expect-gone 2132`), pyref rc=0, mirror rc=0;
 check-self-annotate-sync.sh rc=0 (926 verbatim); self-annotate-mirror-check.sh rc=0 (53); run-soundness-planes.sh fast 61/61 rc=0;
-check-getattr-erasure rc=0 (DECLARED 0); check-stdlib-modules-verify: see README entry; doc-coherency --check rc=0;
+check-getattr-erasure rc=0 (DECLARED 0); check-stdlib-modules-verify rc=0 (21 known non-verifying; each slow plane run on its own; `--slow` suite not run); doc-coherency --check rc=0;
 check-assumed-facts rc=0 (85 facts, ledger 3 unchanged); check-trusted-raises-honesty rc=0 (ratchet 61);
 check-refusal-witness-coverage rc=0 (281 demonstrated / 5, ceiling 5; rows 4420-4439 + 2132 via `_census_row`, main-tree paths);
 check-dropped-mutation rc=0 (0 / 51 / 5 / 0); check-corpus-executes rc=0; check-corpus-contract-truth rc=0;
