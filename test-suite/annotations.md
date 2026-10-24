@@ -1859,6 +1859,13 @@ type the container readers do not model (`Dict[str, float]` values, `List[Fracti
 `Set[float]`, a non-`int`/`str` dict key) is erased the same way. (5) A union arm naming a class
 that is not a record (`Optional[Fraction]`, `Optional[P]` for a field-less `P`, `Optional[T]`
 for a TypeVar `T`) no longer carries an opaque `int` payload: the whole annotation is erased.
+(6) Inside a method, an arithmetic / ordering operator applied to `self` (`self - o`, `-self`,
+`self < o`, `self += ..`) is REFUSED (`PYCSL-R337-SELF-OPERATOR`): Python runs the class's own
+dunder or raises `TypeError`, while a non-record class is `type <class> = int` for its methods.
+Identity (`x is x`) of an erased value still proves. Witnesses `4480`-`4520`, `4524`, `4527`
+(`4518`-`4520` REFUSED `PYCSL-R336-READONLY-VIEW-STORE`, `4524` / `4527` REFUSED
+`PYCSL-R337-SELF-OPERATOR`); controls `4521`-`4523`, `4525`, `4526`, `4528`, `4529`.
+
 Identity (`x is x`) of an erased value still proves. Witnesses `4480`-`4520` (`4518`-`4520`
 REFUSED with the new code); controls `4521`-`4529`.
 

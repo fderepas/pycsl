@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #336 + #337 REPAIRED, candidate (r336b finishing executor off ebd6f814; r336 draft committed as found b48c7f0b,
+##   code 49ff7298 / 28681a0d / a84af1ca / 834f9df4 / bba6e1b4 / 3a2ba7bc, corpus 4d5afb39, docs 45cac885 (annotations 7.23 / T.6.34),
+##   census 231438aa; inline, no new def, ledger 3). Module 5 resolves module aliases (TypeAlias / type / TypeAliasType / plain),
+##   Annotated, Sequence/tuple[T, ...] -> List, Mapping -> Dict, Literal[None] -> None before any type reader (emission byte-identical
+##   to the direct spelling); a store / mutating call / non-builtin call on a read-only view param is REFUSED
+##   (PYCSL-R336-READONLY-VIEW-STORE); Module 6 erases (route #249) any param / return tag outside the lowered set (Fraction, Decimal,
+##   Real, SupportsFloat, type, None, Iterable/Collection/Deque, imported and FIELD-LESS classes); unmodelled element/key/value types
+##   erased; a non-record class union arm erases the annotation; operators on `self` REFUSED (PYCSL-R337-SELF-OPERATOR). Witnesses
+##   4480-4520, 4524, 4527: 40 base false proofs -> FAIL/REFUSED (3 view stores REFUSED at base too); controls 4521-4523, 4525, 4526,
+##   4528, 4529 PROVED (6 FAILED at base). Root 9 MOVED (0892, 0962-0965, 1312, 2585, 2592, 3107 [edited `-> object`]) / 0 GONE /
+##   0 APPEARED, all re-proved to labels; pyref 0/0/0; mirror 2 MOVED (crosscheck_ir, sertop: unused union decls) / 0 GONE, both
+##   whole-file PROVED (no OWED). Residuals: function-local/class/imported aliases (erased, not resolved), Why3 type errors for
+##   float `%` (pre-existing), syntactic view/self checks (no alias following), bare Sequence/Iterable/Mapping now erased.
+
 ## gen #37 (2026-10-24): #341 + #342 REPAIRED, candidate (r341 executor off 8984dce3; code 88a8a4c7 / 7be6e53a, corpus 0904473f /
 ##   ec7df9fe, census 41dddc52 / 768c1725, docs 83deebdc + route docs; one inline `_run_pipeline` block, no new def, ledger 3). Sound
 ##   refusals, no emission change. #341 PYCSL-R341-CLASS-BASE-NOT-A-NAME: a base that is not a class name (alias / annotated /

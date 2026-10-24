@@ -3909,6 +3909,12 @@ record returns `Any`, so the annotation is the erased `Any` of §T.6 route #258.
 then follow routes #251 / #252 unchanged (uninterpreted `pycsl_py_*` operators; refused
 under `no_exception` and in builtin-typed slots).
 
+**Operators on `self` (Module 5, same pass).** In a def whose first positional parameter is
+`self`, a `BinOp` with `self` as an operand, a `UnaryOp` other than `not` on `self`, an
+`AugAssign` to `self`, or a `Compare` with an ordering operator and `self` as an operand stamps
+the def; `_build_function_ir` raises `PYCSL-R337-SELF-OPERATOR`. (A non-record class's methods
+take `self: <c>` with `type <c> = int`, so these were int operators.)
+
 ### §T.6.35  Override annotation refinement (R5) and the any-code field-store census (route #338)
 
 _Corresponds to `annotations.md` §7.24._
