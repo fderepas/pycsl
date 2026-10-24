@@ -352,8 +352,9 @@ def _parse_args() -> argparse.Namespace:
     g_strict.add_argument("--strict-bare-containers", action="store_true",
                         help="Drop the BARE-CONTAINER-INT model assumption (route "
                              "#330): an element of a parameter annotated with a BARE "
-                             "container (`list`, `List`, `Sequence`, `tuple`, ...) is "
-                             "of unknown type, so using it as an int (`xs[0] % 1 == 0`, "
+                             "container (`list`, `List`, `Sequence`, `tuple`, ...) — "
+                             "or a VALUE of a bare `dict` / `Dict` / `Mapping` (route "
+                             "#334) — is of unknown type, so using it as an int (`xs[0] % 1 == 0`, "
                              "`xs[0] * 0 == 0`) is refused (PYCSL-R325-OPAQUE-INT-"
                              "FALLBACK). Off by default — such an element is read as an "
                              "`int`, a declared assumption listed by --soundness-report "
@@ -821,13 +822,16 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
     # an `int` (`xs: list` is `array int`, `xs: List` an `int` read by `subscript_get`),
     # though the annotation admits any element: `xs[0] % 1 == 0` proves of `[0.5]`.
     # Making every such element an R325 origin refused 90 corpus files (measured), so the
-    # int reading is DECLARED; `--strict-bare-containers` drops it.
+    # int reading is DECLARED; `--strict-bare-containers` drops it. ROUTE #334: a VALUE of
+    # a bare `dict` / `Dict` / `Mapping` parameter (lowered `map .. (option int)`) is under
+    # the same assumption (default-origin measured: 3 corpus + 1 mirror file refused).
     _bc_uses: List[str] = []
     for f in funcs:
         for _bc_n, _bc_t in (f.get("param_annotations") or {}).items():
             if isinstance(_bc_t, str) and _bc_t.strip().split(".")[-1] in (
                     "list", "List", "Sequence", "Iterable", "tuple", "Tuple",
-                    "MutableSequence", "Collection"):
+                    "MutableSequence", "Collection", "dict", "Dict", "Mapping",
+                    "MutableMapping"):
                 _bc_uses.append("%s: parameter %s: %s" % (f["name"], _bc_n, _bc_t.strip()))
     _hk_uses: List[str] = []
     for f in funcs:
@@ -996,9 +1000,12 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
             "statement": "an element of a parameter annotated with a bare container "
                          "(list / List / Sequence / tuple / ..., no element type) is an "
                          "int: the element is lowered to the int sort, as if the "
-                         "annotation were List[int]",
+                         "annotation were List[int]; likewise a VALUE of a bare dict / "
+                         "Dict / Mapping parameter (as if Dict[K, int], route #334)",
             "counterexample": "def g(xs: list): return xs[0] * 0 == 0 proves \\result == "
-                              "True; g(['a']) is False (corpus 4348-4349)",
+                              "True; g(['a']) is False (corpus 4348-4349); def g(d: "
+                              "dict): return d['a'] % 1 == 0 proves; g({'a': 0.5}) is "
+                              "False (corpus 4443, strict twin 4427)",
             "strict_mode": "--strict-bare-containers",
             "relied_on_by": sorted(set(_bc_uses)),
         })
