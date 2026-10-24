@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #336 (unrecognised parameter/element annotations default to int: TypeAlias/Annotated/Fraction/Decimal/Real/
+##   SupportsFloat/str-None aliases; parameterised containers drop element types), #337 (fieldless user class = int), #338 (override return
+##   types not compared; external field stores not counted by #334) OPENED (red team 23; 5/5 combined files reproduced rc=0).
+
 ## gen #37 (2026-10-24): #334 REPAIRED, candidate (r334b finishing executor off 1b425056; r334 draft committed as found 43740172,
 ##   code 24b9295f / 7e75582d / 9bbf1701, census 41ac87f2, docs 054a4330 + route docs; inline in #325's block, no new def, ledger 3).
 ##   A field label is int only when EVERY value stored into it (class, bases, SUBCLASSES; tuple / starred / for / setattr / += / dict
