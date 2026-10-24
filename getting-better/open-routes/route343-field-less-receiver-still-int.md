@@ -1,0 +1,7 @@
+# OPEN ROUTE #343 — A FIELD-LESS CLASS'S RECEIVER IS STILL `type <c> = int` — R337-SELF-OPERATOR IS SYNTACTIC ON THE TOKEN `self`
+**Status: OPEN, Severity 1.** Red-team round 25 (2026-10-24, probes around the #336-#342 repairs); driver-reproduced on main 78c92b39 (rc=0 "Verification SUCCESS"; CPython violates; see `scratchpad/rt25/driver-repro.txt`).
+Witnesses `witnesses-r343/`: `b01_self_alias_sub.py`, `b04_self_lt_alias_noexc.py`, `h01_self_abs_noexc.py`, `h03_self_alias_eq.py`, `h05_self_range.py`, `h06_self_walrus_sub.py`, `h07_self_return_int.py`, `h08_self_list_elem_sub.py`, `h10_nested_def_self.py`, `l05_self_to_int_param.py`, `l06_self_in_int_list.py`, `l08_self_to_float.py`.
+
+Route #337's repair refuses an operator only when an operand is literally spelled `self`. Any alias (`s = self`, `(s := self)`, `[self][0]`, `t = self; u = t`) keeps the int type and every int law; so do builtins taking `self` (`abs`, `range`, `max`), `self` flowing into an `int` parameter / `List[int]`, and `self` returned through `-> int`. Emission: `type p = int`, `let p__m (self: p)`, `py_range_1 self`. Contrast: a receiver named `me` is erased and refused (b02).
+
+Repair: Give a field-less class's receiver the same route #249 erased type its parameters already get (preferred), or follow aliases and int-slot flows; measure the 21 mirror `type c = int` aliases first (#336 finisher found the mirror depends on them).

@@ -1,0 +1,27 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt25/h08_self_list_elem_sub.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_4t634dav.mlw", line 16, characters 26-45:
+Sub-goal array creation size of goal w__m'vc.
+Prover result is: Valid (0.00s, 279 steps).
+
+File "/tmp/.pycsl_4t634dav.mlw", line 17, characters 13-18:
+Sub-goal index in array bounds of goal w__m'vc.
+Prover result is: Valid (0.00s, 862 steps).
+
+File "/tmp/.pycsl_4t634dav.mlw", line 17, characters 5-10:
+Sub-goal index in array bounds of goal w__m'vc.
+Prover result is: Valid (0.00s, 862 steps).
+
+File "/tmp/.pycsl_4t634dav.mlw", line 14, characters 15-27:
+Sub-goal postcondition of goal w__m'vc.
+Prover result is: Valid (0.00s, 596 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_4t634dav.mlw", line 9, characters 18-22: unused variable self
+Warning, file "/tmp/.pycsl_4t634dav.mlw", line 9, characters 28-29: unused variable o
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0
