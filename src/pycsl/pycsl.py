@@ -2880,8 +2880,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # field (every field when the invariant reads `self` otherwise than as `self.f`) only by
     # a TOP-LEVEL `self.f = e` / `self.f: T = e` statement; it may not load `self` other
     # than as an attribute root (an alias, an argument — `setattr(self, ..)`, `vars(self)`
-    # — a return), rebind `self`, touch `self.__dict__`, or `return` (later top-level
-    # stores become conditional). And no code of the file may store `__class__`
+    # — a return; `type` / `isinstance` / `id` of it are reads), rebind `self`, touch
+    # `self.__dict__` / `__setattr__` / `__delattr__`, call a method `self.m(..)` (route
+    # #150 then makes every field unknown and NO goal is emitted — measured: `self.x = 5;
+    # self.helper()` PROVED `x == 0`), use `super()` other than as the leading
+    # `super().__init__(..)` (measured: `super().__setattr__("x", 5)` PROVED), or `return`
+    # (later top-level stores become conditional). And no code of the file may store `__class__`
     # (`x.__class__ = C`, `setattr(x, "__class__", C)`). Each a REFUSAL; monotone; INLINE
     # (no nested def: check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
     import ast as _ast341
@@ -2975,6 +2979,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     stage="ir-semantic", code="PYCSL-R342-CLASS-REASSIGNMENT")
         _ir342 = _json.loads(json_ir)
         _rel342 = {}
+        _invf342 = set()
         for _td342 in (_ir342.get("type_decls") or []):
             if not (isinstance(_td342, dict) and _td342.get("class_invariants")
                     and _td342.get("name") in _cls341):
@@ -2992,6 +2997,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _stk342.extend(_nd342.values())
                 elif isinstance(_nd342, list):
                     _stk342.extend(_nd342)
+            _invf342 |= {_f342 for _f342 in _fs342 if _f342 != "*"}
+            if "*" in _fs342:
+                _invf342 |= {_fd342.get("name") for _fd342 in (_td342.get("fields") or [])
+                             if isinstance(_fd342, dict) and isinstance(_fd342.get("name"), str)}
             _cs342 = [_td342["name"]]
             _seen342 = set()
             while _cs342:
@@ -3006,6 +3015,40 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _cs342.append(_b342.id)
                         elif isinstance(_b342, _ast341.Attribute):
                             _cs342.append(_b342.attr)
+        # The same obligation from OUTSIDE: module-level / `__main__` code is not verified,
+        # so a store there into an invariant field (`b.x = 5`, `b.x += 1`, `del b.x`,
+        # `setattr(b, "x", 5)`; receiver class unknown -> any invariant field of the file)
+        # is never checked against the invariant every verified receiver assumes. MEASURED:
+        # `b = B(); b.x = 5; f(b)` in `__main__` PROVED `f(b) == 0` (CPython 5). CENSUS: no
+        # such store in either corpus, the mirrors or `pycsl_lib`.
+        _stk342 = list(_t341.body) if _invf342 else []
+        while _stk342:
+            _x342 = _stk342.pop()
+            if isinstance(_x342, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                  _ast341.ClassDef, _ast341.Lambda)):
+                continue
+            _st342 = ""
+            if (isinstance(_x342, _ast341.Attribute) and _x342.attr in _invf342
+                    and not isinstance(_x342.ctx, _ast341.Load)):
+                _st342 = _ast341.unparse(_x342)
+            elif (isinstance(_x342, _ast341.Call) and len(_x342.args) >= 2
+                  and ((isinstance(_x342.func, _ast341.Name)
+                        and _x342.func.id in ("setattr", "delattr"))
+                       or (isinstance(_x342.func, _ast341.Attribute)
+                           and _x342.func.attr in ("__setattr__", "__delattr__")))
+                  and not (isinstance(_x342.args[1], _ast341.Constant)
+                           and _x342.args[1].value not in _invf342)):
+                _st342 = _ast341.unparse(_x342)
+            if _st342:
+                raise _PyCSLSemErr341(
+                    f"line {getattr(_x342, 'lineno', 0)}: module-level code `{_st342}` "
+                    f"stores or deletes a field constrained by a `#@ class invariant` "
+                    f"({sorted(_invf342)}). Module-level and `__main__` code is not "
+                    f"verified, so the invariant every verified receiver assumes would "
+                    f"not be checked against this store (route #342). Move the update into "
+                    f"a verified method or function of the class.",
+                    stage="ir-semantic", code="PYCSL-R342-EXTERNAL-INVARIANT-STORE")
+            _stk342.extend(_ast341.iter_child_nodes(_x342))
         for _c342 in sorted(_rel342):
             _fs342 = _rel342[_c342]
             for _k342 in _cls341[_c342]:
@@ -3025,6 +3068,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         elif (isinstance(_s342, _ast341.AnnAssign)
                               and isinstance(_s342.target, _ast341.Attribute)):
                             _top342.add(id(_s342.target))
+                    _lead342 = [_st for _st in _m342.body
+                                if not (isinstance(_st, _ast341.Expr)
+                                        and isinstance(_st.value, _ast341.Constant)
+                                        and isinstance(_st.value.value, str))]
                     _roots342 = set()
                     _nest342 = set()
                     _nret342 = set()
@@ -3055,8 +3102,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if (isinstance(_x342, _ast341.Attribute)
                                 and isinstance(_x342.value, _ast341.Name)
                                 and _x342.value.id == _self342):
-                            if _x342.attr == "__dict__":
-                                _bad342 = f"touches `{_self342}.__dict__`"
+                            if _x342.attr in ("__dict__", "__setattr__", "__delattr__"):
+                                _bad342 = f"touches `{_self342}.{_x342.attr}`"
                             elif (not isinstance(_x342.ctx, _ast341.Load)
                                   and (_x342.attr in _fs342 or "*" in _fs342)
                                   and id(_x342) not in _top342):
@@ -3074,6 +3121,23 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                            f"bare `{_self342}` as an argument — "
                                            f"`setattr`, `vars`, a helper — an alias "
                                            f"`s = {_self342}`, or a value)")
+                        elif (isinstance(_x342, _ast341.Call)
+                              and isinstance(_x342.func, _ast341.Attribute)
+                              and isinstance(_x342.func.value, _ast341.Name)
+                              and _x342.func.value.id == _self342):
+                            _bad342 = (f"calls `{_self342}.{_x342.func.attr}(...)`, whose "
+                                       f"effect on the fields is not part of the "
+                                       f"constructor's obligation")
+                        elif (isinstance(_x342, _ast341.Call)
+                              and isinstance(_x342.func, _ast341.Attribute)
+                              and isinstance(_x342.func.value, _ast341.Call)
+                              and isinstance(_x342.func.value.func, _ast341.Name)
+                              and _x342.func.value.func.id == "super"
+                              and not (_x342.func.attr == "__init__" and _lead342
+                                       and isinstance(_lead342[0], _ast341.Expr)
+                                       and _lead342[0].value is _x342)):
+                            _bad342 = ("uses `super()` other than as its leading "
+                                       "`super().__init__(...)` statement")
                         elif isinstance(_x342, _ast341.Return) and id(_x342) not in _nret342:
                             _bad342 = ("contains a `return`, which makes every later "
                                        "top-level store conditional")
