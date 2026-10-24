@@ -3876,6 +3876,39 @@ provably-int fields stay int. Two sinks were added to keep the mirror emitting: 
 a `'a`-typed parameter of a `val` (`str_mod_op "fmt" (a, u)`: no int theory applies there), the
 head found skipping string-literal arguments.
 
+### §T.6.34  Annotation resolution and the int-default erasure (routes #336 / #337)
+
+_Corresponds to `annotations.md` §7.23._
+
+**Resolution (Module 5, `visit_Module`, before any type reader runs).** Let $A$ be the map
+from a module-level name bound exactly once by `X: TypeAlias = T`, `type X = T` (no type
+parameters), `X = TypeAliasType("X", T)` or a plain `X = T` whose names are all type names, to
+$T$ (`Any` / `object` / string targets and the IR sentinels excluded). Every parameter,
+return and annotated-local annotation node is rewritten to a fixpoint (at most 16 rounds) by
+$X \mapsto A(X)$, `Annotated[T, ..]` $\mapsto T$, `Sequence[T]` / `MutableSequence[T]` /
+`tuple[T, ...]` / `Tuple[T, ...]` $\mapsto$ `List[T]`, `Mapping[K, V]` / `MutableMapping[K, V]`
+$\mapsto$ `Dict[K, V]`, `Literal[None]` $\mapsto$ `None`. Hence
+$\tau(\text{rewritten}) = \tau(\text{direct spelling})$ byte for byte. A parameter whose
+pre-rewrite head (through $A$, `Optional`, `Annotated`) is `Sequence`, `Mapping` or a
+`tuple[T, ...]` is READ-ONLY: a subscript store / `del` / augmented assignment, a method call
+other than `count index get keys values items copy`, or an argument position of any call but
+the pure builtins raises `PYCSL-R336-READONLY-VIEW-STORE` (stage `ir-emit`).
+
+**Erasure (Module 6, `_reset_function_state`, the route #249 set).** Let $L$ = {`int bool
+str float list tuple dict set frozenset bytes bytearray List Dict Set FrozenSet Tuple`, the IR
+sentinels} $\cup$ records $\cup$ variants $\cup$ tags prefixed `_union_` / `option:` /
+`callable:` (plus `TParamNode` / `CallKw` / `ast.ClassDef|Module` under their `_uses_*`
+gates). A formal $p$ with annotation tag $a \notin L$ joins $\mathit{erased}$; a return tag
+$\notin L \cup$ {`None NoReturn Iterator Generator Iterable`} sets `ret_erased`, and a call
+of such a function is an erased call (`_r249_any_ret_funcs`). An element / key / value of an
+annotated container whose type is outside what the readers model (Module 5 `r249_erased_
+containers`: `int`/`bool`/`str`, records outside sets, `float` only at `List`-only depth or a
+fixed `Tuple` slot, dict values in `_m5_get_dict_value_type`'s shapes, `int`/`bool`/`str`
+keys) is tagged `k` / `v`. In `_union_arm_tag`, a capitalised arm that is not a declared
+record returns `Any`, so the annotation is the erased `Any` of §T.6 route #258. Erased values
+then follow routes #251 / #252 unchanged (uninterpreted `pycsl_py_*` operators; refused
+under `no_exception` and in builtin-typed slots).
+
 ### §T.6.35  Override annotation refinement (R5) and the any-code field-store census (route #338)
 
 _Corresponds to `annotations.md` §7.24._

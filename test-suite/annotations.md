@@ -1830,6 +1830,38 @@ true claim, is now refused). A VALUE of a bare `dict` / `Dict` / `Mapping` param
 BARE-CONTAINER-INT (§7.18), dropped by `--strict-bare-containers`. Witnesses `4420`-`4439`
 (`4427` strict); controls `4440`-`4442`, `4444`, `4445`; assumption counterexample `4443`.
 
+### 7.23 An annotation that is not exactly recognised is never an `int` (routes #336 / #337)
+
+A parameter, return or element annotation PyCSL did not recognise used to fall to the "defaults
+to int" lowering, so every int law held of floats, strings, `None` and arbitrary objects
+(`def f(x: Fraction): return x % 1 == 0` PROVED `True`; CPython False for `Fraction(1, 2)`).
+Now: (1) ALIASES are resolved before any type is read — a module-level `X: TypeAlias = T`,
+`type X = T`, `X = TypeAliasType("X", T)` or plain `X = T` (every name in `T` a type name),
+bound exactly once, is replaced by `T` in every parameter, return and annotated-local
+annotation, and `Annotated[T, ..]` by `T`; `Sequence[T]` / `MutableSequence[T]` /
+`tuple[T, ...]` / `Tuple[T, ...]` are read as `List[T]`, `Mapping[K, V]` /
+`MutableMapping[K, V]` as `Dict[K, V]`, `Literal[None]` as `None`. The emission is then
+byte-identical to the direct spelling (`x: Num` with `Num: TypeAlias = float` is `x: float`).
+(2) A READ-ONLY view read as a list / dict (`Sequence`, `tuple[T, ...]`, `Mapping`, through
+aliases / `Optional` / `Annotated`) may not be stored into: an element store / `del` / `+=`, a
+mutating method call, or passing it to a function other than a pure builtin (`len`, `sum`,
+`sorted`, ...) is REFUSED (`PYCSL-R336-READONLY-VIEW-STORE`; the argument may be a tuple or
+a mapping proxy, whose store raises `TypeError`). (3) A parameter or return whose tag is still
+none of the lowered types (`int bool str float bytes bytearray list tuple dict set frozenset`,
+the bare typing containers of BARE-CONTAINER-INT, a record / variant / union / option /
+callable, the IR sentinels) — `Fraction`, `Decimal`, `numbers.Real`, `SupportsFloat`, `type`,
+`None` as a parameter, `Iterable[T]`, `Collection[T]`, `Deque[T]`, a bare `Sequence` /
+`Mapping`, an imported class, a FIELD-LESS user class (route #337: it was `type w = int`, its
+own `__sub__` ignored) — is the ERASED arbitrary object of §7.12 (route #249): no law, its
+arithmetic and comparisons uninterpreted, refused under `no_exception` or in a builtin-typed
+slot; a call of a function so annotated returns an erased value. (4) An element / key / value
+type the container readers do not model (`Dict[str, float]` values, `List[Fraction]`,
+`Set[float]`, a non-`int`/`str` dict key) is erased the same way. (5) A union arm naming a class
+that is not a record (`Optional[Fraction]`, `Optional[P]` for a field-less `P`, `Optional[T]`
+for a TypeVar `T`) no longer carries an opaque `int` payload: the whole annotation is erased.
+Identity (`x is x`) of an erased value still proves. Witnesses `4480`-`4520` (`4518`-`4520`
+REFUSED with the new code); controls `4521`-`4529`.
+
 ### 7.24 Overrides keep the base's annotations; field stores from ANY code count (route #338)
 
 Two holes of §7.21 / route #277. (1) OVERRIDE ANNOTATIONS. A caller holding `b: B` types
