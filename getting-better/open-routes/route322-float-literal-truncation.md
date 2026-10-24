@@ -1,5 +1,5 @@
 # OPEN ROUTE #322 — FLOAT LITERALS TRUNCATED TO INT IN abs()/sum() FOLDS; FLOAT MODULE CONSTANTS READ AS OPAQUE INTS
-**Status: OPEN (gen #37, 2026-10-23), Severity 1.** Red-team round 18 (stdlib/builtin model); driver-reproduced on main 3b07a838 (rc=0; CPython violates).
+**Status: REPAIRED (gen #37, 2026-10-24; candidate, gates partly OWED — see REPAIR), was OPEN (2026-10-23), Severity 1.** Red-team round 18 (stdlib/builtin model); driver-reproduced on main 3b07a838 (rc=0; CPython violates).
 Witnesses `witnesses-r322/`: `abs(2.5) == 2` and `abs(0.5) == 0` prove (g01-g03; expressions.py ~12129 `abs(int(val))`); `sum([0.5, 0.5]) == 0`
 proves (h01; ~7625 `sum(int(e["value"]) ...)`); `math.pi % 1 == 0` proves through integer `pycsl_mod` (s05; ~17734 generic
 `val get_{attr} (x: int) : int`; SEV-2, int-erasure family #62/#64 but a live false proof).
@@ -50,10 +50,21 @@ checker, a FAIL):
 | 4206 sum int local (control) | ok | PROVED | PROVED |
 | 4207 sys.maxsize int (control) | ok | PROVED | PROVED |
 | witnesses-r322 g01/g02/g03, h01, s05 | violate | PROVED | FAIL (L3-tc) / FAIL / FAIL / FAIL (L3-tc) / REFUSED |
-| scratch t01 `from math import *` / t02 `getattr(math,"pi")` / t03 local import / t04 default param `math.pi` / t12 `cmath.inf` | violate | PROVED (emits) | REFUSED (#322) |
+| scratch t01 `from math import *` / t02 `getattr(math,"pi")` / t03 local import / t04 default param `math.pi` / t12 `cmath.inf` | violate | emits the opaque-int shape (base proof not re-run) | REFUSED (#322) |
 
 (* 4190-4199 at base: emitted and type-checked (L3-tc ok) at 67edf13c; the PROVED verdict is the r322 executor's measured base
 proof of the matching scratch probe (g01-g03, h01, s05, s08, s10, s13, s14, g12), not a re-run of the corpus file — OWED if a
 literal base re-proof is wanted.) Scratch probes not in the corpus
 (no ids left in 4190-4211): t01/t02 (the bypasses fixed in d9a53ce5), t03/t04/t12 (already refused by 6899062d), t05/t06/t09
 (`max(0.5, 0)`, `min(2.5, 3)`, `abs(-0.5)`: L3-tc at base and after), t07 `sum((0.5, 0.5))` (opaque `sum_1 (any int)`, unchanged).
+
+Blast radius / gates: see route #324's REPAIR (same commits, same gate run). Corpus root 1-1000 at d9a53ce5: 0 MOVED; d9a53ce5's two
+new arms match no corpus or mirror file (`grep` for `from (math|cmath|sys) import *` / `getattr(math|cmath|sys` over
+`test-suite/corpus` and `src/self-annotate/src`: none), so they are byte-inert by construction. OWED as listed there (rest of the
+root sweep, pyref, mirror sweep, fast planes, assumed-facts, census rows for 4190-4199). New scratch witnesses for the bypasses:
+`witnesses-r322/t01_star_import_pi.py`, `t02_getattr_pi.py` (at base they emit the opaque-int shape of s08/s05, which PROVED; base proof not re-run; REFUSED after).
+
+**Residuals**: float VALUES in general remain the FLOAT-FINITE model's job (`max(0.5, 0)`, `abs(-0.5)` fail L3-tc; `sum((0.5, 0.5))`
+lowers to an opaque `sum_1 (any int)`); the refusal is name-based (a re-export of `math.pi` through a user module, or
+`importlib.import_module("math").pi`, is not traced); `from math import e` / `*` refuses a local variable that shadows `e`
+(over-refusal, never a false proof).

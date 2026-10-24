@@ -1,5 +1,15 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #322 + #324 REPAIRED, candidate (r322 executor off 67edf13c, finished by r322b; commits 6899062d, d9a53ce5,
+##   2c457d4e + route docs; inline, no new def/field, ledger 3; #324 mirror twin verbatim). #322: abs()/sum()/known-element/dict/
+##   NamedTuple/`__init__`/dataclass folds take INT literals only (9 `int()`-over-float sites censused); float constants of math/cmath
+##   and sys.float_info REFUSED (PYCSL-R322-FLOAT-MODULE-CONSTANT; also via `from math import *` and `getattr(math, ...)`, two
+##   bypasses found by r322b). #324: contract-side `s[a:b]` normalises any bound that is not a non-negative literal / omitted /
+##   bare `len()` as CPython does. Witnesses 4190-4193 PROVED -> FAIL (L3-tc), 4194-4199 -> REFUSED, 4200-4202 -> FAIL; controls
+##   4203-4207, 4209-4211 PROVED (4208 emission-identical, proof OWED). Root sweep 1-1000 0 MOVED (0767 identical); sync/mirror-check/
+##   doc-coherency/raises rc=0. OWED (heavy queue saturated): root 1001-2991 + pyref byte-diff, mirror-emit-sweep (+ expressions mirror
+##   whole-file proof), fast planes 61, assumed-facts, census rows 4190-4202.
+
 ## gen #37 (2026-10-23): #321 + #323 REPAIRED (r321 executor, off 67edf13c; inline in the seeded-map arm of `_call_named_builtins`,
 ##   `_iter_len_expr` and `_reset_function_state` (mirror twins `\trusted`; the two expression stubs now declare `#@ raises
 ##   PyCSLIRError`); no new def/field (scan result rides on `_r249_scope["r321_dd"]`); ledger 3). #321: Counter/OrderedDict/
