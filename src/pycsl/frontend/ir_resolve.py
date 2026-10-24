@@ -3138,8 +3138,9 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             if dyn is not None:
                 state = dyn + " (with `" + str(entry[2]) + "` resolved to a local file)"
                 break
-            with open(dep) as f:
-                dep_src = f.read()
+            dep_fh = open(dep)
+            dep_src = dep_fh.read()
+            dep_fh.close()
             if "sys" in dep_src:
                 resolve_imports(_ast.parse(dep_src), dep,
                                 {"imports": [], "functions": [], "_r326_dep": True})
