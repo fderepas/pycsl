@@ -1195,10 +1195,25 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _top322 = list(_ast322.parse(source_code).body)
         _top322 += [_s322 for _c322 in _top322 if isinstance(_c322, _ast322.ClassDef)
                     for _s322 in _c322.body]
+        # `sys.float_info.<int field>` (`max_10_exp`, `dig`, ...) is an INT: the opaque-int
+        # lowering is faithful there (BUILTIN-EXACT), so only the FLOAT fields (`max`, `min`,
+        # `epsilon`) and a bare / unknown-field `float_info` read refuse. (MEASURED: the
+        # self-annotation mirror's pure_ast `_INFSTR = '1e' + repr(_sys.float_info.max_10_exp
+        # + 1)` was refused, dropping a verified mirror file.)
+        _r322_int_fields = {"max_exp", "max_10_exp", "min_exp", "min_10_exp", "dig",
+                            "mant_dig", "radix", "rounds"}
+        _ok322 = set()
         for _s322 in _top322:
             if not isinstance(_s322, (_ast322.Assign, _ast322.AnnAssign, _ast322.AugAssign)):
                 continue
             for _a322 in _ast322.walk(_s322):
+                if (isinstance(_a322, _ast322.Attribute) and _a322.attr in _r322_int_fields
+                        and isinstance(_a322.value, _ast322.Attribute)
+                        and _a322.value.attr == "float_info"):
+                    _ok322.add(id(_a322.value))
+            for _a322 in _ast322.walk(_s322):
+                if id(_a322) in _ok322:
+                    continue
                 if (isinstance(_a322, _ast322.Attribute)
                         and isinstance(_a322.value, _ast322.Name)):
                     _m322 = _r322_mods.get(_a322.value.id)
@@ -1258,6 +1273,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         or (_m322 in ("math", "cmath") and _an322 in _r322_floats)
                         or (_m322 == "sys" and _an322 == "float_info")):
                     _hit322 = f"getattr({_m322}, {_an322 or '<non-literal>'})"
+            if (_n322.get("type") == "Attribute" and _n322.get("attr") in _r322_int_fields
+                    and isinstance(_o322, dict) and _o322.get("type") == "Attribute"
+                    and _o322.get("attr") == "float_info"):
+                # an INT field of sys.float_info: faithful; do not descend into the
+                # `float_info` object (it would refuse), but scan its own object chain.
+                _st322.extend([_v322 for _k322, _v322 in _n322.items() if _k322 != "object"])
+                _st322.extend([_v322 for _k322, _v322 in _o322.items() if _k322 != "attr"
+                               and not (isinstance(_v322, dict) and _v322.get("type") == "Var"
+                                        and _r322_mods.get(_v322.get("name")) == "sys")])
+                continue
             if _hit322 is not None:
                 raise _PyCSLSemanticError(
                     f"{args.file}: PYCSL-R322-FLOAT-MODULE-CONSTANT (route #322) — "
