@@ -1,5 +1,15 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #334 REPAIRED, candidate (r334b finishing executor off 1b425056; r334 draft committed as found 43740172,
+##   code 24b9295f / 7e75582d / 9bbf1701, census 41ac87f2, docs 054a4330 + route docs; inline in #325's block, no new def, ledger 3).
+##   A field label is int only when EVERY value stored into it (class, bases, SUBCLASSES; tuple / starred / for / setattr / += / dict
+##   value stores) is PROVABLY int by a type walk (locals, walrus, `**` by a non-negative literal, `-> int` callees ...); a value of
+##   unknown type is carried only under an `int` field annotation (annotation trust, needed by 2 mirror files); an integral float is
+##   int-modelled only as a direct comparison operand; dict-field values classified the same; bare `dict` params join the declared
+##   BARE-CONTAINER-INT (+ strict flag; default-origin measured 3 root + 1 mirror GONE). Witnesses 4420-4439 (12 red-team, 7 scratch,
+##   driver i01 = 4439) PROVED -> REFUSED; controls 4440-4442/4444/4445 + 1490 PROVED; 4443 assumption counterexample. Root 0 MOVED /
+##   1 GONE (2132 `p.k + p.m`, a true claim, declared over-refusal, now FAIL-expected) / 0 APPEARED; pyref 0/0/0; mirror 53/53 0/0/0
+##   (no OWED proof). Residuals: annotation trust, list-field elements, tuple-target record emitter gap (fail-closed), see REPAIR.
 ## gen #37 (2026-10-24): #335 (inherited class invariant assumes the base constructor's field values for subclasses that never ran it:
 ##   no super().__init__, class-attr/property shadowing, MRO) OPENED (red team 22; 4/4 sample reproduced). Red team 22 regression replay:
 ##   all 242 witnesses of #300-#333 still closed on main (j02 = documented #304 residual).
