@@ -3847,6 +3847,35 @@ right-hand side is not a literal tuple). SINKS added: the key of `Map.get` / `Ma
 `match` / `try` arm's pattern variables scope from the arm's `|` / `with` to the next arm,
 and a `for` index over its `do .. done` (both were declaration-wide). BARE-CONTAINER-INT is a
 declared model assumption (§T.10.5).
+### §T.6.32  Field origins by the type of every stored value (route #334)
+
+_Corresponds to `annotations.md` §7.21._
+
+The §T.6.29 field rule is replaced by a classifier over the Python AST, still inline in
+`_run_pipeline`. For a class $C$ and field $f$, $\mathit{St}(C, f)$ is every store of $f$ in
+$C$, its bases and its descendants (class-level and `self.f` assignments with tuple targets
+paired element-wise, starred / `for` / `with` / comprehension targets with an unknown value,
+`+=` as `0 op e`, `setattr(self, "f", e)`, a dynamic `setattr` taints every field, dataclass
+`field(default=e)`); for a dict field, $\mathit{St}_v(C, f)$ is its display values, `self.f[k]
+= e`, `.setdefault(k, e)`, `.update(..)` (unknown). Each stored expression is walked to a kind:
+INT (int / bool literal, int operators, `**` by a non-negative literal, locals followed through
+every binding of the storing def, walrus, int / unannotated parameters, known-int globals,
+other fields followed through their stores, `len int ord hash id bool round(x)`, `abs min max`
+of int arguments, a user `-> int` function / method), NONE (a `None` leaf: `=` / `<>` admitted,
+§T.6.29), IFLOAT (an integral float literal, $|v| < 2^{53}$), UNK (unknown type) or OTHER
+(shown non-int). The label $\ell$ = `_field_label(record, f)` typed `int` is an origin unless
+every kind is INT; UNK is dropped when some store annotates $f$ `int` / `bool` / `Final[int]` /
+`ClassVar[int]` (annotation trust). An IFLOAT origin is admitted only as a DIRECT operand of
+`<`, `<=`, `>`, `>=`, `=`, `<>` (its int and float values compare equally); any other use is
+refused. A dict field whose VALUES are not all INT, and under `--strict-bare-containers` a
+bare `dict` / `Dict` / `Mapping` parameter, makes its `map .. (option int)` label a VALUE
+origin: `match Map.get u k with | Some v -> ..` reads a value (the match carries the origin),
+`| Some _ -> ..` and `Map.mem` only test membership (admitted). An OPAQUE class (no record
+type: `C()` is a stub `c_<n>`, `c.f` a getter `get_f`) is an origin whose getters of
+provably-int fields stay int. Two sinks were added to keep the mirror emitting: an argument at
+a `'a`-typed parameter of a `val` (`str_mod_op "fmt" (a, u)`: no int theory applies there), the
+head found skipping string-literal arguments.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
@@ -4437,7 +4466,7 @@ of the translation:
 | **FLOAT-FINITE** — every `float` value is finite and non-NaN | $\tau(\texttt{float}) = \texttt{real}$ (no NaN/±inf) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-float-finite`; counterexample corpus 2500-2502 |
 | **BUILTIN-EXACT** — a builtin-typed value is an exact instance (no dunder-overriding subclass) | $\tau$ of every builtin | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2506 |
 | **LATIN1-STR** — every `str` value consists of code points 0..255 (`ord(c) < 256`; `chr(n)` modelled only for `0 <= n < 256`) | $\tau(\texttt{str}) = \texttt{string}$ of Why3 `string.Char` (`axiom code`: every code < 256) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-latin1`; counterexample corpus 3020-3023 |
-| **BARE-CONTAINER-INT** — an element of a parameter annotated with a bare container (`list`, `List`, `Sequence`, `tuple`, ...) is an `int` | $\tau$(`list`) = `array int`, $\tau$(`List`) = `int` read by `subscript_get` | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-bare-containers`; counterexample corpus 4363-4364 |
+| **BARE-CONTAINER-INT** — an element of a parameter annotated with a bare container (`list`, `List`, `Sequence`, `tuple`, ...), or a VALUE of a bare `dict` / `Dict` / `Mapping` (route #334), is an `int` | $\tau$(`list`) = `array int`, $\tau$(`List`) = `int` read by `subscript_get` | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-bare-containers`; counterexample corpus 4363-4364 |
 | **HVAL-STR-KEYS** — every dict nested inside a `PyVal` value has `str` keys | $\tau$(`Dict[str, PyVal]`) = `map string (option hval)` with `HMap` over `hpairs` keyed by `string`; the nested-key walk `hval_keys_get` returns a `string` | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-hval-keys`; counterexample corpus 3550-3553 |
 | **CLASS-EXACT** — a user-class-typed value is an exact instance (no override is seen) | a method call through an `A`-typed receiver lowers against `A.m`'s contract | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5) ONLY under `--assume-class-exact`; the default emits the refinement goals and refusals of route #277/#278 instead; counterexample corpus 3100-3101 |
 | **FIELD-DISJOINT** — two distinct mutable fields hold distinct objects | one Why3 region per mutable field (frames such as `ensures { self.ys = old self.ys }`) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2570 |
@@ -4639,6 +4668,9 @@ parameter lowers to `array int` (`list`) or to an `int` read by `subscript_get` 
 `--strict-bare-containers` the element is an origin of the §T.6.29 check, so 4348-4349 are
 refused. Cost (measured, route #330): 90 corpus files (76 of them unlabelled proved drivers)
 use a bare-container element as an int, which is why the strict reading is not the default.
+Route #334 extends it to a VALUE of a bare `dict` / `Dict` / `Mapping` parameter (`map ..
+(option int)`): `d["a"] % 1 == 0` proves (4443) and is refused under the strict flag (4427);
+making it an origin by default refused 3 corpus files and 1 mirror file (measured).
 
 **LATIN1-STR** — every str value consists of code points 0..255. $\tau(\texttt{str})$ is the
 Why3 `string`, whose characters are `string.Char`s, and Why3's `axiom code: forall c. 0 <= code c

@@ -1777,9 +1777,37 @@ int-model f-string join), which stay comparable `==` / `!=` (a string equals its
 An element of a parameter annotated with a BARE container (`xs: list`, `xs: List`,
 `Sequence`, `tuple`) is read as an `int`: the DECLARED MODEL ASSUMPTION BARE-CONTAINER-INT
 (listed by `--soundness-report`; `--strict-bare-containers` makes such an element an
-unmodelled value, refused in an int position; measured: 90 corpus files rely on it).
+unmodelled value, refused in an int position; measured: 90 corpus files rely on it); since
+route #334 it also covers a VALUE of a bare `dict` / `Dict` / `Mapping` parameter (§7.21).
 Witnesses `4330`-`4353` (`4348` / `4349` under the strict flag); controls `4354`-`4362`;
 assumption counterexamples `4363` / `4364`.
+### 7.21 A field is an int only when every value stored into it is provably an int (route #334)
+
+§7.18 (d) refused a field whose initialiser had a non-int SHAPE; any other initialiser left the
+field an int. Now a field (and, for a dict field, its VALUES) is classified by the TYPE of every
+value stored into it, anywhere in the class, its bases and its SUBCLASSES (a receiver typed as a
+base may hold a subclass instance): class-level and `self.f = ..` / `self.f: T = ..` stores,
+tuple targets paired element by element, starred / `for` / `with` targets, `self.f += ..`,
+`setattr(self, "f", ..)`, dataclass `field(default=..)`, and for a dict field `self.d[k] = ..`
+/ `.update` / `.setdefault`. A value is PROVABLY int when it is an int / bool literal, an int
+operator over provably-int operands (`+ - * // % << >> & | ^`, `**` by a non-negative int
+literal), a local of the storing function every binding of which is provably int, a walrus over
+one, an `int`-annotated (or unannotated) parameter, a known-int global, another provably-int
+field, `len` / `int` / `ord` / `hash` / `id` / `bool` / `round(x)`, `abs` / `min` / `max` of
+provably-int arguments, or a user function / method annotated `-> int` / `-> bool`. A value SHOWN
+non-int (a float / str / None literal, `/`, `2 ** -1`, a display, an f-string, `float(..)`, a
+module value, a local bound to one) makes the field an unmodelled value refused in an int
+position (`PYCSL-R325-OPAQUE-INT-FALLBACK`): `x = 2.5; self.r = x`, `self.r = (y := 2.5)`,
+`self.r = 2 ** -1`, `self.r, self.s = 2.5, 1`, a subclass storing `self.r = 0.5`, a dict field
+`{"a": 0.5}`. A value of UNKNOWN type (an attribute of an untyped object, an unknown call)
+makes an undeclared field unmodelled too, but is carried under a field DECLARED `int` /
+`bool` (`self.n: int = t.n`, class-level `n: int = 0`): the annotation is trusted as it is for an
+`int` parameter. An INTEGRAL float literal (`self.r = 3.0`) keeps its int model ONLY as a direct
+operand of a comparison (CPython compares an int and a float exactly): `c.r > 1` proves, but
+`c.r * 10**17 + 1 != c.r * 10**17`, `"ab" * c.r` and `p.k + p.m` are refused (corpus 2132, a
+true claim, is now refused). A VALUE of a bare `dict` / `Dict` / `Mapping` parameter is under
+BARE-CONTAINER-INT (§7.18), dropped by `--strict-bare-containers`. Witnesses `4420`-`4439`
+(`4427` strict); controls `4440`-`4442`, `4444`, `4445`; assumption counterexample `4443`.
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

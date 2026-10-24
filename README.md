@@ -289,8 +289,9 @@ top-level keys, but the `hval` model keys every nested dict by `string`, so
 `{"xs": {1: 2}}`; drop it with `--strict-hval-keys`, corpus 3550-3558) and
 **BARE-CONTAINER-INT** (an element of a parameter annotated with a bare
 container — `xs: list`, `xs: List`, `Sequence`, `tuple` — is read as an `int`,
-so `xs[0] % 1 == 0` proves for `[0.5]`; drop it with
-`--strict-bare-containers`, corpus 4348-4349 / 4363-4364). See
+so `xs[0] % 1 == 0` proves for `[0.5]`; likewise a VALUE of a bare `d: dict`,
+route #334; drop it with `--strict-bare-containers`, corpus 4348-4349 /
+4363-4364 / 4427 / 4443). See
 translational reference §T.10.5.
 
 **Overrides are checked by default (route #277).** A method call on a value

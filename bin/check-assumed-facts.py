@@ -82,8 +82,9 @@ properties of the type mapping, not `assume`/`axiom` lines. Eight are DECLARED (
                   function` with no spec, so it adds no fact to this plane's census.
   BARE-CONTAINER-INT  an element of a parameter annotated with a bare container (`list`,
                   `List`, `Sequence`, `tuple`, ...) is an `int`: `xs[0] % 1 == 0` proves for
-                  `xs: List`, corpus 4363-4364. `--strict-bare-containers` drops it (4348-
-                  4349 REFUSED); it is a type mapping, so it adds no fact to this census.
+                  `xs: List`, corpus 4363-4364; likewise a VALUE of a bare `d: dict`
+                  (route #334, corpus 4443). `--strict-bare-containers` drops it (4348-
+                  4349, 4427 REFUSED); it is a type mapping, so it adds no fact to this census.
   CLASS-EXACT     a user-class-typed value is an exact instance (no override is seen by a
                   caller): assumed ONLY under `--assume-class-exact`; the default emits the
                   override refinement goals (routes #277/#278), corpus 3100-3113. A goal
