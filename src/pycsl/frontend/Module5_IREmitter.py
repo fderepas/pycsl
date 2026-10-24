@@ -228,6 +228,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     and not (isinstance(_v336, ast.Constant)
                              and isinstance(_v336.value, str))):
                 _al336[_k336] = _v336
+        self._r336_ro_refusal: Dict[int, str] = {}
         _slots336: List[Any] = []
         for _fn336 in ast.walk(node):
             if isinstance(_fn336, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -308,22 +309,29 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                              else getattr(_aa336, "id", None)) in _ro336):
                                     _bad336 = (_aa336.value.id if isinstance(_aa336, ast.Starred)
                                                else _aa336.id)
-                    if _bad336 is not None:
-                        raise PyCSLIRError(
-                            f"PYCSL-R336-READONLY-VIEW-STORE (route #336) — in "
-                            f"'{_fn336.name}', the parameter '{_bad336}' is annotated with a "
+                    if _bad336 is not None and id(_fn336) not in self._r336_ro_refusal:
+                        # raised by `_build_function_ir` when this def is lowered
+                        self._r336_ro_refusal[id(_fn336)] = (
+                            f"in '{_fn336.name}', the parameter '{_bad336}' is annotated with a "
                             f"READ-ONLY view (`Sequence`, `tuple[T, ...]`, `Mapping`), which "
                             f"PyCSL reads as a list / dict; a store into it, a mutating method "
                             f"call on it, or passing it to a function that may store into it "
                             f"is not modelled (the argument may be a tuple or a mapping proxy, "
                             f"whose store raises TypeError). Annotate it `List[T]` / "
-                            f"`Dict[K, V]`, or copy it into a local list first.",
-                            stage="ir-emit", code="PYCSL-R336-READONLY-VIEW-STORE")
+                            f"`Dict[K, V]`, or copy it into a local list first.")
                 if _fn336.returns is not None:
                     _slots336.append((_fn336, "returns"))
                 for _ln336 in ast.walk(_fn336):
                     if isinstance(_ln336, ast.AnnAssign) and _ln336 is not _fn336:
                         _slots336.append((_ln336, "annotation"))
+        # a nested def may never reach `_build_function_ir`: its refusal is also its
+        # enclosing defs' (the enclosing def is lowered, or refused, with it)
+        for _fn336 in (ast.walk(node) if self._r336_ro_refusal else ()):
+            if isinstance(_fn336, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for _ln336 in ast.walk(_fn336):
+                    if (_ln336 is not _fn336 and id(_ln336) in self._r336_ro_refusal
+                            and id(_fn336) not in self._r336_ro_refusal):
+                        self._r336_ro_refusal[id(_fn336)] = self._r336_ro_refusal[id(_ln336)]
         for _ow336, _fd336 in _slots336:
             _hold336 = ast.Expr(value=getattr(_ow336, _fd336))
             for _rd336 in range(16):
@@ -6578,6 +6586,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
 
     def _build_function_ir(self, node: ast.FunctionDef) -> Dict[str, Any]:
         """Build the core function IR dict (name, contracts, body)."""
+        if id(node) in (getattr(self, "_r336_ro_refusal", None) or {}):
+            raise PyCSLIRError("PYCSL-R336-READONLY-VIEW-STORE (route #336) — "
+                               + self._r336_ro_refusal[id(node)], stage="ir-emit",
+                               code="PYCSL-R336-READONLY-VIEW-STORE")
         func_name = (f"{self._current_class.lower()}__{node.name}"
                      if self._current_class else node.name)
         # typing-engagement ty1 / 26-0000-typing-spec-2: reset the per-function
