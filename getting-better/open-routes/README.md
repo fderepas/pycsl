@@ -1,5 +1,7 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #332 (assert erased even under no_exception \all; CPython raises AssertionError) OPENED (r327 executor finding); driver-reproduced.
+
 ## gen #37 (2026-10-24): #326 REPAIRED, candidate (r326 executor off 0da66911; commits 61c98f12, d89ee890, 38757ff2, dfc5305d,
 ##   59b17e74, 7fb6adc8 + route docs; inline in `_resolve_module_path` / `resolve_imports`, no new def/field, ledger 3; mirror twins `\trusted`,
 ##   the `_resolve_module_path` stub now declares `raises`). Package before module in every root; a local file shadowing a
