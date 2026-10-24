@@ -22,8 +22,11 @@ orchestrator may also call the individual passes (they are public).
 from __future__ import annotations
 
 import copy
+import filecmp
 import json as _json
 import os
+import sys
+import sysconfig
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 from frontend import pure_ast as _ast  # dependency import-discovery parses via the pure-Python front-end
@@ -86,12 +89,16 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
         base = os.path.dirname(os.path.abspath(main_file))
         for _ in range(level - 1):
             base = os.path.dirname(base)
-        candidate = os.path.join(base, *parts) + ".py"
-        if os.path.isfile(candidate):
-            return candidate
+        # (#49) ROUTE #326 — PACKAGE BEFORE MODULE. CPython's FileFinder tries the
+        # directory `X/__init__.py` before the module `X.py` in the SAME path entry, so
+        # with both present it loads the package. The old order (module first) verified the
+        # module's contracts against a program that runs the package's code.
         pkg_init = os.path.join(base, *parts, "__init__.py")
         if os.path.isfile(pkg_init):
             return pkg_init
+        candidate = os.path.join(base, *parts) + ".py"
+        if os.path.isfile(candidate):
+            return candidate
         return None
 
     # Absolute import: try main file's directory, CWD, the repo `src/` (so the
@@ -102,12 +109,56 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
     src_dir = os.path.dirname(script_dir)  # …/pycsl/src
     for base in [os.path.dirname(os.path.abspath(main_file)), os.getcwd(),
                  src_dir, lib_dir, *_EXTRA_IMPORT_PATHS]:
-        candidate = os.path.join(base, *parts) + ".py"
-        if os.path.isfile(candidate):
-            return candidate
+        # (#49) ROUTE #326 — package before module (see the relative branch above).
         pkg_init = os.path.join(base, *parts, "__init__.py")
-        if os.path.isfile(pkg_init):
-            return pkg_init
+        candidate = os.path.join(base, *parts) + ".py"
+        hit = pkg_init if os.path.isfile(pkg_init) else (
+            candidate if os.path.isfile(candidate) else None)
+        if hit is None:
+            continue
+        # (#49) ROUTE #326 — A LOCAL FILE NAMED LIKE A STANDARD-LIBRARY MODULE IS NOT THE
+        # STANDARD-LIBRARY MODULE. CPython never loads `./math.py` for `import math` (a
+        # built-in / frozen / startup-loaded module is found before any path entry), and
+        # whether it loads `./json.py` depends on the path entry it sits in and on what
+        # the interpreter happened to import at startup. pycsl resolved the local file and
+        # verified ITS contracts (`math.floor(3) == 4` PROVED; CPython 3). The only local
+        # copy that may stand in for a standard-library module is one that IS that
+        # module: byte-identical to the running interpreter's own source (the repo-root
+        # `json/` package is CPython's `Lib/json`, file for file). Anything else is
+        # REFUSED — which of the two modules runs is not something pycsl can know.
+        if parts[0] in sys.stdlib_module_names or parts[0] in sys.builtin_module_names:
+            std_root = os.path.join(sysconfig.get_paths()["stdlib"], parts[0])
+            loc_root = os.path.join(base, parts[0])
+            same = False
+            if len(parts) == 1 and hit == candidate:
+                same = (os.path.isfile(std_root + ".py")
+                        and filecmp.cmp(candidate, std_root + ".py", shallow=False))
+            elif os.path.isdir(std_root):
+                same = True
+                for dp, dns, fns in os.walk(loc_root):
+                    dns[:] = sorted(d for d in dns if d != "__pycache__")
+                    for fn in sorted(fns):
+                        if not fn.endswith(".py"):
+                            continue
+                        lf = os.path.join(dp, fn)
+                        sf = os.path.join(std_root, os.path.relpath(lf, loc_root))
+                        if not (os.path.isfile(sf) and filecmp.cmp(lf, sf, shallow=False)):
+                            same = False
+            if not same:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"`import {module_dotted}` names a standard-library "
+                    f"module, but pycsl's import resolution found a LOCAL file for it "
+                    f"({hit}) that is not the interpreter's own '{parts[0]}' source. "
+                    f"CPython does not load such a file in place of a built-in, frozen or "
+                    f"startup-loaded module, and for any other standard-library module "
+                    f"which one runs depends on sys.path order and interpreter startup, "
+                    f"so the local file's contracts may not be believed here (route #326: "
+                    f"a local `math.py` made `math.floor(3) == 4` PROVE; CPython 3). "
+                    f"FIX: rename the local module so it does not shadow the standard "
+                    f"library.",
+                    filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-SHADOWS-STDLIB")
+        return hit
     return None
 
 
@@ -3002,6 +3053,96 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
     the signature for call-site compatibility but no longer consulted here.
     """
     imports = ir_data.get("imports", [])
+    # (#49) ROUTE #326 — A PROGRAM THAT EDITS THE IMPORT SYSTEM DECIDES WHAT ITS OWN
+    # `import` STATEMENTS LOAD, AND pycsl RESOLVES THEM STATICALLY. After
+    # `sys.path.insert(0, ".../alt")` CPython imports `alt/sp19.py` while pycsl verified the
+    # script-directory copy (PROVED `f() == 2`; CPython 1); `sys.modules[...] = ...` or a
+    # `sys.meta_path` finder rebinds a module name outright. REFUSED:
+    #   * any reference to `sys.path` / `sys.modules` / `sys.meta_path` / `sys.path_hooks`
+    #     / `sys.path_importer_cache` through any alias of `sys`, `from sys import` of one
+    #     of them, or the `sys` module object itself escaping (`s = sys`, `getattr(sys,
+    #     ...)`) — save the one idempotent statement `sys.path.insert(0, os.path.dirname(
+    #     os.path.abspath(__file__)))` in the PROGRAM (the script directory, where pycsl's
+    #     first root already is; a DEPENDENCY inserting its own directory is not exempt);
+    #   * dynamic-import machinery (`importlib`, `imp`, `zipimport`, `pkgutil`, `runpy`,
+    #     `__import__`), which runs code pycsl never reads and can preload a module under
+    #     any name, when the program ALSO has an import pycsl resolves to a local file;
+    #   * a locally-resolved dependency whose OWN top-level code does the first (importing
+    #     it runs that code before the importer's later imports).
+    if validated_ast is not None:
+        sys_names = set()
+        dyn = None
+        state = None
+        for n in _ast.walk(validated_ast):
+            if isinstance(n, _ast.Import):
+                for a in n.names:
+                    if a.name == "sys":
+                        sys_names.add(a.asname or "sys")
+                    if a.name.split(".")[0] in ("importlib", "imp", "zipimport", "pkgutil",
+                                                "runpy"):
+                        dyn = dyn or "import " + a.name
+            elif isinstance(n, _ast.ImportFrom) and not (getattr(n, "level", 0) or 0) \
+                    and n.module:
+                if n.module.split(".")[0] in ("importlib", "imp", "zipimport", "pkgutil",
+                                              "runpy"):
+                    dyn = dyn or "from " + n.module + " import ..."
+                if n.module == "sys":
+                    for a in n.names:
+                        if a.name in ("path", "modules", "meta_path", "path_hooks",
+                                      "path_importer_cache", "*"):
+                            state = state or "from sys import " + a.name
+            elif isinstance(n, _ast.Name) and n.id == "__import__":
+                dyn = dyn or "__import__"
+        if sys_names and state is None:
+            exempt = set()
+            attr_heads = set()
+            for n in _ast.walk(validated_ast):
+                if isinstance(n, _ast.Attribute):
+                    attr_heads.add(id(n.value))
+                if "sys" in sys_names and not ir_data.get("_r326_dep") \
+                        and isinstance(n, _ast.Expr) and _ast.unparse(n).strip() == \
+                        "sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))":
+                    exempt.add(id(n.value.func.value))
+            for n in _ast.walk(validated_ast):
+                if isinstance(n, _ast.Attribute) and isinstance(n.value, _ast.Name) \
+                        and n.value.id in sys_names and id(n) not in exempt \
+                        and n.attr in ("path", "modules", "meta_path", "path_hooks",
+                                       "path_importer_cache"):
+                    state = n.value.id + "." + n.attr
+                    break
+                if isinstance(n, _ast.Name) and n.id in sys_names \
+                        and id(n) not in attr_heads \
+                        and type(getattr(n, "ctx", None)).__name__ == "Load":
+                    state = "the `" + n.id + "` module object used as a value"
+                    break
+        seen = set()
+        for entry in (imports if state is None else []):
+            if len(entry) < 4 or not entry[2]:
+                continue
+            dep = _resolve_module_path(entry[2], entry[3], main_file)
+            if dep is None or os.path.abspath(dep) in seen:
+                continue
+            seen.add(os.path.abspath(dep))
+            if dyn is not None:
+                state = dyn + " (with `" + str(entry[2]) + "` resolved to a local file)"
+                break
+            with open(dep) as f:
+                dep_src = f.read()
+            if "sys" in dep_src:
+                resolve_imports(_ast.parse(dep_src), dep,
+                                {"imports": [], "functions": [], "_r326_dep": True})
+        if state is not None:
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"the program manipulates the import system (`{state}`), so "
+                f"what its `import` statements load is decided at run time, while pycsl "
+                f"resolves them statically from the source tree — the contracts it would "
+                f"believe may belong to a different module than the one CPython runs "
+                f"(route #326: after `sys.path.insert(0, '.../alt')` CPython imported "
+                f"`alt/sp19.py` and pycsl PROVED the script-directory copy's contract). "
+                f"FIX: import the module by its package path instead of editing "
+                f"sys.path / sys.modules or loading it dynamically.",
+                filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-STATE-MANIPULATED")
     if not imports:
         return set()
 
