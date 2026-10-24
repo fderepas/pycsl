@@ -4238,6 +4238,139 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         filename=args.file, line=getattr(_r265_m, "lineno", 0) or 0,
                         stage="ir-semantic", code="PYCSL-SEM-MATCH-BOOL-SINGLETON")
 
+    # (#49) ROUTE #327 — TWO PYTHON NAMES MUST NOT LOWER TO ONE WhyML IDENTIFIER.
+    # `whyml_ident` lowercases a leading capital (`N` -> `n`) and prefixes reserved words
+    # (`result` -> `py_result`, `model` -> `py_model`) with NO collision check, so
+    # `N = len(xs); n = 0; return N == n` emitted three `let n = ref ..` and PROVED
+    # `!n = !n` (CPython False); a global `K = mk()` read beside a parameter `k` returned
+    # the parameter; `py_model = 7; model = 3` read 3. The mangling is not injective and
+    # nothing checked that the names one scope actually uses stay apart.
+    # MEASURED (gen #37) before choosing: an INJECTIVE encoding (`N` -> a case-marked
+    # name) re-emits every file that uses a capitalised or reserved name — ~1962 of 3077
+    # root files, 48 of 510 pyref files and 48 of 53 mirror files; the REFUSAL below moves
+    # only programs whose names actually collide. The collision is decided on the
+    # final IR (after resolution / monomorphization), per function scope: the formal
+    # parameters, every `Var` it reads (locals AND the module-level globals it names),
+    # every binding target (assign / tuple / for / comprehension / walrus / quantifier),
+    # plus the emitter-reserved tuple binders `_tu_*`. Class constructors (`c = C()`)
+    # are calls, not `Var`s, and classes lower to the type namespace, so the idiomatic
+    # `c = C()` is NOT a collision (it was 10 of the 12 name-level hits). Two IR
+    # functions / classes whose WhyML symbols fold together (`AB.m` / `Ab.m` ->
+    # `ab__m`) are refused the same way.
+    from module6_whyml.identifiers import whyml_ident as _wid327
+    _ir327 = _json.loads(json_ir)
+    _cls327: Dict[str, str] = {}
+    for _td327 in (_ir327.get("type_decls") or []):
+        _tn327 = str((_td327 or {}).get("name") or "") if isinstance(_td327, dict) else ""
+        if not _tn327:
+            continue
+        _tk327 = _tn327.lower()
+        if _tk327 in _cls327 and _cls327[_tk327] != _tn327:
+            from errors import PyCSLSemanticError as _PyCSLSemErr327c
+            raise _PyCSLSemErr327c(
+                f"{args.file}: PYCSL-R327-IDENT-COLLISION (route #327) — the classes "
+                f"'{_cls327[_tk327]}' and '{_tn327}' lower to ONE WhyML namespace "
+                f"('{_tk327}'): their types and method symbols would be confused. "
+                f"Rename one of them.",
+                filename=args.file, stage="ir-semantic", code="PYCSL-R327-IDENT-COLLISION")
+        _cls327[_tk327] = _tn327
+    _fns327: Dict[str, str] = {}
+    for _f327 in (_ir327.get("functions") or []):
+        if not isinstance(_f327, dict):
+            continue
+        _fname327 = str(_f327.get("name") or "")
+        _fk327 = _wid327(_fname327) if _fname327 else ""
+        if _fk327 and _fk327 in _fns327 and _fns327[_fk327] != _fname327:
+            from errors import PyCSLSemanticError as _PyCSLSemErr327f
+            raise _PyCSLSemErr327f(
+                f"{args.file}: PYCSL-R327-IDENT-COLLISION (route #327) — the functions "
+                f"'{_fns327[_fk327]}' and '{_fname327}' lower to ONE WhyML identifier "
+                f"'{_fk327}'. Rename one of them.",
+                filename=args.file, stage="ir-semantic", code="PYCSL-R327-IDENT-COLLISION")
+        if _fk327:
+            _fns327[_fk327] = _fname327
+    # Module-level VALUE bindings are not in the IR (a global lowers to one opaque
+    # `val constant <ident>` or is inlined), so `k = three(); K = seven()` share ONE
+    # constant across every function that reads either. Read them off the source: every
+    # Name bound at module level (any statement nesting, outside def/class bodies and the
+    # `if __name__ == ...` driver) and every top-level def; imports are excluded.
+    import ast as _ast327
+    _gst327: List[Any] = list(_ast327.parse(source_code).body)
+    while _gst327:
+        _g327 = _gst327.pop()
+        if isinstance(_g327, (_ast327.FunctionDef, _ast327.AsyncFunctionDef)):
+            _gn327 = _g327.name
+        elif isinstance(_g327, _ast327.Name) and isinstance(_g327.ctx, _ast327.Store):
+            _gn327 = _g327.id
+        else:
+            _gn327 = ""
+            if (isinstance(_g327, _ast327.If) and isinstance(_g327.test, _ast327.Compare)
+                    and isinstance(_g327.test.left, _ast327.Name)
+                    and _g327.test.left.id == "__name__"):
+                continue                       # the `__main__` driver is not verified
+            if not isinstance(_g327, (_ast327.ClassDef, _ast327.Lambda, _ast327.ListComp,
+                                      _ast327.SetComp, _ast327.DictComp,
+                                      _ast327.GeneratorExp)):
+                _gst327.extend(_ast327.iter_child_nodes(_g327))
+        if not _gn327:
+            continue
+        _gk327 = _wid327(_gn327)
+        if _gk327 in _fns327 and _fns327[_gk327] != _gn327:
+            from errors import PyCSLSemanticError as _PyCSLSemErr327g
+            raise _PyCSLSemErr327g(
+                f"{args.file}: PYCSL-R327-IDENT-COLLISION (route #327) — the module-level "
+                f"names '{_fns327[_gk327]}' and '{_gn327}' lower to ONE WhyML identifier "
+                f"'{_gk327}', so every function would read one for the other. Rename one "
+                f"of them.",
+                filename=args.file, line=int(getattr(_g327, "lineno", 0) or 0),
+                stage="ir-semantic", code="PYCSL-R327-IDENT-COLLISION")
+        _fns327[_gk327] = _gn327
+    for _f327 in (_ir327.get("functions") or []):
+        if not isinstance(_f327, dict):
+            continue
+        _fname327 = str(_f327.get("name") or "")
+        _names327: Set[str] = set(str(_p327) for _p327 in (_f327.get("formal_params") or []))
+        _stk327: List[Any] = [_f327.get("body"), _f327.get("contracts")]
+        while _stk327:
+            _n327 = _stk327.pop()
+            if isinstance(_n327, list):
+                _stk327.extend(_n327)
+                continue
+            if not isinstance(_n327, dict):
+                continue
+            if _n327.get("type") == "Var" and isinstance(_n327.get("name"), str):
+                _names327.add(_n327["name"])
+            for _key327 in ("target", "targets", "var", "vars"):
+                _tv327 = _n327.get(_key327)
+                for _t327 in (_tv327 if isinstance(_tv327, list) else [_tv327]):
+                    if isinstance(_t327, str) and _t327.isidentifier():
+                        _names327.add(_t327)
+            for _v327 in _n327.values():
+                if isinstance(_v327, (dict, list)):
+                    _stk327.append(_v327)
+        _seen327: Dict[str, str] = {}
+        for _nm327 in sorted(_names327):
+            if not _nm327.isidentifier():
+                continue
+            _w327 = _wid327(_nm327)
+            _clash327 = _seen327.get(_w327)
+            if _w327.startswith("_tu_"):
+                _clash327 = "<the emitter's tuple-unpacking binders `_tu_*`>"
+            if _clash327 is not None and _clash327 != _nm327:
+                from errors import PyCSLSemanticError as _PyCSLSemErr327
+                raise _PyCSLSemErr327(
+                    f"{args.file} (function '{_fname327}'): PYCSL-R327-IDENT-COLLISION "
+                    f"(route #327) — the Python names '{_clash327}' and '{_nm327}' are "
+                    f"distinct, but both lower to the ONE WhyML identifier '{_w327}' "
+                    f"(a leading capital is lowercased and a WhyML keyword gains a `py_` "
+                    f"prefix), so the proof would read one variable for the other "
+                    f"(measured: `N = len(xs); n = 0; return N == n` proved True). "
+                    f"Rename one of them so the names differ after lowercasing the first "
+                    f"letter and prefixing keywords.",
+                    filename=args.file, line=int(_f327.get("line") or 0),
+                    stage="ir-semantic", code="PYCSL-R327-IDENT-COLLISION")
+            _seen327[_w327] = _nm327
+
     # [Module 6] WhyML Transpilation
     # C2c: lazy import — the core backend is only loaded when we actually transpile,
     # keeping the front-end import path free of the core.

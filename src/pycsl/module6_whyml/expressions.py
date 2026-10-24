@@ -21236,9 +21236,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         #   BESPOKE-modelled methods (`generic_fold.py`'s `(bool, bool)` `Optional[bool]`
         #   lowerings) which never reach this handler. The refusal therefore costs no
         #   program that exists anything, and buys the four exploits their fail-closed.
-        if (isinstance(expr, dict) and expr.get("py_is")
-                and expr.get("type") == "BinOp"):
-            _r42_l, _r42_r = expr.get("left"), expr.get("right")
+        # (#49) ROUTE #329 — THE TWO REFUSALS BELOW WERE KEYED ON `isinstance(expr, dict)`,
+        # and that is only how a ROOT condition arrives. A NESTED `is` arrives as the
+        # `OpaqueExpr` that `ir_schema.expr_from_dict` makes of any node carrying an extra
+        # key — and `py_is` IS that extra key — whenever its parent was re-read as a typed
+        # node: the operand of `not`, the test of an if-expression, a boolean operand, a
+        # comprehension filter. So `x = 1; return 7 if x is True else 0` emitted
+        # `if (!x = 1)` and PROVED 7, and `if not (x is True): return 0` proved the other
+        # branch (CPython returns 0 / 7 the other way round); the route #249 arm in the
+        # dispatch below then handed the opaque node straight to `_handle_binop` as `=`.
+        # The rule is unchanged; it now reads the raw dict of an opaque `is` node too, so
+        # EVERY position an `is` can be lowered from goes through the same whitelist
+        # (#42) and blacklist (#52).
+        _r329_raw = (expr.raw if (isinstance(expr, OpaqueExpr) and isinstance(expr.raw, dict))
+                     else expr)
+        if (isinstance(_r329_raw, dict) and _r329_raw.get("py_is")
+                and _r329_raw.get("type") == "BinOp"):
+            _r42_l, _r42_r = _r329_raw.get("left"), _r329_raw.get("right")
             _r42_other = None
             if isinstance(_r42_l, dict) and _r42_l.get("type") == "Bool":
                 _r42_other = _r42_r
