@@ -1966,6 +1966,36 @@ nowhere in the module — a parameter that is never rebound, or a module name �
 and call-time reads coincide. Otherwise `PYCSL-SEM-DEF-TIME-EVALUATION`. Witnesses
 `4602`-`4605`; control `4606`.
 
+### 7.27 A field-less receiver is an arbitrary object; inherited overrides; foreign attribute bases (routes #343 / #344 / #345)
+
+(1) FIELD-LESS RECEIVER (route #343). §7.23 erased a field-less class's PARAMETERS, but inside its
+methods `self` stayed `type <c> = int` with every int law, guarded only by the syntactic
+`PYCSL-R337-SELF-OPERATOR` refusal: `s = self; return s - s` (a user `__sub__` returning 1),
+`(s := self) - s`, `[self][0] - ...`, `abs(self)`, `max(self, 0)`, `h(self)` into an `int`
+parameter, `return self` through `-> int`, all PROVED. The receiver of a method of a class the
+model does not carry as a record / variant is now the erased object of route #249, exactly like
+such a parameter: aliases, walrus targets, container elements and builtin results inherit the
+erasure; `==` / arithmetic / ordering on it are uninterpreted (and fail under `no_exception`);
+its flow into an `int` / `float` / `str` / `bool` / `bytes` parameter, field or return is
+refused (route #252). `self.f`, `getattr(self, "f", d)` and `self.m(..)` are attribute reads /
+method calls ON the receiver, not uses of it, and keep their lowering; the WhyML type of
+`self` is still the alias. (2) BUILTINS ON AN ERASED VALUE. Under `no_exception` a call of a
+builtin that dispatches to a dunder or checks its argument's type (`range`, `abs`, `len`,
+`min` / `max`, `sum`, `sorted`, `int` / `float` / `str` / `repr` / `bool` / `hash`, `iter` /
+`next`, the container constructors, `round` / `divmod` / `pow`, `chr` / `ord` / `bin` / `hex` /
+`oct`, `format`, `print`, ...) with an erased argument is preceded by a failing assertion
+(`PyCSL-R343`): `range(x)` for `x: Any` PROVED `no_exception \all` (CPython TypeError).
+(3) INHERITED OVERRIDES (route #344). R5 (§7.24) read both defs of a recorded override pair
+from the source, so a class with NO def of its own (`class C(B, A): pass`, which runs `B.m`)
+was skipped: `A.m -> int`, `B.m -> float` and `a.m() % 1 == 0` PROVED. A side without its own
+def is now resolved through Python's C3 linearization of the file's classes to the first class
+of its MRO defining the method, and compared. (4) FOREIGN ATTRIBUTE BASES (route #345). A base
+`om.B` is read by its tail `B`, so when the file also defines a class `B`, `import rt25other as
+om; class S(om.B)` inherited the LOCAL B's contract and invariant (CPython runs
+`rt25other.B.m`). Such a base is REFUSED (`PYCSL-R341-CLASS-BASE-NOT-A-NAME`) unless it is a
+self-import (`import <this module> [as x]`, used as `x.B`); import the class under a distinct
+name instead (`from m import B as OtherB`). Witnesses `4610`-`4625`; controls `4630`-`4634`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

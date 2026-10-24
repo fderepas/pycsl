@@ -4022,6 +4022,31 @@ nested `def` / `class` names, import aliases, `except` / `match` captures) $\cup
 of $F$, and the lifted call's call-time read `(g !x)` equals CPython's def-time binding.
 Otherwise `PYCSL-SEM-DEF-TIME-EVALUATION`.
 
+### §T.6.38  Erased field-less receiver, builtins on erased values, MRO-resolved R5, foreign attribute bases (routes #343 / #344 / #345)
+
+_Corresponds to `annotations.md` §7.27._
+
+(1) In `_reset_function_state`'s route #249 pre-scan, for a function with `kind = method` whose
+`self_type` $c$ is neither a record nor a variant (case-insensitive), $\mathtt{self} \in E$
+(the erased set) before the binding fixpoint; the fixpoint and `_handle_binop`'s copy of the
+erased-operand walk do not descend into the base of an `Attribute` / `FieldGet` whose base is
+`Var self`, nor into the first argument of a propagating `getattr(self, ..)`, and (as before)
+never erase `self.m(..)`. Route #252's sites then refuse any $E$-expression flowing into a
+builtin-typed parameter / field / return. The declaration `type c = int` and the binder
+`(self: c)` are unchanged. (2) In `_expr_to_whyml`'s dispatch, a program-context `Call` of a
+builtin $f$ in the dunder-dispatching set (§7.27 (2)) that no unit function shadows, inside a
+function with a non-empty `no_exception` set or `no_exception \all`, with an argument (or
+keyword value, or starred value) $a$ for which route #251's `r251_erased?` probe answers yes,
+lowers to `(begin assert { [@expl:PyCSL-R343 ..] false }; ⟦f(..)⟧ end)`. (3) In the route
+#278 block of `_run_pipeline`, for a pair side $K.t$ with no def $(K, t)$ in the source map, the
+C3 linearization $L[K]$ over the file's classes (bases by `Name`, iteratively: $L[K] = K \cdot
+\mathit{merge}(L[B_1], \ldots, L[B_n], [B_1, \ldots, B_n])$, a base outside the file taken as
+$[B]$, no consistent merge or a cycle stopping the walk) gives the first $K' \in L[K]$ with a
+def $(K', t)$; R5 compares that def. (4) In the route #341 block, an `Attribute` base $r.a$ that
+passes the imported-root check raises `PYCSL-R341-CLASS-BASE-NOT-A-NAME` when $a$ names a class of
+the file, unless $r$ is a `Name` bound only by `import s [as r]` with $s$ the file's own module
+stem (no `from`-import or other `import` binding $r$).
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
