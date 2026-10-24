@@ -3061,9 +3061,11 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
     #   * any reference to `sys.path` / `sys.modules` / `sys.meta_path` / `sys.path_hooks`
     #     / `sys.path_importer_cache` through any alias of `sys`, `from sys import` of one
     #     of them, or the `sys` module object itself escaping (`s = sys`, `getattr(sys,
-    #     ...)`) — save the one idempotent statement `sys.path.insert(0, os.path.dirname(
-    #     os.path.abspath(__file__)))` in the PROGRAM (the script directory, where pycsl's
-    #     first root already is; a DEPENDENCY inserting its own directory is not exempt);
+    #     ...)`) — save PURE READS (`len(sys.X)`, `isinstance(sys.X, T)`, `hasattr(sys,
+    #     "X")`, `k in sys.X`) and the one idempotent statement `sys.path.insert(0,
+    #     os.path.dirname(os.path.abspath(__file__)))` in the PROGRAM (the script
+    #     directory, where pycsl's first root already is; a DEPENDENCY inserting its own
+    #     directory is not exempt);
     #   * dynamic-import machinery (`importlib`, `imp`, `zipimport`, `pkgutil`, `runpy`,
     #     `__import__`), which runs code pycsl never reads and can preload a module under
     #     any name, when the program ALSO has an import pycsl resolves to a local file;
@@ -3099,6 +3101,16 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
             for n in _ast.walk(validated_ast):
                 if isinstance(n, _ast.Attribute):
                     attr_heads.add(id(n.value))
+                # A PURE READ cannot edit the import system and hands no alias out:
+                # `len(sys.X)` / `isinstance(sys.X, T)` / `hasattr(sys, "X")` (first
+                # argument), and `k in sys.X` / `k not in sys.X` (comparator). Exempt.
+                if isinstance(n, _ast.Call) and isinstance(n.func, _ast.Name) \
+                        and n.func.id in ("len", "isinstance", "hasattr") and n.args:
+                    exempt.add(id(n.args[0]))
+                if isinstance(n, _ast.Compare) and all(
+                        type(o).__name__ in ("In", "NotIn") for o in n.ops):
+                    for c in n.comparators:
+                        exempt.add(id(c))
                 if "sys" in sys_names and not ir_data.get("_r326_dep") \
                         and isinstance(n, _ast.Expr) and _ast.unparse(n).strip() == \
                         "sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))":
@@ -3111,7 +3123,7 @@ def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: Dict[str, 
                     state = n.value.id + "." + n.attr
                     break
                 if isinstance(n, _ast.Name) and n.id in sys_names \
-                        and id(n) not in attr_heads \
+                        and id(n) not in attr_heads and id(n) not in exempt \
                         and type(getattr(n, "ctx", None)).__name__ == "Load":
                     state = "the `" + n.id + "` module object used as a value"
                     break
