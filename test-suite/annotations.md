@@ -1733,6 +1733,33 @@ route #322's float-constant bypasses (a re-export, an alias, `importlib`, `__imp
 #322 refusal stays as the first, name-keyed layer. Witnesses `4230`-`4263`; controls
 `4264`-`4271`.
 
+### 7.18 More values that are not ints: every module binding, unpacking, fields, encodings (routes #328 / #330 / #331)
+
+§7.15's refusal now also covers: (a) EVERY module- or class-level binding form, at any
+nesting: tuple and starred targets (`A, B = 0.5, 1`, `A, *R = [0.5]`), a binding inside a
+module-level `if` / `try` / `with` / `while` body, a module-level `for` target, a walrus, an
+`except ... as` / `match` capture (a paired `A, B = 1, 2`, `if c: K = 3` and `for I in
+range(n)` stay KNOWN-INT); (b) tuple UNPACKING in a function (`a, b = F, 1` taints exactly
+`a`); (c) Module 6's own binders are scoped precisely (a `match` / `try` arm's pattern
+variables to that arm, a `for` index to its body), so the emitted `with Return r -> r` no
+longer hides a global `R`, nor `| Some v_ -> v_` a global `V_`; (d) an INSTANCE FIELD whose
+WhyML label is `int` while one of its class-level / `self.f = ..` initialisers or
+annotations is shown NOT to be an int (a float / str / bytes / None literal, an f-string, a
+display, `/`, `float(..)` / `str(..)` / `repr(..)`, an imported value, a non-int global, a
+parameter annotated non-int, an annotation other than `int` / `bool`): `self.r = 2.5` then
+`int(c.r) == c.r`, `self.s = "ab"` then `c.s * 0 == 0`; an INTEGRAL float literal (`2.0`)
+stays carried as that int (routes #148 / #236); (e) a `None` / `Optional[int]` field: `==` /
+`!=` stay admitted, but arithmetic and orderings are refused — under `no_exception \all`,
+`c.r * 0` over `self.r = None` proved that no `TypeError` is raised (route #331); (f) the
+results of the string-encoding model operations (`repr(n)`, `format(n)`, `f"{n}"`, an
+int-model f-string join), which stay comparable `==` / `!=` (a string equals itself);
+(g) a `complex` annotation anywhere (it was typed `int`: `z * z != -1` proved at `1j`).
+An element of a parameter annotated with a BARE container (`xs: list`, `xs: List`,
+`Sequence`, `tuple`) is read as an `int`: the DECLARED MODEL ASSUMPTION BARE-CONTAINER-INT
+(listed by `--soundness-report`; `--strict-bare-containers` makes such an element an
+unmodelled value, refused in an int position; measured: 90 corpus files rely on it).
+Witnesses `4330`-`4353` (`4348` / `4349` under the strict flag); controls `4354`-`4362`;
+assumption counterexamples `4363` / `4364`.
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

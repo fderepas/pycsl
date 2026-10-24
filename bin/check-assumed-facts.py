@@ -53,8 +53,8 @@ families has appeared. Nor does it see `val` declarations: a bodyless `val` with
 `count-trusted-directives.py` and `check-untrusted-emitted.py`.
 
 NOR DOES IT SEE MODEL-LEVEL ASSUMPTIONS, which have no emitted text at all: they are
-properties of the type mapping, not `assume`/`axiom` lines. Seven are DECLARED (routes #250,
-#253, #256, #276, #277, #282, #298; translational reference §T.10.5) and surfaced by `pycsl --soundness-report` under
+properties of the type mapping, not `assume`/`axiom` lines. Eight are DECLARED (routes #250,
+#253, #256, #276, #277, #282, #298, #330; translational reference §T.10.5) and surfaced by `pycsl --soundness-report` under
 "declared model assumptions" instead of here:
 
   FLOAT-FINITE    every `float` value is finite and non-NaN (`float` is Why3 `real`):
@@ -80,6 +80,10 @@ properties of the type mapping, not `assume`/`axiom` lines. Seven are DECLARED (
                   `.items()` proves, corpus 3550-3553. `--strict-hval-keys` drops it
                   (3554-3557 FAIL); its key `hval_keys_hget` is an uninterpreted `val
                   function` with no spec, so it adds no fact to this plane's census.
+  BARE-CONTAINER-INT  an element of a parameter annotated with a bare container (`list`,
+                  `List`, `Sequence`, `tuple`, ...) is an `int`: `xs[0] % 1 == 0` proves for
+                  `xs: List`, corpus 4363-4364. `--strict-bare-containers` drops it (4348-
+                  4349 REFUSED); it is a type mapping, so it adds no fact to this census.
   CLASS-EXACT     a user-class-typed value is an exact instance (no override is seen by a
                   caller): assumed ONLY under `--assume-class-exact`; the default emits the
                   override refinement goals (routes #277/#278), corpus 3100-3113. A goal

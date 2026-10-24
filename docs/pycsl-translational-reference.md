@@ -3822,6 +3822,30 @@ reflexivity: a NaN is not equal to itself). Any other position — an int operat
 a modelled function, a contract term — is refused. Binders follow WhyML scoping (a `let`
 scopes from its `in` to its enclosing group or block; `F` and `f` fold to one WhyML name).
 
+### §T.6.29  More origins, unpacking and precise binders for the opaque-int check (routes #328 / #330 / #331)
+
+_Corresponds to `annotations.md` §7.18._
+
+The §T.6.26 check is extended, still on the emitted module in `_run_pipeline`. ORIGINS: a
+module / class-level name bound by ANY binding form at any nesting outside a function or
+lambda body (Assign / AnnAssign / AugAssign targets with tuple and starred elements, `for`,
+`with`, `except .. as`, walrus, `match` captures, nested `def` / `class`); a target paired
+with a value is classified by it, `for x in range(..)` binds an int, any other target is of
+unknown type. A record label $\ell$ typed `int` of a class whose field $f$ has a shown
+non-int initialiser or annotation ($\ell$ = `_field_label(record, f)`, inherited through the
+class bases): the read $r.\ell$ is the unit. A `None` / `Optional[int]` field and a
+string-encoding model operation (`repr_conv`, `format_conv`, other `*_conv` except `abs` /
+`bool` / `int` / `round`, `str_of_int_hash`, `str_of_bool_hash`, `str_of_value_op`,
+`str_concat`) are origins whose `=` / `<>` stay admitted everywhere (no NaN). Under
+`--strict-bare-containers`, the elements $p[i]$ / $(\texttt{subscript\_get}\ p\ i)$ of a
+bare-container parameter $p$. A `complex` annotation is refused outright. FLOW: a tuple
+pattern `let (a, b) = (u, v) in` taints the component $u$ occupies (all names when the
+right-hand side is not a literal tuple). SINKS added: the key of `Map.get` / `Map.mem` /
+`Map.set` (a lookup compares keys by equality and yields the map's value), a `writes` /
+`reads` / `alias` item (a location), and a generated frame `X.ℓ = old X.ℓ`. BINDERS: a
+`match` / `try` arm's pattern variables scope from the arm's `|` / `with` to the next arm,
+and a `for` index over its `do .. done` (both were declaration-wide). BARE-CONTAINER-INT is a
+declared model assumption (§T.10.5).
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329)
 
 _Corresponds to `annotations.md` §7.17._
@@ -4374,6 +4398,7 @@ of the translation:
 | **FLOAT-FINITE** — every `float` value is finite and non-NaN | $\tau(\texttt{float}) = \texttt{real}$ (no NaN/±inf) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-float-finite`; counterexample corpus 2500-2502 |
 | **BUILTIN-EXACT** — a builtin-typed value is an exact instance (no dunder-overriding subclass) | $\tau$ of every builtin | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2506 |
 | **LATIN1-STR** — every `str` value consists of code points 0..255 (`ord(c) < 256`; `chr(n)` modelled only for `0 <= n < 256`) | $\tau(\texttt{str}) = \texttt{string}$ of Why3 `string.Char` (`axiom code`: every code < 256) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-latin1`; counterexample corpus 3020-3023 |
+| **BARE-CONTAINER-INT** — an element of a parameter annotated with a bare container (`list`, `List`, `Sequence`, `tuple`, ...) is an `int` | $\tau$(`list`) = `array int`, $\tau$(`List`) = `int` read by `subscript_get` | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-bare-containers`; counterexample corpus 4363-4364 |
 | **HVAL-STR-KEYS** — every dict nested inside a `PyVal` value has `str` keys | $\tau$(`Dict[str, PyVal]`) = `map string (option hval)` with `HMap` over `hpairs` keyed by `string`; the nested-key walk `hval_keys_get` returns a `string` | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, dropped by `--strict-hval-keys`; counterexample corpus 3550-3553 |
 | **CLASS-EXACT** — a user-class-typed value is an exact instance (no override is seen) | a method call through an `A`-typed receiver lowers against `A.m`'s contract | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5) ONLY under `--assume-class-exact`; the default emits the refinement goals and refusals of route #277/#278 instead; counterexample corpus 3100-3101 |
 | **FIELD-DISJOINT** — two distinct mutable fields hold distinct objects | one Why3 region per mutable field (frames such as `ensures { self.ys = old self.ys }`) | **Medium** — DECLARED MODEL ASSUMPTION (§T.10.5): reported by `--soundness-report`, no strict mode; counterexample corpus 2570 |
@@ -4566,6 +4591,15 @@ so 3554-3557 FAIL and the controls 3558 PROVE. Cost (measured, route #298): a ke
 into a `str` sink (`return k` from `-> str`, `"None" in k`, an f-string, `seq string` append,
 a `map string` key) does not type-check, which is why the faithful key is not the default:
 3 self-annotation mirrors would need a new pyval-to-str coercion at 13 sinks.
+
+**BARE-CONTAINER-INT** — an element of a parameter annotated with a BARE container (`list`,
+`List`, `Sequence`, `Iterable`, `tuple`, `Tuple`, ... with no element type) is an int. Such a
+parameter lowers to `array int` (`list`) or to an `int` read by `subscript_get` (`List`), so
+`xs[0] % 1 == 0` (4363) and `xs[0] * 0 == 0` (4364) PROVE, and CPython refutes them with
+`[0.5]` and `["a"]`. Reported for every function with such a parameter. Under
+`--strict-bare-containers` the element is an origin of the §T.6.29 check, so 4348-4349 are
+refused. Cost (measured, route #330): 90 corpus files (76 of them unlabelled proved drivers)
+use a bare-container element as an int, which is why the strict reading is not the default.
 
 **LATIN1-STR** — every str value consists of code points 0..255. $\tau(\texttt{str})$ is the
 Why3 `string`, whose characters are `string.Char`s, and Why3's `axiom code: forall c. 0 <= code c

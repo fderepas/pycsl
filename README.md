@@ -286,7 +286,11 @@ corpus 3180-3196) and **LATIN1-STR** (every `str` value consists of code points
 inside a `PyVal` value has `str` keys — `Dict[str, PyVal]` constrains only the
 top-level keys, but the `hval` model keys every nested dict by `string`, so
 `for k, v in d["xs"].items(): return isinstance(k, str)` proves for
-`{"xs": {1: 2}}`; drop it with `--strict-hval-keys`, corpus 3550-3558). See
+`{"xs": {1: 2}}`; drop it with `--strict-hval-keys`, corpus 3550-3558) and
+**BARE-CONTAINER-INT** (an element of a parameter annotated with a bare
+container — `xs: list`, `xs: List`, `Sequence`, `tuple` — is read as an `int`,
+so `xs[0] % 1 == 0` proves for `[0.5]`; drop it with
+`--strict-bare-containers`, corpus 4348-4349 / 4363-4364). See
 translational reference §T.10.5.
 
 **Overrides are checked by default (route #277).** A method call on a value
