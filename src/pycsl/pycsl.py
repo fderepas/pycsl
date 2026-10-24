@@ -3189,6 +3189,838 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 f"(the shapes the constructor goal states), and keep "
                                 f"`self` out of calls and aliases in the constructor.",
                                 stage="ir-semantic", code="PYCSL-R342-CONSTRUCTOR-STORE-FORM")
+        # (#49) gen #37, ROUTES #346 / #347 / #348 / #349 — FOUR CLASS SHAPES WHOSE RUNTIME
+        # BEHAVIOUR THE RECORD MODEL DOES NOT HAVE (red team 25; each MEASURED PROVED at
+        # b83a217b, CPython violates). Sound REFUSALS on the source, no emission change;
+        # INLINE (no nested def: check-mirror-coverage); `_run_pipeline`'s mirror twin is
+        # `\trusted`. Shared facts: each class's in-file base names (`_bn346`), a left-to-right
+        # depth-first base closure starting at the class itself (`_clo346`, an approximation
+        # of the MRO that keeps every ancestor), and each `@dataclass`'s options (`_dc346`;
+        # a non-literal option is None = unknown, read in the refusing direction).
+        _bn346 = {}
+        for _cn346, _ks346 in _cls341.items():
+            for _k346 in _ks346:
+                for _b346 in _k346.bases:
+                    if isinstance(_b346, _ast341.Name):
+                        _bn346.setdefault(_cn346, []).append(_b346.id)
+                    elif isinstance(_b346, _ast341.Attribute):
+                        _bn346.setdefault(_cn346, []).append(_b346.attr)
+        _clo346 = {}
+        for _cn346 in _cls341:
+            _sn346 = []
+            _st346 = [_cn346]
+            while _st346:
+                _c346 = _st346.pop(0)
+                if _c346 in _sn346:
+                    continue
+                _sn346.append(_c346)
+                _st346 = list(_bn346.get(_c346, [])) + _st346
+            _clo346[_cn346] = _sn346
+        _dc346 = {}
+        for _cn346, _ks346 in _cls341.items():
+            for _k346 in _ks346:
+                for _dec346 in _k346.decorator_list:
+                    _df346 = _dec346.func if isinstance(_dec346, _ast341.Call) else _dec346
+                    if ((isinstance(_df346, _ast341.Name) and _df346.id == "dataclass")
+                            or (isinstance(_df346, _ast341.Attribute)
+                                and _df346.attr == "dataclass")):
+                        _o346 = {"frozen": False, "eq": True, "unsafe_hash": False,
+                                 "init": True}
+                        for _kw346 in (_dec346.keywords
+                                       if isinstance(_dec346, _ast341.Call) else []):
+                            if _kw346.arg in _o346:
+                                _o346[_kw346.arg] = (
+                                    bool(_kw346.value.value)
+                                    if isinstance(_kw346.value, _ast341.Constant) else None)
+                        _dc346[_cn346] = _o346
+        # ROUTE #346 — A `__post_init__` IS NEVER VERIFIED. Route #150 makes a dataclass
+        # construction that runs `__post_init__` OPAQUE (no field value known), and an opaque
+        # construction gets NO constructor-invariant goal (route #226), so the invariant is
+        # ASSUMED of every instance: `__post_init__: self.x = -1` under `invariant x >= 0`
+        # PROVED `f(d) >= 0` (k08; CPython -1), and even a no-op `__post_init__` drops the
+        # goal for `__main__`'s `D(-5)`; an inherited hook (`B(A)` over `A.__post_init__`)
+        # does the same. RULE: a record carrying a class invariant (own or merged) whose base
+        # closure holds a `@dataclass` and a class defining `__post_init__` is REFUSED.
+        # CENSUS: no invariant-carrying class with a `__post_init__` in either corpus, the
+        # mirrors or `pycsl_lib` (7 root files use `__post_init__`, none with an invariant).
+        for _td346 in (_ir342.get("type_decls") or []):
+            if not (isinstance(_td346, dict) and _td346.get("class_invariants")
+                    and _td346.get("name") in _cls341):
+                continue
+            _cl346 = _clo346.get(_td346["name"], [])
+            if not any(_c in _dc346 for _c in _cl346):
+                continue
+            for _c346 in _cl346:
+                for _k346 in _cls341.get(_c346, []):
+                    for _m346 in _k346.body:
+                        if (isinstance(_m346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                                and _m346.name == "__post_init__"):
+                            raise _PyCSLSemErr341(
+                                f"class '{_td346['name']}': its construction runs "
+                                f"`{_c346}.__post_init__` (line {_m346.lineno}), and it "
+                                f"carries a `#@ class invariant`. A `@dataclass`'s "
+                                f"`__post_init__` is never emitted or verified: the "
+                                f"construction becomes opaque (route #150) and NO "
+                                f"constructor-invariant goal is generated, so the "
+                                f"invariant would be ASSUMED of every instance although "
+                                f"`__post_init__` (or the arguments of an unverified "
+                                f"construction) may break it (route #346). Drop the "
+                                f"`__post_init__` (validate in a verified factory "
+                                f"function), or write an explicit `__init__` whose "
+                                f"top-level stores the constructor goal checks.",
+                                stage="ir-semantic", code="PYCSL-R346-POST-INIT-INVARIANT")
+        # Per-function typing facts for #348 / #349, read from annotations and constructor
+        # calls only: `_fn346` lists (def, enclosing class or None); `_at346[id(ann)]` the
+        # TOP-LEVEL class names an annotation denotes (through Optional / Union / `|` /
+        # string forms), `_ah346[id(ann)]` its head name (`Set`, `list`, `D` ...), and
+        # `_ae346[id(ann)]` the top-level names of its FIRST type argument (element / key).
+        _fn346 = []
+        _seenf346 = set()
+        for _cn346, _ks346 in _cls341.items():
+            for _k346 in _ks346:
+                for _m346 in _k346.body:
+                    if isinstance(_m346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                        _fn346.append((_m346, _cn346))
+                        _seenf346.add(id(_m346))
+        for _n346 in _ast341.walk(_t341):
+            if (isinstance(_n346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                    and id(_n346) not in _seenf346):
+                _fn346.append((_n346, None))
+        _an346 = []
+        for _n346 in _ast341.walk(_t341):
+            if isinstance(_n346, _ast341.arg) and _n346.annotation is not None:
+                _an346.append(_n346.annotation)
+            elif isinstance(_n346, _ast341.AnnAssign):
+                _an346.append(_n346.annotation)
+            elif (isinstance(_n346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                  and _n346.returns is not None):
+                _an346.append(_n346.returns)
+        _at346 = {}
+        _ah346 = {}
+        _ae346 = {}
+        _ix346 = 0
+        while _ix346 < len(_an346):
+            _a346 = _an346[_ix346]
+            _ix346 += 1
+            if id(_a346) in _at346:
+                continue
+            _r346 = _a346
+            if isinstance(_r346, _ast341.Constant) and isinstance(_r346.value, str):
+                try:
+                    _r346 = _ast341.parse(_r346.value, mode="eval").body
+                except (SyntaxError, ValueError):
+                    _r346 = None
+            _hd346 = ""
+            if isinstance(_r346, _ast341.Subscript):
+                _hv346 = _r346.value
+                _hd346 = (_hv346.id if isinstance(_hv346, _ast341.Name) else
+                          _hv346.attr if isinstance(_hv346, _ast341.Attribute) else "")
+                _sl346 = _r346.slice
+                _fa346 = (_sl346.elts[0] if isinstance(_sl346, _ast341.Tuple) and _sl346.elts
+                          else _sl346)
+                _an346.append(_fa346)
+                _ae346[id(_a346)] = id(_fa346)
+            elif isinstance(_r346, _ast341.Name):
+                _hd346 = _r346.id
+            elif isinstance(_r346, _ast341.Attribute):
+                _hd346 = _r346.attr
+            _ah346[id(_a346)] = _hd346
+            _tp346 = set()
+            _q346 = [_r346] if _r346 is not None else []
+            while _q346:
+                _x346 = _q346.pop()
+                if isinstance(_x346, _ast341.Constant) and isinstance(_x346.value, str):
+                    try:
+                        _q346.append(_ast341.parse(_x346.value, mode="eval").body)
+                    except (SyntaxError, ValueError):
+                        pass
+                elif isinstance(_x346, _ast341.Name):
+                    _tp346.add(_x346.id)
+                elif isinstance(_x346, _ast341.Attribute):
+                    _tp346.add(_x346.attr)
+                elif isinstance(_x346, _ast341.BinOp) and isinstance(_x346.op, _ast341.BitOr):
+                    _q346.extend([_x346.left, _x346.right])
+                elif isinstance(_x346, _ast341.Subscript):
+                    _hv346 = _x346.value
+                    _hn346 = (_hv346.id if isinstance(_hv346, _ast341.Name) else
+                              _hv346.attr if isinstance(_hv346, _ast341.Attribute) else "")
+                    if _hn346 in ("Optional", "Union", "Annotated", "Final", "ClassVar"):
+                        _sl346 = _x346.slice
+                        _el346 = (list(_sl346.elts) if isinstance(_sl346, _ast341.Tuple)
+                                  else [_sl346])
+                        _q346.extend(_el346[:1] if _hn346 in ("Annotated", "Final",
+                                                              "ClassVar") else _el346)
+                    else:
+                        _tp346.add(_hn346)
+            _at346[id(_a346)] = _tp346
+        for _k346, _v346 in list(_ae346.items()):
+            _ae346[_k346] = _at346.get(_v346, set())
+        # Each class's annotated body fields (`x: T` in the class body): name -> annotation.
+        _cf346 = {}
+        for _cn346, _ks346 in _cls341.items():
+            for _k346 in _ks346:
+                for _s346 in _k346.body:
+                    if (isinstance(_s346, _ast341.AnnAssign)
+                            and isinstance(_s346.target, _ast341.Name)):
+                        _cf346.setdefault(_cn346, {})[_s346.target.id] = _s346.annotation
+        # ROUTE #348 — NamedTuple / `collections.namedtuple` / FROZEN `@dataclass` ARE LOWERED
+        # AS MUTABLE RECORDS (`{ mutable x: int }`), so `n.x = 5` PROVED `\result == 5` under
+        # `no_exception \all` (d11, j02, j03, j07; CPython AttributeError /
+        # FrozenInstanceError — ANY attribute store or delete on such an instance raises).
+        # RULE: in every function / method body, an attribute STORE / augmented store /
+        # `del` / `for` / `with` target, or a `setattr` / `delattr` call, whose receiver is
+        #   * a name annotated with (or constructed as) an immutable record, or `self` in a
+        #     method of one (subclasses of an immutable record included), or
+        #   * of UNKNOWN class (not provably a mutable class) and names a field of an
+        #     immutable record of the file (any name, when a functional field list is not
+        #     literal),
+        # is REFUSED. CENSUS: no such store in either corpus, the mirrors or `pycsl_lib`.
+        _imm348 = {}
+        for _cn346, _ks346 in _cls341.items():
+            for _k346 in _ks346:
+                _nt348 = any((isinstance(_b, _ast341.Name) and _b.id == "NamedTuple")
+                             or (isinstance(_b, _ast341.Attribute) and _b.attr == "NamedTuple")
+                             for _b in _k346.bases)
+                if _nt348 or (_cn346 in _dc346 and _dc346[_cn346]["frozen"] is not False):
+                    _imm348.setdefault(_cn346, set()).update(_cf346.get(_cn346, {}).keys())
+        for _n346 in _ast341.walk(_t341):
+            if not (isinstance(_n346, _ast341.Assign) and len(_n346.targets) == 1
+                    and isinstance(_n346.targets[0], _ast341.Name)
+                    and isinstance(_n346.value, _ast341.Call)):
+                continue
+            _cf348 = _n346.value.func
+            if not ((isinstance(_cf348, _ast341.Name) and _cf348.id in ("namedtuple",
+                                                                        "NamedTuple"))
+                    or (isinstance(_cf348, _ast341.Attribute)
+                        and _cf348.attr in ("namedtuple", "NamedTuple"))):
+                continue
+            _fl348 = set()
+            _fa348 = (_n346.value.args[1] if len(_n346.value.args) >= 2 else
+                      next((_kw.value for _kw in _n346.value.keywords
+                            if _kw.arg in ("field_names", "fields")), None))
+            if _fa348 is None:
+                _fl348 |= {_kw.arg for _kw in _n346.value.keywords if _kw.arg not in (
+                    None, "rename", "defaults", "module", "typename")}
+            elif isinstance(_fa348, _ast341.Constant) and isinstance(_fa348.value, str):
+                _fl348 |= set(_fa348.value.replace(",", " ").split())
+            elif isinstance(_fa348, (_ast341.List, _ast341.Tuple)):
+                for _e348 in _fa348.elts:
+                    if isinstance(_e348, _ast341.Constant) and isinstance(_e348.value, str):
+                        _fl348.add(_e348.value)
+                    elif (isinstance(_e348, (_ast341.Tuple, _ast341.List)) and _e348.elts
+                          and isinstance(_e348.elts[0], _ast341.Constant)
+                          and isinstance(_e348.elts[0].value, str)):
+                        _fl348.add(_e348.elts[0].value)
+                    else:
+                        _fl348.add("*")
+            else:
+                _fl348.add("*")
+            _imm348.setdefault(_n346.targets[0].id, set()).update(_fl348)
+        _im0348 = dict(_imm348)
+        for _cn346 in _cls341:
+            for _a346 in _clo346[_cn346][1:]:
+                if _a346 in _im0348:
+                    _imm348.setdefault(_cn346, set()).update(_im0348[_a346])
+        _immf348 = set()
+        for _v346 in _imm348.values():
+            _immf348 |= _v346
+        # ROUTE #349 — AN UNHASHABLE RECORD AS A SET ELEMENT / DICT KEY. `{d}` lowers to an
+        # opaque value, so `s = {d}` PROVED `no_exception \all` (e08 explicit `__hash__ =
+        # None`, e09 `@dataclass`; CPython TypeError). Python's rule, per class in base
+        # order: an own `__hash__ = None` -> unhashable; an own `__hash__` -> hashable; a
+        # `@dataclass` with `unsafe_hash` -> hashable, else with `eq` (default) -> hashable
+        # iff `frozen`; an own `__eq__` without `__hash__` -> unhashable; else inherited
+        # (`list` / `dict` / `set` / `bytearray` bases unhashable). A hashable NamedTuple /
+        # frozen record with a `list` / `dict` / `set` / unhashable-record field still
+        # raises on `hash`, so it counts as unhashable.
+        _uh349 = {}
+        for _cn346 in [_c for _l, _c in sorted((len(_clo346[_c]), _c) for _c in _cls341)]:
+            _dec349 = None
+            for _a346 in _clo346[_cn346]:
+                if _a346 in ("list", "dict", "set", "bytearray"):
+                    _dec349 = True
+                    break
+                if _a346 not in _cls341:
+                    continue
+                if _a346 != _cn346 and _a346 in _uh349:
+                    _dec349 = _uh349[_a346]
+                    break
+                _own349 = None
+                _eq349 = False
+                for _k346 in _cls341[_a346]:
+                    for _s346 in _k346.body:
+                        if (isinstance(_s346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                                and _s346.name == "__hash__"):
+                            _own349 = False
+                        elif isinstance(_s346, (_ast341.Assign, _ast341.AnnAssign)):
+                            _tg349 = (_s346.targets if isinstance(_s346, _ast341.Assign)
+                                      else [_s346.target])
+                            if any(isinstance(_t, _ast341.Name) and _t.id == "__hash__"
+                                   for _t in _tg349):
+                                _own349 = (isinstance(_s346.value, _ast341.Constant)
+                                           and _s346.value.value is None)
+                        if (isinstance(_s346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                                and _s346.name == "__eq__"):
+                            _eq349 = True
+                if _own349 is None and _a346 in _dc346:
+                    _o346 = _dc346[_a346]
+                    if _o346["unsafe_hash"] is True:
+                        _own349 = False
+                    elif _o346["unsafe_hash"] is None:
+                        _own349 = True
+                    elif _o346["eq"] is not False:
+                        _own349 = _o346["frozen"] is not True
+                if _own349 is None and _eq349:
+                    _own349 = True
+                if _own349 is not None:
+                    _dec349 = _own349
+                    break
+            if not _dec349 and _cn346 in _imm348:
+                for _a346 in _clo346[_cn346]:
+                    for _fan349 in _cf346.get(_a346, {}).values():
+                        if ((_ah346.get(id(_fan349)) or "").lower() in (
+                                "list", "dict", "set", "bytearray", "defaultdict",
+                                "ordereddict", "counter", "deque")
+                                or (_at346.get(id(_fan349), set()) & {
+                                    _c for _c, _u in _uh349.items() if _u})):
+                            _dec349 = True
+            _uh349[_cn346] = bool(_dec349)
+        _u349 = {_c for _c, _u in _uh349.items() if _u}
+        _keyed349 = ("Set", "set", "FrozenSet", "frozenset", "AbstractSet", "MutableSet",
+                     "Dict", "dict", "Mapping", "MutableMapping", "DefaultDict",
+                     "defaultdict", "OrderedDict", "Counter", "ChainMap")
+        if _u349:
+            for _a346 in _an346:
+                if (_ah346.get(id(_a346)) in _keyed349
+                        and _ae346.get(id(_a346), set()) & _u349):
+                    raise _PyCSLSemErr341(
+                        f"line {getattr(_a346, 'lineno', 0)}: the annotation "
+                        f"`{_ast341.unparse(_a346)}` puts an UNHASHABLE class "
+                        f"({sorted(_ae346[id(_a346)] & _u349)}) in a set element / dict "
+                        f"key position. Its instances have `__hash__ = None` (an explicit "
+                        f"`__hash__ = None`, a `@dataclass` with `eq` and without `frozen` "
+                        f"/ `unsafe_hash`, or an `__eq__` without `__hash__`), so CPython "
+                        f"raises TypeError on any such set or dict, while the model lowers "
+                        f"it as an opaque value (route #349). Make the class hashable "
+                        f"(`@dataclass(frozen=True)`, or define `__hash__`) or key the "
+                        f"collection by a field.",
+                        stage="ir-semantic", code="PYCSL-R349-UNHASHABLE-RECORD")
+        for _f346, _ec346 in _fn346:
+            _pa346 = (_f346.args.posonlyargs + _f346.args.args + _f346.args.kwonlyargs
+                      + [_x for _x in (_f346.args.vararg, _f346.args.kwarg) if _x])
+            _self346 = (_pa346[0].arg if _ec346 is not None and _pa346
+                        and not any(isinstance(_d, _ast341.Name) and _d.id == "staticmethod"
+                                    for _d in _f346.decorator_list) else None)
+            # name -> top-level class names over ALL its bindings; `_unk346` = names with a
+            # binding of unknown class (an un-annotated assignment, a loop target ...).
+            _ty346 = {}
+            _hh346 = {}
+            _unk346 = set()
+            for _p346 in _pa346:
+                if _p346.annotation is not None:
+                    _ty346.setdefault(_p346.arg, set()).update(
+                        _at346.get(id(_p346.annotation), set()))
+                    _hh346.setdefault(_p346.arg, set()).add(
+                        _ah346.get(id(_p346.annotation), ""))
+                elif _p346.arg != _self346:
+                    _unk346.add(_p346.arg)
+            for _n346 in _ast341.walk(_f346):
+                if isinstance(_n346, _ast341.AnnAssign) and isinstance(_n346.target,
+                                                                        _ast341.Name):
+                    _ty346.setdefault(_n346.target.id, set()).update(
+                        _at346.get(id(_n346.annotation), set()))
+                    _hh346.setdefault(_n346.target.id, set()).add(
+                        _ah346.get(id(_n346.annotation), ""))
+                elif isinstance(_n346, _ast341.Assign):
+                    _v346 = _n346.value
+                    _cc346 = (_v346.func.id if isinstance(_v346, _ast341.Call)
+                              and isinstance(_v346.func, _ast341.Name)
+                              and (_v346.func.id in _cls341 or _v346.func.id in _imm348)
+                              else None)
+                    for _t346 in _n346.targets:
+                        if isinstance(_t346, _ast341.Name):
+                            if _cc346:
+                                _ty346.setdefault(_t346.id, set()).add(_cc346)
+                            elif isinstance(_v346, (_ast341.List, _ast341.ListComp)):
+                                _hh346.setdefault(_t346.id, set()).add("list")
+                            elif isinstance(_v346, (_ast341.Set, _ast341.SetComp,
+                                                    _ast341.Dict, _ast341.DictComp)):
+                                _hh346.setdefault(_t346.id, set()).add("set")
+                            else:
+                                _unk346.add(_t346.id)
+                        else:
+                            for _y346 in _ast341.walk(_t346):
+                                if (isinstance(_y346, _ast341.Name)
+                                        and isinstance(_y346.ctx, _ast341.Store)):
+                                    _unk346.add(_y346.id)
+                elif isinstance(_n346, (_ast341.For, _ast341.AsyncFor, _ast341.With,
+                                        _ast341.AsyncWith, _ast341.NamedExpr,
+                                        _ast341.comprehension, _ast341.AugAssign)):
+                    _tt346 = ([_n346.target] if not isinstance(
+                        _n346, (_ast341.With, _ast341.AsyncWith))
+                              else [_w.optional_vars for _w in _n346.items if _w.optional_vars])
+                    for _t346 in _tt346:
+                        for _y346 in _ast341.walk(_t346):
+                            if (isinstance(_y346, _ast341.Name)
+                                    and isinstance(_y346.ctx, _ast341.Store)):
+                                _unk346.add(_y346.id)
+            # Expression -> the set of classes it may be (empty = unknown).
+            _ex346 = {}
+            for _n346 in _ast341.walk(_f346):
+                if isinstance(_n346, _ast341.Name):
+                    if _self346 is not None and _n346.id == _self346:
+                        _ex346[id(_n346)] = {_ec346}
+                    elif _n346.id in _ty346:
+                        _ex346[id(_n346)] = set(_ty346[_n346.id])
+                elif (isinstance(_n346, _ast341.Call) and isinstance(_n346.func, _ast341.Name)
+                      and (_n346.func.id in _cls341 or _n346.func.id in _imm348)):
+                    _ex346[id(_n346)] = {_n346.func.id}
+            for _n346 in _ast341.walk(_f346):
+                if (isinstance(_n346, _ast341.Attribute)
+                        and isinstance(_n346.value, _ast341.Name)
+                        and _ex346.get(id(_n346.value))):
+                    for _c346 in _ex346[id(_n346.value)]:
+                        for _a346 in _clo346.get(_c346, []):
+                            if _n346.attr in _cf346.get(_a346, {}):
+                                _ex346.setdefault(id(_n346), set()).update(_at346.get(
+                                    id(_cf346[_a346][_n346.attr]), set()))
+                                break
+            # (#348) stores on immutable records.
+            for _n346 in _ast341.walk(_f346):
+                _rv348 = None
+                _fd348 = None
+                if (isinstance(_n346, _ast341.Attribute)
+                        and not isinstance(_n346.ctx, _ast341.Load)):
+                    _rv348, _fd348 = _n346.value, _n346.attr
+                elif (isinstance(_n346, _ast341.Call) and isinstance(_n346.func, _ast341.Name)
+                      and _n346.func.id in ("setattr", "delattr")
+                      and _n346.func.id not in _bound341 | _imp341
+                      and len(_n346.args) >= 2):
+                    _rv348 = _n346.args[0]
+                    _fd348 = (_n346.args[1].value if isinstance(_n346.args[1], _ast341.Constant)
+                              and isinstance(_n346.args[1].value, str) else "*")
+                if _rv348 is None or not _imm348:
+                    continue
+                _kc348 = set(_ex346.get(id(_rv348), set()))
+                if (isinstance(_rv348, _ast341.Name) and _rv348.id in _unk346
+                        and _rv348.id != _self346):
+                    _kc348 = set()
+                _why348 = ""
+                if _kc348 & set(_imm348):
+                    _why348 = (f"its receiver `{_ast341.unparse(_rv348)}` is an instance of "
+                               f"the immutable record(s) {sorted(_kc348 & set(_imm348))}")
+                elif ((not _kc348 or not (_kc348 <= set(_cls341)))
+                      and (_fd348 in _immf348 or "*" in _immf348 or _fd348 == "*")):
+                    _why348 = (f"its receiver `{_ast341.unparse(_rv348)}` is of unknown "
+                               f"class and `{_fd348}` is a field of an immutable record of "
+                               f"this file ({sorted(_imm348)})")
+                if _why348:
+                    raise _PyCSLSemErr341(
+                        f"'{_f346.name}' line {getattr(_n346, 'lineno', 0)}: "
+                        f"`{_ast341.unparse(_n346)}` stores or deletes an attribute and "
+                        f"{_why348}. A `NamedTuple` / `namedtuple` / frozen `@dataclass` "
+                        f"instance is immutable — CPython raises AttributeError / "
+                        f"FrozenInstanceError on ANY attribute store or delete — but the "
+                        f"record model lowers it as a MUTABLE record, so the store would "
+                        f"be verified as succeeding (route #348). Build a new value "
+                        f"(`n._replace(x=...)`, `dataclasses.replace(d, x=...)`), or make "
+                        f"the class a mutable record (annotate the receiver with it).",
+                        stage="ir-semantic", code="PYCSL-R348-IMMUTABLE-RECORD-STORE")
+            # (#349) unhashable records in hashing positions.
+            if not _u349:
+                continue
+            for _n346 in _ast341.walk(_f346):
+                _hx349 = []
+                if isinstance(_n346, _ast341.Set):
+                    _hx349 = list(_n346.elts)
+                elif isinstance(_n346, _ast341.SetComp):
+                    _hx349 = [_n346.elt]
+                elif isinstance(_n346, _ast341.Dict):
+                    _hx349 = [_k for _k in _n346.keys if _k is not None]
+                elif isinstance(_n346, _ast341.DictComp):
+                    _hx349 = [_n346.key]
+                elif isinstance(_n346, _ast341.Subscript):
+                    _hx349 = [_n346.slice]
+                elif (isinstance(_n346, _ast341.Compare)
+                      and any(isinstance(_o, (_ast341.In, _ast341.NotIn)) for _o in _n346.ops)):
+                    _cm349 = [_n346.left] + list(_n346.comparators)
+                    for _i349, _o349 in enumerate(_n346.ops):
+                        _rr349 = _cm349[_i349 + 1]
+                        if (isinstance(_o349, (_ast341.In, _ast341.NotIn))
+                                and not isinstance(_rr349, (_ast341.List, _ast341.Tuple,
+                                                            _ast341.ListComp))
+                                and not (isinstance(_rr349, _ast341.Name)
+                                         and _rr349.id not in _unk346
+                                         and _hh346.get(_rr349.id)
+                                         and {_h.lower() for _h in _hh346[_rr349.id]}
+                                         <= {"list", "tuple", "sequence"})):
+                            _hx349.append(_cm349[_i349])
+                elif isinstance(_n346, _ast341.Call):
+                    _fu349 = _n346.func
+                    if (isinstance(_fu349, _ast341.Name) and _fu349.id == "hash"
+                            and _fu349.id not in _bound341 | _imp341):
+                        _hx349 = list(_n346.args[:1])
+                    elif ((isinstance(_fu349, _ast341.Name)
+                           and _fu349.id in ("set", "frozenset", "Counter")
+                           and _fu349.id not in _bound341)
+                          or (isinstance(_fu349, _ast341.Attribute)
+                              and _fu349.attr == "fromkeys")) and _n346.args:
+                        _it349 = _n346.args[0]
+                        if isinstance(_it349, (_ast341.List, _ast341.Tuple, _ast341.Set)):
+                            _hx349 = list(_it349.elts)
+                        elif isinstance(_it349, (_ast341.ListComp, _ast341.GeneratorExp,
+                                                 _ast341.SetComp)):
+                            _hx349 = [_it349.elt]
+                        elif isinstance(_it349, _ast341.Name):
+                            for _p346 in _pa346:
+                                if (_p346.arg == _it349.id and _p346.annotation is not None
+                                        and _ae346.get(id(_p346.annotation), set()) & _u349):
+                                    _hx349 = [_it349]
+                                    _ex346[id(_it349)] = _ae346[id(_p346.annotation)]
+                            for _y349 in _ast341.walk(_f346):
+                                if (isinstance(_y349, _ast341.AnnAssign)
+                                        and isinstance(_y349.target, _ast341.Name)
+                                        and _y349.target.id == _it349.id
+                                        and _ae346.get(id(_y349.annotation), set()) & _u349):
+                                    _hx349 = [_it349]
+                                    _ex346[id(_it349)] = _ae346[id(_y349.annotation)]
+                    elif (isinstance(_fu349, _ast341.Attribute)
+                          and _fu349.attr in ("add", "discard", "remove", "get", "setdefault",
+                                              "pop", "__contains__", "__getitem__")
+                          and _n346.args
+                          and not (isinstance(_fu349.value, _ast341.Name)
+                                   and _fu349.value.id not in _unk346
+                                   and _hh346.get(_fu349.value.id)
+                                   and {_h.lower() for _h in _hh346[_fu349.value.id]}
+                                   <= {"list", "sequence", "mutablesequence"})):
+                        _hx349 = list(_n346.args[:1])
+                for _h349 in _hx349:
+                    _hc349 = _ex346.get(id(_h349), set()) & _u349
+                    if _hc349:
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n346, 'lineno', 0)}: "
+                            f"`{_ast341.unparse(_h349)}` (an instance of {sorted(_hc349)}) "
+                            f"is HASHED by `{_ast341.unparse(_n346)}` (a set element, a dict "
+                            f"key, a membership test or subscript of a set / dict, or "
+                            f"`hash(...)`). Its class has `__hash__ = None` (an explicit "
+                            f"`__hash__ = None`, a `@dataclass` with `eq` and without "
+                            f"`frozen` / `unsafe_hash`, an `__eq__` without `__hash__`, or "
+                            f"an unhashable field of a NamedTuple / frozen record), so "
+                            f"CPython raises TypeError here, while the model lowers the "
+                            f"collection as an opaque value (route #349). Make the class "
+                            f"hashable (`@dataclass(frozen=True)`, or define `__hash__`) "
+                            f"or key by a field.",
+                            stage="ir-semantic", code="PYCSL-R349-UNHASHABLE-RECORD")
+        # ROUTE #347 — A FIELD STORED ON ONLY SOME CONSTRUCTOR PATHS IS ASSUMED PRESENT.
+        # The record model gives every field of the class a value, so a read `r.x` never
+        # raises; CPython raises AttributeError when no store reached `x` (k03: `if flag:
+        # self.x = 1` in `__init__`; also an early `return`, a store inside `try`, a field
+        # stored only by another method, a `field(init=False)` without default) — and
+        # `no_exception \all` PROVED it. RULE: DEFINITE ASSIGNMENT over each class's
+        # constructor (own `__init__`; else a `@dataclass`'s / NamedTuple's synthesized
+        # fields; else the first ancestor's constructor), as GEN sets computed bottom-up
+        # (`(gen on fall-through or None, [gen at each return])`): `if` meets its branches,
+        # a loop / `with` body / `try` body without handler-covered fall-through counts
+        # nothing, `raise` never falls through, a leading `super().__init__()` /
+        # `B.__init__(self, ..)` adds the base constructor's set, a `del self.f` anywhere
+        # removes `f`. A field of a class (stored on `self` by any of its or its ancestors'
+        # methods, or a dataclass field) that is not definitely assigned and not a class
+        # attribute is MAYBE-ABSENT; reading an attribute of that name (any receiver but a
+        # module) in a function whose `no_exception` covers AttributeError is REFUSED.
+        _sr347 = {}
+        _da347 = {}
+        for _cn346 in [_c for _l, _c in sorted((len(_clo346[_c]), _c) for _c in _cls341)]:
+            _gen347 = None
+            for _k346 in _cls341[_cn346]:
+                _ini347 = [_m for _m in _k346.body
+                           if isinstance(_m, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                           and _m.name == "__init__"]
+                _g347 = None
+                if _ini347:
+                    _ini347 = _ini347[-1]
+                    _pi347 = _ini347.args.posonlyargs + _ini347.args.args
+                    _sf347 = _pi347[0].arg if _pi347 else "self"
+                    _inh347 = set()
+                    for _a346 in _clo346[_cn346][1:]:
+                        if _a346 in _da347:
+                            _inh347 = _da347[_a346]
+                            break
+                        if _a346 not in _cls341:
+                            break
+                    _pre347 = []
+                    _q347 = [_ini347]
+                    while _q347:
+                        _s347 = _q347.pop()
+                        _pre347.append(_s347)
+                        _bl347 = [getattr(_s347, _fn, None) for _fn in ("body", "orelse",
+                                                                        "finalbody")]
+                        _bl347 += [_h.body for _h in (getattr(_s347, "handlers", None) or [])]
+                        _bl347 += [_c.body for _c in (getattr(_s347, "cases", None) or [])]
+                        for _l347 in _bl347:
+                            if isinstance(_l347, list):
+                                _q347.extend(_x for _x in _l347 if isinstance(_x, _ast341.stmt)
+                                             and not isinstance(_x, (
+                                                 _ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                                 _ast341.ClassDef)))
+                    _sum347 = {}
+                    _del347 = set()
+                    for _s347 in reversed(_pre347):
+                        # sequential summaries of each statement list of _s347
+                        _ls347 = []
+                        _lists347 = [getattr(_s347, "body", None)
+                                     if not isinstance(_s347, _ast341.ExceptHandler) else None,
+                                     getattr(_s347, "orelse", None),
+                                     getattr(_s347, "finalbody", None)]
+                        _lists347 = [(_l if isinstance(_l, list) else []) for _l in _lists347]
+                        _lists347 += [_h.body for _h in (getattr(_s347, "handlers", None) or [])]
+                        _lists347 += [_c.body for _c in (getattr(_s347, "cases", None) or [])]
+                        for _l347 in _lists347:
+                            _acc347 = set()
+                            _R347 = []
+                            _G347 = set()
+                            for _x347 in _l347:
+                                if id(_x347) not in _sum347:
+                                    continue
+                                _gx347, _rx347 = _sum347[id(_x347)]
+                                _R347.extend(_acc347 | _r for _r in _rx347)
+                                if _gx347 is None:
+                                    _G347 = None
+                                    break
+                                _acc347 = _acc347 | _gx347
+                            if _G347 is not None:
+                                _G347 = _acc347
+                            _ls347.append((_G347, _R347))
+                        _tg347 = []
+                        if isinstance(_s347, (_ast341.Assign, _ast341.AugAssign)) or (
+                                isinstance(_s347, _ast341.AnnAssign) and _s347.value is not None):
+                            _tg347 = (list(_s347.targets) if isinstance(_s347, _ast341.Assign)
+                                      else [_s347.target])
+                        elif isinstance(_s347, (_ast341.With, _ast341.AsyncWith)):
+                            _tg347 = [_w.optional_vars for _w in _s347.items if _w.optional_vars]
+                        _gs347 = set()
+                        for _t347 in _tg347:
+                            for _y347 in _ast341.walk(_t347):
+                                if (isinstance(_y347, _ast341.Attribute)
+                                        and isinstance(_y347.value, _ast341.Name)
+                                        and _y347.value.id == _sf347):
+                                    _gs347.add(_y347.attr)
+                        if isinstance(_s347, _ast341.Delete):
+                            for _y347 in _ast341.walk(_s347):
+                                if (isinstance(_y347, _ast341.Attribute)
+                                        and isinstance(_y347.value, _ast341.Name)
+                                        and _y347.value.id == _sf347):
+                                    _del347.add(_y347.attr)
+                        for _y347 in _ast341.walk(_s347):
+                            if (isinstance(_y347, _ast341.Call)
+                                    and isinstance(_y347.func, _ast341.Name)
+                                    and _y347.func.id == "delattr"):
+                                _del347.add("*")
+                        if isinstance(_s347, _ast341.Expr) and isinstance(_s347.value,
+                                                                          _ast341.Call):
+                            _cv347 = _s347.value
+                            _cf347 = _cv347.func
+                            if (isinstance(_cf347, _ast341.Name) and _cf347.id == "setattr"
+                                    and len(_cv347.args) >= 2
+                                    and isinstance(_cv347.args[0], _ast341.Name)
+                                    and _cv347.args[0].id == _sf347
+                                    and isinstance(_cv347.args[1], _ast341.Constant)
+                                    and isinstance(_cv347.args[1].value, str)):
+                                _gs347.add(_cv347.args[1].value)
+                            elif (isinstance(_cf347, _ast341.Attribute)
+                                  and _cf347.attr == "__init__"):
+                                if (isinstance(_cf347.value, _ast341.Call)
+                                        and isinstance(_cf347.value.func, _ast341.Name)
+                                        and _cf347.value.func.id == "super"):
+                                    _gs347 |= _inh347
+                                elif (isinstance(_cf347.value, _ast341.Name)
+                                      and _cf347.value.id in _da347 and _cv347.args
+                                      and isinstance(_cv347.args[0], _ast341.Name)
+                                      and _cv347.args[0].id == _sf347):
+                                    _gs347 |= _da347[_cf347.value.id]
+                        if isinstance(_s347, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                            _sum347[id(_s347)] = _ls347[0]
+                        elif isinstance(_s347, _ast341.Raise):
+                            _sum347[id(_s347)] = (None, [])
+                        elif isinstance(_s347, _ast341.Return):
+                            _sum347[id(_s347)] = (None, [set()])
+                        elif isinstance(_s347, (_ast341.Break, _ast341.Continue)):
+                            _sum347[id(_s347)] = (None, [])
+                        elif isinstance(_s347, _ast341.If):
+                            _g1347, _r1347 = _ls347[0]
+                            _g2347, _r2347 = _ls347[1]
+                            _sum347[id(_s347)] = (
+                                _g2347 if _g1347 is None else _g1347 if _g2347 is None
+                                else _g1347 & _g2347, _r1347 + _r2347)
+                        elif isinstance(_s347, (_ast341.For, _ast341.AsyncFor, _ast341.While)):
+                            _sum347[id(_s347)] = (set(), _ls347[0][1] + _ls347[1][1])
+                        elif isinstance(_s347, (_ast341.With, _ast341.AsyncWith)):
+                            _sum347[id(_s347)] = (_gs347, [_gs347 | _r for _r in _ls347[0][1]])
+                        elif isinstance(_s347, _ast341.Try) or type(_s347).__name__ == "TryStar":
+                            _gb347, _rb347 = _ls347[0]
+                            _go347, _ro347 = _ls347[1]
+                            _gf347, _rf347 = _ls347[2]
+                            _nm347 = None if (_gb347 is None or _go347 is None) else (
+                                _gb347 | _go347)
+                            _rt347 = list(_rb347) + list(_rf347)
+                            if _gb347 is not None:
+                                _rt347 += [_gb347 | _r for _r in _ro347]
+                            for _gh347, _rh347 in _ls347[3:]:
+                                _rt347 += _rh347
+                                if _gh347 is not None:
+                                    _nm347 = _gh347 if _nm347 is None else (_nm347 & _gh347)
+                            _sum347[id(_s347)] = (
+                                None if (_nm347 is None or _gf347 is None)
+                                else (_nm347 | _gf347), _rt347)
+                        elif type(_s347).__name__ == "Match":
+                            _mm347 = None
+                            _rt347 = []
+                            for _gc347, _rc347 in _ls347[3:]:
+                                _rt347 += _rc347
+                                if _gc347 is not None:
+                                    _mm347 = _gc347 if _mm347 is None else (_mm347 & _gc347)
+                            _lc347 = _s347.cases[-1] if _s347.cases else None
+                            if not (_lc347 is not None and _lc347.guard is None
+                                    and type(_lc347.pattern).__name__ == "MatchAs"
+                                    and _lc347.pattern.pattern is None):
+                                _mm347 = set()
+                            _sum347[id(_s347)] = (_mm347, _rt347)
+                        else:
+                            _sum347[id(_s347)] = (_gs347, [])
+                    _G347, _R347 = _sum347[id(_ini347)]
+                    for _r347 in ([_G347] if _G347 is not None else []) + list(_R347):
+                        _g347 = set(_r347) if _g347 is None else (_g347 & _r347)
+                    _g347 = (_g347 or set()) - _del347
+                    if "*" in _del347:
+                        _g347 = set()
+                elif _cn346 in _dc346 and _dc346[_cn346]["init"] is not False:
+                    _g347 = set()
+                    for _a346 in _clo346[_cn346]:
+                        if _a346 not in _dc346:
+                            continue
+                        for _fn347, _fa347 in _cf346.get(_a346, {}).items():
+                            _hd347 = _ah346.get(id(_fa347), "")
+                            if _hd347 == "ClassVar":
+                                continue
+                            _g347.add(_fn347)
+                    for _k347 in _cls341[_cn346]:
+                        for _s347 in _k347.body:
+                            if (isinstance(_s347, _ast341.AnnAssign)
+                                    and isinstance(_s347.target, _ast341.Name)
+                                    and isinstance(_s347.value, _ast341.Call)
+                                    and isinstance(_s347.value.func, (_ast341.Name,
+                                                                      _ast341.Attribute))
+                                    and (getattr(_s347.value.func, "id", None) == "field"
+                                         or getattr(_s347.value.func, "attr", None) == "field")
+                                    and any(_kw.arg == "init"
+                                            and isinstance(_kw.value, _ast341.Constant)
+                                            and _kw.value.value is False
+                                            for _kw in _s347.value.keywords)
+                                    and not any(_kw.arg in ("default", "default_factory")
+                                                for _kw in _s347.value.keywords)):
+                                _g347.discard(_s347.target.id)
+                elif any((isinstance(_b, _ast341.Name) and _b.id == "NamedTuple")
+                         or (isinstance(_b, _ast341.Attribute) and _b.attr == "NamedTuple")
+                         for _b in _k346.bases):
+                    _g347 = set(_cf346.get(_cn346, {}).keys())
+                if _g347 is not None:
+                    _gen347 = _g347 if _gen347 is None else (_gen347 & _g347)
+            if _gen347 is None:
+                _gen347 = set()
+                for _a346 in _clo346[_cn346][1:]:
+                    if _a346 in _da347:
+                        _gen347 = set(_da347[_a346])
+                        break
+                    if _a346 not in _cls341:
+                        break
+            _da347[_cn346] = _gen347
+        _ma347 = set()
+        for _cn346 in _cls341:
+            _fs347 = set()
+            _ca347 = set()
+            for _a346 in _clo346[_cn346]:
+                for _k346 in _cls341.get(_a346, []):
+                    for _s346 in _k346.body:
+                        if isinstance(_s346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                              _ast341.ClassDef)):
+                            _ca347.add(_s346.name)
+                        elif isinstance(_s346, _ast341.Assign):
+                            for _t346 in _s346.targets:
+                                for _y346 in _ast341.walk(_t346):
+                                    if isinstance(_y346, _ast341.Name):
+                                        _ca347.add(_y346.id)
+                        elif (isinstance(_s346, _ast341.AnnAssign)
+                              and isinstance(_s346.target, _ast341.Name)):
+                            if _a346 in _dc346 or _a346 in _imm348:
+                                _fs347.add(_s346.target.id)
+                            if _s346.value is not None and not (
+                                    isinstance(_s346.value, _ast341.Call)
+                                    and (getattr(_s346.value.func, "id", None) == "field"
+                                         or getattr(_s346.value.func, "attr", None) == "field")
+                                    and not any(_kw.arg in ("default", "default_factory")
+                                                for _kw in _s346.value.keywords)):
+                                _ca347.add(_s346.target.id)
+                        elif isinstance(_s346, (_ast341.Import, _ast341.ImportFrom)):
+                            _ca347 |= {(_x.asname or _x.name).split(".")[0]
+                                       for _x in _s346.names}
+                    for _m346 in _k346.body:
+                        if not isinstance(_m346, (_ast341.FunctionDef,
+                                                  _ast341.AsyncFunctionDef)):
+                            continue
+                        _pm347 = _m346.args.posonlyargs + _m346.args.args
+                        if not _pm347:
+                            continue
+                        _sf347 = _pm347[0].arg
+                        for _y346 in _ast341.walk(_m346):
+                            if (isinstance(_y346, _ast341.Attribute)
+                                    and not isinstance(_y346.ctx, _ast341.Load)
+                                    and isinstance(_y346.value, _ast341.Name)
+                                    and _y346.value.id == _sf347):
+                                _fs347.add(_y346.attr)
+                            elif (isinstance(_y346, _ast341.Call)
+                                  and isinstance(_y346.func, _ast341.Name)
+                                  and _y346.func.id == "setattr" and len(_y346.args) >= 2
+                                  and isinstance(_y346.args[0], _ast341.Name)
+                                  and _y346.args[0].id == _sf347
+                                  and isinstance(_y346.args[1], _ast341.Constant)
+                                  and isinstance(_y346.args[1].value, str)):
+                                _fs347.add(_y346.args[1].value)
+            _ma347 |= _fs347 - _da347.get(_cn346, set()) - _ca347
+        if _ma347:
+            _nx347 = set()
+            for _f347 in (_ir342.get("functions") or []):
+                if not isinstance(_f347, dict) or _f347.get("trusted") or _f347.get("abstract"):
+                    continue
+                _ct347 = _f347.get("contracts") or {}
+                if _ct347.get("no_exception_all") or set(_ct347.get("no_exception") or []) & {
+                        "AttributeError", "Exception", "BaseException"}:
+                    _nx347.add(_f347.get("name"))
+            for _f346, _ec346 in _fn346:
+                _irn347 = (_ec346.lower() + "__" + _f346.name) if _ec346 else _f346.name
+                if _irn347 not in _nx347:
+                    continue
+                _aug347 = {id(_y.target) for _y in _ast341.walk(_f346)
+                           if isinstance(_y, _ast341.AugAssign)}
+                for _n346 in _ast341.walk(_f346):
+                    if not (isinstance(_n346, _ast341.Attribute) and _n346.attr in _ma347):
+                        continue
+                    if isinstance(_n346.ctx, _ast341.Store) and id(_n346) not in _aug347:
+                        continue
+                    if isinstance(_n346.value, _ast341.Name) and _n346.value.id in (
+                            _imp341 - _bound341):
+                        continue
+                    raise _PyCSLSemErr341(
+                        f"'{_f346.name}' line {getattr(_n346, 'lineno', 0)}: it claims "
+                        f"`#@ no_exception` (covering AttributeError) and reads "
+                        f"`{_ast341.unparse(_n346)}`, but `{_n346.attr}` is a field some "
+                        f"constructor of this file does NOT definitely assign (a store "
+                        f"under `if` / a loop / `try` / `with`, after an early `return`, "
+                        f"only in another method, or a `field(init=False)` without default; "
+                        f"or a `del`). The record model gives every field a value, so the "
+                        f"read would be verified as never raising while CPython raises "
+                        f"AttributeError when no store reached it (route #347). Assign "
+                        f"`self.{_n346.attr}` on every `__init__` path (e.g. a default "
+                        f"before the branch), or give the class a class-level default.",
+                        stage="ir-semantic", code="PYCSL-R347-FIELD-MAYBE-UNASSIGNED")
 
     # (#49) ROUTE #263 — RECURSION THROUGH A METHOD CALL WAS NEVER CHECKED FOR TERMINATION.
     # Module 6 lowers a `self.m(...)` / `obj.m(...)` / `C().m(...)` call to a bodyless
