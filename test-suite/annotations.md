@@ -1734,6 +1734,27 @@ function annotated `-> int` / `-> bool` whose body does not return a fallback. S
 route #322's float-constant bypasses (a re-export, an alias, `importlib`, `__import__`); the
 #322 refusal stays as the first, name-keyed layer. Witnesses `4230`-`4263`; controls
 `4264`-`4271`.
+### 7.22 An inherited class invariant needs the constructor Python actually runs (route #335)
+
+A subclass inherits its bases' `#@ class invariant`s (§3, route #226 checks the constructor's
+obligation, route #277 lets a base-typed parameter hold a subclass). Both rest on the
+subclass's construction STORING every field an invariant names, with the value the merged
+model uses. Python's constructor is the first `__init__` of the C3 MRO; a class without one
+is walked through; a class with one runs it and reaches the next only through a leading
+`super().__init__(...)` (a later, conditional or explicit `B.__init__(self)` call, a
+dataclass's synthesized constructor and an unmodelled class all end the chain); a field's
+value is the one stored by the first class of that chain that stores it. A subclass is
+REFUSED (`PYCSL-R335-INHERITED-INVARIANT-CONSTRUCTION`) when an invariant field it does not
+store itself is (a) stored by no class of that chain (`__init__: pass`, an `__init__`
+storing other fields, a store only under `if`, `class S(M, B)` with `M.__init__` not calling
+`super()`), (b) stored by a class whose literal is not the merged one (`class S(M, B)` with
+`M.__init__` storing `n = -1`), or (c) named by a method, `@property` or non-constant
+class-body binding anywhere in the MRO. A class attribute (`n = -1`) is not the instance
+field. Controls that keep proving: the subclass storing the field itself (with or without
+`super()`), `super().__init__(...)` chains, `class S(B): pass`, grandchildren, a fieldless
+mixin without `__init__`. Known over-refusal: `B.__init__(self)` instead of `super()`.
+Witnesses `4460`-`4468`; controls `4469`-`4476`.
+
 ### 7.19 `assert` under `no_exception \all` is an obligation (route #332)
 
 The §7.1 erasure is partial correctness: it is sound only while the contract claims nothing

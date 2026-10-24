@@ -3979,6 +3979,23 @@ which the VC makes unreachable, so it is not translated. The effect screen
 (`PYCSL-M6-ASSERT-EFFECTFUL-TEST`) still precedes. A `for`-target read inside such an assert
 is a read for the loop-target write-back analyses (routes #36/#301/#302).
 
+### §T.6.33  Inherited class invariants and the constructor chain (route #335)
+
+For a record $S$ with C3 MRO $S = K_0, K_1, \ldots, K_m$, the constructor chain is the
+longest prefix walk $K_{i_0}, K_{i_1}, \ldots$ where classes without an `__init__` are skipped
+and each $K_{i_j}$ that defines one is followed by $K_{i_{j+1}}$ only when its body begins
+with `super().__init__(...)`; an unmodelled class (no `type_decl`, not a fieldless class
+without `__init__`) and a synthesized dataclass constructor end it. $\mathit{own}(K)$ is the
+set of fields $K.$`__init__` stores outside control flow, and
+$\mathit{owner}(f) = $ the first $K_{i_j}$ with $f \in \mathit{own}(K_{i_j})$. For every
+field $f$ named by an invariant of $S$ (own or inherited) that belongs to a base and not to
+$\mathit{own}(S)$, `apply_inheritance` requires $\mathit{owner}(f)$ to exist, the merged
+`field_defaults`$[f]$ to equal $\mathit{owner}(f)$'s literal unless $f$ is bound in the merged
+`init_body` or unknown, and no $K_i$ to define a method or a non-constant class-body binding
+named $f$; otherwise it raises `PYCSL-R335-INHERITED-INVARIANT-CONSTRUCTION`. Nothing is
+emitted differently: the goal `_check_class_inv_S` (§T.6, route #226) and the receiver
+assumption of route #277 are unchanged for every class that passes.
+
 ## §T.7  Memory Models
 
 _Corresponds to `annotations.md` §5._
