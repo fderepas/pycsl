@@ -325,8 +325,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 # `self - self == 0` PROVED with a user `__sub__` returning 1; `self < self`
                 # PROVED `False` under `no_exception \all`, CPython TypeError). No corpus,
                 # pyref or mirror method applies an arithmetic / ordering operator to `self`.
+                # (a METHOD only: a def directly in a class body; a module-level function's
+                # parameter named `self` is an ordinary argument, corpus 3755 / 3756)
                 _sa337 = list(_fa336.posonlyargs) + list(_fa336.args)
-                if _sa337 and _sa337[0].arg == "self":
+                if (_sa337 and _sa337[0].arg == "self"
+                        and any(isinstance(_cd337, ast.ClassDef) and _fn336 in _cd337.body
+                                for _cd337 in ast.walk(node))):
                     for _ln336 in ast.walk(_fn336):
                         _hit337 = False
                         if isinstance(_ln336, ast.BinOp):
