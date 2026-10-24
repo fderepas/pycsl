@@ -711,3 +711,11 @@ file in the same commit. Two files are added (`1900`, `1901`). So the suite shou
 The class-invariant PLANE's numbers should NOT move: `1892` and `1900` become expected-FAIL
 and are skipped, and `1901`'s constructor needs an argument so it was never
 `C()`-constructible. 75 classes / 84 clauses / 0 FALSE either way.
+
+## gen #37 (2026-10-24) — route #342: the CONTROL-FLOW half of the last carrier is now REFUSED
+Route #342 (r341 executor) measured that "computed / control-flow store: SUCCESS, no goal" was a live false proof for many
+store FORMS, not only computed values: `for self.x in ..`, tuple / `with` / `del` / `+=` targets, `setattr(self, ..)`, an alias
+`s = self`, `if` / `while` stores, a `self.m()` call or a non-leading `super()` (route #150 opacity -> no goal). Each is now
+REFUSED in the constructor of an invariant-carrying class (`PYCSL-R342-CONSTRUCTOR-STORE-FORM`, annotations §7.25). The
+remaining open carrier is exactly the straight-line COMPUTED store (`self.n = three()`, `route226-carrier-computed-constructor-store.py`,
+still SUCCESS — `bin/check-open-route-carriers.py` green).

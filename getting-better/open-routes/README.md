@@ -1,5 +1,15 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #341 + #342 REPAIRED, candidate (r341 executor off 8984dce3; code 88a8a4c7 / 7be6e53a, corpus 0904473f /
+##   ec7df9fe, census 41dddc52 / 768c1725, docs 83deebdc + route docs; one inline `_run_pipeline` block, no new def, ledger 3). Sound
+##   refusals, no emission change. #341 PYCSL-R341-CLASS-BASE-NOT-A-NAME: a base that is not a class name (alias / annotated /
+##   tuple-unpacked name, call, conditional, non-imported attribute, non-`Generic` subscript) — aliases refused rather than resolved
+##   (~20 readers of `ClassDef.bases`, 0 users measured). #342 PYCSL-R342-CONSTRUCTOR-STORE-FORM: in the constructor of an
+##   invariant-carrying class (or a class on its base closure) an invariant field stored other than by a top-level `self.f = e`, a
+##   bare `self` (alias / argument), `self.m()`, a non-leading `super()`, a `return`; PYCSL-R342-CLASS-REASSIGNMENT (`__class__`
+##   stores); PYCSL-R342-EXTERNAL-INVARIANT-STORE (NEW latent: module-level / `__main__` stores of invariant fields). Witnesses
+##   4550-4571 + 3 new latent 4577-4579 (25 PROVED at base) -> REFUSED; controls 4572-4576 PROVED. Root 0/0/0, pyref 0/0/0, mirror
+##   53/53 0/0/0 (no OWED); fast planes 61/61. Residuals: #226's computed straight-line store, per-file check, over-refusals (see REPAIR).
 ## gen #37 (2026-10-24): #339 (Enum members as ints), #340 (nested def bare-name default evaluated at call time), #341 (computed/aliased
 ##   class base drops inheritance), #342 (constructor-invariant goal reads only plain self.f stores; __class__ reassignment) OPENED
 ##   (red team 24; 10/10 sample driver-reproduced rc=0, CPython violates).
