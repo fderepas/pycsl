@@ -5233,7 +5233,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                         _r249_e.get("attr") or _r249_e.get("field"))
                                     in ("Any", "object")):
                                 _r249_hit = True
-                        _r249_es.append(_r249_b)
+                        # route #343: `self.f` is not a use of an erased receiver
+                        if not (isinstance(_r249_b, dict) and _r249_b.get("type") == "Var"
+                                and _r249_b.get("name") == "self"):
+                            _r249_es.append(_r249_b)
                     elif _r249_et in ("Subscript", "MapGet"):
                         _r249_b = (_r249_e.get("value") if isinstance(_r249_e.get("value"), dict)
                                    else _r249_e.get("object") or _r249_e.get("map"))
@@ -22382,6 +22385,55 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # All other types via uniform-quad-signature dispatch
         handler = self._EXPR_DISPATCH.get(t)
         if handler:
+            # (#49) ROUTE #343 — A BUILTIN HANDED AN ERASED VALUE RUNS ITS DUNDER (or raises
+            #   TypeError). `range(x)` / `abs(x)` / `len(x)` / `max(x, 0)` / `int(x)` ... on an
+            #   erased (route #249: `Any`, `object`, a field-less class, a field-less class's
+            #   `self` since route #343) argument lowered to an opaque call with NO exception
+            #   VC, so `no_exception \all` PROVED `range(self)` for `class P: pass` and
+            #   `range(x)` for `x: Any` (CPython TypeError). Under `no_exception` (program
+            #   context), such a call is preceded by a failing assertion, as route #252 does
+            #   for an operator on an erased operand. Asked through route #251's probe (no
+            #   new def; this method's mirror twin is `\trusted`).
+            _r343_hit = False
+            if (t == "Call" and isinstance(expr.get("func"), str)
+                    and expr["func"] in (
+                        "abs", "round", "divmod", "pow", "range", "chr", "ord", "bin",
+                        "hex", "oct", "len", "sum", "min", "max", "sorted", "int", "float",
+                        "complex", "str", "repr", "format", "hash", "iter", "next",
+                        "reversed", "enumerate", "zip", "list", "tuple", "set",
+                        "frozenset", "dict", "bool", "bytes", "bytearray", "map", "filter",
+                        "any", "all", "print", "getattr", "setattr", "delattr", "vars",
+                        "dir", "ascii")
+                    and not any(isinstance(_r343_g, dict) and _r343_g.get("name") == expr["func"]
+                                for _r343_g in ((getattr(self, "ir", {}) or {}).get("functions")
+                                                or []))
+                    and not getattr(self, "_in_spec", False) and not invariant_ctx
+                    and (getattr(self, "_current_no_exception", set())
+                         or getattr(self, "_current_no_exception_all", False))):
+                _r343_sc = getattr(self, "_r249_scope", None) or {}
+                if (_r343_sc.get("erased") or _r343_sc.get("ret_erased")
+                        or _r343_sc.get("any_ret") or _r343_sc.get("eq_classes")):
+                    for _r343_a in (list(expr.get("args") or [])
+                                    + [_r343_k.get("value") for _r343_k in
+                                       (expr.get("keywords") or []) if isinstance(_r343_k, dict)]):
+                        if isinstance(_r343_a, dict) and _r343_a.get("type") == "Starred":
+                            _r343_a = _r343_a.get("value")
+                        if isinstance(_r343_a, dict) and self._handle_binop(OpaqueExpr(
+                                kind="BinOp", raw={"type": "BinOp", "op": "r251_erased?",
+                                                   "left": _r343_a,
+                                                   "right": {"type": "Number", "value": 0}}),
+                                local_refs, invariant_ctx, subst):
+                            _r343_hit = True
+                            break
+            if _r343_hit:
+                _r343_w = (getattr(self, handler)(
+                    (node if not isinstance(node, OpaqueExpr)
+                     else _expr_from_dict_inner(node.raw)), local_refs, invariant_ctx, subst)
+                    if handler in _TYPED_EXPR_HANDLERS
+                    else getattr(self, handler)(expr, local_refs, invariant_ctx, subst))
+                return ("(begin assert { [@expl:PyCSL-R343 a builtin applied to an erased "
+                        "(Any / object / field-less class) value runs a user method or "
+                        "raises TypeError] false }; %s end)" % _r343_w)
             if handler in _TYPED_EXPR_HANDLERS:
                 tn = node if not isinstance(node, OpaqueExpr) else _expr_from_dict_inner(node.raw)
                 # (#49) ROUTE #249: the typed re-read DROPS route #42's `py_is` marker, and

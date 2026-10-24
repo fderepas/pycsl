@@ -2931,6 +2931,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 and _r341.id not in _bound341):
                             _why341 = ("is an attribute that is not a dotted name rooted at "
                                        "an imported module")
+                        # (#49) ROUTE #345 — THE READERS TAKE AN ATTRIBUTE BASE BY ITS TAIL
+                        # (`b.attr`), so `om.B` named THIS file's class `B` whenever the file
+                        # defines one: `import rt25other as om; class S(om.B)` inherited the
+                        # local B's contract and invariant (CPython runs rt25other.B.m).
+                        # The tail is that class only for a SELF-import: `import <stem>` /
+                        # `import <stem> as x` of this file's own module name, used as
+                        # `x.B`. Any other module's attribute colliding with a class name
+                        # of the file is REFUSED (the readers cannot see it as imported).
+                        elif _b341.attr in _cls341:
+                            _st345 = (os.path.splitext(os.path.basename(str(args.file)))[0]
+                                      if getattr(args, "file", None) else "")
+                            _self345 = (isinstance(_b341.value, _ast341.Name) and bool(_st345)
+                                        and any(isinstance(_n345, _ast341.Import) and any(
+                                            _a345.name == _st345
+                                            and (_a345.asname or _a345.name) == _b341.value.id
+                                            for _a345 in _n345.names)
+                                            for _n345 in _ast341.walk(_t341))
+                                        and not any(
+                                            isinstance(_n345, _ast341.ImportFrom) and any(
+                                                (_a345.asname or _a345.name) == _b341.value.id
+                                                for _a345 in _n345.names)
+                                            or (isinstance(_n345, _ast341.Import) and any(
+                                                (_a345.asname or _a345.name.split(".")[0])
+                                                == _b341.value.id and _a345.name != _st345
+                                                for _a345 in _n345.names))
+                                            for _n345 in _ast341.walk(_t341)))
+                            if not _self345:
+                                _why341 = (f"is an attribute of another module whose tail "
+                                           f"`{_b341.attr}` is also the name of a class of "
+                                           f"this file (route #345: the base would be read "
+                                           f"as this file's `{_b341.attr}`); import the "
+                                           f"class under a distinct name "
+                                           f"(`from m import {_b341.attr} as Other{_b341.attr}`)")
                     elif isinstance(_b341, _ast341.Subscript):
                         _h341 = _b341.value
                         if not ((isinstance(_h341, _ast341.Name)
@@ -3997,6 +4030,58 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                  _sn278[len(str(_sf278.get("self_type"))) + 2:]))
             _bd338 = _cm338.get((_bf278.get("self_type"),
                                  _bn278[len(str(_bf278.get("self_type"))) + 2:]))
+            # (#49) ROUTE #344 — A CLASS WITH NO OWN DEF RUNS THE ONE ITS MRO PICKS. A pair
+            # whose sub (or base) class INHERITS the method (`class C(B, A): pass`, Module 6
+            # records `c__m refines a__m` and types `c__m` by B.m) had no def of its own
+            # here, so R5 skipped it: `A.m -> int`, `B.m -> float` made `a.m() % 1 == 0`
+            # PROVE for `a = C()` (CPython 0.5). Each side without a def of its own is
+            # resolved through Python's C3 linearization of the file's classes (bases by
+            # name, as `_anc338` holds them) to the first class of its MRO that defines the
+            # method. Inline (no new def: `_run_pipeline`'s mirror twin is `\trusted`).
+            for _ix344, _fx344 in ((0, _sf278), (1, _bf278)):
+                if (_sd338, _bd338)[_ix344] is not None:
+                    continue
+                _cn344 = _fx344.get("self_type")
+                _mn344 = (_sn278, _bn278)[_ix344][len(str(_cn344)) + 2:]
+                _lin344 = {}
+                _todo344 = [_cn344] if _cn344 in _anc338 else []
+                _gd344 = 0
+                while _todo344 and _gd344 < 100000:
+                    _gd344 += 1
+                    _k344 = _todo344[-1]
+                    _bs344 = list(_anc338.get(_k344, []))
+                    _ms344 = [_b for _b in _bs344 if _b in _anc338 and _b not in _lin344]
+                    if _ms344:
+                        if any(_b in _todo344 for _b in _ms344):
+                            break  # a base cycle (CPython rejects it); stay unresolved
+                        _todo344.extend(_ms344)
+                        continue
+                    _todo344.pop()
+                    _sq344 = [list(_lin344.get(_b, [_b])) for _b in _bs344] + [list(_bs344)]
+                    _rs344 = [_k344]
+                    while True:
+                        _sq344 = [_q for _q in _sq344 if _q]
+                        if not _sq344:
+                            break
+                        _cd344 = None
+                        for _q344 in _sq344:
+                            if not any(_q344[0] in _r344[1:] for _r344 in _sq344):
+                                _cd344 = _q344[0]
+                                break
+                        if _cd344 is None:
+                            break  # no consistent MRO (CPython TypeError); stop here
+                        _rs344.append(_cd344)
+                        for _q344 in _sq344:
+                            if _q344[0] == _cd344:
+                                _q344.pop(0)
+                    _lin344[_k344] = _rs344
+                for _k344 in (_lin344.get(_cn344) or []):
+                    if (_k344, _mn344) in _cm338:
+                        if _ix344 == 0:
+                            _sd338 = _cm338[(_k344, _mn344)]
+                        else:
+                            _bd338 = _cm338[(_k344, _mn344)]
+                        break
             if _sd338 is not None and _bd338 is not None:
                 _sa338 = _sd338.args.posonlyargs + _sd338.args.args
                 _ba338 = _bd338.args.posonlyargs + _bd338.args.args

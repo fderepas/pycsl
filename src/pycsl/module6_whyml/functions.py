@@ -2468,6 +2468,27 @@ class FunctionEmissionMixin:
                 _r249_eq_classes.add(_r249_g["self_type"])
         _r249_erased: Set[str] = set()
         _r249_pann = func.get("param_annotations") or {}
+        # (#49) ROUTE #343 — A FIELD-LESS CLASS'S RECEIVER IS AN ARBITRARY OBJECT TOO.
+        #   Route #337 erased a field-less class's PARAMETERS but its methods' `self`
+        #   stayed `type <c> = int` with every int law, guarded only by a syntactic
+        #   refusal of an operator spelled on `self`: `s = self; s - s` (a user
+        #   `__sub__` returning 1), `(s := self) - s`, `[self][0] - ...`, `abs(self)`,
+        #   `h(self)` into an `int` parameter, `return self` through `-> int`, all
+        #   PROVED. The receiver of a method of a class the model does not carry as a
+        #   record / variant is now erased like such a parameter: the fixpoint below
+        #   propagates it through every binding form, `_handle_binop` takes the laws
+        #   off, route #252 refuses its flow into a builtin-typed slot. Its WhyML type
+        #   stays the alias (the mirror's emitter classes are read through it); an
+        #   attribute or method call ON `self` is not a use of the erased value
+        #   (the base `self` is not walked below; `self.m()` was never erased).
+        if (func.get("kind") == "method"
+                and isinstance(func.get("self_type"), str)
+                and func["self_type"] not in _r336_rts
+                and func["self_type"] not in _r336_vts
+                and not any(isinstance(_r343_k, str)
+                            and _r343_k.lower() == func["self_type"].lower()
+                            for _r343_k in list(_r336_rts) + list(_r336_vts))):
+            _r249_erased.add("self")
         for _r249_p in (func.get("formal_params") or []):
             if _r249_p == "self" or _r249_p in _r249_cont \
                     or _r249_p == func.get("vararg_str_param"):
@@ -2753,7 +2774,10 @@ class FunctionEmissionMixin:
                                         _r249_e.get("attr") or _r249_e.get("field"))
                                     in ("Any", "object")):
                                 _r249_hit = True
-                        _r249_es.append(_r249_b)
+                        # route #343: `self.f` is not a use of an erased receiver
+                        if not (isinstance(_r249_b, dict) and _r249_b.get("type") == "Var"
+                                and _r249_b.get("name") == "self"):
+                            _r249_es.append(_r249_b)
                     elif _r249_et in ("Subscript", "MapGet"):
                         _r249_b = (_r249_e.get("value") if isinstance(_r249_e.get("value"), dict)
                                    else _r249_e.get("object") or _r249_e.get("map"))
