@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #333 REPAIRED, candidate (r333 executor off 0c2d49cc; commits 432e5fff, 0e8af983, 2448673c (code + corpus)
+##   + census + route docs; inline in #327's `_run_pipeline` block, no new def, ledger 3). Refusal measured against a rename
+##   (586 root / 12 pyref / 37 mirror re-emit): PYCSL-R327-IDENT-COLLISION now also refuses (a) a user exception class whose
+##   underscore-stripped tag equals another source class, an imported name or a builtin exception (raises-tag spelling of the
+##   own `_Y` and import aliases kept; exact builtin spelling stays #305's) and (b) a USER-SPELLED name in the censused
+##   generated-binder namespace `_rsv333` (`_idx_*`, `_len_idx_*`, `_any_*`, `_tu_*`, `_pycsl_*`, `_inl_*`, ... see REPAIR).
+##   Witnesses 4400-4403 PROVED -> REFUSED; controls 4404-4406 PROVED. Root 0/0/0, pyref 0/0/0, mirror 53/53 0/0/0 (no OWED
+##   proof). Residuals: imported-module exception classes, census completeness, single-letter quantifier binders (probed FAIL).
+
 ## gen #37 (2026-10-24): #333 (#327 residuals: safe_exc_name merges user exceptions incl. with builtins; generated _idx_* etc shadow user names)
 ##   and #334 (#330/#331 field-origin gaps: locals/walrus/neg-pow initialisers, tuple-target __init__, integral floats, unknown dict values)
 ##   OPENED (red team 21; 12/12 sample driver-reproduced rc=0 on main).

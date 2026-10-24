@@ -3847,7 +3847,7 @@ right-hand side is not a literal tuple). SINKS added: the key of `Map.get` / `Ma
 `match` / `try` arm's pattern variables scope from the arm's `|` / `with` to the next arm,
 and a `for` index over its `do .. done` (both were declaration-wide). BARE-CONTAINER-INT is a
 declared model assumption (§T.10.5).
-### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329)
+### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
 
@@ -3864,6 +3864,26 @@ function names $\cup$ the module-level value bindings of the source (outside `de
 `class` bodies and the `__main__` driver); for classes, the lowercased names. Otherwise
 the program is refused (`PYCSL-R327-IDENT-COLLISION`). An injective encoding was measured
 and rejected: it re-emits ~1962 of 3077 root, 48 of 510 pyref and 48 of 53 mirror files.
+
+Route #333 adds two side conditions to the same check. Exception tags: $\mathcal{T}_{exc}(E)$
+(`safe_exc_name`) strips leading underscores. Let $C_{exc}$ be the source classes that
+derive (syntactically, transitively) from a builtin `BaseException` subclass or are named
+by an IR `exc_type`, and $O$ = every source class $\cup$ every imported name $\cup$ the
+builtin exception names. The translation is defined only if no $c \in C_{exc}$ and
+$o \in O$, $o \neq c$, have $\mathcal{T}_{exc}(c) = \mathcal{T}_{exc}(o)$; an `exc_type`
+that is only the stripped spelling of $c$ (no class of that name) denotes $c$ itself.
+Generated binders: let $G$ be the census of the emitter's own binders in function scope
+(`_rsv333`: the prefixes `_idx_`, `_len_idx_`, `_stop_idx_`, `_hv_idx_`, `_rl_idx_`,
+`_callit_idx_`, `_split_idx_`, `_seqlit_idx_`, `_any_`, `_all_fold_`, `_inl_`, `_tu_`,
+`_u_`, `_lf_`, `_cc_`, `_csrc_`, `_cdf_`, `_mem_`, `_dk_`, `_h_f_`, `_r230_`, `_r251_`,
+`_class_`, `_union_`, `_pf_`, `_pycsl_`, `_wl<k>c_`, `__pycsl_`, `__and_`, `__or_`,
+`__happy_`, `_for_target`, and the exact temporaries `_alit`, `_u`, `_hl`, `_rec_`, `_row`,
+`_ci`, `_celt`, `_si`, `_csl_forall`, `_s_eq`, `_pyobj_state`, ...). For each scope $S$,
+no USER-SPELLED member (a source `Name` / parameter or a `#@` token) may satisfy
+$\mathcal{T}_{id}(x) \in G$; the front end's own generated names in the IR
+(`_for_target`, `_inl_res__inl<k>`) are exempt. Renaming $G$ into a namespace no Python
+identifier reaches was measured and rejected: it re-emits 586 / 12 / 37 (root / pyref /
+mirror) files; the refusal moves none.
 
 The `is` rules (§T.6.x routes #42 / #52) are evaluated in $\mathcal{T}_e$ on the node
 carrying the `py_is` marker, whether it arrives as the root wire dict or as the

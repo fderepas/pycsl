@@ -1780,7 +1780,7 @@ An element of a parameter annotated with a BARE container (`xs: list`, `xs: List
 unmodelled value, refused in an int position; measured: 90 corpus files rely on it).
 Witnesses `4330`-`4353` (`4348` / `4349` under the strict flag); controls `4354`-`4362`;
 assumption counterexamples `4363` / `4364`.
-### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329)
+### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
 `n`) and prefixing a WhyML keyword with `py_` (`result` -> `py_result`, `model` ->
@@ -1794,6 +1794,26 @@ alike (`Ab` / `AB`: one method namespace `ab__m`). Measured: `N = len(xs); n = 0
 return N == n` PROVED `True`, a global `K = mk()` read beside a parameter `k` returned the
 parameter, `py_model = 7; model = 3` read 3. A class and its instance (`c = C()`) are not a
 collision (the class lowers to the type namespace). Rename one of the two names.
+
+Route #333 closes two namespaces the rule above left open, with the same code. (1)
+EXCEPTION TAGS: an exception tag drops its leading underscores (so `from m import Y as _Y`
+and `Y` are one `exception Y`). A user exception class (a `class` deriving from a builtin
+exception or another such class, or named in a `raise` / `except` / `raises`) whose name
+without leading underscores equals that of ANOTHER class of the file, an imported name or a
+BUILTIN exception is refused: `class _ValueError(Exception)` raised and caught by `except
+ValueError` PROVED `no_exception \all` (CPython propagates); `_E` / `E` shared one tag and
+the first `except` arm caught both. A class spelled exactly like a builtin is route #305's
+`PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED`; `#@ raises Y` naming the stripped spelling of
+the file's own `_Y` is the same exception and is accepted. (2) GENERATED BINDERS: the
+emitter binds its own temporaries in the user's WhyML scope — loop counters `_idx_<v>`,
+`_len_idx_<v>`, `_stop_idx_<v>`, `_hv_idx_<v>`, havocs `_any_<v>_<k>`, `_tu_*`, `_pycsl_*`,
+inliner / comprehension / lambda / quantifier temporaries (`_inl_*`, `_cc_*`, `_csrc_*`,
+`_lf_*`, `_mem_*`, `_dk_*`, `_wl<k>c_*`, `_for_target`, `_alit`, `_ci`, ...; the full list
+is the census of route333 REPAIR). A name the user writes (a variable, parameter or a `#@`
+binder) in that namespace is refused: a local `_idx_i` beside `for i in range(1)` was read
+as the counter (proved `s == 0`, CPython 5) and writing it ended the loop early. Closed
+match / let binders that enclose no user expression (`_r`, `_v`, `_k`, `v_`, `r`) are
+outside the reserved namespace. Witnesses `4400`-`4403`; controls `4404`-`4406`.
 
 The identity refusals of §7.x (`X is True` / `X is False` unless `X` is a `bool` by
 construction, route #42; `is` over a value-typed operand, route #52) apply wherever the
