@@ -5280,7 +5280,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         elif _r249_f in (_r249_sc.get("arg_prop") or set()):
                             # ROUTE #255: a non-unit callee (builtin, import, lambda)
                             # returns an erased value iff it is handed one.
-                            _r249_es.extend(_r249_e.get("args") or [])
+                            # route #343: `getattr(self, "f", d)` reads an attribute of
+                            # the receiver (like `self.f`), not the erased receiver itself
+                            _r249_es.extend(
+                                _r343_x for _r343_i, _r343_x in
+                                enumerate(_r249_e.get("args") or [])
+                                if not (_r343_i == 0 and _r249_f == "getattr"
+                                        and isinstance(_r343_x, dict)
+                                        and _r343_x.get("type") == "Var"
+                                        and _r343_x.get("name") == "self"))
                             _r249_es.extend(_r249_k.get("value") for _r249_k in
                                             (_r249_e.get("keywords") or [])
                                             if isinstance(_r249_k, dict))
@@ -22402,8 +22410,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         "complex", "str", "repr", "format", "hash", "iter", "next",
                         "reversed", "enumerate", "zip", "list", "tuple", "set",
                         "frozenset", "dict", "bool", "bytes", "bytearray", "map", "filter",
-                        "any", "all", "print", "getattr", "setattr", "delattr", "vars",
-                        "dir", "ascii")
+                        "any", "all", "print", "ascii")
                     and not any(isinstance(_r343_g, dict) and _r343_g.get("name") == expr["func"]
                                 for _r343_g in ((getattr(self, "ir", {}) or {}).get("functions")
                                                 or []))
