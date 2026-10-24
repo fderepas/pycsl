@@ -1,5 +1,16 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #339 + #340 REPAIRED, candidate (r339 executor off 5e517ffc; code 148ebcaa / d336bd01, corpus adea2535, docs
+##   0b3e2c03, census 9b14185e + route docs; inline `_run_pipeline` blocks, no new def, ledger 3). Sound refusals, no emission change.
+##   #339 PYCSL-SEM-ENUM-MEMBER-OPERATION: a member of an OPAQUE enum (plain Enum/Flag/StrEnum, or any enum defining a dunder) may
+##   only be bound, compared by `is` (`==`/`in`/`match` unless `__eq__`/`__ne__` is user-defined), truth-tested, read as
+##   `.value`/`.name`, or passed/returned where annotated with the enum; arithmetic / ordering / index / builtins / int params
+##   refused; a dunder-free IntEnum/IntFlag keeps int semantics. #340: a nested def/lambda bare-name default is admitted only when
+##   the name is never rebound in the enclosing function nor global/nonlocal (PYCSL-SEM-DEF-TIME-EVALUATION). Witnesses 4590-4598,
+##   4602-4605 + 1 new latent 4599 (enum into an `int` parameter) PROVED at base -> REFUSED; controls 4600/4601/4606 PROVED. Root
+##   0/0/0, pyref 0/0/0, mirror 53/53 0/0/0 (no OWED); fast planes 61/61, stdlib-modules-verify OK. Residuals: contract-side enum arithmetic, untracked
+##   enum flows, per-file enum resolution, over-refusals (see REPAIR).
+
 ## gen #37 (2026-10-24): #343 (field-less receiver aliases still int past R337), #344 (MRO-inherited override escapes R5), #345 (foreign
 ##   attribute base tail-resolved to a file class), #346 (`__post_init__` never verified), #347 (partial-init field assumed present), #348
 ##   (NamedTuple / namedtuple / frozen dataclass lowered mutable), #349 (unhashable record set element), #350 (default contradicts annotation),
