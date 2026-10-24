@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #326 REPAIRED, candidate (r326 executor off 0da66911; commits 61c98f12, d89ee890, 38757ff2, dfc5305d,
+##   59b17e74, 7fb6adc8 + route docs; inline in `_resolve_module_path` / `resolve_imports`, no new def/field, ledger 3; mirror twins `\trusted`,
+##   the `_resolve_module_path` stub now declares `raises`). Package before module in every root; a local file shadowing a
+##   stdlib/built-in module name REFUSED (PYCSL-SEM-IMPORT-SHADOWS-STDLIB) unless byte-identical to the interpreter's own source
+##   (the repo-root `json/` = CPython's Lib/json, 47 importers, admitted); `sys.path`/`sys.modules`/`meta_path`/`path_hooks`/
+##   `path_importer_cache` references (any alias, `from sys import`, `sys` as a value; pure reads and the idempotent script-dir insert
+##   exempt), dynamic-import machinery beside a local resolution, and a resolved dependency's top-level edits REFUSED
+##   (PYCSL-SEM-IMPORT-STATE-MANIPULATED). Route witnesses sh01-sh04/k06 PROVED -> REFUSED, k04/k05 -> FAIL; corpus 4280-4283,
+##   4287-4292 PROVED -> REFUSED, 4284/4285 -> FAIL; controls 4286 (FAIL -> PROVED), 4293-4295 PROVED. Root/pyref byte-diff 0/0/0;
+##   mirror 1 MOVED (stub `raises` line; L3-tc ok, whole-file proof rc=0); sync/mirror-check/doc-coherency/assumed-facts/raises rc=0;
+##   refusal-coverage rc=1 at base AND after (same 6 pre-existing sites; both new sites demonstrated); fast planes 60/61 (only that one); stdlib-modules-verify rc=0.
+##   Residuals: dep-of-dep edits only under --deep; edits reached without `sys`/importlib names; cwd stays a search root.
 ## gen #37 (2026-10-24): #327-#331 OPENED (red team 20; 36 witnesses, 12/12 sample driver-reproduced rc=0): #327 identifier collisions
 ##   (whyml_ident case-fold/reserved prefix, N vs n, K vs k); #328 #325 taint bypasses (non-simple module bindings, tuple unpack,
 ##   generated binders R/V_); #329 is-refusals skipped in if-expression tests / under not; #330 fields/model-op results/bare+complex
