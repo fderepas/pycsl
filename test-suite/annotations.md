@@ -1733,6 +1733,29 @@ route #322's float-constant bypasses (a re-export, an alias, `importlib`, `__imp
 #322 refusal stays as the first, name-keyed layer. Witnesses `4230`-`4263`; controls
 `4264`-`4271`.
 
+### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329)
+
+PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
+`n`) and prefixing a WhyML keyword with `py_` (`result` -> `py_result`, `model` ->
+`py_model`). That map is not injective, so a program in which two DISTINCT names that can be
+in scope together map to the same identifier is REFUSED (`PYCSL-R327-IDENT-COLLISION`):
+within one function, its parameters, every name it reads (locals and the module-level
+globals it names), every binding target (assignment, tuple, `for`, comprehension, walrus,
+contract quantifier) and the emitter's tuple binders `_tu_*`; at module level, the
+functions and every module-level value binding; and two classes whose names lowercase
+alike (`Ab` / `AB`: one method namespace `ab__m`). Measured: `N = len(xs); n = 0;
+return N == n` PROVED `True`, a global `K = mk()` read beside a parameter `k` returned the
+parameter, `py_model = 7; model = 3` read 3. A class and its instance (`c = C()`) are not a
+collision (the class lowers to the type namespace). Rename one of the two names.
+
+The identity refusals of §7.x (`X is True` / `X is False` unless `X` is a `bool` by
+construction, route #42; `is` over a value-typed operand, route #52) apply wherever the
+comparison occurs — an `if` / `elif` / `while` test, an if-expression test, under `not`,
+inside `and` / `or`, an `assert`, a comprehension filter, a return value. Measured before
+route #329: `x = 1; return 7 if x is True else 0` and `if not (x is True): return 0`
+PROVED the branch CPython does not take. Witnesses `4300`-`4308`, `4315`-`4323`; controls
+`4309`, `4310`, `4326`, `4327`.
+
 ---
 
 ## 10. Concurrent Model Annotations

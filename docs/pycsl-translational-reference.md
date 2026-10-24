@@ -3822,6 +3822,29 @@ reflexivity: a NaN is not equal to itself). Any other position — an int operat
 a modelled function, a contract term — is refused. Binders follow WhyML scoping (a `let`
 scopes from its `in` to its enclosing group or block; `F` and `f` fold to one WhyML name).
 
+### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329)
+
+_Corresponds to `annotations.md` §7.17._
+
+$\mathcal{T}_{id}(x)$ (`whyml_ident`) maps `_` to `py_underscore`, `.` to `_`, non-ASCII
+to its ASCII decomposition, lowercases the first character and prefixes a WhyML keyword
+with `py_`. It is not injective ($\mathcal{T}_{id}(N) = \mathcal{T}_{id}(n)$,
+$\mathcal{T}_{id}(\texttt{result}) = \mathcal{T}_{id}(\texttt{py\_result})$), and two
+source names with one image denote ONE WhyML variable. So before Module 6 (`_run_pipeline`,
+on the final IR) the translation is defined only when $\mathcal{T}_{id}$ is injective on
+each scope $S$: for every function, $S$ = formal parameters $\cup$ every `Var` read $\cup$
+every binding target (`target`, `targets`, quantifier `var`) of its body and contracts,
+and no member of $S$ may map into the `_tu_*` binder space; at module level, $S$ = the IR
+function names $\cup$ the module-level value bindings of the source (outside `def` /
+`class` bodies and the `__main__` driver); for classes, the lowercased names. Otherwise
+the program is refused (`PYCSL-R327-IDENT-COLLISION`). An injective encoding was measured
+and rejected: it re-emits ~1962 of 3077 root, 48 of 510 pyref and 48 of 53 mirror files.
+
+The `is` rules (§T.6.x routes #42 / #52) are evaluated in $\mathcal{T}_e$ on the node
+carrying the `py_is` marker, whether it arrives as the root wire dict or as the
+`OpaqueExpr` that `ir_schema.expr_from_dict` builds for a marked child of a typed node
+(`not`, if-expression test, boolean operand, comprehension filter).
+
 ### §T.6.24  Collections constructors and the itertools length model (routes #321 / #323)
 
 $\mathcal{T}_e(\texttt{Counter}()) = \mathcal{T}_e(\texttt{OrderedDict}()) =
