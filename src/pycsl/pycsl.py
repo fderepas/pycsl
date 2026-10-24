@@ -7210,7 +7210,38 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _low273.append(_n273)
             continue
         _st273.extend(_A273.iter_child_nodes(_n273))
+    # ROUTE #340 — A BARE-NAME DEFAULT IS READ AT CALL TIME BY THE MODEL. CPython binds
+    # a nested def's / lambda's default VALUE once, when the def/lambda runs; the lifted
+    # function is called as `(g !x)`, i.e. with the name's value at the CALL. MEASURED at
+    # 5e517ffc (witnesses-r340/): `x = 1; def g(y=x); x = 2; return g()` PROVED
+    # `\result == 2` (CPython 1); `x += 1` and a rebound parameter likewise; a rebound
+    # `i` turned a `1 // y` with `y = 0` into a proved no_exception. RULE: a bare-name
+    # default is admitted only when the name can hold ONE value for the whole run of the
+    # enclosing lowered function — it is bound nowhere in that function (any nested
+    # scope included: assignment / for / with / walrus / except / import / def / class /
+    # match targets, `del`) and is declared `global`/`nonlocal` nowhere in the module, so
+    # the def-time and call-time reads coincide (a parameter of the function, a module
+    # name). Every other bare-name default is refused with the same code. BLAST RADIUS,
+    # measured before landing (CPython-`ast` prototype): the only bare-name defaults of
+    # a nested def in pycsl-reference / python-reference / the self-annotate mirror /
+    # pycsl_lib are 2967's never-rebound parameter `x` (admitted) and ones already
+    # refused for a non-literal default.
+    _gn340 = {_g for _x in _A273.walk(unified_ast)
+              if isinstance(_x, (_A273.Global, _A273.Nonlocal)) for _g in _x.names}
     for _F273 in _low273:
+        _bn340 = set(_gn340)
+        for _x340 in _A273.walk(_F273):
+            if isinstance(_x340, _A273.Name) and not isinstance(_x340.ctx, _A273.Load):
+                _bn340.add(_x340.id)
+            elif isinstance(_x340, _FN273 + (_A273.ClassDef,)) and _x340 is not _F273:
+                _bn340.add(_x340.name)
+            elif isinstance(_x340, (_A273.Import, _A273.ImportFrom)):
+                _bn340.update((_al.asname or _al.name).split(".")[0] for _al in _x340.names)
+            for _y340 in ("name", "rest"):
+                if (isinstance(getattr(_x340, _y340, None), str) and isinstance(
+                        _x340, (_A273.ExceptHandler, _A273.MatchAs, _A273.MatchStar,
+                                _A273.MatchMapping))):
+                    _bn340.add(getattr(_x340, _y340))
         for _N273 in _A273.walk(_F273):
             if _N273 is _F273:
                 continue
@@ -7261,8 +7292,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 while _wk273 and _ok273:
                     _x273 = _wk273.pop()
                     if _lit273:
-                        if isinstance(_x273, (_A273.Constant, _A273.Name)):
+                        if isinstance(_x273, _A273.Constant):
                             continue
+                        if isinstance(_x273, _A273.Name) and not (
+                                _x273.id in _bn340 and isinstance(
+                                    _N273, _FN273 + (_A273.Lambda,))):
+                            continue
+                        if isinstance(_x273, _A273.Name):
+                            _ok273 = False
+                            _why273 = ("bare-name default `" + _x273.id + "`, a name "
+                                       "REBOUND in the enclosing function (or declared "
+                                       "global/nonlocal) — Python binds the default's "
+                                       "VALUE at def time, the model reads the name at "
+                                       "call time (route #340) — in `"
+                                       + _A273.unparse(_e273)[:60] + "`")
+                            break
                         if (isinstance(_x273, _A273.UnaryOp)
                                 and isinstance(_x273.op, (_A273.USub, _A273.UAdd))
                                 and isinstance(_x273.operand, _A273.Constant)):
@@ -7282,7 +7326,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _ok273 = False
                         else:
                             _wk273.extend(_A273.iter_child_nodes(_x273))
-                if not _ok273:
+                if not _ok273 and not _why273:
                     _why273 = ("default value `" if _lit273 else "annotation/base `") \
                         + _A273.unparse(_e273)[:60] + "`"
             if _why273:
