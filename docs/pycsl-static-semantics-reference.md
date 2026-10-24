@@ -3066,6 +3066,15 @@ the dependency standalone" is not always well-defined: measured over the corpus'
 local dependencies, two fail for CONTEXT reasons while their importers pass, one of them
 because a contract names a constant that only resolves inside the importing compilation.
 
+**THE RESOLVED FILE MUST BE THE MODULE CPython RUNS (route #326).** Resolution is static:
+roots script-dir, cwd, `src/`, `--import-path`; package before module in each root. A local
+file shadowing a standard-library/built-in module name is refused unless byte-identical to
+the interpreter's own source (`PYCSL-SEM-IMPORT-SHADOWS-STDLIB`); a program (or the top level
+of a resolved dependency) that edits `sys.path` / `sys.modules` / `sys.meta_path` /
+`sys.path_hooks` / `sys.path_importer_cache` other than by a pure read or the idempotent
+script-directory insert, or that uses dynamic-import machinery beside a locally-resolved
+import, is refused (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`). annotations.md §7.16, §T.6.27.
+
 ### C.1 Declared model assumptions (routes #250, #253, #256, #276, #282, #298)
 
 Five facts the proofs over builtin-typed values, strings, mutable fields and mutable parameters rest on are **assumed, not proved**, and no

@@ -1384,6 +1384,25 @@ Supported import forms:
 External modules (stdlib, third-party) that cannot be resolved to a local file
 are silently skipped.
 
+**Module resolution follows CPython's lookup, or refuses (route #326).** The roots searched
+for an absolute import are the script's directory, the working directory, the repo `src/`
+and every `--import-path`, in that order; inside one root a PACKAGE (`X/__init__.py`) is
+taken before a same-named MODULE (`X.py`), as CPython's `FileFinder` does. A local file whose
+top-level name is a standard-library or built-in module (`sys.stdlib_module_names`,
+`sys.builtin_module_names`) is REFUSED (`PYCSL-SEM-IMPORT-SHADOWS-STDLIB`) unless it is
+byte-identical to the running interpreter's own source of that module (file for file for a
+package — the repo-root `json/` copy of CPython's `Lib/json` is the one such case): CPython
+never loads a local `math.py` / `time.py` / `os.py` in place of a built-in, frozen or
+startup-loaded module, and for the rest which one runs depends on `sys.path` and startup.
+A program that edits the import system — any reference to `sys.path`, `sys.modules`,
+`sys.meta_path`, `sys.path_hooks` or `sys.path_importer_cache` (any alias of `sys`,
+`from sys import ...`, or the `sys` module object used as a value), save pure reads
+(`len(...)`, `isinstance(...)`, `hasattr(sys, ...)`, `k in sys.X`) and the idempotent
+`sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))`; dynamic-import machinery
+(`importlib`, `imp`, `zipimport`, `pkgutil`, `runpy`, `__import__`) beside an import pycsl
+resolves locally; or a locally-resolved dependency whose own top-level code edits it — is
+REFUSED (`PYCSL-SEM-IMPORT-STATE-MANIPULATED`). See §7.16.
+
 ### Recursive import resolution (`--deep`)
 
 By default, only the main file's direct imports are resolved. With `--deep`,
@@ -1675,6 +1694,20 @@ slice semantics: a bound that is not a non-negative int literal is normalised as
 (`b < 0` reads `max(b + len(s), 0)`), so `len(s[1:-1])` is `len(s) - 2`, not 0. Witnesses
 `4190`-`4202`; controls `4203`-`4211`.
 
+### 7.16 Module resolution: stdlib shadowing, package vs module, import-state edits (route #326)
+
+An import is resolved statically, so a verdict is only as good as the claim that the file
+pycsl read is the module CPython runs. Three divergences made it false, each PROVED with
+`--verify-imports` (the wrong module verifies too): a local `math.py` next to the script
+(`math.floor(3) == 4`; CPython 3 — `math`, `time`, `sys` are built-in, `os` is loaded at
+startup, so no path entry is ever consulted); `dup19/__init__.py` beside `dup19.py` (pycsl
+took the module, CPython the package); and `sys.path.insert(0, ".../alt")` ahead of an import
+(CPython loads `alt/sp19.py`). The rules: package before module in each root; a local
+stdlib-named module is refused unless byte-identical to the interpreter's own source
+(`PYCSL-SEM-IMPORT-SHADOWS-STDLIB`); an import-state edit is refused
+(`PYCSL-SEM-IMPORT-STATE-MANIPULATED`) as listed under "Multi-file imports". Every
+non-ambiguous resolution is unchanged (corpus, python-reference and mirror emission
+byte-identical). Witnesses `4280`-`4285`, `4287`-`4292`; controls `4286`, `4293`-`4295`.
 ### 7.15 An unmodelled value is not an int (route #325)
 
 A value PyCSL has no model of falls back to an OPAQUE `int` in the emitted WhyML, whatever

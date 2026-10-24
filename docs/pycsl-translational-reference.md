@@ -3843,6 +3843,27 @@ the module's import table to `itertools.chain` / `product` / `islice`, with posi
 unstarred $\vec a$; a keyword or starred operand is refused and an unresolved callee falls to
 the generic call path.
 
+### §T.6.27  Import resolution is CPython's or refused (route #326)
+
+$\mathcal{T}$ of an importing program is taken relative to a resolution
+$\rho(m) \in \textit{Files} \cup \{\bot\}$ of each imported dotted name $m$; the
+translation is sound only if $\rho(m)$ is the module CPython binds to $m$ at the import
+statement. $\rho$ searches the roots $R = [\textit{dir}(\textit{main}),
+\textit{cwd}, \texttt{src/}, \textit{import-path}\ldots]$ and, in each, returns
+$r/m/\texttt{\_\_init\_\_.py}$ before $r/m\texttt{.py}$ (CPython's `FileFinder` order;
+the module-first order bound the wrong body when both exist). For
+$\textit{top}(m) \in \texttt{stdlib\_module\_names} \cup
+\texttt{builtin\_module\_names}$, a hit is admitted only when it is byte-identical to the
+interpreter's own `stdlib/` source (recursively for a package), and otherwise the program has
+no image (`PYCSL-SEM-IMPORT-SHADOWS-STDLIB`): CPython's built-in/frozen finders and the
+startup-populated `sys.modules` precede every path entry. $\rho$ is a function of the
+source tree only, so a program that can change CPython's binding has no image
+(`PYCSL-SEM-IMPORT-STATE-MANIPULATED`): a reference to `sys.{path, modules, meta_path,
+path_hooks, path_importer_cache}` other than a pure read, the `sys` object escaping as a
+value, dynamic-import machinery with some $\rho(m) \ne \bot$, or such an edit in the top
+level of a resolved dependency. The one admitted edit,
+`sys.path.insert(0, dirname(abspath(__file__)))`, prepends $R_0$ itself.
+
 ## §T.7  Memory Models
 
 _Corresponds to `annotations.md` §5._
