@@ -11,7 +11,4 @@ def g(xs: List[int]) -> int:
     return 7
 
 if __name__ == "__main__":
-    try:
-        print(g([5]))
-    except AssertionError:
-        print("CPython raises AssertionError")
+    print(g([5]))

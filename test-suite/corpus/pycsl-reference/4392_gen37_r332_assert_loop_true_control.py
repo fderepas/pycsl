@@ -16,7 +16,4 @@ def g() -> int:
     return s
 
 if __name__ == "__main__":
-    try:
-        print(g())
-    except AssertionError:
-        print("CPython raises AssertionError")
+    print(g())

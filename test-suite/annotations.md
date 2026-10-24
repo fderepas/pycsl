@@ -1446,6 +1446,8 @@ handler the program is refused (static semantics, route 16). To state a fact the
 prover must establish, write `#@ assert P` (proved and assumed downstream) or
 `#@ check P` (proved only). (Corrected gen #29: this section previously claimed a
 `check { ... }` lowering that the emitter has never produced.)
+**Exception (route #332, §7.19):** under `#@ no_exception \all` the contract DOES claim
+that no AssertionError escapes, so there the assert is an obligation, not an erasure.
 
 ### 7.2 Tuple Unpacking
 
@@ -1732,6 +1734,24 @@ function annotated `-> int` / `-> bool` whose body does not return a fallback. S
 route #322's float-constant bypasses (a re-export, an alias, `importlib`, `__import__`); the
 #322 refusal stays as the first, name-keyed layer. Witnesses `4230`-`4263`; controls
 `4264`-`4271`.
+### 7.19 `assert` under `no_exception \all` is an obligation (route #332)
+
+The §7.1 erasure is partial correctness: it is sound only while the contract claims nothing
+about AssertionError. Since route #304, `#@ no_exception \all` claims that NO exception of
+any class escapes, and `x = 1; assert x == 2; return 7` PROVED that claim while CPython
+raises AssertionError. Under `\all` (and, defensively, under a named set holding
+`AssertionError`, `Exception` or `BaseException` — Module 4 currently refuses those names as
+unknown, so only `\all` reaches it) `assert c[, msg]` lowers to
+`if c then () else assert { [@expl:no_exception: AssertionError reachable] false }`, with
+`c` lowered exactly as an `if` test (program code, Python truthiness, so the test's own
+IndexError / ZeroDivisionError / KeyError triggers are discharged too). The message is
+evaluated by CPython only on the failing branch, which the obligation proves unreachable, so
+an effectful message needs no model; a test that cannot be shown effect-free is still
+refused (`PYCSL-M6-ASSERT-EFFECTFUL-TEST`). A `for` target read inside such an assert after
+its loop now counts as a read (routes #36/#301/#302), so its value is the havocked last
+value — sound, but an assert over it may no longer prove. Everywhere else (no
+`no_exception`, or a named set without AssertionError) the erasure is unchanged, byte for
+byte. Witnesses `4380`-`4388`, `4396`; controls `4389`-`4395`.
 
 ### 7.18 More values that are not ints: every module binding, unpacking, fields, encodings (routes #328 / #330 / #331)
 

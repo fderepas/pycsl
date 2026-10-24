@@ -10,7 +10,9 @@ def g() -> int:
     return 7
 
 if __name__ == "__main__":
-    try:
-        print(g())
-    except AssertionError:
-        print("CPython raises AssertionError")
+    # CPython ground truth, run in a child so that no handler can catch AssertionError
+    # here (route 16 refuses that shape): g() RAISES AssertionError.
+    import subprocess, sys
+    r = subprocess.run([sys.executable, "-c", "import runpy; ns = runpy.run_path(%r); ns['g']()" % __file__],
+                       capture_output=True, text=True)
+    assert r.returncode != 0 and "AssertionError" in r.stderr, r.stderr

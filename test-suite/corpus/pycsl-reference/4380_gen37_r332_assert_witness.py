@@ -10,7 +10,6 @@ def g() -> int:
     return 7
 
 if __name__ == "__main__":
-    try:
-        print(g())
-    except (AssertionError, IndexError) as e:
-        print("CPython raises", type(e).__name__)
+    # CPython ground truth: this call RAISES (see the docstring); no handler, because a
+    # handler that can catch AssertionError around an assert is refused (route 16).
+    print(g())

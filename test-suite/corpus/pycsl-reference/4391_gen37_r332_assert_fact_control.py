@@ -12,7 +12,4 @@ def g(n: int) -> int:
     return 0
 
 if __name__ == "__main__":
-    try:
-        print(g(5))
-    except AssertionError:
-        print("CPython raises AssertionError")
+    print(g(5))

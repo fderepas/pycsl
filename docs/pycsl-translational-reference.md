@@ -1607,7 +1607,8 @@ def test_abs_impl(x: int) -> int:
 Python `assert` statements are runtime checks.  In the WhyML output
 they are **skipped** (emitted as `()`), since PyCSL contracts are the
 formal specification — Python asserts are not part of the verification
-condition.
+condition. **Except under `no_exception \all`** (route #332, §T.6.30), where the
+contract claims no AssertionError escapes and the assert is an obligation.
 
 **Implementation:** `_stmts_to_whyml`.
 
@@ -3910,6 +3911,24 @@ path_hooks, path_importer_cache}` other than a pure read, the `sys` object escap
 value, dynamic-import machinery with some $\rho(m) \ne \bot$, or such an edit in the top
 level of a resolved dependency. The one admitted edit,
 `sys.path.insert(0, dirname(abspath(__file__)))`, prepends $R_0$ itself.
+
+### §T.6.30  `assert` under `no_exception \all` (route #332)
+
+Let $N_f$ be the declared no-exception set of $f$ ($\top$ for `\all`). The §T.5.8
+erasure $\mathcal{T}_s\llbracket \texttt{assert } c[, m] \rrbracket = \texttt{()}$ is
+kept when $\texttt{AssertionError} \notin N_f$ (it does not hold for any base of it:
+`Exception`, `BaseException`); there a failing assert aborts and the contract, partial
+with respect to AssertionError, says nothing about that run. When
+$N_f = \top$ or $N_f \cap \{\texttt{AssertionError}, \texttt{Exception},
+\texttt{BaseException}\} \ne \emptyset$:
+$$\mathcal{T}_s\llbracket \texttt{assert } c[, m] \rrbracket
+= \texttt{if } \mathcal{B}\llbracket \mathcal{T}_e\llbracket c \rrbracket \rrbracket
+  \texttt{ then () else assert \{ [@expl:no\_exception: AssertionError reachable] false \}}$$
+with $\mathcal{T}_e$ the PROGRAM translation (its own trigger VCs, §T.6) and $\mathcal{B}$
+the `if`-test truthiness coercion. $m$ is evaluated by CPython only on the failing branch,
+which the VC makes unreachable, so it is not translated. The effect screen
+(`PYCSL-M6-ASSERT-EFFECTFUL-TEST`) still precedes. A `for`-target read inside such an assert
+is a read for the loop-target write-back analyses (routes #36/#301/#302).
 
 ## §T.7  Memory Models
 
