@@ -7406,6 +7406,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #    UNCONSTRAINED `int` (no `ensures`): the opaque fallback.
     _S325 = {}      # opaque name -> (family, arity)
     _other325 = {}  # unconstrained int model op (not a Python-value fallback) -> arity
+    _poly334 = {}   # ROUTE #334: `val` name -> positions of its `'a`-typed parameters
     _dname325 = {}
     _dar325 = {}
     _hdr325 = {}    # decl -> token index where its header ends
@@ -7429,6 +7430,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _ar325 += 1
             _k325 = _mt325[_k325] + 1
         _dar325[_dd325] = _ar325
+        if _toks325[_a325] == "val":
+            # ROUTE #334: the positions of the `'a`-typed parameters of a `val`
+            _j334 = _a325 + 1 + len(_mods325) + 1
+            _ix334 = 0
+            while _j334 < _z325 and _toks325[_j334] == "(" and _j334 in _mt325:
+                if _toks325[_j334 + 1:_mt325[_j334]][-3:] in ([":", "'", "a"], [":", "'", "b"]):
+                    _poly334.setdefault(_nm325, set()).add(_ix334)
+                _ix334 += 1
+                _j334 = _mt325[_j334] + 1
         _rt325 = []
         if _k325 < _z325 and _toks325[_k325] == ":":
             _k325 += 1
@@ -8295,17 +8305,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                             and _an325.slice.id in ("int", "bool"))):
                                     _fl334.add("other")
                                 if _v325 is None and _an325 is None:
-                                    _fl334.add("other")
+                                    _fl334.add("unk")
                                 elif _v325 is not None:
                                     _wl334.append((_v325, _fd2334, _wm334))
                             if not _hit334:
-                                _fl334.add("other")
+                                _fl334.add("unk")
                         elif isinstance(_e325, tuple):
                             # a local declared `x: T`: only a dict / set of int values
                             if not (_wm334 == "d" and id(_e325[1]) in _dia334):
                                 _fl334.add("other")
                         elif _e325 is None:
-                            _fl334.add("other")
+                            _fl334.add("unk")
                         elif (isinstance(_e325, _ast325.Call) and (
                                 (isinstance(_e325.func, _ast325.Name)
                                  and _e325.func.id in _isfield334)
@@ -8322,7 +8332,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                             and _kw334.value.id in (
                                                 ("int", "bool") if _wm334 == "s" else
                                                 ("dict", "set", "frozenset"))):
-                                        _fl334.add("other")
+                                        _fl334.add("unk")
                         elif _wm334 == "d":
                             if isinstance(_e325, _ast325.Constant) and _e325.value is None:
                                 pass
@@ -8378,8 +8388,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                   and type(_e325.right.value) is int
                                   and _e325.right.value >= 0):
                                 _wl334.append((_e325.left, _fd334, "s"))
+                            elif isinstance(_e325.op, _ast325.Div) or (
+                                    isinstance(_e325.op, _ast325.Pow)
+                                    and isinstance(_e325.right, (_ast325.Constant,
+                                                                 _ast325.UnaryOp))):
+                                _fl334.add("other")     # `/`, `2 ** -1`: a float (f06, f22)
                             else:
-                                _fl334.add("other")
+                                _fl334.add("unk")
                         elif isinstance(_e325, _ast325.BoolOp):
                             _wl334.extend((x, _fd334, "s") for x in _e325.values)
                         elif isinstance(_e325, _ast325.Compare):
@@ -8407,16 +8422,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     pass
                                 else:
                                     _fl334.add("other")
-                            elif not (_e325.id in _bind325 and all(_bind325[_e325.id])
-                                      and _e325.id not in _imod325
-                                      and _e325.id not in _inam325):
+                            elif (_e325.id in _imod325 or _e325.id in _inam325
+                                  or (_e325.id in _bind325 and not all(_bind325[_e325.id]))):
                                 _fl334.add("other")
+                            elif _e325.id not in _bind325:
+                                _fl334.add("unk")
                         elif isinstance(_e325, _ast325.Attribute):
                             if not (isinstance(_e325.value, _ast325.Name)
                                     and _e325.value.id in _imod325
                                     and (_imod325[_e325.value.id], _e325.attr)
                                     in _KI_ATTR325):
-                                _fl334.add("other")
+                                _cf330 = _e325.value
+                                while isinstance(_cf330, _ast325.Attribute):
+                                    _cf330 = _cf330.value
+                                _fl334.add("other" if isinstance(_cf330, _ast325.Name) and (
+                                    _cf330.id in _imod325 or _cf330.id in _inam325) else "unk")
                         elif isinstance(_e325, _ast325.Call):
                             _cf330 = _e325.func
                             _shd334 = isinstance(_cf330, _ast325.Name) and (
@@ -8457,8 +8477,43 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                            in _KI_CALL325))):
                                 pass
                             else:
-                                _fl334.add("other")
+                                # a non-int builtin (`float`, `str`, ..) or a call of an
+                                # imported module is SHOWN non-int; any other call is of
+                                # unknown type
+                                while isinstance(_cf330, _ast325.Attribute):
+                                    _cf330 = _cf330.value
+                                _fl334.add("other" if isinstance(_cf330, _ast325.Name) and (
+                                    (_cf330.id in _NIC330 and not _shd334
+                                     and _cf330 is _e325.func)
+                                    or _cf330.id in _imod325 or _cf330.id in _inam325)
+                                    else "unk")
                         else:
+                            _fl334.add("other" if isinstance(_e325, (
+                                _ast325.JoinedStr, _ast325.List, _ast325.Tuple, _ast325.Dict,
+                                _ast325.Set, _ast325.ListComp, _ast325.SetComp,
+                                _ast325.DictComp, _ast325.GeneratorExp, _ast325.Lambda))
+                                else "unk")
+                    # a field DECLARED `int` / `bool` (a class-level or `self.f: int`
+                    # annotation) takes the annotation-trust stance PyCSL takes for an
+                    # `int` parameter: a stored value of UNKNOWN type (an attribute of an
+                    # untyped object, an unknown call) is carried under the declaration;
+                    # a value SHOWN non-int (a float / str / None literal, `/`, a local
+                    # bound to one, ...) still taints. An undeclared field is int only
+                    # when every stored value is PROVABLY int.
+                    if "unk" in _fl334:
+                        _fl334.discard("unk")
+                        if not (_md334 == "=" and any(
+                                e[0] == _f330 and e[4] == "=" and (
+                                    (isinstance(e[1], _ast325.Name)
+                                     and e[1].id in ("int", "bool"))
+                                    or (isinstance(e[1], _ast325.Constant)
+                                        and e[1].value in ("int", "bool"))
+                                    or (isinstance(e[1], _ast325.Subscript)
+                                        and isinstance(e[1].value, _ast325.Name)
+                                        and e[1].value.id in ("Final", "ClassVar")
+                                        and isinstance(e[1].slice, _ast325.Name)
+                                        and e[1].slice.id in ("int", "bool")))
+                                for e in _allc334[_cn334])):
                             _fl334.add("other")
                     _k334 = ("other" if "other" in _fl334 or len(_fl334) > 1
                              else next(iter(_fl334)) if _fl334 else "")
@@ -8779,6 +8834,24 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             and _toks325[_h325] not in _KW325)):
                     _h325 = _mt325[_h325] - 1 if _toks325[_h325] in (")", "]") else _h325 - 1
                 _hn325 = _toks325[_h325 + 1] if _h325 + 1 < _ua325 else ""
+                # ROUTE #334: an argument at a POLYMORPHIC (`'a`) parameter of a `val`
+                # (`str_mod_op "fmt" (a, u)`) gets no int theory there: a sink (string
+                # literal arguments, `"s"` once stripped, are skipped to find the head)
+                _g334 = _ua325 - 1
+                _ix334 = 0
+                while _g334 >= 0 and (
+                        (_toks325[_g334] in (")", "]") and _g334 in _mt325)
+                        or (_re325.match(r"!?[A-Za-z_0-9]", _toks325[_g334])
+                            and _toks325[_g334] not in _KW325)
+                        or (_toks325[_g334] == '"' and _g334 >= 2
+                            and _toks325[_g334 - 2:_g334] == ['"', "s"])):
+                    _g334 = (_mt325[_g334] - 1 if _toks325[_g334] in (")", "]")
+                             else _g334 - 3 if _toks325[_g334] == '"' else _g334 - 1)
+                    _ix334 += 1
+                if (_g334 + 1 < _ua325 and _toks325[_g334 + 1] in _poly334
+                        and _ix334 - 1 in _poly334[_toks325[_g334 + 1]]):
+                    _w1ok325 = True
+                    break
                 # ROUTE #328: the KEY of a map read / test / store (`Map.get m u`, `Map.mem
                 # u m`, `Map.set m u v`) is compared by equality only (no int theory), and
                 # the lookup's result is the map's value, not derived from u: a sink
