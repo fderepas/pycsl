@@ -349,6 +349,15 @@ def _parse_args() -> argparse.Namespace:
                              "code points 0..255, a declared assumption listed by "
                              "--soundness-report. Costs every proof that feeds "
                              "`ord(..)` into a cited lemma over `Char.code`.")
+    g_strict.add_argument("--strict-bare-containers", action="store_true",
+                        help="Drop the BARE-CONTAINER-INT model assumption (route "
+                             "#330): an element of a parameter annotated with a BARE "
+                             "container (`list`, `List`, `Sequence`, `tuple`, ...) is "
+                             "of unknown type, so using it as an int (`xs[0] % 1 == 0`, "
+                             "`xs[0] * 0 == 0`) is refused (PYCSL-R325-OPAQUE-INT-"
+                             "FALLBACK). Off by default — such an element is read as an "
+                             "`int`, a declared assumption listed by --soundness-report "
+                             "(measured: 90 corpus files rely on it).")
     g_strict.add_argument("--strict-hval-keys", action="store_true",
                         help="Drop the HVAL-STR-KEYS model assumption (route #298): "
                              "the key of a NESTED `PyVal` dict (an `.items()` key or a "
@@ -807,6 +816,19 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
     # or a bare iteration of a value that is not a declared parameter/field: a local, a
     # subscript or a `.get` read (over-, never under-reported: the carrier is not resolved
     # here; a list carrier is reported too).
+    # ROUTE #330 — BARE-CONTAINER-INT. An element of a parameter annotated with a BARE
+    # container (`list`, `List`, `Sequence`, `tuple`, ... — no element type) is lowered to
+    # an `int` (`xs: list` is `array int`, `xs: List` an `int` read by `subscript_get`),
+    # though the annotation admits any element: `xs[0] % 1 == 0` proves of `[0.5]`.
+    # Making every such element an R325 origin refused 90 corpus files (measured), so the
+    # int reading is DECLARED; `--strict-bare-containers` drops it.
+    _bc_uses: List[str] = []
+    for f in funcs:
+        for _bc_n, _bc_t in (f.get("param_annotations") or {}).items():
+            if isinstance(_bc_t, str) and _bc_t.strip().split(".")[-1] in (
+                    "list", "List", "Sequence", "Iterable", "tuple", "Tuple",
+                    "MutableSequence", "Collection"):
+                _bc_uses.append("%s: parameter %s: %s" % (f["name"], _bc_n, _bc_t.strip()))
     _hk_uses: List[str] = []
     for f in funcs:
         _hk_st = f.get("symbol_table") or {}
@@ -967,6 +989,18 @@ def _build_soundness_report(ir_data: Dict[str, Any], filename: str) -> Dict[str,
                               "ord(chr(300)) != 300 proves (corpus 3020-3021)",
             "strict_mode": "--strict-latin1",
             "relied_on_by": sorted(set(_l1_uses)),
+        })
+    if _bc_uses:
+        assumptions.append({
+            "name": "BARE-CONTAINER-INT",
+            "statement": "an element of a parameter annotated with a bare container "
+                         "(list / List / Sequence / tuple / ..., no element type) is an "
+                         "int: the element is lowered to the int sort, as if the "
+                         "annotation were List[int]",
+            "counterexample": "def g(xs: list): return xs[0] * 0 == 0 proves \\result == "
+                              "True; g(['a']) is False (corpus 4348-4349)",
+            "strict_mode": "--strict-bare-containers",
+            "relied_on_by": sorted(set(_bc_uses)),
         })
     if _hk_uses:
         assumptions.append({
@@ -7361,55 +7395,128 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             elif isinstance(_a325, _ast325.ImportFrom) and _a325.module:
                 for _al325 in _a325.names:
                     _inam325[_al325.asname or _al325.name] = (_a325.module, _al325.name)
-        _top325 = list(_tree325.body)
-        _top325 += [_s325 for _c325 in _tree325.body if isinstance(_c325, _ast325.ClassDef)
-                    for _s325 in _c325.body]
+        # ROUTE #328 — EVERY module / class-level binding form, at ANY nesting (an `if`,
+        # `try`, `with`, `for`, `while` or `match` body at module level binds a GLOBAL):
+        # Assign / AnnAssign / AugAssign targets (tuple and starred elements included), a
+        # `for` / `with` / `except ... as` / walrus / `match` capture target, a nested
+        # `def` / `class`. Only function / lambda bodies and comprehension targets are a
+        # scope of their own. #325 read the simple top-level `Name = ..` only, so
+        # `A, B = 0.5, 1`, `try: A = math.pi`, `if True: A = 0.5`, `for A in [0.5]`,
+        # `(A := 0.5)` and `A, *R = [0.5]` left `A` a non-origin int (witnesses 4330-4335).
+        # A target paired with a value (`A = e`, `A, B = e1, e2`) is classified by it; any
+        # other bound name is of unknown type (not known-int); a `for A in range(..)`
+        # target is an int.
+        _bl325 = []     # (name, value expression or None, AugAssign operator or None)
+        _mdef325 = []   # module / class-level `def` / `class` nodes
+        _wk325 = list(_tree325.body)
+        while _wk325:
+            _n325 = _wk325.pop()
+            if isinstance(_n325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef)):
+                _mdef325.append(_n325)
+                _wk325.extend(_n325.decorator_list)
+                continue
+            if isinstance(_n325, _ast325.Lambda):
+                continue
+            if isinstance(_n325, _ast325.ClassDef):
+                _mdef325.append(_n325)
+                _wk325.extend(_n325.body)
+                continue
+            if isinstance(_n325, (_ast325.ListComp, _ast325.SetComp, _ast325.GeneratorExp,
+                                  _ast325.DictComp)):
+                _wk325.extend([_x325 for _x325 in (getattr(_n325, "elt", None),
+                                                   getattr(_n325, "key", None),
+                                                   getattr(_n325, "value", None))
+                               if _x325 is not None])
+                for _gn325 in _n325.generators:
+                    _wk325.append(_gn325.iter)
+                    _wk325.extend(_gn325.ifs)
+                continue
+            if isinstance(_n325, _ast325.Assign):
+                _pr325 = [(_t325, _n325.value) for _t325 in _n325.targets]
+                while _pr325:
+                    _t325, _v325 = _pr325.pop()
+                    if isinstance(_t325, _ast325.Name):
+                        _bl325.append((_t325.id, _v325, None))
+                    elif (isinstance(_t325, (_ast325.Tuple, _ast325.List))
+                          and isinstance(_v325, (_ast325.Tuple, _ast325.List))
+                          and len(_t325.elts) == len(_v325.elts)
+                          and not any(isinstance(_x325, _ast325.Starred)
+                                      for _x325 in _t325.elts + _v325.elts)):
+                        _pr325.extend(zip(_t325.elts, _v325.elts))
+                    else:
+                        _bl325.extend((_x325.id, None, None) for _x325 in _ast325.walk(_t325)
+                                      if isinstance(_x325, _ast325.Name)
+                                      and isinstance(_x325.ctx, _ast325.Store))
+                _wk325.append(_n325.value)
+                continue
+            if isinstance(_n325, (_ast325.AnnAssign, _ast325.AugAssign)):
+                if isinstance(_n325.target, _ast325.Name):
+                    _bl325.append((_n325.target.id, _n325.value,
+                                   _n325.op if isinstance(_n325, _ast325.AugAssign) else None))
+                if _n325.value is not None:
+                    _wk325.append(_n325.value)
+                continue
+            if isinstance(_n325, (_ast325.For, _ast325.AsyncFor)):
+                _rg325 = (isinstance(_n325.target, _ast325.Name)
+                          and isinstance(_n325.iter, _ast325.Call)
+                          and isinstance(_n325.iter.func, _ast325.Name)
+                          and _n325.iter.func.id == "range")
+                _bl325.extend((_x325.id, _ast325.Constant(value=0) if _rg325 else None, None)
+                              for _x325 in _ast325.walk(_n325.target)
+                              if isinstance(_x325, _ast325.Name)
+                              and isinstance(_x325.ctx, _ast325.Store))
+                _wk325.append(_n325.iter)
+                _wk325.extend(_n325.body + _n325.orelse)
+                continue
+            if isinstance(_n325, _ast325.NamedExpr):
+                _bl325.append((_n325.target.id, _n325.value, None))
+                _wk325.append(_n325.value)
+                continue
+            if isinstance(_n325, _ast325.Name) and isinstance(_n325.ctx, _ast325.Store):
+                _bl325.append((_n325.id, None, None))
+            for _x325 in ("name", "rest"):
+                if (isinstance(getattr(_n325, _x325, None), str) and isinstance(
+                        _n325, (_ast325.ExceptHandler, _ast325.MatchAs, _ast325.MatchStar,
+                                _ast325.MatchMapping))):
+                    _bl325.append((getattr(_n325, _x325), None, None))
+            _wk325.extend(_ast325.iter_child_nodes(_n325))
         # fixpoint: an int expression over int literals and known-int names
         for _it325 in range(3):
             _known325 = {k for k, v in _bind325.items() if v and all(v)}
             _bind325 = {}
-            for _s325 in _top325:
-                _tg325 = []
-                if isinstance(_s325, _ast325.Assign):
-                    _tg325 = [t.id for t in _s325.targets if isinstance(t, _ast325.Name)]
-                    _vv325 = _s325.value
-                elif isinstance(_s325, (_ast325.AnnAssign, _ast325.AugAssign)) and isinstance(
-                        _s325.target, _ast325.Name):
-                    _tg325 = [_s325.target.id]
-                    _vv325 = _s325.value
-                for _t2325 in _tg325:
-                    _ok325 = _vv325 is not None
-                    _wk325 = [_vv325] if _vv325 is not None else []
-                    while _wk325 and _ok325:
-                        _e325 = _wk325.pop()
-                        if isinstance(_e325, _ast325.Constant):
-                            _ok325 = type(_e325.value) in (int, bool)
-                        elif isinstance(_e325, _ast325.UnaryOp) and isinstance(
-                                _e325.op, (_ast325.USub, _ast325.UAdd, _ast325.Invert)):
-                            _wk325.append(_e325.operand)
-                        elif isinstance(_e325, _ast325.BinOp) and isinstance(
-                                _e325.op, (_ast325.Add, _ast325.Sub, _ast325.Mult,
-                                           _ast325.FloorDiv, _ast325.Mod, _ast325.LShift,
-                                           _ast325.RShift, _ast325.BitAnd, _ast325.BitOr,
-                                           _ast325.BitXor)):
-                            _wk325.extend([_e325.left, _e325.right])
-                        elif isinstance(_e325, _ast325.Name):
-                            _ok325 = _e325.id in _known325
-                        elif (isinstance(_e325, _ast325.Call)
-                              and isinstance(_e325.func, _ast325.Name)
-                              and _e325.func.id in ("len", "int", "ord", "id", "hash")
-                              and _e325.func.id not in _bind325):
-                            pass
-                        else:
-                            _ok325 = False
-                    if isinstance(_s325, _ast325.AugAssign) and not isinstance(
-                            _s325.op, (_ast325.Add, _ast325.Sub, _ast325.Mult,
-                                       _ast325.FloorDiv, _ast325.Mod)):
+            for _t2325, _vv325, _aug325 in _bl325:
+                _ok325 = _vv325 is not None
+                _wk325 = [_vv325] if _vv325 is not None else []
+                while _wk325 and _ok325:
+                    _e325 = _wk325.pop()
+                    if isinstance(_e325, _ast325.Constant):
+                        _ok325 = type(_e325.value) in (int, bool)
+                    elif isinstance(_e325, _ast325.UnaryOp) and isinstance(
+                            _e325.op, (_ast325.USub, _ast325.UAdd, _ast325.Invert)):
+                        _wk325.append(_e325.operand)
+                    elif isinstance(_e325, _ast325.BinOp) and isinstance(
+                            _e325.op, (_ast325.Add, _ast325.Sub, _ast325.Mult,
+                                       _ast325.FloorDiv, _ast325.Mod, _ast325.LShift,
+                                       _ast325.RShift, _ast325.BitAnd, _ast325.BitOr,
+                                       _ast325.BitXor)):
+                        _wk325.extend([_e325.left, _e325.right])
+                    elif isinstance(_e325, _ast325.Name):
+                        _ok325 = _e325.id in _known325
+                    elif (isinstance(_e325, _ast325.Call)
+                          and isinstance(_e325.func, _ast325.Name)
+                          and _e325.func.id in ("len", "int", "ord", "id", "hash")
+                          and _e325.func.id not in _bind325):
+                        pass
+                    else:
                         _ok325 = False
-                    _bind325.setdefault(_t2325, []).append(_ok325)
+                if _aug325 is not None and not isinstance(
+                        _aug325, (_ast325.Add, _ast325.Sub, _ast325.Mult,
+                                  _ast325.FloorDiv, _ast325.Mod)):
+                    _ok325 = False
+                _bind325.setdefault(_t2325, []).append(_ok325)
         for _s325 in _ast325.walk(_tree325):
             if isinstance(_s325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef,
-                                  _ast325.ClassDef)) and _s325 in _top325:
+                                  _ast325.ClassDef)) and _s325 in _mdef325:
                 _bind325.setdefault(_s325.name, []).append(False)
             if isinstance(_s325, _ast325.Global):
                 for _g325 in _s325.names:
@@ -7499,9 +7606,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _bk325[_k325] = _o2325
         elif _tk325 == "end" and _bst325:
             _bst325 = [x for x in _bst325 if _decl325[x] == _decl325[_k325]]
+    # innermost enclosing block opener of each token (-1: none)
+    _inb325 = []
+    _bst325 = []
+    for _k325, _tk325 in enumerate(_toks325):
+        if _k325 in _bk325 and _tk325 != "end":
+            _bst325.append(_k325)
+        _inb325.append(_bst325[-1] if _bst325 else -1)
+        if _k325 in _bk325 and _tk325 == "end" and _bst325 and _bst325[-1] == _bk325[_k325]:
+            _bst325.pop()
     # 5. binders (a WhyML local/param/pattern variable that shares a fallback's name is
-    #    NOT the fallback): declaration-wide, as Python's function scope is; `fun` /
-    #    `forall` / `exists` binders scope over their enclosing group only.
+    #    NOT the fallback): header parameters declaration-wide, as Python's function scope
+    #    is; `let` from its `in` to the end of its group; `fun` / `forall` / `exists` over
+    #    their enclosing group; a `match` / `try` ARM's pattern variables over that arm
+    #    only, and a `for` index over its `do .. done` (ROUTE #328: both were scoped to the
+    #    WHOLE declaration, so the emitter's own `with Return r -> r` hid a global `R`, and
+    #    `| Some v_ -> v_` a global `V_`, everywhere in the function: witnesses 4338-4340).
     _bd325 = {}     # decl -> names bound anywhere in it
     _bg325 = []     # (name, start, end) group-scoped binders
     for _k325, _tk325 in enumerate(_toks325):
@@ -7517,9 +7637,25 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                           if _re325.match(r"[a-z_][A-Za-z_0-9']*$", x)]
             elif _j325 < _N325 and _k325 > _dstart325[_dd325]:
                 _nb325 = [_toks325[_j325]]
-            if _tk325 == "for" or not _nb325:
+            if _tk325 == "for" and _nb325:
+                _z325 = _dstart325[_dd325 + 1]
+                _q325 = _j325 + 1
+                while _q325 < _z325 and _toks325[_q325] != "do":
+                    _q325 += 1
+                _r325 = _q325 + 1
+                _dp325 = 0
+                while _r325 < _z325:
+                    if _toks325[_r325] == "do":
+                        _dp325 += 1
+                    elif _toks325[_r325] == "done":
+                        if _dp325 == 0:
+                            break
+                        _dp325 -= 1
+                    _r325 += 1
                 for _x325 in _nb325:
-                    _bd325.setdefault(_dd325, set()).add(_x325)
+                    _bg325.append((_x325, _q325, _r325))
+                continue
+            if not _nb325:
                 continue
             # a `let` binds from its `in` to the end of the innermost enclosing group /
             # block (WhyML scoping: `let f = (fun () -> f) in` reads the OUTER `f` in its
@@ -7564,9 +7700,24 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _pv325.append(_toks325[_j325])
                 _j325 += 1
             if _j325 < _N325 and _toks325[_j325] == "->":
+                _bo325 = _inb325[_k325]
+                _ae325 = (_bk325[_bo325] if _bo325 >= 0 and _bo325 in _bk325
+                          and _bk325[_bo325] > _k325 else _dstart325[_dd325 + 1])
+                _q325 = _j325 + 1
+                while _q325 < _ae325:
+                    if _toks325[_q325] in ("(", "[", "{") and _q325 in _mt325:
+                        _q325 = _mt325[_q325] + 1
+                        continue
+                    if (_q325 in _bk325 and _toks325[_q325] != "end"
+                            and _bk325[_q325] > _q325):
+                        _q325 = _bk325[_q325] + 1
+                        continue
+                    if _toks325[_q325] == "|":
+                        break
+                    _q325 += 1
                 for _x325 in _pv325:
                     if _re325.match(r"[a-z_][A-Za-z_0-9']*$", _x325):
-                        _bd325.setdefault(_dd325, set()).add(_x325)
+                        _bg325.append((_x325, _k325, _q325))
         elif _tk325 in ("fun", "forall", "exists"):
             _e325 = _k325 - 1
             _dp325 = 0
@@ -7623,6 +7774,225 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         if (_x325 in _S325 or _x325 in _other325 or not (
                 _x325 in _pydefs325 or any(_x325.endswith("__" + d) for d in _pydefs325))):
             del _dbyname325[_x325]
+    # ROUTE #330 — MORE ORIGINS, each a value lowered to an `int` that is NOT an int:
+    # (a) an INSTANCE FIELD whose WhyML record label is typed `int` while a class-level or
+    #     `self.<f> = ..` initialiser / annotation of it is SHOWN non-int (a float / str /
+    #     None / bytes literal, an f-string, a display, `/`, a float / str / repr call, an
+    #     imported value, a non-int global, a parameter annotated non-int, an annotation
+    #     other than `int` / `bool`): `self.r = 2.5` lowers to `{ r = (any int) }`,
+    #     `self.s = "ab"` to `{ s = 0 }`, `self.r = None` to `{ r = pycsl_none }`, and
+    #     `c.r % 1 == 0`, `int(c.r) == c.r`, `c.s * 0 == 0` proved (witnesses 4341-4345);
+    #     with `no_exception \all`, `c.r * 0` over a None field proved no TypeError (route
+    #     #331, 4351-4353). Fields left unshown (an unannotated parameter) stay int (#325
+    #     residual 1: making every attribute of a parameter / local an origin refused 13
+    #     mirror files).
+    # (b) MODEL OPERATIONS that encode a string as an int (`repr_conv`, `format_conv`,
+    #     `str_of_int_hash`, `str_of_bool_hash`, `str_of_value_op`, the int `str_concat` /
+    #     `join` of the f-string joiner): `repr(n) * 0 == 0`, `f"{n}" * 0 == 0` proved
+    #     (4346, 4347). Strings ARE reflexive, so `=` / `<>` stay admitted anywhere for them.
+    # (c) the ELEMENTS of a parameter annotated with a BARE container (`list`, `List`,
+    #     `Sequence`, `tuple`, ...): element type unknown, lowered int (4348, 4349).
+    # (d) a `complex` annotation anywhere is typed `int` (`z * z != -1` proved, 4350):
+    #     refused outright below.
+    _fld325 = {}    # WhyML field label -> origin
+    _el325 = {}     # (decl, parameter) -> origin (its ELEMENTS)
+    _cx325 = None
+    _lblty325 = {}
+    for _dd325 in range(len(_dstart325) - 1):
+        _a325, _z325 = _dstart325[_dd325], _dstart325[_dd325 + 1]
+        if _a325 < _z325 and _toks325[_a325] == "type":
+            for _k325 in range(_a325, _z325 - 2):
+                if (_toks325[_k325 + 1] == ":" and _toks325[_k325 - 1] in ("{", ";", "mutable")
+                        and _re325.match(r"[a-z_][A-Za-z_0-9']*$", _toks325[_k325])):
+                    _q325 = _k325 + 2
+                    _ty325 = []
+                    while _q325 < _z325 and _toks325[_q325] not in (";", "}"):
+                        _ty325.append(_toks325[_q325])
+                        _q325 += 1
+                    _lblty325.setdefault(_toks325[_k325], []).append(" ".join(_ty325))
+    _rt330 = getattr(transpiler, "_record_types", None) or {}
+    _NIC330 = {"float", "str", "repr", "complex", "list", "dict", "set", "tuple", "bytes",
+               "format", "hex", "oct", "bin", "chr", "ascii", "frozenset", "bytearray",
+               "sorted", "reversed", "map", "filter", "zip", "enumerate", "input", "open"}
+    _BARE330 = {"list", "List", "Sequence", "Iterable", "tuple", "Tuple", "MutableSequence",
+                "Collection"}
+    if _tree325 is not None:
+        _nif330 = {}    # python class name -> fields shown non-int
+        _bas330 = {}    # python class name -> base class names
+        for _a325 in _ast325.walk(_tree325):
+            if isinstance(_a325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef,
+                                  _ast325.AnnAssign)):
+                for _an325 in ([_a325.returns] + [x.annotation for x in (
+                        _a325.args.posonlyargs + _a325.args.args + _a325.args.kwonlyargs
+                        + [y for y in (_a325.args.vararg, _a325.args.kwarg) if y])]
+                               if isinstance(_a325, (_ast325.FunctionDef,
+                                                     _ast325.AsyncFunctionDef))
+                               else [_a325.annotation] if isinstance(_a325, _ast325.AnnAssign)
+                               else []):
+                    for _x325 in (_ast325.walk(_an325) if _an325 is not None else ()):
+                        if ((isinstance(_x325, _ast325.Name) and _x325.id == "complex")
+                                or (isinstance(_x325, _ast325.Constant)
+                                    and isinstance(_x325.value, str)
+                                    and "complex" in _x325.value)):
+                            _cx325 = getattr(_a325, "name", "?")
+            if isinstance(_a325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef)):
+                # (c) bare-container parameters: their decl(s) and WhyML name
+                for _x325 in (_a325.args.posonlyargs + _a325.args.args
+                              + _a325.args.kwonlyargs):
+                    _an325 = _x325.annotation
+                    if getattr(args, "strict_bare_containers", False) and (
+                            (isinstance(_an325, _ast325.Name) and _an325.id in _BARE330)
+                            or (isinstance(_an325, _ast325.Attribute)
+                                and _an325.attr in _BARE330)):
+                        for _dd325, _n2325 in _dname325.items():
+                            if (_n2325 == _wid325(_a325.name)
+                                    or _n2325.endswith("__" + _wid325(_a325.name))):
+                                _el325[(_dd325, _wid325(_x325.arg))] = (
+                                    "an element of '" + _x325.arg + "' (bare `"
+                                    + _ast325.unparse(_an325) + "` annotation)")
+            if not isinstance(_a325, _ast325.ClassDef):
+                continue
+            _bas330[_a325.name] = [b.id for b in _a325.bases if isinstance(b, _ast325.Name)]
+            _ini330 = []    # (field, annotation or None, value or None, params of its def)
+            for _s325 in _a325.body:
+                if isinstance(_s325, _ast325.AnnAssign) and isinstance(_s325.target,
+                                                                       _ast325.Name):
+                    _ini330.append((_s325.target.id, _s325.annotation, _s325.value, {}))
+                elif isinstance(_s325, _ast325.Assign):
+                    _ini330.extend((t.id, None, _s325.value, {}) for t in _s325.targets
+                                   if isinstance(t, _ast325.Name))
+                elif (isinstance(_s325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef))
+                      and _s325.args.args):
+                    _sf330 = _s325.args.args[0].arg
+                    _pa330 = {x.arg: x.annotation for x in _s325.args.args[1:]
+                              + _s325.args.kwonlyargs}
+                    for _x325 in _ast325.walk(_s325):
+                        _tg330 = (_x325.targets if isinstance(_x325, _ast325.Assign) else
+                                  [_x325.target] if isinstance(
+                                      _x325, (_ast325.AnnAssign, _ast325.AugAssign)) else [])
+                        for _t325 in _tg330:
+                            if (isinstance(_t325, _ast325.Attribute)
+                                    and isinstance(_t325.value, _ast325.Name)
+                                    and _t325.value.id == _sf330):
+                                _ini330.append((_t325.attr, getattr(_x325, "annotation", None),
+                                                _x325.value, _pa330))
+            for _f330, _an325, _v325, _pa330 in _ini330:
+                # a None / Optional[int] field (route #331): its int arm IS an int and its
+                # None is the opaque `pycsl_none`, so `=` / `<>` stay admitted for it; int
+                # arithmetic / ordering is refused (CPython raises TypeError on None)
+                _on330 = (isinstance(_an325, _ast325.Subscript)
+                          and isinstance(_an325.value, _ast325.Name)
+                          and _an325.value.id in ("Optional", "Union")
+                          and all((isinstance(x, _ast325.Name) and x.id in ("int", "bool"))
+                                  or (isinstance(x, _ast325.Constant) and x.value is None)
+                                  for x in (_an325.slice.elts if isinstance(
+                                      _an325.slice, _ast325.Tuple) else [_an325.slice]))) or (
+                    isinstance(_an325, _ast325.BinOp) and isinstance(_an325.op, _ast325.BitOr)
+                    and all((isinstance(x, _ast325.Name) and x.id in ("int", "bool"))
+                            or (isinstance(x, _ast325.Constant) and x.value is None)
+                            for x in (_an325.left, _an325.right)))
+                _vn330 = isinstance(_v325, _ast325.Constant) and _v325.value is None
+                if _on330 or (_vn330 and _an325 is None):
+                    _nif330.setdefault(_a325.name, {})[_f330] = (
+                        _nif330.get(_a325.name, {}).get(_f330, "none"))
+                if _vn330 and (_on330 or _an325 is None):
+                    continue
+                _bad330 = _an325 is not None and not _on330 and not (
+                    (isinstance(_an325, _ast325.Name) and _an325.id in ("int", "bool"))
+                    or (isinstance(_an325, _ast325.Constant) and _an325.value in ("int",
+                                                                                   "bool"))
+                    or (isinstance(_an325, _ast325.Subscript)
+                        and isinstance(_an325.value, _ast325.Name)
+                        and _an325.value.id in ("Final", "ClassVar")
+                        and isinstance(_an325.slice, _ast325.Name)
+                        and _an325.slice.id in ("int", "bool")))
+                _wk325 = [_v325] if _v325 is not None else []
+                while _wk325 and not _bad330:
+                    _e325 = _wk325.pop()
+                    if isinstance(_e325, _ast325.Constant):
+                        # an INTEGRAL float literal is carried as that int (routes #148,
+                        # #236: corpus 1490, 2132), as a float under FLOAT-FINITE's real
+                        _bad330 = type(_e325.value) not in (int, bool) and not (
+                            type(_e325.value) is float and _e325.value.is_integer()
+                            and abs(_e325.value) < 2 ** 53)
+                    elif isinstance(_e325, (_ast325.JoinedStr, _ast325.List, _ast325.Tuple,
+                                            _ast325.Dict, _ast325.Set, _ast325.ListComp,
+                                            _ast325.SetComp, _ast325.DictComp,
+                                            _ast325.GeneratorExp, _ast325.Lambda)):
+                        _bad330 = True
+                    elif isinstance(_e325, _ast325.BinOp):
+                        _bad330 = isinstance(_e325.op, _ast325.Div)
+                        _wk325.extend([_e325.left, _e325.right])
+                    elif isinstance(_e325, _ast325.UnaryOp):
+                        _wk325.append(_e325.operand)
+                    elif isinstance(_e325, _ast325.IfExp):
+                        _wk325.extend([_e325.body, _e325.orelse])
+                    elif isinstance(_e325, _ast325.Call):
+                        _cf330 = _e325.func
+                        while isinstance(_cf330, _ast325.Attribute):
+                            _cf330 = _cf330.value
+                        _bad330 = isinstance(_cf330, _ast325.Name) and (
+                            (_cf330.id in _NIC330 and _cf330.id not in _bind325
+                             and _cf330 is _e325.func)
+                            or ((_cf330.id in _imod325 or _cf330.id in _inam325)
+                                and _cf330 is not _e325.func
+                                and (_imod325.get(_cf330.id),
+                                     getattr(_e325.func, "attr", "")) not in _KI_CALL325))
+                    elif isinstance(_e325, _ast325.Name):
+                        _bad330 = ((_e325.id in _pa330 and _pa330[_e325.id] is not None
+                                    and not (isinstance(_pa330[_e325.id], _ast325.Name)
+                                             and _pa330[_e325.id].id in ("int", "bool")))
+                                   or (_e325.id not in _pa330 and (
+                                       _e325.id in _imod325 or _e325.id in _inam325
+                                       or (_e325.id in _bind325
+                                           and not all(_bind325[_e325.id])))))
+                    elif isinstance(_e325, _ast325.Attribute):
+                        _cf330 = _e325.value
+                        while isinstance(_cf330, _ast325.Attribute):
+                            _cf330 = _cf330.value
+                        _bad330 = (isinstance(_cf330, _ast325.Name)
+                                   and (_cf330.id in _imod325 or _cf330.id in _inam325)
+                                   and (_imod325.get(_cf330.id), _e325.attr)
+                                   not in _KI_ATTR325)
+                if _bad330:
+                    _nif330.setdefault(_a325.name, {})[_f330] = "other"
+        for _c330, _r330 in _rt330.items():
+            if not isinstance(_r330, dict) or not _r330.get("whyml_name"):
+                continue
+            _cl330 = [_c330]
+            _bad330 = {}
+            _seen330 = set()
+            while _cl330:
+                _x325 = _cl330.pop()
+                if _x325 in _seen330:
+                    continue
+                _seen330.add(_x325)
+                for _f330, _kd330 in _nif330.get(_x325, {}).items():
+                    if _bad330.get(_f330) != "other":
+                        _bad330[_f330] = _kd330
+                _cl330.extend(_bas330.get(_x325, []))
+            for _f330 in _r330.get("fields") or []:
+                if _f330 in _bad330:
+                    try:
+                        _lb330 = transpiler._field_label(_r330["whyml_name"], _f330)
+                    except Exception:
+                        _lb330 = _wid325(_f330)
+                    if _lblty325.get(_lb330) == ["int"]:
+                        _fld325[_lb330] = ("field '" + _c330 + "." + _f330 + "'"
+                                           + (" (None / Optional)" if _bad330[_f330] == "none"
+                                              else ""))
+    # (b) string-encoding model operations
+    for _x325 in list(_other325):
+        if (_x325 in ("str_of_int_hash", "str_of_bool_hash", "str_of_value_op", "str_concat")
+                or (_x325.endswith("_conv") and _x325[:-5] not in (
+                    "abs", "bool", "int", "round", "len", "ord", "hash"))):
+            _S325[_x325] = ("string-encoding model operation", _other325.pop(_x325)[0])
+    _strorg325 = ({x for x, f in _S325.items() if f[0] == "string-encoding model operation"}
+                  | {x for x in _fld325.values() if x.endswith("(None / Optional)")})
+    for _x325 in _fld325.values():
+        _S325[_x325] = ("non-int field", 0)
+    for _x325 in _el325.values():
+        _S325[_x325] = ("unknown-type element", 0)
     _INTOP325 = {"+", "-", "*", "<", "<=", ">", ">=", "pycsl_mod", "pycsl_div", "pycsl_pow",
                  "div", "mod", "abs", "power", "py_pow", "min", "max"}
     _KW325 = {"let", "in", "if", "then", "else", "begin", "end", "match", "with", "try",
@@ -7665,7 +8035,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                            for u in _pydefs325)):
                 _S325[_x325] = ("call", _other325.pop(_x325)[0])
                 _new325 = True
-        _cand325 = set(_S325) | set(_tf325) | {x[1] for x in _tl325}
+        _cand325 = (set(_S325) | set(_tf325) | {x[1] for x in _tl325} | set(_fld325)
+                    | {x[1] for x in _el325})
         for _k325 in sorted(k for c in _cand325 for k in _pos325.get(c, ())):
             _tk325 = _toks325[_k325]
             _nm325 = _tk325.lstrip("!")
@@ -7674,10 +8045,40 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 continue
             if _k325 < _hdr325.get(_dd325, _dstart325[_dd325]):
                 continue        # a declaration header names, it does not use
-            if _k325 > 0 and _toks325[_k325 - 1] == ".":
-                continue        # a field / qualified name
             _org325 = None
-            if (_dd325, _nm325) in _tl325:
+            _fu325 = None       # (start, end) of a field read / element read unit
+            if _k325 > 0 and _toks325[_k325 - 1] == ".":
+                # a field / qualified name; ROUTE #330: a read `<recv>.<label>` of a
+                # non-int field is a use of that field's value
+                if _nm325 not in _fld325 or _tk325 != _nm325 or _k325 < 2:
+                    continue
+                _s2325 = _k325 - 2
+                if _toks325[_s2325] in (")", "]", "}") and _s2325 in _mt325:
+                    _s2325 = _mt325[_s2325]
+                while _s2325 >= 2 and _toks325[_s2325 - 1] == ".":
+                    _s2325 -= 2
+                    if _toks325[_s2325] in (")", "]", "}") and _s2325 in _mt325:
+                        _s2325 = _mt325[_s2325]
+                if _toks325[_s2325][:1].isupper():
+                    continue    # a qualified name `Mod.f`
+                _org325 = _fld325[_nm325]
+                _fu325 = (_s2325, _k325)
+            elif (_dd325, _nm325) in _el325 and (_dd325, _nm325) not in _tl325:
+                # ROUTE #330 (c): only an ELEMENT read of a bare-container parameter
+                if any(b[0] == _nm325 and b[1] <= _k325 < b[2] for b in _bg325):
+                    continue
+                if (_k325 + 1 < _N325 and _toks325[_k325 + 1] == "[" and (_k325 + 1) in _mt325
+                        and not (_mt325[_k325 + 1] + 1 < _N325
+                                 and _toks325[_mt325[_k325 + 1] + 1] == "<-")):
+                    _fu325 = (_k325, _mt325[_k325 + 1])
+                elif (_k325 >= 2 and _toks325[_k325 - 2] == "(" and (_k325 - 2) in _mt325
+                      and _re325.match(r"(subscript_get|iter_get|hval_iter_get|Array\.get)",
+                                       _toks325[_k325 - 1])):
+                    _fu325 = (_k325 - 2, _mt325[_k325 - 2])
+                else:
+                    continue
+                _org325 = _el325[(_dd325, _nm325)]
+            elif (_dd325, _nm325) in _tl325:
                 _org325 = _tl325[(_dd325, _nm325)]
             elif _nm325 in _bd325.get(_dd325, ()) or any(
                     b[0] == _nm325 and b[1] <= _k325 < b[2] for b in _bg325):
@@ -7708,6 +8109,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 continue        # the target of an assignment
             if _k325 > 0 and _toks325[_k325 - 1] in ("let", "ghost", "rec", "for", "mutable"):
                 continue        # a binder
+            if _k325 > 0 and _toks325[_k325 - 1] in ("(", ","):
+                _e325 = _k325 - 1
+                _dp325 = 0
+                while _e325 >= 0:
+                    if _toks325[_e325] in (")", "]", "}"):
+                        _dp325 += 1
+                    elif _toks325[_e325] in ("(", "[", "{"):
+                        if _dp325 == 0:
+                            break
+                        _dp325 -= 1
+                    _e325 -= 1
+                if (_e325 >= 1 and _toks325[_e325] == "(" and _e325 in _mt325
+                        and _toks325[_e325 - 1] in ("let", "ghost")
+                        and _toks325[_mt325[_e325] + 1:_mt325[_e325] + 2] == ["="]):
+                    continue    # a name of a tuple PATTERN `let (a, b) = ..` (a binder)
             # the unit: the application `(f a b)` / `f a b`, or the bare name
             _ua325, _ub325 = _k325, _k325
             _ar325 = (_S325[_nm325][1] if _nm325 in _S325 and _org325 == _nm325 else
@@ -7723,11 +8139,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     elif _j325 < _N325 and _re325.match(r"!?[A-Za-z_0-9]", _toks325[_j325]):
                         _j325 += 1
                 _ub325 = _j325 - 1
+            if _fu325 is not None:
+                _ua325, _ub325 = _fu325
             # climb through value-transparent wrappers: `( u )`, `begin ...; u end`,
             # `try u with ... end`, and through opaque operations applied to u
             _w1ok325 = False
             _drv325 = False
             _prev325 = ""
+            _tix325 = None
             while True:
                 if (_ua325 > 0 and _toks325[_ua325 - 1] == "(" and (_ua325 - 1) in _mt325
                         and _mt325[_ua325 - 1] == _ub325 + 1):
@@ -7777,6 +8196,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _dp325 -= 1
                         _e325 -= 1
                     if _e325 >= 0 and _toks325[_e325] == "(" and _e325 in _mt325:
+                        # ROUTE #328: remember WHICH component u is, for a tuple pattern
+                        # `let (a, b) = (u, v) in` (W2)
+                        _ix325 = 0
+                        _j325 = _e325 + 1
+                        while _j325 < _ua325:
+                            if _toks325[_j325] in ("(", "[", "{") and _j325 in _mt325:
+                                _j325 = _mt325[_j325] + 1
+                                continue
+                            if _toks325[_j325] == ",":
+                                _ix325 += 1
+                            _j325 += 1
+                        _tix325 = (_e325, _ix325)
                         _ua325, _ub325 = _e325, _mt325[_e325]
                         continue
                 # (W1) an argument of an opaque operation, `(op .. u ..)` / `op .. u ..`:
@@ -7789,7 +8220,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             and _toks325[_h325] not in _KW325)):
                     _h325 = _mt325[_h325] - 1 if _toks325[_h325] in (")", "]") else _h325 - 1
                 _hn325 = _toks325[_h325 + 1] if _h325 + 1 < _ua325 else ""
-                if (_hn325 and (_hn325[0].isupper() and _hn325 not in ("Return",))
+                # ROUTE #328: the KEY of a map read / test / store (`Map.get m u`, `Map.mem
+                # u m`, `Map.set m u v`) is compared by equality only (no int theory), and
+                # the lookup's result is the map's value, not derived from u: a sink
+                if (_hn325 in ("get", "mem", "set") and _h325 >= 1 and _toks325[_h325] == "."
+                        and _toks325[_h325 - 1] == "Map"):
+                    _ix325 = 0
+                    _j325 = _h325 + 2
+                    while _j325 < _ua325:
+                        _j325 = (_mt325[_j325] + 1 if _toks325[_j325] in ("(", "[", "{")
+                                 and _j325 in _mt325 else _j325 + 1)
+                        _ix325 += 1
+                    if _ix325 == (0 if _hn325 == "mem" else 1):
+                        _w1ok325 = True
+                        break
+                if (_hn325 and (_hn325[0].isupper() and not _hn325.startswith("Return"))
                         or (_h325 >= 1 and _toks325[_h325] == "."
                             and _toks325[_h325 - 1][:1].isupper())):
                     # a constructor / container builder (`Some u`, `Seq.cons u ..`,
@@ -7875,6 +8320,25 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 continue
             if _w1ok325:
                 continue
+            # a `writes { .. }` / `reads { .. }` / `alias { .. }` item names a location, it
+            # does not use a value
+            if (_enc325 is not None and _toks325[_enc325] == "{" and _enc325 >= 1
+                    and _toks325[_enc325 - 1] in ("writes", "reads", "alias")):
+                continue
+            # ROUTE #330: the generated FRAME condition `X.f = old X.f` of a method is an
+            # identity of the field's value, not a Python `==` (admitted)
+            if _fu325 is not None and _org325 in _fld325.values():
+                _ut325 = _toks325[_ua325:_ub325 + 1]
+                _L325 = len(_ut325)
+                if ((_toks325[_ub325 + 1:_ub325 + 3 + _L325] == ["=", "old"] + _ut325
+                     and _ub325 + 3 + _L325 < _N325
+                     and _toks325[_ub325 + 3 + _L325] in ("}", "/\\", ")"))
+                        or (_ua325 >= _L325 + 2 and _toks325[_ua325 - 1] == "old"
+                            and _toks325[_ua325 - 2] == "="
+                            and _toks325[_ua325 - 2 - _L325:_ua325 - 2] == _ut325
+                            and _ub325 + 1 < _N325
+                            and _toks325[_ub325 + 1] in ("}", "/\\", ")"))):
+                    continue
             # (W2) the whole right-hand side of a local binding
             _lhs325 = None
             _lk325 = ""
@@ -7889,6 +8353,36 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if (_dd325, _lhs325) not in _tl325:
                     _tl325[(_dd325, _lhs325)] = _org325
                     _new325 = True
+                continue
+            # ROUTE #328 — a TUPLE pattern `let (_tu_a, _tu_b) = (u, 1) in`: #325 found no
+            # name left of `=` and dropped the taint, so `a, b = F, 1; a % 1 == 0` proved
+            # (witness 4336). The component u sits in carries it; a pattern bound to a
+            # whole tainted term (`let (a, b) = t in`) taints every name in it.
+            if (_pv325 == "=" and _ua325 >= 3 and _toks325[_ua325 - 2] == ")"
+                    and _nx325 == "in" and (_ua325 - 2) in _mt325
+                    and _mt325[_ua325 - 2] >= 1
+                    and _toks325[_mt325[_ua325 - 2] - 1] in ("let", "ghost")):
+                _pa325 = _mt325[_ua325 - 2]
+                _cm325 = [[]]
+                _j325 = _pa325 + 1
+                while _j325 < _ua325 - 2:
+                    if _toks325[_j325] in ("(", "[", "{") and _j325 in _mt325:
+                        _cm325[-1].extend(_toks325[_j325:_mt325[_j325] + 1])
+                        _j325 = _mt325[_j325] + 1
+                        continue
+                    if _toks325[_j325] == ",":
+                        _cm325.append([])
+                    else:
+                        _cm325[-1].append(_toks325[_j325])
+                    _j325 += 1
+                if (_tix325 is not None and _tix325[0] == _ua325
+                        and _tix325[1] < len(_cm325) and len(_cm325) > 1):
+                    _cm325 = [_cm325[_tix325[1]]]
+                for _x325 in [x for c in _cm325 for x in c]:
+                    if (_re325.match(r"[a-z_][A-Za-z_0-9']*$", _x325) and _x325 not in _KW325
+                            and (_dd325, _x325) not in _tl325):
+                        _tl325[(_dd325, _x325)] = _org325
+                        _new325 = True
                 continue
             if (_pv325 == ":=" and _ua325 >= 2
                     and _nx325 in (";", "end", "done", "in", "else", "with", "")
@@ -7945,13 +8439,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         continue
                     _y325 = _toks325[_x325].lstrip("!")
                     if (_tl325.get((_dd325, _y325)) == _org325 or _y325 == _org325
-                            or _tf325.get(_y325) == _org325 or _y325 == "result"):
+                            or _tf325.get(_y325) == _org325 or _y325 == "result"
+                            or (_fld325.get(_y325) == _org325 and _x325 > 0
+                                and _toks325[_x325 - 1] == ".")):
                         _same325 = True
                 if _org325.startswith("pycsl_getattr_default_") and "result" not in (
                         _toks325[max(_oa325, 0):_ob325 + 1]):
                     _same325 = False    # one DEFAULT EXPRESSION, one value (route #47)
                 if not _inspec325 and not _same325:
                     continue
+                if _org325 in _strorg325:
+                    continue    # a string is equal to itself (no NaN): `=` / `<>` admitted
             _viol325.append((_org325, _S325.get(_org325, ("?",))[0], _nm325,
                              " ".join(_toks325[max(_ua325 - 4, _dstart325[_dd325]):
                                                min(_ub325 + 5, _N325)]),
@@ -7960,6 +8458,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             break
     else:
         _viol325.append(("?", "?", "?", "taint fixpoint not reached", "?"))
+    if _cx325 is not None:
+        _viol325.insert(0, ("complex", "`complex` annotation", "complex", "a `complex` "
+                            "annotation is lowered to `int`", _cx325))
     if _viol325:
         from errors import PyCSLSemanticError as _PyCSLSemErr325
         _v325 = _viol325[0]
