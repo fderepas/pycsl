@@ -297,7 +297,12 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                             _stk336.append(_e336)
                 if not _chg336:
                     break
-            setattr(_ow336, _fd336, _hold336.value)
+            # (a plain attribute store, not `setattr`: Module 3's rebinding check refuses a
+            # non-literal `setattr` on a receiver it cannot see is a local instance)
+            if _fd336 == "returns":
+                _ow336.returns = _hold336.value
+            else:
+                _ow336.annotation = _hold336.value
 
         # (#49) ROUTE #116 — THE CLASS-BY-NAME FACTORY RECOGNIZER'S JUSTIFICATION, CHECKED.
         # `_py_expr_call` resolves `F("X")(...)` to a direct call of `X` because
@@ -4952,7 +4957,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # Gated on a leading CAPITAL (Python class-naming convention) minus
             # the bare `typing` aliases, so a lowercase/unknown arm still
             # degrades to `Any` exactly as before.
-            if elt.id[:1].isupper() and elt.id not in self._TYPING_ALIAS_ARMS:
+            # (#49) ROUTE #336/#337 — BUT AN "OPAQUE int" PAYLOAD IS AN INT. Module 6 types
+            # it `int`, so the arm's value carried every int law: `Optional[Fraction]` /
+            # `Optional[<field-less class>]` proved `x % 1 == 0` for `Fraction(1, 2)`. The
+            # arm is kept only for a class this module lowers to a RECORD (pre-scan included:
+            # a self-referential `Optional[Node]` field); any other class arm is the
+            # arbitrary object of route #258, and the whole annotation is erased (`Any`).
+            if (elt.id[:1].isupper() and elt.id not in self._TYPING_ALIAS_ARMS
+                    and elt.id in self._m5_declared_record_names()):
                 return elt.id
             return "Any"
         # self-tcb-reduction giants (generic class-body lowering): an `ast.<expr-node>`

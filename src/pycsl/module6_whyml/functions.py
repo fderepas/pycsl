@@ -2312,12 +2312,42 @@ class FunctionEmissionMixin:
             _r249_cont[func["vararg_str_param"]] = "kv"
         # (#49) ROUTE #255: a MISSING return annotation (`def h(z): return z`) is erased too —
         # the model lowered it to an `int` result, so `v = h(x); return v - v` PROVED 0.
+        # (#49) ROUTE #336/#337 — THE TYPE TAGS THIS LOWERING CARRIES AS THEMSELVES. A
+        #   parameter / return tag outside this set (and outside the record / variant /
+        #   union / option / callable tags) fell to `_param_type_str`'s / the return
+        #   lowering's "defaults to int" (`Fraction`, `Decimal`, `numbers.Real`, `type`,
+        #   `None` as a PARAMETER, `Iterable[float]`, an imported or FIELD-LESS user class):
+        #   an `int` with every int law. Such a value is the arbitrary Python object of
+        #   route #249 and is erased below, like `Any`.
+        _r336_lowered = frozenset((
+            "int", "bool", "str", "float", "list", "tuple", "dict", "set", "frozenset",
+            "bytes", "bytearray", "ExprIR", "StmtIR", "IRNode", "ContractExprIR", "exprir",
+            "Term", "emit_ir",
+            # a BARE typing container is the declared BARE-CONTAINER-INT model (route #330)
+            "List", "Dict", "Set", "FrozenSet", "Tuple"))
+        _r336_ret_ok = frozenset(("None", "NoReturn", "Iterator", "Generator", "Iterable"))
+        _r336_rts = (getattr(self, "_record_types", {}) or {})
+        _r336_vts = (getattr(self, "_variant_types", {}) or {})
         _r249_ret_erased: bool = (func.get("return_annotation") in ("Any", "object", None)
                                   or func.get("return_annotation") in _r249_tv)
+        _r336_ra = func.get("return_annotation")
+        if (isinstance(_r336_ra, str) and not (
+                _r336_ra in _r336_lowered or _r336_ra in _r336_ret_ok
+                or _r336_ra in _r336_rts or _r336_ra in _r336_vts
+                or _r336_ra.startswith(("_union_", "option:", "callable:"))
+                or (_r336_ra == "TParamNode" and self._uses_tparam()))):
+            _r249_ret_erased = True
         _r249_any_ret_funcs: Set[str] = set()
         for _r249_g in ((getattr(self, "ir", {}) or {}).get("functions") or []):
+            _r336_ga = _r249_g.get("return_annotation") if isinstance(_r249_g, dict) else None
             if (isinstance(_r249_g, dict) and isinstance(_r249_g.get("name"), str)
-                    and _r249_g.get("return_annotation") in ("Any", "object")):
+                    and (_r249_g.get("return_annotation") in ("Any", "object")
+                         or (isinstance(_r336_ga, str) and not (
+                             _r336_ga in _r336_lowered or _r336_ga in _r336_ret_ok
+                             or _r336_ga in _r336_rts or _r336_ga in _r336_vts
+                             or _r336_ga.startswith(("_union_", "option:", "callable:"))
+                             or (_r336_ga == "TParamNode" and self._uses_tparam())
+                             or str(_r249_g.get("name", "")).endswith("____init__"))))):
                 _r249_any_ret_funcs.add(_r249_g["name"])
                 _r249_any_ret_funcs.add(_r249_g["name"].split(".")[-1])
         # (#49) ROUTE #255 — A CALL WHOSE RESULT IS AN ARBITRARY OBJECT. Route #249 erased
@@ -2455,12 +2485,15 @@ class FunctionEmissionMixin:
             #   law; route #251/#252 make its arithmetic uninterpreted and refuse it under
             #   `no_exception` or in a builtin-typed slot).
             elif isinstance(_r249_a, str) and not (
-                    _r249_a in ("int", "bool", "str", "float", "list", "tuple", "dict", "set",
-                                "frozenset", "bytes", "bytearray", "ExprIR", "StmtIR", "IRNode",
-                                "ContractExprIR", "exprir", "Term")
-                    or _r249_a in (getattr(self, "_record_types", {}) or {})
-                    or _r249_a in (getattr(self, "_variant_types", {}) or {})
-                    or _r249_a.startswith(("_union_", "option:", "callable:"))):
+                    _r249_a in _r336_lowered or _r249_a in _r336_rts or _r249_a in _r336_vts
+                    or _r249_a.startswith(("_union_", "option:", "callable:"))
+                    # the self-annotation reflection sentinels, each lowered to its own
+                    # node type (`py_tparam_node`, `py_classdef_node`, `py_module_node`,
+                    # `call_kw`) by `_param_type_str` under its `_uses_*` gate, not to int
+                    or (_r249_a == "TParamNode" and self._uses_tparam())
+                    or (_r249_a == "CallKw" and self._uses_call_kw())
+                    or ((func.get("param_ast_node_types") or {}).get(_r249_p)
+                        in ("ClassDef", "Module") and self._uses_pyast_stmt())):
                 _r249_erased.add(_r249_p)
         _r249_asgs: List[Any] = []
         _r255_lams: List[Any] = []

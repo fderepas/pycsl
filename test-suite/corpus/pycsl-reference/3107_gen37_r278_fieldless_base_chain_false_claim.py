@@ -3,7 +3,7 @@ r"""Test 3107 — route #278 (expected FAIL): a FIELDLESS base `A`, `B(A): pass`
 which a fieldless chain never gets, so no goal was built even under the flag. (The caller was
 already fail-closed here — a fieldless class's method call is contract-free — so this file
 is COVERAGE of the pair, not a reproduced false proof.) The MRO pair `c__m refines a__m` now
-exists and its goal fails. CPython: 2.
+exists and its goal fails. CPython: 2. (Route #337: `-> object`, since a fieldless `A` is now an erased value.)
 """
 # pycsl-expected: FAIL
 
@@ -28,7 +28,7 @@ class C(B):
 
 #@ ensures \result == 1
 #@ assigns \nothing
-def use(a: A) -> int:
+def use(a: A) -> object:
     return a.m()
 
 
