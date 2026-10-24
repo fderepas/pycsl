@@ -7346,6 +7346,331 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"{'' if len(_bad273) == 1 else f' (also: {_bad273[1:]})'}.",
             filename=args.file, stage="ir-semantic",
             code="PYCSL-SEM-DEF-TIME-EVALUATION")
+    # (#49) ROUTE #339 — AN ENUM MEMBER IS NOT AN INT. `C.A` of a user enum class lowers
+    # to the opaque getter `get_A _class_c : int` (and route #325 keeps it int, its value
+    # being an int literal), so every int operation applies to it. MEASURED at 5e517ffc
+    # (witnesses-r339/): on a PLAIN `Enum` member `x - x`, `x * 0`, `-x + x`, `x * x`,
+    # `x < x` and `a[x]` PROVED under `no_exception \all` (CPython: TypeError), and a
+    # user `__eq__` / `__lt__` on an `Enum` / `IntEnum` was ignored (`x == x` PROVED
+    # True, CPython's `__eq__` returns False). RULE (fail-closed, AST-level, over every
+    # LOWERED function, nested scopes included): a class whose base is (a dotted name
+    # ending in) `Enum`/`IntEnum`/`Flag`/`IntFlag`/`StrEnum`/`ReprEnum`, or another
+    # such class of this file, is an ENUM. An `IntEnum`/`IntFlag` (or `int`-mixin) enum
+    # that defines NO dunder (own or inherited in this file) keeps its int semantics —
+    # its members ARE ints and every operator is int's. Every other enum is OPAQUE: an
+    # enum-member expression (`C.M`, `C(v)`, `C[k]`, a name bound to one, a parameter /
+    # field / callee result annotated `C` or `Optional[C]`, a `for` target over `C`) may
+    # only be bound to a name, compared with `is`/`is not` (and `==`/`!=`/`in`/`not
+    # in`/`match`, unless `__eq__`/`__ne__` is user-defined), tested for truth (unless
+    # `__bool__`/`__len__` is), read as `.value`/`.name`, returned from / passed to a
+    # parameter / defaulted where the annotation is `C`, or given to `isinstance`/`id`/
+    # `type` (`hash` unless `__hash__` is user-defined). Anything else — arithmetic,
+    # unary `-`/`+`/`~`, ordering, an index, an augmented store, a container element, a
+    # builtin, a string conversion — is REFUSED (`PYCSL-SEM-ENUM-MEMBER-OPERATION`): the
+    # model has no value for it that CPython would compute. BLAST RADIUS, measured
+    # before landing: pycsl-reference 1 enum user (4243, `.value` only — admitted, still
+    # refused by route #325), the self-annotate mirror's `_Precedence` (an `IntEnum` of no
+    # dunder — int semantics kept), python-reference / pycsl_lib 0.
+    # INLINE (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+    _EB339 = {"Enum", "IntEnum", "Flag", "IntFlag", "StrEnum", "ReprEnum"}
+    _ND339 = {"__init__", "__new__", "__init_subclass__", "__doc__", "__module__",
+              "__qualname__", "__slots__", "__set_name__", "__class_getitem__",
+              "__annotations__"}
+    _cls339 = {}    # enum class name -> [int-like?, user dunders, member names]
+    _cd339 = [_x for _x in _A273.walk(unified_ast) if isinstance(_x, _A273.ClassDef)]
+    _chg339 = True
+    while _chg339:
+        _chg339 = False
+        for _c339 in _cd339:
+            if _c339.name in _cls339:
+                continue
+            _bs339 = [(_b.attr if isinstance(_b, _A273.Attribute) else
+                       _b.id if isinstance(_b, _A273.Name) else "") for _b in _c339.bases]
+            if not any(_b in _EB339 or _b in _cls339 for _b in _bs339):
+                continue
+            _du339 = set()
+            _mm339 = set()
+            for _s339 in _c339.body:
+                _ts339 = ([_s339.name] if isinstance(_s339, _FN273) else
+                          [_t.id for _t in _s339.targets if isinstance(_t, _A273.Name)]
+                          if isinstance(_s339, _A273.Assign) else
+                          [_s339.target.id] if isinstance(_s339, _A273.AnnAssign)
+                          and isinstance(_s339.target, _A273.Name) else [])
+                for _t339 in _ts339:
+                    if _t339.startswith("__") and _t339.endswith("__"):
+                        if _t339 not in _ND339:
+                            _du339.add(_t339)
+                    elif not isinstance(_s339, _FN273) and not (
+                            _t339.startswith("_") and _t339.endswith("_")):
+                        _mm339.add(_t339)
+            _il339 = any(_b in ("IntEnum", "IntFlag", "int") for _b in _bs339)
+            for _b339 in _bs339:
+                if _b339 in _cls339:
+                    _il339 = _il339 or _cls339[_b339][0]
+                    _du339 |= _cls339[_b339][1]
+                    _mm339 |= _cls339[_b339][2]
+            _cls339[_c339.name] = [_il339, _du339, _mm339]
+            _chg339 = True
+    _op339 = {_k: _v for _k, _v in _cls339.items() if not (_v[0] and not _v[1])}
+    _bad339 = []
+    if _op339:
+        _par339 = {}
+        for _x339 in _A273.walk(unified_ast):
+            for _y339 in _A273.iter_child_nodes(_x339):
+                _par339[id(_y339)] = _x339
+        # annotation -> opaque enum class (`C`, `"C"`, `Optional[C]`, `C | None`);
+        # an opaque enum anywhere else inside an annotation (a container) is refused
+        _ann339 = {}
+        _badann339 = []
+        for _x339 in _A273.walk(unified_ast):
+            _as339 = []
+            if isinstance(_x339, _A273.arg):
+                _as339 = [_x339.annotation]
+            elif isinstance(_x339, _FN273):
+                _as339 = [_x339.returns]
+            elif isinstance(_x339, _A273.AnnAssign):
+                _as339 = [_x339.annotation]
+            for _a339 in _as339:
+                if _a339 is None:
+                    continue
+                _q339 = _a339
+                if (isinstance(_q339, _A273.Subscript) and isinstance(_q339.value, _A273.Name)
+                        and _q339.value.id == "Optional"):
+                    _q339 = _q339.slice
+                elif (isinstance(_q339, _A273.BinOp) and isinstance(_q339.op, _A273.BitOr)
+                      and isinstance(_q339.right, _A273.Constant)
+                      and _q339.right.value is None):
+                    _q339 = _q339.left
+                _nm339 = (_q339.id if isinstance(_q339, _A273.Name) else _q339.value
+                          if isinstance(_q339, _A273.Constant)
+                          and isinstance(_q339.value, str) else None)
+                if _nm339 in _op339:
+                    _ann339[id(_a339)] = _nm339
+                elif any((isinstance(_z, _A273.Name) and _z.id in _op339)
+                         or (isinstance(_z, _A273.Constant) and _z.value in _op339)
+                         for _z in _A273.walk(_a339)):
+                    _badann339.append(_a339)
+        # callee results and fields annotated with an opaque enum, by (attribute) name
+        _ret339 = {}
+        _fld339 = {}
+        for _x339 in _A273.walk(unified_ast):
+            if isinstance(_x339, _FN273) and id(_x339.returns) in _ann339:
+                _ret339[_x339.name] = _ann339[id(_x339.returns)]
+            if isinstance(_x339, _A273.AnnAssign) and id(_x339.annotation) in _ann339:
+                _t339 = _x339.target
+                _p339 = _par339.get(id(_x339))
+                if isinstance(_t339, _A273.Attribute):
+                    _fld339[_t339.attr] = _ann339[id(_x339.annotation)]
+                elif isinstance(_t339, _A273.Name) and isinstance(_p339, _A273.ClassDef):
+                    _fld339[_t339.id] = _ann339[id(_x339.annotation)]
+        _fns339 = {}
+        for _x339 in _A273.walk(unified_ast):
+            if isinstance(_x339, _FN273):
+                _fns339.setdefault(_x339.name, []).append(_x339)
+        _scopes339 = [unified_ast] + _low273
+        _mod339 = {}
+        for _F339 in _scopes339:
+            _en339 = dict(_mod339)
+            _nodes339 = (list(unified_ast.body) if _F339 is unified_ast
+                         else list(_A273.walk(_F339)))
+            if _F339 is not unified_ast:
+                for _x339 in _nodes339:
+                    if isinstance(_x339, _A273.arg) and id(_x339.annotation) in _ann339:
+                        _en339[_x339.arg] = _ann339[id(_x339.annotation)]
+            _ise339 = {}
+            for _it339 in range(len(_nodes339) + 2):
+                _ise339 = {}
+                for _x339 in (_nodes339 if _F339 is not unified_ast else
+                              [_z for _s in _nodes339 for _z in _A273.walk(_s)]):
+                    _k339 = None
+                    if (isinstance(_x339, _A273.Attribute)
+                            and isinstance(_x339.value, _A273.Name)
+                            and _x339.value.id in _op339
+                            and _x339.attr in _op339[_x339.value.id][2]):
+                        _k339 = _x339.value.id
+                    elif (isinstance(_x339, (_A273.Call, _A273.Subscript))
+                          and isinstance(getattr(_x339, "func", None)
+                                         or getattr(_x339, "value", None), _A273.Name)
+                          and (getattr(_x339, "func", None)
+                               or getattr(_x339, "value", None)).id in _op339):
+                        _k339 = (getattr(_x339, "func", None)
+                                 or getattr(_x339, "value", None)).id
+                    elif isinstance(_x339, _A273.Call):
+                        _f339 = _x339.func
+                        _fn339 = (_f339.id if isinstance(_f339, _A273.Name) else _f339.attr
+                                  if isinstance(_f339, _A273.Attribute) else None)
+                        _k339 = _ret339.get(_fn339)
+                    elif (isinstance(_x339, _A273.Attribute)
+                          and isinstance(_x339.ctx, _A273.Load)):
+                        _k339 = _fld339.get(_x339.attr)
+                    elif isinstance(_x339, _A273.Name) and isinstance(_x339.ctx, _A273.Load):
+                        _k339 = _en339.get(_x339.id)
+                    if _k339 is not None:
+                        _ise339[id(_x339)] = (_k339, _x339)
+                _n0339 = len(_en339)
+                for _x339 in (_nodes339 if _F339 is not unified_ast else
+                              [_z for _s in _nodes339 for _z in _A273.walk(_s)]):
+                    _v339 = None
+                    _tg339 = []
+                    if isinstance(_x339, (_A273.Assign, _A273.NamedExpr)):
+                        _v339 = _x339.value
+                        _tg339 = (list(_x339.targets) if isinstance(_x339, _A273.Assign)
+                                  else [_x339.target])
+                    elif isinstance(_x339, _A273.AnnAssign) and _x339.value is not None:
+                        _v339 = _x339.value
+                        _tg339 = [_x339.target]
+                    elif isinstance(_x339, (_A273.For, _A273.AsyncFor, _A273.comprehension)):
+                        _tg339 = [_x339.target]
+                        if isinstance(_x339.iter, _A273.Name) and _x339.iter.id in _op339:
+                            for _z339 in _A273.walk(_x339.target):
+                                if isinstance(_z339, _A273.Name):
+                                    _en339.setdefault(_z339.id, _x339.iter.id)
+                        continue
+                    if _v339 is not None and id(_v339) in _ise339:
+                        for _t339 in _tg339:
+                            if isinstance(_t339, _A273.Name):
+                                _en339.setdefault(_t339.id, _ise339[id(_v339)][0])
+                if len(_en339) == _n0339:
+                    break
+            if _F339 is unified_ast:
+                _mod339 = _en339
+                continue
+            # the CONTEXT of every opaque enum-member expression decides
+            for _k339, _x339 in _ise339.values():
+                _du339 = _op339[_k339][1]
+                _p339 = _par339.get(id(_x339))
+                _g339 = _par339.get(id(_p339)) if _p339 is not None else None
+                _eq339 = not (_du339 & {"__eq__", "__ne__"})
+                _tr339 = not (_du339 & {"__bool__", "__len__"})
+                _ok339 = False
+                if isinstance(_p339, (_A273.Assign, _A273.NamedExpr)) and _p339.value is _x339:
+                    _ok339 = all(isinstance(_t, _A273.Name) for _t in (
+                        _p339.targets if isinstance(_p339, _A273.Assign) else [_p339.target]))
+                elif isinstance(_p339, _A273.AnnAssign) and _p339.value is _x339:
+                    _ok339 = isinstance(_p339.target, _A273.Name)
+                elif isinstance(_p339, _A273.Compare):
+                    _ok339 = True
+                    _xs339 = [_p339.left] + list(_p339.comparators)
+                    for _i339, _o339 in enumerate(_p339.ops):
+                        if _x339 is not _xs339[_i339] and _x339 is not _xs339[_i339 + 1]:
+                            continue
+                        if isinstance(_o339, (_A273.Is, _A273.IsNot)):
+                            continue
+                        if isinstance(_o339, (_A273.Eq, _A273.NotEq)) and _eq339:
+                            continue
+                        if (isinstance(_o339, (_A273.In, _A273.NotIn)) and _eq339
+                                and _x339 is _xs339[_i339]):
+                            continue
+                        _ok339 = False
+                elif (isinstance(_p339, (_A273.Tuple, _A273.List, _A273.Set))
+                      and isinstance(_g339, _A273.Compare) and _eq339
+                      and _p339 in _g339.comparators
+                      and all(isinstance(_o, (_A273.In, _A273.NotIn)) for _o in _g339.ops)):
+                    _ok339 = True
+                elif isinstance(_p339, _A273.Attribute) and _p339.value is _x339:
+                    _ok339 = (_p339.attr in ("value", "name")
+                              and not (_du339 & {"__getattr__", "__getattribute__"}))
+                elif isinstance(_p339, (_A273.If, _A273.While, _A273.IfExp, _A273.Assert)):
+                    _ok339 = _p339.test is _x339 and _tr339
+                elif isinstance(_p339, _A273.UnaryOp) and isinstance(_p339.op, _A273.Not):
+                    _ok339 = _tr339
+                elif isinstance(_p339, _A273.BoolOp):
+                    _ok339 = _tr339 and (
+                        (isinstance(_g339, (_A273.If, _A273.While, _A273.IfExp, _A273.Assert))
+                         and _g339.test is _p339)
+                        or (isinstance(_g339, _A273.UnaryOp)
+                            and isinstance(_g339.op, _A273.Not)))
+                elif isinstance(_p339, _A273.Expr):
+                    _ok339 = True
+                elif isinstance(_p339, (_A273.MatchValue, _A273.Match)):
+                    _ok339 = _eq339
+                elif isinstance(_p339, _A273.Return):
+                    _h339 = _p339
+                    while _h339 is not None and not isinstance(_h339, _FN273 + (_A273.Lambda,)):
+                        _h339 = _par339.get(id(_h339))
+                    _ok339 = (isinstance(_h339, _FN273)
+                              and _ann339.get(id(_h339.returns)) == _k339)
+                elif isinstance(_p339, (_A273.Call, _A273.keyword)):
+                    _c339 = _p339 if isinstance(_p339, _A273.Call) else _g339
+                    if isinstance(_c339, _A273.Call) and _c339.func is not _x339:
+                        _f339 = _c339.func
+                        _fn339 = (_f339.id if isinstance(_f339, _A273.Name) else _f339.attr
+                                  if isinstance(_f339, _A273.Attribute) else None)
+                        if isinstance(_f339, _A273.Name) and _fn339 in (
+                                "isinstance", "id", "type") and _fn339 not in _fns339:
+                            _ok339 = True
+                        elif (isinstance(_f339, _A273.Name) and _fn339 == "hash"
+                              and _fn339 not in _fns339):
+                            _ok339 = "__hash__" not in _du339
+                        elif _fn339 in _fns339:
+                            _ok339 = True
+                            for _d339 in _fns339[_fn339]:
+                                _pa339 = (list(getattr(_d339.args, "posonlyargs", None) or [])
+                                          + list(_d339.args.args))
+                                if isinstance(_f339, _A273.Attribute) and _pa339 and \
+                                        _pa339[0].arg in ("self", "cls"):
+                                    _pa339 = _pa339[1:]
+                                _tp339 = None
+                                if isinstance(_p339, _A273.keyword):
+                                    _tp339 = [_a for _a in _pa339 + list(_d339.args.kwonlyargs)
+                                              if _a.arg == _p339.arg]
+                                    _tp339 = _tp339[0] if _tp339 else None
+                                elif _x339 in _c339.args:
+                                    _i339 = _c339.args.index(_x339)
+                                    _tp339 = _pa339[_i339] if _i339 < len(_pa339) else None
+                                if _tp339 is None or _ann339.get(id(_tp339.annotation)) != _k339:
+                                    _ok339 = False
+                elif isinstance(_p339, _A273.arguments):
+                    _pa339 = (list(getattr(_p339, "posonlyargs", None) or [])
+                              + list(_p339.args))
+                    _tp339 = None
+                    if _x339 in _p339.defaults:
+                        _tp339 = _pa339[len(_pa339) - len(_p339.defaults)
+                                        + _p339.defaults.index(_x339)]
+                    elif _x339 in _p339.kw_defaults:
+                        _tp339 = _p339.kwonlyargs[_p339.kw_defaults.index(_x339)]
+                    _ok339 = (_tp339 is not None
+                              and _ann339.get(id(_tp339.annotation)) == _k339)
+                if not _ok339:
+                    _bad339.append((getattr(_F339, "name", "?"),
+                                    getattr(_x339, "lineno", 0), _k339,
+                                    _A273.unparse(_p339 if _p339 is not None
+                                                  else _x339)[:70]))
+            for _x339 in _nodes339:
+                if isinstance(_x339, _A273.AugAssign) and isinstance(
+                        _x339.target, _A273.Name) and _x339.target.id in _en339:
+                    _bad339.append((_F339.name, getattr(_x339, "lineno", 0),
+                                    _en339[_x339.target.id], _A273.unparse(_x339)[:70]))
+                # the enum CLASS itself handed to a callee (`list(C)`, `sorted(C)`) is a
+                # container of its members
+                if (isinstance(_x339, _A273.Name) and _x339.id in _op339
+                        and isinstance(_x339.ctx, _A273.Load)):
+                    _p339 = _par339.get(id(_x339))
+                    if (isinstance(_p339, (_A273.Call, _A273.keyword))
+                            and getattr(_p339, "func", None) is not _x339
+                            and not (isinstance(_p339, _A273.Call)
+                                     and isinstance(_p339.func, _A273.Name)
+                                     and _p339.func.id in ("isinstance", "issubclass"))):
+                        _bad339.append((_F339.name, getattr(_x339, "lineno", 0), _x339.id,
+                                        _A273.unparse(_p339)[:70]))
+        for _a339 in _badann339:
+            _bad339.append(("?", getattr(_a339, "lineno", 0), "",
+                            "annotation `" + _A273.unparse(_a339)[:60] + "`"))
+    if _bad339:
+        from errors import PyCSLSemanticError as _PyCSLSemErr339
+        _b339 = sorted((_r[1], _i, _r) for _i, _r in enumerate(_bad339))[0][2]
+        raise _PyCSLSemErr339(
+            f"'{_b339[0]}' uses a member of the enum class '{_b339[2]}' in `{_b339[3]}` "
+            f"(line {_b339[1]}): an enum member is NOT an int — a plain Enum/Flag/StrEnum "
+            f"member has no arithmetic, ordering or index, and a user-defined dunder "
+            f"(e.g. `__eq__`/`__lt__`) on an enum decides that operator — but PyCSL models "
+            f"the member as an opaque int, so the operation would be verified against "
+            f"int semantics CPython never runs (route #339). Bind it to a name, compare it "
+            f"with `is`/`==`, read its `.value`, or pass/return it where the annotation "
+            f"names the enum; use an `IntEnum` without dunders for int semantics"
+            f"{'' if len(_bad339) == 1 else f' (also: {len(_bad339) - 1} more)'}.",
+            filename=args.file, stage="ir-semantic",
+            code="PYCSL-SEM-ENUM-MEMBER-OPERATION")
     # (3) R3 — the callees that may RAISE: a declared `raises`, or (with a body) an
     # escaping `raise`, closed transitively over call names (an over-approximation).
     from module6_whyml.ir_scanner import IRScanner as _IRS269
