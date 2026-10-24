@@ -1,5 +1,15 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #338 REPAIRED, candidate (r338 executor off d175a70d; code e8c3d3e5 / 5d96d6e1 / ef4c3d57, corpus f8c6d9aa /
+##   355942e6, census 88901d08, docs 2e529ccc + route docs; inline in `_run_pipeline`, no new def, ledger 3). (a) Override rule R5: an
+##   override's return annotation must be a subtype of the base's and each base parameter annotation a subtype of the override's
+##   (`bool` <: `int`, class <: ancestor, Union/Optional members, Any/object; `int` not <: `float`; absent = Any) — refused
+##   PYCSL-SEM-OVERRIDE-REFINEMENT, off under `--assume-class-exact`. (b) #334's store census adds stores from ANY code (module level,
+##   `__main__`, functions, other classes; `setattr` / `delattr` / `del` / `+=` / dict-value / `__dict__`), by receiver class when
+##   typed, else to every class storing that field. (c) An unannotated-parameter initialiser is unknown when unverified module code
+##   names the def / class (blunt version measured: mirror Module1_Ingestor GONE). Witnesses 4530-4540 (9 PROVED, 2 FAILED at base)
+##   -> REFUSED; controls 4541-4544 PROVED. Root 0/0/0, pyref 0/0/0, mirror 53/53 0/0/0 (no OWED proof); fast planes 61/61. Residuals:
+##   per-file census, imported-base overrides not compared, int-label only (see REPAIR).
 ## gen #37 (2026-10-24): #335 REPAIRED, candidate (r335 executor off 87b4eca6; commits abff40d6, 56aa4b8b, 2969cbf4 + route docs;
 ##   inline at the end of `apply_inheritance.merge_one` + a Module 5 side channel `nonrecord335`, no new def, ledger 3). Sound
 ##   refusal PYCSL-R335-INHERITED-INVARIANT-CONSTRUCTION: Python's constructor chain over the C3 MRO (walk through classes without
