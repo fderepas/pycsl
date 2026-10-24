@@ -138,6 +138,167 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         # keys, populated from the same `csl_shared_decls`).
         self._shared_var_names = {d.variable for d in shared_decls}
 
+        # (#49) ROUTE #336 — ANNOTATIONS ARE RESOLVED TO THEIR TARGET BEFORE ANY TYPE IS READ.
+        # Every type reader below (`_m5_get_type_name`, the list/dict/set element readers,
+        # route #249/#230's container scans) matches annotation NODES by spelling, and an
+        # unmatched spelling fell to the `int` default: `Num: TypeAlias = float` made
+        # `def f(x: Num)` an `int` parameter and `x % 1 == 0` PROVED for 0.5;
+        # `Annotated[float, m]`, `Sequence[float]`, `tuple[float, ...]`, `Mapping[str, float]`
+        # and `Literal[None]` likewise. Rewritten IN PLACE (parameters, returns, annotated
+        # locals), so every reader sees one spelling: a module-level alias bound exactly once
+        # (`X: TypeAlias = T`, `type X = T`, `X = TypeAliasType("X", T)`, or a plain
+        # `X = T` whose every name is a type name) is replaced by `T`; `Annotated[T, ..]` by
+        # `T`; `Sequence[T]`/`MutableSequence[T]`/`tuple[T, ...]`/`Tuple[T, ...]` by
+        # `List[T]` (read-only uses of an indexable sequence); `Mapping[K, V]`/
+        # `MutableMapping[K, V]` by `Dict[K, V]`; `Literal[None]` by `None`. An alias of
+        # `Any`/`object` is kept (its name is already an unrecognised annotation, and
+        # `PyVal` is a recognised value-type sentinel). What is still not recognised after
+        # this is ERASED in Module 6 (`_reset_function_state`, the route #249 set), never int.
+        import copy as _copy336
+        _tyn336 = {"int", "float", "str", "bool", "bytes", "bytearray", "complex", "list",
+                   "dict", "set", "frozenset", "tuple", "List", "Dict", "Set", "FrozenSet",
+                   "Tuple", "Optional", "Union", "Sequence", "MutableSequence", "Mapping",
+                   "MutableMapping", "Iterable", "Iterator", "Collection", "Deque", "deque",
+                   "Annotated", "Literal", "Callable", "Type", "type", "DefaultDict",
+                   "OrderedDict", "Counter", "AbstractSet", "None", "Any", "object"}
+        _nb336: Dict[str, int] = {}
+        for _st336 in node.body:
+            _tg336: List[str] = []
+            if isinstance(_st336, ast.Assign):
+                _tg336 = [_t.id for _t in _st336.targets if isinstance(_t, ast.Name)]
+            elif (isinstance(_st336, (ast.AnnAssign, ast.AugAssign))
+                    and isinstance(_st336.target, ast.Name)):
+                _tg336 = [_st336.target.id]
+            elif isinstance(_st336, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                _tg336 = [_st336.name]
+                if isinstance(_st336, ast.ClassDef):
+                    _tyn336.add(_st336.name)
+            elif type(_st336).__name__ == "TypeAlias" and isinstance(_st336.name, ast.Name):
+                _tg336 = [_st336.name.id]
+            for _x336 in _tg336:
+                _nb336[_x336] = _nb336.get(_x336, 0) + 1
+        _al336: Dict[str, Any] = {}
+        for _st336 in node.body:
+            _k336: Optional[str] = None
+            _v336: Any = None
+            if (type(_st336).__name__ == "TypeAlias" and isinstance(_st336.name, ast.Name)
+                    and not getattr(_st336, "type_params", None)):
+                _k336, _v336 = _st336.name.id, _st336.value
+            elif (isinstance(_st336, ast.AnnAssign) and isinstance(_st336.target, ast.Name)
+                    and _st336.value is not None
+                    and ((isinstance(_st336.annotation, ast.Name)
+                          and _st336.annotation.id == "TypeAlias")
+                         or (isinstance(_st336.annotation, ast.Attribute)
+                             and _st336.annotation.attr == "TypeAlias"))):
+                _k336, _v336 = _st336.target.id, _st336.value
+            elif (isinstance(_st336, ast.Assign) and len(_st336.targets) == 1
+                    and isinstance(_st336.targets[0], ast.Name)):
+                _c336 = _st336.value
+                if (isinstance(_c336, ast.Call) and not _c336.keywords
+                        and len(_c336.args) == 2
+                        and ((isinstance(_c336.func, ast.Name)
+                              and _c336.func.id == "TypeAliasType")
+                             or (isinstance(_c336.func, ast.Attribute)
+                                 and _c336.func.attr == "TypeAliasType"))):
+                    _k336, _v336 = _st336.targets[0].id, _c336.args[1]
+                elif isinstance(_c336, (ast.Name, ast.Subscript, ast.BinOp)):
+                    # a PLAIN alias: every name in it is a type name (or an earlier alias)
+                    # and every constant is `None`/`...`/a string (a forward reference)
+                    _ok336 = not (isinstance(_c336, ast.BinOp)
+                                  and not isinstance(_c336.op, ast.BitOr))
+                    for _w336 in ast.walk(_c336):
+                        if isinstance(_w336, ast.Name):
+                            _ok336 = _ok336 and (_w336.id in _tyn336 or _w336.id in _al336)
+                        elif isinstance(_w336, ast.Constant):
+                            _ok336 = _ok336 and (_w336.value is None or _w336.value is ...
+                                                 or isinstance(_w336.value, str))
+                        elif isinstance(_w336, ast.BinOp):
+                            _ok336 = _ok336 and isinstance(_w336.op, ast.BitOr)
+                        elif not isinstance(_w336, (ast.Subscript, ast.Tuple, ast.List,
+                                                    ast.Load, ast.Attribute, ast.BitOr)):
+                            _ok336 = False
+                    if _ok336 and not (isinstance(_c336, ast.Name)
+                                       and _c336.id in ("None", "Any", "object")):
+                        _k336, _v336 = _st336.targets[0].id, _c336
+            if (_k336 is not None and _nb336.get(_k336) == 1 and _v336 is not None
+                    and _k336 not in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR",
+                                      "PyVal", "Term")
+                    and not (isinstance(_v336, ast.Name)
+                             and _v336.id in ("Any", "object"))
+                    and not (isinstance(_v336, ast.Constant)
+                             and isinstance(_v336.value, str))):
+                _al336[_k336] = _v336
+        _slots336: List[Any] = []
+        for _fn336 in ast.walk(node):
+            if isinstance(_fn336, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                _fa336 = _fn336.args
+                for _ar336 in (list(_fa336.posonlyargs) + list(_fa336.args)
+                               + list(_fa336.kwonlyargs) + [_fa336.vararg, _fa336.kwarg]):
+                    if _ar336 is not None and _ar336.annotation is not None:
+                        _slots336.append((_ar336, "annotation"))
+                if _fn336.returns is not None:
+                    _slots336.append((_fn336, "returns"))
+                for _ln336 in ast.walk(_fn336):
+                    if isinstance(_ln336, ast.AnnAssign) and _ln336 is not _fn336:
+                        _slots336.append((_ln336, "annotation"))
+        for _ow336, _fd336 in _slots336:
+            _hold336 = ast.Expr(value=getattr(_ow336, _fd336))
+            for _rd336 in range(16):
+                _chg336 = False
+                _stk336: List[Any] = [_hold336]
+                while _stk336:
+                    _p336 = _stk336.pop()
+                    for _f336, _val336 in ast.iter_fields(_p336):
+                        _its336 = _val336 if isinstance(_val336, list) else [_val336]
+                        for _i336 in range(len(_its336)):
+                            _e336 = _its336[_i336]
+                            if not isinstance(_e336, ast.AST):
+                                continue
+                            _r336: Any = None
+                            if isinstance(_e336, ast.Name) and _e336.id in _al336:
+                                _r336 = _copy336.deepcopy(_al336[_e336.id])
+                            elif isinstance(_e336, ast.Subscript):
+                                _hd336 = (_e336.value.id if isinstance(_e336.value, ast.Name)
+                                          else _e336.value.attr
+                                          if isinstance(_e336.value, ast.Attribute) else "")
+                                _sl336 = _e336.slice
+                                if (_hd336 == "Annotated" and isinstance(_sl336, ast.Tuple)
+                                        and _sl336.elts):
+                                    _r336 = _sl336.elts[0]
+                                elif (_hd336 in ("Sequence", "MutableSequence")
+                                        and not isinstance(_sl336, ast.Tuple)):
+                                    _r336 = ast.Subscript(value=ast.Name(id="List", ctx=ast.Load()),
+                                                          slice=_sl336, ctx=ast.Load())
+                                elif (_hd336 in ("tuple", "Tuple") and isinstance(_sl336, ast.Tuple)
+                                        and len(_sl336.elts) == 2
+                                        and isinstance(_sl336.elts[1], ast.Constant)
+                                        and _sl336.elts[1].value is ...):
+                                    _r336 = ast.Subscript(value=ast.Name(id="List", ctx=ast.Load()),
+                                                          slice=_sl336.elts[0], ctx=ast.Load())
+                                elif (_hd336 in ("Mapping", "MutableMapping")
+                                        and isinstance(_sl336, ast.Tuple)
+                                        and len(_sl336.elts) == 2):
+                                    _r336 = ast.Subscript(value=ast.Name(id="Dict", ctx=ast.Load()),
+                                                          slice=_sl336, ctx=ast.Load())
+                                elif (_hd336 == "Literal" and isinstance(_sl336, ast.Constant)
+                                        and _sl336.value is None):
+                                    _r336 = ast.Constant(value=None)
+                            if _r336 is not None:
+                                ast.copy_location(_r336, _e336)
+                                for _w336 in ast.walk(_r336):
+                                    if not hasattr(_w336, "lineno") and hasattr(_e336, "lineno"):
+                                        ast.copy_location(_w336, _e336)
+                                if isinstance(_val336, list):
+                                    _val336[_i336] = _r336
+                                else:
+                                    setattr(_p336, _f336, _r336)
+                                _chg336 = True
+                                _e336 = _r336
+                            _stk336.append(_e336)
+                if not _chg336:
+                    break
+            setattr(_ow336, _fd336, _hold336.value)
+
         # (#49) ROUTE #116 — THE CLASS-BY-NAME FACTORY RECOGNIZER'S JUSTIFICATION, CHECKED.
         # `_py_expr_call` resolves `F("X")(...)` to a direct call of `X` because
         # "`pure_ast._N(name)` is `return _g[name]`" — a fact about ONE helper, and the arm
@@ -6941,6 +7102,55 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                                 and _r249_x.value in ("Any", "object"))):
                         _r249_tag += _r249_p
                         break
+                # (#49) ROUTE #336 — AN ELEMENT / KEY / VALUE TYPE THE LOWERING DOES NOT MODEL
+                # IS ERASED, NOT AN INT. The element readers model `int`/`bool`/`str`, a record,
+                # `float` only as a flat `List[float]` element or a fixed `Tuple` slot, and a
+                # dict value only in `_m5_get_dict_value_type`'s shapes; every other element
+                # type was read as `int` (`Dict[str, float]`, `Dict[str, Fraction]`,
+                # `Set[float]`, `List[Decimal]`: `d["a"] % 1 == 0` PROVED for 0.5).
+                if _r249_p not in _r249_tag:
+                    _r336_rec = set(getattr(self, "_m5_record_class_names", set()) or set())
+                    _r336_rec |= {_td.get("name") for _td in self.program_ir.get("type_decls", [])
+                                  if isinstance(_td, dict) and _td.get("kind") == "record"}
+                    _r336_ok = True
+                    _r336_v = _r249_e
+                    if (isinstance(_r336_v, ast.Subscript) and isinstance(_r336_v.value, ast.Name)
+                            and _r336_v.value.id == "Optional"):
+                        _r336_v = _r336_v.slice
+                    if _r249_p == "v":
+                        _r336_ok = ((isinstance(_r336_v, ast.Name)
+                                     and _r336_v.id in ("int", "bool"))
+                                    or self._m5_get_dict_value_type(_r249_a) is not None)
+                    elif _r249_p == "k":
+                        _r336_ok = isinstance(_r249_e, ast.Name) and _r249_e.id in (
+                            "int", "bool", "str")
+                    else:
+                        # `float` is modelled as a `List` element at any `List`-only depth
+                        # (`List[float]` -> `array real`, `List[List[float]]` -> nested `real`)
+                        # and as a fixed `Tuple` slot; anywhere else it was read as `int`.
+                        _r336_fl = _r249_bn in ("Tuple", "tuple") or (
+                            _r249_bn in ("List", "list") and all(
+                                isinstance(_r336_x.value, ast.Name)
+                                and _r336_x.value.id in ("List", "list")
+                                for _r336_x in ast.walk(_r249_e)
+                                if isinstance(_r336_x, ast.Subscript)))
+                        for _r336_x in ast.walk(_r249_e):
+                            if isinstance(_r336_x, ast.Name):
+                                _r336_ok = _r336_ok and (
+                                    _r336_x.id in ("int", "bool", "str", "List", "list",
+                                                   "Dict", "dict", "Set", "set", "FrozenSet",
+                                                   "frozenset", "Tuple", "tuple", "Optional",
+                                                   "PyVal")
+                                    or (_r336_x.id in _r336_rec
+                                        and _r249_bn not in ("Set", "set", "FrozenSet",
+                                                             "frozenset", "AbstractSet"))
+                                    or (_r336_x.id == "float" and _r336_fl))
+                            elif isinstance(_r336_x, ast.Constant):
+                                _r336_ok = _r336_ok and _r336_x.value is None
+                            elif not isinstance(_r336_x, (ast.Subscript, ast.Tuple, ast.Load)):
+                                _r336_ok = False
+                    if not _r336_ok:
+                        _r249_tag += _r249_p
             if _r249_tag:
                 _r249_cont[_r249_nm] = "".join(sorted(set(_r249_tag)))
         _r233_fir = {

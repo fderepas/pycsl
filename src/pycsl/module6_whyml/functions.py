@@ -2443,6 +2443,25 @@ class FunctionEmissionMixin:
             if (_r249_a is None or _r249_a in ("Any", "object") or _r249_a in _r249_tv
                     or _r249_a in _r249_eq_classes):
                 _r249_erased.add(_r249_p)
+            # (#49) ROUTE #336/#337 — AN ANNOTATION THE LOWERING DOES NOT MODEL IS NOT AN INT.
+            #   `_param_type_str` / `_symtype_to_whyml` end in "defaults to int": a parameter
+            #   annotated `Fraction`, `Decimal`, `numbers.Real`, `SupportsFloat`, `type`,
+            #   `None`, `Iterable[float]`, `Deque[float]`, an imported or FIELD-LESS user class
+            #   (`type w = int`, its own `__sub__` ignored), ... was an `int` with every int law
+            #   (`x % 1 == 0`, `x - x == 0`, `x < x` under `no_exception`). Module 5 already
+            #   resolved aliases / `Annotated` / the indexable ABCs to their target (route
+            #   #336's normalization in `visit_Module`), so a tag that is still none of the
+            #   lowered types below is the arbitrary Python object of route #249: erased (no
+            #   law; route #251/#252 make its arithmetic uninterpreted and refuse it under
+            #   `no_exception` or in a builtin-typed slot).
+            elif isinstance(_r249_a, str) and not (
+                    _r249_a in ("int", "bool", "str", "float", "list", "tuple", "dict", "set",
+                                "frozenset", "bytes", "bytearray", "ExprIR", "StmtIR", "IRNode",
+                                "ContractExprIR", "exprir", "Term")
+                    or _r249_a in (getattr(self, "_record_types", {}) or {})
+                    or _r249_a in (getattr(self, "_variant_types", {}) or {})
+                    or _r249_a.startswith(("_union_", "option:", "callable:"))):
+                _r249_erased.add(_r249_p)
         _r249_asgs: List[Any] = []
         _r255_lams: List[Any] = []
         _r255_vars: Set[str] = set()
