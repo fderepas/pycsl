@@ -46,6 +46,10 @@ def _rewrite_ir_calls(obj: Any, old_name: str, new_name: str) -> None:
         for item in obj:
             _rewrite_ir_calls(item, old_name, new_name)
 
+# (#49) ROUTE #326: the live body now REFUSES a local file shadowing a standard-library
+# module name (PYCSL-SEM-IMPORT-SHADOWS-STDLIB), so the stub declares the exit — same
+# reason as `resolve_imports` below (check-trusted-raises-honesty).
+#@ raises PyCSLSemanticError when True
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
