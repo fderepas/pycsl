@@ -4384,6 +4384,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         r"|wl[0-9]+c)_|__(?:pycsl|and|or|happy)_|_for_target|_(?:alit|u|hl|rec_|row|ci|celt"
         r"|si|csl_forall|s_eq|pyobj_state|mi|hin|kin|pin|lin|hln|lln|sln|fk|cj|ae|ri|swr|fr"
         r"|fi|res|mnk|hfm|sfm|nmap)$|__f[dr]$)")
+    # Only a name the USER spelled can collide: the final IR also carries the front end's
+    # own generated names (`_for_target`, `_inl_res__inl<k>`, `_pycsl_multi_<k>`), which
+    # are the emitter's and are not refused. A user name is an identifier of the source
+    # AST or a token of a `#@` contract line (quantifier / ghost binders).
+    _srcid333: Set[str] = set()
+    for _a333 in _ast327.walk(_ast327.parse(source_code)):
+        for _at333 in ("id", "arg", "name", "asname"):
+            if isinstance(getattr(_a333, _at333, None), str):
+                _srcid333.add(getattr(_a333, _at333))
+    for _ln333 in source_code.splitlines():
+        if _ln333.lstrip().startswith("#@"):
+            _srcid333.update(_re333.findall(r"[A-Za-z_][A-Za-z0-9_]*", _ln333))
     import builtins as _bi333
     _bexc333: Set[str] = {_b333 for _b333 in dir(_bi333)
                           if isinstance(getattr(_bi333, _b333), type)
@@ -4485,7 +4497,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _clash327 = _seen327.get(_w327)
             if _w327.startswith("_tu_"):
                 _clash327 = "<the emitter's tuple-unpacking binders `_tu_*`>"
-            elif _rsv333.match(_w327):
+            elif _rsv333.match(_w327) and _nm327 in _srcid333:
                 # route #333: the emitter's own binders live in this namespace
                 _clash327 = (f"<the emitter's generated binder namespace "
                              f"`{_rsv333.match(_w327).group(0)}...`>")
