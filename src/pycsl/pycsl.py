@@ -7646,7 +7646,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # be one of them
     _star325 = any(n == "*" for n, _m in [(v[1], v[0]) for v in _inam325.values()])
     _mcall325 = set()
+    _ocls334 = set()
     if _tree325 is not None:
+        _rt334 = getattr(transpiler, "_record_types", None) or {}
+        _ocls334 = {c.name for c in _ast325.walk(_tree325) if isinstance(c, _ast325.ClassDef)
+                    and not (isinstance(_rt334.get(c.name), dict)
+                             and _rt334[c.name].get("whyml_name"))}
         for _a325 in _ast325.walk(_tree325):
             if isinstance(_a325, _ast325.ClassDef):
                 _origin325.add(_wid325(_a325.name))
@@ -7664,6 +7669,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if (_f325.id in _imod325 or _f325.id in _inam325
                     or (hasattr(_bi325, _f325.id) and _f325.id not in _bind325)):
                 _mcall325.add(_wid325(".".join(_ch325)))
+            # ROUTE #334: constructing an OPAQUE user class (no record type) yields an
+            # object of unknown fields: its stub `<cls>_<n>` is an origin (its getters of
+            # provably-int fields stay int, step 6)
+            if (len(_ch325) == 1 and _f325.id in _ocls334):
+                _mcall325.add(_wid325(_f325.id))
     from module6_whyml.identifiers import stable_hash as _sh325
     _clsbad325 = set()
     _clsok325 = set()
@@ -7916,9 +7926,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                "sorted", "reversed", "map", "filter", "zip", "enumerate", "input", "open"}
     _BARE330 = {"list", "List", "Sequence", "Iterable", "tuple", "Tuple", "MutableSequence",
                 "Collection"}
+    # ROUTE #334: BARE-CONTAINER-INT also covers a bare `dict` / `Dict` / `Mapping`: its
+    # values are lowered `option int` whatever their type (k01); strict mode refuses reads
+    _BAREDICT334 = {"dict", "Dict", "Mapping", "MutableMapping"}
+    _iflo325 = set()    # ROUTE #334: origins of an integral-float field (comparisons only)
+    _mvorg325 = set()   # ROUTE #334: origins standing for a dict's VALUES
+    _octok334 = {}      # ROUTE #334: opaque class (WhyML name) -> provably-int fields
     if _tree325 is not None:
         _nif330 = {}    # python class name -> fields shown non-int
         _bas330 = {}    # python class name -> base class names
+        _ini334 = {}    # python class name -> [(field, annotation, value, def, kind)]
+        _meth334 = {}   # id(method def) -> (class name, `self` parameter name)
+        _ndv334 = {}    # python class name -> dict fields whose VALUES are not provably int
         for _a325 in _ast325.walk(_tree325):
             if isinstance(_a325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef,
                                   _ast325.AnnAssign)):
@@ -7941,121 +7960,515 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                               + _a325.args.kwonlyargs):
                     _an325 = _x325.annotation
                     if getattr(args, "strict_bare_containers", False) and (
-                            (isinstance(_an325, _ast325.Name) and _an325.id in _BARE330)
+                            (isinstance(_an325, _ast325.Name)
+                             and _an325.id in _BARE330 | _BAREDICT334)
                             or (isinstance(_an325, _ast325.Attribute)
-                                and _an325.attr in _BARE330)):
+                                and _an325.attr in _BARE330 | _BAREDICT334)):
                         for _dd325, _n2325 in _dname325.items():
                             if (_n2325 == _wid325(_a325.name)
                                     or _n2325.endswith("__" + _wid325(_a325.name))):
                                 _el325[(_dd325, _wid325(_x325.arg))] = (
-                                    "an element of '" + _x325.arg + "' (bare `"
+                                    ("a value" if getattr(_an325, "id", getattr(
+                                        _an325, "attr", "")) in _BAREDICT334
+                                     else "an element") + " of '" + _x325.arg + "' (bare `"
                                     + _ast325.unparse(_an325) + "` annotation)")
+                                if getattr(_an325, "id", getattr(_an325, "attr", "")) in (
+                                        _BAREDICT334):
+                                    _mvorg325.add(_el325[(_dd325, _wid325(_x325.arg))])
             if not isinstance(_a325, _ast325.ClassDef):
                 continue
             _bas330[_a325.name] = [b.id for b in _a325.bases if isinstance(b, _ast325.Name)]
-            _ini330 = []    # (field, annotation or None, value or None, params of its def)
+            # ROUTE #334 — EVERY store of a field of the class, as (field, annotation, value,
+            # def, kind): kind "=" a store of the field's value, "[]" a store of one of its
+            # (dict) VALUES. A target paired with no single value (an unpaired tuple
+            # element, a starred element, a `for` / `with` target) has value None (unknown).
+            # `self.r, self.s = 2.5, 1` used to escape the classification (o03).
+            _ini330 = _ini334.setdefault(_a325.name, [])
             for _s325 in _a325.body:
                 if isinstance(_s325, _ast325.AnnAssign) and isinstance(_s325.target,
                                                                        _ast325.Name):
-                    _ini330.append((_s325.target.id, _s325.annotation, _s325.value, {}))
+                    _ini330.append((_s325.target.id, _s325.annotation, _s325.value, None, "="))
                 elif isinstance(_s325, _ast325.Assign):
-                    _ini330.extend((t.id, None, _s325.value, {}) for t in _s325.targets
-                                   if isinstance(t, _ast325.Name))
+                    _pr334 = [(t, _s325.value) for t in _s325.targets]
+                    while _pr334:
+                        _t325, _v325 = _pr334.pop()
+                        if isinstance(_t325, _ast325.Name):
+                            _ini330.append((_t325.id, None, _v325, None, "="))
+                        elif (isinstance(_t325, (_ast325.Tuple, _ast325.List))
+                              and isinstance(_v325, (_ast325.Tuple, _ast325.List))
+                              and len(_t325.elts) == len(_v325.elts)
+                              and not any(isinstance(x, _ast325.Starred)
+                                          for x in _t325.elts + _v325.elts)):
+                            _pr334.extend(zip(_t325.elts, _v325.elts))
+                        else:
+                            _ini330.extend((x.id, None, None, None, "=")
+                                           for x in _ast325.walk(_t325)
+                                           if isinstance(x, _ast325.Name)
+                                           and isinstance(x.ctx, _ast325.Store))
                 elif (isinstance(_s325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef))
                       and _s325.args.args):
                     _sf330 = _s325.args.args[0].arg
-                    _pa330 = {x.arg: x.annotation for x in _s325.args.args[1:]
-                              + _s325.args.kwonlyargs}
+                    _meth334[id(_s325)] = (_a325.name, _sf330)
                     for _x325 in _ast325.walk(_s325):
-                        _tg330 = (_x325.targets if isinstance(_x325, _ast325.Assign) else
-                                  [_x325.target] if isinstance(
-                                      _x325, (_ast325.AnnAssign, _ast325.AugAssign)) else [])
-                        for _t325 in _tg330:
+                        _pr334 = []
+                        if isinstance(_x325, _ast325.Assign):
+                            _pr334 = [(t, _x325.value, None) for t in _x325.targets]
+                        elif isinstance(_x325, _ast325.AnnAssign):
+                            _pr334 = [(_x325.target, _x325.value, _x325.annotation)]
+                        elif isinstance(_x325, _ast325.AugAssign):
+                            # the old value is covered by the other stores (induction)
+                            _pr334 = [(_x325.target, _ast325.BinOp(
+                                left=_ast325.Constant(value=0), op=_x325.op,
+                                right=_x325.value), None)]
+                        elif isinstance(_x325, (_ast325.For, _ast325.AsyncFor)):
+                            _pr334 = [(_x325.target, _ast325.Constant(value=0) if (
+                                isinstance(_x325.iter, _ast325.Call)
+                                and isinstance(_x325.iter.func, _ast325.Name)
+                                and _x325.iter.func.id == "range") else None, None)]
+                        elif isinstance(_x325, (_ast325.With, _ast325.AsyncWith)):
+                            _pr334 = [(w.optional_vars, None, None) for w in _x325.items
+                                      if w.optional_vars is not None]
+                        elif isinstance(_x325, _ast325.comprehension):
+                            _pr334 = [(_x325.target, None, None)]
+                        elif (isinstance(_x325, _ast325.Call)
+                              and isinstance(_x325.func, _ast325.Name)
+                              and _x325.func.id == "setattr" and len(_x325.args) >= 2
+                              and isinstance(_x325.args[0], _ast325.Name)
+                              and _x325.args[0].id == _sf330):
+                            if (isinstance(_x325.args[1], _ast325.Constant)
+                                    and isinstance(_x325.args[1].value, str)):
+                                _ini330.append((_x325.args[1].value, None, _x325.args[2]
+                                                if len(_x325.args) > 2 else None, _s325, "="))
+                            else:
+                                _ini330.append(("*", None, None, _s325, "="))
+                        elif (isinstance(_x325, _ast325.Call)
+                              and isinstance(_x325.func, _ast325.Attribute)
+                              and isinstance(_x325.func.value, _ast325.Attribute)
+                              and isinstance(_x325.func.value.value, _ast325.Name)
+                              and _x325.func.value.value.id == _sf330
+                              and _x325.func.attr in ("update", "setdefault", "__setitem__",
+                                                      "fromkeys", "__ior__")):
+                            _ini330.append((_x325.func.value.attr, None, _x325.args[1] if (
+                                _x325.func.attr in ("setdefault", "__setitem__")
+                                and len(_x325.args) == 2) else None, _s325, "[]"))
+                        while _pr334:
+                            _t325, _v325, _an334 = _pr334.pop()
                             if (isinstance(_t325, _ast325.Attribute)
                                     and isinstance(_t325.value, _ast325.Name)
                                     and _t325.value.id == _sf330):
-                                _ini330.append((_t325.attr, getattr(_x325, "annotation", None),
-                                                _x325.value, _pa330))
-            for _f330, _an325, _v325, _pa330 in _ini330:
-                # a None / Optional[int] field (route #331): its int arm IS an int and its
-                # None is the opaque `pycsl_none`, so `=` / `<>` stay admitted for it; int
-                # arithmetic / ordering is refused (CPython raises TypeError on None)
-                _on330 = (isinstance(_an325, _ast325.Subscript)
-                          and isinstance(_an325.value, _ast325.Name)
-                          and _an325.value.id in ("Optional", "Union")
-                          and all((isinstance(x, _ast325.Name) and x.id in ("int", "bool"))
-                                  or (isinstance(x, _ast325.Constant) and x.value is None)
-                                  for x in (_an325.slice.elts if isinstance(
-                                      _an325.slice, _ast325.Tuple) else [_an325.slice]))) or (
-                    isinstance(_an325, _ast325.BinOp) and isinstance(_an325.op, _ast325.BitOr)
-                    and all((isinstance(x, _ast325.Name) and x.id in ("int", "bool"))
-                            or (isinstance(x, _ast325.Constant) and x.value is None)
-                            for x in (_an325.left, _an325.right)))
-                _vn330 = isinstance(_v325, _ast325.Constant) and _v325.value is None
-                if _on330 or (_vn330 and _an325 is None):
-                    _nif330.setdefault(_a325.name, {})[_f330] = (
-                        _nif330.get(_a325.name, {}).get(_f330, "none"))
-                if _vn330 and (_on330 or _an325 is None):
+                                _ini330.append((_t325.attr, _an334, _v325, _s325, "="))
+                                if isinstance(_x325, _ast325.AugAssign):
+                                    _ini330.append((_t325.attr, None, None, _s325, "[]"))
+                            elif (isinstance(_t325, _ast325.Subscript)
+                                  and isinstance(_t325.value, _ast325.Attribute)
+                                  and isinstance(_t325.value.value, _ast325.Name)
+                                  and _t325.value.value.id == _sf330):
+                                _ini330.append((_t325.value.attr, None, _v325, _s325, "[]"))
+                            elif isinstance(_t325, (_ast325.Tuple, _ast325.List)):
+                                if (isinstance(_v325, (_ast325.Tuple, _ast325.List))
+                                        and len(_t325.elts) == len(_v325.elts)
+                                        and not any(isinstance(x, _ast325.Starred)
+                                                    for x in _t325.elts + _v325.elts)):
+                                    _pr334.extend((a, b, None)
+                                                  for a, b in zip(_t325.elts, _v325.elts))
+                                else:
+                                    _pr334.extend((a, None, None) for a in _t325.elts)
+                            elif isinstance(_t325, _ast325.Starred):
+                                _pr334.append((_t325.value, None, None))
+        # ROUTE #334 — a field is classified by whether EVERY value stored into it is
+        # PROVABLY an int (type inference over the initialiser: int / bool literals, int
+        # operators over int operands, `**` by a non-negative literal, locals of the
+        # storing def whose every binding is provably int, int-annotated parameters,
+        # known-int globals, other provably-int fields, `len` / `int` / `ord` / `hash` /
+        # `id` / `round(x)`, `abs` / `min` / `max` of ints, a user function / method
+        # annotated `-> int` / `bool`, a documented int call / attribute of a module).
+        # Anything not provably int taints the label: #330 whitelisted non-int SHAPES, so
+        # `x = 2.5; self.r = x` (f02), a walrus (f20), `2 ** -1` (f06/f22), a str / None
+        # through a local (f18/f24/f25) all left the field an int. Kinds: "none" (a None
+        # leaf: `=` admitted, route #331), "ifloat" (an INTEGRAL float literal: only a
+        # direct comparison operand is admitted — CPython compares int / float exactly,
+        # while `+`, `*`, `str * r`, `range(r)` are not int-faithful: p01, p10), "other".
+        # The dict mode classifies a dict field's VALUES (its display values, its `[k] =`
+        # stores) the same way (k04). An unannotated parameter stays int (#325 residual
+        # 1: the record literal is built from the call-site argument, which WhyML types).
+        _env334 = {}    # id(def) -> (parameters {name: annotation | "*"}, locals {name: [v]})
+        _top334 = {}    # module-level def name -> returns annotation
+        for _a325 in (_tree325.body if _tree325 is not None else []):
+            if isinstance(_a325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef)):
+                _top334[_a325.name] = _a325.returns
+        for _a325 in _ast325.walk(_tree325):
+            if not isinstance(_a325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef)):
+                continue
+            _pp334 = {x.arg: x.annotation for x in (_a325.args.posonlyargs + _a325.args.args
+                                                     + _a325.args.kwonlyargs)}
+            for _x325 in (_a325.args.vararg, _a325.args.kwarg):
+                if _x325 is not None:
+                    _pp334[_x325.arg] = "*"
+            _ll334 = {}
+            _lw334 = list(_a325.body)
+            while _lw334:
+                _n325 = _lw334.pop()
+                if isinstance(_n325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef,
+                                      _ast325.ClassDef)):
+                    _ll334.setdefault(_n325.name, []).append(None)
                     continue
-                _bad330 = _an325 is not None and not _on330 and not (
-                    (isinstance(_an325, _ast325.Name) and _an325.id in ("int", "bool"))
-                    or (isinstance(_an325, _ast325.Constant) and _an325.value in ("int",
-                                                                                   "bool"))
-                    or (isinstance(_an325, _ast325.Subscript)
-                        and isinstance(_an325.value, _ast325.Name)
-                        and _an325.value.id in ("Final", "ClassVar")
-                        and isinstance(_an325.slice, _ast325.Name)
-                        and _an325.slice.id in ("int", "bool")))
-                _wk325 = [_v325] if _v325 is not None else []
-                while _wk325 and not _bad330:
-                    _e325 = _wk325.pop()
-                    if isinstance(_e325, _ast325.Constant):
-                        # an INTEGRAL float literal is carried as that int (routes #148,
-                        # #236: corpus 1490, 2132), as a float under FLOAT-FINITE's real
-                        _bad330 = type(_e325.value) not in (int, bool) and not (
-                            type(_e325.value) is float and _e325.value.is_integer()
-                            and abs(_e325.value) < 2 ** 53)
-                    elif isinstance(_e325, (_ast325.JoinedStr, _ast325.List, _ast325.Tuple,
-                                            _ast325.Dict, _ast325.Set, _ast325.ListComp,
-                                            _ast325.SetComp, _ast325.DictComp,
-                                            _ast325.GeneratorExp, _ast325.Lambda)):
-                        _bad330 = True
-                    elif isinstance(_e325, _ast325.BinOp):
-                        _bad330 = isinstance(_e325.op, _ast325.Div)
-                        _wk325.extend([_e325.left, _e325.right])
-                    elif isinstance(_e325, _ast325.UnaryOp):
-                        _wk325.append(_e325.operand)
-                    elif isinstance(_e325, _ast325.IfExp):
-                        _wk325.extend([_e325.body, _e325.orelse])
-                    elif isinstance(_e325, _ast325.Call):
-                        _cf330 = _e325.func
-                        while isinstance(_cf330, _ast325.Attribute):
-                            _cf330 = _cf330.value
-                        _bad330 = isinstance(_cf330, _ast325.Name) and (
-                            (_cf330.id in _NIC330 and _cf330.id not in _bind325
-                             and _cf330 is _e325.func)
-                            or ((_cf330.id in _imod325 or _cf330.id in _inam325)
-                                and _cf330 is not _e325.func
-                                and (_imod325.get(_cf330.id),
-                                     getattr(_e325.func, "attr", "")) not in _KI_CALL325))
-                    elif isinstance(_e325, _ast325.Name):
-                        _bad330 = ((_e325.id in _pa330 and _pa330[_e325.id] is not None
-                                    and not (isinstance(_pa330[_e325.id], _ast325.Name)
-                                             and _pa330[_e325.id].id in ("int", "bool")))
-                                   or (_e325.id not in _pa330 and (
-                                       _e325.id in _imod325 or _e325.id in _inam325
-                                       or (_e325.id in _bind325
-                                           and not all(_bind325[_e325.id])))))
-                    elif isinstance(_e325, _ast325.Attribute):
-                        _cf330 = _e325.value
-                        while isinstance(_cf330, _ast325.Attribute):
-                            _cf330 = _cf330.value
-                        _bad330 = (isinstance(_cf330, _ast325.Name)
-                                   and (_cf330.id in _imod325 or _cf330.id in _inam325)
-                                   and (_imod325.get(_cf330.id), _e325.attr)
-                                   not in _KI_ATTR325)
-                if _bad330:
-                    _nif330.setdefault(_a325.name, {})[_f330] = "other"
+                if isinstance(_n325, (_ast325.Lambda, _ast325.ListComp, _ast325.SetComp,
+                                      _ast325.DictComp, _ast325.GeneratorExp)):
+                    _lw334.extend(x for x in _ast325.walk(_n325)
+                                  if isinstance(x, _ast325.NamedExpr))
+                    continue
+                _pr334 = []
+                if isinstance(_n325, _ast325.Assign):
+                    _pr334 = [(t, _n325.value) for t in _n325.targets]
+                elif isinstance(_n325, _ast325.AnnAssign):
+                    _pr334 = ([] if (isinstance(_n325.annotation, _ast325.Name)
+                                     and _n325.annotation.id in ("int", "bool"))
+                              else [(_n325.target, ("ann", _n325.annotation))])
+                    if _n325.value is not None:
+                        _pr334.append((_n325.target, _n325.value))
+                elif isinstance(_n325, _ast325.AugAssign):
+                    _pr334 = [(_n325.target, _ast325.BinOp(
+                        left=_ast325.Constant(value=0), op=_n325.op, right=_n325.value))]
+                elif isinstance(_n325, (_ast325.For, _ast325.AsyncFor)):
+                    _pr334 = [(_n325.target, _ast325.Constant(value=0) if (
+                        isinstance(_n325.iter, _ast325.Call)
+                        and isinstance(_n325.iter.func, _ast325.Name)
+                        and _n325.iter.func.id == "range") else None)]
+                elif isinstance(_n325, _ast325.NamedExpr):
+                    _pr334 = [(_n325.target, _n325.value)]
+                elif isinstance(_n325, (_ast325.With, _ast325.AsyncWith)):
+                    _pr334 = [(w.optional_vars, None) for w in _n325.items
+                              if w.optional_vars is not None]
+                elif isinstance(_n325, (_ast325.Global, _ast325.Nonlocal)):
+                    _ll334.update({g: [None] for g in _n325.names})
+                elif isinstance(_n325, (_ast325.Import, _ast325.ImportFrom)):
+                    for _al325 in _n325.names:
+                        _ll334.setdefault((_al325.asname or _al325.name).split(".")[0],
+                                          []).append(None)
+                for _x325 in ("name", "rest"):
+                    if (isinstance(getattr(_n325, _x325, None), str) and isinstance(
+                            _n325, (_ast325.ExceptHandler, _ast325.MatchAs,
+                                    _ast325.MatchStar, _ast325.MatchMapping))):
+                        _ll334.setdefault(getattr(_n325, _x325), []).append(None)
+                while _pr334:
+                    _t325, _v325 = _pr334.pop()
+                    if isinstance(_t325, _ast325.Name):
+                        _ll334.setdefault(_t325.id, []).append(_v325)
+                    elif isinstance(_t325, (_ast325.Tuple, _ast325.List)):
+                        if (isinstance(_v325, (_ast325.Tuple, _ast325.List))
+                                and len(_t325.elts) == len(_v325.elts)
+                                and not any(isinstance(x, _ast325.Starred)
+                                            for x in _t325.elts + _v325.elts)):
+                            _pr334.extend(zip(_t325.elts, _v325.elts))
+                        else:
+                            _pr334.extend((a, None) for a in _t325.elts)
+                    elif isinstance(_t325, _ast325.Starred):
+                        _pr334.append((_t325.value, None))
+                _lw334.extend(_ast325.iter_child_nodes(_n325))
+            _env334[id(_a325)] = (_pp334, _ll334)
+        # an annotation declaring int / bool dict VALUES, or a set (its map values are
+        # the presence marker `Some 0`)
+        _dia334 = set()
+        for _a325 in _ast325.walk(_tree325):
+            if not isinstance(_a325, _ast325.Subscript):
+                continue
+            _x325 = getattr(_a325.value, "id", getattr(_a325.value, "attr", ""))
+            if ((_x325 in ("Set", "set", "FrozenSet", "frozenset", "AbstractSet",
+                           "MutableSet"))
+                    or (_x325 in ("Dict", "dict", "Mapping", "MutableMapping",
+                                  "DefaultDict", "defaultdict", "OrderedDict")
+                        and isinstance(_a325.slice, _ast325.Tuple)
+                        and len(_a325.slice.elts) == 2
+                        and isinstance(_a325.slice.elts[1], _ast325.Name)
+                        and _a325.slice.elts[1].id in ("int", "bool"))):
+                _dia334.add(id(_a325))
+        _allc334 = {}   # class -> its stores and its bases' stores
+        _mint334 = {}   # class -> methods (own / bases) annotated `-> int` / `bool`
+        for _cn334 in _ini334:
+            _cl330 = [_cn334]
+            _seen330 = set()
+            _allc334[_cn334] = []
+            _mint334[_cn334] = set()
+            while _cl330:
+                _x325 = _cl330.pop()
+                if _x325 in _seen330:
+                    continue
+                _seen330.add(_x325)
+                _allc334[_cn334].extend(_ini334.get(_x325, []))
+                _cl330.extend(_bas330.get(_x325, []))
+            for _cd334 in _ast325.walk(_tree325):
+                if isinstance(_cd334, _ast325.ClassDef) and _cd334.name in _seen330:
+                    _mint334[_cn334].update(m.name for m in _cd334.body if isinstance(
+                        m, (_ast325.FunctionDef, _ast325.AsyncFunctionDef))
+                        and isinstance(m.returns, _ast325.Name)
+                        and m.returns.id in ("int", "bool"))
+        _isfield334 = {_a325.asname or _a325.name for _a325 in _ast325.walk(_tree325)
+                       if isinstance(_a325, _ast325.alias) and _a325.name == "field"}
+        for _cn334 in _ini334:
+            for _f330 in sorted({e[0] for e in _ini334[_cn334]} - {"*"}):
+                for _md334 in ("=", "[]"):
+                    _fl334 = set()
+                    _wl334 = []     # (expression, def, "s" scalar value | "d" a dict)
+                    _vis334 = set()
+                    _wl334.append((_ast325.Attribute(value=_ast325.Name(id="\0self"),
+                                                     attr=_f330), None,
+                                   "s" if _md334 == "=" else "d"))
+                    while _wl334 and "other" not in _fl334:
+                        _e325, _fd334, _wm334 = _wl334.pop()
+                        _ev334 = _env334.get(id(_fd334)) if _fd334 is not None else None
+                        _sl334 = (_meth334[id(_fd334)][1] if _fd334 is not None
+                                  and id(_fd334) in _meth334 else None)
+                        # the class of an object-valued name: `self`, a parameter
+                        # annotated with a class of this file, a local bound to `K(..)`
+                        _oc334 = None
+                        if (isinstance(_e325, _ast325.Attribute)
+                                and isinstance(_e325.value, _ast325.Name)):
+                            _x325 = _e325.value.id
+                            if _x325 == "\0self":
+                                _oc334 = _cn334
+                            elif _x325 == _sl334:
+                                _oc334 = _meth334[id(_fd334)][0]
+                            elif _ev334 is not None and _x325 in _ev334[1]:
+                                _oc334 = {(v.func.id if isinstance(v, _ast325.Call)
+                                           and isinstance(v.func, _ast325.Name)
+                                           and v.func.id in _ini334 else None)
+                                          for v in _ev334[1][_x325]}
+                                _oc334 = (next(iter(_oc334)) if len(_oc334) == 1
+                                          else None)
+                            elif _ev334 is not None and _x325 in _ev334[0]:
+                                _a334 = _ev334[0][_x325]
+                                _a334 = (_a334.id if isinstance(_a334, _ast325.Name)
+                                         else _a334.value if isinstance(
+                                             _a334, _ast325.Constant) else None)
+                                _oc334 = _a334 if _a334 in _ini334 else None
+                        if _oc334 is not None:
+                            # a FIELD of a class of this file: all of its stores
+                            if (_wm334, _oc334, _e325.attr) in _vis334:
+                                continue
+                            _vis334.add((_wm334, _oc334, _e325.attr))
+                            _hit334 = False
+                            for _f2334, _an325, _v325, _fd2334, _kd334 in _allc334[_oc334]:
+                                if _f2334 == "*":
+                                    _fl334.add("other")
+                                    continue
+                                if _f2334 != _e325.attr:
+                                    continue
+                                _hit334 = True
+                                if _wm334 == "d" and _kd334 == "[]":
+                                    _wl334.append((_v325, _fd2334, "s"))
+                                    continue
+                                if _kd334 != "=":
+                                    continue
+                                _on330 = (isinstance(_an325, _ast325.Subscript)
+                                          and isinstance(_an325.value, _ast325.Name)
+                                          and _an325.value.id in ("Optional", "Union")
+                                          and all((isinstance(x, _ast325.Name)
+                                                   and x.id in ("int", "bool"))
+                                                  or (isinstance(x, _ast325.Constant)
+                                                      and x.value is None)
+                                                  for x in (_an325.slice.elts if isinstance(
+                                                      _an325.slice, _ast325.Tuple)
+                                                      else [_an325.slice]))) or (
+                                    isinstance(_an325, _ast325.BinOp)
+                                    and isinstance(_an325.op, _ast325.BitOr)
+                                    and all((isinstance(x, _ast325.Name)
+                                             and x.id in ("int", "bool"))
+                                            or (isinstance(x, _ast325.Constant)
+                                                and x.value is None)
+                                            for x in (_an325.left, _an325.right)))
+                                if _an325 is None:
+                                    pass
+                                elif _wm334 == "d":
+                                    if id(_an325) not in _dia334:
+                                        _fl334.add("other")
+                                elif _on330:
+                                    _fl334.add("none")
+                                elif not (
+                                        (isinstance(_an325, _ast325.Name)
+                                         and _an325.id in ("int", "bool"))
+                                        or (isinstance(_an325, _ast325.Constant)
+                                            and _an325.value in ("int", "bool"))
+                                        or (isinstance(_an325, _ast325.Subscript)
+                                            and isinstance(_an325.value, _ast325.Name)
+                                            and _an325.value.id in ("Final", "ClassVar")
+                                            and isinstance(_an325.slice, _ast325.Name)
+                                            and _an325.slice.id in ("int", "bool"))):
+                                    _fl334.add("other")
+                                if _v325 is None and _an325 is None:
+                                    _fl334.add("other")
+                                elif _v325 is not None:
+                                    _wl334.append((_v325, _fd2334, _wm334))
+                            if not _hit334:
+                                _fl334.add("other")
+                        elif isinstance(_e325, tuple):
+                            # a local declared `x: T`: only a dict / set of int values
+                            if not (_wm334 == "d" and id(_e325[1]) in _dia334):
+                                _fl334.add("other")
+                        elif _e325 is None:
+                            _fl334.add("other")
+                        elif (isinstance(_e325, _ast325.Call) and (
+                                (isinstance(_e325.func, _ast325.Name)
+                                 and _e325.func.id in _isfield334)
+                                or (isinstance(_e325.func, _ast325.Attribute)
+                                    and _e325.func.attr == "field"
+                                    and isinstance(_e325.func.value, _ast325.Name)
+                                    and _imod325.get(_e325.func.value.id) == "dataclasses"))):
+                            # `dataclasses.field(default=.. | default_factory=..)`
+                            for _kw334 in _e325.keywords:
+                                if _kw334.arg == "default":
+                                    _wl334.append((_kw334.value, _fd334, _wm334))
+                                elif _kw334.arg == "default_factory":
+                                    if not (isinstance(_kw334.value, _ast325.Name)
+                                            and _kw334.value.id in (
+                                                ("int", "bool") if _wm334 == "s" else
+                                                ("dict", "set", "frozenset"))):
+                                        _fl334.add("other")
+                        elif _wm334 == "d":
+                            if isinstance(_e325, _ast325.Constant) and _e325.value is None:
+                                pass
+                            elif isinstance(_e325, _ast325.Dict):
+                                if any(k is None for k in _e325.keys):
+                                    _fl334.add("other")
+                                _wl334.extend((x, _fd334, "s") for x in _e325.values)
+                            elif isinstance(_e325, _ast325.DictComp):
+                                _wl334.append((_e325.value, _fd334, "s"))
+                            elif isinstance(_e325, (_ast325.Set, _ast325.SetComp)):
+                                pass
+                            elif (isinstance(_e325, _ast325.Call)
+                                  and isinstance(_e325.func, _ast325.Name)
+                                  and ((_e325.func.id in ("set", "frozenset"))
+                                       or (_e325.func.id == "dict" and not _e325.args
+                                           and not _e325.keywords))
+                                  and _e325.func.id not in _bind325):
+                                pass
+                            elif isinstance(_e325, _ast325.Name) and _ev334 is not None and (
+                                    _e325.id in _ev334[1]):
+                                if ("LD", id(_fd334), _e325.id) not in _vis334:
+                                    _vis334.add(("LD", id(_fd334), _e325.id))
+                                    _wl334.extend((x, _fd334, "d")
+                                                  for x in _ev334[1][_e325.id])
+                            elif isinstance(_e325, _ast325.Name) and _ev334 is not None and (
+                                    _e325.id in _ev334[0]):
+                                if not (_ev334[0][_e325.id] is None
+                                        or id(_ev334[0][_e325.id]) in _dia334):
+                                    _fl334.add("other")
+                            else:
+                                _fl334.add("other")
+                        elif isinstance(_e325, _ast325.Constant):
+                            if _e325.value is None:
+                                _fl334.add("none")
+                            elif (type(_e325.value) is float and _e325.value.is_integer()
+                                  and abs(_e325.value) < 2 ** 53):
+                                _fl334.add("ifloat")
+                            elif type(_e325.value) not in (int, bool):
+                                _fl334.add("other")
+                        elif isinstance(_e325, _ast325.UnaryOp):
+                            if not isinstance(_e325.op, _ast325.Not):
+                                _wl334.append((_e325.operand, _fd334, "s"))
+                        elif isinstance(_e325, _ast325.BinOp):
+                            if isinstance(_e325.op, (_ast325.Add, _ast325.Sub, _ast325.Mult,
+                                                     _ast325.FloorDiv, _ast325.Mod,
+                                                     _ast325.LShift, _ast325.RShift,
+                                                     _ast325.BitAnd, _ast325.BitOr,
+                                                     _ast325.BitXor)):
+                                _wl334.extend([(_e325.left, _fd334, "s"),
+                                               (_e325.right, _fd334, "s")])
+                            elif (isinstance(_e325.op, _ast325.Pow)
+                                  and isinstance(_e325.right, _ast325.Constant)
+                                  and type(_e325.right.value) is int
+                                  and _e325.right.value >= 0):
+                                _wl334.append((_e325.left, _fd334, "s"))
+                            else:
+                                _fl334.add("other")
+                        elif isinstance(_e325, _ast325.BoolOp):
+                            _wl334.extend((x, _fd334, "s") for x in _e325.values)
+                        elif isinstance(_e325, _ast325.Compare):
+                            pass
+                        elif isinstance(_e325, _ast325.IfExp):
+                            _wl334.extend([(_e325.body, _fd334, "s"),
+                                           (_e325.orelse, _fd334, "s")])
+                        elif isinstance(_e325, _ast325.NamedExpr):
+                            _wl334.append((_e325.value, _fd334, "s"))
+                        elif isinstance(_e325, _ast325.Name):
+                            if _ev334 is not None and _e325.id in _ev334[1]:
+                                if ("L", id(_fd334), _e325.id) not in _vis334:
+                                    _vis334.add(("L", id(_fd334), _e325.id))
+                                    _wl334.extend((x, _fd334, "s")
+                                                  for x in _ev334[1][_e325.id])
+                            elif _ev334 is not None and _e325.id in _ev334[0]:
+                                _an325 = _ev334[0][_e325.id]
+                                if _an325 == "*" or _e325.id == _sl334:
+                                    _fl334.add("other")
+                                elif _an325 is None or (
+                                        isinstance(_an325, _ast325.Name)
+                                        and _an325.id in ("int", "bool")) or (
+                                        isinstance(_an325, _ast325.Constant)
+                                        and _an325.value in ("int", "bool")):
+                                    pass
+                                else:
+                                    _fl334.add("other")
+                            elif not (_e325.id in _bind325 and all(_bind325[_e325.id])
+                                      and _e325.id not in _imod325
+                                      and _e325.id not in _inam325):
+                                _fl334.add("other")
+                        elif isinstance(_e325, _ast325.Attribute):
+                            if not (isinstance(_e325.value, _ast325.Name)
+                                    and _e325.value.id in _imod325
+                                    and (_imod325[_e325.value.id], _e325.attr)
+                                    in _KI_ATTR325):
+                                _fl334.add("other")
+                        elif isinstance(_e325, _ast325.Call):
+                            _cf330 = _e325.func
+                            _shd334 = isinstance(_cf330, _ast325.Name) and (
+                                _cf330.id in _bind325 or (_ev334 is not None and (
+                                    _cf330.id in _ev334[0] or _cf330.id in _ev334[1])))
+                            _pl334 = (not _e325.keywords and not any(
+                                isinstance(x, _ast325.Starred) for x in _e325.args))
+                            if (isinstance(_cf330, _ast325.Name) and not _shd334
+                                    and _cf330.id in ("len", "int", "ord", "hash", "id",
+                                                      "bool")):
+                                pass
+                            elif (isinstance(_cf330, _ast325.Name) and not _shd334 and _pl334
+                                  and ((_cf330.id == "abs" and len(_e325.args) == 1)
+                                       or (_cf330.id in ("min", "max")
+                                           and len(_e325.args) >= 2))):
+                                _wl334.extend((x, _fd334, "s") for x in _e325.args)
+                            elif (isinstance(_cf330, _ast325.Name) and not _shd334
+                                  and _cf330.id == "round" and len(_e325.args) == 1
+                                  and not _e325.keywords):
+                                pass
+                            elif (isinstance(_cf330, _ast325.Name)
+                                  and _cf330.id in _top334
+                                  and isinstance(_top334[_cf330.id], _ast325.Name)
+                                  and _top334[_cf330.id].id in ("int", "bool")
+                                  and not (_ev334 is not None and (
+                                      _cf330.id in _ev334[0] or _cf330.id in _ev334[1]))):
+                                pass
+                            elif (isinstance(_cf330, _ast325.Name) and _cf330.id in _inam325
+                                  and _inam325[_cf330.id] in _KI_CALL325):
+                                pass
+                            elif (isinstance(_cf330, _ast325.Attribute)
+                                  and isinstance(_cf330.value, _ast325.Name)
+                                  and ((_cf330.value.id == _sl334
+                                        and _cf330.attr in _mint334.get(
+                                            _meth334[id(_fd334)][0], ()))
+                                       or (_cf330.value.id in _imod325
+                                           and (_imod325[_cf330.value.id], _cf330.attr)
+                                           in _KI_CALL325))):
+                                pass
+                            else:
+                                _fl334.add("other")
+                        else:
+                            _fl334.add("other")
+                    _k334 = ("other" if "other" in _fl334 or len(_fl334) > 1
+                             else next(iter(_fl334)) if _fl334 else "")
+                    if _md334 == "[]":
+                        if _fl334:
+                            _ndv334.setdefault(_cn334, set()).add(_f330)
+                    elif _k334:
+                        _nif330.setdefault(_cn334, {})[_f330] = _k334
+            if any(e[0] == "*" for e in _allc334[_cn334]):
+                _nif330.setdefault(_cn334, {})["*"] = "other"
         for _c330, _r330 in _rt330.items():
             if not isinstance(_r330, dict) or not _r330.get("whyml_name"):
                 continue
@@ -8071,16 +8484,33 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if _bad330.get(_f330) != "other":
                         _bad330[_f330] = _kd330
                 _cl330.extend(_bas330.get(_x325, []))
+            _dvb334 = _ndv334.get(_c330, set())
             for _f330 in _r330.get("fields") or []:
-                if _f330 in _bad330:
-                    try:
-                        _lb330 = transpiler._field_label(_r330["whyml_name"], _f330)
-                    except Exception:
-                        _lb330 = _wid325(_f330)
-                    if _lblty325.get(_lb330) == ["int"]:
-                        _fld325[_lb330] = ("field '" + _c330 + "." + _f330 + "'"
-                                           + (" (None / Optional)" if _bad330[_f330] == "none"
-                                              else ""))
+                _kd330 = _bad330.get(_f330) or _bad330.get("*")
+                try:
+                    _lb330 = transpiler._field_label(_r330["whyml_name"], _f330)
+                except Exception:
+                    _lb330 = _wid325(_f330)
+                if _kd330 and _lblty325.get(_lb330) == ["int"]:
+                    _fld325[_lb330] = ("field '" + _c330 + "." + _f330 + "'"
+                                       + {"none": " (None / Optional)",
+                                          "ifloat": " (integral float)"}.get(_kd330, ""))
+                    if _kd330 == "ifloat":
+                        _iflo325.add(_fld325[_lb330])
+                elif ((_f330 in _dvb334 or "*" in _bad330) and _lblty325.get(_lb330)
+                      and all(_re325.match(r"map\b.*\(\s*option\s+int\s*\)$", t)
+                              for t in _lblty325[_lb330])):
+                    # ROUTE #334: the VALUES of a dict field are not provably int (k04)
+                    _fld325[_lb330] = "the values of dict field '" + _c330 + "." + _f330 + "'"
+                    _mvorg325.add(_fld325[_lb330])
+        # ROUTE #334: an OPAQUE class (no record type: Module 6 lowers `C()` to a stub
+        # `c_<n> ()` and `c.r` to an unconstrained getter `get_r`) — its provably-int
+        # fields keep the getter's int (o03 `self.r, self.s = 2.5, 1`: `r` is not one)
+        for _cn334 in _ini334:
+            if not (isinstance(_rt330.get(_cn334), dict) and _rt330[_cn334].get("whyml_name")):
+                _octok334[_wid325(_cn334)] = (set() if "*" in _nif330.get(_cn334, {}) else {
+                    _wid325(e[0]) for e in _ini334[_cn334] if e[0] != "*"
+                    and e[0] not in _nif330.get(_cn334, {})})
     # (b) string-encoding model operations
     for _x325 in list(_other325):
         if (_x325 in ("str_of_int_hash", "str_of_bool_hash", "str_of_value_op", "str_concat")
@@ -8167,7 +8597,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 # ROUTE #330 (c): only an ELEMENT read of a bare-container parameter
                 if any(b[0] == _nm325 and b[1] <= _k325 < b[2] for b in _bg325):
                     continue
-                if (_k325 + 1 < _N325 and _toks325[_k325 + 1] == "[" and (_k325 + 1) in _mt325
+                if _el325[(_dd325, _nm325)] in _mvorg325:
+                    _fu325 = (_k325, _k325)     # ROUTE #334: a bare dict (its value reads)
+                elif (_k325 + 1 < _N325 and _toks325[_k325 + 1] == "[" and (_k325 + 1) in _mt325
                         and not (_mt325[_k325 + 1] + 1 < _N325
                                  and _toks325[_mt325[_k325 + 1] + 1] == "<-")):
                     _fu325 = (_k325, _mt325[_k325 + 1])
@@ -8247,10 +8679,37 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _drv325 = False
             _prev325 = ""
             _tix325 = None
+            _mvd334 = False
             while True:
                 if (_ua325 > 0 and _toks325[_ua325 - 1] == "(" and (_ua325 - 1) in _mt325
                         and _mt325[_ua325 - 1] == _ub325 + 1):
                     _ua325, _ub325 = _ua325 - 1, _ub325 + 1
+                    continue
+                # ROUTE #334: a dict whose VALUES are an origin (a dict field shown with a
+                # non-int value, k04; a bare `dict` parameter under --strict-bare-containers,
+                # k01): `match Map.get u k with | Some v -> v ..` READS a value (the match
+                # carries the origin: climb to it); `| Some _ -> ..` only tests membership
+                if (_org325 in _mvorg325 and not _mvd334 and _ua325 >= 3
+                        and _toks325[_ua325 - 3:_ua325] == ["Map", ".", "get"]):
+                    _mvd334 = True
+                    _a334, _b334 = _ua325 - 3, _ub325 + 1
+                    if _b334 < _N325 and _toks325[_b334] in ("(", "[", "{") and _b334 in _mt325:
+                        _b334 = _mt325[_b334]
+                    if (_a334 >= 1 and _toks325[_a334 - 1] == "("
+                            and _mt325.get(_a334 - 1) == _b334 + 1):
+                        _a334, _b334 = _a334 - 1, _b334 + 1
+                    if (_a334 >= 1 and _toks325[_a334 - 1] == "match"
+                            and (_a334 - 1) in _bk325):
+                        _j334 = _b334 + 1
+                        while _j334 < _bk325[_a334 - 1] and _toks325[_j334] != "with":
+                            _j334 = (_mt325[_j334] + 1 if _toks325[_j334] in ("(", "[", "{")
+                                     and _j334 in _mt325 else _j334 + 1)
+                        if _toks325[_j334 + 1:_j334 + 4] == ["|", "Some", "_"]:
+                            _w1ok325 = True
+                            break
+                        _ua325, _ub325 = _a334 - 1, _bk325[_a334 - 1]
+                        continue
+                    _ua325, _ub325 = _a334, _b334
                     continue
                 if (_ub325 + 1 < _N325 and _toks325[_ub325 + 1] == "end"
                         and (_ub325 + 1) in _bk325 and _ua325 > 0
@@ -8331,7 +8790,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _j325 = (_mt325[_j325] + 1 if _toks325[_j325] in ("(", "[", "{")
                                  and _j325 in _mt325 else _j325 + 1)
                         _ix325 += 1
-                    if _ix325 == (0 if _hn325 == "mem" else 1):
+                    if _ix325 == (0 if _hn325 == "mem" else 1) or (
+                            _hn325 == "mem" and _org325 in _mvorg325):
                         _w1ok325 = True
                         break
                 if (_hn325 and (_hn325[0].isupper() and not _hn325.startswith("Return"))
@@ -8372,6 +8832,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     # of `sys.float_info`) keeps its int model
                     if _hn325.startswith("get_") and (
                             (_org325 in _clsw325 and _hn325[4:] in _clsok325)
+                            or (_hn325[4:] in _octok334.get(_re325.sub(r"_\d+$", "",
+                                                                       _org325), ()))
                             or (_imod325.get(_org325), _hn325[4:]) in _KI_ATTR325
                             or (_hn325[4:] in _KI_FI325 and _prev325 == "get_float_info"
                                 and _imod325.get(_org325) == "sys")):
@@ -8550,6 +9012,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     continue
                 if _org325 in _strorg325:
                     continue    # a string is equal to itself (no NaN): `=` / `<>` admitted
+            # ROUTE #334: an INTEGRAL float (|v| < 2**53) compares EXACTLY with an int in
+            # CPython, so a DIRECT operand of a comparison keeps its int model (1490
+            # `c.r > 1`); any arithmetic / argument use of it (`c.r * 10**17`, `"ab" *
+            # c.r`, `range(c.r)`) is not int-faithful and stays refused (p01, p10)
+            if _org325 in _iflo325 and not _drv325 and (
+                    (_nx325 in ("<", "<=", ">", ">=", "=", "<>")
+                     and _pv325 in ("(", "if", "then", "else", "in", "&&", "||", "not", "{",
+                                    "/\\", "\\/", "->", "begin", ";", "assert", "check"))
+                    or (_pv325 in ("<", "<=", ">", ">=", "=", "<>")
+                        and _nx325 in (")", "then", "else", "in", "&&", "||", "}", "/\\",
+                                       "\\/", "->", ";", "end", "do", "with"))):
+                continue
             _viol325.append((_org325, _S325.get(_org325, ("?",))[0], _nm325,
                              " ".join(_toks325[max(_ua325 - 4, _dstart325[_dd325]):
                                                min(_ub325 + 5, _N325)]),
