@@ -679,7 +679,9 @@ statements. They are therefore restricted (`PYCSL-SEM-DEF-TIME-EVALUATION`): def
 literals, bare names, signed numeric literals or displays of those; decorators (dotted) names;
 annotations and bases type-shaped; a nested class body only defs, nested classes, `pass`,
 docstrings and name bindings of literals. Module-level definitions (import time) are outside
-the rule.
+the rule. A bare-name default is admitted only when the name is never rebound in the enclosing
+function nor declared `global` / `nonlocal` (route #340, §T.6.37): its def-time value is then
+its call-time value.
 
 **Recursion and `no_exception \all` (scope).** `\all` is the Phase-1 set
 `exception_model.KNOWN_EXCEPTIONS`; RecursionError is not in it and the interpreter's
@@ -3979,6 +3981,46 @@ other than the first non-docstring statement `super().__init__(..)`; a `return` 
 nested def. Hence every invariant-carrying construction that reaches route #226's goal is the
 straight-line store sequence the goal reads, and the remaining no-goal case is a straight-line
 store of a computed value (route #226's open carrier).
+
+### §T.6.37  Enum members; nested-def bare-name defaults (routes #339 / #340)
+
+_Corresponds to `annotations.md` §7.26._
+
+Two inline blocks of `_run_pipeline`, beside route #273's definition-time block (mirror twin
+`\trusted`; no emission changes, only refusals). Over the source AST:
+
+(#339) $\mathcal{E}$ = the classes with a base whose name (or attribute tail) is in
+$\{\texttt{Enum},\texttt{IntEnum},\texttt{Flag},\texttt{IntFlag},\texttt{StrEnum},\texttt{ReprEnum}\}
+\cup \mathcal{E}$ (fixpoint); for $C \in \mathcal{E}$, $D_C$ = its dunders (own and of its
+enum bases, less `__init__`, `__new__`, `__init_subclass__` and the attribute dunders), $M_C$
+= its non-dunder, non-sunder class-body binding names, $\mathit{int}_C$ = some base chain names
+`IntEnum` / `IntFlag` / `int`. $C$ is TRANSPARENT iff $\mathit{int}_C \wedge D_C = \emptyset$;
+its member $C.M$ keeps $\mathcal{T}$'s int getter `get_M _class_c`. For every OPAQUE $C$,
+an annotation $\mathit{ann}(C)$ is `C`, `"C"`, `Optional[C]` or `C | None` (any other
+annotation mentioning $C$ is refused); per lowered function $F$ the member expressions are
+$C.M$ ($M \in M_C$), `C(..)`, `C[..]`, calls to a function / method name annotated
+$\to \mathit{ann}(C)$, attributes named as a field annotated $\mathit{ann}(C)$, and the names
+bound (fixpoint over assignment / annotated assignment / walrus value, `for` / comprehension
+target over `C`, parameters annotated $\mathit{ann}(C)$, module-level bindings) to one. Each
+member expression $e$ is admitted by its PARENT only: an `Assign` / `AnnAssign` / walrus value
+with name targets; a `Compare` whose operators adjacent to $e$ are `is` / `is not`, or `==` /
+`!=` / left operand of `in` / `not in` when $\{\texttt{\_\_eq\_\_},\texttt{\_\_ne\_\_}\} \cap
+D_C = \emptyset$ (an `in` display element likewise; a `match` subject / value likewise); an
+`If` / `While` / `IfExp` / `Assert` test, a `not` operand or a `BoolOp` in such a test when
+$\{\texttt{\_\_bool\_\_},\texttt{\_\_len\_\_}\} \cap D_C = \emptyset$; `.value` / `.name`; an
+expression statement; a `return` in a function annotated $\to \mathit{ann}(C)$; an argument /
+keyword / default whose parameter is annotated $\mathit{ann}(C)$; `isinstance` / `id` / `type`
+(`hash` when `__hash__` $\notin D_C$). Every other parent, an `AugAssign` to a member name, and
+the class name $C$ as a call argument (other than to `isinstance` / `issubclass`) raise
+`PYCSL-SEM-ENUM-MEMBER-OPERATION`. Hence no int operation of $\mathcal{T}$ is applied to an
+opaque member, and no user operator dunder is bypassed by $\mathcal{T}$'s int operators.
+
+(#340) For each lowered $F$ let $B_F$ = the names bound anywhere in $F$ (store / del `Name`s,
+nested `def` / `class` names, import aliases, `except` / `match` captures) $\cup$ every
+`global` / `nonlocal` name of the module. A bare `Name` $x$ in a default of a nested `def` /
+`lambda` of $F$ is admitted iff $x \notin B_F$; then $x$ denotes one value over the whole run
+of $F$, and the lifted call's call-time read `(g !x)` equals CPython's def-time binding.
+Otherwise `PYCSL-SEM-DEF-TIME-EVALUATION`.
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 

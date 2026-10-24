@@ -1932,6 +1932,40 @@ of one, keep every store form. Still NOT covered (no goal, invariant assumed, ro
 open carrier): a straight-line store of a COMPUTED value (`self.n = three()`, `self.n = v` for
 a local `v`). Witnesses `4550`-`4571`, `4577`-`4579`; controls `4572`-`4576`.
 
+### 7.26 Enum members are not ints; nested-def defaults bind at def time (routes #339 / #340)
+
+(1) ENUM MEMBERS (route #339). A member `C.M` of a user enum class lowers to an opaque getter
+of type `int` (route #325 keeps it an int because its value is an int literal), so every int
+operation applied to it: on a PLAIN `Enum` member `x - x`, `x * 0`, `-x + x`, `x < x` and
+`a[x]` PROVED under `no_exception \all` (CPython: `TypeError`), and a user `__eq__` / `__lt__`
+on an `Enum` / `IntEnum` was ignored (`x == x` PROVED `True`, CPython's `__eq__` returned
+`False`). A class is an ENUM when a base is (a dotted name ending in) `Enum`, `IntEnum`,
+`Flag`, `IntFlag`, `StrEnum`, `ReprEnum`, or another enum class of the file. An `IntEnum` /
+`IntFlag` (or `int`-mixin) enum that defines NO dunder (own or inherited in the file;
+`__init__` / `__new__` / `__init_subclass__` and attribute dunders aside) keeps int semantics:
+its members are ints. Every other enum is OPAQUE, and an expression denoting one of its members
+(`C.M`, `C(v)`, `C[k]`, a name bound to one, a parameter / field / callee result annotated `C`,
+`"C"` or `Optional[C]`, a `for` target over `C`) is admitted ONLY bound to a name, compared with
+`is` / `is not` (and `==` / `!=` / `in` / `not in` / a `match` value, unless the enum defines
+`__eq__` / `__ne__`), tested for truth (unless it defines `__bool__` / `__len__`), read as
+`.value` / `.name`, returned / passed / defaulted where the annotation is `C`, or given to
+`isinstance` / `id` / `type` (`hash`, unless it defines `__hash__`). Any other use — arithmetic,
+unary `-` / `+` / `~`, ordering, an index, an augmented store, a container element or a
+container annotation, a builtin or string conversion, an `int` parameter — is REFUSED
+(`PYCSL-SEM-ENUM-MEMBER-OPERATION`). The class object handed to a callee (`list(C)`) is refused
+likewise. Witnesses `4590`-`4599`; controls `4600`, `4601`.
+
+(2) NESTED-DEF DEFAULTS (route #340). The def-time rule of route #273 (translational reference, `PYCSL-SEM-DEF-TIME-EVALUATION`) admitted a BARE-NAME
+default because it cannot raise or write; but Python binds its VALUE when the nested
+`def` / `lambda` runs while the lifted function is called with the name's value at the CALL:
+`x = 1; def g(y=x): ...; x = 2; g()` PROVED `\result == 2` (CPython 1). A bare-name default
+of a nested def or lambda is now admitted only when that name is bound nowhere in the enclosing
+lowered function (no assignment / `for` / `with` / walrus / `except` / `import` / `def` /
+`class` / `match` target, no `del`, in any nested scope) and is declared `global` / `nonlocal`
+nowhere in the module — a parameter that is never rebound, or a module name — so the def-time
+and call-time reads coincide. Otherwise `PYCSL-SEM-DEF-TIME-EVALUATION`. Witnesses
+`4602`-`4605`; control `4606`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
