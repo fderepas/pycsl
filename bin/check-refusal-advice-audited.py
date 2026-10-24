@@ -677,6 +677,11 @@ AUDITED = {
         "Route #271. 'Drop the clause (a generator may keep `requires` and `assigns`)' - control 2910 (an uncalled generator with only `requires n >= 0` / `assigns \\nothing`) VERIFIES; 'or make the function an ordinary one that RETURNS its values' - controls 2909 and 2912 VERIFY."),
     ('src/pycsl/pycsl.py', "_PyCSLSemErr271('generator function `%s` (line %d) has %s (ROUTE #271): Python invokes it IMPLICITLY, so no call site can be checked, and Py"): (FOLLOWABLE,
         "Route #271. 'Make it an ordinary method that RETURNS its values' - 2908 without its `yield` is the ordinary `__init__` of control 2909's class shape (`self.n = 5`; `C().n == 5` VERIFIES as 2909 does for `bump`)."),
+    # (#49) gen #37 -- routes #341 / #342, audited the day they landed.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"class \'{_k341.name}\' at line {_k341.lineno}: its base `{_ast341.unparse(_b341)}` {_why341}. The verifier reads a class\'s b'): (FOLLOWABLE,
+        "Route #341. 'Write the base class's own name in the class header': control 4572 is witness 4551 with `class S(B)` (the alias `Alias = B` kept, used only as a value) and an override honouring the base `ensures` - VERIFIES; with the override still returning 2 the direct header FAILS (one goal left: the route #277 override-refinement obligation), as it must."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_n341, \'lineno\', 0)}: `{_cl341}` stores an object\'s `__class__`, which changes the class of an EXISTING inst'): (FOLLOWABLE,
+        "Route #342. 'Construct an instance of the target class instead': control 4576 is witness 4571 with `d = C()` in place of `d.__class__ = C` - VERIFIES (CPython True)."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -941,6 +946,9 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr271("a call to (or a use as a value of) the generator function `%s` (line %d, in %s) is not modelled (ROUTE #271): calling a fun'): '0846c5b7ec5c',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr271('generator function `%s` (line %d) carries %s (ROUTE #271): a function containing `yield` is a GENERATOR — calling it only b"): 'ebec5b5a8505',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr271('generator function `%s` (line %d) has %s (ROUTE #271): Python invokes it IMPLICITLY, so no call site can be checked, and Py"): '838550ec869e',
+    # (#49) gen #37 -- routes #341 / #342
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"class \'{_k341.name}\' at line {_k341.lineno}: its base `{_ast341.unparse(_b341)}` {_why341}. The verifier reads a class\'s b'): '7b0eff44fa4d',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_n341, \'lineno\', 0)}: `{_cl341}` stores an object\'s `__class__`, which changes the class of an EXISTING inst'): '8d985b794c44',
 }
 
 
