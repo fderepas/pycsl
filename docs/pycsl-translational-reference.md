@@ -3791,7 +3791,8 @@ fold computed $|\lfloor n \rfloor|$ / $\sum \lfloor n_i \rfloor$, so `abs(2.5) =
 A float module constant ($\texttt{math}.c$, $c \in \{\texttt{pi},\texttt{e},\texttt{tau},
 \texttt{inf},\texttt{nan}\}$, the `cmath` ones, `sys.float_info`) has no image: its generic
 lowering was the opaque $(\texttt{get\_}c\ \texttt{math}) : \texttt{int}$ and is refused before
-Module 6 (`_run_pipeline`, IR walk + module/class-level bindings).
+Module 6 (`_run_pipeline`, IR walk + module/class-level bindings; also through `from math import *`
+and `getattr(math, "pi")` / a non-literal `getattr` on the module).
 In a contract, $\mathcal{T}_s(s[a:b]) = \texttt{String.substring}\ s\ a'\ (b' - a')$ with
 $x' = x$ for a non-negative int literal or an omitted bound, else
 $x' = \texttt{if}\ x < 0\ \texttt{then}\ \max(x + |s|, 0)\ \texttt{else}\ x$; Why3's

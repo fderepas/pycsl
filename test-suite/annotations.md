@@ -1668,8 +1668,8 @@ default fold INT literals only (`bool` counts as an int); a float literal is nev
 into an int fact (`abs(2.5) == 2`, `sum([0.5, 0.5]) == 0` and NamedTuple `r: int = 2.5` with
 `P().r == 2` were proved). `int(<finite float literal>)` keeps its fold, which IS the truncation.
 A float constant of `math` / `cmath` (`pi`, `e`, `tau`, `inf`, `nan`, `infj`, `nanj`, through
-`import math [as m]` or `from math import pi [as p]`) and `sys.float_info` are REFUSED wherever they
-are read, in a body, a contract, or a module/class-level binding: they had lowered to an opaque
+`import math [as m]`, `from math import pi [as p]`, `from math import *` or `getattr(math, ...)`) and `sys.float_info` are
+REFUSED wherever they are read, in a body, a contract, or a module/class-level binding: they had lowered to an opaque
 int, so `math.pi % 1 == 0` was proved. A string slice inside a contract, `s[a:b]`, has Python
 slice semantics: a bound that is not a non-negative int literal is normalised as CPython does
 (`b < 0` reads `max(b + len(s), 0)`), so `len(s[1:-1])` is `len(s) - 2`, not 0. Witnesses

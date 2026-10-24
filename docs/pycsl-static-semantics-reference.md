@@ -2820,7 +2820,7 @@ each written list parameter (witness `4080`; controls `4088`-`4091`).
 
 | Code | Condition | Witnesses |
 |------|-----------|-----------|
-| `PYCSL-R322-FLOAT-MODULE-CONSTANT` | The program reads a float constant of `math` / `cmath` (`pi e tau inf nan infj nanj`, via `import m [as a]` + `a.c` or `from m import c [as n]`) or `sys.float_info`, anywhere in the IR (bodies, contracts) or in a module/class-level `=` / `: T =` / `op=` binding. | `4194`-`4198` |
+| `PYCSL-R322-FLOAT-MODULE-CONSTANT` | The program reads a float constant of `math` / `cmath` (`pi e tau inf nan infj nanj`, via `import m [as a]` + `a.c`, `from m import c [as n]`, `from m import *` + `c`, or `getattr(a, "c")` / `getattr(a, <non-literal>)`) or `sys.float_info`, anywhere in the IR (bodies, contracts) or in a module/class-level `=` / `: T =` / `op=` binding. | `4194`-`4198` |
 
 Fold domain (no refusal): the emission-time folds of `abs(<lit>)`, `sum([<lits>])`, `sum(<known
 local>)`, the known-element maps of list/dict literals, and NamedTuple / `__init__` annotated /
