@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #328, #330, #331 REPAIRED, candidate (r328 executor off aa1cf01c; commits 0edf93ea (code), 34f71ba4
+##   (corpus/census/docs) + route docs; inline in #325's `_run_pipeline` check, no new def, ledger 3). #328: origins = every
+##   module/class-level binding form at any nesting; tuple-pattern taint (component-precise); arm / for binders scoped
+##   precisely; Map keys, writes-items, `Return_<ty>` admitted. #330: non-int instance fields (shown float/str/None/...
+##   initialiser or annotation over an int label; integral float literals still carried), string-encoding model ops
+##   (`repr_conv`, `str_of_int_hash`, ...; `==` kept), `complex` annotations refused; bare-container elements DECLARED as
+##   BARE-CONTAINER-INT (90 corpus files rely on it) with `--strict-bare-containers`. #331: None/Optional fields refused
+##   in arithmetic/ordering (`==` kept). Witnesses 4330-4353 PROVED -> REFUSED; controls 4354-4362 + assumption
+##   counterexamples 4363-4364 PROVED. Root 0 MOVED / 8 GONE (1480, 1483-1485, 1851, 2112, 2113, 2392: expected-FAIL,
+##   FAIL -> REFUSED), pyref 0/0/0, mirror 53/53 0/0/0 (no OWED proof). Residuals: unannotated-parameter field
+##   initialisers, integral-float fields, bare containers (declared), element-of-field containers.
+
 ## gen #37 (2026-10-24): #327 + #329 REPAIRED, candidate (r327 executor off aa1cf01c; commits 329d3a10, 2a1e8474 (code), edf5b05e
 ##   (corpus, census, docs) + route docs; inline, no new def/raise-site class, ledger 3; mirror twins `\trusted`). #327: an injective
 ##   encoding was measured out (~1962 root / ~48 pyref / ~48 mirror files re-emit); instead `_run_pipeline` refuses

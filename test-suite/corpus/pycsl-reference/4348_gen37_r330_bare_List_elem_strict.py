@@ -6,6 +6,8 @@ from typing import List
 #@ ensures \result == True
 #@ assigns \nothing
 def g(xs: List) -> bool:
+    if not xs:
+        return True
     return xs[0] % 1 == 0
 
 if __name__ == "__main__":
