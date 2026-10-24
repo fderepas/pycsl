@@ -2844,6 +2844,255 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # inside Module 6 instead of with a located ir-validate error at the boundary.
     validate_ir(_json.loads(json_ir), stage="ir-validate-boundary")
 
+    # (#49) gen #37, ROUTE #341 — A CLASS BASE THAT IS NOT A CLASS NAME DROPPED THE
+    # INHERITANCE EDGE. Module 5 records a base only when it is spelled `Name` or `a.b.Name`;
+    # every other spelling was silently dropped, and so was an alias's target: `Base = B;
+    # class S(Base)` made `S` an UNRELATED record (the name `Base` resolves to no class),
+    # so R5 (route #338), the #277/#278 refinement, route #335 and the inherited invariant
+    # all skipped it. MEASURED (all PROVED, CPython violates): alias (o09 R5, o10 override
+    # contract, o11 invariant), `class S(base())` (o13), `S(me.B if False else B)` (o14),
+    # `Base, Other = B, int` (o15), `Base: Type[B] = B` (o16). About twenty independent
+    # readers of `ClassDef.bases` (Module 3/5/6, this pipeline) each take `b.id` / `b.attr`,
+    # so resolving an alias at ONE of them would leave the others reading the alias name
+    # (an unknown, i.e. imported-looking, base: R5 and #278 then skip the pair) — and the
+    # census over both corpora, the 53 mirrors and `pycsl_lib` finds ZERO alias, call,
+    # conditional or non-`Generic` subscripted bases. So the repair is a sound REFUSAL, not
+    # a resolution. RULE, for every base expression of every class of the file:
+    #   * a bare name is admitted unless the file ALSO binds that name by anything other
+    #     than a `class` statement or an import (assignment / annotated / tuple / `for` /
+    #     `with` / walrus target, `del`, a `def`, a parameter, an `except .. as`);
+    #   * an attribute chain is admitted when rooted at an imported name never rebound;
+    #   * a subscript is admitted only on `Generic` / `Protocol` (no inheritance content);
+    #   * anything else (a call, a conditional, an operator, a starred base) is REFUSED.
+    # (#49) gen #37, ROUTE #342 — THE CONSTRUCTOR-INVARIANT GOAL READS ONLY STRAIGHT-LINE
+    # `self.f = e` STORES. Route #226's goal `_check_class_inv_<C>` is built from Module 5's
+    # top-level stores; a field stored under control flow / by `+=` is marked unknown and
+    # then NO goal is emitted (annotations.md documented that as "not covered"), and a
+    # store by another FORM is not seen at all. Either way the invariant was ASSUMED.
+    # MEASURED (all PROVED, CPython violates): `for self.x in ..` (i21, i17 after a leading
+    # `super().__init__()`, defeating #335), `(self.x, y) = ..` (i22, i18), `del self.x`
+    # (i23, i10), `with .. as self.x` (i24), `setattr(self, "x", 5)` (i20, i12, i26 in a
+    # comprehension), `self.x += 5` (i25), `s = self; s.x = 5` (i35), a `while` (i38) or
+    # `if` (i39) store; and `d.__class__ = C` retypes an object (x03). RULE: for every class
+    # carrying a class invariant (its own or inherited; the resolved IR's merged
+    # `class_invariants`) and every file class on its base closure (their constructors
+    # run for its instances), the `__init__` / `__post_init__` body may touch an invariant
+    # field (every field when the invariant reads `self` otherwise than as `self.f`) only by
+    # a TOP-LEVEL `self.f = e` / `self.f: T = e` statement; it may not load `self` other
+    # than as an attribute root (an alias, an argument — `setattr(self, ..)`, `vars(self)`
+    # — a return), rebind `self`, touch `self.__dict__`, or `return` (later top-level
+    # stores become conditional). And no code of the file may store `__class__`
+    # (`x.__class__ = C`, `setattr(x, "__class__", C)`). Each a REFUSAL; monotone; INLINE
+    # (no nested def: check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+    import ast as _ast341
+    try:
+        _t341 = _ast341.parse(source_code)
+    except (SyntaxError, ValueError):
+        _t341 = None
+    if _t341 is not None:
+        from errors import PyCSLSemanticError as _PyCSLSemErr341
+        _cls341 = {}
+        _imp341 = set()
+        _bound341 = set()
+        for _n341 in _ast341.walk(_t341):
+            if isinstance(_n341, _ast341.ClassDef):
+                _cls341.setdefault(_n341.name, []).append(_n341)
+            elif isinstance(_n341, (_ast341.Import, _ast341.ImportFrom)):
+                for _a341 in _n341.names:
+                    _imp341.add((_a341.asname or _a341.name).split(".")[0])
+            elif isinstance(_n341, _ast341.Name) and not isinstance(_n341.ctx, _ast341.Load):
+                _bound341.add(_n341.id)
+            elif isinstance(_n341, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                _bound341.add(_n341.name)
+            elif isinstance(_n341, _ast341.arg):
+                _bound341.add(_n341.arg)
+            elif (isinstance(_n341, (_ast341.ExceptHandler, _ast341.MatchAs, _ast341.MatchStar))
+                  and isinstance(_n341.name, str)):
+                _bound341.add(_n341.name)
+        for _ks341 in _cls341.values():
+            for _k341 in _ks341:
+                for _b341 in _k341.bases:
+                    _why341 = ""
+                    if isinstance(_b341, _ast341.Name):
+                        if _b341.id in _bound341:
+                            _why341 = (f"names `{_b341.id}`, which this file also binds "
+                                       f"otherwise than by a `class` statement or an import "
+                                       f"(an alias such as `{_b341.id} = ...`, a tuple / "
+                                       f"annotated / loop target, a `def`, a parameter)")
+                    elif isinstance(_b341, _ast341.Attribute):
+                        _r341 = _b341
+                        while isinstance(_r341, _ast341.Attribute):
+                            _r341 = _r341.value
+                        if not (isinstance(_r341, _ast341.Name) and _r341.id in _imp341
+                                and _r341.id not in _bound341):
+                            _why341 = ("is an attribute that is not a dotted name rooted at "
+                                       "an imported module")
+                    elif isinstance(_b341, _ast341.Subscript):
+                        _h341 = _b341.value
+                        if not ((isinstance(_h341, _ast341.Name)
+                                 and _h341.id in ("Generic", "Protocol"))
+                                or (isinstance(_h341, _ast341.Attribute)
+                                    and _h341.attr in ("Generic", "Protocol"))):
+                            _why341 = ("is a subscripted class other than `Generic[...]` / "
+                                       "`Protocol[...]`")
+                    else:
+                        _why341 = ("is a computed expression (a call, a conditional, an "
+                                   "operator, a starred list)")
+                    if _why341:
+                        raise _PyCSLSemErr341(
+                            f"class '{_k341.name}' at line {_k341.lineno}: its base "
+                            f"`{_ast341.unparse(_b341)}` {_why341}. The verifier reads a "
+                            f"class's bases by NAME, so this base would not be resolved to "
+                            f"the class it denotes and '{_k341.name}' would be modelled as "
+                            f"unrelated to it: its inherited fields and invariants, the "
+                            f"override checks (routes #277/#278/#338) and the constructor "
+                            f"chain (route #335) would all be skipped, while CPython "
+                            f"inherits (route #341). Write the base class's own name (the "
+                            f"`class` statement's name, or `module.Name` for an imported "
+                            f"class) in the class header.",
+                            stage="ir-semantic", code="PYCSL-R341-CLASS-BASE-NOT-A-NAME")
+        for _n341 in _ast341.walk(_t341):
+            _cl341 = ""
+            if (isinstance(_n341, _ast341.Attribute) and _n341.attr == "__class__"
+                    and not isinstance(_n341.ctx, _ast341.Load)):
+                _cl341 = _ast341.unparse(_n341)
+            elif (isinstance(_n341, _ast341.Call) and len(_n341.args) >= 2
+                  and isinstance(_n341.args[1], _ast341.Constant)
+                  and _n341.args[1].value == "__class__"
+                  and ((isinstance(_n341.func, _ast341.Name)
+                        and _n341.func.id in ("setattr", "delattr"))
+                       or (isinstance(_n341.func, _ast341.Attribute)
+                           and _n341.func.attr in ("__setattr__", "__delattr__")))):
+                _cl341 = _ast341.unparse(_n341)
+            if _cl341:
+                raise _PyCSLSemErr341(
+                    f"line {getattr(_n341, 'lineno', 0)}: `{_cl341}` stores an object's "
+                    f"`__class__`, which changes the class of an EXISTING instance: its "
+                    f"fields were established by another class's constructor, so the "
+                    f"model's per-class field types, invariants and methods would be "
+                    f"assumed of an object that never met them (route #342). Construct an "
+                    f"instance of the target class instead.",
+                    stage="ir-semantic", code="PYCSL-R342-CLASS-REASSIGNMENT")
+        _ir342 = _json.loads(json_ir)
+        _rel342 = {}
+        for _td342 in (_ir342.get("type_decls") or []):
+            if not (isinstance(_td342, dict) and _td342.get("class_invariants")
+                    and _td342.get("name") in _cls341):
+                continue
+            _fs342 = set()
+            _stk342 = list(_td342.get("class_invariants") or [])
+            while _stk342:
+                _nd342 = _stk342.pop()
+                if isinstance(_nd342, dict):
+                    if (_nd342.get("type") == "FieldGet" and _nd342.get("object") == "self"
+                            and isinstance(_nd342.get("field"), str)):
+                        _fs342.add(_nd342["field"])
+                    elif any(_v342 == "self" for _v342 in _nd342.values()):
+                        _fs342.add("*")
+                    _stk342.extend(_nd342.values())
+                elif isinstance(_nd342, list):
+                    _stk342.extend(_nd342)
+            _cs342 = [_td342["name"]]
+            _seen342 = set()
+            while _cs342:
+                _c342 = _cs342.pop()
+                if _c342 in _seen342 or _c342 not in _cls341:
+                    continue
+                _seen342.add(_c342)
+                _rel342.setdefault(_c342, set()).update(_fs342)
+                for _k342 in _cls341[_c342]:
+                    for _b342 in _k342.bases:
+                        if isinstance(_b342, _ast341.Name):
+                            _cs342.append(_b342.id)
+                        elif isinstance(_b342, _ast341.Attribute):
+                            _cs342.append(_b342.attr)
+        for _c342 in sorted(_rel342):
+            _fs342 = _rel342[_c342]
+            for _k342 in _cls341[_c342]:
+                for _m342 in _k342.body:
+                    if not (isinstance(_m342, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                            and _m342.name in ("__init__", "__post_init__")):
+                        continue
+                    _pa342 = _m342.args.posonlyargs + _m342.args.args
+                    if not _pa342:
+                        continue
+                    _self342 = _pa342[0].arg
+                    _top342 = set()
+                    for _s342 in _m342.body:
+                        if isinstance(_s342, _ast341.Assign):
+                            _top342 |= {id(_t) for _t in _s342.targets
+                                        if isinstance(_t, _ast341.Attribute)}
+                        elif (isinstance(_s342, _ast341.AnnAssign)
+                              and isinstance(_s342.target, _ast341.Attribute)):
+                            _top342.add(id(_s342.target))
+                    _roots342 = set()
+                    _nest342 = set()
+                    _nret342 = set()
+                    for _x342 in _ast341.walk(_m342):
+                        if isinstance(_x342, _ast341.Attribute):
+                            _roots342.add(id(_x342.value))
+                        # `type(self)` / `isinstance(self, K)` / `id(self)` read, never
+                        # store (the builtin, not a rebinding of its name)
+                        if (isinstance(_x342, _ast341.Call)
+                                and isinstance(_x342.func, _ast341.Name)
+                                and _x342.func.id in ("type", "isinstance", "id")
+                                and _x342.func.id not in _bound341 | _imp341
+                                and _x342.args and isinstance(_x342.args[0], _ast341.Name)):
+                            _roots342.add(id(_x342.args[0]))
+                        if _x342 is not _m342 and isinstance(
+                                _x342, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                        _ast341.Lambda, _ast341.ClassDef)):
+                            _nret342 |= {id(_y) for _y in _ast341.walk(_x342)}
+                            if isinstance(_x342, _ast341.ClassDef) or any(
+                                    _p.arg == _self342 for _p in (
+                                        _x342.args.posonlyargs + _x342.args.args
+                                        + _x342.args.kwonlyargs)):
+                                _nest342 |= {id(_y) for _y in _ast341.walk(_x342)}
+                    for _x342 in _ast341.walk(_m342):
+                        if id(_x342) in _nest342:
+                            continue
+                        _bad342 = ""
+                        if (isinstance(_x342, _ast341.Attribute)
+                                and isinstance(_x342.value, _ast341.Name)
+                                and _x342.value.id == _self342):
+                            if _x342.attr == "__dict__":
+                                _bad342 = f"touches `{_self342}.__dict__`"
+                            elif (not isinstance(_x342.ctx, _ast341.Load)
+                                  and (_x342.attr in _fs342 or "*" in _fs342)
+                                  and id(_x342) not in _top342):
+                                _bad342 = (f"stores or deletes the invariant field "
+                                           f"`{_self342}.{_x342.attr}` by a form other "
+                                           f"than a top-level `{_self342}.{_x342.attr} = "
+                                           f"...` statement (a `for` / `with` / tuple / "
+                                           f"augmented / `del` target, or a store inside "
+                                           f"control flow or a comprehension)")
+                        elif isinstance(_x342, _ast341.Name) and _x342.id == _self342:
+                            if not isinstance(_x342.ctx, _ast341.Load):
+                                _bad342 = f"rebinds `{_self342}`"
+                            elif id(_x342) not in _roots342:
+                                _bad342 = (f"lets `{_self342}` escape or be aliased (a "
+                                           f"bare `{_self342}` as an argument — "
+                                           f"`setattr`, `vars`, a helper — an alias "
+                                           f"`s = {_self342}`, or a value)")
+                        elif isinstance(_x342, _ast341.Return) and id(_x342) not in _nret342:
+                            _bad342 = ("contains a `return`, which makes every later "
+                                       "top-level store conditional")
+                        if _bad342:
+                            raise _PyCSLSemErr341(
+                                f"class '{_c342}' line {getattr(_x342, 'lineno', 0)}: "
+                                f"its `{_m342.name}` {_bad342}. '{_c342}' carries (or its "
+                                f"constructor runs for) a `#@ class invariant` over "
+                                f"{sorted(_fs342)}, and the constructor's obligation (route "
+                                f"#226) is computed from top-level `self.f = e` stores "
+                                f"only, so the invariant would be ASSUMED for every "
+                                f"instance although the constructor's real effect is "
+                                f"not checked against it (route #342). Store each "
+                                f"invariant field by a top-level `self.f = e` statement "
+                                f"whose value is a literal or an `__init__` parameter "
+                                f"(the shapes the constructor goal states), and keep "
+                                f"`self` out of calls and aliases in the constructor.",
+                                stage="ir-semantic", code="PYCSL-R342-CONSTRUCTOR-STORE-FORM")
+
     # (#49) ROUTE #263 — RECURSION THROUGH A METHOD CALL WAS NEVER CHECKED FOR TERMINATION.
     # Module 6 lowers a `self.m(...)` / `obj.m(...)` / `C().m(...)` call to a bodyless
     # abstract `val` carrying the callee's propagated `ensures`, so Why3 sees no edge from
