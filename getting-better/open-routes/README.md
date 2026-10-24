@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #335 (inherited class invariant assumes the base constructor's field values for subclasses that never ran it:
+##   no super().__init__, class-attr/property shadowing, MRO) OPENED (red team 22; 4/4 sample reproduced). Red team 22 regression replay:
+##   all 242 witnesses of #300-#333 still closed on main (j02 = documented #304 residual).
+
 ## gen #37 (2026-10-24): #333 REPAIRED, candidate (r333 executor off 0c2d49cc; commits 432e5fff, 0e8af983, 2448673c (code + corpus)
 ##   + census + route docs; inline in #327's `_run_pipeline` block, no new def, ledger 3). Refusal measured against a rename
 ##   (586 root / 12 pyref / 37 mirror re-emit): PYCSL-R327-IDENT-COLLISION now also refuses (a) a user exception class whose
