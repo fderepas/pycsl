@@ -4359,6 +4359,87 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 filename=args.file, line=int(getattr(_g327, "lineno", 0) or 0),
                 stage="ir-semantic", code="PYCSL-R327-IDENT-COLLISION")
         _fns327[_gk327] = _gn327
+    # (#49) ROUTE #333 — THE R327 NAMESPACES WERE INCOMPLETE. (a) EXCEPTION TAGS:
+    # `safe_exc_name` strips leading underscores (so the import alias `_Y` of `Y` shares
+    # one `exception Y`), which also MERGED two distinct user classes `_E` / `E` (the first
+    # `except` arm caught both: proved `\result == 1`, CPython 2) and a user class
+    # `_ValueError` with the BUILTIN `ValueError` (`except ValueError` caught it under
+    # `no_exception \all`; CPython propagates). Refused: a user EXCEPTION class (a source
+    # `class` whose base is a builtin exception or another such class, or named in a
+    # raise / except / raises tag) whose stripped tag equals that of ANOTHER source class,
+    # an imported name, or a builtin exception. A class spelled EXACTLY like a builtin is
+    # #305's (`PYCSL-R305-BUILTIN-EXCEPTION-NAME-SHADOWED`); a `raises Y` tag that only
+    # names the stripped spelling of the class `_Y` (the mirror's `_ContractSyntaxError`)
+    # is the same exception and stays accepted. (b) GENERATED BINDERS: the emitter binds
+    # its own locals (`_idx_<v>` loop counters, `_len_idx_`, `_any_<v>_<n>` havocs, `_tu_`,
+    # `_pycsl_*`, comprehension / lambda / quantifier temporaries ...) in the SAME WhyML
+    # scope as the user's names, so a user local `_idx_i` was read as (and overwritten by)
+    # the counter. `_rsv333` is the census of those names (route333 REPAIR); a user name in
+    # it is refused per scope below. MEASURED: renaming the generated binders instead
+    # re-emits 586 / 12 / 37 (root / pyref / mirror) files; this refusal moves none.
+    import re as _re333
+    _rsv333 = _re333.compile(
+        r"^(?:_(?:idx|len_idx|stop_idx|hv_idx|rl_idx|callit_idx|split_idx|seqlit_idx|any"
+        r"|all_fold|inl|tu|u|lf|cc|csrc|cdf|mem|dk|h_f|r230|r251|class|union|pf|pycsl"
+        r"|wl[0-9]+c)_|__(?:pycsl|and|or|happy)_|_for_target|_(?:alit|u|hl|rec_|row|ci|celt"
+        r"|si|csl_forall|s_eq|pyobj_state|mi|hin|kin|pin|lin|hln|lln|sln|fk|cj|ae|ri|swr|fr"
+        r"|fi|res|mnk|hfm|sfm|nmap)$|__f[dr]$)")
+    import builtins as _bi333
+    _bexc333: Set[str] = {_b333 for _b333 in dir(_bi333)
+                          if isinstance(getattr(_bi333, _b333), type)
+                          and issubclass(getattr(_bi333, _b333), BaseException)}
+    _tags333: Set[str] = set()
+    _stk333: List[Any] = [_ir327.get("functions") or []]
+    while _stk333:
+        _n333 = _stk333.pop()
+        if isinstance(_n333, list):
+            _stk333.extend(_n333)
+            continue
+        if not isinstance(_n333, dict):
+            continue
+        if isinstance(_n333.get("exc_type"), str):
+            _tags333.update(_t333.strip() for _t333 in _n333["exc_type"].split("|"))
+        _stk333.extend(_v333 for _v333 in _n333.values() if isinstance(_v333, (dict, list)))
+    _cdefs333: List[Any] = []
+    _others333: Set[str] = set(_bexc333)
+    for _a333 in _ast327.walk(_ast327.parse(source_code)):
+        if isinstance(_a333, _ast327.ClassDef):
+            _cdefs333.append(_a333)
+            _others333.add(_a333.name)
+        elif isinstance(_a333, (_ast327.Import, _ast327.ImportFrom)):
+            _others333.update((_al333.asname or _al333.name).split(".")[0]
+                              for _al333 in _a333.names)
+    _exc333: Set[str] = set(_bexc333)
+    _grow333 = True
+    while _grow333:
+        _grow333 = False
+        for _cd333 in _cdefs333:
+            if _cd333.name in _exc333:
+                continue
+            _bn333 = [(_bb333.id if isinstance(_bb333, _ast327.Name) else
+                       _bb333.attr if isinstance(_bb333, _ast327.Attribute) else "")
+                      for _bb333 in _cd333.bases]
+            if _cd333.name in _tags333 or any(_x333 in _exc333 for _x333 in _bn333):
+                _exc333.add(_cd333.name)
+                _grow333 = True
+    for _cd333 in _cdefs333:
+        _cn333 = _cd333.name
+        if _cn333 not in _exc333:
+            continue
+        _ck333 = _cn333.lstrip("_") or _cn333
+        for _o333 in sorted(_others333):
+            if _o333 != _cn333 and (_o333.lstrip("_") or _o333) == _ck333:
+                from errors import PyCSLSemanticError as _PyCSLSemErr333
+                raise _PyCSLSemErr333(
+                    f"{args.file}: PYCSL-R327-IDENT-COLLISION (route #333) — the exception "
+                    f"class '{_cn333}' and the "
+                    f"{'builtin exception' if _o333 in _bexc333 else 'class' if any(_q333.name == _o333 for _q333 in _cdefs333) else 'imported name'} '{_o333}' lower "
+                    f"to ONE WhyML exception tag '{_ck333}' (leading underscores are "
+                    f"stripped), so a handler for one would catch the other (measured: "
+                    f"`raise _ValueError()` caught by `except ValueError`). Rename the class "
+                    f"so its name without leading underscores is unique.",
+                    filename=args.file, line=int(getattr(_cd333, "lineno", 0) or 0),
+                    stage="ir-semantic", code="PYCSL-R327-IDENT-COLLISION")
     for _f327 in (_ir327.get("functions") or []):
         if not isinstance(_f327, dict):
             continue
@@ -4404,6 +4485,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _clash327 = _seen327.get(_w327)
             if _w327.startswith("_tu_"):
                 _clash327 = "<the emitter's tuple-unpacking binders `_tu_*`>"
+            elif _rsv333.match(_w327):
+                # route #333: the emitter's own binders live in this namespace
+                _clash327 = (f"<the emitter's generated binder namespace "
+                             f"`{_rsv333.match(_w327).group(0)}...`>")
             if _clash327 is not None and _clash327 != _nm327:
                 from errors import PyCSLSemanticError as _PyCSLSemErr327
                 raise _PyCSLSemErr327(
