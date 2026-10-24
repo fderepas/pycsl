@@ -7036,6 +7036,794 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"`#@ \\variant`, whose `let rec` termination Why3 checks.",
                 filename=args.file, stage="ir-semantic",
                 code="PYCSL-SEM-METHOD-RECURSION-UNCHECKED")
+    # (#49) ROUTE #325 — AN UNMODELLED VALUE IS NOT AN INT. Every value Module 6 cannot model
+    # falls back to an OPAQUE INT — `val constant F : int` for a module-level name, `get_X`
+    # over a module / class object, `getattr_<cls>` for a class attribute, `subscript_get`,
+    # `val m_f_0 (..) : int` for a call of an imported / builtin callable — whatever its
+    # Python type, so every claim true of ALL INTEGERS was proved of floats, strings, lists
+    # and modules: `F = 0.5; F % 1 == 0`, `x < E or x >= E + 1 or x == E`, `int(F) == F`,
+    # `time.time() // 1 == time.time()`, `os.getcwd() * 0 == 0` all PROVED (CPython False).
+    # Route #322's name-keyed refusal covered `math.pi` and was bypassed by a re-export, an
+    # alias, `importlib` and `__import__`. The fix is decided on the EMITTED WhyML (the one
+    # place every fallback ends up, whichever lowering produced it): a fallback that stands
+    # for a module-level Python value (an ORIGIN), and every value derived from one (a local
+    # bound to it, a component read off it, a container built from it, a function returning
+    # it, a user function's parameter receiving it), may only be bound, passed on, returned,
+    # discarded, or compared `=` / `<>` in program code against a DIFFERENT value. Any
+    # other use — an int operator or ordering, `%` / `//`, a contract term, a condition, a
+    # reflexive comparison — would give it int theory it has only if it IS an int, and is
+    # refused (fail closed). A value KNOWN to be an int keeps its model: an int expression
+    # bound at module / class level in this file, `sys.maxsize`-style int attributes, and
+    # documented int-returning callables (`len`, `id`, `random.randint`, ...); a user
+    # function annotated `-> int` keeps its stub unless its body returns a fallback.
+    # INLINE (no nested defs: check-mirror-coverage); `_run_pipeline`'s mirror twin is
+    # `\trusted`.
+    import re as _re325
+    import ast as _ast325
+    from module6_whyml.identifiers import whyml_ident as _wid325
+    # 1. comments, string literals and `[@...]` attributes out (never Python names).
+    _t325 = _mlw
+    _o325 = []
+    _i325 = 0
+    _d325 = 0
+    _n325 = len(_t325)
+    while _i325 < _n325:
+        _c325 = _t325[_i325]
+        if _d325 == 0 and _c325 == '"':
+            _j325 = _i325 + 1
+            while _j325 < _n325 and _t325[_j325] != '"':
+                _j325 += 2 if _t325[_j325] == "\\" else 1
+            _o325.append('"s"')
+            _i325 = _j325 + 1
+            continue
+        if _t325.startswith("(*", _i325) and not _t325.startswith("(*)", _i325):
+            _d325 += 1
+            _i325 += 2
+            continue
+        if _d325 and _t325.startswith("*)", _i325):
+            _d325 -= 1
+            _i325 += 2
+            continue
+        if _d325 == 0 and _t325.startswith("[@", _i325):
+            _j325 = _t325.find("]", _i325)
+            _i325 = (_j325 + 1) if _j325 > 0 else _n325
+            continue
+        if _d325 == 0 or _c325 == "\n":
+            _o325.append(_c325)
+        _i325 += 1
+    # 2. tokens, tagged with their top-level declaration (a line at indent <= 2 opening
+    #    with a declaration keyword starts one).
+    _toks325 = []
+    _decl325 = []
+    _dstart325 = []
+    _dk325 = -1
+    for _ln325 in "".join(_o325).split("\n"):
+        if _re325.match(r"^ {0,2}(let|val|type|predicate|function|lemma|axiom|goal|"
+                        r"exception|use|clone|scope|constant|end|meta|module|theory)\b",
+                        _ln325):
+            _dk325 += 1
+            _dstart325.append(len(_toks325))
+        for _tk325 in _re325.findall(r"!?[A-Za-z_][A-Za-z_0-9']*|\d+(?:\.\d+)?|<>|<=|>=|"
+                                     r":=|->|<-|\|\||&&|/\\|\\/|\S", _ln325):
+            _toks325.append(_tk325)
+            _decl325.append(max(_dk325, 0))
+    _N325 = len(_toks325)
+    _dstart325.append(_N325)
+    # matching brackets
+    _mt325 = {}
+    _stk325 = []
+    for _k325, _tk325 in enumerate(_toks325):
+        if _tk325 in ("(", "[", "{"):
+            _stk325.append(_k325)
+        elif _tk325 in (")", "]", "}") and _stk325:
+            _o2325 = _stk325.pop()
+            _mt325[_o2325] = _k325
+            _mt325[_k325] = _o2325
+    _SPEC325 = {"requires", "ensures", "writes", "reads", "raises", "alias", "returns",
+                "diverges", "variant", "="}
+    # 3. per-declaration header: kind, name, arity, and (for a `val`) whether it is an
+    #    UNCONSTRAINED `int` (no `ensures`): the opaque fallback.
+    _S325 = {}      # opaque name -> (family, arity)
+    _other325 = {}  # unconstrained int model op (not a Python-value fallback) -> arity
+    _dname325 = {}
+    _dar325 = {}
+    _hdr325 = {}    # decl -> token index where its header ends
+    for _dd325 in range(len(_dstart325) - 1):
+        _a325, _z325 = _dstart325[_dd325], _dstart325[_dd325 + 1]
+        if _a325 >= _z325 or _toks325[_a325] not in ("let", "val", "predicate", "function"):
+            continue
+        _k325 = _a325 + 1
+        _mods325 = []
+        while _k325 < _z325 and _toks325[_k325] in ("constant", "function", "ghost", "rec",
+                                                    "predicate", "lemma", "partial"):
+            _mods325.append(_toks325[_k325])
+            _k325 += 1
+        if _k325 >= _z325:
+            continue
+        _nm325 = _toks325[_k325]
+        _dname325[_dd325] = _nm325
+        _k325 += 1
+        _ar325 = 0
+        while _k325 < _z325 and _toks325[_k325] == "(" and _k325 in _mt325:
+            _ar325 += 1
+            _k325 = _mt325[_k325] + 1
+        _dar325[_dd325] = _ar325
+        _rt325 = []
+        if _k325 < _z325 and _toks325[_k325] == ":":
+            _k325 += 1
+            while _k325 < _z325 and _toks325[_k325] not in _SPEC325:
+                _rt325.append(_toks325[_k325])
+                _k325 += 1
+        _hdr325[_dd325] = _k325
+        if (_toks325[_a325] == "val" and _rt325 == ["int"]
+                and "ensures" not in _toks325[_k325:_z325]
+                and "returns" not in _toks325[_k325:_z325]):
+            if _nm325.startswith("pycsl_") and "getattr" not in _nm325:
+                _fam325 = None      # an internal encoding (None, Ellipsis), not a fallback
+            elif _ar325 == 0 or "constant" in _mods325:
+                _fam325 = "constant"
+            elif _nm325.startswith("get_"):
+                _fam325 = "attribute"
+            elif "getattr" in _nm325:
+                _fam325 = "getattr"
+            elif _nm325.startswith("subscript_get"):
+                _fam325 = "subscript"
+            elif _re325.search(r"_\d+$", _nm325):
+                _fam325 = "call"
+            else:
+                _fam325 = None
+            if _fam325:
+                _S325[_nm325] = (_fam325, _ar325)
+            else:
+                _other325[_nm325] = (_ar325, True)
+        elif (_toks325[_a325] == "val" and "ensures" not in _toks325[_k325:_z325]
+              and "requires" not in _toks325[_k325:_z325]
+              and "returns" not in _toks325[_k325:_z325]):
+            _other325[_nm325] = (_ar325, False)     # any other opaque operation (no spec)
+    # 4. KNOWN-INT values keep their int model (a documented CPython int type or an int
+    #    expression in this source); everything else that fell back is of UNKNOWN type.
+    _imod325 = {}   # alias -> module
+    _inam325 = {}   # local -> (module, name)
+    _bind325 = {}   # module/class-level Python name -> [is-known-int, ...]
+    try:
+        import warnings as _w325
+        with _w325.catch_warnings():
+            _w325.simplefilter("ignore")
+            _tree325 = _ast325.parse(source_code)
+    except SyntaxError:
+        _tree325 = None
+    _KI_ATTR325 = {("sys", "maxsize"), ("sys", "maxunicode"), ("sys", "hexversion"),
+                   ("sys", "api_version")}
+    _KI_FI325 = {"max_exp", "max_10_exp", "min_exp", "min_10_exp", "dig", "mant_dig",
+                 "radix", "rounds"}
+    _KI_CALL325 = {("", "id"), ("", "hash"), ("", "len"), ("", "ord"), ("", "int"),
+                   ("random", "randint"), ("random", "randrange"),
+                   ("random", "getrandbits"), ("os", "getpid"), ("os", "getppid"),
+                   ("time", "time_ns"), ("time", "monotonic_ns"),
+                   ("time", "perf_counter_ns"), ("math", "gcd"), ("math", "lcm"),
+                   ("math", "isqrt"), ("math", "factorial"), ("math", "comb"),
+                   ("math", "perm"), ("", "range")}
+    _TYPES325 = {"int", "str", "bool", "float", "dict", "list", "set", "frozenset", "tuple",
+                 "bytes", "bytearray", "object", "type", "complex", "notImplemented"}
+    if _tree325 is not None:
+        for _a325 in _ast325.walk(_tree325):
+            if isinstance(_a325, _ast325.Import):
+                for _al325 in _a325.names:
+                    _imod325[_al325.asname or _al325.name.split(".")[0]] = (
+                        _al325.name if _al325.asname else _al325.name.split(".")[0])
+            elif isinstance(_a325, _ast325.ImportFrom) and _a325.module:
+                for _al325 in _a325.names:
+                    _inam325[_al325.asname or _al325.name] = (_a325.module, _al325.name)
+        _top325 = list(_tree325.body)
+        _top325 += [_s325 for _c325 in _tree325.body if isinstance(_c325, _ast325.ClassDef)
+                    for _s325 in _c325.body]
+        # fixpoint: an int expression over int literals and known-int names
+        for _it325 in range(3):
+            _known325 = {k for k, v in _bind325.items() if v and all(v)}
+            _bind325 = {}
+            for _s325 in _top325:
+                _tg325 = []
+                if isinstance(_s325, _ast325.Assign):
+                    _tg325 = [t.id for t in _s325.targets if isinstance(t, _ast325.Name)]
+                    _vv325 = _s325.value
+                elif isinstance(_s325, (_ast325.AnnAssign, _ast325.AugAssign)) and isinstance(
+                        _s325.target, _ast325.Name):
+                    _tg325 = [_s325.target.id]
+                    _vv325 = _s325.value
+                for _t2325 in _tg325:
+                    _ok325 = _vv325 is not None
+                    _wk325 = [_vv325] if _vv325 is not None else []
+                    while _wk325 and _ok325:
+                        _e325 = _wk325.pop()
+                        if isinstance(_e325, _ast325.Constant):
+                            _ok325 = type(_e325.value) in (int, bool)
+                        elif isinstance(_e325, _ast325.UnaryOp) and isinstance(
+                                _e325.op, (_ast325.USub, _ast325.UAdd, _ast325.Invert)):
+                            _wk325.append(_e325.operand)
+                        elif isinstance(_e325, _ast325.BinOp) and isinstance(
+                                _e325.op, (_ast325.Add, _ast325.Sub, _ast325.Mult,
+                                           _ast325.FloorDiv, _ast325.Mod, _ast325.LShift,
+                                           _ast325.RShift, _ast325.BitAnd, _ast325.BitOr,
+                                           _ast325.BitXor)):
+                            _wk325.extend([_e325.left, _e325.right])
+                        elif isinstance(_e325, _ast325.Name):
+                            _ok325 = _e325.id in _known325
+                        elif (isinstance(_e325, _ast325.Call)
+                              and isinstance(_e325.func, _ast325.Name)
+                              and _e325.func.id in ("len", "int", "ord", "id", "hash")
+                              and _e325.func.id not in _bind325):
+                            pass
+                        else:
+                            _ok325 = False
+                    if isinstance(_s325, _ast325.AugAssign) and not isinstance(
+                            _s325.op, (_ast325.Add, _ast325.Sub, _ast325.Mult,
+                                       _ast325.FloorDiv, _ast325.Mod)):
+                        _ok325 = False
+                    _bind325.setdefault(_t2325, []).append(_ok325)
+        for _s325 in _ast325.walk(_tree325):
+            if isinstance(_s325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef,
+                                  _ast325.ClassDef)) and _s325 in _top325:
+                _bind325.setdefault(_s325.name, []).append(False)
+            if isinstance(_s325, _ast325.Global):
+                for _g325 in _s325.names:
+                    _bind325.setdefault(_g325, []).append(False)
+    _known325 = {_wid325(k) for k, v in _bind325.items() if v and all(v)}
+    _bound325 = {_wid325(k) for k in _bind325} | {_wid325(k) for k in _imod325} | {
+        _wid325(k) for k in _inam325}
+    _kicall325 = set()
+    for _al325, _m325 in _imod325.items():
+        for _mm325, _f325 in _KI_CALL325:
+            if _mm325 == _m325:
+                _kicall325.add(_wid325(f"{_al325}.{_f325}"))
+    for _l325, (_mm325, _f325) in _inam325.items():
+        if (_mm325, _f325) in _KI_CALL325:
+            _kicall325.add(_wid325(_l325))
+    for _mm325, _f325 in _KI_CALL325:
+        if _mm325 == "" and _f325 not in _bind325:
+            _kicall325.add(_wid325(_f325))
+    # ORIGINS: a fallback is an origin only when it stands for a Python value reached
+    # through a MODULE-LEVEL name of this file (a global, a class, an import / module
+    # object) or a call of a module-level callable (an imported module's function, a
+    # from-imported name, a builtin); a getter / subscript over an origin is derived from
+    # it (step 6). Unresolved free names and method calls on parameters / locals are not.
+    import builtins as _bi325
+    _origin325 = set(_bound325)
+    _mcall325 = set()
+    if _tree325 is not None:
+        for _a325 in _ast325.walk(_tree325):
+            if isinstance(_a325, _ast325.ClassDef):
+                _origin325.add(_wid325(_a325.name))
+                _origin325.add("_class_" + _wid325(_a325.name))
+            if not isinstance(_a325, _ast325.Call):
+                continue
+            _ch325 = []
+            _f325 = _a325.func
+            while isinstance(_f325, _ast325.Attribute):
+                _ch325.insert(0, _f325.attr)
+                _f325 = _f325.value
+            if not isinstance(_f325, _ast325.Name):
+                continue
+            _ch325.insert(0, _f325.id)
+            if (_f325.id in _imod325 or _f325.id in _inam325
+                    or (hasattr(_bi325, _f325.id) and _f325.id not in _bind325)):
+                _mcall325.add(_wid325(".".join(_ch325)))
+    from module6_whyml.identifiers import stable_hash as _sh325
+    _clsbad325 = set()
+    _clsok325 = set()
+    _clsw325 = set()
+    if _tree325 is not None:
+        for _a325 in _ast325.walk(_tree325):
+            if isinstance(_a325, _ast325.ClassDef):
+                for _s325 in _a325.body:
+                    for _t2325 in ([t for t in _s325.targets if isinstance(t, _ast325.Name)]
+                                   if isinstance(_s325, _ast325.Assign) else
+                                   [_s325.target] if isinstance(_s325, _ast325.AnnAssign)
+                                   and isinstance(_s325.target, _ast325.Name) else []):
+                        if not all(_bind325.get(_t2325.id, [False])):
+                            _clsbad325.add(str(_sh325(_t2325.id)))
+                        else:
+                            _clsok325.add(_t2325.id)
+                _clsw325.update({_wid325(_a325.name), "_class_" + _wid325(_a325.name)})
+    for _nm325 in list(_S325):
+        _fam325 = _S325[_nm325][0]
+        if _fam325 == "constant" and _nm325 in _known325:
+            del _S325[_nm325]
+        elif _fam325 == "call" and _re325.sub(r"_\d+$", "", _nm325) in _kicall325:
+            del _S325[_nm325]
+        elif ((_fam325 == "constant" and _nm325 not in _origin325)
+              or _fam325 in ("attribute", "subscript")
+              or (_fam325 == "call"
+                  and _re325.sub(r"_\d+$", "", _nm325) not in _mcall325)):
+            _other325[_nm325] = (_S325[_nm325][1], True)
+            del _S325[_nm325]
+    # block structure: begin/try/match/... `end`, `do` ... `done`
+    _bk325 = {}
+    _bst325 = []
+    for _k325, _tk325 in enumerate(_toks325):
+        if _tk325 in ("begin", "try", "match", "scope", "loop") and not (
+                _k325 > 0 and _toks325[_k325 - 1] == "."):
+            _bst325.append(_k325)
+        elif _tk325 == "end" and _bst325 and _decl325[_bst325[-1]] == _decl325[_k325]:
+            _o2325 = _bst325.pop()
+            _bk325[_o2325] = _k325
+            _bk325[_k325] = _o2325
+        elif _tk325 == "end" and _bst325:
+            _bst325 = [x for x in _bst325 if _decl325[x] == _decl325[_k325]]
+    # 5. binders (a WhyML local/param/pattern variable that shares a fallback's name is
+    #    NOT the fallback): declaration-wide, as Python's function scope is; `fun` /
+    #    `forall` / `exists` binders scope over their enclosing group only.
+    _bd325 = {}     # decl -> names bound anywhere in it
+    _bg325 = []     # (name, start, end) group-scoped binders
+    for _k325, _tk325 in enumerate(_toks325):
+        _dd325 = _decl325[_k325]
+        if _tk325 == "let" or _tk325 == "for":
+            _j325 = _k325 + 1
+            while _j325 < _N325 and _toks325[_j325] in ("ghost", "rec", "function", "mutable",
+                                                         "predicate", "constant", "ref"):
+                _j325 += 1
+            _nb325 = []
+            if _j325 < _N325 and _toks325[_j325] == "(" and _j325 in _mt325:
+                _nb325 = [x for x in _toks325[_j325:_mt325[_j325]]
+                          if _re325.match(r"[a-z_][A-Za-z_0-9']*$", x)]
+            elif _j325 < _N325 and _k325 > _dstart325[_dd325]:
+                _nb325 = [_toks325[_j325]]
+            if _tk325 == "for" or not _nb325:
+                for _x325 in _nb325:
+                    _bd325.setdefault(_dd325, set()).add(_x325)
+                continue
+            # a `let` binds from its `in` to the end of the innermost enclosing group /
+            # block (WhyML scoping: `let f = (fun () -> f) in` reads the OUTER `f` in its
+            # right-hand side, and `F` / `f` fold to one WhyML name)
+            _z325 = _dstart325[_dd325 + 1]
+            _q325 = _j325 + 1
+            _nest325 = 0
+            while _q325 < _z325:
+                _tq325 = _toks325[_q325]
+                if _tq325 in ("(", "[", "{") and _q325 in _mt325:
+                    _q325 = _mt325[_q325] + 1
+                    continue
+                if _tq325 == "let":
+                    _nest325 += 1
+                elif _tq325 == "in":
+                    if _nest325 == 0:
+                        break
+                    _nest325 -= 1
+                _q325 += 1
+            _e325 = _k325 - 1
+            _dp325 = 0
+            _end325 = _z325
+            while _e325 >= _dstart325[_dd325]:
+                _te325 = _toks325[_e325]
+                if _te325 in (")", "]", "}") or (_te325 == "end" and _e325 in _bk325):
+                    _dp325 += 1
+                elif _te325 in ("(", "[", "{") or (_te325 in ("begin", "try", "match")
+                                                   and _e325 in _bk325):
+                    if _dp325 == 0:
+                        _end325 = (_mt325.get(_e325, _z325) if _te325 in ("(", "[", "{")
+                                   else _bk325.get(_e325, _z325))
+                        break
+                    _dp325 -= 1
+                _e325 -= 1
+            for _x325 in _nb325:
+                _bg325.append((_x325, _q325, _end325))
+        elif _tk325 in ("|", "with"):
+            _j325 = _k325 + 1
+            _pv325 = []
+            while (_j325 < _N325 and _toks325[_j325] not in ("->", "=", "}", ";", "in", "|",
+                                                             "end", "with")):
+                _pv325.append(_toks325[_j325])
+                _j325 += 1
+            if _j325 < _N325 and _toks325[_j325] == "->":
+                for _x325 in _pv325:
+                    if _re325.match(r"[a-z_][A-Za-z_0-9']*$", _x325):
+                        _bd325.setdefault(_dd325, set()).add(_x325)
+        elif _tk325 in ("fun", "forall", "exists"):
+            _e325 = _k325 - 1
+            _dp325 = 0
+            while _e325 >= 0:
+                if _toks325[_e325] in (")", "]", "}"):
+                    _dp325 += 1
+                elif _toks325[_e325] in ("(", "[", "{"):
+                    if _dp325 == 0:
+                        break
+                    _dp325 -= 1
+                _e325 -= 1
+            _end325 = _mt325.get(_e325, _dstart325[_dd325 + 1]) if _e325 >= 0 else (
+                _dstart325[_dd325 + 1])
+            _j325 = _k325 + 1
+            while _j325 < _N325 and _toks325[_j325] not in ("->", "."):
+                if (_re325.match(r"[a-z_][A-Za-z_0-9']*$", _toks325[_j325])
+                        and (_tk325 != "fun" or _toks325[_j325 - 1] == "(")):
+                    _bg325.append((_toks325[_j325], _k325, _end325))
+                _j325 += 1
+    _dparams325 = {}
+    _dbyname325 = {}
+    for _dd325, _a325 in _hdr325.items():
+        if _toks325[_dstart325[_dd325]] in ("let", "val") and _dd325 in _dname325:
+            _dbyname325.setdefault(_dname325[_dd325], _dd325)
+        # header parameters `(x: t)` / `(x y: t)` of a declaration, in order
+        for _j325 in range(_dstart325[_dd325], _a325):
+            if (_toks325[_j325] == ":" and _j325 > 0
+                    and _re325.match(r"[a-z_][A-Za-z_0-9']*$", _toks325[_j325 - 1])):
+                _q325 = _j325 - 1
+                _pn325 = []
+                while _q325 >= 0 and _re325.match(r"[a-z_][A-Za-z_0-9']*$", _toks325[_q325]):
+                    _bd325.setdefault(_dd325, set()).add(_toks325[_q325])
+                    _pn325.insert(0, _toks325[_q325])
+                    _q325 -= 1
+                if _q325 >= 0 and _toks325[_q325] == "(":
+                    _dparams325.setdefault(_dd325, []).extend(_pn325)
+    # user functions/methods annotated `-> int` / `-> bool` (their bodies are verified at
+    # an int type here, so an unconstrained stub of a call to one is int-typed unless that
+    # body returns a fallback, tracked below)
+    _udef325 = set()
+    if _tree325 is not None:
+        for _a325 in _ast325.walk(_tree325):
+            if (isinstance(_a325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef))
+                    and isinstance(_a325.returns, _ast325.Name)
+                    and _a325.returns.id in ("int", "bool")):
+                _udef325.add(_wid325(_a325.name))
+    _modw325 = {_wid325(k) for k in _imod325}
+    _pydefs325 = set()
+    if _tree325 is not None:
+        for _a325 in _ast325.walk(_tree325):
+            if isinstance(_a325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef)):
+                _pydefs325.add(_wid325(_a325.name))
+    for _x325 in list(_dbyname325):
+        if (_x325 in _S325 or _x325 in _other325 or not (
+                _x325 in _pydefs325 or any(_x325.endswith("__" + d) for d in _pydefs325))):
+            del _dbyname325[_x325]
+    _INTOP325 = {"+", "-", "*", "<", "<=", ">", ">=", "pycsl_mod", "pycsl_div", "pycsl_pow",
+                 "div", "mod", "abs", "power", "py_pow", "min", "max"}
+    _KW325 = {"let", "in", "if", "then", "else", "begin", "end", "match", "with", "try",
+              "raise", "while", "do", "done", "for", "to", "downto", "fun", "ref", "not",
+              "true", "false", "assert", "check", "assume", "old", "at", "forall",
+              "exists", "return", "absurd", "any", "ghost", "val", "function", "rec",
+              "loop", "result"}
+    # model operations whose result is an int of their own (a length, a type tag) or a
+    # rendering (`int_to_string`): an opaque argument is a sink there, not a source
+    _KIOP325 = {"iter_length", "hval_values_len", "hval_iter_len_other", "hval_len_other",
+                "typeof_op", "int_to_string"}
+    _PROG325 = {"let", "val", "predicate", "function", "lemma", "axiom", "goal", "constant"}
+    # 6. occurrences of a fallback (or of a value derived from one) must stay in the
+    #    ALLOWED positions: an argument of another opaque operation; the whole right-hand
+    #    side of a local binding (the local is then tracked); a function's return value
+    #    (the function is then tracked); a discarded statement; one side of a program
+    #    `=` / `<>` whose other side is not the same value (no reflexivity). Any other
+    #    position — an int operator or ordering, a contract term, an argument of a
+    #    modelled function, a store, a condition — gives the opaque value int theory it
+    #    may not have.
+    _tl325 = {}     # (decl, local) -> origin
+    _tf325 = {}     # tainted function name -> origin
+    _pos325 = {}
+    for _k325, _tk325 in enumerate(_toks325):
+        _pos325.setdefault(_tk325.lstrip("!"), []).append(_k325)
+    for _round325 in range(16):
+        _new325 = False
+        _viol325 = []
+        # a call stub `<recv>_<meth>_<n>` (Module 6 drops the receiver) whose receiver
+        # carries a fallback, or whose user method returns one, carries it too
+        _rv325 = {x[1] for x in _tl325} | {n for n, f in _S325.items()
+                                           if f[0] == "constant" and n not in _clsw325}
+        for _x325 in list(_other325):
+            if not _re325.search(r"_\d+$", _x325) or _x325 in _S325:
+                continue
+            _bs325 = _re325.sub(r"_\d+$", "", _x325)
+            if (any(_bs325.startswith(r + "_") for r in _rv325)
+                    or any((_bs325 == u or _bs325.endswith("_" + u))
+                           and any(f == u or f.endswith("__" + u) for f in _tf325)
+                           for u in _pydefs325)):
+                _S325[_x325] = ("call", _other325.pop(_x325)[0])
+                _new325 = True
+        _cand325 = set(_S325) | set(_tf325) | {x[1] for x in _tl325}
+        for _k325 in sorted(k for c in _cand325 for k in _pos325.get(c, ())):
+            _tk325 = _toks325[_k325]
+            _nm325 = _tk325.lstrip("!")
+            _dd325 = _decl325[_k325]
+            if _toks325[_dstart325[_dd325]] not in _PROG325:
+                continue
+            if _k325 < _hdr325.get(_dd325, _dstart325[_dd325]):
+                continue        # a declaration header names, it does not use
+            if _k325 > 0 and _toks325[_k325 - 1] == ".":
+                continue        # a field / qualified name
+            _org325 = None
+            if (_dd325, _nm325) in _tl325:
+                _org325 = _tl325[(_dd325, _nm325)]
+            elif _nm325 in _bd325.get(_dd325, ()) or any(
+                    b[0] == _nm325 and b[1] <= _k325 < b[2] for b in _bg325):
+                continue
+            elif _nm325 in _S325:
+                _org325 = _nm325
+                if (_S325[_nm325][0] == "getattr" and not _nm325.startswith("pycsl_")
+                        and not (_k325 > 0 and _toks325[_k325 - 1] == "("
+                                 and set(_toks325[_k325:_mt325.get(_k325 - 1, _k325)])
+                                 & _clsbad325)):
+                    continue    # an instance attribute: not a module-level value
+                if _S325[_nm325][0] == "call":
+                    _bs325 = _re325.sub(r"_\d+$", "", _nm325)
+                    _ok325 = False
+                    for _u325 in _udef325:
+                        if (_bs325 == _u325 or (_bs325.endswith("_" + _u325)
+                                                and _bs325[:-len(_u325) - 1] not in _modw325)):
+                            _ok325 = not any(
+                                f == _u325 or f.endswith("__" + _u325) for f in _tf325)
+                            break
+                    if _ok325:
+                        continue
+            elif _nm325 in _tf325 and _dname325.get(_dd325) != _nm325:
+                _org325 = _tf325[_nm325]
+            if _org325 is None:
+                continue
+            if _k325 + 1 < _N325 and _toks325[_k325 + 1] in (":=", "<-"):
+                continue        # the target of an assignment
+            if _k325 > 0 and _toks325[_k325 - 1] in ("let", "ghost", "rec", "for", "mutable"):
+                continue        # a binder
+            # the unit: the application `(f a b)` / `f a b`, or the bare name
+            _ua325, _ub325 = _k325, _k325
+            _ar325 = (_S325[_nm325][1] if _nm325 in _S325 and _org325 == _nm325 else
+                      next((_dar325[d] for d, n in _dname325.items() if n == _nm325), 0)
+                      if _nm325 in _tf325 else 0)
+            if _k325 > 0 and _toks325[_k325 - 1] == "(" and (_k325 - 1) in _mt325 and _ar325:
+                _ua325, _ub325 = _k325 - 1, _mt325[_k325 - 1]
+            elif _ar325:
+                _j325 = _k325 + 1
+                for _r325 in range(_ar325):
+                    if _j325 < _N325 and _toks325[_j325] in ("(", "[", "{") and _j325 in _mt325:
+                        _j325 = _mt325[_j325] + 1
+                    elif _j325 < _N325 and _re325.match(r"!?[A-Za-z_0-9]", _toks325[_j325]):
+                        _j325 += 1
+                _ub325 = _j325 - 1
+            # climb through value-transparent wrappers: `( u )`, `begin ...; u end`,
+            # `try u with ... end`, and through opaque operations applied to u
+            _w1ok325 = False
+            _drv325 = False
+            _prev325 = ""
+            while True:
+                if (_ua325 > 0 and _toks325[_ua325 - 1] == "(" and (_ua325 - 1) in _mt325
+                        and _mt325[_ua325 - 1] == _ub325 + 1):
+                    _ua325, _ub325 = _ua325 - 1, _ub325 + 1
+                    continue
+                if (_ub325 + 1 < _N325 and _toks325[_ub325 + 1] == "end"
+                        and (_ub325 + 1) in _bk325 and _ua325 > 0
+                        and _toks325[_ua325 - 1] in (";", "begin")
+                        and _toks325[_bk325[_ub325 + 1]] == "begin"):
+                    _ua325, _ub325 = _bk325[_ub325 + 1], _ub325 + 1
+                    continue
+                if (_ua325 > 0 and _toks325[_ua325 - 1] == "try"
+                        and _ub325 + 1 < _N325 and _toks325[_ub325 + 1] == "with"
+                        and (_ua325 - 1) in _bk325):
+                    _ua325, _ub325 = _ua325 - 1, _bk325[_ua325 - 1]
+                    continue
+                # `(let x = e in u)` / `(if c then u else v)`: u IS the group's value
+                if (_ua325 > 0 and _toks325[_ua325 - 1] in ("in", "then", "else")
+                        and _ub325 + 1 < _N325 and _toks325[_ub325 + 1] in (")", "else")):
+                    _e325 = _ua325 - 1
+                    _dp325 = 0
+                    while _e325 >= 0:
+                        if _toks325[_e325] in (")", "]", "}"):
+                            _dp325 += 1
+                        elif _toks325[_e325] in ("(", "[", "{"):
+                            if _dp325 == 0:
+                                break
+                            _dp325 -= 1
+                        _e325 -= 1
+                    if (_e325 >= 0 and _toks325[_e325] == "(" and _e325 in _mt325
+                            and _toks325[_e325 + 1] in ("let", "if")
+                            and (_toks325[_ub325 + 1] == ")"
+                                 or _toks325[_ua325 - 1] == "then")):
+                        _ua325, _ub325 = _e325, _mt325[_e325]
+                        continue
+                # a tuple component `( a, u, b )`: the tuple carries u (climb to it)
+                if (_ua325 > 0 and (_toks325[_ua325 - 1] == "," or (
+                        _ub325 + 1 < _N325 and _toks325[_ub325 + 1] == ","))):
+                    _e325 = _ua325 - 1
+                    _dp325 = 0
+                    while _e325 >= 0:
+                        if _toks325[_e325] in (")", "]", "}"):
+                            _dp325 += 1
+                        elif _toks325[_e325] in ("(", "[", "{"):
+                            if _dp325 == 0:
+                                break
+                            _dp325 -= 1
+                        _e325 -= 1
+                    if _e325 >= 0 and _toks325[_e325] == "(" and _e325 in _mt325:
+                        _ua325, _ub325 = _e325, _mt325[_e325]
+                        continue
+                # (W1) an argument of an opaque operation, `(op .. u ..)` / `op .. u ..`:
+                # an int-valued one yields a value DERIVED from u (climb to it), any other
+                # (`setattr`, a `unit` stub) is a sink.
+                _h325 = _ua325 - 1
+                while _h325 >= 0 and (
+                        (_toks325[_h325] in (")", "]") and _h325 in _mt325)
+                        or (_re325.match(r"!?[A-Za-z_0-9]", _toks325[_h325])
+                            and _toks325[_h325] not in _KW325)):
+                    _h325 = _mt325[_h325] - 1 if _toks325[_h325] in (")", "]") else _h325 - 1
+                _hn325 = _toks325[_h325 + 1] if _h325 + 1 < _ua325 else ""
+                if (_hn325 and (_hn325[0].isupper() and _hn325 not in ("Return",))
+                        or (_h325 >= 1 and _toks325[_h325] == "."
+                            and _toks325[_h325 - 1][:1].isupper())):
+                    # a constructor / container builder (`Some u`, `Seq.cons u ..`,
+                    # `Array.make n u`): the built value carries u (climb to it)
+                    if _toks325[_h325] == ".":
+                        _h325 -= 2
+                        while _h325 >= 0 and _toks325[_h325] == ".":
+                            _h325 -= 2
+                    if _h325 >= 0 and _toks325[_h325] == "(" and _h325 in _mt325:
+                        _ua325, _ub325 = _h325, _mt325[_h325]
+                        continue
+                    break
+                if (_hn325 in _dbyname325 and _hn325 not in _S325 and _hn325 not in _other325
+                        and _h325 + 1 < _ua325):
+                    # an argument of a USER function: its parameter now carries the value
+                    _ix325 = 0
+                    _j325 = _h325 + 2
+                    while _j325 < _ua325:
+                        _j325 = (_mt325[_j325] + 1 if _toks325[_j325] in ("(", "[", "{")
+                                 and _j325 in _mt325 else _j325 + 1)
+                        _ix325 += 1
+                    _ps325 = _dparams325.get(_dbyname325[_hn325], [])
+                    if _ix325 < len(_ps325):
+                        if (_dbyname325[_hn325], _ps325[_ix325]) not in _tl325:
+                            _tl325[(_dbyname325[_hn325], _ps325[_ix325])] = _org325
+                            _new325 = True
+                        _w1ok325 = True
+                    break
+                if _hn325 in _S325 or _hn325 in _other325:
+                    if _hn325 in _other325 and (not _other325[_hn325][1]
+                                                or _hn325 in _KIOP325):
+                        _w1ok325 = True
+                        break
+                    # a documented INT attribute of a module (`sys.maxsize`, the int fields
+                    # of `sys.float_info`) keeps its int model
+                    if _hn325.startswith("get_") and (
+                            (_org325 in _clsw325 and _hn325[4:] in _clsok325)
+                            or (_imod325.get(_org325), _hn325[4:]) in _KI_ATTR325
+                            or (_hn325[4:] in _KI_FI325 and _prev325 == "get_float_info"
+                                and _imod325.get(_org325) == "sys")):
+                        _w1ok325 = True
+                        break
+                    _prev325 = _hn325
+                    if _h325 >= 0 and _toks325[_h325] == "(" and _h325 in _mt325:
+                        _ua325, _ub325 = _h325, _mt325[_h325]
+                    else:
+                        _har325 = (_S325[_hn325][1] if _hn325 in _S325
+                                   else _other325[_hn325][0])
+                        _j325 = _h325 + 2
+                        for _r325 in range(_har325):
+                            if (_j325 < _N325 and _toks325[_j325] in ("(", "[", "{")
+                                    and _j325 in _mt325):
+                                _j325 = _mt325[_j325] + 1
+                            elif _j325 < _N325 and _re325.match(r"!?[A-Za-z_0-9]",
+                                                                 _toks325[_j325]):
+                                _j325 += 1
+                        _ua325, _ub325 = _h325 + 1, max(_j325 - 1, _ub325)
+                    _drv325 = True
+                    continue
+                break
+            _pv325 = _toks325[_ua325 - 1] if _ua325 > 0 else ""
+            _nx325 = _toks325[_ub325 + 1] if _ub325 + 1 < _N325 else ""
+            # enclosing group
+            _e325 = _ua325 - 1
+            _dp325 = 0
+            while _e325 >= 0 and _decl325[_e325] == _dd325:
+                if _toks325[_e325] in (")", "]", "}"):
+                    _dp325 += 1
+                elif _toks325[_e325] in ("(", "[", "{"):
+                    if _dp325 == 0:
+                        break
+                    _dp325 -= 1
+                _e325 -= 1
+            _enc325 = _e325 if (_e325 >= 0 and _decl325[_e325] == _dd325
+                                and _toks325[_e325] in ("(", "[", "{")) else None
+            _hd325 = _toks325[_enc325 + 1] if _enc325 is not None else ""
+            # builtin type objects are compared by identity only (the isinstance tags);
+            # a WhyML type of the same spelling is not a use at all
+            if (_org325 == _nm325 and _S325.get(_nm325, ("",))[0] == "constant"
+                    and _nm325 in _TYPES325 and _nm325 not in _bound325
+                    and not (_pv325 in _INTOP325 or _nx325 in _INTOP325
+                             or _hd325 in _INTOP325)):
+                continue
+            if _w1ok325:
+                continue
+            # (W2) the whole right-hand side of a local binding
+            _lhs325 = None
+            _lk325 = ""
+            if _pv325 == "ref" and _ua325 >= 3 and _toks325[_ua325 - 2] == "=":
+                _lhs325 = _toks325[_ua325 - 3]
+                _lk325 = _toks325[_ua325 - 4] if _ua325 >= 4 else ""
+            elif _pv325 == "=" and _ua325 >= 2:
+                _lhs325 = _toks325[_ua325 - 2]
+                _lk325 = _toks325[_ua325 - 3] if _ua325 >= 3 else ""
+            if (_lhs325 is not None and _lk325 in ("let", "ghost") and _nx325 == "in"
+                    and _re325.match(r"[a-z_][A-Za-z_0-9']*$", _lhs325)):
+                if (_dd325, _lhs325) not in _tl325:
+                    _tl325[(_dd325, _lhs325)] = _org325
+                    _new325 = True
+                continue
+            if (_pv325 == ":=" and _ua325 >= 2
+                    and _nx325 in (";", "end", "done", "in", "else", "with", "")
+                    and _re325.match(r"[a-z_][A-Za-z_0-9']*$", _toks325[_ua325 - 2])):
+                if (_dd325, _toks325[_ua325 - 2]) not in _tl325:
+                    _tl325[(_dd325, _toks325[_ua325 - 2])] = _org325
+                    _new325 = True
+                continue
+            # (W3) a return value: `raise (Return v)`, or the tail of the declaration
+            _fn325 = _dname325.get(_dd325)
+            if ((_pv325.startswith("Return") and _ua325 >= 3 and _toks325[_ua325 - 2] == "("
+                 and _toks325[_ua325 - 3] == "raise" and _nx325 == ")")
+                    or (_enc325 is None and _ub325 + 1 == _dstart325[_dd325 + 1]
+                        and _pv325 in ("=", "in", ";", "begin", "->"))):
+                if _fn325 and _fn325 not in _tf325:
+                    _tf325[_fn325] = _org325
+                    _new325 = True
+                continue
+            # (W4) a discarded statement value
+            if _nx325 == ";" and _pv325 in (";", "begin", "do", "in", "then", "else", "->",
+                                            "="):
+                if not (_pv325 == "=" and _enc325 is not None):
+                    continue
+            # (W5) one side of a PROGRAM `=` / `<>` (or `pycsl_py_eq`) whose other side is
+            #      not the same value: no reflexivity (a NaN is not equal to itself)
+            if _pv325 in ("=", "<>") or _nx325 in ("=", "<>") or (
+                    _hd325 == "pycsl_py_eq" and _enc325 is not None):
+                _c325 = _ua325 - 1
+                _dp325 = 0
+                _inspec325 = False
+                while _c325 >= _dstart325[_dd325]:
+                    if _toks325[_c325] == "}":
+                        _dp325 += 1
+                    elif _toks325[_c325] == "{":
+                        if _dp325 == 0:
+                            _inspec325 = True
+                            break
+                        _dp325 -= 1
+                    _c325 -= 1
+                if _hd325 == "pycsl_py_eq" and not (_pv325 in ("=", "<>")
+                                                    or _nx325 in ("=", "<>")):
+                    _oa325, _ob325 = _enc325 + 1, _mt325.get(_enc325, _enc325) - 1
+                elif _pv325 in ("=", "<>"):
+                    _ob325 = _ua325 - 2
+                    _oa325 = _mt325.get(_ob325, _ob325) if _toks325[_ob325] in (
+                        ")", "]", "}") else _ob325
+                else:
+                    _oa325 = _ub325 + 2
+                    _ob325 = _mt325.get(_oa325, _oa325) if _oa325 < _N325 and _toks325[
+                        _oa325] in ("(", "[", "{") else _oa325
+                _same325 = False
+                for _x325 in range(max(_oa325, 0), min(_ob325 + 1, _N325)):
+                    if _ua325 <= _x325 <= _ub325:
+                        continue
+                    _y325 = _toks325[_x325].lstrip("!")
+                    if (_tl325.get((_dd325, _y325)) == _org325 or _y325 == _org325
+                            or _tf325.get(_y325) == _org325 or _y325 == "result"):
+                        _same325 = True
+                if _org325.startswith("pycsl_getattr_default_") and "result" not in (
+                        _toks325[max(_oa325, 0):_ob325 + 1]):
+                    _same325 = False    # one DEFAULT EXPRESSION, one value (route #47)
+                if not _inspec325 and not _same325:
+                    continue
+            _viol325.append((_org325, _S325.get(_org325, ("?",))[0], _nm325,
+                             " ".join(_toks325[max(_ua325 - 4, _dstart325[_dd325]):
+                                               min(_ub325 + 5, _N325)]),
+                             _dname325.get(_dd325, "?")))
+        if not _new325:
+            break
+    else:
+        _viol325.append(("?", "?", "?", "taint fixpoint not reached", "?"))
+    if _viol325:
+        from errors import PyCSLSemanticError as _PyCSLSemErr325
+        _v325 = _viol325[0]
+        raise _PyCSLSemErr325(
+            f"PYCSL-R325-OPAQUE-INT-FALLBACK (route #325) — in '{_v325[4]}', the value "
+            f"'{_v325[2]}' comes from '{_v325[0]}', a {_v325[1]} PyCSL has no model of: it "
+            f"is lowered to an OPAQUE INT whatever its Python type (a float, a string, a "
+            f"module...), and it is used here as an integer (`{_v325[3]}`), where every "
+            f"claim true of all integers (`x % 1 == 0`, `x * 0 == 0`, `x < e or x >= e + 1 "
+            f"or x == e`) would be proved of it. Refused (fail closed). Give it a modelled "
+            f"form: an `int` literal / int expression, or pass it in as a typed parameter "
+            f"with an explicit `requires`.",
+            filename=args.file, stage="ir-semantic",
+            code="PYCSL-R325-OPAQUE-INT-FALLBACK")
     return _mlw
 
 
