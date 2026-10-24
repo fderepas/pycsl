@@ -116,7 +116,9 @@ BASELINE = {
         "5.5M steps. The appendix names the `os` filesystem model as its example of a "
         "body-verified model.",
     "os/UnixInodeFileSystem.py": "FAILS — 2990 lines, 717 annotations; the largest model "
-        "in the layer.",
+        "in the layer. RE-MEASURED gen #37 as REFUSED by route #342: the invariant-carrying "
+        "constructor calls `self._format_disk()` and passes `self` to `load_host_dir`, so "
+        "its effect on the invariant fields is not part of the constructor's obligation.",
     "dc/__init__.py": "FAILS at the first measurement; RE-MEASURED gen #36 as REFUSED by "
         "route #252 (c64ccc2f): `dataclass` returns an erased value through `-> int`.",
     "syscfg/__init__.py": "FAILS.",
