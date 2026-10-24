@@ -460,7 +460,7 @@ opt-in proves).
 
 | # | Directive | Syntax | Scope | Semantics |
 |---|---|---|---|---|
-| 1 | Class invariant | `#@ class invariant <expr>` | `class` | Assumed at every method boundary, and CHECKED where an instance is CONSTRUCTED. **The constructor's own obligation is emitted as `goal _check_class_inv_<C>`** whenever it can be stated exactly (route #226). Every field must be an `int`, and each must be bound either to a literal or DIRECTLY to an int `__init__` parameter; the goal quantifies over the field labels and those parameters, makes each binding a premise, and carries `__init__`'s own `#@ requires` as further premises — so a constructor whose precondition is what establishes the invariant still verifies (witness 1901). This covers the paramless-literal shape (1890/1891), the `__init__`-parameter shape (1892) and `@dataclass`, whose synthesized `__init__` takes every field (1900). **NOT covered: a COMPUTED or control-flow store** (`self.n = three()`, or a store inside an `if`) — Module 5 marks those fields unknown, and the honest obligation there needs the callee's postcondition rather than a value. Such a class is still not asked whether its invariant is establishable. |
+| 1 | Class invariant | `#@ class invariant <expr>` | `class` | Assumed at every method boundary, and CHECKED where an instance is CONSTRUCTED. **The constructor's own obligation is emitted as `goal _check_class_inv_<C>`** whenever it can be stated exactly (route #226). Every field must be an `int`, and each must be bound either to a literal or DIRECTLY to an int `__init__` parameter; the goal quantifies over the field labels and those parameters, makes each binding a premise, and carries `__init__`'s own `#@ requires` as further premises — so a constructor whose precondition is what establishes the invariant still verifies (witness 1901). This covers the paramless-literal shape (1890/1891), the `__init__`-parameter shape (1892) and `@dataclass`, whose synthesized `__init__` takes every field (1900). **A control-flow or non-assignment store is REFUSED** (route #342, §7.25: a store inside an `if` / loop, a `for` / `with` / tuple / augmented / `del` target, `setattr(self, ..)`, an alias of `self`, a `self.m()` call or a non-leading `super()` in the constructor of an invariant-carrying class). **NOT covered: a straight-line COMPUTED store** (`self.n = three()`) — Module 5 marks the field unknown, and the honest obligation there needs the callee's postcondition rather than a value. Such a class is still not asked whether its invariant is establishable. |
 | 2 | Allow finalizer | `#@ allow_finalizer` | `class` | Opts the class out of UB-7.5 (`__del__` rejection). See §2.3.2. |
 
 Placed on leading lines **before** the `class` keyword.
@@ -1858,6 +1858,41 @@ of the module (module level, `__main__`, a default, a decorator) names the stori
 class or a descendant, the value is of unknown type (`U(0.5)` in `__main__`). A `k.m()` call
 on a receiver typed / constructed as a class of the file is int when `m` is annotated `-> int`
 there (R5 keeps it so). Witnesses `4530`-`4540`; controls `4541`-`4544`.
+### 7.25 A class base is a class name; constructors store invariant fields straight-line (routes #341 / #342)
+
+(1) CLASS BASES (route #341). The verifier reads a class's bases by NAME (`B`, or `mod.B` for
+an imported class); any other spelling was silently DROPPED and the class modelled as
+unrelated to its real base, so R5 (§7.24), the override refinement, §7.22 and the inherited
+invariant all skipped it (`Base = B; class S(Base)`, `class S(base())`, `class S(B if c else
+B)`, `Base, Other = B, int`, `Base: Type[B] = B`, all PROVED while CPython inherits). A class
+is now REFUSED (`PYCSL-R341-CLASS-BASE-NOT-A-NAME`) when a base is a name the file also binds
+otherwise than by its `class` statement or an import (an alias, a tuple / annotated / loop
+target, a `def`, a parameter), an attribute not rooted at an imported module name, a
+subscript other than `Generic[...]` / `Protocol[...]`, or any other expression. An alias is
+refused rather than resolved: some twenty readers of a class header take the base by name,
+and the census finds no alias base in either corpus, the mirrors or `pycsl_lib`.
+
+(2) CONSTRUCTOR STORES (route #342). §3's constructor obligation `_check_class_inv_<C>` is
+computed from the top-level `self.f = e` stores; a field stored any other way was not seen or
+made unknown, and an unknown field means NO obligation, i.e. the invariant ASSUMED. For a
+class carrying a class invariant (its own or inherited) and every class of the file on its
+base closure (their constructors run for its instances), `__init__` / `__post_init__` is
+REFUSED (`PYCSL-R342-CONSTRUCTOR-STORE-FORM`) when it touches an invariant field (every field
+when the invariant reads `self` otherwise than as `self.f`) other than by a TOP-LEVEL `self.f
+= e` / `self.f: T = e` statement — a `for` / `with` / tuple / augmented / `del` target, a store
+inside `if` / `while` / `try` / a comprehension — or when it loads `self` other than as an
+attribute root (`s = self`, `setattr(self, ..)`, `vars(self)`, a helper call; `type(self)`,
+`isinstance(self, K)`, `id(self)` are reads), rebinds `self`, touches `self.__dict__` /
+`__setattr__` / `__delattr__`, calls a method `self.m(..)`, uses `super()` other than as the
+leading `super().__init__(..)`, or contains a `return`. No code of the file may store
+`__class__` (`x.__class__ = C`, `setattr(x, "__class__", C)`:
+`PYCSL-R342-CLASS-REASSIGNMENT`), and module-level / `__main__` code (not verified) may not
+store or delete an invariant field (`b.x = 5`, `setattr(b, "x", 5)`:
+`PYCSL-R342-EXTERNAL-INVARIANT-STORE`). A class WITHOUT an invariant, and non-invariant fields
+of one, keep every store form. Still NOT covered (no goal, invariant assumed, route #226's
+open carrier): a straight-line store of a COMPUTED value (`self.n = three()`, `self.n = v` for
+a local `v`). Witnesses `4550`-`4571`, `4577`-`4579`; controls `4572`-`4576`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

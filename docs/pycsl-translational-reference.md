@@ -3909,6 +3909,38 @@ bodies, decorators, defaults; class bases excluded) meet $\{$the def, its class,
 descendants$\}$, where it is UNK; and `k.m()` on a receiver resolved to $K$ is INT when $m$ is
 annotated `-> int` / `-> bool` in $K$ or a base.
 
+### §T.6.36  Class bases by name; constructor store forms (routes #341 / #342)
+
+_Corresponds to `annotations.md` §7.25._
+
+One inline block of `_run_pipeline`, after the boundary re-validation of the resolved IR
+(mirror twin `\trusted`; no emission changes, only refusals). Over the source AST: let
+$\mathit{Bd}$ be the names the file binds otherwise than by `class` / import (a `Name` in
+store or del context, a `def`, a parameter, an `except` / `match` capture). A base $b$ of any
+class is admitted iff $b$ is a `Name` $\notin \mathit{Bd}$, or an `Attribute` chain whose root
+is an imported name $\notin \mathit{Bd}$, or a `Subscript` on `Generic` / `Protocol`; otherwise
+`PYCSL-R341-CLASS-BASE-NOT-A-NAME`. Any `__class__` attribute store / delete, or `setattr` /
+`delattr` / `__setattr__` / `__delattr__` with the constant name `"__class__"`, raises
+`PYCSL-R342-CLASS-REASSIGNMENT`.
+
+From the resolved IR, for each record $C$ with merged `class_invariants` $I_C \ne \emptyset$:
+$F_C$ = the fields $f$ of `FieldGet(self, f)` nodes in $I_C$, plus $\star$ if another node
+mentions `self`. $F$ = $\bigcup_C F_C$ ($\star$ expanded to $C$'s fields). Every module-level
+statement outside a def / class / lambda that stores or deletes an attribute named in $F$, or
+calls `setattr` / `delattr` / `__setattr__` / `__delattr__` with a name in $F$ or a non-constant
+name, raises `PYCSL-R342-EXTERNAL-INVARIANT-STORE`. For each class $K$ of the file on the base
+closure of such a $C$ (bases by name / attribute tail), $R_K = \bigcup F_C$; each `__init__` /
+`__post_init__` of $K$ with first parameter $s$ is walked whole (nested classes and defs
+rebinding $s$ skipped) and raises `PYCSL-R342-CONSTRUCTOR-STORE-FORM` on: an attribute
+$s.f$ in store / del context with $f \in R_K$ (or $\star \in R_K$) that is not a direct
+target of a top-level `Assign` / `AnnAssign`; $s$`.__dict__` / `__setattr__` / `__delattr__`; a
+`Name` $s$ in store context, or in load context that is neither an attribute root nor the first
+argument of the builtin `type` / `isinstance` / `id`; a call $s.m(\ldots)$; a `super().a(..)`
+other than the first non-docstring statement `super().__init__(..)`; a `return` outside a
+nested def. Hence every invariant-carrying construction that reaches route #226's goal is the
+straight-line store sequence the goal reads, and the remaining no-goal case is a straight-line
+store of a computed value (route #226's open carrier).
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
