@@ -232,10 +232,93 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         for _fn336 in ast.walk(node):
             if isinstance(_fn336, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 _fa336 = _fn336.args
+                _ro336: Set[str] = set()
                 for _ar336 in (list(_fa336.posonlyargs) + list(_fa336.args)
                                + list(_fa336.kwonlyargs) + [_fa336.vararg, _fa336.kwarg]):
                     if _ar336 is not None and _ar336.annotation is not None:
                         _slots336.append((_ar336, "annotation"))
+                        # a READ-ONLY view (`Sequence[T]`, `tuple[T, ...]`, `Mapping[K, V]`,
+                        # through aliases / `Optional` / `Annotated`) is read as a `List` /
+                        # `Dict` below — sound for reads only: the argument may be a tuple
+                        # or a `MappingProxyType`, whose store RAISES (`TypeError`)
+                        _h336: Any = _ar336.annotation
+                        for _rd336 in range(8):
+                            if isinstance(_h336, ast.Name) and _h336.id in _al336:
+                                _h336 = _al336[_h336.id]
+                            elif (isinstance(_h336, ast.Subscript)
+                                    and isinstance(_h336.value, (ast.Name, ast.Attribute))
+                                    and (_h336.value.id if isinstance(_h336.value, ast.Name)
+                                         else _h336.value.attr) in ("Optional", "Annotated")):
+                                _h336 = (_h336.slice.elts[0]
+                                         if isinstance(_h336.slice, ast.Tuple) and _h336.slice.elts
+                                         else _h336.slice)
+                            else:
+                                break
+                        if isinstance(_h336, ast.Subscript) and isinstance(
+                                _h336.value, (ast.Name, ast.Attribute)):
+                            _hn336 = (_h336.value.id if isinstance(_h336.value, ast.Name)
+                                      else _h336.value.attr)
+                            if (_hn336 in ("Sequence", "Mapping")
+                                    or (_hn336 in ("tuple", "Tuple")
+                                        and isinstance(_h336.slice, ast.Tuple)
+                                        and len(_h336.slice.elts) == 2
+                                        and isinstance(_h336.slice.elts[1], ast.Constant)
+                                        and _h336.slice.elts[1].value is ...)):
+                                _ro336.add(_ar336.arg)
+                # (#49) ROUTE #336 — A STORE THROUGH A READ-ONLY VIEW IS REFUSED: the `List` /
+                # `Dict` model would let `xs[0] = 1` / `xs.append(1)` / `d["a"] = 1` / passing
+                # the view to a function that stores into it succeed (measured: `no_exception
+                # \all` PROVED for `xs: tuple[float, ...]`; CPython TypeError).
+                for _ln336 in (ast.walk(_fn336) if _ro336 else ()):
+                    _bad336: Optional[str] = None
+                    _tg336b: List[Any] = []
+                    if isinstance(_ln336, (ast.Assign, ast.Delete)):
+                        _tg336b = list(_ln336.targets)
+                    elif isinstance(_ln336, (ast.AugAssign, ast.AnnAssign)):
+                        _tg336b = [_ln336.target]
+                    for _t336 in _tg336b:
+                        for _tt336 in ast.walk(_t336):
+                            if (isinstance(_tt336, ast.Subscript)
+                                    and isinstance(_tt336.value, ast.Name)
+                                    and _tt336.value.id in _ro336):
+                                _bad336 = _tt336.value.id
+                    if (isinstance(_ln336, ast.AugAssign) and isinstance(_ln336.target, ast.Name)
+                            and _ln336.target.id in _ro336):
+                        _bad336 = _ln336.target.id
+                    if isinstance(_ln336, ast.Call):
+                        if (isinstance(_ln336.func, ast.Attribute)
+                                and isinstance(_ln336.func.value, ast.Name)
+                                and _ln336.func.value.id in _ro336
+                                and _ln336.func.attr not in ("count", "index", "get", "keys",
+                                                             "values", "items", "copy",
+                                                             "__len__", "__contains__",
+                                                             "__getitem__")):
+                            _bad336 = _ln336.func.value.id
+                        _cn336 = (_ln336.func.id if isinstance(_ln336.func, ast.Name) else "")
+                        if _cn336 not in ("len", "sum", "min", "max", "sorted", "list", "tuple",
+                                          "set", "frozenset", "dict", "enumerate", "zip", "any",
+                                          "all", "isinstance", "reversed", "iter", "str",
+                                          "repr", "print", "hash", "id", "type", "bool", "map",
+                                          "filter"):
+                            for _aa336 in (list(_ln336.args)
+                                           + [_kw336.value for _kw336 in _ln336.keywords]):
+                                if (isinstance(_aa336, (ast.Name, ast.Starred))
+                                        and (_aa336.value.id if isinstance(_aa336, ast.Starred)
+                                             and isinstance(_aa336.value, ast.Name)
+                                             else getattr(_aa336, "id", None)) in _ro336):
+                                    _bad336 = (_aa336.value.id if isinstance(_aa336, ast.Starred)
+                                               else _aa336.id)
+                    if _bad336 is not None:
+                        raise PyCSLIRError(
+                            f"PYCSL-R336-READONLY-VIEW-STORE (route #336) — in "
+                            f"'{_fn336.name}', the parameter '{_bad336}' is annotated with a "
+                            f"READ-ONLY view (`Sequence`, `tuple[T, ...]`, `Mapping`), which "
+                            f"PyCSL reads as a list / dict; a store into it, a mutating method "
+                            f"call on it, or passing it to a function that may store into it "
+                            f"is not modelled (the argument may be a tuple or a mapping proxy, "
+                            f"whose store raises TypeError). Annotate it `List[T]` / "
+                            f"`Dict[K, V]`, or copy it into a local list first.",
+                            stage="ir-emit", code="PYCSL-R336-READONLY-VIEW-STORE")
                 if _fn336.returns is not None:
                     _slots336.append((_fn336, "returns"))
                 for _ln336 in ast.walk(_fn336):

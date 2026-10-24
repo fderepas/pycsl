@@ -2325,7 +2325,10 @@ class FunctionEmissionMixin:
             "Term", "emit_ir",
             # a BARE typing container is the declared BARE-CONTAINER-INT model (route #330)
             "List", "Dict", "Set", "FrozenSet", "Tuple"))
-        _r336_ret_ok = frozenset(("None", "NoReturn", "Iterator", "Generator", "Iterable"))
+        # (a generator / context-manager return is lowered by its own seam, not as a value;
+        # a parameterised return carries its lower-cased HEAD, `List[float]` -> "list")
+        _r336_ret_ok = frozenset(("None", "NoReturn", "Iterator", "Generator", "Iterable",
+                                  "iterator", "generator", "iterable"))
         _r336_rts = (getattr(self, "_record_types", {}) or {})
         _r336_vts = (getattr(self, "_variant_types", {}) or {})
         _r249_ret_erased: bool = (func.get("return_annotation") in ("Any", "object", None)
