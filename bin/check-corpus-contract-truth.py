@@ -89,6 +89,14 @@ NEVER_RETURNS = {
         "a function body CANNOT create a local binding in CPython, so `y` is unbound and "
         "the call is a NameError. Byte-identical emission to the inline form is evidence "
         "that the MODEL matches the inline form; it is not evidence that PYTHON does.",
+    ("4390_gen37_r332_assert_erasure_control.py", "g"):
+        "route #332 CONTROL, deliberately raising: a failing `assert` with NO `no_exception` "
+        "claim keeps the documented erasure (annotations §7.1, partial correctness, "
+        "`python -O`), so the `ensures` is discharged over the erased-assert run only.",
+    ("4395_gen37_r332_assert_named_set_control.py", "g"):
+        "route #332 CONTROL, deliberately raising: a failing `assert` under the NAMED set "
+        "`no_exception IndexError` keeps the erasure — AssertionError is outside the claimed "
+        "set, so the claim is true and the `ensures` is partial-correctness (annotations §7.1).",
 }
 MIN_RUNNABLE = 390   # first measurement 366 (functions only); the METHOD population
                      # added 39 more runnable contracts in its first measurement

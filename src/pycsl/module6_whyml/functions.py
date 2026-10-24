@@ -2002,6 +2002,11 @@ class FunctionEmissionMixin:
         contracts = func.get("contracts", {})
         self._current_no_exception: Set[str] = set(contracts.get("no_exception", []) or [])
         self._current_no_exception_all: bool = bool(contracts.get("no_exception_all", False))
+        # (#49) ROUTE #332 — under `\all` (or a named set holding AssertionError or a base)
+        # a Python `assert` is a REAL obligation (statements.py lowers its test), so the
+        # three loop-target analyses below must count a read inside it as a read.
+        _a332_live = bool(self._current_no_exception_all or (
+            self._current_no_exception & {"AssertionError", "Exception", "BaseException"}))
         symbol_table = func.get("symbol_table", {})
         # no-more-int emitter L4b: an imported/injected stub's symbol_table is
         # rebuilt with `Any` params (losing e.g. `name: str`). Restore the annotated
@@ -2922,7 +2927,7 @@ class FunctionEmissionMixin:
                     # measured on `python-reference/0177`), so a read inside one is not
                     # a leak. Coupled to that lowering: if a Python `assert` ever becomes
                     # a real obligation, this line goes with it.
-                    if _y36.get("stmt") == "Assert":
+                    if _y36.get("stmt") == "Assert" and not _a332_live:
                         continue
                     if (_y36.get("type") == "Var" and _y36.get("name") == _tgt36):
                         self._loop_targets_read_outside.add(_tgt36)
@@ -2981,7 +2986,7 @@ class FunctionEmissionMixin:
                             continue
                         if not isinstance(_y301, dict):
                             continue
-                        if _y301.get("stmt") == "Assert":
+                        if _y301.get("stmt") == "Assert" and not _a332_live:
                             continue
                         if _y301.get("stmt") == "For" and (
                                 _y301.get("target") == _nm301
@@ -3121,7 +3126,7 @@ class FunctionEmissionMixin:
                         continue
                     if not isinstance(_y302, dict):
                         continue
-                    if _y302.get("stmt") == "Assert":
+                    if _y302.get("stmt") == "Assert" and not _a332_live:
                         continue
                     _gs302 = _y302.get("generators")
                     if isinstance(_gs302, list) and any(

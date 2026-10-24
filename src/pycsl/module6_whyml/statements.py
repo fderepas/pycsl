@@ -4924,7 +4924,28 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     stage="whyml-emit",
                     code="PYCSL-M6-ASSERT-EFFECTFUL-TEST",
                 )
-            code = f'{indent}()'
+            # (#49) ROUTE #332 — THE ERASURE ABOVE IS PARTIAL CORRECTNESS, AND `\all` IS NOT.
+            # Erasing a FAILING assert is sound only while the contract makes no claim about
+            # AssertionError. Since route #304, `#@ no_exception \all` claims NO exception of
+            # ANY class escapes, so `x = 1; assert x == 2; return 7` PROVED that claim while
+            # CPython raises AssertionError. Under `\all` (or a named set holding
+            # AssertionError or a base of it — Module 4 refuses those names today, so this arm
+            # is the defensive twin) the assert becomes an OBLIGATION: the test is lowered
+            # EXACTLY as an `if` test is (program code, so its own IndexError /
+            # ZeroDivisionError triggers are discharged too) and its failing branch is an
+            # `assert { false }` labelled for the user. A message is evaluated by CPython
+            # only on the failing branch, which this obligation proves unreachable, so an
+            # effectful message cannot run and needs no model. Elsewhere the documented
+            # erasure (annotations §7.1, `python -O`) is kept byte-for-byte.
+            _a332_ne = set(getattr(self, "_current_no_exception", set()) or set())
+            if (getattr(self, "_current_no_exception_all", False)
+                    or _a332_ne & {"AssertionError", "Exception", "BaseException"}):
+                _a332_d = stmt.test.to_dict()
+                _a332_t = self._to_bool(self._expr_to_whyml(_a332_d, local_refs), _a332_d)
+                code = (f"{indent}if {_a332_t} then () else "
+                        f"assert {{ [@expl:no_exception: AssertionError reachable] false }}")
+            else:
+                code = f'{indent}()'
 
         elif isinstance(stmt, PassStmt):
             code = f"{indent}()"
