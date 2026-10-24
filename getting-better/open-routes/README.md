@@ -29,6 +29,14 @@
 ##   (Why3 rejects: fail-closed), `safe_exc_name` `_E`/`E`, erased `assert` under `no_exception \all` (new suspicion).
 
 ## gen #37 (2026-10-24): #332 (assert erased even under no_exception \all; CPython raises AssertionError) OPENED (r327 executor finding); driver-reproduced.
+## gen #37 (2026-10-24): #332 REPAIRED, candidate (r332 executor off e9a499e6; commits bd0dc43e, 4ad3c60e, df884823 + route docs; inline in
+##   `_stmts_to_whyml` (AssertStmt arm) + one local in `_reset_function_state`, no new def/field, ledger 3; mirror twins `\trusted`).
+##   Under `no_exception \all` (or a named set holding AssertionError/Exception/BaseException — refused by Module 4 today) `assert c` lowers to
+##   `if <c> then () else assert { [@expl:no_exception: AssertionError reachable] false }` (the if-test lowering: own triggers + truthiness;
+##   message never evaluated on the proved branch); the #36/#301/#302 loop-target analyses count reads inside such an assert. Erasure
+##   elsewhere byte-identical. Witness a01 + corpus 4380-4388 PROVED -> FAIL; controls 4389-4395 PROVED; 4396 REFUSED both. Population of
+##   asserts under `\all` in root/pyref/mirror: 0 -> byte-diff 0/0/0 on all three planes, nothing OWED. Fast planes 61/61; all listed gates rc=0.
+##   Residual: an assert over a havocked `for` target after its loop no longer proves under `\all` (sound, incomplete).
 
 ## gen #37 (2026-10-24): #326 REPAIRED, candidate (r326 executor off 0da66911; commits 61c98f12, d89ee890, 38757ff2, dfc5305d,
 ##   59b17e74, 7fb6adc8 + route docs; inline in `_resolve_module_path` / `resolve_imports`, no new def/field, ledger 3; mirror twins `\trusted`,
