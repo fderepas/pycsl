@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #325 (every unmodelled value falls back to an opaque int: int laws proved of floats/strings/lists; subsumes #322's
+##   bypasses) and #326 (module resolution differs from CPython: stdlib shadowing, package vs module, sys.path) OPENED (red team 19);
+##   10/10 sample driver-reproduced rc=0, CPython violates.
+
 ## gen #37 (2026-10-24): #322 + #324 REPAIRED, candidate (r322 executor off 67edf13c, finished by r322b; commits 6899062d, d9a53ce5,
 ##   2c457d4e + route docs; inline, no new def/field, ledger 3; #324 mirror twin verbatim). #322: abs()/sum()/known-element/dict/
 ##   NamedTuple/`__init__`/dataclass folds take INT literals only (9 `int()`-over-float sites censused); float constants of math/cmath
