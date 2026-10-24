@@ -3560,6 +3560,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     if _ov278:
         from exception_model import handler_catches as _hc278
         _viol278 = []
+        # ROUTE #338: the Python annotations of every method (class, name) -> def, and
+        # every class's ancestors, for R5 (the IR flattens `Optional[int]` / `List[int]`)
+        import ast as _ast338
+        _cm338 = {}
+        _anc338 = {}
+        try:
+            _t338 = _ast338.parse(source_code)
+        except (SyntaxError, ValueError):
+            _t338 = None
+        for _c338 in (_ast338.walk(_t338) if _t338 is not None else ()):
+            if isinstance(_c338, _ast338.ClassDef):
+                _anc338.setdefault(_c338.name, [b.id for b in _c338.bases
+                                                if isinstance(b, _ast338.Name)])
+                for _m338 in _c338.body:
+                    if isinstance(_m338, (_ast338.FunctionDef, _ast338.AsyncFunctionDef)):
+                        _cm338.setdefault((_c338.name, _m338.name), _m338)
         for _o278 in _ov278:
             _sf278 = _byname263.get(_o278.get("sub_method"))
             _bf278 = _byname263.get(_o278.get("base_method"))
@@ -3652,6 +3668,89 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     for _bx, _sx in zip(_bp278, _sp278)):
                 _viol278.append((_sn278, _bn278, "binds its parameters %s where `%s` binds "
                                  "%s (by position)" % (_sp278, _bn278, _bp278)))
+            # R5 — annotations (ROUTE #338). The caller's lowering of `b.m()` (`b: X`)
+            # TYPES the result by X.m's return annotation, and the override's own proof
+            # assumes its parameters' annotations: `X.m -> int` overridden `-> float`
+            # made `b.m() % 1 == 0` prove (the goal above was `true -> true`). So the
+            # override's return annotation must be a subtype of the base's (covariance)
+            # and each base parameter's annotation a subtype of the override's
+            # (contravariance). Subtyping, per member of a `Union` / `Optional` / `|`:
+            # the same type, `bool` under `int`, a class of this file under one of its
+            # ancestors, anything under `Any` / `object`. `int` is NOT taken under
+            # `float` (PEP 484's numeric tower; the model types them as `int` / `real`).
+            # A missing annotation is `Any` on the wider side (no constraint) and is
+            # refused on the narrower side (an unannotated override of `-> int`).
+            _sd338 = _cm338.get((_sf278.get("self_type"),
+                                 _sn278[len(str(_sf278.get("self_type"))) + 2:]))
+            _bd338 = _cm338.get((_bf278.get("self_type"),
+                                 _bn278[len(str(_bf278.get("self_type"))) + 2:]))
+            if _sd338 is not None and _bd338 is not None:
+                _sa338 = _sd338.args.posonlyargs + _sd338.args.args
+                _ba338 = _bd338.args.posonlyargs + _bd338.args.args
+                _pr338 = [("its return annotation", _sd338.returns, _bd338.returns)]
+                _pr338 += [("the annotation of parameter `%s`" % y.arg, x.annotation,
+                            y.annotation) for x, y in list(zip(_ba338, _sa338))[1:]]
+                for _wh338, _lo338, _hi338 in _pr338:
+                    if _hi338 is None:
+                        continue
+                    _ms338 = []     # [lo members, hi members]
+                    for _e338 in (_lo338, _hi338):
+                        _mm338 = set()
+                        _wl338 = [_e338]
+                        while _wl338:
+                            _x338 = _wl338.pop()
+                            if isinstance(_x338, _ast338.Constant) and isinstance(
+                                    _x338.value, str):
+                                try:
+                                    _x338 = _ast338.parse(_x338.value, mode="eval").body
+                                except SyntaxError:
+                                    _mm338.add(_x338.value)
+                                    continue
+                            _h338 = (getattr(_x338.value, "id", getattr(_x338.value, "attr",
+                                                                        ""))
+                                     if isinstance(_x338, _ast338.Subscript) else "")
+                            if _x338 is None:
+                                _mm338.add("Any")
+                            elif isinstance(_x338, _ast338.BinOp) and isinstance(
+                                    _x338.op, _ast338.BitOr):
+                                _wl338 += [_x338.left, _x338.right]
+                            elif _h338 == "Optional":
+                                _wl338 += [_x338.slice, _ast338.Constant(value=None)]
+                            elif _h338 == "Union":
+                                _wl338 += (list(_x338.slice.elts) if isinstance(
+                                    _x338.slice, _ast338.Tuple) else [_x338.slice])
+                            elif isinstance(_x338, _ast338.Constant) and _x338.value is None:
+                                _mm338.add("None")
+                            else:
+                                _u338 = _ast338.unparse(_x338).replace("typing.", "")
+                                for _p338, _q338 in (("List[", "list["), ("Dict[", "dict["),
+                                                     ("Set[", "set["), ("Tuple[", "tuple["),
+                                                     ("FrozenSet[", "frozenset[")):
+                                    _u338 = _u338.replace(_p338, _q338)
+                                _mm338.add(_u338)
+                        _ms338.append(_mm338)
+                    if _ms338[1] & {"Any", "object"}:
+                        continue
+                    for _x338 in sorted(_ms338[0]):
+                        _up338 = {_x338}
+                        _wl338 = [_x338]
+                        while _wl338:
+                            for _y338 in _anc338.get(_wl338.pop(), []):
+                                if _y338 not in _up338:
+                                    _up338.add(_y338)
+                                    _wl338.append(_y338)
+                        if _x338 == "bool":
+                            _up338.add("int")
+                        if not (_up338 & _ms338[1]):
+                            _viol278.append((_sn278, _bn278, "changes %s: `%s` is not a "
+                                             "subtype of `%s` (%s)" % (
+                                                 _wh338, _ast338.unparse(_lo338)
+                                                 if _lo338 is not None else "(none: Any)",
+                                                 _ast338.unparse(_hi338),
+                                                 "return types are covariant"
+                                                 if _wh338.startswith("its return")
+                                                 else "parameter types are contravariant")))
+                            break
         if _viol278:
             from errors import PyCSLSemanticError as _PyCSLSemErr278
             _v278 = _viol278[0]
@@ -3662,7 +3761,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"position), and a subclass instance runs the override, so the claim would "
                 f"be proved while CPython does otherwise (route #278). Make the override "
                 f"refine the base (declare at most the base's exceptions and locations, "
-                f"keep its parameter names and order), widen the base's contract, or pass "
+                f"keep its parameter names and order, return a subtype of the base's return "
+                f"annotation and accept a supertype of each base parameter annotation), "
+                f"widen the base's contract, or pass "
                 f"`--assume-class-exact` to declare the assumption that values are exact "
                 f"instances (CLASS-EXACT, listed by `--soundness-report`)"
                 f"{'' if len(_viol278) == 1 else f' (also: {_viol278[1:4]})'}.",
@@ -7955,6 +8056,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _ini334 = {}    # python class name -> [(field, annotation, value, def, kind)]
         _meth334 = {}   # id(method def) -> (class name, `self` parameter name)
         _ndv334 = {}    # python class name -> dict fields whose VALUES are not provably int
+        _cnt338 = set()  # ROUTE #338: id(store node) already counted as a `self` store
         for _a325 in _ast325.walk(_tree325):
             if isinstance(_a325, (_ast325.FunctionDef, _ast325.AsyncFunctionDef,
                                   _ast325.AnnAssign)):
@@ -8052,6 +8154,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                               and _x325.func.id == "setattr" and len(_x325.args) >= 2
                               and isinstance(_x325.args[0], _ast325.Name)
                               and _x325.args[0].id == _sf330):
+                            _cnt338.add(id(_x325))
                             if (isinstance(_x325.args[1], _ast325.Constant)
                                     and isinstance(_x325.args[1].value, str)):
                                 _ini330.append((_x325.args[1].value, None, _x325.args[2]
@@ -8065,6 +8168,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                               and _x325.func.value.value.id == _sf330
                               and _x325.func.attr in ("update", "setdefault", "__setitem__",
                                                       "fromkeys", "__ior__")):
+                            _cnt338.add(id(_x325))
                             _ini330.append((_x325.func.value.attr, None, _x325.args[1] if (
                                 _x325.func.attr in ("setdefault", "__setitem__")
                                 and len(_x325.args) == 2) else None, _s325, "[]"))
@@ -8073,6 +8177,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             if (isinstance(_t325, _ast325.Attribute)
                                     and isinstance(_t325.value, _ast325.Name)
                                     and _t325.value.id == _sf330):
+                                _cnt338.add(id(_t325))
                                 _ini330.append((_t325.attr, _an334, _v325, _s325, "="))
                                 if isinstance(_x325, _ast325.AugAssign):
                                     _ini330.append((_t325.attr, None, None, _s325, "[]"))
@@ -8080,6 +8185,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                   and isinstance(_t325.value, _ast325.Attribute)
                                   and isinstance(_t325.value.value, _ast325.Name)
                                   and _t325.value.value.id == _sf330):
+                                _cnt338.add(id(_t325))
                                 _ini330.append((_t325.value.attr, None, _v325, _s325, "[]"))
                             elif isinstance(_t325, (_ast325.Tuple, _ast325.List)):
                                 if (isinstance(_v325, (_ast325.Tuple, _ast325.List))
@@ -8199,6 +8305,132 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         and isinstance(_a325.slice.elts[1], _ast325.Name)
                         and _a325.slice.elts[1].id in ("int", "bool"))):
                 _dia334.add(id(_a325))
+        # ROUTE #338 — a field of an instance of a class of this file may be stored from
+        # ANY code, not only from the class, its bases and its descendants: module level,
+        # `__main__`, another function, a method of another class (`c.r = 0.5`,
+        # `setattr(c, "r", .25)`, `c.d["a"] = 0.5`, `del c.r`). Each such store joins the
+        # stores of the receiver's class when the receiver is a parameter annotated with a
+        # class of this file (or a local every binding of which constructs one), is
+        # dropped when that annotation names a type of no class of this file (annotation
+        # trust, as for every typed parameter), and otherwise joins EVERY class of this
+        # file that stores a field of that name (over-approximation). A deletion is a
+        # store of a non-int value; a dynamic attribute name (`setattr(c, n, v)`, a
+        # `__dict__` / `vars()` store) taints every field of the classes it may reach.
+        _ext338 = []    # (receiver class | None, field | "*", value, def, kind)
+        _st338 = [(_n325, None) for _n325 in (_tree325.body if _tree325 is not None else [])]
+        while _st338:
+            _n338, _fd338 = _st338.pop()
+            _pr338 = []     # (target, value)
+            if isinstance(_n338, _ast325.Assign):
+                _pr338 = [(t, _n338.value) for t in _n338.targets]
+            elif isinstance(_n338, _ast325.AnnAssign):
+                _pr338 = [(_n338.target, _n338.value)]
+            elif isinstance(_n338, _ast325.AugAssign):
+                _pr338 = [(_n338.target, _ast325.BinOp(left=_ast325.Constant(value=0),
+                                                         op=_n338.op, right=_n338.value)),
+                          (("[]", _n338.target), None)]
+            elif isinstance(_n338, (_ast325.For, _ast325.AsyncFor)):
+                _pr338 = [(_n338.target, _ast325.Constant(value=0) if (
+                    isinstance(_n338.iter, _ast325.Call)
+                    and isinstance(_n338.iter.func, _ast325.Name)
+                    and _n338.iter.func.id == "range") else None)]
+            elif isinstance(_n338, (_ast325.With, _ast325.AsyncWith)):
+                _pr338 = [(w.optional_vars, None) for w in _n338.items
+                          if w.optional_vars is not None]
+            elif isinstance(_n338, _ast325.comprehension):
+                _pr338 = [(_n338.target, None)]
+            elif isinstance(_n338, _ast325.Delete):
+                _pr338 = [(t, _ast325.Constant(value="\0del")) for t in _n338.targets]
+            elif isinstance(_n338, _ast325.Call) and id(_n338) not in _cnt338:
+                _cf338 = _n338.func
+                _nm338 = (_cf338.id if isinstance(_cf338, _ast325.Name) else
+                          _cf338.attr if (isinstance(_cf338, _ast325.Attribute)
+                                          and isinstance(_cf338.value, _ast325.Name)
+                                          and _cf338.value.id == "object") else "")
+                if _nm338 in ("setattr", "delattr", "__setattr__", "__delattr__") and (
+                        len(_n338.args) >= 2):
+                    _v338 = (_ast325.Constant(value="\0del") if "del" in _nm338
+                             else _n338.args[2] if len(_n338.args) > 2 else None)
+                    _pr338 = [(_ast325.Attribute(value=_n338.args[0], attr=(
+                        _n338.args[1].value if isinstance(_n338.args[1], _ast325.Constant)
+                        and isinstance(_n338.args[1].value, str) else "*")), _v338)]
+                elif (isinstance(_cf338, _ast325.Attribute)
+                      and isinstance(_cf338.value, _ast325.Attribute)
+                      and _cf338.attr in ("update", "setdefault", "__setitem__", "fromkeys",
+                                          "__ior__")):
+                    _pr338 = [(("[]", _cf338.value), _n338.args[1] if (
+                        _cf338.attr in ("setdefault", "__setitem__")
+                        and len(_n338.args) == 2) else None)]
+            while _pr338:
+                _t338, _v338 = _pr338.pop()
+                if isinstance(_t338, tuple):
+                    # ("[]", field): a store of one of the VALUES of a (dict) field
+                    if (isinstance(_t338[1], _ast325.Attribute)
+                            and id(_t338[1]) not in _cnt338):
+                        _ext338.append((_t338[1].value, "*" if _t338[1].attr == "__dict__"
+                                        else _t338[1].attr, _v338, _fd338, "[]"))
+                elif isinstance(_t338, _ast325.Attribute) and id(_t338) not in _cnt338:
+                    _ext338.append((_t338.value, _t338.attr, _v338, _fd338, "="))
+                elif (isinstance(_t338, _ast325.Subscript) and id(_t338) not in _cnt338
+                      and isinstance(_t338.value, _ast325.Attribute)):
+                    _ext338.append((_t338.value.value, "*" if _t338.value.attr == "__dict__"
+                                    else _t338.value.attr, _v338, _fd338, "[]"))
+                elif (isinstance(_t338, _ast325.Subscript) and isinstance(
+                        _t338.value, _ast325.Call) and isinstance(_t338.value.func,
+                                                                  _ast325.Name)
+                      and _t338.value.func.id == "vars" and _t338.value.args):
+                    _ext338.append((_t338.value.args[0], "*", None, _fd338, "="))
+                elif isinstance(_t338, (_ast325.Tuple, _ast325.List)):
+                    if (isinstance(_v338, (_ast325.Tuple, _ast325.List))
+                            and len(_t338.elts) == len(_v338.elts)
+                            and not any(isinstance(x, _ast325.Starred)
+                                        for x in _t338.elts + _v338.elts)):
+                        _pr338.extend(zip(_t338.elts, _v338.elts))
+                    else:
+                        _pr338.extend((a, None) for a in _t338.elts)
+                elif isinstance(_t338, _ast325.Starred):
+                    _pr338.append((_t338.value, None))
+            _st338.extend((c, _n338 if isinstance(_n338, (
+                _ast325.FunctionDef, _ast325.AsyncFunctionDef, _ast325.Lambda)) else _fd338)
+                for c in _ast325.iter_child_nodes(_n338))
+        for _r338, _f338, _v338, _fd338, _kd338 in _ext338:
+            # the receiver's class: a `self` of a method, a typed parameter, a local
+            # constructing a class of this file
+            _ev338 = _env334.get(id(_fd338)) if _fd338 is not None else None
+            _oc338 = "?"
+            if isinstance(_r338, _ast325.Name) and _ev338 is not None:
+                if id(_fd338) in _meth334 and _r338.id == _meth334[id(_fd338)][1]:
+                    _oc338 = _meth334[id(_fd338)][0]
+                elif _r338.id in _ev338[1]:
+                    _oc338 = {(v.func.id if isinstance(v, _ast325.Call)
+                               and isinstance(v.func, _ast325.Name)
+                               and v.func.id in _ini334 else "?") for v in _ev338[1][_r338.id]}
+                    _oc338 = next(iter(_oc338)) if len(_oc338) == 1 else "?"
+                elif _r338.id in _ev338[0]:
+                    # a parameter annotated `K` (a class of this file) holds a K; one
+                    # annotated with builtin scalar / container types only holds no
+                    # instance of a class of this file (annotation trust); anything
+                    # else (unannotated, `object`, `Any`, an imported type) may hold one
+                    _a338 = _ev338[0][_r338.id]
+                    _a338 = (_ast325.Name(id=_a338.value) if isinstance(_a338, _ast325.Constant)
+                             and isinstance(_a338.value, str) else _a338)
+                    if isinstance(_a338, _ast325.Name) and _a338.id in _ini334:
+                        _oc338 = _a338.id
+                    elif isinstance(_a338, _ast325.AST) and all(
+                            x.id in ("int", "bool", "str", "float", "bytes", "complex",
+                                     "list", "dict", "set", "frozenset", "tuple", "List",
+                                     "Dict", "Set", "FrozenSet", "Tuple", "Optional",
+                                     "Sequence", "Mapping", "None")
+                            for x in _ast325.walk(_a338) if isinstance(x, _ast325.Name)
+                    ) and not any(isinstance(x, _ast325.Attribute) or (
+                            isinstance(x, _ast325.Constant) and x.value is not None)
+                            for x in _ast325.walk(_a338)):
+                        _oc338 = "!"
+            for _cn338 in ([_oc338] if _oc338 in _ini334 else [] if _oc338 != "?"
+                           else [c for c in _ini334 if _f338 == "*" or any(
+                               e[0] == _f338 for e in _ini334[c])]):
+                _ini334[_cn338].append((_f338, None, None if _f338 == "*" else _v338,
+                                        _fd338, _kd338))
         _allc334 = {}   # class -> its stores and its bases' stores
         _mint334 = {}   # class -> methods (own / bases) annotated `-> int` / `bool`
         for _cn334 in _ini334:
@@ -8434,7 +8666,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _an325 = _ev334[0][_e325.id]
                                 if _an325 == "*" or _e325.id == _sl334:
                                     _fl334.add("other")
-                                elif _an325 is None or (
+                                elif _an325 is None:
+                                    # ROUTE #338 (#325 residual 1): an UNANNOTATED
+                                    # parameter is of unknown type — `U(0.5)` built by
+                                    # unverified code (`__main__`) is never type-checked
+                                    _fl334.add("unk")
+                                elif (
                                         isinstance(_an325, _ast325.Name)
                                         and _an325.id in ("int", "bool")) or (
                                         isinstance(_an325, _ast325.Constant)
