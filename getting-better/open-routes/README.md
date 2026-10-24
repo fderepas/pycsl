@@ -1,5 +1,15 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #335 REPAIRED, candidate (r335 executor off 87b4eca6; commits abff40d6, 56aa4b8b, 2969cbf4 + route docs;
+##   inline at the end of `apply_inheritance.merge_one` + a Module 5 side channel `nonrecord335`, no new def, ledger 3). Sound
+##   refusal PYCSL-R335-INHERITED-INVARIANT-CONSTRUCTION: Python's constructor chain over the C3 MRO (walk through classes without
+##   `__init__`, continue past one only via a leading `super().__init__(...)`) must store every inherited invariant field with the
+##   merged literal, and no MRO class may define a method/property/non-constant binding of that name. Witnesses 4460-4468
+##   (i33/i35/i36/i37/i38 + 4 new latent shapes p1-p4) PROVED -> REFUSED; controls 4469-4476 PROVED. Root 0/0/0, pyref 0/0/0,
+##   mirror 1 MOVED (`raises` on `apply_inheritance`, frontend__ir_resolve PROVED rc=0, no OWED). Latent: corpus 0448 never ran its
+##   imported base's `__init__` (invariant on unset `_depth`) — fixed in the corpus by `super().__init__()`, emission identical.
+##   Residuals: over-refusal of `B.__init__(self)` / non-leading super; imported fieldless MRO classes end the chain.
+
 ## gen #37 (2026-10-24): #336 (unrecognised parameter/element annotations default to int: TypeAlias/Annotated/Fraction/Decimal/Real/
 ##   SupportsFloat/str-None aliases; parameterised containers drop element types), #337 (fieldless user class = int), #338 (override return
 ##   types not compared; external field stores not counted by #334) OPENED (red team 23; 5/5 combined files reproduced rc=0).

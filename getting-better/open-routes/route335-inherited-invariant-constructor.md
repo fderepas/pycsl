@@ -11,7 +11,7 @@ Python MRO: explicit super() calls inlined, otherwise base __init__ NOT run; cla
 considered) — or refuse a subclass of an invariant-carrying class whose __init__ does not provably call the base __init__ (and whose
 class attributes/properties shadow invariant fields).
 
-## REPAIR (2026-10-24, r335 executor off 87b4eca6; commits abff40d6 (code + corpus), 56aa4b8b (census + docs) + route docs)
+## REPAIR (2026-10-24, r335 executor off 87b4eca6; commits abff40d6 (code + corpus), 56aa4b8b (census + docs), 2969cbf4 (0448 line-neutral) + route docs)
 **Design: sound refusal at the merge, no emission change.** The goal `_check_class_inv_<sub>` and route #277's receiver
 assumption read the MERGED `field_defaults`, which `apply_inheritance` unions from the bases in declared-base order. The
 faithful alternative (rebuild each subclass's field values from its real constructor chain and re-emit the goal) would
@@ -52,7 +52,8 @@ emission byte-identical to base; PROVED rc=0). Pyref 2186/2186 0/0/0. Mirror 53/
 file PROVED rc=0 (no OWED proof). 0 mirror GONE.
 **Gates** (logs in `.r335tmp/`, removed after the run; base sweeps taken in this worktree at 87b4eca6 before any edit):
 byte-diff-compare root rc=0, pyref rc=0, mirror rc=0 with `--expect-moved frontend__ir_resolve`; check-self-annotate-sync.sh
-rc=0 (926); self-annotate-mirror-check.sh rc=0 (53); run-soundness-planes.sh fast PLANES_RESULT; doc-coherency --check
+rc=0 (926); self-annotate-mirror-check.sh rc=0 (53); run-soundness-planes.sh fast 61/61 rc=0 (first run 60/61: `frontend-only-conformance` 0448 golden line numbers shifted by a
+multi-line fix; the fix was made line-neutral `super().__init__(); self.count = 0`, goldens 38/38, re-proved rc=0); doc-coherency --check
 rc=0; check-assumed-facts rc=0 (ledger 3); check-trusted-raises-honesty rc=0 (19 declared / 61 silent, ratchet 61);
 check-refusal-witness-coverage rc=0 (282 demonstrated / 5 not, ceiling 5; rows 4460-4468 by `_census_row`);
 check-dropped-mutation rc=0. `--slow` planes NOT run (heavy queue shared).
