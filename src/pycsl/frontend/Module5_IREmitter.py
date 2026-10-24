@@ -5048,14 +5048,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # Gated on a leading CAPITAL (Python class-naming convention) minus
             # the bare `typing` aliases, so a lowercase/unknown arm still
             # degrades to `Any` exactly as before.
-            # (#49) ROUTE #336/#337 — BUT AN "OPAQUE int" PAYLOAD IS AN INT. Module 6 types
-            # it `int`, so the arm's value carried every int law: `Optional[Fraction]` /
-            # `Optional[<field-less class>]` proved `x % 1 == 0` for `Fraction(1, 2)`. The
-            # arm is kept only for a class this module lowers to a RECORD (pre-scan included:
-            # a self-referential `Optional[Node]` field); any other class arm is the
-            # arbitrary object of route #258, and the whole annotation is erased (`Any`).
-            if (elt.id[:1].isupper() and elt.id not in self._TYPING_ALIAS_ARMS
-                    and elt.id in self._m5_declared_record_names()):
+            if elt.id[:1].isupper() and elt.id not in self._TYPING_ALIAS_ARMS:
                 return elt.id
             return "Any"
         # self-tcb-reduction giants (generic class-body lowering): an `ast.<expr-node>`
@@ -5229,6 +5222,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         none_present = False
         for elt in arms_ast:
             tag = self._union_arm_tag(elt)
+            # (#49) ROUTE #336/#337 — AN "OPAQUE int" ARM PAYLOAD IS AN INT. `_union_arm_tag`
+            # keeps a capitalised class arm with no record type as an opaque payload, which
+            # Module 6 types `int`, so the arm's value carried every int law:
+            # `Optional[Fraction]` / `Optional[<field-less class>]` / `Optional[T]` (TypeVar)
+            # proved `x % 1 == 0` for `Fraction(1, 2)`. Such an arm is kept only for a class
+            # this module lowers to a RECORD (pre-scan included: a self-referential
+            # `Optional[Node]` field); any other is the arbitrary object of route #258 below.
+            if (isinstance(elt, ast.Name) and tag == elt.id
+                    and tag not in ("None", "Any", "int", "float", "str", "bytes", "list",
+                                    "dict", "set", "frozenset", "tuple", "bytearray")
+                    and tag not in self._m5_declared_record_names()):
+                tag = "Any"
             if tag == "Any":
                 any_dropped = True
                 continue
