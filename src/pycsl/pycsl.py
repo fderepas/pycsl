@@ -8317,6 +8317,26 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # store of a non-int value; a dynamic attribute name (`setattr(c, n, v)`, a
         # `__dict__` / `vars()` store) taints every field of the classes it may reach.
         _ext338 = []    # (receiver class | None, field | "*", value, def, kind)
+        # the names UNVERIFIED code of this module mentions: module-level statements
+        # (`if __name__ == "__main__":` included), class bodies, decorators, defaults —
+        # everything but the bodies of defs (lowered and verified)
+        _uv338 = set()
+        _st338 = list(_tree325.body) if _tree325 is not None else []
+        while _st338:
+            _n338 = _st338.pop()
+            if isinstance(_n338, (_ast325.FunctionDef, _ast325.AsyncFunctionDef)):
+                _st338.extend(_n338.decorator_list + _n338.args.defaults + [
+                    d for d in _n338.args.kw_defaults if d is not None])
+                continue
+            if isinstance(_n338, _ast325.ClassDef):
+                # its bases only NAME classes; its body and decorators run
+                _st338.extend(_n338.body + _n338.decorator_list)
+                continue
+            if isinstance(_n338, _ast325.Name):
+                _uv338.add(_n338.id)
+            elif isinstance(_n338, _ast325.Attribute):
+                _uv338.add(_n338.attr)
+            _st338.extend(_ast325.iter_child_nodes(_n338))
         _st338 = [(_n325, None) for _n325 in (_tree325.body if _tree325 is not None else [])]
         while _st338:
             _n338, _fd338 = _st338.pop()
@@ -8668,9 +8688,30 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     _fl334.add("other")
                                 elif _an325 is None:
                                     # ROUTE #338 (#325 residual 1): an UNANNOTATED
-                                    # parameter is of unknown type — `U(0.5)` built by
-                                    # unverified code (`__main__`) is never type-checked
-                                    _fl334.add("unk")
+                                    # parameter takes the type of its argument. A
+                                    # VERIFIED caller's argument is typed by WhyML (the
+                                    # record literal `{ r = 0.5 }` is rejected), but
+                                    # UNVERIFIED code of this module (module level,
+                                    # `__main__`, a default, a decorator) is never
+                                    # lowered: `U(0.5)` there makes the field a float.
+                                    # So the parameter is of unknown type when that
+                                    # code names the storing def, its class or a
+                                    # descendant of it (the constructor is inherited).
+                                    _nm338 = {_fd334.name} if _fd334 is not None else set()
+                                    if _fd334 is not None and id(_fd334) in _meth334:
+                                        _nm338.add(_meth334[id(_fd334)][0])
+                                        for _d338 in _bas330:
+                                            _cl330 = list(_bas330.get(_d338, []))
+                                            _sd334 = set()
+                                            while _cl330:
+                                                _x338 = _cl330.pop()
+                                                if _x338 not in _sd334:
+                                                    _sd334.add(_x338)
+                                                    _cl330.extend(_bas330.get(_x338, []))
+                                            if _meth334[id(_fd334)][0] in _sd334:
+                                                _nm338.add(_d338)
+                                    if _nm338 & _uv338:
+                                        _fl334.add("unk")
                                 elif (
                                         isinstance(_an325, _ast325.Name)
                                         and _an325.id in ("int", "bool")) or (
