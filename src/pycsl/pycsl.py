@@ -8206,6 +8206,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _seen330.add(_x325)
                 _allc334[_cn334].extend(_ini334.get(_x325, []))
                 _cl330.extend(_bas330.get(_x325, []))
+            # a receiver typed as this class may hold an instance of a SUBCLASS: the
+            # stores of every descendant count too (i01: `S(B)` stores `self.r = 0.5`)
+            for _d334 in _ini334:
+                _cl330 = list(_bas330.get(_d334, []))
+                _sd334 = set()
+                while _cl330:
+                    _x325 = _cl330.pop()
+                    if _x325 in _sd334:
+                        continue
+                    _sd334.add(_x325)
+                    _cl330.extend(_bas330.get(_x325, []))
+                if _cn334 in _sd334 and _d334 not in _seen330:
+                    _allc334[_cn334].extend(_ini334.get(_d334, []))
             for _cd334 in _ast325.walk(_tree325):
                 if isinstance(_cd334, _ast325.ClassDef) and _cd334.name in _seen330:
                     _mint334[_cn334].update(m.name for m in _cd334.body if isinstance(
