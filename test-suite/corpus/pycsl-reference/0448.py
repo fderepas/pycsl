@@ -24,11 +24,7 @@ import multi_file_lib.visitor_base as vb
 #@ class invariant self.count >= 0
 class FunctionAnalyzer(vb.NodeVisitor):
     def __init__(self):
-        # route #335 (gen #37): without this call `NodeVisitor.__init__` never runs, so
-        # `self._depth` is never stored and the inherited invariant was assumed of an
-        # instance that does not satisfy it (CPython: `a._depth` -> AttributeError).
-        super().__init__()
-        self.count = 0
+        super().__init__(); self.count = 0  # route #335: else NodeVisitor.__init__ never runs (`_depth` unset)
 
     #@ ensures \result >= 0
     #@ assigns \nothing
