@@ -28,8 +28,9 @@ class PurePath:
 
 
 class Path(PurePath):
+    #@ requires path >= 0
     def __init__(self, path):
-        PurePath.__init__(self, path)
+        super().__init__(path)
 
     #@ ensures \result >= 0
     def stat(self) -> int:
