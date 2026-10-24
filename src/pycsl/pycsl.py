@@ -4345,6 +4345,20 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 for _t327 in (_tv327 if isinstance(_tv327, list) else [_tv327]):
                     if isinstance(_t327, str) and _t327.isidentifier():
                         _names327.add(_t327)
+            _ia327 = _n327.get("args")
+            if (_n327.get("type") == "Call" and _n327.get("func") in ("isinstance", "issubclass")
+                    and isinstance(_ia327, list) and len(_ia327) == 2
+                    and isinstance(_ia327[1], dict)):
+                # the CLASS operand of `isinstance(x, C)` lowers to a type tag spelled with
+                # the source name (`py_isinstance_C_int_op`), never to a WhyML variable
+                # (measured: the mirror's `isinstance(node, Var)` beside a parameter `var`).
+                _stk327.append(_ia327[0])
+                _ic327 = _ia327[1]
+                _stk327.extend([_e327 for _e327 in (_ic327.get("elts") or [])
+                                if not (isinstance(_e327, dict) and _e327.get("type") == "Var")]
+                               if _ic327.get("type") == "Tuple"
+                               else ([] if _ic327.get("type") == "Var" else [_ic327]))
+                continue
             for _v327 in _n327.values():
                 if isinstance(_v327, (dict, list)):
                     _stk327.append(_v327)
