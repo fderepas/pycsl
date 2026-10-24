@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #327-#331 OPENED (red team 20; 36 witnesses, 12/12 sample driver-reproduced rc=0): #327 identifier collisions
+##   (whyml_ident case-fold/reserved prefix, N vs n, K vs k); #328 #325 taint bypasses (non-simple module bindings, tuple unpack,
+##   generated binders R/V_); #329 is-refusals skipped in if-expression tests / under not; #330 fields/model-op results/bare+complex
+##   annotations typed int; #331 no_exception over None/str field arithmetic.
+
 ## gen #37 (2026-10-24): #325 REPAIRED, candidate (r325 executor off 0da66911; commits f727109a, 4890e1d3, 6562aec2, 06382014,
 ##   da90b338 + route docs; inline in `_run_pipeline` on the EMITTED WhyML (mirror twin `\trusted`), no new def, ledger 3).
 ##   An opaque-int fallback standing for a module-level value (global, import / module alias, class, class-level attribute,
