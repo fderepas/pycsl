@@ -221,6 +221,12 @@ def _resolve_imported_classes(direct_imports: List[Any], main_file: str, ir_data
 def _resolve_imported_base_classes(module_imports: List[Any], main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
+# (#49) gen #37, ROUTE #335: the live body now REFUSES a subclass whose actual
+# construction (Python's constructor chain over the C3 MRO) does not store an inherited
+# invariant field with the merged value, or that shadows one with a method / property /
+# class-body binding (PYCSL-R335-INHERITED-INVARIANT-CONSTRUCTION). The marker is
+# declared here, as route #143 did for `resolve_imports`.
+#@ raises PyCSLSemanticError when True
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True

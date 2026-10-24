@@ -4136,6 +4136,30 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                       for _c in node.body)
         if _hpi150 and not (fields or bases):
             self.program_ir.setdefault("post_init_nonrecord150", []).append(node.name)
+        # (#49) gen #37, ROUTE #335 — a NON-RECORD class (no fields, no bases) has no
+        # `type_decl`, so `apply_inheritance` cannot tell whether it DEFINES `__init__`
+        # (which then runs INSTEAD of a later base's in a subclass's MRO: `class S(M, B)`
+        # with `M.__init__` never reaching `B.__init__`) or which names its class body binds
+        # (a `property`/descriptor shadowing an invariant field). Side channel, consumed and
+        # POPPED by `apply_inheritance`; the resolved IR never carries it.
+        if not (fields or bases):
+            _bn335: List[str] = []
+            _ini335 = self._is_dataclass_decorated(node)
+            for _c335 in node.body:
+                if isinstance(_c335, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    if _c335.name in ("__init__", "__new__"):
+                        _ini335 = True
+                    _bn335.append(_c335.name)
+                elif isinstance(_c335, ast.Assign):
+                    for _t335 in _c335.targets:
+                        if isinstance(_t335, ast.Name):
+                            _bn335.append(_t335.id)
+                elif isinstance(_c335, ast.AnnAssign) and isinstance(_c335.target, ast.Name):
+                    _bn335.append(_c335.target.id)
+            if "__init__" in _bn335 or "__new__" in _bn335:
+                _ini335 = True
+            self.program_ir.setdefault("nonrecord335", {})[node.name] = {
+                "init": _ini335, "binds": _bn335}
         if fields or bases:
             class_invariants_ir = [self._csl_to_ir(inv.expr)
                                    for inv in getattr(node, 'csl_class_invariants', [])]

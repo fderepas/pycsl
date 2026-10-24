@@ -2242,6 +2242,28 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
                             for _in_o in _in_seqs]
             _in_mro[_in_c] = _in_res if _in_ok else None
     _in_origin: Dict[str, str] = {}
+    # (#49) gen #37, ROUTE #335 — WHAT EACH CLASS'S OWN CONSTRUCTOR STORES, snapshotted
+    # BEFORE any merge (the merge below rewrites `fields`, `field_defaults`, `init_body`
+    # and pops `init_super150`). Read by the establishment check at the end of
+    # `merge_one`. `nonrecord335` is Module 5's side channel for the fieldless base-less
+    # classes that have no `type_decl` (popped here: the resolved IR never carries it).
+    _nr335: Dict[str, Any] = dict(ir_data.pop("nonrecord335", {}) or {})
+    _raw335: Dict[str, Dict[str, Any]] = {}
+    for _n335, _td335 in records.items():
+        _cf335 = set(_td335.get("init_unknown_cf_fields") or [])
+        _raw335[_n335] = {
+            "own": {f["name"] for f in _td335.get("fields", []) or []} - _cf335,
+            "unk": set(_td335.get("init_unknown_fields") or []) | _cf335,
+            "defaults": dict(_td335.get("field_defaults") or {}),
+            "ib": {e.get("field") for e in (_td335.get("init_body") or [])
+                   if isinstance(e, dict)},
+            "inh": bool(_td335.get("init_inherits")),
+            "sup": "init_super150" in _td335,
+            "dc": bool(_td335.get("init_dataclass_synth")),
+            "dcf": (list(_td335.get("dataclass_fields") or [])
+                    + list(_td335.get("dataclass_kwonly_fields") or [])),
+            "consts": set(_td335.get("constants") or {}),
+        }
 
     def merge_one(td: Dict[str, Any]) -> None:
         if not td.get("bases"):
@@ -2687,6 +2709,128 @@ def apply_inheritance(ir_data: Dict[str, Any]) -> None:
         td["class_invariants"] = merged_invs + td.get("class_invariants", [])
         td["field_defaults"] = {**merged_defaults, **td.get("field_defaults", {})}
         td["constants"] = {**merged_consts, **td.get("constants", {})}
+        # (#49) gen #37, ROUTE #335 — AN INHERITED INVARIANT FIELD MUST BE STORED BY THE
+        # CONSTRUCTOR PYTHON ACTUALLY RUNS. The merge above unions the bases'
+        # `field_defaults` (their constructors' literals) into this class, so the
+        # constructor goal `_check_class_inv_<sub>` and every receiver of the base type
+        # (route #277) assumed the BASE constructor's values even when it never ran.
+        # MEASURED (all PROVED, CPython violates): `__init__: pass` under a class attribute
+        # `n = -1` (i35); an `__init__` storing only another field (i36, AttributeError
+        # under `no_exception \all`); `__init__(k)` + `n = 3` (i37); a subclass `@property`
+        # `x` returning 7 (i33); `class S(M, B)` whose MRO runs `M.__init__` first (i38).
+        #
+        # THE RULE IS PYTHON'S CONSTRUCTOR CHAIN OVER THE C3 MRO. Starting at this class,
+        # a class with no `__init__` is walked THROUGH; a class defining one runs it — its
+        # own top-level stores happen (a store under control flow is not definite), and
+        # the walk continues past it ONLY through a leading `super().__init__(...)` (the
+        # one shape route #150 models; `B.__init__(self)`, a later or conditional `super`
+        # call, a dataclass's synthesized constructor all END the chain). A field's value
+        # is decided by the FIRST class of the chain that stores it (its stores run after
+        # its `super()` returns). An unmodelled class ends the chain storing nothing
+        # (`object`, `Exception`, an imported fieldless class). Then, for every field an
+        # invariant of this class names that is not its own:
+        #   * not stored by the chain                                  -> REFUSED
+        #   * stored, but the merged literal is not the storing class's -> REFUSED
+        #   * a method / non-constant class-body binding of that name anywhere in the MRO
+        #     (a `@property` is a data descriptor and wins over the instance) -> REFUSED
+        # Monotone: it only refuses. A class whose chain stores every invariant field with
+        # the merged value is byte-identical.
+        _inv335: Set[str] = set()
+        _stk335: List[Any] = list(td.get("class_invariants") or [])
+        while _stk335:
+            _nd335 = _stk335.pop()
+            if isinstance(_nd335, dict):
+                if (_nd335.get("type") == "FieldGet" and _nd335.get("object") == "self"
+                        and isinstance(_nd335.get("field"), str)):
+                    _inv335.add(_nd335["field"])
+                _stk335.extend(_nd335.values())
+            elif isinstance(_nd335, list):
+                _stk335.extend(_nd335)
+        _sraw335 = _raw335.get(sub, {})
+        _mro335 = _in_mro.get(sub) or [sub]
+        _bf335: Set[str] = set()
+        for _k335 in _mro335[1:]:
+            _bf335 |= set((_raw335.get(_k335) or {}).get("own") or set())
+            _bf335 |= set((_raw335.get(_k335) or {}).get("unk") or set())
+        _inh335 = sorted((_inv335 & _bf335) - set(_sraw335.get("own") or set()))
+        if _inh335:
+            _owner335: Dict[str, str] = {}
+            _i335 = 0
+            while _i335 < len(_mro335):
+                _k335 = _mro335[_i335]
+                _r335 = _raw335.get(_k335)
+                if _r335 is None:
+                    _nk335 = _nr335.get(_k335)
+                    if isinstance(_nk335, dict) and not _nk335.get("init"):
+                        _i335 += 1
+                        continue
+                    break
+                if _r335["inh"]:
+                    _i335 += 1
+                    continue
+                if _r335["dc"]:
+                    for _j335 in range(_i335, len(_mro335)):
+                        _rj335 = _raw335.get(_mro335[_j335])
+                        for _f335 in ((_rj335 or {}).get("dcf") or []):
+                            _owner335.setdefault(_f335, _mro335[_j335])
+                    break
+                for _f335 in sorted(_r335["own"]):
+                    _owner335.setdefault(_f335, _k335)
+                if _r335["sup"]:
+                    _i335 += 1
+                    continue
+                break
+            _bad335 = ""
+            _unk335 = (set(td.get("init_unknown_fields") or [])
+                       | set(td.get("init_unknown_cf_fields") or []))
+            _ib335 = {e.get("field") for e in (td.get("init_body") or [])
+                      if isinstance(e, dict)}
+            for _f335 in _inh335:
+                for _k335 in _mro335:
+                    _kl335 = _k335.lower()
+                    _kr335 = _raw335.get(_k335)
+                    _kb335 = set(_in_binds.get(_kl335, set()))
+                    if _kr335 is None:
+                        _kb335 |= set(((_nr335.get(_k335) or {}).get("binds")) or [])
+                    if (_f335 in _in_own.get(_kl335, set())
+                            or (_f335 in _kb335
+                                and not (_kr335 is not None and _f335 in _kr335["consts"]))):
+                        _bad335 = (f"class '{_k335}' defines a method, property or "
+                                   f"class-body binding named '{_f335}', which shadows the "
+                                   f"instance field the invariant constrains")
+                        break
+                if _bad335:
+                    break
+                _ow335 = _owner335.get(_f335)
+                if _ow335 is None:
+                    _bad335 = (f"the constructor Python runs for '{sub}' (its MRO "
+                               f"{_mro335}) never stores 'self.{_f335}' — a subclass "
+                               f"`__init__` that does not begin with `super().__init__(...)` "
+                               f"does not run the base constructor, and a class attribute "
+                               f"is not the instance field")
+                    break
+                if (_f335 in _unk335 or _f335 in _ib335 or td.get("init_opaque150")):
+                    continue
+                _owr335 = _raw335.get(_ow335) or {}
+                if (_f335 in (_owr335.get("ib") or set())
+                        or _f335 in (_owr335.get("unk") or set())
+                        or (_owr335.get("defaults") or {}).get(_f335)
+                        != (td.get("field_defaults") or {}).get(_f335)):
+                    _bad335 = (f"'self.{_f335}' is stored by '{_ow335}.__init__' (the "
+                               f"first constructor of the MRO {_mro335} that stores it), "
+                               f"but the merged model takes its value from another class")
+                    break
+            if _bad335:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"PYCSL-R335-INHERITED-INVARIANT-CONSTRUCTION (route #335) — class "
+                    f"'{sub}' inherits a `#@ class invariant` over 'self.{_f335}', but "
+                    f"{_bad335}; the invariant would be assumed for every '{sub}' instance "
+                    f"(and for every receiver of a base type, route #277) although no "
+                    f"construction establishes it. Store the field in '{sub}.__init__' "
+                    f"or begin it with `super().__init__(...)`, and do not shadow an "
+                    f"invariant field with a class attribute or property.",
+                    code="PYCSL-R335-INHERITED-INVARIANT-CONSTRUCTION")
         td["bases"] = []  # mark merged
 
     for td in list(records.values()):
