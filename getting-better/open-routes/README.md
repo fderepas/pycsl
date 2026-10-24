@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #333 (#327 residuals: safe_exc_name merges user exceptions incl. with builtins; generated _idx_* etc shadow user names)
+##   and #334 (#330/#331 field-origin gaps: locals/walrus/neg-pow initialisers, tuple-target __init__, integral floats, unknown dict values)
+##   OPENED (red team 21; 12/12 sample driver-reproduced rc=0 on main).
+
 ## gen #37 (2026-10-24): #328, #330, #331 REPAIRED, candidate (r328 executor off aa1cf01c; commits 0edf93ea (code), 34f71ba4
 ##   (corpus/census/docs) + route docs; inline in #325's `_run_pipeline` check, no new def, ledger 3). #328: origins = every
 ##   module/class-level binding form at any nesting; tuple-pattern taint (component-precise); arm / for binders scoped
