@@ -4387,12 +4387,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # Only a name the USER spelled can collide: the final IR also carries the front end's
     # own generated names (`_for_target`, `_inl_res__inl<k>`, `_pycsl_multi_<k>`), which
     # are the emitter's and are not refused. A user name is an identifier of the source
-    # AST or a token of a `#@` contract line (quantifier / ghost binders).
+    # AST (a `Name` or a parameter; a def / method NAME is not a value, measured: the
+    # mirror's method `_for_target`) or a token of a `#@` contract line (quantifier and
+    # ghost binders).
     _srcid333: Set[str] = set()
     for _a333 in _ast327.walk(_ast327.parse(source_code)):
-        for _at333 in ("id", "arg", "name", "asname"):
-            if isinstance(getattr(_a333, _at333, None), str):
-                _srcid333.add(getattr(_a333, _at333))
+        if isinstance(_a333, _ast327.Name):
+            _srcid333.add(_a333.id)
+        elif isinstance(_a333, _ast327.arg):
+            _srcid333.add(_a333.arg)
     for _ln333 in source_code.splitlines():
         if _ln333.lstrip().startswith("#@"):
             _srcid333.update(_re333.findall(r"[A-Za-z_][A-Za-z0-9_]*", _ln333))
