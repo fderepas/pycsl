@@ -1996,6 +1996,64 @@ om; class S(om.B)` inherited the LOCAL B's contract and invariant (CPython runs
 self-import (`import <this module> [as x]`, used as `x.B`); import the class under a distinct
 name instead (`from m import B as OtherB`). Witnesses `4610`-`4625`; controls `4630`-`4634`.
 
+### 7.28 Constructors, immutable records and hashing the record model does not have (routes #346 / #347 / #348 / #349)
+
+Four class shapes whose runtime behaviour the record model (a `@dataclass`, NamedTuple or plain
+class lowered to a WhyML record, every field present and mutable, every value usable anywhere)
+does not have. Each is a sound REFUSAL on the source; no emission changes.
+
+(1) `__post_init__` ON AN INVARIANT CLASS (route #346). A `@dataclass` construction that runs
+`__post_init__` is opaque (route #150: no field value known) and an opaque construction gets
+no §3 constructor obligation, so the invariant was ASSUMED: `__post_init__: self.x = -1` under
+`#@ class invariant self.x >= 0` PROVED `f(d) >= 0` (CPython -1); even a no-op hook dropped the
+obligation for an unverified `D(-5)`, and an inherited hook (`B(A)` over `A.__post_init__`)
+did the same. A record carrying a class invariant (own or inherited) whose base closure holds
+a `@dataclass` and a class defining `__post_init__` is REFUSED
+(`PYCSL-R346-POST-INIT-INVARIANT`). Validate in a verified factory function, or write an
+explicit `__init__` (§7.25 (2)). A `__post_init__` on a class WITHOUT an invariant is unchanged
+(route #150 already widens its fields to unknown; route #179 refuses its raises).
+
+(2) A FIELD NOT ASSIGNED ON EVERY CONSTRUCTOR PATH (route #347). Every record field has a
+value in the model, so a read `r.x` never raises; CPython raises AttributeError when no store
+reached `x`. The verifier computes DEFINITE ASSIGNMENT over each class's constructor: its own
+`__init__` (an `if` keeps what both branches store; a loop, a `with` body, a `try` body whose
+handlers do not all store, a store after an early `return` count nothing on the paths that
+skip them; a `raise` path builds no instance; a leading `super().__init__()` / `B.__init__(self,
+..)` adds the base constructor's set; a `del self.f` removes `f`), else a `@dataclass`'s /
+NamedTuple's synthesized fields (minus a `field(init=False)` without default), else the
+first ancestor's. A field of a class (stored on `self` by any of its or its ancestors' methods,
+or declared by a dataclass) that is neither definitely assigned nor a class attribute is
+MAYBE-ABSENT, and a read of an attribute of that name (any receiver but a module) in a function
+whose `no_exception` covers AttributeError (`\all`, `AttributeError`, `Exception`,
+`BaseException`) is REFUSED (`PYCSL-R347-FIELD-MAYBE-UNASSIGNED`). Callees without
+`no_exception` stay ambient (§ exception model): a read in an unannotated helper is not refused
+at its `no_exception` caller.
+
+(3) IMMUTABLE RECORDS (route #348). `typing.NamedTuple` classes, `collections.namedtuple` /
+functional `NamedTuple(..)` bindings and `@dataclass(frozen=True)` classes (and their
+subclasses) were emitted as `{ mutable x: int }`, so `n.x = 5` PROVED `\result == 5` under
+`no_exception \all` (CPython AttributeError / FrozenInstanceError on ANY attribute store or
+delete). In every function and method body an attribute store, augmented store, `del`, `for`
+/ `with` target, or a `setattr` / `delattr` call is REFUSED (`PYCSL-R348-IMMUTABLE-RECORD-STORE`)
+when its receiver is a name annotated with / constructed as an immutable record or `self` in a
+method of one, or is of unknown class and the attribute is a field of an immutable record of
+the file. Build a new value (`n._replace(..)`, `dataclasses.replace(..)`).
+
+(4) UNHASHABLE RECORDS (route #349). A set / dict of records lowers to an opaque value, so
+`s = {d}` PROVED `no_exception \all` for an unhashable `d` (CPython TypeError). Hashability is
+decided as Python does, per class in base order: an own `__hash__ = None` -> unhashable, an own
+`__hash__` -> hashable, a `@dataclass` with `unsafe_hash` -> hashable, else with `eq` (the
+default) -> hashable iff `frozen`, an own `__eq__` without `__hash__` -> unhashable, else
+inherited (`list` / `dict` / `set` / `bytearray` bases unhashable); a NamedTuple / frozen record
+with a `list` / `dict` / `set` / unhashable-record field is unhashable too. An expression of an
+unhashable class (a typed name, `self`, a constructor call, a typed field) in a set element,
+set-comprehension element, dict key, dict-comprehension key, subscript index, `hash(..)`,
+`set(..)` / `frozenset(..)` / `fromkeys(..)` element, `in` / `not in` against anything but a
+list / tuple, or `.add` / `.discard` / `.remove` / `.get` / `.setdefault` / `.pop` argument on
+a receiver not known to be a list, and an annotation `Set[U]` / `Dict[U, ..]` (and the other
+keyed collection heads), is REFUSED (`PYCSL-R349-UNHASHABLE-RECORD`). Witnesses `4660`-`4685`;
+controls `4686`-`4696`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

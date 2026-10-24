@@ -4047,6 +4047,59 @@ passes the imported-root check raises `PYCSL-R341-CLASS-BASE-NOT-A-NAME` when $a
 the file, unless $r$ is a `Name` bound only by `import s [as r]` with $s$ the file's own module
 stem (no `from`-import or other `import` binding $r$).
 
+### §T.6.39  Post-init, definite assignment, immutable and unhashable records (routes #346 / #347 / #348 / #349)
+
+_Corresponds to `annotations.md` §7.28._
+
+One inline block of `_run_pipeline`, appended to §T.6.36's (mirror twin `\trusted`; refusals
+only, no emission change). Over the source AST: $\mathit{bn}(K)$ = the base names of class $K$
+(a `Name`, or an `Attribute`'s tail), $\mathit{clo}(K)$ = the left-to-right depth-first closure
+of $\mathit{bn}$ from $K$ (an over-approximation of the MRO's class set), $\mathit{DC}$ the
+`@dataclass` classes with their literal options (non-literal = unknown).
+
+**#346.** For each resolved-IR record $C$ with merged `class_invariants` $\ne \emptyset$: if
+$\mathit{clo}(C) \cap \mathit{DC} \ne \emptyset$ and some $K \in \mathit{clo}(C)$ defines
+`__post_init__`, raise `PYCSL-R346-POST-INIT-INVARIANT`.
+
+**#348.** $\mathit{Imm}$ = classes with a `NamedTuple` base, $\mathit{DC}$ classes with
+`frozen` true or unknown, names bound by `x = namedtuple(..)` / `x = NamedTuple(..)`, closed
+under $\mathit{clo}$; $\mathit{IF}$ = their field names ($\star$ for a non-literal field list).
+Per def, $\tau(x)$ = the top-level classes of $x$'s annotations (through `Optional` / `Union` /
+`|` / strings) and constructor bindings, empty when any binding is un-annotated; $\tau(s) =
+\{K\}$ for the first parameter of a method of $K$. A store / del / augmented `Attribute`
+$r.f$, or `setattr` / `delattr`$(r, f, ..)$ ($f = \star$ when non-constant), raises
+`PYCSL-R348-IMMUTABLE-RECORD-STORE` iff $\tau(r) \cap \mathit{Imm} \ne \emptyset$, or
+$\tau(r) \not\subseteq$ the file's classes and $f \in \mathit{IF} \cup \{\star\}$ or $\star \in
+\mathit{IF}$.
+
+**#349.** $U$ = the classes unhashable by Python's rule (§7.28 (4)) evaluated along
+$\mathit{clo}$. Every annotation whose head is a keyed collection (`Set`, `FrozenSet`, `Dict`,
+`Mapping`, `DefaultDict`, `Counter`, ...) and whose first argument's top-level classes meet $U$
+raises `PYCSL-R349-UNHASHABLE-RECORD`; so does each hashing position of §7.28 (4) whose operand
+$e$ has $\tau(e) \cap U \ne \emptyset$ ($\tau$ extended to constructor calls and to `x.f` for
+a typed $x$ by $f$'s class-body annotation).
+
+**#347.** For each class, in increasing $|\mathit{clo}|$ (ancestors first), the constructor's
+definitely-assigned set $\mathit{DA}(K)$: for an own `__init__` with first parameter $s$, a
+bottom-up summary $\langle G, R \rangle$ per statement ($G$ = fields stored on fall-through, or
+$\bot$ when it never falls through; $R$ = the sets stored at each `return`): assignments /
+augmented / annotated-with-value / `with .. as` targets $s.f$ and `setattr(s, "f", ..)` gen
+$\{f\}$; `super().__init__(..)` gens $\mathit{DA}$ of the first in-file ancestor, `B.__init__(s,
+..)` gens $\mathit{DA}(B)$; `raise` / `break` / `continue` = $\langle\bot, []\rangle$, `return`
+= $\langle\bot, [\emptyset]\rangle$; sequence accumulates; `if` meets ($\bot$ is the top);
+loops give $\langle\emptyset, R_{body} \cup R_{else}\rangle$; `with` gives its targets only;
+`try` meets body;else with every handler then joins `finally`; `match` meets its cases
+($\emptyset$ without an irrefutable last case). $\mathit{DA}(K) = \bigcap (\{G\} \cup R)$ minus
+every `del` $s.f$ ($\emptyset$ if any `delattr`). A `@dataclass` without own `__init__`: its
+and its dataclass ancestors' annotated fields except `ClassVar` and `field(init=False)` without
+default; a NamedTuple: its fields; else $\mathit{DA}$ of the first in-file ancestor. $M =
+\bigcup_K (\mathit{Fld}(K) \setminus \mathit{DA}(K) \setminus \mathit{CA}(K))$ with
+$\mathit{Fld}$ the $s.f$ stores of every method over $\mathit{clo}(K)$ plus dataclass /
+NamedTuple fields and $\mathit{CA}$ the class-body bindings over $\mathit{clo}(K)$. In every
+non-trusted def whose IR contract has `no_exception_all` or names `AttributeError` /
+`Exception` / `BaseException`, an `Attribute` load / del / augmented target $r.f$ with $f \in
+M$ and $r$ not an imported module raises `PYCSL-R347-FIELD-MAYBE-UNASSIGNED`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
