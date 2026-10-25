@@ -3423,8 +3423,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"parameters), so NO goal is generated and the invariant would "
                         f"be ASSUMED of every instance although the arguments of a "
                         f"construction may break it (route #362). Drop the pseudo-field "
-                        f"(validate in a verified factory function), or write an explicit `__init__` whose top-level "
-                        f"stores the constructor goal checks.",
+                        f"(validate in a verified factory function), or write an "
+                        f"explicit `__init__` whose top-level stores the constructor goal "
+                        f"checks.",
                         stage="ir-semantic", code="PYCSL-R362-INITVAR-INVARIANT")
             for _c346 in _cl346:
                 for _k346 in _cls341.get(_c346, []):
