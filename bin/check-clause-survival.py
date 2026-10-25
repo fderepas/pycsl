@@ -123,6 +123,9 @@ KNOWN_DEFICITS = {
         "__init__", "route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only"),
     "5114_gen37_r226_ctl_length_inv_two_list_params.py": (
         "__init__", "route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only"),
+    # (#49) gen #37, routes #384 / #385 — control 5275 is 5110's shape (+ `self.n = len(toks)`).
+    "5275_gen37_r385_ctl_param_len_read_after_store.py": (
+        "__init__", "route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only"),
     # (#49) gen #31 — THE TWO DUNDER ENTRIES THAT USED TO LIVE HERE ARE GONE, AND THAT IS
     # THE POINT OF WRITING A CLOSE CONDITION DOWN. Both said "dunder dropped from
     # emission", both named the same close condition ("emit dunders"), and route #219's
