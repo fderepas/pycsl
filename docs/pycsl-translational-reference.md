@@ -4275,6 +4275,52 @@ constructor's first parameter, $\mathit{mro}(K) \ne \bot$ and $X \in \mathit{mro
 $\mathit{DA}(A)$ for the first $A$ after $X$ in $\mathit{mro}(K)$ (stopping, with
 $\emptyset$, at a non-file class); every other `super(..)` argument shape gens $\emptyset$.
 
+### §T.6.44  Class-scope bindings, componentwise tuple hashing, fixpoint record hashability, the enum member set (routes #364 / #365 / #366 / #367)
+
+_Corresponds to `annotations.md` §7.33._
+
+Refusals only, inside the inline blocks of §T.6.39 (#349) and §T.6.41 (mirror twin `\trusted`;
+no emission change). $B(c)$ = the bindings of class $c$'s scope: every `Name` in `Store` / `Del`
+context, `def` / `class` name, import alias, match / except capture reachable from its body
+without entering a `def`, `class` or `lambda` body; a binding is a DEF binding iff it is a
+top-level undecorated `def`.
+
+**#364.** $\mathit{eq}(c)$ iff `__eq__` $\in B(c)$. If `__hash__` $\in B(c)$, $c$'s own hash is
+hashable iff every `__hash__` binding is a def binding, else unhashable; then the §T.6.39 order
+(dataclass options, $\mathit{eq}(c)$, inheritance) decides.
+
+**#366.** $U$ = the least fixpoint of $U \mapsto \{c \mid c$ unhashable by the closure rule of
+§T.6.39 read against $U$, or $c$ is field-hashed (NamedTuple / namedtuple, frozen or
+`unsafe_hash=True` dataclass, along its base closure) and some field annotation $a$ has
+$\neg H_U(a)\}$, over the classes and functional namedtuples of the file (iterated to stability;
+an unstable bound makes every class unhashable). $H_U$: `None` / `...` and the names `int`,
+`str`, `float`, `bool`, `bytes`, `complex`, `None`, `NoneType`, `Literal`, `frozenset`,
+`FrozenSet`, `type`, `Type` (also as subscript heads) are hashable; a file class $n$ iff $n
+\notin U$; string forms are parsed; `|`, `Optional`, `Union`, `Tuple`, `tuple` need every
+argument, `Annotated` / `Final` / `ClassVar` their first; anything else (an untyped field
+included) is not.
+
+**#365.** $\mathit{dp}(a)$ = the names of annotation $a$ through Optional / Union / `|` / string
+forms and every `Tuple` / `tuple` argument, plus `#UB` for an unhashable builtin container head
+reached inside a tuple. For a function, $\mathit{dt}(x)$ = $\bigcup \mathit{dp}$ over $x$'s
+annotations $\cup \bigcup \kappa(v)$ over its bound values $v$ (fixpoint), where $\kappa(e)$ is
+the class set of §T.6.39 for $e$, entering `Tuple` displays (components marked in-tuple),
+`NamedExpr` values and both `IfExp` arms, adding $\mathit{dt}(x)$ for a name, and `#UB` for an
+in-tuple list / dict / set display or list-headed name. A hashed expression $h$ (§T.6.39's
+positions; a `Set[..]` / `Dict[..]` annotation by $\mathit{dp}$ of its first argument) is
+refused iff $\kappa(h) \cap (U \cup \{\texttt{\#UB}\}) \neq \emptyset$.
+
+**#367.** $I(c)$ = the names of $c$'s `_ignore_` when $B(c)$ holds exactly one `_ignore_`
+binding and it is a top-level `Assign` / `AnnAssign` of a `Constant` string (split on commas and
+blanks) or a `List` / `Tuple` of string constants; any other `_ignore_` raises
+`PYCSL-SEM-ENUM-MEMBER-OPERATION` for $c \in \mathcal{E} \cup \mathcal{E}^?$. A top-level binding
+$t$ is in $M_c$ iff $t \notin I(c)$, $t$ is not private (`__x`, not ending `__`), not a CPython
+dunder / sunder (`enum._is_dunder` / `_is_sunder`), it binds a value, and that value is not a
+`Lambda`, a `nonmember(..)` (resolved through `from enum import`), or a call of the unshadowed
+builtins `property` / `classmethod` / `staticmethod`; `member(v)` contributes $v$ to the literal
+values. Names in $I(c)$, private names and value-less annotations leave the class-attribute set
+of §T.6.41 (#356). $D_c$ and the `__new__` test range over $B(c)$.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

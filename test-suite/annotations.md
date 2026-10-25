@@ -2224,6 +2224,53 @@ stores is refused by `PYCSL-R347-FIELD-MAYBE-UNASSIGNED`. The constructor itself
 opaque for route #150 and, on an invariant class, refused by §7.25 (2) (`self` escapes as an
 argument of `super(..)`). Witnesses `4850`-`4869`; controls `4880`-`4886`.
 
+### 7.33 Hashability decided over every class-body binding, through tuples, as a fixpoint; enum members as `Enum` builds them (routes #364 / #365 / #366 / #367)
+
+Four gaps of §7.28 (route #349's unhashable-record refusal) and §7.30 (4)/(5) (the enum member
+set), each a sound REFUSAL (`PYCSL-R349-UNHASHABLE-RECORD`, `PYCSL-SEM-ENUM-MEMBER-OPERATION`);
+no emission changes.
+
+(1) EVERY CLASS-BODY BINDING COUNTS (route #364). Only a top-level `def __eq__` and a literal
+`__hash__ = None` were seen, so `__eq__ = lambda ..`, `__eq__` under `if`, `__hash__ = NOHASH`,
+`__hash__ = None if .. else ..` and `__hash__, tag = None, 1` all PROVED `{r}` under
+`no_exception \all` (CPython TypeError). Now any binding of `__eq__` in the class scope (any
+statement, target form or nesting, an import, a `del`; nested `def` / `class` / `lambda` bodies
+are other scopes) defines it, and a class binding `__hash__` is hashable only when every such
+binding is a top-level undecorated `def __hash__`; any other binding may be `None` and the class
+counts as unhashable (so `__hash__ = object.__hash__` is refused too — write a `def`).
+
+(2) TUPLES ARE HASHED COMPONENTWISE (route #365). In every hashing position of §7.28 (set
+element, dict key, subscript, `hash(..)`, `in` a non-list, `set(..)` / `frozenset(..)` /
+`fromkeys(..)` / `.add` / `.discard` ... argument, and a `Set[..]` / `Dict[..]` annotation) the
+check now enters tuple displays (any depth, through `:=` and `x if c else y`), names bound to a
+tuple display, and `Tuple[...]` / `tuple[...]` annotation arguments (through Optional / Union):
+`{(d, 1)}`, `hash((d, 2))`, `t: Tuple[D, int]; {t}`, `{(d, 1): 0}` are refused, and so is a
+list / dict / set display or a list-typed name inside a hashed tuple (`{(xs, 1)}`).
+
+(3) RECORD FIELDS, AS A FIXPOINT (route #366). Unhashability is the least fixpoint over every
+class and functional namedtuple of the file (a field class declared later is seen). A record
+whose hash hashes its fields (NamedTuple / namedtuple, frozen or `unsafe_hash=True`
+`@dataclass`, or a subclass) is unhashable unless EVERY field annotation is provably hashable:
+`int` / `str` / `float` / `bool` / `bytes` / `complex` / `None` / `Literal[..]` / `frozenset[..]`
+/ `type[..]`, a hashable file class, or an Optional / Union / `|` / Tuple / Annotated / Final /
+ClassVar of those. `object`, `Any`, a TypeVar, an imported or unknown name, any other container
+and an untyped `namedtuple` field are possibly unhashable.
+
+(4) THE ENUM MEMBER SET (route #367). Names listed in `_ignore_` and private `__x` names were
+"members", so `C(2)`, `C(1)` and `C.B` were admitted (CPython ValueError / AttributeError). A
+top-level class-body binding is now a member unless its name is in `_ignore_` (list / tuple /
+string form, comma or space separated), private (`__x` not ending `__`), a dunder / sunder, an
+annotation without value, or its value is a descriptor (`def`, `class`, `lambda`, builtin
+`property(..)` / `classmethod(..)` / `staticmethod(..)`) or `nonmember(..)`; `member(v)` is a
+member of value `v`. Ignored, private and value-less names are not class attributes (`C.B`,
+`C.__B` are refused). An `_ignore_` that is not one top-level binding to a literal is refused
+(the member set is unknown). The enum's user dunders and `__new__` are read from every
+class-scope binding, as in (1) (`if ..: def __eq__`, `__eq__, x = ..`).
+
+Witnesses `4900`-`4933`; controls `4940`-`4943` (`__eq__` under `if` with a top-level
+`def __hash__`; tuples of a hashable frozen record; frozen / unsafe_hash records with hashable
+fields; an enum with `_ignore_`, `member(2)` and a lambda attribute).
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
