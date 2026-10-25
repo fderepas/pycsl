@@ -2726,6 +2726,8 @@ class Module3_Weaver:
             _dc_sites2: Dict[str, list] = {}
             _dc_nodes377: Dict[str, list] = {}
             _dc_nested: list = []
+            _dc_glob387: list = []
+            _dc_ann387: list = []
             _dc_stack2: list = [(_dc_x, False) for _dc_x in _dc_sbody]
             while _dc_stack2:
                 _dc_x, _dc_in_compound = _dc_stack2.pop()
@@ -2739,6 +2741,10 @@ class Module3_Weaver:
                     continue
                 if isinstance(_dc_x, ast.Lambda):
                     continue
+                if isinstance(_dc_x, (ast.Global, ast.Nonlocal)):
+                    _dc_glob387.append(_dc_x)
+                elif isinstance(_dc_x, ast.AnnAssign) and _dc_in_compound:
+                    _dc_ann387.append(_dc_x)
                 _dc_bn: list = []
                 if isinstance(_dc_x, ast.Name) and isinstance(_dc_x.ctx, (ast.Store, ast.Del)):
                     _dc_bn.append(_dc_x.id)
@@ -2765,6 +2771,34 @@ class Module3_Weaver:
                     _dc_bad.append(f"`{_dc_x.name}` defined inside a compound statement at line "
                                    f"{_dc_x.lineno} and bound elsewhere in {_dc_sname}")
             if not _dc_is_module:
+                # (#49) gen #37, ROUTE #387 (red team 30; MEASURED PROVED at a064a298f, CPython
+                # AttributeError) — A CLASS-BODY DEF CPython NEVER BINDS AS AN ATTRIBUTE. The
+                # method tables take every def / class / annotated member of the body as bound,
+                # but `global get` (or `nonlocal`) in the body sends the def's binding to the
+                # module (h07 / h26; `global __init__` leaves `object.__init__`, so the
+                # constructor goal ran over a body CPython never calls, h22), and a def under
+                # `if False:` / `while False:` / `if sys.version_info < (3, 0):` / after a
+                # `raise` inside `try:` / in `for _ in range(0):` is never executed (h10 / h21
+                # / h24 / h25). One binding site each, so the bound-twice rule below never
+                # fired. RULE: in a CLASS body, a `global` / `nonlocal` naming a name the body
+                # binds is REFUSED, and so is any def / class / annotated member nested under
+                # a compound statement (if / while / for / try / with / match) — whether it
+                # runs is not modelled. CENSUS (both corpora, 53 mirrors, `pycsl_lib`, live
+                # `src/pycsl`): 0 class-body `global` / `nonlocal`; 3 nested members, all in
+                # expected-FAIL witnesses already refused (1355 by the route #122 arm, 4821 by
+                # PYCSL-SEM-OVERRIDE-REFINEMENT); no `if TYPE_CHECKING:` / `if True:` member.
+                for _dc_x in _dc_glob387:
+                    for _dc_g in _dc_x.names:
+                        if _dc_g in _dc_sites2:
+                            _dc_bad.append(
+                                f"`{type(_dc_x).__name__.lower()} {_dc_g}` at line "
+                                f"{_dc_x.lineno} in {_dc_sname}: the body's binding of "
+                                f"`{_dc_g}` is not a class attribute (route #387)")
+                for _dc_x in _dc_nested + _dc_ann387:
+                    _dc_bad.append(
+                        f"`{getattr(_dc_x, 'name', None) or ast.unparse(_dc_x.target)}` "
+                        f"defined under a compound statement at line {_dc_x.lineno} in "
+                        f"{_dc_sname}: whether CPython binds it is not modelled (route #387)")
                 for _dc_b, _dc_ns in _dc_nodes377.items():
                     if len(_dc_ns) < 2 or not any(
                             isinstance(_dc_y, (ast.FunctionDef, ast.AsyncFunctionDef,
@@ -2948,6 +2982,7 @@ class Module3_Weaver:
                           and any(_nb_sk == "store" for (_nb_sk, _nb_k, _nb_nd) in _nb_ss)}
             # a PARAMETER named like a builtin is a binding too: `def f(len, xs): return
             # len(xs)` lowered the call as the array length (`f(sum, [5]) == 1` proved, CPython 5).
+            _nb_shadow386: set = set()
             if _nb_kind == "function":
                 _nb_pa = _nb_owner.args
                 for _nb_a in (list(getattr(_nb_pa, "posonlyargs", []) or []) + list(_nb_pa.args)
@@ -2955,6 +2990,24 @@ class Module3_Weaver:
                               + [x for x in (_nb_pa.vararg, _nb_pa.kwarg) if x is not None]):
                     if _nb_a.arg in _nb_builtin_names:
                         _nb_shadow.add(_nb_a.arg)
+                # (#49) gen #37, ROUTE #386 (red team 30; MEASURED PROVED at a064a298f, CPython
+                # violates) — a DEF / CLASS nested in a function or method, or a function-local
+                # IMPORT, named like a builtin: `def max(x, y): return -100` in a method, then
+                # `max(self.a, 1)` lowered to the builtin model (`MinMax.max`) and proved
+                # `\result >= self.a` (CPython -100); `from operator import sub as max` then
+                # `max(3, 1) == 3` proved (CPython 2). The local binding wins in CPython, so
+                # its reads join the store / parameter arm above (`from builtins import X`
+                # unaliased binds the builtin itself and stays admitted). CENSUS (both
+                # corpora, 53 mirrors, `pycsl_lib`, live `src/pycsl`): one site, 3784's
+                # function-local `class KeyError` (expected FAIL, refused by route #305).
+                for _nb_n, _nb_ss in _nb_sites.items():
+                    if _nb_n in _nb_builtin_names and any(
+                            _nb_sk == "def" or (_nb_sk == "import" and not (
+                                isinstance(_nb_nd, ast.ImportFrom)
+                                and _nb_nd.module in ("builtins", "__builtin__")))
+                            for (_nb_sk, _nb_k, _nb_nd) in _nb_ss):
+                        _nb_shadow.add(_nb_n)
+                        _nb_shadow386.add(_nb_n)
             # `from builtins import sum as len` binds a builtin name to ANOTHER builtin; the
             # import resolver treats a `builtins` import as the builtin of the bound name
             # (measured past the first cut: `len([5]) == 1` proved, CPython 5).
@@ -2976,8 +3029,35 @@ class Module3_Weaver:
             for _nb_c in ast.walk(_nb_where):
                 if (isinstance(_nb_c, ast.Name) and isinstance(_nb_c.ctx, ast.Load)
                         and _nb_c.id in _nb_shadow):
-                    _nb_bad.append(f"builtin `{_nb_c.id}` rebound by an assignment and "
-                                   f"read at line {getattr(_nb_c, 'lineno', 0)}")
+                    _nb_bad.append(f"builtin `{_nb_c.id}` rebound by "
+                                   + ("a nested def / class or a local import (route #386)"
+                                      if _nb_c.id in _nb_shadow386 else "an assignment")
+                                   + f" and read at line {getattr(_nb_c, 'lineno', 0)}")
+        # (#386) the same for a LAMBDA parameter and a COMPREHENSION target named like a
+        # builtin (scopes the per-function walk above does not see): `g = lambda max: max(1,
+        # 2)` then `g(min) == 2` proved (CPython 1). Census: 0 sites in the five trees.
+        for _nb_x in ast.walk(python_ast):
+            _nb_lb: set = set()
+            if isinstance(_nb_x, ast.Lambda):
+                _nb_la = _nb_x.args
+                for _nb_a in (list(getattr(_nb_la, "posonlyargs", []) or []) + list(_nb_la.args)
+                              + list(_nb_la.kwonlyargs)
+                              + [x for x in (_nb_la.vararg, _nb_la.kwarg) if x is not None]):
+                    if _nb_a.arg in _nb_builtin_names:
+                        _nb_lb.add(_nb_a.arg)
+            elif isinstance(_nb_x, (ast.ListComp, ast.SetComp, ast.DictComp, ast.GeneratorExp)):
+                for _nb_g in _nb_x.generators:
+                    for _nb_t in ast.walk(_nb_g.target):
+                        if isinstance(_nb_t, ast.Name) and _nb_t.id in _nb_builtin_names:
+                            _nb_lb.add(_nb_t.id)
+            if not _nb_lb:
+                continue
+            for _nb_c in ast.walk(_nb_x):
+                if (isinstance(_nb_c, ast.Name) and isinstance(_nb_c.ctx, ast.Load)
+                        and _nb_c.id in _nb_lb):
+                    _nb_bad.append(f"builtin `{_nb_c.id}` rebound by a lambda parameter or a "
+                                   f"comprehension target (route #386) and read at line "
+                                   f"{getattr(_nb_c, 'lineno', 0)}")
         # (#132) a module/class constant the folders take as bound once (one top-level
         # single-name Assign/AnnAssign of a literal) that is READ (a load, or a `#@` token)
         # and has another binding site in its scope, is named by a literal setattr on a
