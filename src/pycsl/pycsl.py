@@ -9950,6 +9950,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     _onm352 = {}    # class name -> every name its body binds
     _olv352 = {}    # class name -> own member literal values ([] when any is not a literal)
     _onw352 = set()  # classes whose body defines `__new__`
+    _ocd370 = {}    # (#370) class name -> own `def` / builtin static/classmethod names
     # (#49) gen #37, ROUTE #367 (red team 27; MEASURED PROVED at fcc2c822, CPython ValueError /
     # AttributeError) — the member set was every simple-name binding of the body, so names
     # listed in `_ignore_` (list / tuple / string form: CPython deletes them from the class)
@@ -10023,10 +10024,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _tk352.add(_r352 or "U")
             _ig367 = set()
             _ign367 = 0
+            _igl370 = 0
             _sq367 = [_s for _s in _c352.body]
             while _sq367:
                 _s367 = _sq367.pop()
                 _bn367 = []
+                if (isinstance(_s367, _A273.Name) and isinstance(_s367.ctx, _A273.Load)
+                        and _s367.id == "_ignore_"):
+                    _igl370 += 1
                 if isinstance(_s367, _FN273 + (_A273.ClassDef,)):
                     _bn367 = [_s367.name]
                 elif isinstance(_s367, _A273.Lambda):
@@ -10050,7 +10055,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if (_b367.startswith("__") and _b367.endswith("__")
                             and _b367 not in _ND339):
                         _du352.add(_b367)
-            if _ign367:
+            if _igl370:
+                # (#370) `_ignore_` READ in the class body (`_ignore_.append("B")`): the
+                # list may be mutated before `EnumType` consumes it — member set unknown
+                _igbad367.append((_n352, _c352.lineno))
+            elif _ign367:
                 _iv367 = [_s for _s in _c352.body
                           if (isinstance(_s, _A273.Assign) and len(_s.targets) == 1
                               and isinstance(_s.targets[0], _A273.Name)
@@ -10090,10 +10099,50 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _vk367 == "member":
                     _vl352 = (_vl352.args[0] if len(_vl352.args) == 1
                               and not _vl352.keywords else None)
+                # (#49) gen #37, ROUTE #370 (red team 28; MEASURED PROVED at 863a844a,
+                # CPython ValueError / AttributeError) — a value is a MEMBER value only when
+                # it provably has no `__get__` / `__set__` / `__delete__` (`enum.
+                # _is_descriptor`) and is no class nested in the enum: a literal, a display,
+                # an operator / f-string over those, an alias of an earlier member,
+                # `auto()` / `member(..)` of the `enum` module. Any other value (a
+                # `staticmethod(len)`, `functools.partial(int)`, `types.
+                # DynamicClassAttribute(..)`, a module constant, a call) may be a
+                # descriptor: its name is neither a member nor an admitted class attribute
+                # (`C.B` is refused) and the literal value list becomes unknown (`C(v)` is
+                # refused).
+                _uk370 = False
+                if (not isinstance(_s339, _FN273 + (_A273.ClassDef,)) and not _ds367
+                        and _vl352 is not None
+                        and not (_vk367 == "auto" and isinstance(_vl352, _A273.Call)
+                                 and not _vl352.args and not _vl352.keywords)):
+                    _uk370 = not all(
+                        isinstance(_z, (_A273.Constant, _A273.Tuple, _A273.List, _A273.Set,
+                                        _A273.Dict, _A273.JoinedStr, _A273.FormattedValue,
+                                        _A273.UnaryOp, _A273.BinOp, _A273.BoolOp,
+                                        _A273.Compare, _A273.expr_context, _A273.operator,
+                                        _A273.unaryop, _A273.cmpop, _A273.boolop))
+                        or (isinstance(_z, _A273.Name) and _z.id in _mm352)
+                        for _z in _A273.walk(_vl352))
+                    if _uk370:
+                        _lv352 = None
                 for _t339 in _ts339:
+                    # (#370) CPython's private test runs on the MANGLED key (`_C__x`, also
+                    # written explicitly): `enum._is_private(cls_name, key)`
+                    _mk370 = ("_" + _n352.lstrip("_") + _t339
+                              if _t339.startswith("__") and not _t339.endswith("__")
+                              and _n352.lstrip("_") else _t339)
+                    _pv370 = (len(_mk370) > len(_n352) + 3
+                              and _mk370.startswith("_" + _n352 + "__")
+                              and (_mk370[-1] != "_" or _mk370[-2] != "_"))
                     if (_t339 in _ig367 or (_t339.startswith("__") and not _t339.endswith("__"))
+                            or _pv370 or _uk370
                             or (isinstance(_s339, _A273.AnnAssign) and _s339.value is None)):
                         continue
+                    if (isinstance(_s339, _FN273) or (isinstance(_vf367, _A273.Name)
+                                                      and _vf367.id in ("classmethod",
+                                                                        "staticmethod")
+                                                      and _ds367)):
+                        _ocd370.setdefault(_n352, set()).add(_t339)
                     _nm352.add(_t339)
                     if _t339 == "__new__":
                         _onw352.add(_n352)
@@ -10449,12 +10498,25 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             elif (isinstance(_x352, _A273.Attribute) and isinstance(_x352.value, _A273.Name)
                   and _x352.value.id in _den352):
                 _k352 = _x352.value.id
+                # (#370) a load of a NON-member name of the class body is admitted only
+                # as the callee of a call to an own `def` / static / class method
+                # (`C.helper(..)`): a nested class, a property, a descriptor, a private
+                # name read as `C.B` (and then `.value` / `.name`) is not a member.
                 if not isinstance(_x352.ctx, _A273.Load) or (
                         _x352.attr not in _cls339[_k352][2]
-                        and not any(_x352.attr in _onm352[_m] for _m in _anc352[_k352])):
+                        and not (any(_x352.attr in _ocd370.get(_m, set())
+                                     for _m in _anc352[_k352])
+                                 and any(isinstance(_z370, _A273.Call)
+                                         and _z370.func is _x352
+                                         for _z370 in _A273.walk(_F352)))):
                     _bad339.append((_F352.name, getattr(_x352, "lineno", 0), _k352,
                                     _A273.unparse(_x352)[:70]
-                                    + " (an attribute of the enum class object)"))
+                                    + (" (a class-body name that is NOT a member: a nested "
+                                       "class, a descriptor, a private or unknown-status "
+                                       "value, route #370)"
+                                       if any(_x352.attr in _onm352[_m]
+                                              for _m in _anc352[_k352])
+                                       else " (an attribute of the enum class object)")))
     if _bad339:
         from errors import PyCSLSemanticError as _PyCSLSemErr339
         _b339 = sorted((_r[1], _i, _r) for _i, _r in enumerate(_bad339))[0][2]
