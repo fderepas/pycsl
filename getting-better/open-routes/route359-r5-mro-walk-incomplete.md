@@ -41,7 +41,9 @@ foreign_ancestor_before_the_definer` (`pycsl-expected: FAIL`, `class Cee(Excepti
 un-trusted mirror functions verbatim); `self-annotate-mirror-check.sh` rc=0; `run-soundness-planes.sh` fast rc=0 61/61;
 `doc-coherency --check` rc=0; `check-refusal-witness-coverage` rc=0 (295 demonstrated, 5 undemonstrated = ceiling 5; 324 sites,
 one new: PYCSL-R357-DYNAMIC-CONSTRUCTOR); `check-trusted-reasons` rc=0 (420 <-> 420, unclassified 259);
-`check-assigns-underdeclaration --transitive` rc=0 (TRAP 3, HOLE 0); GATES_PENDING
+`check-assigns-underdeclaration --transitive` rc=0 (TRAP 3, HOLE 0); `check-getattr-erasure` rc=0 (DECLARED 0); `check-dropped-mutation` rc=0 (0 / 51 / 5 / 0, ratchets
+unchanged); `check-assumed-facts` rc=0 (85 facts, all reviewed families); `check-stdlib-modules-verify` rc=0 (known 21
+non-verifying). `--slow` planes not run.
 **Residuals.** (1) A pair whose BASE class is outside the file is still not compared (R5 reads source only; the mirror's
 mixin pairs live there). (2) An imported class that does NOT define the name is still refused when it precedes the definer
 (R5 cannot tell; a builtin class is checked by its `__dict__`s). (3) `__getattr__` / metaclass / `__init_subclass__` /
