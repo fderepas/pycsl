@@ -1968,3 +1968,13 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 5157_gen37_r380_dc_init_false_required_field.py	REFUSAL	[ir-semantic]: 'f' line 12: the construction `D(1)` takes 0 positional argument(s) but 1 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succeeding (route #369). Call the constructor with exactly its parameters (for a `@dataclass`: its fields in declaration order, `InitVar`s included, `ClassVar` / `init=False` members excluded, keyword-only fields by keyword).
 5158_gen37_r380_super_init_too_many.py	REFUSAL	[ir-semantic]: '__init__' line 10: the construction `super().__init__(5)` takes 0 positional argument(s) but 1 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succeeding (route #369). Call the constructor with exactly its parameters (for a `@dataclass`: its fields in declaration order, `InitVar`s included, `ClassVar` / `init=False` members excluded, keyword-only fields by keyword).
 5159_gen37_r380_super_init_object.py	REFUSAL	[ir-semantic]: '__init__' line 6: the construction `super().__init__(5)` takes 0 positional argument(s) but 1 were given — CPython raises TypeError here, while the record model binds the arguments it can and verifies the construction as succeeding (route #369). Call the constructor with exactly its parameters (for a `@dataclass`: its fields in declaration order, `InitVar`s included, `ClassVar` / `init=False` members excluded, keyword-only fields by keyword).
+5100_gen37_r226_length_inv_list_param_no_exception.py	VERIFY-FAIL	
+5101_gen37_r226_length_inv_module_boundary_reader.py	VERIFY-FAIL	
+5102_gen37_r226_length_inv_param_renamed.py	VERIFY-FAIL	
+5103_gen37_r226_length_inv_paramless_empty_literal.py	VERIFY-FAIL	
+5104_gen37_r226_length_inv_repeat_literal_wrong_length.py	VERIFY-FAIL	
+5105_gen37_r226_length_inv_requires_too_weak.py	VERIFY-FAIL	
+5106_gen37_r226_length_inv_cursor_index_bound.py	VERIFY-FAIL	
+5107_gen37_r226_length_inv_dataclass_list_field.py	VERIFY-FAIL	
+5108_gen37_r226_length_and_int_conjunct.py	VERIFY-FAIL	
+5109_gen37_r226_length_clause_beside_int_clause.py	VERIFY-FAIL	
