@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #350 + #351 REPAIRED, candidate (r350 executor off 5c3b3413; code 2bfdb686 / b67bbe0f, corpus 24945d20,
+##   census c40dd1dd, docs 656526be + route docs; two inline `_run_pipeline` blocks over a fresh source parse, no new def, ledger 3).
+##   Sound refusals, no emission change. #350 PYCSL-SEM-DEFAULT-ANNOTATION-MISMATCH: every annotated parameter default of a lowered
+##   def (function / method / nested; positional, positional-only, kw-only) must be admitted by one arm of its annotation (aliases,
+##   Optional/Union/|, Annotated, string refs): `None` only for a None arm / Any / object / TypeVar, int <- int/bool, float <-
+##   int/float/bool, str <- str, Literal <- a member, containers <- a display of their kind (elements checked), other heads <- a
+##   non-literal; bare names resolve to once-bound module constants / same-annotated outer parameters; other non-literal scalar
+##   defaults refused. 0698 (`sep: str = None` filled `""`) now refused; live + mirror `expect_name` default `None` -> `""`.
+##   #351 PYCSL-SEM-READONLY-VIEW-ESCAPE: a Sequence / Mapping / tuple[T, ...] parameter, or an alias of one, may not be returned
+##   under a non-view return annotation, stored into a field / subscript / mutably-annotated local, passed to a non-read-only call,
+##   or stored into through an alias. Witnesses 4710-4720, 4722-4728 (12 PROVED at base) -> REFUSED; controls 4721/4729 PROVED.
+##   Root 0 MOVED / 1 GONE (0698) / 0 APPEARED, pyref 0/0/0, mirror 1 MOVED (Module2_Parser, whole-file PROVED; no OWED); fast
+##   planes 61/61. Residuals: \trusted defaults, dataclass field defaults, syntactic view names, over-refusals (see REPAIR).
+
 ## gen #37 (2026-10-25): #352 (enum base import alias), #353 (mixin dunders unseen by #339), #354 (IntFlag not int), #355 (`C(v)` no ValueError),
 ##   #356 (`__members__` members keep int laws), #357 (field-less values beyond self/params not erased), #358 (protocol ops on erased values
 ##   unchecked), #359 (R5 MRO walk: non-def bindings, imported MRO classes) OPENED (red team 26: 35/138 confirmed; 9/9 sample driver-reproduced
