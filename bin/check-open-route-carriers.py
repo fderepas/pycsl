@@ -182,6 +182,20 @@ CARRIERS = {
         "`\\length(self.xs) >= 1` over a field bound to a list parameter now gets the "
         "constructor goal `forall xs : array int. xs = xs -> (Array.length xs >= 1)`, which "
         "FAILS (CPython `D([]).first()` raises IndexError)"),
+    # (#49) gen #37, routes #384 / #385 (r384 executor): the two measured residuals of the
+    # fail-closed repair. (1) an element term in the invariant stops the goal before the list
+    # field's end state is read, so the class is neither given a goal nor refused (refusing
+    # it would refuse the mirror parsers `Module2_Parser._ContractParser` / `pure_ast._Parser`);
+    # (2) an unverified caller clears the list it passed after construction.
+    "getting-better/open-routes/route384-carrier-element-term-masks-length-state.py": (
+        "SUCCESS", "#384",
+        "`[0] * 4; self.disk.pop()` under `\\length(self.disk) == 4` and `self.disk[0] == 0`: no "
+        "goal (element term), not refused; `no_exception` on `self.disk[3]` PROVES, CPython "
+        "IndexError"),
+    "getting-better/open-routes/route385-carrier-unverified-caller-alias.py": (
+        "SUCCESS", "#385",
+        "`c = Cur(DEF); DEF.clear()` in `__main__`: the goal is right at construction, the "
+        "unverified caller breaks the invariant through its alias; CPython IndexError"),
 }
 FLAGS = ["--memory-model", "hoare"]
 
