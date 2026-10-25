@@ -2142,6 +2142,41 @@ int semantics — the self-annotate mirror's `_Precedence` shape —, an alias-b
 and compared by `is`, `class C(int, Enum)` arithmetic, an IntFlag member compared by `is`,
 literal-member `C(1)` / `C("b")`).
 
+### 7.31 Field-less values beyond the receiver; protocol operations on erased values; R5 sees every class-body binding (routes #357 / #358 / #359)
+
+(1) FIELD-LESS VALUES (route #357). §7.27 erased a field-less class's receiver and parameters;
+other expressions of that static type kept the int laws. Now also erased (route #249): the
+result of a method resolved through `self.` (or a typed receiver) whose return annotation the
+lowering does not carry — a field-less class, string annotations (`-> "W"`) included; every
+expression Module 5 does not represent (`UnknownPyExpr`: `type(self)()`, a computed callee);
+and `<e>.__class__(..)`. So `s = self.me(); return s - s`, `type(self)() - ..`, `h(self.me())`
+into an `int` parameter are refused (route #252) and `s == s` / `s < s` are uninterpreted.
+A construction through the RUNTIME class, `type(<e>)(..)` / `<e>.__class__(..)`, runs the
+`__init__` of the value's dynamic class (a subclass's possibly): it is REFUSED
+(`PYCSL-R357-DYNAMIC-CONSTRUCTOR`) inside a function declaring any `no_exception` (the
+constructor may raise anything, e.g. TypeError for a missing argument) and wherever it passes an
+argument that is not a literal constant (the unseen constructor may mutate it). Name the class
+explicitly instead. (2) PROTOCOL OPERATIONS ON ERASED VALUES (route #358). Under `no_exception`
+(program context) a failing assertion `PyCSL-R358` now precedes, beside §7.27 (2)'s builtins:
+a `for` loop or comprehension over an erased value (CPython TypeError, or a user `__iter__`); a
+truth test of one (`if` / `while` / `not` / `and` / `or` / conditional expression: a user
+`__bool__` / `__len__` may raise); an attribute load the erased value is not known to have
+(`self.zz` on a field-less class, `x.foo` on `object` / `Any`; "known" = a name every object has,
+or a method of the value's declared file class or a name one of its methods stores on `self` —
+a class-body constant of a field-less class is NOT known, fail-closed); a `str` / `list` /
+`dict` / `set` / `tuple` / `bytes` method handed an erased argument or element (`"".join([self])`,
+`s.startswith(x)`, `xs.count(x)`; `append` and `insert`'s element are exempt). (3) R5 AND THE
+WHOLE CLASS BODY (route #359). §7.27 (3)'s MRO walk saw only top-level `def`s. Any class-body
+binding of the name — an assignment (`m = _bm`, `m = lambda self: ..`), a `def` under `if` /
+`try` / `with`, an import, a loop / `with` / `except` target — defines it for the MRO, and a
+pair resolving to one is REFUSED (`PYCSL-SEM-OVERRIDE-REFINEMENT`: R5 cannot read its
+annotations). Independently of recorded pairs (a non-`def` binding records none), for every file
+class K and every method a later file class A of K's MRO defines by a top-level `def`, the first
+MRO class binding the name must be a file class with a top-level `def`: a non-`def` binding, or
+a class from outside the file (an import, a builtin class that owns the name, directly or
+through a file mixin `B(Bf)`) before A, is refused. `object` and a builtin class not owning the
+name are skipped. Witnesses `4800`-`4827`; controls `4830`-`4832`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

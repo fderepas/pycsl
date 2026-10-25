@@ -4195,6 +4195,45 @@ a str mixin. Hence an admitted lookup is one CPython's `_value2member_map_` reso
 lowered function whose context is not `Load`, or whose $X \notin M_n$ and $X$ is bound in no
 body of $\mathit{anc}(n)$, raises `PYCSL-SEM-ENUM-MEMBER-OPERATION`.
 
+### §T.6.42  Field-less values, protocol operations on erased values, whole-class-body R5 (routes #357 / #358 / #359)
+
+_Corresponds to `annotations.md` §7.31._
+
+(1) In `_reset_function_state`'s route #255 resolution, a method candidate $g$ of a call
+spelling $f$ whose name is in the unit-level `any_ret` set (return annotation outside the
+lowered tags, §T.6.34) adds $f$ itself (`self.me`) to `any_ret`. The fixpoint and
+`_handle_binop`'s copy of the erased-operand walk answer yes for an `UnknownPyExpr` node and for
+a `Call` whose callee string ends in `.__class__`. In `_run_pipeline`, before route #290's
+computed-callee rule, a `Call` whose callee is `type(e)` (one argument) or an `Attribute`
+`.__class__` raises `PYCSL-R357-DYNAMIC-CONSTRUCTOR` when it lies in a module-level function or
+class method whose IR contract has `no_exception_all` or a non-empty `no_exception`, or when an
+argument / keyword value is not an `ast.Constant`. (2) Under the same context condition as
+§T.6.38 (2) (program context, non-empty `no_exception` or `\all`, a non-empty route #249
+scope), with $P(a)$ = route #251's `r251_erased?` probe: `_classify_iterable`'s two opaque
+`iter_length` bounds become `(begin assert { [@expl:PyCSL-R358 ..] false }; (iter_length ..)
+end)` when $P(\mathit{iter})$; `_to_bool(w, e)` returns `(begin assert {..} false; ⟦to_bool⟧
+end)` when $P(e)$ (the re-entry carries `_pycsl_r358n`); in `_expr_to_whyml`, after the typed
+fast paths, a `FieldGet` / `Attribute` with base $b$ (`self` spelled as a string base included),
+$P(b)$, and attribute $a \notin \mathtt{dir(object)} \cup$ the method names and `self.f` /
+`setattr(self, "f", ..)` stores of the IR functions whose `self_type` is $b$'s declared class; a
+`ListComp` / `SetComp` / `DictComp` / `GenExp` with $P(\mathit{iter})$ for some generator; a
+`Call` with a `str` / `list` / `dict` / `set` / `tuple` (literal `receiver`, or a dotted name of
+that symbol type, or a route #249 container) receiver, method $\ne$ `append`, and $P$ of some
+argument (only the index of `insert`) — each lowers to `(begin assert { [@expl:PyCSL-R358 ..]
+false }; ⟦node⟧ end)`, the node re-emitted once with `_pycsl_r358n` (stripped on entry).
+(3) In the route #278 block (now entered whenever `check_behavioral_subtyping` holds): $\mathit{ND}$
+= the (class, name) pairs a class body binds other than by a top-level `def` (assignment /
+augmented / annotated-with-value / `for` / `with` / `del` targets, walrus targets in a
+statement header, imports, `except .. as`, `match` captures, nested `def` / `class`; nested
+function / class scopes not entered). In the per-pair MRO walk of §T.6.38 (3), a side's own
+class in $\mathit{ND}$, or a first-binding $K' \in L[K]$ with $(K', t) \in \mathit{ND}$, or (for
+the sub side, when the base's class is a file class) a $K' \notin$ the file's classes,
+$K' \ne$ `object` and not a builtin class lacking $t$ in its non-`object` MRO `__dict__`s, adds
+an R5 violation. Then, for every file class $K$ with a consistent $L[K]$ and every $t$ with
+$(A, t)$ a top-level def for some $A \in L[K]_{1..}$: the first $K' \in L[K]$ that is in
+$\mathit{ND}$ for $t$, or outside the file under the same exemptions, before any top-level def
+of $t$, adds a violation reported as `PYCSL-SEM-OVERRIDE-REFINEMENT`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
