@@ -819,3 +819,9 @@ RESIDUALS:
   measured false proof, recorded.
 - Route #15: a constructor with a non-trivial `#@ requires` already gets `<c>__init` building the record, which checks the
   invariant (4954 FAILED at base); the projection's requires premises duplicate that check for those classes.
+
+## gen #37 (2026-10-25) — red team 29: documented not-covered shapes measured LIVE
+`witnesses-r226-rt29/` (rc=0 SUCCESS on 919533395, CPython violates): bool field / bool parameter in the invariant (a04, a05, a24),
+an int conjunct beside a `\length` conjunct or a separate `\length` clause (a06, a07 — cheap: state the goal for the int-only
+conjuncts / clauses), computed / field-from-field stores (a08, a46), `default_factory` int fields (a10, a11), `ClassVar[int]` read
+through `self` (a34). Not new routes: §7.34 lists them as not covered.

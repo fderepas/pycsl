@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #377 (class-body name bound twice), #378 (dataclass default from first binding), #379 (`*`/`**` call args dropped),
+##   #380 (constructor arity gaps: init=False / super().__init__ / metaclass __call__), #381 (stdlib bases skipped in hash MRO), #382 (container
+##   set-display elements), #383 (hash element-class sources) OPENED (red team 29: 75/~270 confirmed; 7/7 sample driver-reproduced rc=0 on
+##   919533395); 10 more live #226 not-covered shapes recorded under route #226 (witnesses-r226-rt29).
+
 ## gen #37 (2026-10-25): #369 + #370 + #371 + #372 REPAIRED, candidate (r369 executor off dc378283; code 88877615 / 6b575c0e /
 ##   38161b2e / 5a70413a / c2f46d20 / 710d3223, docs 2623c62a (annotations 7.35 / T.6.46), corpus c2f46d20 + 710d3223, census 001405cc +
 ##   710d3223, route docs; inline in the #346-#349 / #360-#363 and #339/#352 blocks of `_run_pipeline`, no new def, ledger 3). Sound
