@@ -1,5 +1,21 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #369 + #370 + #371 + #372 REPAIRED, candidate (r369 executor off dc378283; code 88877615 / 6b575c0e /
+##   38161b2e / 5a70413a / c2f46d20 / 710d3223, docs 2623c62a (annotations 7.35 / T.6.46), corpus c2f46d20 + 710d3223, census 001405cc +
+##   710d3223, route docs; inline in the #346-#349 / #360-#363 and #339/#352 blocks of `_run_pipeline`, no new def, ledger 3). Sound
+##   refusals, no emission change. #369: dataclass annotation heads / default callees RESOLVED through imports + module aliases
+##   (PYCSL-R369-DATACLASS-SPECIFIER: an aliased InitVar / ClassVar / KW_ONLY / field, an unknown head or callee, a `def` default
+##   callee, a member nested in class-body control flow, malformed `field(..)` keywords) and constructor ARITY checked against the
+##   first C3-MRO `__init__` / the synthesized dataclass `__init__` / `object.__init__` (PYCSL-R369-CONSTRUCTOR-ARITY: d12 and d32 are
+##   arity holes, and literal-spelling NEW latents 5008 / 5009 / 5037 / 5038 incl. a plain explicit `__init__(self, x)` with `D(1, 5)`).
+##   #370: enum private test on the mangled key, member values only provably non-descriptor (literal / display / alias / auto() /
+##   member()), any other value unknown-status, `C.X` of a non-member refused (except calling an own def / static / classmethod),
+##   a read `_ignore_` refused. #371: `__hash__` looked up along the C3 MRO. #372: hashed element class from typed fields
+##   (class-body / `self.f` stores), List / Dict / Tuple subscripts and loop elements of annotated names / fields. Witnesses
+##   4990-5039 + 5045 (44 red-team + 7 new; all PROVED at base) -> REFUSED; controls 5040-5044 PROVED. Root 0/0/0 (5 new controls),
+##   pyref 0/0/0, mirror 53/53 0/0/0 (no OWED). All gates rc=0 (planes fast 61/61). Residuals: `*`/`**`/super()/imported-class
+##   constructions not arity-checked, non-descriptor computed enum values now over-refused, imported bases skipped (see REPAIRs).
+
 ## gen #37 (2026-10-25): #226 INCREMENT 2b (int-field projection) REPAIRED, candidate (r226 executor off c6d1156c; code 3633864b + 35fcdf9e,
 ##   corpus 09b5ef35 / 79cabed2, docs e29abd71 / e4dfb713 (annotations 7.34 / T.6.45), census 26f2fd53 / e4dfb713 + route docs; Module 6 goal + a `_run_pipeline` refusal, inline, no
 ##   new def, ledger 3). The constructor-invariant goal is now stated over the INT fields the invariant reads even when other
