@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #384 + #385 REPAIRED, candidate (r384 executor off 0a2d8019b; code 43ef55ea1 / 06912f666 / 80cb35620, corpus
+##   06912f666, docs 06cf27dd5 (annotations 7.40 / T.6.51), clause-survival ledger 88896db0f, census + carriers 8c37ef315, route docs;
+##   inline, no new def, no new field, ledger 3). Route #226's `\length` constructor goal now reads each list field's END state in
+##   `__init__` (`_run_pipeline`'s `ctor_len_r384`: a fresh literal-length list — display, `[..] * K` with `[] * N` / K <= 0 EMPTY,
+##   `bytearray(K)` incl. a once-bound module constant — followed by literal-effect `append` / `insert` / `extend([..])` / `pop` /
+##   `clear` / `reverse` / `sort`; or a parameter named nowhere else with no call after the store). A `\length` class whose goal
+##   stops only on a field state is REFUSED (NEW PYCSL-R384-INVARIANT-GOAL-UNSTATABLE, via an emission marker); a `super().__init__`
+##   / `B.__init__(self, ..)` into a `#@ requires` over non-int parameters is REFUSED (NEW PYCSL-R385-DELEGATED-INIT-REQUIRES-UNCHECKED).
+##   35/36 red-team witnesses PROVED at base -> 8 FAIL / 27 REFUSED (corpus 5240-5259); controls 5270-5275 PROVED. Census: 21
+##   goal-less corpus `bytearray` classes (2c's computed-container residual) now get a goal and discharge; 0 corpus / mirror /
+##   library refusals. Root 21 MOVED (goal line only, all re-proved to label) / 0 / 0; pyref 0/0/0; mirror 0/0/0 — no OWED proof.
+##   Residuals (2 new registered carriers, SUCCESS): an element term masking a mutated length field (refusing it GONEs mirror
+##   `Module2_Parser.py`), an unverified caller clearing an aliased list after construction (c34) — see REPAIR.
+
 ## gen #37 (2026-10-25): #384 (`\length` invariant with no statable goal assumed), #385 (`\length` goal binding / `[]*N` / super().__init__
 ##   requires), #386 (nested def shadowing a builtin), #387 (class-body defs never bound), #388 (getattr default vs imported base), #389 (getattr
 ##   default vs setattr / mangled store), #390 (`**` into builtins), #391 (Protocol / TypedDict construction) OPENED (red team 30: 60/233

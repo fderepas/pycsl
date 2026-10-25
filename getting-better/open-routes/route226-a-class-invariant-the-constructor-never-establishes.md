@@ -936,3 +936,18 @@ RESIDUALS:
 - The 13 corpus `#@ requires len(toks) >= 1` are premises, not call-site obligations (route #15 residue); in-module
   construction sites fail closed.
 
+
+## gen #37 (2026-10-25, r384 executor off 0a2d8019b) — routes #384 / #385: the `\length` goal reads the END of `__init__`; goal-less `\length` classes are REFUSED
+Red team 30 measured increment 2c's two `\length` gaps live (36 witnesses, `witnesses-r384/`, `witnesses-r385/`): a goal-less class
+assumed the invariant (post-store `pop` / `clear` / alias / loop / branch, computed initialisers, subclasses through
+`super().__init__`), and a stated goal bound the field at its STORE (`toks.clear()` after `self.toks = toks`, `[] * 4` = length 4).
+Repaired as routes #384 / #385 (see their REPAIR sections; annotations §7.40, translational §T.6.51): `_run_pipeline` computes each
+list field's end-of-`__init__` state (`LEN(n)` / `PARAM(p)` / `UNKNOWN`), Module 6 states `(Array.length f) = n` from it (also for
+fields Module 5 marks computed), and a `\length` class whose goal stops only on a field state is REFUSED
+(`PYCSL-R384-INVARIANT-GOAL-UNSTATABLE`); a delegating `super().__init__(..)` into a `#@ requires` over non-int parameters is
+REFUSED (`PYCSL-R385-DELEGATED-INIT-REQUIRES-UNCHECKED`). Effect on THIS route's census: 2c's 21 "computed container store" classes
+(`bytearray(4096)` / `bytearray(DISK)`) now get a goal and discharge (21 root movers, goal line only, re-proved to label); 0 corpus /
+mirror / library classes refused. Goal-less classes left: 18 — element / quantifier / string / predicate / attribute terms (0659,
+0661-0664, 0706, 0900, 0980, mirrors `Module2_Parser._ContractParser` / `pure_ast._Parser`, `pycsl_lib` os) and computed / bool int
+fields (increment 3, rt29). NEW registered carrier `route384-carrier-element-term-masks-length-state.py` (SUCCESS): an element term
+masks a mutated length field, so neither a goal nor a refusal fires.
