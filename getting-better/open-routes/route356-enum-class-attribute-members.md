@@ -25,8 +25,8 @@ RULE (#356): for every enum class `C`, a load `C.X` with `X` neither a member no
 | probe: `C.A = 5` under `no_exception \all` | — | AttributeError | REFUSED (name rebinding) | REFUSED |
 **Blast radius** (shared): root 2308 base / 2313 candidate .mlw, 0 MOVED / 0 GONE / 0 APPEARED (5 new controls); pyref
 2186/2186 0/0/0; mirror-emit-sweep 53/53 0/0/0 (`--min-files 50`) — no OWED proof.
-**Gates** (one run for #352-#356, all rc 0): check-self-annotate-sync (926 verbatim), self-annotate-mirror-check (53), GATES_PLANES,
-check-getattr-erasure (DECLARED 0), GATES_STDLIB, doc-coherency --check, check-assumed-facts (85 facts, all reviewed),
+**Gates** (one run for #352-#356, all rc 0): check-self-annotate-sync (926 verbatim), self-annotate-mirror-check (53), run-soundness-planes (fast, 61/61 green),
+check-getattr-erasure (DECLARED 0), check-stdlib-modules-verify (83 VERIFY; non-verifying set = the known 21), doc-coherency --check, check-assumed-facts (85 facts, all reviewed),
 check-dropped-mutation (0 dropped; ratchets 0/51/5/0), check-refusal-witness-coverage (294 demonstrated, 5 undemonstrated =
 ceiling 5), check-trusted-reasons (420/420, ratchet 259), check-trusted-raises-honesty (61 = ratchet),
 check-assigns-underdeclaration --transitive (TRAP 3, HOLE 0).
