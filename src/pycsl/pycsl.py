@@ -3281,6 +3281,113 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     bool(_kw346.value.value)
                                     if isinstance(_kw346.value, _ast341.Constant) else None)
                         _dc346[_cn346] = _o346
+        # (#49) gen #37, ROUTES #360 / #361 / #362 / #363 — FOUR MORE CLASS SHAPES THE
+        # RECORD MODEL DOES NOT HAVE (red team 27; each MEASURED PROVED at fcc2c822, CPython
+        # violates). Sound REFUSALS on the source plus a sharper #347 summary, no emission
+        # change; INLINE (no nested def: check-mirror-coverage); mirror twin `\trusted`.
+        # Shared facts computed here:
+        #   `_pf361[C]` — the `@dataclass` PSEUDO-FIELDS of class C (PEP 557): a member
+        #     annotated `InitVar` / `InitVar[T]` / `KW_ONLY` (bare, `dataclasses.`-dotted,
+        #     or the same as a string annotation) is an `__init__` parameter or a
+        #     sentinel, never an instance attribute; `_iv361[C]` the InitVar ones;
+        #   `_sl360[C]` — the slot names C declares (`__slots__` literal: a string, a
+        #     tuple / list / set of strings, a dict with string keys; `@dataclass(slots=
+        #     True)` = its fields), absent when C declares none; a non-literal `__slots__`
+        #     is REFUSED (its slot set is unknown);
+        #   `_mro363[C]` — C's C3 linearisation over the file's classes (a base outside the
+        #     file is a leaf), None when C3 fails.
+        _pf361 = {}
+        _iv361 = {}
+        for _cn346, _ks346 in _cls341.items():
+            if _cn346 not in _dc346:
+                continue
+            for _k346 in _ks346:
+                for _s346 in _k346.body:
+                    if not (isinstance(_s346, _ast341.AnnAssign)
+                            and isinstance(_s346.target, _ast341.Name)):
+                        continue
+                    _h361 = _s346.annotation
+                    if isinstance(_h361, _ast341.Constant) and isinstance(_h361.value, str):
+                        try:
+                            _h361 = _ast341.parse(_h361.value, mode="eval").body
+                        except (SyntaxError, ValueError):
+                            _h361 = None
+                    if isinstance(_h361, _ast341.Subscript):
+                        _h361 = _h361.value
+                    _hn361 = (_h361.id if isinstance(_h361, _ast341.Name) else
+                              _h361.attr if isinstance(_h361, _ast341.Attribute) else "")
+                    if _hn361 in ("InitVar", "KW_ONLY"):
+                        _pf361.setdefault(_cn346, set()).add(_s346.target.id)
+                        if _hn361 == "InitVar":
+                            _iv361.setdefault(_cn346, set()).add(_s346.target.id)
+        _sl360 = {}
+        for _cn346, _ks346 in _cls341.items():
+            for _k346 in _ks346:
+                for _dec346 in _k346.decorator_list:
+                    if (isinstance(_dec346, _ast341.Call) and _cn346 in _dc346
+                            and any(_kw.arg == "slots" and not (
+                                isinstance(_kw.value, _ast341.Constant)
+                                and not _kw.value.value) for _kw in _dec346.keywords)):
+                        _sl360.setdefault(_cn346, set()).update(
+                            _s.target.id for _s in _k346.body
+                            if isinstance(_s, _ast341.AnnAssign)
+                            and isinstance(_s.target, _ast341.Name))
+                for _s346 in _k346.body:
+                    _tg360 = (_s346.targets if isinstance(_s346, _ast341.Assign) else
+                              [_s346.target] if isinstance(_s346, (_ast341.AnnAssign,
+                                                                   _ast341.AugAssign))
+                              else [])
+                    if not any(isinstance(_t, _ast341.Name) and _t.id == "__slots__"
+                               for _t in _tg360):
+                        continue
+                    _v360 = _s346.value
+                    _el360 = None
+                    if (len(_tg360) == 1 and not isinstance(_s346, _ast341.AugAssign)
+                            and isinstance(_v360, _ast341.Constant)
+                            and isinstance(_v360.value, str)):
+                        _el360 = [_v360]
+                    elif (len(_tg360) == 1 and not isinstance(_s346, _ast341.AugAssign)
+                          and isinstance(_v360, (_ast341.Tuple, _ast341.List, _ast341.Set))):
+                        _el360 = list(_v360.elts)
+                    elif (len(_tg360) == 1 and not isinstance(_s346, _ast341.AugAssign)
+                          and isinstance(_v360, _ast341.Dict) and None not in _v360.keys):
+                        _el360 = list(_v360.keys)
+                    if _el360 is None or not all(isinstance(_e, _ast341.Constant)
+                                                 and isinstance(_e.value, str)
+                                                 for _e in _el360):
+                        raise _PyCSLSemErr341(
+                            f"class '{_cn346}' line {_s346.lineno}: `"
+                            f"{_ast341.unparse(_s346)}` is not a literal `__slots__` (a "
+                            f"string, or a tuple / list / set of strings, or a dict with "
+                            f"string keys, bound once). `__slots__` decides which instance "
+                            f"attributes CPython lets a constructor or method store (any "
+                            f"other store raises AttributeError), while the record model "
+                            f"lowers every `self.f = e` as an ordinary field store, so a "
+                            f"slot set the verifier cannot read cannot be checked (route "
+                            f"#360). Write the slot names literally.",
+                            stage="ir-semantic", code="PYCSL-R360-SLOTS-STORE")
+                    _sl360.setdefault(_cn346, set()).update(_e.value for _e in _el360)
+        _mro363 = {}
+        for _cn346 in [_c for _l, _c in sorted((len(_clo346[_c]), _c) for _c in _cls341)]:
+            _bs363 = list(_bn346.get(_cn346, []))
+            _sq363 = [list(_mro363.get(_b) or [_b]) for _b in _bs363] + [_bs363]
+            _res363 = (None if any(_b in _cls341 and not _mro363.get(_b) for _b in _bs363)
+                       else [_cn346])
+            while _res363 is not None:
+                _sq363 = [_s for _s in _sq363 if _s]
+                if not _sq363:
+                    break
+                _pk363 = None
+                for _s363 in _sq363:
+                    if not any(_s363[0] in _t[1:] for _t in _sq363):
+                        _pk363 = _s363[0]
+                        break
+                if _pk363 is None or _pk363 in _res363:
+                    _res363 = None
+                    break
+                _res363.append(_pk363)
+                _sq363 = [(_s[1:] if _s[0] == _pk363 else _s) for _s in _sq363]
+            _mro363[_cn346] = _res363
         # ROUTE #346 — A `__post_init__` IS NEVER VERIFIED. Route #150 makes a dataclass
         # construction that runs `__post_init__` OPAQUE (no field value known), and an opaque
         # construction gets NO constructor-invariant goal (route #226), so the invariant is
@@ -3298,6 +3405,27 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _cl346 = _clo346.get(_td346["name"], [])
             if not any(_c in _dc346 for _c in _cl346):
                 continue
+            # ROUTE #362 — an `InitVar[T]` parameter is outside route #226's goal scope
+            # (int / bool parameters only), so NO constructor-invariant goal is stated and
+            # `invariant x >= 0` was ASSUMED of `D(-1, 0)` (r45; r07 with a defaulted
+            # InitVar; CPython -1); a `_: KW_ONLY` sentinel (a non-int record field) drops
+            # the goal the same way (measured). RULE: a record carrying a class invariant
+            # whose base closure holds a `@dataclass` declaring an `InitVar` or `KW_ONLY`
+            # pseudo-field is REFUSED. CENSUS: no invariant-carrying class with either.
+            for _c346 in _cl346:
+                if _pf361.get(_c346):
+                    raise _PyCSLSemErr341(
+                        f"class '{_td346['name']}': it carries a `#@ class invariant` and "
+                        f"its construction takes the `InitVar` / `KW_ONLY` pseudo-field(s) "
+                        f"{sorted(_pf361[_c346])} of `@dataclass` '{_c346}'. A pseudo-"
+                        f"field is outside the scope of the constructor-invariant goal "
+                        f"(route #226 states it only over `int` fields and `int` / `bool` "
+                        f"parameters), so NO goal is generated and the invariant would "
+                        f"be ASSUMED of every instance although the arguments of a "
+                        f"construction may break it (route #362). Drop the pseudo-field "
+                        f"(validate in a verified factory function), or write an explicit `__init__` whose top-level "
+                        f"stores the constructor goal checks.",
+                        stage="ir-semantic", code="PYCSL-R362-INITVAR-INVARIANT")
             for _c346 in _cl346:
                 for _k346 in _cls341.get(_c346, []):
                     for _m346 in _k346.body:
@@ -3647,12 +3775,48 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _rv348 = _n346.args[0]
                     _fd348 = (_n346.args[1].value if isinstance(_n346.args[1], _ast341.Constant)
                               and isinstance(_n346.args[1].value, str) else "*")
-                if _rv348 is None or not _imm348:
+                if _rv348 is None or not (_imm348 or _sl360):
                     continue
                 _kc348 = set(_ex346.get(id(_rv348), set()))
                 if (isinstance(_rv348, _ast341.Name) and _rv348.id in _unk346
                         and _rv348.id != _self346):
                     _kc348 = set()
+                # (#360) a store outside the slots: for each class the receiver may be
+                # (`self` of a method, an annotated / constructor-bound name) whose every
+                # file MRO class declares `__slots__` and whose other bases are `object` /
+                # `Generic` / `Protocol` (no `__dict__` anywhere), the stored name must be in
+                # the union of the slots over the MRO. A `classmethod`'s first parameter
+                # is the class, not an instance.
+                for _c360 in sorted(_kc348):
+                    _mr360 = _mro363.get(_c360) or _clo346.get(_c360, [])
+                    if not _mr360 or isinstance(_rv348, _ast341.Name) and (
+                            _rv348.id == _self346 and any(
+                                isinstance(_d, _ast341.Name) and _d.id == "classmethod"
+                                for _d in _f346.decorator_list)):
+                        continue
+                    if not all((_a in _cls341 and _a in _sl360)
+                               or (_a not in _cls341
+                                   and _a in ("object", "Generic", "Protocol"))
+                               for _a in _mr360):
+                        continue
+                    _su360 = set()
+                    for _a360 in _mr360:
+                        _su360 |= _sl360.get(_a360, set())
+                    if "__dict__" in _su360 or _fd348 in _su360:
+                        continue
+                    raise _PyCSLSemErr341(
+                        f"'{_f346.name}' line {getattr(_n346, 'lineno', 0)}: "
+                        f"`{_ast341.unparse(_n346)}` stores or deletes the attribute "
+                        f"`{_fd348}` of an instance of '{_c360}', whose every class "
+                        f"declares `__slots__` (MRO {_mr360}; slots {sorted(_su360)}). "
+                        f"Such an instance has no `__dict__`, so CPython raises "
+                        f"AttributeError on a store of a name outside the slots, while the "
+                        f"record model lowers it as an ordinary field store and would "
+                        f"verify it as succeeding (route #360). Add `{_fd348}` to "
+                        f"`__slots__`, or drop `__slots__`.",
+                        stage="ir-semantic", code="PYCSL-R360-SLOTS-STORE")
+                if not _imm348:
+                    continue
                 _why348 = ""
                 if _kc348 & set(_imm348):
                     _why348 = (f"its receiver `{_ast341.unparse(_rv348)}` is an instance of "
@@ -3759,6 +3923,54 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"hashable (`@dataclass(frozen=True)`, or define `__hash__`) "
                             f"or key by a field.",
                             stage="ir-semantic", code="PYCSL-R349-UNHASHABLE-RECORD")
+        # ROUTE #361 — `InitVar` / `KW_ONLY` PSEUDO-FIELDS WERE MODELLED AS STORED FIELDS.
+        # `k: InitVar[int]` and `_: KW_ONLY` joined the record and #347's synthesized
+        # field set (ClassVar was excluded), so `d.k` / `d._` read under `no_exception`
+        # PROVED (r23, r26) and `D(1, 5).k == 5` PROVED (r29); CPython: AttributeError (a
+        # defaulted InitVar reads the CLASS default, `7`, not the argument). Excluded from
+        # #347's field / definite-assignment sets above; RULE: an attribute access (load,
+        # store, `del`; `getattr` / `setattr` / `delattr` by literal name) of a pseudo-field
+        # NAME of a file `@dataclass` (any receiver but an imported module) in a function
+        # that is not `\trusted` / `\abstract` is REFUSED. CENSUS: 1 InitVar user (corpus
+        # 4058, never read as an attribute), 0 KW_ONLY users.
+        _pfn361 = set()
+        for _v361 in _pf361.values():
+            _pfn361 |= _v361
+        if _pfn361:
+            _tr361 = set()
+            for _f347 in (_ir342.get("functions") or []):
+                if (isinstance(_f347, dict)
+                        and (_f347.get("trusted") or _f347.get("abstract"))):
+                    _tr361.add(_f347.get("name"))
+            for _f346, _ec346 in _fn346:
+                if ((_ec346.lower() + "__" + _f346.name) if _ec346 else _f346.name) in _tr361:
+                    continue
+                for _n346 in _ast341.walk(_f346):
+                    _at361 = None
+                    if isinstance(_n346, _ast341.Attribute):
+                        if not (isinstance(_n346.value, _ast341.Name)
+                                and _n346.value.id in (_imp341 - _bound341)):
+                            _at361 = _n346.attr
+                    elif (isinstance(_n346, _ast341.Call)
+                          and isinstance(_n346.func, _ast341.Name)
+                          and _n346.func.id in ("getattr", "setattr", "delattr")
+                          and len(_n346.args) >= 2
+                          and isinstance(_n346.args[1], _ast341.Constant)):
+                        _at361 = _n346.args[1].value
+                    if _at361 in _pfn361:
+                        _ow361 = sorted(_c for _c, _v in _pf361.items() if _at361 in _v)
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n346, 'lineno', 0)}: "
+                            f"`{_ast341.unparse(_n346)}` accesses `{_at361}`, which a "
+                            f"`@dataclass` of this file declares as an `InitVar` / "
+                            f"`KW_ONLY` PSEUDO-FIELD ({_ow361}). "
+                            f"A pseudo-field is an `__init__` parameter (or a sentinel), "
+                            f"never an instance attribute: CPython raises AttributeError "
+                            f"(or reads the class-level default), while the record model "
+                            f"carries it as a field holding the constructor argument "
+                            f"(route #361). Store the value in a real field (`__post_init__"
+                            f"` / `field(init=False)`) under another name.",
+                            stage="ir-semantic", code="PYCSL-R361-DATACLASS-PSEUDO-FIELD")
         # ROUTE #347 — A FIELD STORED ON ONLY SOME CONSTRUCTOR PATHS IS ASSUMED PRESENT.
         # The record model gives every field of the class a value, so a read `r.x` never
         # raises; CPython raises AttributeError when no store reached `x` (k03: `if flag:
@@ -3878,8 +4090,34 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                   and _cf347.attr == "__init__"):
                                 if (isinstance(_cf347.value, _ast341.Call)
                                         and isinstance(_cf347.value.func, _ast341.Name)
-                                        and _cf347.value.func.id == "super"):
+                                        and _cf347.value.func.id == "super"
+                                        and not _cf347.value.args):
                                     _gs347 |= _inh347
+                                # ROUTE #363 — `super(X, self).__init__()` runs the
+                                # constructor of the class AFTER X in the C3 MRO (r35:
+                                # `super(A, self)` in `B(A)` runs `object.__init__`; r42:
+                                # `super(M, self)` in `B(M(A))` runs `A.__init__`); it was
+                                # credited as the direct base's. X not on this class's MRO,
+                                # a failed C3, any other argument shape: nothing is credited
+                                # (the sound direction of a definite-assignment set).
+                                elif (isinstance(_cf347.value, _ast341.Call)
+                                      and isinstance(_cf347.value.func, _ast341.Name)
+                                      and _cf347.value.func.id == "super"
+                                      and len(_cf347.value.args) == 2
+                                      and not _cf347.value.keywords
+                                      and isinstance(_cf347.value.args[0], _ast341.Name)
+                                      and isinstance(_cf347.value.args[1], _ast341.Name)
+                                      and _cf347.value.args[1].id == _sf347
+                                      and _mro363.get(_cn346)
+                                      and _cf347.value.args[0].id in _mro363[_cn346]):
+                                    _mx363 = _mro363[_cn346]
+                                    for _a363 in _mx363[_mx363.index(
+                                            _cf347.value.args[0].id) + 1:]:
+                                        if _a363 in _da347:
+                                            _gs347 |= _da347[_a363]
+                                            break
+                                        if _a363 not in _cls341:
+                                            break
                                 elif (isinstance(_cf347.value, _ast341.Name)
                                       and _cf347.value.id in _da347 and _cv347.args
                                       and isinstance(_cv347.args[0], _ast341.Name)
@@ -3947,7 +4185,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             continue
                         for _fn347, _fa347 in _cf346.get(_a346, {}).items():
                             _hd347 = _ah346.get(id(_fa347), "")
-                            if _hd347 == "ClassVar":
+                            if (_hd347 == "ClassVar"
+                                    or _fn347 in _pf361.get(_a346, set())):
                                 continue
                             _g347.add(_fn347)
                     for _k347 in _cls341[_cn346]:
@@ -3998,7 +4237,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         _ca347.add(_y346.id)
                         elif (isinstance(_s346, _ast341.AnnAssign)
                               and isinstance(_s346.target, _ast341.Name)):
-                            if _a346 in _dc346 or _a346 in _imm348:
+                            if ((_a346 in _dc346 or _a346 in _imm348)
+                                    and _s346.target.id not in _pf361.get(_a346, set())):
                                 _fs347.add(_s346.target.id)
                             if _s346.value is not None and not (
                                     isinstance(_s346.value, _ast341.Call)
