@@ -2409,8 +2409,12 @@ attribute, method, property, nested class or import, own or inherited — and ev
 `object` has (any dunder): `k = -1` proved `getattr(r, "k", 0) >= 0`, a method `k` proved
 `getattr(r, "k", 0) == 0`. Such a `getattr` is now REFUSED
 (`PYCSL-R376-GETATTR-CLASS-BINDING`), as is any `getattr` of a non-field name on a class whose
-MRO has a `__getattr__` / `__getattribute__` or a base outside the file (other than `object` /
-`Generic` / `Protocol`). A name no class body binds still answers the default.
+file MRO has a `__getattr__` / `__getattribute__`. A name no class body of the file binds still
+answers the default (a base class outside the file is not read: residual).
+
+The nested-def rule (1) applies to the names of defs nested in a method of the file; a starred
+CALL argument (`f(*x)`) of an erased value is asserted under `no_exception` only (outside it,
+the callee's vararg sequence is a recorded residual).
 
 Witnesses `5050`-`5081`; controls `5090`-`5093` (a nested `-> int` def in a method and in a
 plain function; mangled real slots; int augmented assignments under `no_exception \all`; an

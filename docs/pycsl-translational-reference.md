@@ -4433,9 +4433,10 @@ All inline (no new def; ledger 3). Mirror twins: `_reset_function_state`, `_hand
 `_handle_assign_stmt`, `_expr_to_whyml` and `_run_pipeline` are `\trusted`; `_lower_getattr` has
 no twin.
 
-**#373** (`_reset_function_state`, route #255's call-spelling resolution). For a call spelling
-$g$ with no `.` that resolves to no unit function, no class, no enforced builtin and no
-passthrough builtin: if some method's short name (its unit name without the `<class>__`
+**#373** (`_reset_function_state`, route #255's call-spelling resolution; $N$ = the names of
+the defs nested at any depth in a method of the file, computed from the source in
+`_run_pipeline`). For a call spelling $g \in N$ with no `.` that resolves to no unit function,
+no class, no enforced builtin and no passthrough builtin: if some method's short name (its unit name without the `<class>__`
 prefix) is $g$ — a def nested in a method, lifted to a method of the class — and not every
 such method has return annotation `int` or `bool`, then $g \in \mathit{any\_ret}$, i.e.
 $\mathcal{T}(g(\bar a))$ (the opaque stub `g_<n> \bar a : int`) is in route #249's erased set:
@@ -4453,8 +4454,9 @@ $\mathit{mg}(n, \mathit{lex}(o.n))$ with $\mathit{lex}$ the innermost lexically 
 route #251's probe `r251_erased?` holds of `Var t` or of the value $v$, $\mathcal{T}(t \mathbin{op}=
 v)$ = `begin assert { [@expl:PyCSL-R375 ..] false }; end;` $\cdot$ the previous lowering.
 (b) `_expr_to_whyml`, at its head: for a `ArrayLit` / `ListLit` / `List` / `SetLit` / `Set` /
-`Tuple` / `MkTuple` / `MkList` / `Call` node with a `Starred` element or argument whose value
-the probe calls erased (program context, any `no_exception` or none), $\mathcal{T}(e)$ =
+`Tuple` / `MkTuple` / `MkList` node with a `Starred` element (any `no_exception` or none), or
+a `Call` with a `Starred` argument (under an active `no_exception`), whose value the probe calls
+erased (program context), $\mathcal{T}(e)$ =
 `(begin assert { [@expl:PyCSL-R375 ..] false }; ` $\mathcal{T}(e)$ ` end)` (re-entry marked
 `_pycsl_r358n`); `_handle_assign_stmt`'s pure-display placeholder of route #310 keeps such a
 display evaluated (`(let _ = .. in (any int))`).
@@ -4462,9 +4464,8 @@ display evaluated (`(let _ = .. in (any int))`).
 **#376** (`_run_pipeline` computes, `_lower_getattr` reads `class_binds_r376`). $CB(c)$ = the
 names bound by class $c$'s body (any statement not inside a nested `def` / `class` / `lambda`:
 `def` / `class` names, `Name` stores except a value-less annotation, import aliases) $\cup$
-$\{\ast\}$ if $c$ binds `__getattr__` / `__getattribute__` or has a base that is not a `Name` /
-`Generic` / `Protocol`; $CB^*(c) = CB(c) \cup \bigcup_{a} CB(a)$ over $c$'s file ancestors, plus
-$\ast$ for an ancestor outside the file other than `object` / `Generic` / `Protocol`. A
+$\{\ast\}$ if $c$ binds `__getattr__` / `__getattribute__`; $CB^*(c) = CB(c) \cup
+\bigcup_{a} CB(a)$ over $c$'s FILE ancestors (a base outside the file contributes nothing). A
 `getattr(o, "k"[, d])` classified ABSENT (route #197: $o$'s record class $c$ is known and does
 not declare $k$; also route #309's `_current_record_var_classes` arm) raises
 `PYCSL-R376-GETATTR-CLASS-BINDING` when $c \notin \mathrm{dom}(CB^*)$, $\ast \in CB^*(c)$,
