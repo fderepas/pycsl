@@ -764,7 +764,10 @@ RULES (as built; `annotations.md` §7.34, T.6.45):
 - NEW (also in increment 2's own path): a parameter binder that is ALSO the label of a field it is not bound to conflates
   two values. Measured at c6d1156c: `__init__(self, x, y): self.x = y; self.y = x` under `self.x == self.y` was stated
   `forall x y. x = y -> y = x -> (x = y)` and PROVED `\result == 0` on `d.x - d.y` (CPython `D(1, 2)` gives 1) — a NEW
-  latent false proof of increment 2. Now REFUSED, `PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH` (census: 0 corpus users).
+  latent false proof of increment 2. Now REFUSED, `PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH` (census: 0 corpus users),
+  in `_run_pipeline` over the IR (stage `ir-semantic`), not in Module 6: a first cut raised inside `_emit_type_decls`,
+  whose mirror twin is a `\trusted` stub with no `#@ raises`, and broke the raises-honesty SILENT ratchet (62 > 61,
+  lesson d5); Module 6 keeps its own guard and simply states no goal for that shape.
 
 Probe table (`pycsl.py`, full proof; CPython ground truth in each file's `__main__`):
 

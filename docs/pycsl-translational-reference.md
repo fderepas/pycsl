@@ -4333,8 +4333,11 @@ of type `int`, not in `init_unknown_fields` / `init_unknown_cf_fields`, with val
 int literal of `init_body`, or $\mathcal{T}_{id}(p)$ for an `init_body` binding `Var p` with $p
 \in$ `init_params` of `param_types` `int` / `bool` / unknown, or `field_defaults[f]` when
 `init_body` has no binding; let $U$ = those parameters. If some $f' \in P$ has label $\ell(f')
-\in U$ and $v_{f'} \neq \ell(f')$, the program is refused
-(`PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH`); increments 1/2 skip that case too. The invariants are
+\in U$ and $v_{f'} \neq \ell(f')$, no goal is stated (increments 1/2 skip that case too); the
+program never reaches it: before Module 6, `_run_pipeline` refuses a class whose `init_body` binds a
+field $f$ read by the invariants to a parameter $p$ with $\mathcal{T}_{id}(p) \in \{g,
+\mathcal{T}_{id}(g), \mathcal{T}_{id}(C)\_g\}$ for another field $g \neq f$ they read
+(`PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH`, stage `ir-semantic`). The invariants are
 lowered as for the type's `invariant` clauses, and every identifier of the result must be an
 $\ell(f)$, $f \in P$. The `init_contract_check.requires` clauses are split at top-level `and`;
 a conjunct is kept iff its variables are a non-empty subset of $U$ and its nodes are of the

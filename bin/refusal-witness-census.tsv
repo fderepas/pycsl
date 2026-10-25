@@ -1860,7 +1860,7 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 4950_gen37_r226_dataclass_int_str_fields.py	VERIFY-FAIL	
 4951_gen37_r226_dataclass_int_list_field.py	VERIFY-FAIL	
 4952_gen37_r226_explicit_init_int_and_list_params.py	VERIFY-FAIL	
-4953_gen37_r226_init_param_named_like_other_field.py	REFUSAL	[whyml-emit]: class 'd': the constructor-invariant goal (route #226) cannot be stated: a constructor parameter shares its name with the field label `x` it is not bound to. The goal quantifies the record's field labels and `__init__`'s int parameters together, so a parameter named like ANOTHER field would be read as that field's value — measured: `self.x = y; self.y = x` under `self.x == self.y` was stated `forall x y. x = y -> y = x -> (x = y)` and PROVED, while CPython's `D(1, 2)` has x == 2 and y == 1. Give each `__init__` parameter a name that is not the name of a different field.
+4953_gen37_r226_init_param_named_like_other_field.py	REFUSAL	[ir-semantic]: class 'D': `__init__` stores its parameter `y` into `self.x`, but `y` is also the name of the field `self.y` that the class invariant reads. The constructor-invariant goal (route #226) quantifies field labels and parameters together, so the two values would be read as one — measured: `self.x = y; self.y = x` under `self.x == self.y` was stated `forall x y. x = y -> y = x -> (x = y)` and PROVED, while CPython's `D(1, 2)` has x == 2 and y == 1. Give each `__init__` parameter a name that is not the name of a different field.
 4954_gen37_r226_requires_on_list_param_only.py	VERIFY-FAIL	
 4955_gen37_r226_paramless_literal_with_str_field.py	VERIFY-FAIL	
 4956_gen37_r226_dataclass_int_and_optional_field.py	VERIFY-FAIL	
