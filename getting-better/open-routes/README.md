@@ -1,7 +1,7 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 ## gen #37 (2026-10-25): #226 INCREMENT 2b (int-field projection) REPAIRED, candidate (r226 executor off c6d1156c; code 3633864b + 35fcdf9e,
-##   corpus 09b5ef35 / 79cabed2, docs e29abd71 / e4dfb713 (annotations 7.34 / T.6.45), census 26f2fd53 / e4dfb713 + route docs; Module 6 only, inline, no
+##   corpus 09b5ef35 / 79cabed2, docs e29abd71 / e4dfb713 (annotations 7.34 / T.6.45), census 26f2fd53 / e4dfb713 + route docs; Module 6 goal + a `_run_pipeline` refusal, inline, no
 ##   new def, ledger 3). The constructor-invariant goal is now stated over the INT fields the invariant reads even when other
 ##   fields / `__init__` parameters are str / List / record / Optional (unconstrained in the goal); `#@ requires` conjuncts over the
 ##   bound int params are premises. NEW latent (increment 2's own goal): a param named like ANOTHER field conflated binders
