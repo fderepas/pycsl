@@ -911,6 +911,17 @@ Ledgers: `check-clause-survival` (slow plane) KNOWN_DEFICITS +4 (2220, 5110, 511
 plane); the plane's pre-existing UNEXPLAINED `4574_gen37_r342_ctl_param_store_type_self.py` is RED at base too and is
 not this increment's. Refusal census rows 5100-5109 (VERIFY-FAIL) via `_census_row`.
 
+
+Gates (rc 0 each, logs under the r226b scratchpad `gates/`): byte-diff-sweep base + candidate; byte-diff-compare root
+(`--expect-moved` the 36) and pyref (`--min-files 2000`, 0/0/0); mirror-emit-sweep base + candidate, compare `--min-files 50`
+(`--expect-moved proof2why3__parser`); whole-file mirror proof `proof2why3/parser.py` (HEAVY_LOW=1) SUCCESS;
+check-self-annotate-sync.sh (926 verbatim); self-annotate-mirror-check.sh (53); run-soundness-planes.sh fast 61/61 green
+(first run RED on core-only-conformance 0595, fixed by the golden refresh); check-getattr-erasure; check-stdlib-modules-verify
+(83 VERIFY, known 21); doc-coherency --check; check-assumed-facts; check-dropped-mutation (TRYFINAL 5); check-refusal-witness-coverage
+(304 demonstrated, 5 undemonstrated = ceiling); check-trusted-reasons (420/420); check-assigns-underdeclaration --transitive
+(TRAP 3, HOLE 0); check-open-route-carriers (#226 length carrier FAILED as recorded; computed-store carrier SUCCESS as recorded).
+`--slow` planes not run (check-clause-survival run by hand: only the pre-existing base UNEXPLAINED 4574).
+
 RESIDUALS:
 - Computed container stores (21 classes: `[Tok(0)] * N` names `Tok`, `bytearray(K)` over a module constant ...): no goal,
   assumed. Repro (SUCCESS at base AND after; CPython `n(C())` is 3 against `ensures \result == 4`):
