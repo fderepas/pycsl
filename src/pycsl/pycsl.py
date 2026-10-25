@@ -3541,6 +3541,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _SP369 = {"dataclasses.InitVar": "InitVar", "dataclasses.KW_ONLY": "KW_ONLY",
                   "typing.ClassVar": "ClassVar"}
         _rq369 = []
+        _hd369 = {}     # id(AnnAssign) -> its annotation head node (string parsed once)
         for _cn346, _ks346 in _cls341.items():
             for _k346 in _ks346:
                 for _d369 in _k346.decorator_list:
@@ -3555,6 +3556,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _h369 = None
                         if isinstance(_h369, _ast341.Subscript):
                             _h369 = _h369.value
+                        _hd369[id(_s369)] = _h369
                         if _h369 is not None:
                             _rq369.append(_h369)
                         if isinstance(_s369.value, _ast341.Call):
@@ -3662,14 +3664,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             and isinstance(_s369.target, _ast341.Name)):
                         continue
                     _why369 = ""
-                    _h369 = _s369.annotation
-                    if isinstance(_h369, _ast341.Constant) and isinstance(_h369.value, str):
-                        try:
-                            _h369 = _ast341.parse(_h369.value, mode="eval").body
-                        except (SyntaxError, ValueError):
-                            _h369 = None
-                    if isinstance(_h369, _ast341.Subscript):
-                        _h369 = _h369.value
+                    _h369 = _hd369.get(id(_s369))
+                    if _h369 is None and _top369:
+                        _h369 = _s369.annotation
                     _sp369 = (_h369.id if isinstance(_h369, _ast341.Name) else
                               _h369.attr if isinstance(_h369, _ast341.Attribute) else "")
                     _r369 = _rs369.get(id(_h369), "?") if _h369 is not None else "?"
@@ -4286,16 +4283,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 if not (isinstance(_s369, _ast341.AnnAssign)
                                         and isinstance(_s369.target, _ast341.Name)):
                                     continue
-                                _h369 = _s369.annotation
-                                if isinstance(_h369, _ast341.Constant) and isinstance(
-                                        _h369.value, str):
-                                    try:
-                                        _h369 = _ast341.parse(_h369.value, mode="eval").body
-                                    except (SyntaxError, ValueError):
-                                        _h369 = None
-                                if isinstance(_h369, _ast341.Subscript):
-                                    _h369 = _h369.value
-                                _r369 = _rs369.get(id(_h369), "?")
+                                _r369 = _rs369.get(id(_hd369.get(id(_s369))), "?")
                                 if _r369 == "typing.ClassVar":
                                     continue
                                 if _r369 == "dataclasses.KW_ONLY":
@@ -4304,19 +4292,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _v369 = _s369.value
                                 _in369 = True
                                 _kf369 = None
-                                _hd369 = _v369 is not None
+                                _hdf369 = _v369 is not None
                                 if (isinstance(_v369, _ast341.Call)
                                         and _rs369.get(id(_v369.func)) == "dataclasses.field"):
-                                    _hd369 = False
+                                    _hdf369 = False
                                     for _kw in _v369.keywords:
                                         if _kw.arg in ("default", "default_factory"):
-                                            _hd369 = True
+                                            _hdf369 = True
                                         elif _kw.arg == "init":
                                             _in369 = bool(getattr(_kw.value, "value", True))
                                         elif _kw.arg == "kw_only":
                                             _kf369 = bool(getattr(_kw.value, "value", False))
                                 _fo369[_s369.target.id] = (
-                                    _in369, _hd369,
+                                    _in369, _hdf369,
                                     _kf369 if _kf369 is not None else (_kwall369 or _sent369))
                         if _ok369:
                             _sig369 = ([(_f, _v[1]) for _f, _v in _fo369.items()
