@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #357 + #358 + #359 REPAIRED, candidate (r357 executor off 1a9cfa42; code 0bd03380 / fb898973 / 66f2f2ea /
+##   acec0e22 / af97b85a, corpus + docs 570c626f (annotations 7.31 / T.6.42), census 66f2dd33 + route docs; inline, no new def,
+##   ledger 3). #357: a `self.`-resolved method result annotated with a field-less class (string annotations too), every
+##   `UnknownPyExpr` (`type(self)()`) and `e.__class__()` join route #249's erased set; `type(e)(..)` / `e.__class__(..)` is
+##   REFUSED (NEW PYCSL-R357-DYNAMIC-CONSTRUCTOR) under any `no_exception` or with a non-literal argument (NEW latent: the dynamic
+##   `__init__` mutating its argument PROVED). #358: under `no_exception` a failing `PyCSL-R358` assertion precedes iteration,
+##   truth tests, attribute loads not known on the erased base (`dir(object)` + the declared file class's methods / self
+##   stores) and str/list/dict/set/tuple methods handed an erased value. #359: R5's MRO walk counts every class-body binding;
+##   a pair-independent pass refuses a non-`def` binding or an outside-file class (builtin classes by `__dict__`) before the
+##   file definer. Witnesses 4800-4827 (27 PROVED at base, 5 new latent) -> FAIL/REFUSED; controls 4830-4832 PROVED. Root
+##   0 MOVED / 2 GONE (1313, 1457: expected-FAIL files now REFUSED by these rules, census re-measured) / 0 APPEARED; pyref
+##   0/0/0; mirror 53/53 0/0/0 (no OWED). Residuals: erased type still `int`, class-body constants of field-less classes not
+##   known (FAIL), outside-file BASE classes still uncompared, dynamic constructors' global effects (see REPAIRs).
+
 ## gen #37 (2026-10-25): #360 (`__slots__` not modelled), #361 (InitVar / KW_ONLY counted as fields), #362 (InitVar drops the invariant
 ##   goal), #363 (`super(X, self)` misresolved), #364 (hash scan too narrow), #365 (unhashable inside a tuple), #366 (record field hashability),
 ##   #367 (enum `_ignore_` / private names as members) OPENED (red team 27: 31/~200 confirmed; 8/8 sample driver-reproduced rc=0 on ccdb07e6).
