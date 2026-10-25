@@ -1,5 +1,16 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #386 + #387 REPAIRED, candidate (r386 executor off 5addbdeef; code 13fbfa1ed / a1b4a8dd6 / 20ccfe42d, corpus
+##   ebed9c6e7 / 20ccfe42d, docs 475527100 (annotations 7.41 / T.6.52), census d3fffd4f9, route docs; Module 3 only, inline, no new def,
+##   no new raise site, ledger 3). Sound refusals, no emission change. #386: route #131's builtin-shadow arm now also covers a nested
+##   `def` / `class` in a function or method, an import (local or module-level, not from `builtins`), a lambda parameter and a
+##   comprehension target named like a builtin and read. #387: in every CLASS body, a `global` / `nonlocal` naming a member, and any
+##   def / class / annotated member under a compound statement (except the body of a literal `if True:`, control 4940) are REFUSED.
+##   10/10 red-team witnesses PROVED at base -> REFUSED, plus 5 NEW latents (lambda param, local / module `import .. as max`,
+##   `for _ in range(0): def`, `if True: .. else: def`) PROVED at base -> REFUSED (corpus 5290-5310); controls 5320-5325 PROVED.
+##   Root 0/0/0 (first sweep GONE'd 4940 -> `if True:` body admitted), pyref 0/0/0, mirror 0/0/0 — no OWED proof. Residuals:
+##   over-refusal of always-true non-literal conditions (`if TYPE_CHECKING:`, 0 census users); no erasure model — see REPAIR.
+
 ## gen #37 (2026-10-25): #384 + #385 REPAIRED, candidate (r384 executor off 0a2d8019b; code 43ef55ea1 / 06912f666 / 80cb35620, corpus
 ##   06912f666, docs 06cf27dd5 (annotations 7.40 / T.6.51), clause-survival ledger 88896db0f, census + carriers 8c37ef315, route docs;
 ##   inline, no new def, no new field, ledger 3). Route #226's `\length` constructor goal now reads each list field's END state in

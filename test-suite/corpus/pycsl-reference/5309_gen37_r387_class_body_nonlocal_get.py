@@ -1,4 +1,4 @@
-r"""Test 5309 -- gen #37 route #387 (expected FAIL): `nonlocal get` in a function-local class body before `def get`; FAIL at base, REFUSED after (route #387).
+r"""Test 5309 -- gen #37 route #387 (expected FAIL): `nonlocal get` in a function-local class body before `def get`; already REFUSED at base (an ir-semantic refusal of the nested class), REFUSED by route #387 in Module 3 after.
 """
 # pycsl-expected: FAIL
 #@ ensures \result == 1
