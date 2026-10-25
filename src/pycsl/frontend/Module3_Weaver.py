@@ -2728,22 +2728,25 @@ class Module3_Weaver:
             _dc_nested: list = []
             _dc_glob387: list = []
             _dc_ann387: list = []
-            _dc_stack2: list = [(_dc_x, False) for _dc_x in _dc_sbody]
+            _dc_nest387: list = []
+            _dc_stack2: list = [(_dc_x, False, False) for _dc_x in _dc_sbody]
             while _dc_stack2:
-                _dc_x, _dc_in_compound = _dc_stack2.pop()
+                _dc_x, _dc_in_compound, _dc_c387 = _dc_stack2.pop()
                 if isinstance(_dc_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                     _dc_sites2.setdefault(_dc_x.name, []).append(_dc_x.lineno)
                     _dc_nodes377.setdefault(_dc_x.name, []).append(_dc_x)
                     if _dc_in_compound:
                         _dc_nested.append(_dc_x)
+                    if _dc_c387:
+                        _dc_nest387.append(_dc_x)
                     for _dc_dd in _dc_x.decorator_list:
-                        _dc_stack2.append((_dc_dd, _dc_in_compound))
+                        _dc_stack2.append((_dc_dd, _dc_in_compound, _dc_c387))
                     continue
                 if isinstance(_dc_x, ast.Lambda):
                     continue
                 if isinstance(_dc_x, (ast.Global, ast.Nonlocal)):
                     _dc_glob387.append(_dc_x)
-                elif isinstance(_dc_x, ast.AnnAssign) and _dc_in_compound:
+                elif isinstance(_dc_x, ast.AnnAssign) and _dc_c387:
                     _dc_ann387.append(_dc_x)
                 _dc_bn: list = []
                 if isinstance(_dc_x, ast.Name) and isinstance(_dc_x.ctx, (ast.Store, ast.Del)):
@@ -2764,8 +2767,13 @@ class Module3_Weaver:
                                                                 ast.While, ast.With,
                                                                 ast.AsyncFor, ast.AsyncWith)) \
                     or type(_dc_x).__name__ in ("TryStar", "Match")
+                # (#387) the BODY of an `if True:` runs unconditionally (route #364's
+                # control 4940 binds `__eq__` there); its test and `else` arm do not.
+                _dc_true387 = (isinstance(_dc_x, ast.If) and isinstance(_dc_x.test, ast.Constant)
+                               and _dc_x.test.value is True)
                 for _dc_c in ast.iter_child_nodes(_dc_x):
-                    _dc_stack2.append((_dc_c, _dc_cmp))
+                    _dc_stack2.append((_dc_c, _dc_cmp, _dc_c387 or (_dc_cmp and not (
+                        _dc_true387 and any(_dc_c is _dc_y for _dc_y in _dc_x.body)))))
             for _dc_x in _dc_nested:
                 if len(_dc_sites2.get(_dc_x.name, [])) > 1:
                     _dc_bad.append(f"`{_dc_x.name}` defined inside a compound statement at line "
@@ -2783,10 +2791,12 @@ class Module3_Weaver:
                 # fired. RULE: in a CLASS body, a `global` / `nonlocal` naming a name the body
                 # binds is REFUSED, and so is any def / class / annotated member nested under
                 # a compound statement (if / while / for / try / with / match) — whether it
-                # runs is not modelled. CENSUS (both corpora, 53 mirrors, `pycsl_lib`, live
+                # runs is not modelled — except in the body of an `if True:` (control 4940).
+                # CENSUS (both corpora, 53 mirrors, `pycsl_lib`, live
                 # `src/pycsl`): 0 class-body `global` / `nonlocal`; 3 nested members, all in
                 # expected-FAIL witnesses already refused (1355 by the route #122 arm, 4821 by
-                # PYCSL-SEM-OVERRIDE-REFINEMENT); no `if TYPE_CHECKING:` / `if True:` member.
+                # PYCSL-SEM-OVERRIDE-REFINEMENT), plus control 4940's `if True:` `__eq__`
+                # (admitted); no `if TYPE_CHECKING:` member.
                 for _dc_x in _dc_glob387:
                     for _dc_g in _dc_x.names:
                         if _dc_g in _dc_sites2:
@@ -2794,7 +2804,7 @@ class Module3_Weaver:
                                 f"`{type(_dc_x).__name__.lower()} {_dc_g}` at line "
                                 f"{_dc_x.lineno} in {_dc_sname}: the body's binding of "
                                 f"`{_dc_g}` is not a class attribute (route #387)")
-                for _dc_x in _dc_nested + _dc_ann387:
+                for _dc_x in _dc_nest387 + _dc_ann387:
                     _dc_bad.append(
                         f"`{getattr(_dc_x, 'name', None) or ast.unparse(_dc_x.target)}` "
                         f"defined under a compound statement at line {_dc_x.lineno} in "

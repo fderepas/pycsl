@@ -4576,7 +4576,8 @@ load of $x$ under that node is likewise refused. (#387) For every `ClassDef` bod
 $K$ without entering nested def / class / lambda bodies: a `Global` / `Nonlocal` statement naming
 $x$ with $x$ among $K$'s binding sites is refused; a `FunctionDef` / `AsyncFunctionDef` /
 `ClassDef` / `AnnAssign` reached through an `If`, `While`, `For`, `AsyncFor`, `Try`, `TryStar`,
-`With`, `AsyncWith` or `Match` node of $K$ is refused. Both append to the existing raise sites
+`With`, `AsyncWith` or `Match` node of $K$ is refused, unless every such node on the path is an
+`If` whose test is the constant `True` and the path enters its `body`. Both append to the existing raise sites
 (route #131's "a name's runtime value is not the one the model reads", route #122's "a name's
 runtime binding is not the `def` the model resolves it to").
 

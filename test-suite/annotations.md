@@ -2544,13 +2544,15 @@ binding to the module scope (`c.get()` raises AttributeError; `global __init__` 
 under `if False:` / `while False:` / `if sys.version_info < (3, 0):` / `for _ in range(0):` or
 after a `raise` inside `try:` is never executed. In every class body, a `global` / `nonlocal`
 naming a name the body binds is REFUSED, and so is any def / class / annotated member nested under
-a compound statement (`if` / `while` / `for` / `try` / `with` / `match`), whatever its condition:
-whether it runs is not modelled (no corpus, mirror or library class body has one outside
-witnesses already refused). Write the member at the top level of the class body.
+a compound statement (`if` / `while` / `for` / `try` / `with` / `match`) — whether it runs is not
+modelled — except in the BODY of an `if True:` (which always runs; control 4940 binds `__eq__`
+there; its `else` arm is refused). No other corpus, mirror or library class body has one outside
+witnesses already refused. Write the member at the top level of the class body.
 
-Witnesses `5290`-`5309`; controls `5320`-`5324` (a nested def not named like a builtin beside the
+Witnesses `5290`-`5310`; controls `5320`-`5325` (a nested def not named like a builtin beside the
 builtin `max`, a method named `max`, plain class-body members, an `if True:` inside a method, a
-function-local `from builtins import max`).
+function-local `from builtins import max`, a method under a class-body `if True:`); witness `5310` is the `else` arm of
+that `if True:`.
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
