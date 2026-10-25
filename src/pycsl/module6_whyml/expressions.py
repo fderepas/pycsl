@@ -14692,6 +14692,35 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _ga_cls = "DECLARED"     # the record DECLARES it — must never happen
         else:
             _ga_cls = "ABSENT"       # known record, name genuinely not a field
+        # (#49) ROUTE #376 — NOT AN INSTANCE FIELD IS NOT ABSENT. `getattr` finds a
+        # CLASS-BODY binding (class attribute, method, property, nested class) of the
+        # name anywhere in the MRO, and every name `object` itself has, before the
+        # default: measured, `k = -1` in `R` (own or inherited) proved `getattr(r, "k", 0)
+        # >= 0` and a method `k` proved `getattr(r, "k", 0) == 0` (CPython -1 / a bound
+        # method). `class_binds_r376` (computed from the source in `_run_pipeline`): per
+        # class, the MRO's class-body names, "*" = unknown (a `__getattr__` /
+        # `__getattribute__`, an outside base), as is a class the map does not describe.
+        # The value found is not modelled (the per-site opaque is an `int` with every int
+        # law, wrong for a method or a `str` class attribute), so such a `getattr` is
+        # REFUSED. Inline (no mirror twin).
+        _cb376 = getattr(self, "class_binds_r376", None)
+        if (_ga_cls == "ABSENT" and isinstance(_cb376, dict)
+                and (str(_ga_t).lower() not in _cb376
+                     or "*" in _cb376[str(_ga_t).lower()]
+                     or _ga_n in _cb376[str(_ga_t).lower()]
+                     or _ga_n in dir(object)
+                     or (_ga_n.startswith("__") and _ga_n.endswith("__")))):
+            from errors import PyCSLSemanticError as _PyCSLSemErr376
+            raise _PyCSLSemErr376(
+                f"getattr({_ga_o}, {_ga_n!r}, ...): '{_ga_n}' is not an instance field of "
+                f"'{_ga_t}', but it is not ABSENT either: a class body in its MRO binds it "
+                f"(a class attribute, method, property or nested class), `object` has it, "
+                f"or the MRO has a `__getattr__` / `__getattribute__` or a base outside "
+                f"this file. CPython's lookup finds that binding before the default, while "
+                f"the model answered the default (route #376: `k = -1` in the class proved "
+                f"`getattr(r, \"k\", 0) >= 0`). The class attribute's value is not "
+                f"modelled, so this is refused: read the attribute directly, or rename it.",
+                code="PYCSL-R376-GETATTR-CLASS-BINDING")
         if _os.environ.get("PYCSL_GETATTR_CENSUS"):
             _sys.stderr.write("GETATTR_FALLTHROUGH\t%s\t%s\t%s\t%s\n" % (
                 _ga_cls, _ga_o, _ga_t, _ga_n))
@@ -14853,6 +14882,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _lb309:
                     _l309 = self._field_label(str(_k309).lower(), _ga_n)
                     _c309 = "DECLARED" if _l309 in _lb309 else "ABSENT"
+                    # (#49) ROUTE #376: a class-body binding is found before the default
+                    if (_c309 == "ABSENT" and isinstance(_cb376, dict)
+                            and (str(_k309).lower() not in _cb376
+                                 or "*" in _cb376[str(_k309).lower()]
+                                 or _ga_n in _cb376[str(_k309).lower()]
+                                 or _ga_n in dir(object)
+                                 or (_ga_n.startswith("__") and _ga_n.endswith("__")))):
+                        from errors import PyCSLSemanticError as _PyCSLSemErr376b
+                        raise _PyCSLSemErr376b(
+                            f"getattr({_ga_o}, {_ga_n!r}, ...): '{_ga_n}' is not an "
+                            f"instance field of '{_k309}', but a class body in its MRO "
+                            f"binds it (or its attributes are not all known), so CPython "
+                            f"returns that binding, not the default (route #376). The "
+                            f"class attribute's value is not modelled: refused.",
+                            code="PYCSL-R376-GETATTR-CLASS-BINDING")
             if _c309 == "DECLARED" and _l309:
                 return f"({_pre309}{whyml_ident(_ga_o)}.{_l309})"
             _lit309 = True

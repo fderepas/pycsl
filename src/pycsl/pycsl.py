@@ -7371,6 +7371,77 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # ROUTE #304 — the pre-resolution class bases (read by `_emit_function_block`'s
     # own-raise coverage test; a class absent from it is covered, fail-closed).
     transpiler.class_bases_r304 = _r304_class_bases
+    # ROUTE #376 — the names a class makes available to `getattr` beyond its instance
+    # fields (read by `_lower_getattr`'s ABSENT classification). `getattr(o, "k", d)` on a
+    # known record whose fields do not include `k` folded to `d`, but a CLASS-BODY binding
+    # of `k` (a class attribute, a method, a property, a nested class, an import) anywhere
+    # in the MRO is found by the lookup first: CPython returns it (-1 / a bound method),
+    # not `d`. Per class (lower-cased, as Module 6 keys records): the union of its own and
+    # its file ancestors' class-body bindings; "*" when any of them defines `__getattr__`
+    # / `__getattribute__`, has a base that is not a file class (other than `object` /
+    # `Generic` / `Protocol`: its attributes are unknown), or its bases cannot be read.
+    # Inline (no helper: lesson a4); `_run_pipeline`'s mirror twin is `\trusted`.
+    _cb376 = {}
+    _bs376 = {}
+    _t376 = None
+    try:
+        import ast as _ast376
+        _t376 = _ast376.parse(source_code)
+    except (SyntaxError, ValueError):
+        _t376 = None
+    if _t376 is not None:
+        for _k376 in _ast376.walk(_t376):
+            if not isinstance(_k376, _ast376.ClassDef):
+                continue
+            _own376 = _cb376.setdefault(_k376.name, set())
+            _bl376 = _bs376.setdefault(_k376.name, set())
+            for _b376 in _k376.bases:
+                _h376 = _b376.value if isinstance(_b376, _ast376.Subscript) else _b376
+                if isinstance(_h376, _ast376.Name):
+                    _bl376.add(_h376.id)
+                elif (isinstance(_h376, _ast376.Attribute)
+                      and _h376.attr in ("Generic", "Protocol")):
+                    _bl376.add(_h376.attr)
+                else:
+                    _own376.add("*")
+            _q376 = list(_k376.body)
+            while _q376:
+                _y376 = _q376.pop()
+                if isinstance(_y376, (_ast376.FunctionDef, _ast376.AsyncFunctionDef,
+                                      _ast376.ClassDef)):
+                    _own376.add(_y376.name)
+                    continue
+                if isinstance(_y376, _ast376.Lambda):
+                    continue
+                if isinstance(_y376, _ast376.AnnAssign) and _y376.value is None:
+                    continue
+                if isinstance(_y376, _ast376.Name) and not isinstance(_y376.ctx,
+                                                                       _ast376.Load):
+                    _own376.add(_y376.id)
+                elif isinstance(_y376, (_ast376.Import, _ast376.ImportFrom)):
+                    for _al376 in _y376.names:
+                        _own376.add("*" if _al376.name == "*" else
+                                    (_al376.asname or _al376.name).split(".")[0])
+                _q376.extend(_ast376.iter_child_nodes(_y376))
+            if _own376 & {"__getattr__", "__getattribute__"}:
+                _own376.add("*")
+        _cl376 = {}
+        for _cn376 in _cb376:
+            _all376 = set(_cb376[_cn376])
+            _seen376 = {_cn376}
+            _wl376 = list(_bs376.get(_cn376, ()))
+            while _wl376:
+                _a376 = _wl376.pop()
+                if _a376 in _seen376:
+                    continue
+                _seen376.add(_a376)
+                if _a376 in _cb376:
+                    _all376 |= _cb376[_a376]
+                    _wl376.extend(_bs376.get(_a376, ()))
+                elif _a376 not in ("object", "Generic", "Protocol"):
+                    _all376.add("*")
+            _cl376.setdefault(_cn376.lower(), set()).update(_all376)
+        transpiler.class_binds_r376 = _cl376
     _mlw = transpiler.transpile()
 
     # ROUTE #30 (relaunch #45) — REFUSE an UNINTERPRETED `match` pattern.
