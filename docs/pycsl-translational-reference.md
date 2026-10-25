@@ -4425,6 +4425,52 @@ $\mathit{dp}$ of the first argument of the list-likes above and of `Set` / `Froz
 `AbstractSet` / `MutableSet` / `Iterable` / `Iterator` / `Collection` / `Reversible` / `Container`,
 the first (key) argument of the mappings, every `Tuple` argument; three passes. A hashed $h$ with `#UNK` $\in \kappa(h)$ is refused when $U \neq \emptyset$.
 
+### §T.6.47  Nested-def calls in methods, mangled slot names, erased augmented assignment and star-unpacking, `getattr` over class-body bindings (routes #373 / #374 / #375 / #376)
+
+_Corresponds to `annotations.md` §7.36._
+
+All inline (no new def; ledger 3). Mirror twins: `_reset_function_state`, `_handle_augassign_stmt`,
+`_handle_assign_stmt`, `_expr_to_whyml` and `_run_pipeline` are `\trusted`; `_lower_getattr` has
+no twin.
+
+**#373** (`_reset_function_state`, route #255's call-spelling resolution). For a call spelling
+$g$ with no `.` that resolves to no unit function, no class, no enforced builtin and no
+passthrough builtin: if some method's short name (its unit name without the `<class>__`
+prefix) is $g$ — a def nested in a method, lifted to a method of the class — and not every
+such method has return annotation `int` or `bool`, then $g \in \mathit{any\_ret}$, i.e.
+$\mathcal{T}(g(\bar a))$ (the opaque stub `g_<n> \bar a : int`) is in route #249's erased set:
+$\mathcal{T}_{\mathit{binop}}$ lowers `==` / `!=` / arithmetic / ordering on it to the
+uninterpreted `pycsl_py_*` symbols and route #252 refuses its flow into a builtin-typed slot.
+
+**#374** (`_run_pipeline`, the #360 store check of §T.6.43). $\mathit{mg}(n, c)$ =
+`_` $\cdot$ $c$.lstrip(`_`) $\cdot$ $n$ when $n$ starts with `__`, does not end with `__` and
+$c$.lstrip(`_`) $\neq \epsilon$; else $n$. The slot union over the MRO is $\bigcup_{a}
+\{\mathit{mg}(s, a) \mid s \in \mathit{slots}(a)\}$; an attribute store `o.n` is checked as
+$\mathit{mg}(n, \mathit{lex}(o.n))$ with $\mathit{lex}$ the innermost lexically enclosing
+`ClassDef` (no mangling at module scope); a `setattr` / `delattr` string is unmangled.
+
+**#375.** (a) `_handle_augassign_stmt`: under an active `no_exception` (program context), when
+route #251's probe `r251_erased?` holds of `Var t` or of the value $v$, $\mathcal{T}(t \mathbin{op}=
+v)$ = `begin assert { [@expl:PyCSL-R375 ..] false }; end;` $\cdot$ the previous lowering.
+(b) `_expr_to_whyml`, at its head: for a `ArrayLit` / `ListLit` / `List` / `SetLit` / `Set` /
+`Tuple` / `MkTuple` / `MkList` / `Call` node with a `Starred` element or argument whose value
+the probe calls erased (program context, any `no_exception` or none), $\mathcal{T}(e)$ =
+`(begin assert { [@expl:PyCSL-R375 ..] false }; ` $\mathcal{T}(e)$ ` end)` (re-entry marked
+`_pycsl_r358n`); `_handle_assign_stmt`'s pure-display placeholder of route #310 keeps such a
+display evaluated (`(let _ = .. in (any int))`).
+
+**#376** (`_run_pipeline` computes, `_lower_getattr` reads `class_binds_r376`). $CB(c)$ = the
+names bound by class $c$'s body (any statement not inside a nested `def` / `class` / `lambda`:
+`def` / `class` names, `Name` stores except a value-less annotation, import aliases) $\cup$
+$\{\ast\}$ if $c$ binds `__getattr__` / `__getattribute__` or has a base that is not a `Name` /
+`Generic` / `Protocol`; $CB^*(c) = CB(c) \cup \bigcup_{a} CB(a)$ over $c$'s file ancestors, plus
+$\ast$ for an ancestor outside the file other than `object` / `Generic` / `Protocol`. A
+`getattr(o, "k"[, d])` classified ABSENT (route #197: $o$'s record class $c$ is known and does
+not declare $k$; also route #309's `_current_record_var_classes` arm) raises
+`PYCSL-R376-GETATTR-CLASS-BINDING` when $c \notin \mathrm{dom}(CB^*)$, $\ast \in CB^*(c)$,
+$k \in CB^*(c)$, $k \in$ `dir(object)` or $k$ is a dunder; otherwise the default is the answer as
+before.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

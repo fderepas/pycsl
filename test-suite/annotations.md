@@ -2369,6 +2369,53 @@ a `field(..)` returned by a helper; `5039` / `5045` a loop element and a field o
 well-formed constructor calls, an enum with `_ignore_` / an alias / a `def`, `D(N, M)` with
 `N.__hash__` first, hashable fields / components / values).
 
+### 7.36 Nested-def calls in methods, private-name mangling in slots, erased augmented assignment and star-unpacking, `getattr` against class bodies (routes #373 / #374 / #375 / #376)
+
+Four gaps around routes #337 / #343 / #357 / #358 (erased values) and #360 (slots), and the
+`getattr` default of routes #22 / #197 / #309. No new contract syntax.
+
+(1) A DEF NESTED IN A METHOD (route #373). Such a def is lifted to a METHOD of the class, so
+its bare call `g()` resolves to no unit and lowers to the opaque call stub `g_0 ()`: an `int`
+with every int law whatever `g` returns. `t = g(); t - t == 0`, `t == t`, `t != t` and
+`t * 0 == 0` PROVED for `g` returning a field-less `self` (`-> "W"`, a default parameter, no
+annotation) or a `str` / `List[int]` (CPython 1 / False / True / False). The call's result is
+now the erased arbitrary object of §7.27 (route #249) unless every method of that name is
+annotated `-> int` or `-> bool` (an unconstrained `int` over-approximates those): no int law,
+refused into a builtin-typed slot (route #252), uninterpreted `==` / `!=` / arithmetic. A
+nested def in a plain function is lifted to a module function and keeps its own contract.
+
+(2) `__slots__` NAMES ARE MANGLED (route #374). CPython mangles every `__slots__` entry `__x`
+(two leading underscores, not a dunder) by the class that declares it (`_A__x`; leading
+underscores of the class name are dropped), and an attribute spelling `self.__x` / `o.__x` by
+its innermost lexically enclosing class (none at module scope; a `setattr` string is never
+mangled). §7.32's slots check (`PYCSL-R360-SLOTS-STORE`) now compares the two after mangling:
+`self.__x` in a subclass (`_B__x`) and `a.__x` outside the class are refused (CPython
+AttributeError, PROVED before), and the real slot `self._A__x` is admitted.
+
+(3) ERASED AUGMENTED ASSIGNMENT AND STAR-UNPACKING (route #375). Under `no_exception`, an
+augmented assignment `t op= v` whose target or value is erased (an alias `t = self`, a
+field-less-class parameter, an `Any` value) is preceded by the failing assertion
+`PyCSL-R375` (its `__iadd__` / `__add__` may raise; route #337 refuses only `self op= v`
+spelled on `self`). A starred element of an erased value in a list / set / tuple display or a
+starred call argument (`[*x]`, `{*x}`, `(*x,)`, `f(*x)`) carries the same failing assertion in
+ANY program context: the starred node was lowered as the bare element, so `[*self]` was the
+one-element array (`no_exception \all` PROVED, CPython TypeError) and `len([*x]) == 1` PROVED
+for `x: Any`.
+
+(4) `getattr` FINDS CLASS-BODY BINDINGS (route #376). `getattr(o, "k", d)` / `getattr(o, "k")`
+on a known record whose instance fields do not include `k` answered `d` (or the per-site
+"missing" opaque). CPython's lookup finds a class-body binding of `k` first — a class
+attribute, method, property, nested class or import, own or inherited — and every name
+`object` has (any dunder): `k = -1` proved `getattr(r, "k", 0) >= 0`, a method `k` proved
+`getattr(r, "k", 0) == 0`. Such a `getattr` is now REFUSED
+(`PYCSL-R376-GETATTR-CLASS-BINDING`), as is any `getattr` of a non-field name on a class whose
+MRO has a `__getattr__` / `__getattribute__` or a base outside the file (other than `object` /
+`Generic` / `Protocol`). A name no class body binds still answers the default.
+
+Witnesses `5050`-`5081`; controls `5090`-`5093` (a nested `-> int` def in a method and in a
+plain function; mangled real slots; int augmented assignments under `no_exception \all`; an
+absent attribute's default).
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
