@@ -2701,15 +2701,37 @@ class Module3_Weaver:
         for _dc_cl in ast.walk(python_ast):
             if isinstance(_dc_cl, ast.ClassDef):
                 _dc_scope_list.append((_dc_cl.body, f"class `{_dc_cl.name}`"))
+        # (#49) gen #37, ROUTES #377 / #378 (red team 29; MEASURED PROVED at 919533395,
+        # CPython violates) — A NAME BOUND TWICE IN A CLASS BODY. CPython's class namespace
+        # keeps the LAST binding, while the method tables, the constructor reader and the
+        # dataclass field reader take the FIRST `def` / annotated member: two `def __init__`
+        # gave the constructor goal and its `requires` premise from the dead first one
+        # (a50 / a62), two `def get` resolved `c.get()` to the first contract over the last
+        # body (a58), and `n: int = field(default=3, init=False)` then `n = -1` (or a second
+        # annotated `n`) read the field default 3 (a47 / a48; CPython -1). Route #118's rule
+        # (1) refuses a Name store AFTER a def only, and the module scope's duplicate `def`
+        # is fail-closed (the model agrees the last def wins). RULE: in a CLASS body, a name
+        # with two or more binding sites (the same walk as (b): defs, stores, imports,
+        # except-as / match captures; nested def / lambda bodies excluded) of which one is
+        # a `def` / `class` statement or an ANNOTATED member is REFUSED — except a property
+        # accessor chain (`@property def x`, then only `@x.setter` / `@x.getter` /
+        # `@x.deleter` defs of `x`) and an `@overload` chain (every def but the last
+        # decorated `overload` / `typing.overload`). CENSUS (corpora, 53 mirrors,
+        # `pycsl_lib`): 3 class bodies bind a name twice, all expected-FAIL witnesses
+        # already refused (1323, 1355, 1371); no mirror or library class body does.
+        _dc_ann377 = {id(_dc_x.target) for _dc_x in ast.walk(python_ast)
+                      if isinstance(_dc_x, ast.AnnAssign)}
         _dc_is_module = True
         for _dc_sbody, _dc_sname in _dc_scope_list:
             _dc_sites2: Dict[str, list] = {}
+            _dc_nodes377: Dict[str, list] = {}
             _dc_nested: list = []
             _dc_stack2: list = [(_dc_x, False) for _dc_x in _dc_sbody]
             while _dc_stack2:
                 _dc_x, _dc_in_compound = _dc_stack2.pop()
                 if isinstance(_dc_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                     _dc_sites2.setdefault(_dc_x.name, []).append(_dc_x.lineno)
+                    _dc_nodes377.setdefault(_dc_x.name, []).append(_dc_x)
                     if _dc_in_compound:
                         _dc_nested.append(_dc_x)
                     for _dc_dd in _dc_x.decorator_list:
@@ -2731,6 +2753,7 @@ class Module3_Weaver:
                         _dc_bn.append(_dc_x.name)
                 for _dc_b in _dc_bn:
                     _dc_sites2.setdefault(_dc_b, []).append(getattr(_dc_x, "lineno", 0))
+                    _dc_nodes377.setdefault(_dc_b, []).append(_dc_x)
                 _dc_cmp = _dc_in_compound or isinstance(_dc_x, (ast.If, ast.Try, ast.For,
                                                                 ast.While, ast.With,
                                                                 ast.AsyncFor, ast.AsyncWith)) \
@@ -2741,6 +2764,40 @@ class Module3_Weaver:
                 if len(_dc_sites2.get(_dc_x.name, [])) > 1:
                     _dc_bad.append(f"`{_dc_x.name}` defined inside a compound statement at line "
                                    f"{_dc_x.lineno} and bound elsewhere in {_dc_sname}")
+            if not _dc_is_module:
+                for _dc_b, _dc_ns in _dc_nodes377.items():
+                    if len(_dc_ns) < 2 or not any(
+                            isinstance(_dc_y, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                               ast.ClassDef)) or id(_dc_y) in _dc_ann377
+                            for _dc_y in _dc_ns):
+                        continue
+                    _dc_ns = sorted(_dc_ns, key=lambda _dc_y: (getattr(_dc_y, "lineno", 0),
+                                                               getattr(_dc_y, "col_offset", 0)))
+                    _dc_fd = all(isinstance(_dc_y, (ast.FunctionDef, ast.AsyncFunctionDef))
+                                 for _dc_y in _dc_ns)
+                    if _dc_fd and any(isinstance(_dc_dd, ast.Name) and _dc_dd.id == "property"
+                                      for _dc_dd in _dc_ns[0].decorator_list) and all(
+                            any(isinstance(_dc_dd, ast.Attribute)
+                                and isinstance(_dc_dd.value, ast.Name)
+                                and _dc_dd.value.id == _dc_b
+                                and _dc_dd.attr in ("setter", "getter", "deleter")
+                                for _dc_dd in _dc_y.decorator_list)
+                            for _dc_y in _dc_ns[1:]):
+                        continue
+                    if _dc_fd and all(
+                            any((isinstance(_dc_dd, ast.Name) and _dc_dd.id == "overload")
+                                or (isinstance(_dc_dd, ast.Attribute)
+                                    and _dc_dd.attr == "overload"
+                                    and isinstance(_dc_dd.value, ast.Name)
+                                    and _dc_dd.value.id in ("typing", "typing_extensions"))
+                                for _dc_dd in _dc_y.decorator_list)
+                            for _dc_y in _dc_ns[:-1]):
+                        continue
+                    _dc_bad.append(
+                        f"`{_dc_b}` bound {len(_dc_ns)} times in {_dc_sname} (lines "
+                        f"{', '.join(str(getattr(_dc_y, 'lineno', 0)) for _dc_y in _dc_ns)}"
+                        f"): CPython keeps the LAST binding, the model reads the first `def` "
+                        f"or annotated member (routes #377 / #378)")
             if _dc_is_module:
                 _dc_mscope = _dc_sites2
             _dc_is_module = False

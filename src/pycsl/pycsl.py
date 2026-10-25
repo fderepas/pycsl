@@ -4242,6 +4242,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                        [_p.arg for _p in _ar369.posonlyargs[1:]])
                         break
                     if _a369 in _dc346:
+                        # (#380) `@dataclass(init=False)` writes NO `__init__`: the lookup
+                        # goes on along the MRO (route #147's model), ending at
+                        # `object.__init__` (no argument) — b14 / b31 `D(1)` PROVED,
+                        # CPython TypeError.
+                        if _dc346[_a369]["init"] is False:
+                            continue
                         if _dc346[_a369]["init"] is not True:
                             break
                         _fo369 = {}
@@ -4308,47 +4314,215 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if ((_ec346.lower() + "__" + _f346.name) if _ec346 else _f346.name) in _tr369:
                 continue
             for _n369 in _ast341.walk(_f346):
-                if not (isinstance(_n369, _ast341.Call) and isinstance(_n369.func, _ast341.Name)
-                        and _n369.func.id in _cls341 and _n369.func.id not in _bound341
-                        and _n369.func.id not in _imp341
-                        and _sg369.get(_n369.func.id) is not None
-                        and not any(isinstance(_a, _ast341.Starred) for _a in _n369.args)
-                        and not any(_kw.arg is None for _kw in _n369.keywords)):
+                if not isinstance(_n369, _ast341.Call):
                     continue
-                _pp369, _kk369, _va369, _vk369, _po369 = _sg369[_n369.func.id]
-                _bd369 = ""
-                _gv369 = set()
-                if len(_n369.args) > len(_pp369) and not _va369:
-                    _bd369 = (f"takes {len(_pp369)} positional argument(s) but "
-                              f"{len(_n369.args)} were given")
-                _gv369 = {_p for _p, _d in _pp369[:len(_n369.args)]}
-                for _kw in _n369.keywords:
+                _fx380 = _n369.func
+                _cc380 = (isinstance(_fx380, _ast341.Name) and _fx380.id in _cls341
+                          and _fx380.id not in _bound341 and _fx380.id not in _imp341)
+                _ax380 = list(_n369.args)
+                _sxs380 = []
+                if (any(isinstance(_a, _ast341.Starred) for _a in _n369.args)
+                        or any(_kw.arg is None for _kw in _n369.keywords)):
+                    # (#379) a `*` / `**` argument at a call of a file class, a module
+                    # `def` or a method of a file class: the lowering drops it (or counts a
+                    # `*xs` as ONE positional), so its keys / length / values never reach
+                    # the callee — `D(**{"x": 5}).x == 0` and `h(1, **kw)` under
+                    # `no_exception` PROVED (CPython 5 / TypeError). ADMITTED only: a
+                    # `*xs` landing entirely in the `*args` parameter of every candidate
+                    # callee whose contract does not name that parameter (the mirror's
+                    # `self.set_precedence(p, n, *node.ifs)` shape: the contract holds for
+                    # any tuple there). Everything else is REFUSED.
+                    _cd379 = []
+                    _why379 = ""
+                    if _cc380:
+                        _why379 = f"constructs the file class `{_fx380.id}`"
+                    elif (isinstance(_fx380, _ast341.Name) and _fx380.id not in _imp341
+                          and any(isinstance(_s, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                                  and _s.name == _fx380.id for _s in _t341.body)):
+                        _cd379 = [(_s, 0) for _s in _t341.body
+                                  if isinstance(_s, (_ast341.FunctionDef,
+                                                     _ast341.AsyncFunctionDef))
+                                  and _s.name == _fx380.id]
+                    elif isinstance(_fx380, _ast341.Attribute):
+                        for _ks379 in _cls341.values():
+                            for _k379 in _ks379:
+                                for _s in _k379.body:
+                                    if (isinstance(_s, (_ast341.FunctionDef,
+                                                        _ast341.AsyncFunctionDef))
+                                            and _s.name == _fx380.attr):
+                                        _dn379 = {_ast341.unparse(_d) for _d in _s.decorator_list}
+                                        _cd379.append((_s, 0 if "staticmethod" in _dn379 else
+                                                       1 if "classmethod" in _dn379
+                                                       or not (isinstance(_fx380.value,
+                                                                          _ast341.Name)
+                                                               and _fx380.value.id in _cls341)
+                                                       else 0))
+                    if _cd379 and any(_kw.arg is None for _kw in _n369.keywords):
+                        _why379 = "passes a `**` mapping"
+                    import re as _re379
+                    _sl379 = source_code.splitlines()
+                    for _c379, _dr379 in _cd379:
+                        if _why379:
+                            break
+                        _ca379 = _c379.args
+                        _np379 = len(_ca379.posonlyargs + _ca379.args) - _dr379
+                        _ln379 = min([_d.lineno for _d in _c379.decorator_list]
+                                     + [_c379.lineno]) - 2
+                        _ct379 = [_l for _l in _sl379[_ln379 + 1:_c379.lineno]
+                                  if _l.strip().startswith("#@")]
+                        while _ln379 >= 0 and (_sl379[_ln379].strip().startswith("#")
+                                               or not _sl379[_ln379].strip()):
+                            _ct379.append(_sl379[_ln379])
+                            _ln379 -= 1
+                        if _ca379.vararg is None:
+                            _why379 = (f"passes a `*` sequence to `{_c379.name}`, which has no "
+                                       f"`*args` parameter")
+                        elif any(isinstance(_a, _ast341.Starred) and _j < _np379
+                                 for _j, _a in enumerate(_n369.args)):
+                            _why379 = (f"passes a `*` sequence that may bind named "
+                                       f"parameters of `{_c379.name}`")
+                        elif any(_re379.search(r"\b" + _re379.escape(_ca379.vararg.arg) + r"\b",
+                                           _l.split("#@", 1)[-1]) for _l in _ct379
+                                 if "#@" in _l):
+                            _why379 = (f"passes a `*` sequence into `*{_ca379.vararg.arg}`, "
+                                       f"which the contract of `{_c379.name}` reads")
+                    if _why379:
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n369, 'lineno', 0)}: the call "
+                            f"`{_ast341.unparse(_n369)}` {_why379}. The verifier drops a "
+                            f"`*` / `**` argument at a call (or counts a `*xs` as one "
+                            f"positional), so the keys, length and values it supplies never "
+                            f"reach the callee: CPython binds them, or raises TypeError for "
+                            f"an unknown, repeated or missing argument (route #379). Pass "
+                            f"every argument explicitly, by position or by keyword.",
+                            stage="ir-semantic", code="PYCSL-R379-STARRED-CALL-ARGUMENT")
+                    continue
+                if _cc380:
+                    # (#380) a METACLASS that defines `__call__` (or one the verifier cannot
+                    # see) decides what `C(..)` returns: b29's `M.__call__` returned 42 and
+                    # `C(1).x == 1` PROVED (CPython AttributeError). REFUSED: a construction
+                    # of a class whose MRO names a `metaclass=` other than `type` /
+                    # `abc.ABCMeta` / a file metaclass whose file MRO (over `type` /
+                    # `ABCMeta` only) binds no `__call__`.
+                    for _a380 in (_mro363.get(_fx380.id) or [_fx380.id]):
+                        for _k380 in _cls341.get(_a380, []):
+                            for _kw in _k380.keywords:
+                                if _kw.arg != "metaclass":
+                                    continue
+                                _mv380 = _kw.value
+                                _ok380 = False
+                                if isinstance(_mv380, _ast341.Name):
+                                    if _mv380.id == "type":
+                                        _ok380 = (_mv380.id not in _md369
+                                                  and _mv380.id not in _im369)
+                                    elif _im369.get(_mv380.id) == "abc.ABCMeta":
+                                        _ok380 = not _md369.get(_mv380.id)
+                                    elif (_mv380.id in _cls341 and _mro363.get(_mv380.id)
+                                          and _mv380.id not in _bound341
+                                          and _mv380.id not in _imp341):
+                                        _ok380 = all(
+                                            (_b in ("type", "ABCMeta") and _b not in _cls341)
+                                            or (_b in _cls341 and not any(
+                                                (isinstance(_z, (_ast341.FunctionDef,
+                                                                 _ast341.AsyncFunctionDef))
+                                                 and _z.name == "__call__")
+                                                or (isinstance(_z, _ast341.Name)
+                                                    and _z.id == "__call__"
+                                                    and not isinstance(_z.ctx, _ast341.Load))
+                                                for _kb in _cls341[_b] for _sb in _kb.body
+                                                for _z in ([_sb] if isinstance(
+                                                    _sb, (_ast341.FunctionDef,
+                                                          _ast341.AsyncFunctionDef,
+                                                          _ast341.ClassDef))
+                                                    else _ast341.walk(_sb))))
+                                            for _b in _mro363[_mv380.id])
+                                elif (isinstance(_mv380, _ast341.Attribute)
+                                      and isinstance(_mv380.value, _ast341.Name)
+                                      and _mv380.attr == "ABCMeta"):
+                                    _ok380 = _im369.get(_mv380.value.id) == "abc"
+                                if not _ok380:
+                                    raise _PyCSLSemErr341(
+                                        f"'{_f346.name}' line {getattr(_n369, 'lineno', 0)}: "
+                                        f"the construction `{_ast341.unparse(_n369)}` goes "
+                                        f"through the metaclass `{_ast341.unparse(_mv380)}` of "
+                                        f"class '{_a380}', which binds `__call__` (or cannot "
+                                        f"be resolved): CPython's `{_fx380.id}(..)` returns "
+                                        f"whatever that `__call__` returns, while the record "
+                                        f"model always builds an instance by `__init__` "
+                                        f"(route #380). Construct through a plain class, or "
+                                        f"call the metaclass method explicitly.",
+                                        stage="ir-semantic", code="PYCSL-R380-METACLASS-CALL")
+                    if _sg369.get(_fx380.id) is not None:
+                        _sxs380 = [_sg369[_fx380.id]]
+                elif (isinstance(_fx380, _ast341.Attribute) and _fx380.attr == "__init__"
+                      and isinstance(_fx380.value, _ast341.Call)
+                      and isinstance(_fx380.value.func, _ast341.Name)
+                      and _fx380.value.func.id == "super" and "super" not in _bound341
+                      and not _fx380.value.keywords):
+                    # (#380) `super().__init__(..)` / `super(X, self).__init__(..)` runs the
+                    # `__init__` of the class after X in the MRO of `type(self)`: checked
+                    # against it for X and every file subclass of X whose MRO tail after X is
+                    # that class's own MRO (else skipped); b20 `super().__init__(y=1)` over
+                    # `__init__(self, x)` PROVED, CPython TypeError.
+                    _sa380 = _fx380.value.args
+                    _X380 = (_ec346 if not _sa380 else _sa380[0].id
+                             if len(_sa380) == 2 and isinstance(_sa380[0], _ast341.Name)
+                             and _sa380[0].id in _cls341 else None)
+                    if _X380 is not None and _mro363.get(_X380):
+                        for _S380 in _cls341:
+                            _m380 = _mro363.get(_S380)
+                            if not _m380 or _X380 not in _m380:
+                                continue
+                            _tl380 = _m380[_m380.index(_X380) + 1:]
+                            if not _tl380:
+                                if _sg369.get(_S380) is not None:
+                                    _sxs380.append(([], {}, False, False, []))
+                            elif (_tl380[0] in _cls341 and _mro363.get(_tl380[0]) == _tl380
+                                  and _sg369.get(_tl380[0]) is not None):
+                                _sxs380.append(_sg369[_tl380[0]])
+                elif (isinstance(_fx380, _ast341.Attribute) and _fx380.attr == "__init__"
+                      and isinstance(_fx380.value, _ast341.Name)
+                      and _fx380.value.id in _cls341 and _fx380.value.id not in _bound341
+                      and _fx380.value.id not in _imp341 and _n369.args
+                      and _sg369.get(_fx380.value.id) is not None):
+                    # (#380) an explicit `C.__init__(self, ..)`: C's constructor binds the rest.
+                    _sxs380 = [_sg369[_fx380.value.id]]
+                    _ax380 = _ax380[1:]
+                for _sx380 in _sxs380:
+                    _pp369, _kk369, _va369, _vk369, _po369 = _sx380
+                    _bd369 = ""
+                    _gv369 = set()
+                    if len(_ax380) > len(_pp369) and not _va369:
+                        _bd369 = (f"takes {len(_pp369)} positional argument(s) but "
+                                  f"{len(_ax380)} were given")
+                    _gv369 = {_p for _p, _d in _pp369[:len(_ax380)]}
+                    for _kw in _n369.keywords:
+                        if _bd369:
+                            break
+                        if _kw.arg in _gv369:
+                            _bd369 = f"got multiple values for argument '{_kw.arg}'"
+                        elif _kw.arg in _po369 and not _vk369:
+                            _bd369 = f"got the positional-only argument '{_kw.arg}' by keyword"
+                        elif (_kw.arg not in {_p for _p, _d in _pp369} and _kw.arg not in _kk369
+                              and not _vk369):
+                            _bd369 = f"got an unexpected keyword argument '{_kw.arg}'"
+                        _gv369.add(_kw.arg)
+                    if not _bd369:
+                        _ms369 = ([_p for _p, _d in _pp369 if not _d and _p not in _gv369]
+                                  + [_p for _p, _d in _kk369.items() if not _d
+                                     and _p not in _gv369])
+                        if _ms369:
+                            _bd369 = f"is missing the required argument(s) {_ms369}"
                     if _bd369:
-                        break
-                    if _kw.arg in _gv369:
-                        _bd369 = f"got multiple values for argument '{_kw.arg}'"
-                    elif _kw.arg in _po369 and not _vk369:
-                        _bd369 = f"got the positional-only argument '{_kw.arg}' by keyword"
-                    elif (_kw.arg not in {_p for _p, _d in _pp369} and _kw.arg not in _kk369
-                          and not _vk369):
-                        _bd369 = f"got an unexpected keyword argument '{_kw.arg}'"
-                    _gv369.add(_kw.arg)
-                if not _bd369:
-                    _ms369 = ([_p for _p, _d in _pp369 if not _d and _p not in _gv369]
-                              + [_p for _p, _d in _kk369.items() if not _d
-                                 and _p not in _gv369])
-                    if _ms369:
-                        _bd369 = f"is missing the required argument(s) {_ms369}"
-                if _bd369:
-                    raise _PyCSLSemErr341(
-                        f"'{_f346.name}' line {getattr(_n369, 'lineno', 0)}: the construction "
-                        f"`{_ast341.unparse(_n369)}` {_bd369} — CPython raises TypeError "
-                        f"here, while the record model binds the arguments it can and "
-                        f"verifies the construction as succeeding (route #369). Call the "
-                        f"constructor with exactly its parameters (for a `@dataclass`: its "
-                        f"fields in declaration order, `InitVar`s included, `ClassVar` / "
-                        f"`init=False` members excluded, keyword-only fields by keyword).",
-                        stage="ir-semantic", code="PYCSL-R369-CONSTRUCTOR-ARITY")
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n369, 'lineno', 0)}: the construction "
+                            f"`{_ast341.unparse(_n369)}` {_bd369} — CPython raises TypeError "
+                            f"here, while the record model binds the arguments it can and "
+                            f"verifies the construction as succeeding (route #369). Call the "
+                            f"constructor with exactly its parameters (for a `@dataclass`: its "
+                            f"fields in declaration order, `InitVar`s included, `ClassVar` / "
+                            f"`init=False` members excluded, keyword-only fields by keyword).",
+                            stage="ir-semantic", code="PYCSL-R369-CONSTRUCTOR-ARITY")
         # (#372) each file class's fields: `_fa372[C][f]` the annotation ASTs of `f` (class
         # body, `self.f: T = ..` in a method), `_ff372[C][f]` the classes `f` may hold in a
         # hashed position (those annotations' `_dp365`, plus each `self.f = e` store of a
