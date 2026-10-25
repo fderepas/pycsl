@@ -14,4 +14,4 @@ def f(d: D) -> int:
     return d.x
 
 if __name__ == "__main__":
-    print(f(D(-1)))
+    assert f(D(-1)) >= 0, f(D(-1))

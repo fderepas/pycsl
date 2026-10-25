@@ -14,4 +14,4 @@ def f() -> int:
     return d.k
 
 if __name__ == "__main__":
-    print(f())
+    assert f() == 5, f()
