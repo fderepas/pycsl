@@ -4,7 +4,7 @@ r"""Test 4964 -- gen #37 route #226: CONTROL for 4955: the same paramless constr
 class C:
     def __init__(self) -> None:
         self.n = 7
-        self.name = "a"
+        self.name: str = "a"
 
 #@ ensures \result >= 5
 def read(c: C) -> int:
