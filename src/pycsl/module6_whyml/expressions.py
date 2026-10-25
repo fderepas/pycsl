@@ -14698,8 +14698,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # default: measured, `k = -1` in `R` (own or inherited) proved `getattr(r, "k", 0)
         # >= 0` and a method `k` proved `getattr(r, "k", 0) == 0` (CPython -1 / a bound
         # method). `class_binds_r376` (computed from the source in `_run_pipeline`): per
-        # class, the MRO's class-body names, "*" = unknown (a `__getattr__` /
-        # `__getattribute__`, an outside base), as is a class the map does not describe.
+        # class, the MRO's class-body names over the file's classes, "*" = unknown (a
+        # `__getattr__` / `__getattribute__`), as is a class the map does not describe.
         # The value found is not modelled (the per-site opaque is an `int` with every int
         # law, wrong for a method or a `str` class attribute), so such a `getattr` is
         # REFUSED. Inline (no mirror twin).
@@ -14715,8 +14715,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 f"getattr({_ga_o}, {_ga_n!r}, ...): '{_ga_n}' is not an instance field of "
                 f"'{_ga_t}', but it is not ABSENT either: a class body in its MRO binds it "
                 f"(a class attribute, method, property or nested class), `object` has it, "
-                f"or the MRO has a `__getattr__` / `__getattribute__` or a base outside "
-                f"this file. CPython's lookup finds that binding before the default, while "
+                f"or the MRO has a `__getattr__` / `__getattribute__`. CPython's lookup finds that binding before the default, while "
                 f"the model answered the default (route #376: `k = -1` in the class proved "
                 f"`getattr(r, \"k\", 0) >= 0`). The class attribute's value is not "
                 f"modelled, so this is refused: read the attribute directly, or rename it.",
@@ -20542,9 +20541,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         #   the bare element: `[*self]` was the ONE-element array `[self]`, so
         #   `no_exception \all` PROVED it (CPython TypeError) and `len([*x]) == 1` PROVED
         #   for `x: Any` (CPython: len(x)). When route #251's probe calls a starred
-        #   operand erased (program context, any `no_exception` or none), the node is
-        #   preceded by a failing assertion: neither the exception nor the length and
-        #   elements are modelled. Re-entry is marked like route #358's (`_pycsl_r358n`);
+        #   operand erased (program context; a DISPLAY under any `no_exception` or none,
+        #   a starred CALL ARGUMENT under `no_exception` only — the mirror forwards
+        #   erased `*nodes` to variadic emitters), the node is preceded by a failing
+        #   assertion: neither the exception nor the length and elements are modelled. Re-entry is marked like route #358's (`_pycsl_r358n`);
         #   inline (this method's mirror twin is `\trusted`, no new def, no raise).
         _d375 = None
         if (not _nr358 and (expr.get("type") if isinstance(expr, dict) else
@@ -20564,6 +20564,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      or (getattr(self, "_r249_scope", None) or {}).get("ret_erased")
                      or (getattr(self, "_r249_scope", None) or {}).get("any_ret")
                      or (getattr(self, "_r249_scope", None) or {}).get("eq_classes"))
+                and (_d375.get("type") != "Call"
+                     or getattr(self, "_current_no_exception", set())
+                     or getattr(self, "_current_no_exception_all", False))
                 and any(isinstance(_a375, dict) and _a375.get("type") == "Starred"
                         and isinstance(_a375.get("value"), dict)
                         and self._handle_binop(OpaqueExpr(

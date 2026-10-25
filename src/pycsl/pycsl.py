@@ -7378,8 +7378,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # in the MRO is found by the lookup first: CPython returns it (-1 / a bound method),
     # not `d`. Per class (lower-cased, as Module 6 keys records): the union of its own and
     # its file ancestors' class-body bindings; "*" when any of them defines `__getattr__`
-    # / `__getattribute__`, has a base that is not a file class (other than `object` /
-    # `Generic` / `Protocol`: its attributes are unknown), or its bases cannot be read.
+    # / `__getattribute__`. (A base outside the file is not read: its class attributes are
+    # a recorded residual — the mirror's emitter mixins derive from imported mixins.)
     # Inline (no helper: lesson a4); `_run_pipeline`'s mirror twin is `\trusted`.
     _cb376 = {}
     _bs376 = {}
@@ -7399,11 +7399,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _h376 = _b376.value if isinstance(_b376, _ast376.Subscript) else _b376
                 if isinstance(_h376, _ast376.Name):
                     _bl376.add(_h376.id)
-                elif (isinstance(_h376, _ast376.Attribute)
-                      and _h376.attr in ("Generic", "Protocol")):
+                elif isinstance(_h376, _ast376.Attribute):
                     _bl376.add(_h376.attr)
-                else:
-                    _own376.add("*")
             _q376 = list(_k376.body)
             while _q376:
                 _y376 = _q376.pop()
@@ -7438,10 +7435,27 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _a376 in _cb376:
                     _all376 |= _cb376[_a376]
                     _wl376.extend(_bs376.get(_a376, ()))
-                elif _a376 not in ("object", "Generic", "Protocol"):
-                    _all376.add("*")
             _cl376.setdefault(_cn376.lower(), set()).update(_all376)
         transpiler.class_binds_r376 = _cl376
+        # ROUTE #373 — the names of the defs nested (at any depth) in a METHOD: Module 5
+        # lifts each to a method of the class, so a bare call of one reaches no unit (read
+        # by `_reset_function_state`'s route #255 resolution).
+        _nd373 = set()
+        for _k376 in _ast376.walk(_t376):
+            if not isinstance(_k376, _ast376.ClassDef):
+                continue
+            for _m373 in _k376.body:
+                if not isinstance(_m373, (_ast376.FunctionDef, _ast376.AsyncFunctionDef)):
+                    continue
+                _q373 = list(_m373.body)
+                while _q373:
+                    _y373 = _q373.pop()
+                    if isinstance(_y373, _ast376.ClassDef):
+                        continue
+                    if isinstance(_y373, (_ast376.FunctionDef, _ast376.AsyncFunctionDef)):
+                        _nd373.add(_y373.name)
+                    _q373.extend(_ast376.iter_child_nodes(_y373))
+        transpiler.nested_method_defs_r373 = _nd373
     _mlw = transpiler.transpile()
 
     # ROUTE #30 (relaunch #45) — REFUSE an UNINTERPRETED `match` pattern.

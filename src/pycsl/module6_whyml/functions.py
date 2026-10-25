@@ -2430,8 +2430,12 @@ class FunctionEmissionMixin:
                     #   `t = g(); t - t == 0` / `t == t` / `t * 0 == 0` PROVED (CPython
                     #   1 / False / ""). Such a call's result is route #249's arbitrary
                     #   object unless every method so named is annotated `-> int` /
-                    #   `-> bool` (an unconstrained `int` over-approximates those).
-                    if (_r255_f in _r255_short and not all(
+                    #   `-> bool` (an unconstrained `int` over-approximates those). The
+                    #   nested-in-a-method names come from the source (`_run_pipeline`).
+                    if (_r255_f in _r255_short
+                            and _r255_f in (getattr(self, "nested_method_defs_r373", None)
+                                            or set())
+                            and not all(
                             _r373_g.get("return_annotation") in ("int", "bool")
                             for _r373_g in _r255_short[_r255_f])):
                         _r249_any_ret_funcs.add(_r255_f)
