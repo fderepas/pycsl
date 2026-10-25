@@ -2990,24 +2990,27 @@ class Module3_Weaver:
                               + [x for x in (_nb_pa.vararg, _nb_pa.kwarg) if x is not None]):
                     if _nb_a.arg in _nb_builtin_names:
                         _nb_shadow.add(_nb_a.arg)
-                # (#49) gen #37, ROUTE #386 (red team 30; MEASURED PROVED at a064a298f, CPython
-                # violates) — a DEF / CLASS nested in a function or method, or a function-local
-                # IMPORT, named like a builtin: `def max(x, y): return -100` in a method, then
-                # `max(self.a, 1)` lowered to the builtin model (`MinMax.max`) and proved
-                # `\result >= self.a` (CPython -100); `from operator import sub as max` then
-                # `max(3, 1) == 3` proved (CPython 2). The local binding wins in CPython, so
-                # its reads join the store / parameter arm above (`from builtins import X`
-                # unaliased binds the builtin itself and stays admitted). CENSUS (both
-                # corpora, 53 mirrors, `pycsl_lib`, live `src/pycsl`): one site, 3784's
-                # function-local `class KeyError` (expected FAIL, refused by route #305).
-                for _nb_n, _nb_ss in _nb_sites.items():
-                    if _nb_n in _nb_builtin_names and any(
-                            _nb_sk == "def" or (_nb_sk == "import" and not (
-                                isinstance(_nb_nd, ast.ImportFrom)
-                                and _nb_nd.module in ("builtins", "__builtin__")))
-                            for (_nb_sk, _nb_k, _nb_nd) in _nb_ss):
-                        _nb_shadow.add(_nb_n)
-                        _nb_shadow386.add(_nb_n)
+            # (#49) gen #37, ROUTE #386 (red team 30; MEASURED PROVED at a064a298f, CPython
+            # violates) — a DEF / CLASS nested in a function or method, or an IMPORT (local
+            # or module-level), named like a builtin: `def max(x, y): return -100` in a
+            # method, then `max(self.a, 1)` lowered to the builtin model (`MinMax.max`) and
+            # proved `\result >= self.a` (CPython -100); `from operator import sub as max`
+            # (in the function or at module scope) then `max(3, 1) == 3` proved (CPython 2).
+            # The binding wins in CPython, so its reads join the store / parameter arm above
+            # (`from builtins import X` binds the builtin itself and stays admitted; a
+            # MODULE-level `def len` is route #75's user-shadowing model, unchanged). CENSUS
+            # (both corpora, 53 mirrors, `pycsl_lib`, live `src/pycsl`): one read site,
+            # 3784's function-local `class KeyError` (expected FAIL, refused by route #305);
+            # `pycsl_lib/re` imports `compile` but never reads it.
+            for _nb_n, _nb_ss in _nb_sites.items():
+                if _nb_n in _nb_builtin_names and any(
+                        (_nb_sk == "def" and _nb_kind == "function")
+                        or (_nb_sk == "import" and not (
+                            isinstance(_nb_nd, ast.ImportFrom)
+                            and _nb_nd.module in ("builtins", "__builtin__")))
+                        for (_nb_sk, _nb_k, _nb_nd) in _nb_ss):
+                    _nb_shadow.add(_nb_n)
+                    _nb_shadow386.add(_nb_n)
             # `from builtins import sum as len` binds a builtin name to ANOTHER builtin; the
             # import resolver treats a `builtins` import as the builtin of the bound name
             # (measured past the first cut: `len([5]) == 1` proved, CPython 5).
