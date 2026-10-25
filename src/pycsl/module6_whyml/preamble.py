@@ -9539,6 +9539,8 @@ class PreambleEmissionMixin:
                     # byte-identical. INLINE: no nested def (check-mirror-coverage).
                     _pj_why = ""
                     _pj_strs = []
+                    _pj_arr = {}
+                    _pj_ty = {}
                     if not _ci_emitted and class_invs:
                         _pj_P = []
                         _stk_pj = list(class_invs)
@@ -9565,6 +9567,27 @@ class PreambleEmissionMixin:
                             elif _ty_pj in ("BinOp", "UnaryOp", "Compare", "BoolOp"):
                                 _stk_pj.extend(_v_pj for _v_pj in _nd_pj.values()
                                                if isinstance(_v_pj, (dict, list)))
+                            elif (_ty_pj == "ArrayLen"
+                                  and isinstance(_nd_pj.get("var"), str)
+                                  and _nd_pj["var"].startswith("self.")):
+                                # (#49) gen #37, ROUTE #226 increment 2c: `\length(self.f)`
+                                # over an ARRAY field is stated with `f` bound as an array
+                                # (its emitted record type) — see the binding loop below.
+                                _f_pj = _nd_pj["var"][5:]
+                                _et_pj = (self._emitted_record_field_types.get(type_name)
+                                          or {}).get(_q(_f_pj), "")
+                                if _f_pj not in field_names:
+                                    _pj_why = "names `self.%s`, which is not a field of the record" % _f_pj
+                                elif not _et_pj.startswith("array "):
+                                    _pj_why = ("takes the length of the non-array field `self.%s` (%s)"
+                                               % (_f_pj, _et_pj or field_types.get(_f_pj)))
+                                elif _f_pj in _ci_unk:
+                                    _pj_why = ("reads `self.%s`, which the constructor COMPUTES "
+                                               "or stores under control flow" % _f_pj)
+                                else:
+                                    _pj_arr[_f_pj] = _et_pj
+                                    if _f_pj not in _pj_P:
+                                        _pj_P.append(_f_pj)
                             elif _ty_pj in ("Number", "Num", "Int"):
                                 if not isinstance(_nd_pj.get("value"), int):
                                     _pj_why = "contains a non-integer literal"
@@ -9584,11 +9607,34 @@ class PreambleEmissionMixin:
                                     continue
                                 _v_ci = _ci_bind.get(fn)
                                 _val_ci = None
-                                if isinstance(_v_ci, dict) and _v_ci.get("type") == "Var":
+                                if fn in _pj_arr:
+                                    # An ARRAY field: bound to an `__init__` parameter (the
+                                    # parameter is quantified at the field's array type and
+                                    # nothing is assumed of it), or — no binding, not computed
+                                    # — to the literal LENGTH Module 5 records in
+                                    # `field_defaults` (`[0] * 8`, `[1, 2, 3]`), stated as
+                                    # `Array.length f = N`. Anything else: no goal.
+                                    _pj_ty[_q(fn)] = _pj_arr[fn]
+                                    if isinstance(_v_ci, dict) and _v_ci.get("type") == "Var":
+                                        _nm_ci = _v_ci.get("name")
+                                        if (_nm_ci in _ci_params
+                                                and _ci_ptypes.get(_nm_ci, "") not in ("int", "bool", "str", "float")
+                                                and _pj_ty.get(whyml_ident(_nm_ci), _pj_arr[fn]) == _pj_arr[fn]):
+                                            _val_ci = whyml_ident(_nm_ci)
+                                            _pj_ty[_val_ci] = _pj_arr[fn]
+                                            if _val_ci not in _pj_used:
+                                                _pj_used.append(_val_ci)
+                                    elif (_v_ci is None and isinstance(defaults.get(fn), int)
+                                          and not isinstance(defaults.get(fn), bool)
+                                          and defaults[fn] >= 0):
+                                        _val_ci = "#len %d" % defaults[fn]
+                                elif isinstance(_v_ci, dict) and _v_ci.get("type") == "Var":
                                     _nm_ci = _v_ci.get("name")
                                     if (_nm_ci in _ci_params
-                                            and _ci_ptypes.get(_nm_ci, "") in ("", "int", "bool")):
+                                            and _ci_ptypes.get(_nm_ci, "") in ("", "int", "bool")
+                                            and _pj_ty.get(whyml_ident(_nm_ci), "int") == "int"):
                                         _val_ci = whyml_ident(_nm_ci)
+                                        _pj_ty[_val_ci] = "int"
                                         if _val_ci not in _pj_used:
                                             _pj_used.append(_val_ci)
                                 elif isinstance(_v_ci, dict) and _v_ci.get("type") in (
@@ -9625,6 +9671,8 @@ class PreambleEmissionMixin:
                             self._emit_record_ctx = None
                             self._in_spec = False
                             _pj_allowed = {_q(fn) for fn in _pj_P} | {"true", "false", "not"}
+                            if _pj_arr:
+                                _pj_allowed |= {"Array", "length"}
                             for _s_ci in _pj_strs:
                                 for _id_ci in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _s_ci):
                                     if _id_ci not in _pj_allowed and not _pj_why:
@@ -9655,6 +9703,14 @@ class PreambleEmissionMixin:
                                         _t2_pj = _n2_pj.get("type")
                                         if _t2_pj == "Var":
                                             _vs_pj.add(_n2_pj.get("name"))
+                                        elif (_t2_pj == "Call" and _n2_pj.get("func") == "len"
+                                              and len(_n2_pj.get("args") or []) == 1
+                                              and isinstance(_n2_pj["args"][0], dict)
+                                              and _n2_pj["args"][0].get("type") == "Var"
+                                              and _pj_ty.get(whyml_ident(
+                                                  _n2_pj["args"][0].get("name") or ""), "int") != "int"):
+                                            # `len(p)` of an ARRAY-bound parameter (2c)
+                                            pass
                                         elif _t2_pj not in ("BinOp", "UnaryOp", "Compare",
                                                             "BoolOp", "Number", "Num", "Int",
                                                             "Bool", "BoolLit", "Constant",
@@ -9667,7 +9723,9 @@ class PreambleEmissionMixin:
                                 _prev_st_ci = getattr(self, "_current_symbol_table", None)
                                 _prev_fp_ci = getattr(self, "_formal_params", None)
                                 _prev_cp_ci = getattr(self, "_current_params", None)
-                                self._current_symbol_table = {_p: "int" for _p in _pnames_pj}
+                                self._current_symbol_table = {
+                                    _p: ("int" if _pj_ty.get(whyml_ident(_p), "int") == "int"
+                                         else "list") for _p in _pnames_pj}
                                 self._formal_params = list(_pnames_pj)
                                 self._current_params = set(_pnames_pj)
                                 self._in_spec = True
@@ -9681,22 +9739,36 @@ class PreambleEmissionMixin:
                                 self._formal_params = _prev_fp_ci
                                 self._current_params = _prev_cp_ci
                                 if _rs_pj is not None and all(
-                                        _id_ci in (set(_pj_used) | {"true", "false", "not"})
+                                        _id_ci in (set(_pj_used) | {"true", "false", "not"}
+                                                   | ({"Array", "length"} if _pj_arr else set()))
                                         for _id_ci in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _rs_pj)):
                                     _pj_reqs.append(_rs_pj)
                         if not _pj_why:
                             _ci_prem = " -> ".join(
-                                ["%s = %s" % (_q(fn), _pj_vals[fn]) for fn in field_names
-                                 if fn in _pj_P] + _pj_reqs)
+                                [(("(Array.length %s) = %s" % (_q(fn), _pj_vals[fn][5:]))
+                                  if _pj_vals[fn].startswith("#len ")
+                                  else "%s = %s" % (_q(fn), _pj_vals[fn]))
+                                 for fn in field_names if fn in _pj_P] + _pj_reqs)
                             _ci_binders = [_q(fn) for fn in field_names if fn in _pj_P]
                             for _u_ci in _pj_used:
                                 if _u_ci not in _ci_binders:
                                     _ci_binders.append(_u_ci)
+                            # Binder groups by type (`forall xs : array int, n : int.`); an
+                            # all-int binder list prints exactly as before (`forall a b : int.`).
+                            _grp_pj = []
+                            for _u_ci in _ci_binders:
+                                _t_ci = _pj_ty.get(_u_ci, "int")
+                                if _grp_pj and _grp_pj[-1][1] == _t_ci:
+                                    _grp_pj[-1][0].append(_u_ci)
+                                else:
+                                    _grp_pj.append(([_u_ci], _t_ci))
+                            _bnd_pj = ", ".join("%s : %s" % (" ".join(_g[0]), _g[1])
+                                                for _g in _grp_pj)
                             _ci_body = " /\\ ".join("(%s)" % _s for _s in _pj_strs)
                             out.append("")
                             out.append(
                                 f"  goal _check_class_inv_{whyml_ident(type_name)} : "
-                                f"forall {' '.join(_ci_binders)} : int. "
+                                f"forall {_bnd_pj}. "
                                 f"{_ci_prem} -> {_ci_body}")
                             _ci_emitted = True
                     # A `_pj_why` left set means NO goal. The one shape here that was a
