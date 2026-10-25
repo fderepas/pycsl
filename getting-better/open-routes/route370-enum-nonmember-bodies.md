@@ -1,0 +1,7 @@
+# OPEN ROUTE #370 — ENUM CLASS-BODY NAMES THAT ARE NOT MEMBERS ARE READ AS MEMBERS (mangled private, nested class, descriptors, mutated `_ignore_`)
+**Status: OPEN, Severity 1.** Red-team round 28 (2026-10-25, probes around the #357-#367 repairs); driver-reproduced on main 863a844aa (rc=0 "Verification SUCCESS"; CPython violates; see `scratchpad/rt28/driver-repro.txt`).
+Witnesses `witnesses-r370/`: `n02_explicit_mangled_private.py`, `n07_nested_class_not_member.py`, `n13_staticmethod_value.py`, `n14_partial_value.py`, `n15_classmethod_ref.py`, `n21_property_member.py`, `n22_ignore_append_later.py`, `n34_ignore_append_attr.py`, `n40_partial_by_value.py`, `n42_ignore_comma_member_attr.py`, `n43_mangled_intenum_cmp.py`, `n44_nested_class_member_cmp.py`, `n45_nested_def_member.py`, `n46_property_named_value.py`, `n55_intenum_nested_class_value.py`.
+
+Enum tests the MANGLED `_C__x` form; the #367 repair checks only the source `__x` prefix (explicit `_C__B`: n02/n42/n43). `C.B.value` / `.name` lowers to `get_value(get_B ..)` for any class-body name: nested class, staticmethod, classmethod, partial, DynamicClassAttribute, def, property. `_ignore_` is read as its literal only (`_ignore_.append`, n22/n34). Slips past #367/#355/#356. CPython ValueError / AttributeError.
+
+Repair: Member set by Enum's own rules: mangled-private test, drop nested classes / descriptors / functions / partials, refuse a non-literal or mutated `_ignore_`, refuse `.value` / `.name` on a non-member.

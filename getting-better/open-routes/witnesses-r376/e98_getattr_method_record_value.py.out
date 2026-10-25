@@ -1,0 +1,23 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt28/e98_getattr_method_record_value.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_nbo48ndr.mlw", line 9, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 25 steps).
+
+File "/tmp/.pycsl_nbo48ndr.mlw", line 9, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 29 steps).
+
+File "/tmp/.pycsl_nbo48ndr.mlw", line 16, characters 15-34:
+Sub-goal postcondition of goal r__k'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_nbo48ndr.mlw", line 8, characters 9-10: unused variable r
+Warning, file "/tmp/.pycsl_nbo48ndr.mlw", line 16, characters 15-34: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

@@ -1,0 +1,14 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt28/d17_classvar_alias_invariant_ctor.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_hq53ym4y.mlw", line 9, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_hq53ym4y.mlw", line 11, characters 8-9: unused variable d
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #369 (dataclass specifier aliases), #370 (enum non-member bodies as members), #371 (hashability: first base only),
+##   #372 (hashed element class from fields/subscripts), #373 (nested def in a method = opaque int), #374 (slots names unmangled), #375 (erased
+##   augassign / star-unpack), #376 (getattr default vs class attribute) OPENED (red team 28: 67/360 confirmed; 8/8 sample driver-reproduced
+##   rc=0 on 863a844aa). d08 = route #226 carrier (already recorded, r226 executor).
+
 ## gen #37 (2026-10-25): #364 + #365 + #366 + #367 REPAIRED, candidate (r364 executor off fcc2c822; code e78477a2 + 396b6ebb, corpus +
 ##   docs ece5f63b (annotations 7.33 / T.6.44), census 694d2e7c, route docs; inline in the #346-#349 and #339/#352 blocks of
 ##   `_run_pipeline`, no new def, ledger 3, no new refusal code). Sound refusals, no emission change. #364: every class-scope binding
