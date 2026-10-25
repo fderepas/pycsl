@@ -100,6 +100,11 @@ KNOWN_DEFICITS = {
     # param-dependent non-scalar field is threaded faithfully (routes #13/#17/#18).
     "0661.py": ("__init__", "route #15 residue: param-dependent list field, no let inode__init"),
     "0662.py": ("__init__", "route #15 residue: param-dependent list field, no let inode__init"),
+    # (#49) gen #37 (driver, 2026-10-25): route #342 control 4574 stores a computed str field
+    # (`type(self).__name__`), so no `let b__init` is emitted and its `#@ requires k >= 0` is not a
+    # `requires { }` clause. Measured NOT exploitable: `B(-1)` inside a verified function FAILS
+    # (getting-better/open-routes/witnesses-r342/drv4574_ctor_requires_still_checked.py, rc=1; CPython violates), because the construction site is still checked.
+    "4574_gen37_r342_ctl_param_store_type_self.py": ("__init__", "route #15 residue: computed non-int field, no let b__init; construction site still checked"),
     # (#49) gen #31 — THE TWO DUNDER ENTRIES THAT USED TO LIVE HERE ARE GONE, AND THAT IS
     # THE POINT OF WRITING A CLOSE CONDITION DOWN. Both said "dunder dropped from
     # emission", both named the same close condition ("emit dunders"), and route #219's
