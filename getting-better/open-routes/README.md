@@ -6,7 +6,7 @@
 ##   The constructor-invariant goal now admits `\length(self.f)` over an array field: `f` bound at its array type to the `__init__`
 ##   parameter it is stored from (quantified, premise-free for a synthesized dataclass `__init__`) or to its literal initial length
 ##   (`(Array.length f) = N`); `#@ requires` conjuncts with `len(p)` / `\length(p)` are premises. Census: 60 `\length` classes; 39 now
-##   get a goal (18 discharge, 21 FAIL), 21 computed container stores stay goal-less. 13 PASS corpus constructors (0925-0929,
+##   get a goal (16 discharge, 22 FAIL incl. the carrier, 1 refused file), 21 computed container stores stay goal-less. 13 PASS corpus constructors (0925-0929,
 ##   0933-0935, 1190, 1681, 1682, 1690, 2220; 2220 a latent false proof across the module boundary) gained `#@ requires len(toks) >= 1`
 ##   (callers satisfy it, labels unchanged, all re-proved). Registered carrier + witnesses 5100-5109 (incl. red team 29 a06 / a07)
 ##   PROVED at base -> FAIL; carrier row now asserts FAILED; controls 5110-5114 PROVED. Root 36 MOVED (goal line only, all re-proved

@@ -841,11 +841,11 @@ registered carrier). After 2c: **211** have a goal, 39 none, 0 lost. Of the 60 `
 
 | bucket | classes | goal after 2c | verdict of the goal alone (`why3 prove -G`) |
 |---|---|---|---|
-| list field bound to an `__init__` PARAMETER | 23 (carrier, mirror `proof2why3/parser._Parser`, 0901, 0925-0929, 0933-0935, 0966, 1190, 1679-1682, 1685-1687, 1689, 1690, 2220, 2221) | yes | **2 discharge** (mirror `pos <= len`, 0966 `pos <= len`) / **21 FAIL** (`len(toks) >= 1` / `i < len(toks)`, false for `[]`) |
-| paramless, LITERAL initialiser (`[0] * 8`, `[1, 2, 3]`, `[]`) | 16 (0595, 0596, 0614, 0615, 0618, 0704, 0981, 1252, 1253, 1872, 1873, 1885, 2820, 3692, 3693 + 0981 refused) | yes (15 emit) | **15 discharge** / 0 FAIL |
+| list field bound to an `__init__` PARAMETER | 24 (carrier, mirror `proof2why3/parser._Parser`, 0901, 0925-0929, 0933-0935, 0966, 1190, 1679-1682, 1685-1687, 1689, 1690, 2220, 2221) | yes | **2 discharge** (mirror `pos <= len`, 0966 `pos <= len`) / **22 FAIL** (carrier + 21 corpus: `len(toks) >= 1` / `i < len(toks)`, false for `[]`) |
+| paramless, LITERAL initialiser (`[0] * 8`, `[1, 2, 3]`, `[]`) | 15 (0595, 0596, 0614, 0615, 0618, 0704, 1252, 1253, 1872, 1873, 1885, 2820, 3692, 3693; 0981 is a refused file) | yes (14 emit) | **14 discharge** / 0 FAIL |
 | list field the constructor COMPUTES (`init_unknown_fields`: `[Tok(0)] * N`, `bytearray(K)`, a module constant) | 21 (0421-0428, 0452, 0459-0461, 0715, 0716, 0719-0725, 1248, 1249) | **no** (residual) | — |
 
-The 21 FAILs: 8 in expected-FAIL files (0901, 1679, 1680, 1685-1687, 1689, 2221 — they stay FAIL), the carrier, and **13
+The 22 FAILs: 8 in expected-FAIL files (0901, 1679, 1680, 1685-1687, 1689, 2221 — they stay FAIL), the carrier, and **13
 PASS files** (0925-0929, 0933-0935, 1190, 1681, 1682, 1690, 2220). Each of the 13 is a constructor that takes a list and
 claims a lower bound on its length with no precondition — `Parser([])` violates it in CPython; 2220 publishes it across the
 module boundary (`count(p)`: `ensures \result >= 1`, CPython `count(Parser([]))` is 0 — a latent false proof). Repaired in the
