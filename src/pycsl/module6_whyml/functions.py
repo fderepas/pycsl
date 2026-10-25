@@ -2450,8 +2450,13 @@ class FunctionEmissionMixin:
                 _r255_ra = _r249_g.get("return_annotation")
                 _r255_gtv = {_tp.get("name") for _tp in (_r249_g.get("type_params") or [])
                              if isinstance(_tp, dict)}
+                # (#49) ROUTE #357: a method resolved here whose return annotation the
+                # lowering does not carry (a FIELD-LESS class, `-> "W"` included: the
+                # unit-name loop above already holds it) returns an arbitrary object too;
+                # `s = self.me()` kept the int laws (`s - s == 0` PROVED, CPython 1).
                 if (_r255_ra in ("Any", "object", None) or _r255_ra in _r249_tv
-                        or _r255_ra in _r255_gtv):
+                        or _r255_ra in _r255_gtv
+                        or _r249_g.get("name") in _r249_any_ret_funcs):
                     if not str(_r249_g.get("name", "")).endswith("____init__"):
                         _r249_any_ret_funcs.add(_r255_f)
         # A class the model does NOT carry as a record (a `type <c> = int` alias) whose own
@@ -2803,10 +2808,16 @@ class FunctionEmissionMixin:
                     elif _r249_et == "DictLit":
                         _r249_es.extend(_r249_e.get("keys") or [])
                         _r249_es.extend(_r249_e.get("values") or [])
+                    elif _r249_et == "UnknownPyExpr":
+                        # ROUTE #357: an expression Module 5 does not represent
+                        # (`type(self)()`, a computed callee) is an arbitrary object
+                        _r249_hit = True
                     elif _r249_et == "Call" and isinstance(_r249_e.get("func"), str):
                         _r249_f = _r249_e["func"]
                         _r249_fb = _r249_f.split(".")[0] if "." in _r249_f else ""
-                        if _r249_fb and _r249_fb != "self" and (
+                        if _r249_f.endswith(".__class__"):
+                            _r249_hit = True  # route #357: `e.__class__()` constructs anything
+                        elif _r249_fb and _r249_fb != "self" and (
                                 _r249_fb in _r249_erased
                                 or (_r249_fb in _r249_cont
                                     and _r249_f.rsplit(".", 1)[-1] in (

@@ -1899,6 +1899,54 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         "Name", "Constant", "BinOp", "UnaryOp", "Compare", "BoolOp", "IfExp", "Tuple",
         "Load", "Add", "Sub", "Mult", "USub", "UAdd", "Not", "And", "Or", "Eq", "NotEq",
         "Lt", "LtE", "Gt", "GtE", "arguments", "arg", "Lambda"))
+    # (#49) ROUTE #357 — A CONSTRUCTION THROUGH THE RUNTIME CLASS RUNS A CONSTRUCTOR NOBODY
+    # CHECKED. `type(self)(..)` (admitted by rule (1) below) and `<e>.__class__(..)` (an
+    # attribute callee) call the `__init__` of whatever class the value has at run time — a
+    # subclass's, not the one in this file — and the model erases the call to an unknown
+    # value: under `no_exception \all`, `type(self)()` for a `W` whose `__init__` takes an
+    # argument PROVED (CPython TypeError), and an argument object handed to it may be
+    # mutated unseen. REFUSED when the call sits in a function under `no_exception` (any
+    # exception set: the unseen constructor may raise anything) or passes an argument that
+    # is not a literal constant. The value itself is erased in Module 6 (route #249's walk).
+    # Inline (`_run_pipeline`'s mirror twin is `\trusted` and already raises).
+    _nxn357 = {_f357.get("name") for _f357 in (ir_data.get("functions") or [])
+               if isinstance(_f357, dict) and (
+                   (_f357.get("contracts") or {}).get("no_exception_all")
+                   or (_f357.get("contracts") or {}).get("no_exception"))}
+    _nx357 = set()
+    for _s357 in getattr(unified_ast, "body", []) or []:
+        _fd357 = ([(_s357.name, _m357) for _m357 in _s357.body]
+                  if isinstance(_s357, _ast.ClassDef) else [(None, _s357)])
+        for _cn357, _d357 in _fd357:
+            if (isinstance(_d357, (_ast.FunctionDef, _ast.AsyncFunctionDef))
+                    and ((_cn357.lower() + "__" + _d357.name) if _cn357 else _d357.name)
+                    in _nxn357):
+                _nx357 |= {id(_y357) for _y357 in _ast.walk(_d357)}
+    for _n357 in _ast.walk(unified_ast):
+        if not (isinstance(_n357, _ast.Call) and (
+                (isinstance(_n357.func, _ast.Call) and isinstance(_n357.func.func, _ast.Name)
+                 and _n357.func.func.id == "type" and len(_n357.func.args) == 1)
+                or (isinstance(_n357.func, _ast.Attribute)
+                    and _n357.func.attr == "__class__"))):
+            continue
+        _why357 = None
+        if id(_n357) in _nx357:
+            _why357 = "it sits in a function declaring `no_exception`"
+        elif not all(isinstance(_a357, _ast.Constant) for _a357 in
+                     list(_n357.args) + [_k357.value for _k357 in _n357.keywords]):
+            _why357 = "it passes an argument that is not a literal constant"
+        if _why357 is not None:
+            from errors import PyCSLSemanticError as _PyCSLSemErr357
+            raise _PyCSLSemErr357(
+                "a construction through the runtime class is out of scope (route #357): "
+                "line %d calls `type(..)(..)` / `.__class__(..)`, which runs the `__init__` "
+                "of the value's DYNAMIC class (possibly a subclass outside this file) — the "
+                "model cannot check that constructor's exceptions or effects, and %s. Name "
+                "the class explicitly (`C(..)`), or construct it outside the "
+                "`no_exception` function with literal arguments only."
+                % (getattr(_n357, "lineno", 0), _why357),
+                filename=args.file, line=getattr(_n357, "lineno", 0),
+                stage="ir-semantic", code="PYCSL-R357-DYNAMIC-CONSTRUCTOR")
     _lf290 = set()
     for _st290 in getattr(unified_ast, "body", []) or []:
         if (isinstance(_st290, _ast.FunctionDef) and len(_st290.args.args) == 1

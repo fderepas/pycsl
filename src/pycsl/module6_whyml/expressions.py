@@ -5262,10 +5262,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     elif _r249_et == "DictLit":
                         _r249_es.extend(_r249_e.get("keys") or [])
                         _r249_es.extend(_r249_e.get("values") or [])
+                    elif _r249_et == "UnknownPyExpr":
+                        _r249_hit = True  # route #357 (the fixpoint's copy)
                     elif _r249_et == "Call" and isinstance(_r249_e.get("func"), str):
                         _r249_f = _r249_e["func"]
                         _r249_fb = _r249_f.split(".")[0] if "." in _r249_f else ""
-                        if _r249_fb and _r249_fb != "self" and (
+                        if _r249_f.endswith(".__class__"):
+                            _r249_hit = True  # route #357: `e.__class__()`
+                        elif _r249_fb and _r249_fb != "self" and (
                                 _r249_fb in _r249_er
                                 or (_r249_fb in _r249_ct
                                     and _r249_f.rsplit(".", 1)[-1] in (
