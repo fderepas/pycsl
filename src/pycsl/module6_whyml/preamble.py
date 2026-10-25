@@ -9373,6 +9373,7 @@ class PreambleEmissionMixin:
                     # and a paramless constructor with no unknown field is exactly the case
                     # where `field_witness` IS `field_defaults`. CENSUS: all 113 in-scope
                     # corpus classes already satisfy this, so the honesty costs nothing.
+                    _ci_emitted = False
                     _ci_labels = [_q(fn) for fn in field_names]
                     _ci_unk = (set(td.get("init_unknown_fields") or [])
                                | set(td.get("init_unknown_cf_fields") or []))
@@ -9496,6 +9497,13 @@ class PreambleEmissionMixin:
                             for _id_ci in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _s_ci):
                                 if _id_ci not in (_ci_allowed | set(_ci_used)):
                                     _ci_ok = False
+                        # (#49) gen #37: a parameter binder that is ALSO the label of a
+                        # field it is NOT bound to conflates two values — `self.x = y;
+                        # self.y = x` under `self.x == self.y` was stated `forall x y. x = y
+                        # -> y = x -> (x = y)` and PROVED (CPython `D(1, 2)`: 2 != 1).
+                        for fn in field_names:
+                            if _q(fn) in _ci_used and _ci_vals.get(fn) != _q(fn):
+                                _ci_ok = False
                         if _ci_ok and _ci_strs:
                             _ci_prem = " -> ".join(
                                 ["%s = %s" % (_q(fn), _ci_vals[fn]) for fn in field_names]
@@ -9511,6 +9519,192 @@ class PreambleEmissionMixin:
                                 f"  goal _check_class_inv_{_ci_gname} : "
                                 f"forall {' '.join(_ci_binders)} : int. "
                                 f"{_ci_prem} -> {_ci_body}")
+                            _ci_emitted = True
+                    # (#49) gen #37, ROUTE #226 — THE INT-FIELD PROJECTION (increment 2b).
+                    # Increments 1/2 state the goal only when EVERY field of the record is an
+                    # int bound to a literal / an int parameter. A class whose invariant reads
+                    # only INT fields but which ALSO has a `str` / `List` / record field (or a
+                    # constructor parameter of such a type) therefore got NO goal, and the
+                    # invariant was ASSUMED by every method (gen #37 carriers q362str /
+                    # q362list / q362xinit: `ensures \\result >= 0` on `d.x` PROVED, CPython
+                    # `D(-1, ..).x` is -1). The other fields cannot occur in an invariant that
+                    # does not name them, so they are UNCONSTRAINED in the goal: the goal is
+                    # stated over the fields the invariant names (P) and the int parameters
+                    # bound to them, exactly in increment 2's shape. `__init__`'s `#@
+                    # requires` become premises CONJUNCT BY CONJUNCT, keeping only a conjunct
+                    # whose every variable is one of those int parameters (dropping a premise
+                    # only STRENGTHENS the goal). Anything the goal cannot state faithfully
+                    # leaves `_pj_why` set and Module 6 REFUSES below rather than assume it.
+                    # Run ONLY when increment 1/2 emitted nothing, so their goals are
+                    # byte-identical. INLINE: no nested def (check-mirror-coverage).
+                    _pj_why = ""
+                    _pj_strs = []
+                    if not _ci_emitted and class_invs:
+                        _pj_P = []
+                        _stk_pj = list(class_invs)
+                        while _stk_pj and not _pj_why:
+                            _nd_pj = _stk_pj.pop()
+                            if isinstance(_nd_pj, list):
+                                _stk_pj.extend(_nd_pj)
+                                continue
+                            if not isinstance(_nd_pj, dict):
+                                continue
+                            _ty_pj = _nd_pj.get("type")
+                            if _ty_pj == "FieldGet" and _nd_pj.get("object") == "self":
+                                _f_pj = _nd_pj.get("field")
+                                if _f_pj not in field_names:
+                                    _pj_why = "names `self.%s`, which is not a field of the record" % _f_pj
+                                elif field_types.get(_f_pj, "int") != "int":
+                                    _pj_why = ("reads the non-int field `self.%s` (%s)"
+                                               % (_f_pj, field_types.get(_f_pj)))
+                                elif _f_pj in _ci_unk:
+                                    _pj_why = ("reads `self.%s`, which the constructor COMPUTES "
+                                               "or stores under control flow" % _f_pj)
+                                elif _f_pj not in _pj_P:
+                                    _pj_P.append(_f_pj)
+                            elif _ty_pj in ("BinOp", "UnaryOp", "Compare", "BoolOp"):
+                                _stk_pj.extend(_v_pj for _v_pj in _nd_pj.values()
+                                               if isinstance(_v_pj, (dict, list)))
+                            elif _ty_pj in ("Number", "Num", "Int"):
+                                if not isinstance(_nd_pj.get("value"), int):
+                                    _pj_why = "contains a non-integer literal"
+                            elif _ty_pj in ("Bool", "BoolLit", "Constant", "NameConstant"):
+                                if not isinstance(_nd_pj.get("value"), bool):
+                                    _pj_why = "contains a non-boolean constant"
+                            else:
+                                _pj_why = ("contains a `%s` term (a call, a name other than a "
+                                           "field, a subscript ...)" % _ty_pj)
+                        if not _pj_why and not _pj_P:
+                            _pj_why = "names no field of the record"
+                        _pj_vals = {}
+                        _pj_used = []
+                        if not _pj_why:
+                            for fn in field_names:
+                                if fn not in _pj_P:
+                                    continue
+                                _v_ci = _ci_bind.get(fn)
+                                _val_ci = None
+                                if isinstance(_v_ci, dict) and _v_ci.get("type") == "Var":
+                                    _nm_ci = _v_ci.get("name")
+                                    if (_nm_ci in _ci_params
+                                            and _ci_ptypes.get(_nm_ci, "") in ("", "int", "bool")):
+                                        _val_ci = whyml_ident(_nm_ci)
+                                        if _val_ci not in _pj_used:
+                                            _pj_used.append(_val_ci)
+                                elif isinstance(_v_ci, dict) and _v_ci.get("type") in (
+                                        "Num", "Number", "Int", "Constant"):
+                                    _n_ci = _v_ci.get("value", _v_ci.get("n"))
+                                    if not isinstance(_n_ci, bool) and isinstance(_n_ci, int):
+                                        _val_ci = ("(%d)" % _n_ci) if _n_ci < 0 else str(_n_ci)
+                                elif _v_ci is None and fn in defaults:
+                                    _d_ci = defaults[fn]
+                                    _val_ci = ("(%d)" % _d_ci) if _d_ci < 0 else str(_d_ci)
+                                if _val_ci is None:
+                                    _pj_why = ("the constructor binds `self.%s` to something "
+                                               "other than an int literal or an int parameter"
+                                               % fn)
+                                    break
+                                _pj_vals[fn] = _val_ci
+                        # A parameter binder that is ALSO the label of a field it is not
+                        # bound to would conflate two values (`self.x = y; self.y = x`
+                        # stated `forall x y. x = y -> y = x -> ..`): not stated, refused.
+                        if not _pj_why:
+                            for fn in _pj_P:
+                                if _q(fn) in _pj_used and _pj_vals.get(fn) != _q(fn):
+                                    _pj_why = ("a constructor parameter shares its name with "
+                                               "the field label `%s` it is not bound to" % _q(fn))
+                        if not _pj_why:
+                            self._in_spec = True
+                            self._emit_record_ctx = type_name
+                            _prev_pj = getattr(self, "_current_self_type", None)
+                            self._current_self_type = type_name
+                            for _inv_ci in class_invs:
+                                _pj_strs.append(
+                                    self._expr_to_whyml(_inv_ci, set(), invariant_ctx=True))
+                            self._current_self_type = _prev_pj
+                            self._emit_record_ctx = None
+                            self._in_spec = False
+                            _pj_allowed = {_q(fn) for fn in _pj_P} | {"true", "false", "not"}
+                            for _s_ci in _pj_strs:
+                                for _id_ci in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _s_ci):
+                                    if _id_ci not in _pj_allowed and not _pj_why:
+                                        _pj_why = ("lowers to `%s`, which names `%s`"
+                                                   % (_s_ci, _id_ci))
+                        _pj_reqs = []
+                        if not _pj_why:
+                            _stk_pj = list(_icc_ci.get("requires") or [])
+                            _conj_pj = []
+                            while _stk_pj:
+                                _nd_pj = _stk_pj.pop(0)
+                                if (isinstance(_nd_pj, dict) and _nd_pj.get("type") in ("BinOp", "BoolOp")
+                                        and _nd_pj.get("op") == "and"
+                                        and "left" in _nd_pj and "right" in _nd_pj):
+                                    _stk_pj[0:0] = [_nd_pj["left"], _nd_pj["right"]]
+                                else:
+                                    _conj_pj.append(_nd_pj)
+                            _pnames_pj = [_p for _p in _ci_params if whyml_ident(_p) in _pj_used]
+                            for _r_ci in _conj_pj:
+                                _vs_pj = set()
+                                _ok_pj = True
+                                _st2_pj = [_r_ci]
+                                while _st2_pj:
+                                    _n2_pj = _st2_pj.pop()
+                                    if isinstance(_n2_pj, list):
+                                        _st2_pj.extend(_n2_pj)
+                                    elif isinstance(_n2_pj, dict):
+                                        _t2_pj = _n2_pj.get("type")
+                                        if _t2_pj == "Var":
+                                            _vs_pj.add(_n2_pj.get("name"))
+                                        elif _t2_pj not in ("BinOp", "UnaryOp", "Compare",
+                                                            "BoolOp", "Number", "Num", "Int",
+                                                            "Bool", "BoolLit", "Constant",
+                                                            "NameConstant"):
+                                            _ok_pj = False
+                                        _st2_pj.extend(_v2 for _v2 in _n2_pj.values()
+                                                       if isinstance(_v2, (dict, list)))
+                                if not (_ok_pj and _vs_pj and _vs_pj <= set(_pnames_pj)):
+                                    continue
+                                _prev_st_ci = getattr(self, "_current_symbol_table", None)
+                                _prev_fp_ci = getattr(self, "_formal_params", None)
+                                _prev_cp_ci = getattr(self, "_current_params", None)
+                                self._current_symbol_table = {_p: "int" for _p in _pnames_pj}
+                                self._formal_params = list(_pnames_pj)
+                                self._current_params = set(_pnames_pj)
+                                self._in_spec = True
+                                _rs_pj = None
+                                try:
+                                    _rs_pj = self._expr_to_whyml(_r_ci, set())
+                                except Exception:
+                                    _rs_pj = None
+                                self._in_spec = False
+                                self._current_symbol_table = _prev_st_ci
+                                self._formal_params = _prev_fp_ci
+                                self._current_params = _prev_cp_ci
+                                if _rs_pj is not None and all(
+                                        _id_ci in (set(_pj_used) | {"true", "false", "not"})
+                                        for _id_ci in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _rs_pj)):
+                                    _pj_reqs.append(_rs_pj)
+                        if not _pj_why:
+                            _ci_prem = " -> ".join(
+                                ["%s = %s" % (_q(fn), _pj_vals[fn]) for fn in field_names
+                                 if fn in _pj_P] + _pj_reqs)
+                            _ci_binders = [_q(fn) for fn in field_names if fn in _pj_P]
+                            for _u_ci in _pj_used:
+                                if _u_ci not in _ci_binders:
+                                    _ci_binders.append(_u_ci)
+                            _ci_body = " /\\ ".join("(%s)" % _s for _s in _pj_strs)
+                            out.append("")
+                            out.append(
+                                f"  goal _check_class_inv_{whyml_ident(type_name)} : "
+                                f"forall {' '.join(_ci_binders)} : int. "
+                                f"{_ci_prem} -> {_ci_body}")
+                            _ci_emitted = True
+                    import os as _os226c, sys as _sys226c  # R226-CENSUS-TEMP
+                    if _os226c.environ.get("PYCSL_R226_CENSUS"):  # R226-CENSUS-TEMP
+                        print("R226CENSUS\t%s\t%s\t%s" % (
+                            type_name, "OLD" if (_ci_emitted and not _pj_why and not _pj_strs)
+                            else ("PROJ" if _ci_emitted else "NOGOAL"), _pj_why),
+                            file=_sys226c.stderr)  # R226-CENSUS-TEMP
                 out.append("")
                 # UB-7.2 — hash/eq consistency. Module 5 marks classes
                 # whose `__hash__` and `__eq__` are both defined.
