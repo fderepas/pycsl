@@ -1,5 +1,16 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-24): #343 + #344 + #345 REPAIRED, candidate (r343 executor off b83a217b; code 9b8ee8b8 / e8f0cc77, corpus
+##   3aa9c2b2, docs e1ea6c14 (annotations 7.27 / T.6.38) + route docs; inline, no new def, ledger 3, no new refusal code).
+##   #343: a non-record class's method receiver `self` joins route #249's erased set (alias / walrus / element / builtin
+##   propagation, laws off, route #252 flow refusal), its WhyML type stays `type c = int` (mirror unchanged; `self.f`,
+##   `getattr(self, ..)`, `self.m()` are not uses of it); NEW latent closed with it: a dunder-dispatching builtin (`range`,
+##   `abs`, `len`, `max`, ...) on an erased argument under `no_exception` gets a failing `PyCSL-R343` assertion (`range(x)`,
+##   `x: Any` PROVED). #344: R5 resolves an inherited method through the C3 MRO. #345: an attribute base whose tail names a
+##   file class is REFUSED (PYCSL-R341-CLASS-BASE-NOT-A-NAME) unless a self-import. Witnesses 4610-4625 (16 PROVED at base)
+##   -> FAIL/REFUSED; controls 4630-4634 PROVED. Root 0/0/0, pyref 0/0/0, mirror 53/53 0/0/0 (no OWED). Residuals: alias
+##   type kept, attribute-protocol builtins, imported MRO classes skipped, package self-import over-refused (see REPAIR).
+
 ## gen #37 (2026-10-24): #339 + #340 REPAIRED, candidate (r339 executor off 5e517ffc; code 148ebcaa / d336bd01, corpus adea2535, docs
 ##   0b3e2c03, census 9b14185e + route docs; inline `_run_pipeline` blocks, no new def, ledger 3). Sound refusals, no emission change.
 ##   #339 PYCSL-SEM-ENUM-MEMBER-OPERATION: a member of an OPAQUE enum (plain Enum/Flag/StrEnum, or any enum defining a dunder) may
