@@ -8885,41 +8885,183 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     _ND339 = {"__init__", "__new__", "__init_subclass__", "__doc__", "__module__",
               "__qualname__", "__slots__", "__set_name__", "__class_getitem__",
               "__annotations__"}
-    _cls339 = {}    # enum class name -> [int-like?, user dunders, member names]
-    _cd339 = [_x for _x in _A273.walk(unified_ast) if isinstance(_x, _A273.ClassDef)]
-    _chg339 = True
-    while _chg339:
-        _chg339 = False
-        for _c339 in _cd339:
-            if _c339.name in _cls339:
-                continue
-            _bs339 = [(_b.attr if isinstance(_b, _A273.Attribute) else
-                       _b.id if isinstance(_b, _A273.Name) else "") for _b in _c339.bases]
-            if not any(_b in _EB339 or _b in _cls339 for _b in _bs339):
-                continue
-            _du339 = set()
-            _mm339 = set()
-            for _s339 in _c339.body:
-                _ts339 = ([_s339.name] if isinstance(_s339, _FN273) else
+    # (#49) ROUTES #352-#356 (gen #37 red team 26) — the classifier above was blind to five
+    # shapes, each MEASURED PROVED at 1a9cfa42 against CPython. #352: a base spelled through
+    # an import alias (`from enum import Enum as E`, `import enum as e` + `e.IntEnum`, a
+    # module-level `E = Enum`) was not an enum, so `C(E)`'s members kept int laws. RULE: every
+    # base is RESOLVED through the file's imports / module-level aliases to a token: a stdlib
+    # enum class `E:<X>`, a file class `C:<n>`, a builtin `B:<n>`, a non-enum stdlib import
+    # `S`, an unresolved attribute whose tail names an enum class `T:<X>` (an enum of unknown
+    # origin: OPAQUE), or UNKNOWN `U` (a non-stdlib import, an unbound name, an expression). A
+    # class with `U` in its ancestry and a member-shaped body (a plain non-lambda binding) may
+    # be an enum (an imported member-less enum base) and is treated as an OPAQUE enum whose
+    # every dunder is assumed user-defined (0 such classes in corpus / pyref / mirror /
+    # pycsl_lib, measured). #353: dunders were read from the enum bases only, so a NON-enum
+    # mixin's `__sub__` / `__lt__` / `__eq__` was invisible. RULE: the dunders of an enum are
+    # those of EVERY file class of its C3 MRO — the linearisation holds exactly the transitive
+    # base closure, and any dunder there is treated as overriding (an over-approximation of
+    # which one wins, so no ordering is needed) — and an enum is int-like only if its MRO holds
+    # nothing but `IntEnum` / `int` / `Enum` / `ReprEnum` / `object` and file ENUM classes; a
+    # user `__eq__` without `__hash__` anywhere in it makes `hash` refused (`__hash__ = None`).
+    # #354: `IntFlag` / `Flag` override `~` (and STRICT boundaries make `|` `^` `&` raise), so
+    # they are NOT int-like (their members are opaque), and a class keyword anywhere in the
+    # MRO (`boundary=`, `metaclass=`) makes the enum opaque. #355 / #356: see the checks after
+    # the context walk below.
+    import sys as _sys352
+    import builtins as _bi352
+    _STD352 = set(getattr(_sys352, "stdlib_module_names", ())) - {"enum"}
+    _im352 = {}     # local name -> "E:<X>" (from enum), "M" (the enum module), "S", "U"
+    _star352 = False
+    for _x352 in _A273.walk(unified_ast):
+        if isinstance(_x352, _A273.ImportFrom):
+            _md352 = _x352.module or ""
+            for _a352 in _x352.names:
+                if _a352.name == "*":
+                    _star352 = _star352 or _md352 != "enum" or bool(_x352.level)
+                    continue
+                _im352[_a352.asname or _a352.name] = (
+                    ("E:" + _a352.name if _a352.name in _EB339 else "U")
+                    if _md352 == "enum" and not _x352.level else
+                    "S" if not _x352.level and _md352.split(".")[0] in _STD352 else "U")
+        elif isinstance(_x352, _A273.Import):
+            for _a352 in _x352.names:
+                _im352[_a352.asname or _a352.name.split(".")[0]] = (
+                    "M" if (_a352.asname and _a352.name == "enum")
+                    or (not _a352.asname and _a352.name.split(".")[0] == "enum") else
+                    "S" if _a352.name.split(".")[0] in _STD352 else "U")
+    _al352 = {}     # module-level `Y = <name / attribute>` aliases (bound once)
+    _alc352 = {}
+    for _s352 in unified_ast.body:
+        if isinstance(_s352, (_A273.Assign, _A273.AnnAssign, _A273.AugAssign)):
+            for _t352 in (_s352.targets if isinstance(_s352, _A273.Assign) else [_s352.target]):
+                if isinstance(_t352, _A273.Name):
+                    _alc352[_t352.id] = _alc352.get(_t352.id, 0) + 1
+                    _al352[_t352.id] = getattr(_s352, "value", None)
+    _cdn352 = {}    # class name -> [ClassDef, ...]
+    for _x352 in _A273.walk(unified_ast):
+        if isinstance(_x352, _A273.ClassDef):
+            _cdn352.setdefault(_x352.name, []).append(_x352)
+    _tok352 = {}    # class name -> resolved base tokens (+ "K" for a class keyword)
+    _odu352 = {}    # class name -> own user dunders
+    _omm352 = {}    # class name -> own member-shaped names
+    _onm352 = {}    # class name -> every name its body binds
+    _olv352 = {}    # class name -> own member literal values ([] when any is not a literal)
+    _onw352 = set()  # classes whose body defines `__new__`
+    for _n352, _cs352 in _cdn352.items():
+        _tk352 = set()
+        _du352 = set()
+        _mm352 = set()
+        _nm352 = set()
+        _lv352 = []
+        for _c352 in _cs352:
+            if _c352.keywords:
+                _tk352.add("K")
+            for _b352 in _c352.bases:
+                _e352 = _b352
+                _r352 = None
+                _gd352 = 0
+                while _r352 is None and _gd352 < 64:
+                    _gd352 += 1
+                    if isinstance(_e352, _A273.Subscript):
+                        _e352 = _e352.value
+                    elif isinstance(_e352, _A273.Name):
+                        _i352 = _e352.id
+                        if _i352 in _cdn352:
+                            _r352 = "C:" + _i352
+                        elif _i352 in _al352 and _i352 not in _im352:
+                            _e352 = (_al352[_i352] if _alc352.get(_i352) == 1
+                                     and isinstance(_al352[_i352], (_A273.Name, _A273.Attribute))
+                                     else None)
+                            if _e352 is None:
+                                _r352 = "U"
+                        elif _i352 in _im352:
+                            _r352 = "U" if _im352[_i352] == "M" else _im352[_i352]
+                        elif _i352 in _EB339:
+                            _r352 = ("T:" if _star352 else "E:") + _i352
+                        elif hasattr(_bi352, _i352) and not _star352:
+                            _r352 = "B:" + _i352
+                        else:
+                            _r352 = "U"
+                    elif isinstance(_e352, _A273.Attribute):
+                        _h352 = _e352
+                        _d352 = 0
+                        while isinstance(_h352, _A273.Attribute):
+                            _h352 = _h352.value
+                            _d352 += 1
+                        _v352 = (_im352.get(_h352.id) if isinstance(_h352, _A273.Name)
+                                 else None)
+                        if _v352 == "M" and _d352 == 1:
+                            _r352 = "E:" + _e352.attr if _e352.attr in _EB339 else "U"
+                        elif _v352 == "S" and _e352.attr not in _EB339:
+                            _r352 = "S"
+                        elif _e352.attr in _EB339:
+                            _r352 = "T:" + _e352.attr
+                        else:
+                            _r352 = "U"
+                    else:
+                        _r352 = "U"
+                _tk352.add(_r352 or "U")
+            for _s339 in _c352.body:
+                _ts339 = ([_s339.name] if isinstance(_s339, _FN273 + (_A273.ClassDef,)) else
                           [_t.id for _t in _s339.targets if isinstance(_t, _A273.Name)]
                           if isinstance(_s339, _A273.Assign) else
                           [_s339.target.id] if isinstance(_s339, _A273.AnnAssign)
                           and isinstance(_s339.target, _A273.Name) else [])
+                _vl352 = getattr(_s339, "value", None)
                 for _t339 in _ts339:
+                    _nm352.add(_t339)
+                    if _t339 == "__new__":
+                        _onw352.add(_n352)
                     if _t339.startswith("__") and _t339.endswith("__"):
                         if _t339 not in _ND339:
-                            _du339.add(_t339)
-                    elif not isinstance(_s339, _FN273) and not (
+                            _du352.add(_t339)
+                    elif not isinstance(_s339, _FN273 + (_A273.ClassDef,)) and not (
                             _t339.startswith("_") and _t339.endswith("_")):
-                        _mm339.add(_t339)
-            _il339 = any(_b in ("IntEnum", "IntFlag", "int") for _b in _bs339)
-            for _b339 in _bs339:
-                if _b339 in _cls339:
-                    _il339 = _il339 or _cls339[_b339][0]
-                    _du339 |= _cls339[_b339][1]
-                    _mm339 |= _cls339[_b339][2]
-            _cls339[_c339.name] = [_il339, _du339, _mm339]
-            _chg339 = True
+                        _mm352.add(_t339)
+                        if (isinstance(_vl352, _A273.Constant)
+                                and type(_vl352.value) in (int, str)):
+                            if _lv352 is not None:
+                                _lv352.append(_vl352.value)
+                        elif not (isinstance(_vl352, _A273.Name)
+                                  and _vl352.id in _nm352):
+                            _lv352 = None
+        _tok352[_n352] = _tk352
+        _odu352[_n352] = _du352
+        _omm352[_n352] = _mm352
+        _onm352[_n352] = _nm352
+        _olv352[_n352] = _lv352
+    _anc352 = {_n: {_n} for _n in _cdn352}     # file-class ancestry (the MRO's file part)
+    _chg352 = True
+    while _chg352:
+        _chg352 = False
+        for _n352 in _cdn352:
+            for _t352 in list(_tok352[_n352]):
+                if _t352.startswith("C:") and not _anc352[_t352[2:]] <= _anc352[_n352]:
+                    _anc352[_n352] |= _anc352[_t352[2:]]
+                    _chg352 = True
+    _atk352 = {_n: set().union(*[_tok352[_m] for _m in _anc352[_n]]) for _n in _cdn352}
+    _den352 = {_n for _n in _cdn352
+               if any(_t[:2] in ("E:", "T:") for _t in _atk352[_n])}
+    _may352 = {_n for _n in _cdn352 if _n not in _den352 and "U" in _atk352[_n]
+               and any(isinstance(_s, (_A273.Assign, _A273.AnnAssign))
+                       and getattr(_s, "value", None) is not None
+                       and not isinstance(_s.value, _A273.Lambda)
+                       and any(isinstance(_t, _A273.Name) and not _t.id.startswith("__")
+                               for _t in (_s.targets if isinstance(_s, _A273.Assign)
+                                          else [_s.target]))
+                       for _c in _cdn352[_n] for _s in _c.body)}
+    _cls339 = {}    # enum class name -> [int-like?, user dunders, member names]
+    for _n352 in sorted(_den352 | _may352):
+        _du339 = set().union(*[_odu352[_m] for _m in _anc352[_n352]])
+        _mm339 = set().union(*[_omm352[_m] for _m in _anc352[_n352]])
+        if _n352 in _may352:
+            _du339 |= {"__eq__", "__ne__", "__bool__", "__len__", "__hash__",
+                       "__getattr__", "__getattribute__"}
+        _il339 = (bool(_atk352[_n352] & {"E:IntEnum", "B:int"})
+                  and all(_t in ("E:IntEnum", "E:Enum", "E:ReprEnum", "B:int", "B:object")
+                          or (_t.startswith("C:") and _t[2:] in _den352)
+                          for _t in _atk352[_n352]))
+        _cls339[_n352] = [_il339, _du339, _mm339]
     _op339 = {_k: _v for _k, _v in _cls339.items() if not (_v[0] and not _v[1])}
     _bad339 = []
     if _op339:
@@ -9110,7 +9252,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _ok339 = True
                         elif (isinstance(_f339, _A273.Name) and _fn339 == "hash"
                               and _fn339 not in _fns339):
-                            _ok339 = "__hash__" not in _du339
+                            # route #353: an `__eq__` without `__hash__` in the MRO
+                            # sets `__hash__ = None`; a user `__hash__` is user code
+                            _ok339 = not (_du339 & {"__hash__", "__eq__"})
                         elif _fn339 in _fns339:
                             _ok339 = True
                             for _d339 in _fns339[_fn339]:
@@ -9165,6 +9309,58 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         for _a339 in _badann339:
             _bad339.append(("?", getattr(_a339, "lineno", 0), "",
                             "annotation `" + _A273.unparse(_a339)[:60] + "`"))
+    # ROUTE #355 — `C(v)` IS A VALUE LOOKUP THAT RAISES ValueError on a miss (`C(99)` was
+    # emitted `any c` and PROVED under `no_exception \all`, IntEnum and plain Enum alike).
+    # RULE, for EVERY enum of the file (transparent ones too), in every lowered function:
+    # `C(v)` is admitted only when its one positional argument is a member of `C` (`C(C.A)`)
+    # or an int / str literal equal (same type) to a literal member value of `C`, `C`'s MRO
+    # defines no `__new__`, and the literal's type is the one CPython stores (`int` for an
+    # int-mixin enum, `str` for a str-mixin one, either for a plain Enum, never under another
+    # mixin or an unresolved base). Anything else is REFUSED — the miss is CPython's
+    # ValueError, which the model never raises (a sound refusal; the faithful `C[k]`-style
+    # membership goal needs the member values the getter does not carry).
+    # ROUTE #356 — the enum CLASS OBJECT's non-member attributes (`C.__members__`,
+    # `C._member_map_`, `C._value2member_map_`, `C.mro`, ...) are containers / views of the
+    # members whose elements no tracked form sees (`for m in C.__members__.values(): m - m`
+    # PROVED). RULE: a load of `C.X` with `X` neither a member nor a name bound in the body of
+    # a file class of `C`'s MRO is REFUSED, and so is any store / delete through `C.X`.
+    for _F352 in _low273:
+        for _x352 in _A273.walk(_F352):
+            if (isinstance(_x352, _A273.Call) and isinstance(_x352.func, _A273.Name)
+                    and _x352.func.id in _den352):
+                _k352 = _x352.func.id
+                _a352 = (_x352.args[0] if len(_x352.args) == 1 and not _x352.keywords
+                         else None)
+                _mx352 = {_t for _t in _atk352[_k352] if not _t.startswith("C:")}
+                _ty352 = (None if (_mx352 - {"E:Enum", "E:ReprEnum", "E:IntEnum", "E:IntFlag",
+                                             "E:Flag", "E:StrEnum", "B:object", "B:int",
+                                             "B:str"})
+                          or (_mx352 & {"E:IntEnum", "E:IntFlag", "B:int"}
+                              and _mx352 & {"E:StrEnum", "B:str"})
+                          or any(_m in _onw352 for _m in _anc352[_k352])
+                          else int if _mx352 & {"E:IntEnum", "E:IntFlag", "B:int"}
+                          else str if _mx352 & {"E:StrEnum", "B:str"} else "any")
+                _ok352 = (isinstance(_a352, _A273.Attribute)
+                          and isinstance(_a352.value, _A273.Name)
+                          and _a352.value.id == _k352 and _a352.attr in _cls339[_k352][2])
+                if (not _ok352 and _ty352 is not None and isinstance(_a352, _A273.Constant)
+                        and type(_a352.value) in (int, str) and _olv352[_k352] is not None
+                        and (_ty352 == "any" or type(_a352.value) is _ty352)):
+                    _ok352 = any(type(_v) is type(_a352.value) and _v == _a352.value
+                                 for _v in _olv352[_k352])
+                if not _ok352:
+                    _bad339.append((_F352.name, getattr(_x352, "lineno", 0), _k352,
+                                    _A273.unparse(_x352)[:70]
+                                    + " (a value lookup that may raise ValueError)"))
+            elif (isinstance(_x352, _A273.Attribute) and isinstance(_x352.value, _A273.Name)
+                  and _x352.value.id in _den352):
+                _k352 = _x352.value.id
+                if not isinstance(_x352.ctx, _A273.Load) or (
+                        _x352.attr not in _cls339[_k352][2]
+                        and not any(_x352.attr in _onm352[_m] for _m in _anc352[_k352])):
+                    _bad339.append((_F352.name, getattr(_x352, "lineno", 0), _k352,
+                                    _A273.unparse(_x352)[:70]
+                                    + " (an attribute of the enum class object)"))
     if _bad339:
         from errors import PyCSLSemanticError as _PyCSLSemErr339
         _b339 = sorted((_r[1], _i, _r) for _i, _r in enumerate(_bad339))[0][2]
