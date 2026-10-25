@@ -45,7 +45,12 @@ shadowed by a unit function, with an argument route #251's `r251_erased?` probe 
 concurrent `check-assumed-facts` sweep in the same tree, re-emitted individually: identical); pyref 2186/2186 0/0/0; mirror
 53/53 0/0/0 (`bin/mirror-emit-sweep.sh`, `--min-files 50`) — no mover, no OWED whole-file proof. Ledger 3, no new def, no new
 refusal code (the R343 assertion is a VC label; #345 reuses `PYCSL-R341-CLASS-BASE-NOT-A-NAME`), no gate loosened.
-**Gates** (all three routes, one run on e1ea6c14 + route docs): GATES_PLACEHOLDER
+**Gates** (all three routes, one run on e1ea6c14 + route docs): all rc=0 — byte-diff root + pyref (above), mirror emit sweep 0/0/0, `check-self-annotate-sync.sh` (926 un-trusted
+mirror functions verbatim), `self-annotate-mirror-check.sh`, `run-soundness-planes.sh` fast 61/61, `check-getattr-erasure`,
+`check-stdlib-modules-verify`, `doc-coherency --check`, `check-assumed-facts`, `check-dropped-mutation` (0 dropped / 51 / 5 / 0,
+ratchets unchanged), `check-refusal-witness-coverage` (288 demonstrated, 5 undemonstrated = ceiling 5; census rows 4610-4625
+via `_census_row`), `check-refusal-advice-audited`, `check-trusted-reasons` (420 <-> 420, unclassified 259), 
+`check-assigns-underdeclaration --transitive` (TRAP 3, HOLE 0). `--slow` planes not run.
 **Residuals.** (1) The WhyML type of a field-less receiver is still `type <c> = int`; soundness rests on the erased-set
 discipline (routes #249/#251/#252 + this one), not on the type. (2) A nested def / lambda capturing `self` is a separate unit whose
 `self` is a free name, not the erased receiver (h10's original title; not reproduced as a false proof). (3) Attribute-protocol
