@@ -21643,9 +21643,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         #   truth tests are guarded at `_classify_iterable` / `_to_bool`.) Under
         #   `no_exception`, such a node is preceded by `assert { false }`. "Known": a name
         #   every object has (`dir(object)`) or, for a value whose declared class is a
-        #   field-less class of this file (Module 5's `nonrecord335`: no fields, no bases),
-        #   a name its class body binds or one of its methods stores on `self`. Asked
-        #   through route #251's probe; inline (this method's mirror twin is `\trusted`).
+        #   class of this file, one of its methods or a name one of them stores on `self`
+        #   (a class-body constant of a field-less class is NOT known: the resolved IR
+        #   does not carry it -- fail-closed). Asked through route #251's probe; inline
+        #   (this method's mirror twin is `\trusted`).
         _r358_why = None
         if (not _nr358 and t in ("FieldGet", "Attribute", "ListComp", "SetComp", "DictComp",
                                  "GenExp", "Call")
@@ -21675,17 +21676,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     elif _r358_b.get("type") == "Var":
                         _r358_cl = (getattr(self, "_current_symbol_table", {}) or {}).get(
                             _r358_b.get("name"))
-                    _r358_nr = (getattr(self, "ir", {}) or {}).get("nonrecord335") or {}
-                    for _r358_cn, _r358_ci in (_r358_nr.items() if isinstance(_r358_cl, str)
-                                               else ()):
-                        if (_r358_cn.lower() == _r358_cl.lower()
-                                and isinstance(_r358_ci, dict)):
-                            _r358_kn |= set(_r358_ci.get("binds") or [])
-                            _r358_ws: List[Any] = [
-                                _g.get("body") for _g in
-                                ((getattr(self, "ir", {}) or {}).get("functions") or [])
-                                if isinstance(_g, dict) and isinstance(_g.get("self_type"), str)
-                                and _g["self_type"].lower() == _r358_cn.lower()]
+                    if isinstance(_r358_cl, str):
+                        _r358_ws: List[Any] = []
+                        for _g in ((getattr(self, "ir", {}) or {}).get("functions") or []):
+                            if (isinstance(_g, dict) and isinstance(_g.get("self_type"), str)
+                                    and _g["self_type"].lower() == _r358_cl.lower()
+                                    and isinstance(_g.get("name"), str)):
+                                _r358_kn.add(_g["name"][len(_r358_cl) + 2:]
+                                             if _g["name"].lower().startswith(
+                                                 _r358_cl.lower() + "__") else _g["name"])
+                                _r358_ws.append(_g.get("body"))
                             while _r358_ws:
                                 _r358_n = _r358_ws.pop()
                                 if isinstance(_r358_n, list):

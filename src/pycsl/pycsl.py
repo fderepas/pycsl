@@ -5046,7 +5046,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                       _nd359[(_k344, _mn344)])))
                         break
                     if (_k344 not in _anc338 and _k344 != "object" and _ix344 == 0
-                            and _bf278.get("self_type") in _anc338):
+                            and _bf278.get("self_type") in _anc338
+                            and not (isinstance(getattr(__import__("builtins"), _k344, None),
+                                                type)
+                                     and not any(_mn344 in vars(_c344) for _c344 in
+                                                 getattr(__import__("builtins"),
+                                                         _k344).__mro__
+                                                 if _c344 is not object)
+                                     and not any(
+                                         isinstance(_x359, (_ast338.Import, _ast338.ImportFrom))
+                                         and any((_al359.asname or _al359.name).split(".")[0]
+                                                 == _k344 for _al359 in _x359.names)
+                                         for _x359 in (_ast338.walk(_t338)
+                                                       if _t338 is not None else ())))):
                         _viol278.append((_sn278, _bn278, "resolves `%s` through `%s`, a "
                                          "class from outside this file that precedes its "
                                          "defining class in the MRO, which R5 cannot read"
@@ -5134,6 +5146,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # `def`, the first MRO class binding `m` must be a file class whose top-level `def`
         # R5 reads: a non-`def` binding, or a class from outside this file (other than
         # `object`) before A, is refused. Same C3 merge as route #344's (inline).
+        import builtins as _bi359
+        _imp359 = {(_al359.asname or _al359.name).split(".")[0]
+                   for _x359 in (_ast338.walk(_t338) if _t338 is not None else ())
+                   if isinstance(_x359, (_ast338.Import, _ast338.ImportFrom))
+                   for _al359 in _x359.names}
         _lin359 = {}
         for _cn359 in sorted(_anc338):
             _todo359 = [_cn359]
@@ -5182,7 +5199,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                    "by a statement that is not a top-level `def`, whose "
                                    "annotations R5 cannot compare"
                                    % (_mn359, _k359, _nd359[(_k359, _mn359)]))
-                    elif _k359 not in _anc338 and _k359 != "object":
+                    elif (_k359 not in _anc338 and _k359 != "object"
+                          and not (_k359 not in _imp359
+                                   and isinstance(getattr(_bi359, _k359, None), type)
+                                   and not any(_mn359 in vars(_c359) for _c359 in
+                                               getattr(_bi359, _k359).__mro__
+                                               if _c359 is not object))):
+                        # (a builtin class — not rebound by an import — that does not
+                        # have the attribute cannot be the one binding it)
                         _why359 = ("resolves `%s` through `%s`, a class from outside this "
                                    "file that precedes its defining class in the MRO, which "
                                    "R5 cannot read" % (_mn359, _k359))
