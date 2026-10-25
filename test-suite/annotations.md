@@ -2296,6 +2296,75 @@ field (`\length(self.toks)`, a `str` / record / element term, a quantifier, a pr
 a field the constructor computes (`self.n = three()`). Witnesses `4950`-`4956`; controls
 `4960`-`4964`.
 
+### 7.35 Dataclass specifiers resolved by origin, constructor arity, the enum member set by `Enum`'s descriptor rule, hashability along the MRO and through fields / subscripts (routes #369 / #370 / #371 / #372)
+
+Four gaps of §7.32 (dataclass pseudo-fields), §7.33 (4) (the enum member set) and §7.28 /
+§7.33 (route #349's unhashable-record refusal), each a sound REFUSAL; no emission changes.
+
+(1) DATACLASS SPECIFIERS BY ORIGIN, NOT SPELLING (route #369, `PYCSL-R369-DATACLASS-SPECIFIER`).
+The dataclass model recognises `ClassVar` / `InitVar` / `KW_ONLY` / `field` / `dataclass` by
+their literal names, so `from dataclasses import InitVar as IV`, `CV = ClassVar`, `field as
+fld` or `KW_ONLY as KO` made a pseudo-field an ordinary field (`d.k`, `D(1, 5)` and `fld(default=7)`
+read as 0 all PROVED; CPython AttributeError / TypeError / 7). Every class decorator and every
+`@dataclass` annotation head (through a string annotation and one subscript) and default call
+is now RESOLVED through the file's imports and module-level aliases: a stdlib origin, a file
+class / function, a builtin, an unbound name (never a specifier), or UNKNOWN (a non-stdlib or
+relative import, a star import, a name bound by anything but a plain alias). REFUSED: a
+specifier spelled other than by its own name (an alias), a specifier spelling that resolves
+elsewhere, an UNKNOWN head, default callee or `@dataclass`, a `dataclasses.dataclass` decorator
+not spelled `dataclass`, a default call to a file function (it may return a `Field`), and an
+annotated member nested in class-body control flow. A `field(..)` call takes only its keywords
+(`default`, `default_factory`, `init`, `repr`, `hash`, `compare`, `metadata`, `kw_only`, `doc`),
+with `init` / `kw_only` as `True` / `False` literals and never both defaults.
+
+(2) CONSTRUCTOR ARITY (route #369, `PYCSL-R369-CONSTRUCTOR-ARITY`). A construction's argument
+list was never checked against the constructor: `D(1, 5)` of a one-field dataclass, of a
+dataclass past a `ClassVar`, of an explicit `__init__(self, x)`, a positional argument for a
+keyword-only field and a missing required `field(kw_only=True)` all PROVED (CPython TypeError).
+For a call `C(..)` of a file class whose constructor is known — the first class of its C3 MRO
+defining a plain `def __init__`, else a `@dataclass`'s synthesized `__init__` (the fields of the
+MRO's dataclasses in CPython's order: positional, then keyword-only by `kw_only=True`,
+`field(kw_only=..)` or after a `KW_ONLY` sentinel; `InitVar` included; `ClassVar` and
+`init=False` excluded), else `object.__init__` — too many positional arguments, an unknown or
+repeated keyword, a positional-only parameter by keyword, or a missing required parameter is
+REFUSED in every function that is not `\trusted` / `\abstract`. A `*` / `**` argument, a
+`__new__` or class keyword anywhere in the MRO, a non-file base, or an unknown linearisation
+skips the check.
+
+(3) ENUM MEMBERS BY `Enum`'S OWN RULES (route #370, `PYCSL-SEM-ENUM-MEMBER-OPERATION`). The private
+test now runs on the MANGLED key as `enum._is_private` does (an explicit `_C__B = 2` is private:
+`C(2)` and `C._C__B.value` are refused). A value is a member value only when it provably has no
+`__get__` / `__set__` / `__delete__`: a literal, a display, an operator / f-string over those, an
+alias of an earlier member, `auto()` / `member(..)`. Any other value (`staticmethod(len)`,
+`functools.partial(int)` — a descriptor since 3.14 —, `types.DynamicClassAttribute(..)`, a
+module constant, any call) is neither a member nor an admitted class attribute, and the
+literal value list becomes unknown (`C(v)` refused). A load `C.X` of a class-body name that is
+NOT a member (a nested class, a `def`, a property, a descriptor, a private name) is refused,
+except as the callee of a call to an own `def` / `staticmethod` / `classmethod`. An `_ignore_`
+READ in the class body (`_ignore_.append("B")`) makes the member set unknown: refused.
+
+(4) HASHABILITY ALONG THE C3 MRO (route #371, `PYCSL-R349-UNHASHABLE-RECORD`). The inherited
+`__hash__` lookup stopped at the first base already decided, so `D(N, M)` with an unhashable
+mixin `M` (`__hash__ = None`, an `__eq__`, an eq-dataclass; a third base; via an intermediate;
+as a frozen record's field) was hashable. `__hash__` is now looked up along the C3 MRO: the
+first class whose own body decides wins (`D(N, M)` with `N.__hash__` defined stays hashable); a
+class whose linearisation is unknown counts as unhashable.
+
+(5) THE HASHED ELEMENT'S CLASS FROM FIELDS AND SUBSCRIPTS (route #372,
+`PYCSL-R349-UNHASHABLE-RECORD`). `{r.d}` / `{self.d}` (a field stored by `__init__` from a typed
+parameter), `{t[0]}` (`t: Tuple[D, int]`), `{m[0]}` (`m: Dict[int, D]`) and `{xs[0]}` (`xs:
+List[D]`) were never checked. A field's classes now come from its class-body / `self.f: T`
+annotations and every `self.f = e` store of a method (a typed parameter, a constructor call, a
+literal; anything else may be any class: with an unhashable class in the file such a field is
+refused in a hashing position); a subscript of a name / field annotated `List` / `Sequence` /
+`Deque` gives the element, `Dict` / `Mapping` / ... the value, `Tuple` the indexed component
+(every component for a non-literal index).
+
+Witnesses `4990`-`5035` (`5008` / `5009`: NEW latent arity false proofs of an explicit
+`__init__` and a plain dataclass); controls `5040`-`5044` (literal specifiers with `t.ClassVar`,
+well-formed constructor calls, an enum with `_ignore_` / an alias / a `def`, `D(N, M)` with
+`N.__hash__` first, hashable fields / components / values).
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

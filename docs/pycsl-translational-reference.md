@@ -4345,6 +4345,84 @@ kinds above, lowered with symbol table $U \mapsto$ `int` and every identifier in
 `goal _check_class_inv_<C> : forall <ℓ(P) ∪ U> : int. ℓ(f) = v_f -> .. -> <kept requires> ->
 (⟦I_1⟧) /\ .. /\ (⟦I_k⟧)`. Fields outside $P$ are not bound.
 
+### §T.6.46  Dataclass specifier resolution, constructor arity, the enum descriptor rule, MRO hash lookup, hashed fields / subscripts (routes #369 / #370 / #371 / #372)
+
+_Corresponds to `annotations.md` §7.35._
+
+Refusals only, inside the inline blocks of §T.6.39 / §T.6.43 (#369, #371, #372) and §T.6.41
+(#370) of `_run_pipeline` (mirror twin `\trusted`; no emission change).
+
+**#369 (resolution).** $\rho(e)$, for a decorator, a `@dataclass` annotation head $h$ (a string
+annotation parsed once, one `Subscript` stripped) or a default callee: an attribute chain
+$e_0.a_1 \ldots a_k$ resolves $e_0$ and appends the suffix (only onto a module path); a `Name`
+$n$ imported by `from M import X as n` (level 0, $M$ stdlib or `typing_extensions` $\to$
+`typing`) is `M.X`, by `import M as n` is `M`; a non-stdlib / relative import, a name imported
+twice differently, or imported AND module-bound is $\bot$; a module-level name bound exactly once
+(through `if` / `try` / `with` / loop bodies) to a `Name` / `Attribute` / `Subscript` is
+$\rho$ of that value, to a string constant $\rho$ of its parse, to another constant `const`, to a
+`BinOp` `union`, to a `typing` / `collections` `TypeVar` / `NewType` / ... call `safe`, to a
+`def` / `class` that definition; any other binding is $\bot$; a star import makes every unbound
+name $\bot$; a builtin is `builtins.n`; an unbound name is `unbound`. With $\Sigma$ =
+\{`typing.ClassVar` $\mapsto$ `ClassVar`, `dataclasses.InitVar` $\mapsto$ `InitVar`,
+`dataclasses.KW_ONLY` $\mapsto$ `KW_ONLY`\} and $\mathit{sp}(e)$ the tail spelling: refused
+(`PYCSL-R369-DATACLASS-SPECIFIER`) iff for a decorator $(\rho = \texttt{dataclasses.dataclass})
+\neq (\mathit{sp} = \texttt{dataclass})$; for a member of a model dataclass: it is nested in
+class-body control flow, $\rho(h) \in \Sigma \wedge \Sigma(\rho(h)) \neq \mathit{sp}(h)$,
+$\rho(h) \notin \Sigma \wedge \mathit{sp}(h) \in \Sigma$, $\rho(h) = \bot$; for its default
+call $c$: $(\rho = \texttt{dataclasses.field}) \neq (\mathit{sp} = \texttt{field})$, $\rho(c) =
+\bot$ or a file `def`, or (for `field`) a positional / `**` / unknown / repeated keyword, both
+`default` and `default_factory`, an `init` / `kw_only` that is not a `bool` constant.
+
+**#369 (arity).** $\sigma(C)$ = (positional parameters with a has-default bit, keyword-only
+parameters with a has-default bit, `*`, `**`, positional-only names) from the first class $a$ of
+$C$'s C3 MRO (§T.6.43) that has a top-level undecorated `def __init__` (its parameters minus the
+first), else is a model dataclass with `init=True` (the annotated members of the MRO's
+dataclasses from $a$ up, in reverse MRO order, later declarations keeping the first position;
+$\rho = $ `ClassVar` skipped, `KW_ONLY` marks the rest of that class keyword-only; `init=False`
+excluded; keyword-only by `field(kw_only=..)`, else the class's `kw_only=` or the sentinel;
+has-default = a value that is not a `field(..)` call, or a `field` with `default` /
+`default_factory`); reaching `object` or the MRO's end gives $\sigma = ()$. $\sigma$ is
+undefined for an unknown MRO, a class keyword or a `__new__` binding on the MRO, a non-file
+base before $a$, a duplicated class, an `__init__` bound otherwise. A call `C(args, kws)` of a
+file class name never rebound, in a function not `\trusted` / `\abstract`, without `*` / `**`
+arguments and with $\sigma(C)$ defined, is refused (`PYCSL-R369-CONSTRUCTOR-ARITY`) iff
+$|\mathit{args}| > |\mathit{pos}|$ without `*`, a keyword repeats a positional binding or names a
+positional-only parameter or no parameter (without `**`), or a parameter without default stays
+unbound.
+
+**#370.** In §T.6.41's member scan, for a top-level binding $t$ of class $c$ with value $v$
+(after `member(..)` unwrapping): the namespace key is $k = \texttt{\_}c'\,t$ for $t$ = `__x`
+not ending `__` ($c'$ = $c$ without leading underscores, non-empty), else $t$; $t$ is private
+iff `enum._is_private`$(c, k)$ or $t$ is a source `__x`. $v$ has UNKNOWN status iff $t$ is not
+a `def` / `class`, $v$ is no descriptor of §T.6.44 and not `auto()`, and $v$ contains a node
+other than `Constant`, `Tuple` / `List` / `Set` / `Dict`, `JoinedStr` / `FormattedValue`,
+`UnaryOp` / `BinOp` / `BoolOp` / `Compare` (with their operator and context nodes) and `Name`s
+of earlier members. Private and unknown-status names leave $M_c$ and the class-attribute set,
+and an unknown-status value makes the literal value list unknown. A `Load` of `_ignore_` in
+$B(c)$ makes the member set unknown (refused like a non-literal `_ignore_`). §T.6.41's
+class-object rule now admits `C.X` only for $X \in M_C$, or as the `func` of a `Call` when $X$
+is an own `def` / builtin `staticmethod(..)` / `classmethod(..)` binding of a file class of $C$'s
+MRO.
+
+**#371.** In §T.6.39 / §T.6.44, a class's hashability is decided by the first class of its C3
+MRO whose own scope decides (§T.6.44 #364's rule, the dataclass options, an own `__eq__`); a
+functional namedtuple on the MRO decides by its $U$ membership; `list` / `dict` / `set` /
+`bytearray` are unhashable; other non-file bases are skipped; an unknown MRO is unhashable. Then
+§T.6.44 #366's field rule applies.
+
+**#372.** $\phi(c, f)$ = $\bigcup \mathit{dp}(a)$ over $f$'s class-body and `self.f: T`
+annotations $a$ $\cup$ for each `self.f = e` of a method of $c$ (first parameter `self`, not a
+static / class method): $\mathit{dp}$ of $e$'s annotation for a typed parameter, $\{D\}$ for a
+file-class / immutable-record constructor call, the literal's type name, `int` for an operator /
+f-string, `list` / `dict` for a display, else `#UNK` (also for a tuple / `for` / `with` /
+walrus target). In a function, $\kappa(b.f)$ (§T.6.44 #365) adds $\bigcup \phi(c', f)$ over the
+classes $c$ of $\kappa(b)$ and $c' \in$ closure$(c)$; $\kappa(b[i])$ adds, for each annotation
+of the name $b$ (or of the field $b$), through Optional / Union / `|` / Annotated / Final /
+string forms, $\mathit{dp}$ of: the first argument of `List` / `Sequence` / `MutableSequence` /
+`Deque`, the second of `Dict` / `Mapping` / `MutableMapping` / `DefaultDict` / `OrderedDict` /
+`ChainMap`, the $i$-th of `Tuple` for a literal in-range $i$ (else every one, `...` dropped);
+three passes. A hashed $h$ with `#UNK` $\in \kappa(h)$ is refused when $U \neq \emptyset$.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
