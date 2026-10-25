@@ -1,5 +1,21 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #364 + #365 + #366 + #367 REPAIRED, candidate (r364 executor off fcc2c822; code e78477a2 + 396b6ebb, corpus +
+##   docs ece5f63b (annotations 7.33 / T.6.44), census 694d2e7c, route docs; inline in the #346-#349 and #339/#352 blocks of
+##   `_run_pipeline`, no new def, ledger 3, no new refusal code). Sound refusals, no emission change. #364: every class-scope binding
+##   (any statement / target / nesting) of `__eq__` defines it; a `__hash__` bound other than by top-level undecorated defs may be
+##   None -> unhashable. #365: hashing positions decompose tuple displays (any depth, `:=`, if-expressions), tuple-bound locals and
+##   `Tuple[...]` annotation arguments; a list / dict / set inside a hashed tuple is unhashable; annotation subtrees hash nothing.
+##   #366: unhashability is a least fixpoint over all classes + functional namedtuples; field-hashed records (NamedTuple, frozen /
+##   unsafe_hash dataclass) need every field provably hashable (int/str/float/bool/bytes/complex/None/Literal/frozenset/type, a
+##   hashable file class, Optional/Union/Tuple of those; object / Any / unknown / other containers are not). #367: enum members as
+##   `_EnumDict` builds them (drop `_ignore_` names, private `__x`, dunder / sunder, value-less annotations, descriptors,
+##   `nonmember(..)`; `member(v)` counts); a non-literal `_ignore_` refused; enum dunders read from every class-scope binding.
+##   Witnesses 4900-4933 (19 red-team + 15 new shapes, incl. NEW latents `{(xs, 1)}` with a list and enum `__eq__` under `if` /
+##   in a tuple target; 30 PROVED at base, 29 of them CPython-violating) -> REFUSED; controls 4940-4943 PROVED (4943 was an over-refusal at base). Root 0/0/0
+##   (4 new controls), pyref 0/0/0, mirror 53/53 0/0/0 (no OWED). Residuals: `__hash__ = object.__hash__` over-refused, container-
+##   element tuples, `field(hash=False)`, tuple-target enum members (see REPAIRs).
+
 ## gen #37 (2026-10-25): #360 + #361 + #362 + #363 REPAIRED, candidate (r360 executor off fcc2c822; code 6550de83, corpus eae6a9d8 +
 ##   dea007f9, census 69d1e9f2, docs 5be7bed4 (annotations 7.32 / T.6.43), route docs; inline in the #346-#349 `_run_pipeline` block,
 ##   no new def, ledger 3). Sound refusals + a sharper #347 summary, no emission change. #360 PYCSL-R360-SLOTS-STORE: a store (any
