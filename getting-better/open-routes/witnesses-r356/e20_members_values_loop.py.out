@@ -1,0 +1,22 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt26/e20_members_values_loop.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_4p2emu00.mlw", line 27, characters 18-30:
+Sub-goal loop invariant init of goal f'vc.
+Prover result is: Valid (0.00s, 284 steps).
+
+File "/tmp/.pycsl_4p2emu00.mlw", line 28, characters 16-36:
+Sub-goal loop variant decrease of goal f'vc.
+Prover result is: Valid (0.01s, 3485 steps).
+
+File "/tmp/.pycsl_4p2emu00.mlw", line 27, characters 18-30:
+Sub-goal loop invariant preservation of goal f'vc.
+Prover result is: Valid (0.01s, 3643 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_4p2emu00.mlw", line 22, characters 8-9: unused variable m
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

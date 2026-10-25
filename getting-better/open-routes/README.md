@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #352 (enum base import alias), #353 (mixin dunders unseen by #339), #354 (IntFlag not int), #355 (`C(v)` no ValueError),
+##   #356 (`__members__` members keep int laws), #357 (field-less values beyond self/params not erased), #358 (protocol ops on erased values
+##   unchecked), #359 (R5 MRO walk: non-def bindings, imported MRO classes) OPENED (red team 26: 35/138 confirmed; 9/9 sample driver-reproduced
+##   rc=0 on 3d937bdb, CPython violates).
+
 ## gen #37 (2026-10-25): #346 + #347 + #348 + #349 REPAIRED, candidate (r346 executor off b83a217b; code 2054301b, corpus + docs
 ##   ff6941ee (annotations 7.28 / T.6.39), census 44f8d480, route docs; one inline `_run_pipeline` block after #341/#342's, no new
 ##   def, ledger 3). Sound refusals, no emission change. #346 PYCSL-R346-POST-INIT-INVARIANT: an invariant-carrying record whose base

@@ -1,0 +1,67 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt26/m21_rec_try_def.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_n9kz45la.mlw", line 10, characters 7-14:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 21 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 10, characters 34-41:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 208 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 10, characters 51-58:
+Sub-goal precondition of goal pycsl_div'vc.
+Prover result is: Valid (0.00s, 221 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 9, characters 14-79:
+Sub-goal postcondition of goal pycsl_div'vc.
+Prover result is: Valid (3.90s, 15267905 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 15, characters 7-14:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 21 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 15, characters 34-41:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 208 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 15, characters 51-58:
+Sub-goal precondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 221 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 14, characters 14-79:
+Sub-goal postcondition of goal pycsl_mod'vc.
+Prover result is: Valid (0.00s, 3036 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 28, characters 15-38:
+Sub-goal postcondition of goal a__m'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 33, characters 15-38:
+Sub-goal postcondition of goal b__m'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 38, characters 15-38:
+Sub-goal postcondition of goal c__m'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 45, characters 4-28:
+Sub-goal modulo by zero of goal g'vc.
+Prover result is: Valid (0.00s, 14 steps).
+
+File "/tmp/.pycsl_n9kz45la.mlw", line 43, characters 15-27:
+Sub-goal postcondition of goal g'vc.
+Prover result is: Valid (0.00s, 184 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_n9kz45la.mlw", line 28, characters 15-38: unused variable result
+Warning, file "/tmp/.pycsl_n9kz45la.mlw", line 33, characters 15-38: unused variable result
+Warning, file "/tmp/.pycsl_n9kz45la.mlw", line 38, characters 15-38: unused variable result
+Warning, file "/tmp/.pycsl_n9kz45la.mlw", line 42, characters 9-10: unused variable a
+Warning, file "/tmp/.pycsl_n9kz45la.mlw", line 48, characters 11-15: unused variable self
+Warning, file "/tmp/.pycsl_n9kz45la.mlw", line 48, characters 20-26: unused variable result
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0
