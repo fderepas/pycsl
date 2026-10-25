@@ -2,6 +2,9 @@
 
 **STATUS: LIVE SEV-1.** A false postcondition is certified on ordinary total Python — no
 `no_exception`, no opt-in, no `\trusted` anywhere.
+**gen #37 (2026-10-25): increment 2b (int-field projection) REPAIRED, candidate — the q362str / q362list / q362xinit
+carriers and a new param/field-name clash FAIL / are REFUSED; STILL LIVE for `\length` / non-int-field invariants
+(registered carrier `route226-carrier-length-invariant-over-list-param.py`) and computed stores (increment 3).**
 
 ## The witness
 
@@ -787,3 +790,32 @@ Probe table (`pycsl.py`, full proof; CPython ground truth in each file's `__main
 | 4964 CONTROL 4955 with `self.n = 7` | PROVED | PROVED |
 | `route226-carrier-computed-constructor-store.py` (open, increment 3) | SUCCESS | SUCCESS |
 | NEW `route226-carrier-length-invariant-over-list-param.py` (`\length(self.xs) >= 1`, `#@ no_exception \all` on `self.xs[0]`) | SUCCESS | SUCCESS (registered) |
+
+Blast radius (byte-diff base c6d1156c vs candidate 35fcdf9e): root 1 MOVED (`4573_gen37_r342_ctl_super_then_noninv_stores`,
+gains exactly `goal _check_class_inv_s : forall s_x : int. s_x = 0 -> ((s_x = 0))`; whole file re-proved, SUCCESS) / 0 GONE /
+0 APPEARED (2330 base / 2341 candidate, 11 new sources; 4953 refused); pyref 0/0/0 (2186/2186); mirror 53/53 0/0/0 — no
+OWED proof. `pycsl_lib` hlib `Sha256` gains a goal; `check-stdlib-modules-verify` unchanged (83 VERIFY, known 21).
+
+Gates (rc 0 each, logs under the r226 scratchpad `gates/`): byte-diff-sweep base + candidate, byte-diff-compare root
+(`--expect-moved 4573_..`) and pyref (`--min-files 2000`); mirror-emit-sweep base + candidate, compare `--min-files 50`;
+check-self-annotate-sync.sh (926 verbatim); self-annotate-mirror-check.sh (53); run-soundness-planes.sh fast 61/61 green
+(first run RED on trusted-raises-honesty 62 > 61 with the refusal inside `_emit_type_decls`; fixed by moving it to
+`_run_pipeline`, ratchet back at 61); check-getattr-erasure; check-stdlib-modules-verify; doc-coherency --check;
+check-assumed-facts (85 facts, all reviewed families); check-dropped-mutation (TRYFINAL 5); check-refusal-witness-coverage
+(298 demonstrated, 5 undemonstrated = ceiling; rows 4950-4956 via `_census_row`); check-trusted-reasons (420/420);
+check-assigns-underdeclaration --transitive (TRAP 3); check-open-route-carriers (both #226 carriers SUCCESS as recorded).
+`--slow` planes not run.
+
+RESIDUALS:
+- `\length` / element / string / quantifier / predicate invariants (59 + 11 classes) get no goal and are assumed. The live
+  shape is a list field bound to an `__init__` parameter with no `#@ requires` (25 classes, 17 in PASS files incl. 2
+  mirrors): `#@ no_exception \all` on `self.xs[0]` under `\length(self.xs) >= 1` PROVES, CPython `D([])` raises
+  IndexError (registered carrier). NEXT INCREMENT: an `array` binder in the goal (`forall xs: array int. ..`) plus
+  `#@ requires len(toks) >= 1` on the 17 PASS constructors (a corpus edit, measure each).
+- Computed int stores (`self.n = three()`; 5 classes incl. mirror `errors.py` x4 and 4574): increment 3, unchanged.
+- A dataclass `y: int = field(init=False)` with NO default reads Module 5's fabricated witness 0 as the constructor's
+  value (`y = 0 -> ..`, probed: increment 2's own path does the same). CPython has no `y` until something stores it
+  (`__post_init__` is route #346's refusal), so a read raises AttributeError rather than returning a false value; not a
+  measured false proof, recorded.
+- Route #15: a constructor with a non-trivial `#@ requires` already gets `<c>__init` building the record, which checks the
+  invariant (4954 FAILED at base); the projection's requires premises duplicate that check for those classes.
