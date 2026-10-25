@@ -7716,7 +7716,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         #                  top-level `self.f.append/insert/extend/pop/clear/reverse/sort`
         #                  with literal effect on the length;
         #   ("PARAM", p) — `self.f = p` (p an `__init__` parameter) and p / `self.f` never
-        #                  otherwise named in `__init__` (beyond `len(..)` / `x[i]` reads)
+        #                  otherwise named in `__init__` (beyond `len(..)`, `x[i]` reads and
+        #                  `x[i] = v` element stores, which keep the length)
         #                  and no call after the store (an alias can reach the list);
         #   ("UNKNOWN", why) — anything else once `self.f` is stored; Module 6 then states
         #                  no goal and `_run_pipeline` REFUSES (PYCSL-R384-...).
@@ -7834,7 +7835,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                              and _pp384.args == [_x384])
                             or (isinstance(_pp384, _ast376.Subscript)
                                 and _pp384.value is _x384
-                                and isinstance(_pp384.ctx, _ast376.Load)
+                                and isinstance(_pp384.ctx, (_ast376.Load, _ast376.Store))
                                 and not isinstance(_pp384.slice, _ast376.Slice))):
                         continue
                     _st384[_x384.attr] = ("UNKNOWN",
@@ -7971,7 +7972,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                              and _pp384.args == [_x384])
                             or (isinstance(_pp384, _ast376.Subscript)
                                 and _pp384.value is _x384
-                                and isinstance(_pp384.ctx, _ast376.Load)
+                                and isinstance(_pp384.ctx, (_ast376.Load, _ast376.Store))
                                 and not isinstance(_pp384.slice, _ast376.Slice))):
                         continue
                     _st384[_f384] = ("UNKNOWN",
