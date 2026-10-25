@@ -2463,7 +2463,7 @@ AttributeError). A construction `C(..)` of a file class whose MRO names a `metac
 than `type`, `abc.ABCMeta`, or a file metaclass whose MRO (over `type` / `ABCMeta` only) binds no
 `__call__`, is REFUSED.
 
-Witnesses `5140`-`5157` (red team 29) and `5158`-`5160` (NEW latents); controls `5170`-`5174`
+Witnesses `5140`-`5157` (red team 29) and `5158` / `5159` (NEW latents: `super().__init__(5)` over a no-argument `__init__` and over `object`); controls `5170`-`5174`
 (`init=False` with `D()`, a metaclass without `__call__`, a matching `super().__init__(3)`, an
 `@overload` chain, distinct method names).
 
