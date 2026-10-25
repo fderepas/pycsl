@@ -9699,12 +9699,19 @@ class PreambleEmissionMixin:
                                 f"forall {' '.join(_ci_binders)} : int. "
                                 f"{_ci_prem} -> {_ci_body}")
                             _ci_emitted = True
-                    import os as _os226c, sys as _sys226c  # R226-CENSUS-TEMP
-                    if _os226c.environ.get("PYCSL_R226_CENSUS"):  # R226-CENSUS-TEMP
-                        print("R226CENSUS\t%s\t%s\t%s" % (
-                            type_name, "OLD" if (_ci_emitted and not _pj_why and not _pj_strs)
-                            else ("PROJ" if _ci_emitted else "NOGOAL"), _pj_why),
-                            file=_sys226c.stderr)  # R226-CENSUS-TEMP
+                    if _pj_why.startswith("a constructor parameter shares its name"):
+                        from errors import PyCSLSemanticError as _R226Err
+                        raise _R226Err(
+                            "class '%s': the constructor-invariant goal (route #226) cannot "
+                            "be stated: %s. The goal quantifies the record's field labels "
+                            "and `__init__`'s int parameters together, so a parameter named "
+                            "like ANOTHER field would be read as that field's value — "
+                            "measured: `self.x = y; self.y = x` under `self.x == self.y` was "
+                            "stated `forall x y. x = y -> y = x -> (x = y)` and PROVED, while "
+                            "CPython's `D(1, 2)` has x == 2 and y == 1. Give each `__init__` "
+                            "parameter a name that is not the name of a different field."
+                            % (type_name, _pj_why),
+                            stage="whyml-emit", code="PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH")
                 out.append("")
                 # UB-7.2 — hash/eq consistency. Module 5 marks classes
                 # whose `__hash__` and `__eq__` are both defined.
