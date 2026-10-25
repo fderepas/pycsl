@@ -4051,8 +4051,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _ch365 = True
                 if not _ch365:
                     break
-            # (#349) unhashable records in hashing positions.
+            # (#349) unhashable records in hashing positions (outside annotations: a type
+            # expression such as `Callable[[int], int]` / `Dict[K, V]` hashes nothing).
+            _anx365 = set()
             for _n346 in _ast341.walk(_f346):
+                for _a365 in ([_n346.annotation] if isinstance(_n346, (_ast341.arg,
+                                                                       _ast341.AnnAssign))
+                              else [_n346.returns] if isinstance(_n346, (
+                                  _ast341.FunctionDef, _ast341.AsyncFunctionDef)) else []):
+                    if _a365 is not None:
+                        _anx365 |= {id(_z) for _z in _ast341.walk(_a365)}
+            for _n346 in _ast341.walk(_f346):
+                if id(_n346) in _anx365:
+                    continue
                 _hx349 = []
                 if isinstance(_n346, _ast341.Set):
                     _hx349 = list(_n346.elts)
