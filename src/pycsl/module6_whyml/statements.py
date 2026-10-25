@@ -1202,6 +1202,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     and self._expr_to_whyml({"type": "Tuple", "elts": [val_ir, val_ir]},
                                             local_refs).startswith("(let _pycsl_seq")):
                 val = f"(let _ = {val} in (any int))"
+            elif "[@expl:PyCSL-R375 " in str(val):
+                # (#49) ROUTE #375: the display carries the failing assertion of a starred
+                # erased element (`_expr_to_whyml`'s head): keep it evaluated.
+                self._abstract_ops = _ops310
+                val = f"(let _ = {val} in (any int))"
             else:
                 # the probe registers nothing a pure display needs (it was lowered above)
                 self._abstract_ops = _ops310
@@ -3340,6 +3345,30 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # at Why3 type-check (never a silent int leak) — but no corpus driver reaches it.
         else:
             code = f"{indent}{safe_target} := !{safe_target} {op} {val}"
+        # (#49) ROUTE #375 — AN AUGMENTED ASSIGNMENT ON AN ERASED VALUE RUNS A USER DUNDER.
+        #   Route #337 refuses `self += 1` spelled on `self` (Module 5); through an alias
+        #   (`t = self; t += 1`, `t *= 2`) or on a field-less-class parameter the target is
+        #   in route #249's erased set and the statement still lowered to the int `+`, so
+        #   `no_exception \all` PROVED it (CPython TypeError). Under `no_exception`
+        #   (program context), when route #251's probe calls the target or the value
+        #   erased, the update is preceded by the same failing assertion as `_handle_binop`'s
+        #   route #252 operator (`__iadd__` / `__add__` / `__radd__` may raise). Inline: the
+        #   mirror twin of this method is `\trusted` (no new def, no raise).
+        from ir_schema import OpaqueExpr as _OpaqueExpr375
+        if (not getattr(self, "_in_spec", False)
+                and (getattr(self, "_current_no_exception", set())
+                     or getattr(self, "_current_no_exception_all", False))
+                and ((getattr(self, "_r249_scope", None) or {}).get("erased")
+                     or (getattr(self, "_r249_scope", None) or {}).get("any_ret")
+                     or (getattr(self, "_r249_scope", None) or {}).get("eq_classes"))
+                and isinstance(_val_d, dict)
+                and self._handle_binop(_OpaqueExpr375(
+                    kind="BinOp", raw={"type": "BinOp", "op": "r251_erased?",
+                                       "left": {"type": "Var", "name": target},
+                                       "right": _val_d}), set(), False, None)):
+            code = (f"{indent}begin assert {{ [@expl:PyCSL-R375 an augmented assignment "
+                    f"`{target} {raw_op}= ...` on an erased (Any / object / field-less class) "
+                    f"value runs a user dunder that may raise] false }}; end;\n{code}")
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code

@@ -20537,6 +20537,47 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _nr358 = isinstance(expr, dict) and bool(expr.get("_pycsl_r358n"))
         if _nr358:
             expr = {_k358: _v358 for _k358, _v358 in expr.items() if _k358 != "_pycsl_r358n"}
+        # (#49) ROUTE #375 — A STARRED ELEMENT OF AN ERASED VALUE. `[*x]` / `{*x}` / `(*x,)`
+        #   and a starred call argument `f(*x)` ITERATE `x`, but the Starred node lowers as
+        #   the bare element: `[*self]` was the ONE-element array `[self]`, so
+        #   `no_exception \all` PROVED it (CPython TypeError) and `len([*x]) == 1` PROVED
+        #   for `x: Any` (CPython: len(x)). When route #251's probe calls a starred
+        #   operand erased (program context, any `no_exception` or none), the node is
+        #   preceded by a failing assertion: neither the exception nor the length and
+        #   elements are modelled. Re-entry is marked like route #358's (`_pycsl_r358n`);
+        #   inline (this method's mirror twin is `\trusted`, no new def, no raise).
+        _d375 = None
+        if (not _nr358 and (expr.get("type") if isinstance(expr, dict) else
+                            getattr(expr, "kind", None)) in (
+                                "ArrayLit", "ListLit", "List", "SetLit", "Set", "Tuple",
+                                "MkTuple", "MkList", "Call")
+                and any((getattr(self, "_r249_scope", None) or {}).get(_k375)
+                        for _k375 in ("erased", "ret_erased", "any_ret", "eq_classes"))):
+            _d375 = (expr if isinstance(expr, dict) else
+                     (expr.raw if isinstance(expr, OpaqueExpr) else
+                      (expr.to_dict() if hasattr(expr, "to_dict") else None)))
+        if (not _nr358 and isinstance(_d375, dict) and not invariant_ctx
+                and not getattr(self, "_in_spec", False)
+                and _d375.get("type") in ("ArrayLit", "ListLit", "List", "SetLit", "Set",
+                                          "Tuple", "MkTuple", "MkList", "Call")
+                and ((getattr(self, "_r249_scope", None) or {}).get("erased")
+                     or (getattr(self, "_r249_scope", None) or {}).get("ret_erased")
+                     or (getattr(self, "_r249_scope", None) or {}).get("any_ret")
+                     or (getattr(self, "_r249_scope", None) or {}).get("eq_classes"))
+                and any(isinstance(_a375, dict) and _a375.get("type") == "Starred"
+                        and isinstance(_a375.get("value"), dict)
+                        and self._handle_binop(OpaqueExpr(
+                            kind="BinOp", raw={"type": "BinOp", "op": "r251_erased?",
+                                               "left": _a375["value"],
+                                               "right": {"type": "Number", "value": 0}}),
+                            local_refs, invariant_ctx, subst)
+                        for _a375 in ((_d375.get("elts") or [])
+                                      + (_d375.get("args") or [])))):
+            return ("(begin assert { [@expl:PyCSL-R375 unpacking an erased (Any / object / "
+                    "field-less class) value (`*x`) runs its __iter__, which may raise; its "
+                    "length and elements are not modelled] false }; %s end)"
+                    % self._expr_to_whyml(dict(_d375, _pycsl_r358n=True), local_refs,
+                                          invariant_ctx, subst))
         _r307_k = expr.get("type") if isinstance(expr, dict) else getattr(expr, "kind", None)
         # RESIDUAL (mirror-only): a dict literal inside an `@mutable_state` emitter-model class
         # is an IR-node construction (`_lower_irnode_construction` /
