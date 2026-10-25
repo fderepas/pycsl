@@ -43,8 +43,8 @@ pyref rc=0 (2192/2192 0/0/0, `--min-files 2000`), mirror rc=0 (53/53 0/0/0, `--m
 parallel sweep showed 2 root GONE (4280/4281 shadow-import) and 5 pyref MOVED + 1 GONE (stdlib/json drivers): each re-emitted
 singly is byte-identical base vs candidate (the json driver's verdict depends on the CWD — a `json/` directory at the repo root —
 identically in both trees), i.e. parallel-sweep / CWD artefacts, not movers; check-self-annotate-sync.sh rc=0 (926 verbatim);
-self-annotate-mirror-check.sh rc=0 (53); check-getattr-erasure rc=0; check-stdlib-modules-verify @@STDLIB@@; run-soundness-planes.sh
-fast @@PLANES@@; doc-coherency --check rc=0; check-assumed-facts rc=0 (ledger 3); check-dropped-mutation rc=0 (0 / 51 / 5 / 0);
+self-annotate-mirror-check.sh rc=0 (53); check-getattr-erasure rc=0; check-stdlib-modules-verify rc=0-equivalent (run in 5 foreground chunks with its own `classify` + BASELINE: 104 modules, 83 VERIFY, 0 newly not verifying, 0 baseline now verifying); run-soundness-planes.sh
+fast **61/61** rc=0; `--slow` NOT run; doc-coherency --check rc=0; check-assumed-facts rc=0 (ledger 3); check-dropped-mutation rc=0 (0 / 51 / 5 / 0);
 check-refusal-witness-coverage rc=0 (293 demonstrated / 5 not, ceiling 5; rows 4660-4685 via `_census_row`); check-trusted-reasons
 rc=0 (420 / 420); check-trusted-raises-honesty rc=0 (19 / 61, ratchet 61); check-assigns-underdeclaration --transitive rc=0 (TRAP 3,
 HOLE 0); check-mirror-coverage rc=0 (549 / 41).
