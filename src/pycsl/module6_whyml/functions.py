@@ -2422,6 +2422,19 @@ class FunctionEmissionMixin:
                     # nested/foreign def — only the former propagates (checked after
                     # the lambda scan), so record it and decide there
                     _r255_cands = None
+                    # (#49) ROUTE #373 — A DEF NESTED IN A METHOD is lifted to a METHOD
+                    #   of the class (`<c>__g`), so its bare call `g()` resolves to no
+                    #   unit and lowers to the opaque call stub `val g_0 () : int`: an
+                    #   `int` with every int law WHATEVER `g` returns (`-> "W"` closing
+                    #   over a field-less `self`, unannotated, `-> str`, `-> List[int]`):
+                    #   `t = g(); t - t == 0` / `t == t` / `t * 0 == 0` PROVED (CPython
+                    #   1 / False / ""). Such a call's result is route #249's arbitrary
+                    #   object unless every method so named is annotated `-> int` /
+                    #   `-> bool` (an unconstrained `int` over-approximates those).
+                    if (_r255_f in _r255_short and not all(
+                            _r373_g.get("return_annotation") in ("int", "bool")
+                            for _r373_g in _r255_short[_r255_f])):
+                        _r249_any_ret_funcs.add(_r255_f)
             else:
                 _r255_b, _r255_m = _r255_f.rsplit(".", 1)
                 _r255_bt = (func.get("self_type") if _r255_b == "self"
