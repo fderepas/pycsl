@@ -5,6 +5,10 @@
 **gen #37 (2026-10-25): increment 2b (int-field projection) REPAIRED, candidate — the q362str / q362list / q362xinit
 carriers and a new param/field-name clash FAIL / are REFUSED; STILL LIVE for `\length` / non-int-field invariants
 (registered carrier `route226-carrier-length-invariant-over-list-param.py`) and computed stores (increment 3).**
+**gen #37 (2026-10-25, r226b): increment 2c (`\length` over array fields) REPAIRED, candidate — the registered carrier
+`route226-carrier-length-invariant-over-list-param.py` now FAILS (row asserts FAILED), witnesses 5100-5109 FAIL; STILL LIVE
+for computed container stores (`[Tok(0)] * 3`, `bytearray(N)`; 21 classes), element / quantifier / predicate / str terms,
+bool fields, and computed int stores (increment 3).**
 
 ## The witness
 
@@ -825,3 +829,96 @@ RESIDUALS:
 an int conjunct beside a `\length` conjunct or a separate `\length` clause (a06, a07 — cheap: state the goal for the int-only
 conjuncts / clauses), computed / field-from-field stores (a08, a46), `default_factory` int fields (a10, a11), `ClassVar[int]` read
 through `self` (a34). Not new routes: §7.34 lists them as not covered.
+
+## REPAIR gen #37 (2026-10-25, r226b executor off 919533395) — INCREMENT 2c, `\length(self.f)` OVER ARRAY FIELDS
+Code cabbeced2 + 40d416a0f (Module 6 `_emit_type_decls`, inside increment 2b's projection, inline, no new def, ledger 3),
+corpus + witnesses 40d416a0f, docs f0e1494c1 (annotations 7.37 / T.6.48), clause-survival ledger 2930c0af8, census 31093ce1c.
+
+MEASURED FIRST — the emitter-level census (the projection instrumented, `--no-proof` over the 326 files carrying a
+`#@ class invariant` in both corpora, the mirrors, `pycsl_lib` and `open-routes/`): 250 invariant classes reach
+`_emit_type_decls`, 172 had a goal at base, 78 none; **60** of the 78 stopped at an `ArrayLen` term (2b's "59" + the
+registered carrier). After 2c: **211** have a goal, 39 none, 0 lost. Of the 60 `\length` classes:
+
+| bucket | classes | goal after 2c | verdict of the goal alone (`why3 prove -G`) |
+|---|---|---|---|
+| list field bound to an `__init__` PARAMETER | 23 (carrier, mirror `proof2why3/parser._Parser`, 0901, 0925-0929, 0933-0935, 0966, 1190, 1679-1682, 1685-1687, 1689, 1690, 2220, 2221) | yes | **2 discharge** (mirror `pos <= len`, 0966 `pos <= len`) / **21 FAIL** (`len(toks) >= 1` / `i < len(toks)`, false for `[]`) |
+| paramless, LITERAL initialiser (`[0] * 8`, `[1, 2, 3]`, `[]`) | 16 (0595, 0596, 0614, 0615, 0618, 0704, 0981, 1252, 1253, 1872, 1873, 1885, 2820, 3692, 3693 + 0981 refused) | yes (15 emit) | **15 discharge** / 0 FAIL |
+| list field the constructor COMPUTES (`init_unknown_fields`: `[Tok(0)] * N`, `bytearray(K)`, a module constant) | 21 (0421-0428, 0452, 0459-0461, 0715, 0716, 0719-0725, 1248, 1249) | **no** (residual) | — |
+
+The 21 FAILs: 8 in expected-FAIL files (0901, 1679, 1680, 1685-1687, 1689, 2221 — they stay FAIL), the carrier, and **13
+PASS files** (0925-0929, 0933-0935, 1190, 1681, 1682, 1690, 2220). Each of the 13 is a constructor that takes a list and
+claims a lower bound on its length with no precondition — `Parser([])` violates it in CPython; 2220 publishes it across the
+module boundary (`count(p)`: `ensures \result >= 1`, CPython `count(Parser([]))` is 0 — a latent false proof). Repaired in the
+SOURCE by `#@ requires len(toks) >= 1` on `__init__` (0933: also `len(nodes) >= 1`; 1190: replaces its `requires True`): every
+one of their `__main__` constructions passes a non-empty list, no verified function in them constructs the class, and the
+file labels are unchanged (all 13 re-proved SUCCESS). The parameters are `List[<record>]`, outside route #15's
+`_INIT_PARAM_WHYML`, so no checking-only `<c>__init` (whose `any_array` body would fail) is emitted; the requires is a goal
+premise only. Construction sites in verified code still raise the record's type-invariant VC (measured: they fail closed on
+the `any_array` model, `site_ok` / `site_bad` probes) — so the unchecked-at-call-site requires cannot certify a construction.
+
+RULES (as built; annotations §7.37, T.6.48):
+- Inside 2b's projection walk, `ArrayLen("self.f")` is admitted when `f`'s emitted label type starts with `array ` and `f` is
+  not computed / control-flow; `f` joins P as an ARRAY field.
+- Binding: an `init_body` `Var p` (p an `__init__` parameter not typed int/bool/str/float) — `p` is quantified at `f`'s array
+  type, nothing assumed; else, no binding and `field_defaults[f] = N >= 0` (Module 5's `_array_init_size`) — premise
+  `(Array.length f) = N`; else no goal. A parameter feeding fields of two different types: no goal.
+- `#@ requires` conjuncts may also use `len(p)` / `\length(p)` of an array-bound parameter (symbol table `p -> list`).
+- Binders are grouped by type (`forall toks : array tok, i : int.`); an all-int binder list prints exactly as 2b's, so the
+  147+4 existing goals are byte-identical (root/pyref/mirror diffs below show only ADDED goal lines).
+- Monotone by construction: a goal only ADDS an obligation, so no premise (even Module 5's fabricated 0 for a never-stored
+  list field, or `_array_init_size`'s `[] * N = N` quirk) can make a file prove that proved nothing before.
+
+Probe table (`pycsl.py`, full proof; CPython ground truth in each file's `__main__`; base = 919533395):
+
+| file | base | after |
+|---|---|---|
+| `route226-carrier-length-invariant-over-list-param.py` (`no_exception` on `self.xs[0]`, `\length(self.xs) >= 1`) | SUCCESS | **FAILED** |
+| 5100 the carrier in the corpus | SUCCESS | FAILED |
+| 5101 module-boundary reader `count(p)`, cursor `i < len(toks)` (2220's shape) | SUCCESS | FAILED |
+| 5102 field bound to a differently named parameter (`self.toks = tokens`) | SUCCESS | FAILED |
+| 5103 paramless `[]` under `\length >= 1` | SUCCESS | FAILED |
+| 5104 paramless `[0] * 3` under `\length == 4`, `no_exception` on `self.disk[3]` | SUCCESS | FAILED |
+| 5105 `#@ requires len(toks) >= 1` too weak for `\length >= 2` | SUCCESS | FAILED |
+| 5106 token cursor `0 <= i < len(toks)`, `no_exception` on `self.toks[self.i]` | SUCCESS | FAILED |
+| 5107 `@dataclass xs: List[int]` under `\length >= 1` | SUCCESS | FAILED |
+| 5108 red team 29 a06: `self.x >= 0 and \length(self.xs) >= 0` | SUCCESS | FAILED |
+| 5109 red team 29 a07: separate `\length` clause beside `self.x >= 0` | SUCCESS | FAILED |
+| 5110 CONTROL cursor + `#@ requires len(toks) >= 1` | SUCCESS | SUCCESS |
+| 5111 CONTROL `#@ requires \length(tokens) >= 2`, renamed parameter | SUCCESS | SUCCESS |
+| 5112 CONTROL paramless `[Tok(0)] * 4`... computed (no goal) — `[0] * 4`-shape covered by 0595/1252 | SUCCESS | SUCCESS |
+| 5113 CONTROL mirror shape `pos <= \length(toks)`, no requires | SUCCESS | SUCCESS |
+| 5114 CONTROL two list params, two requires | SUCCESS | SUCCESS |
+| red team 29 a04 / a05 / a24 (bool fields), a08 (field from field), a10 / a11 (`default_factory` int), a34 (ClassVar via self), a46 | SUCCESS | SUCCESS (residuals, not in 2c's design) |
+
+(5100-5109 and 5110/5111/5113/5114 were first written with `List[int]` readers `len(c.xs)`; those do not type-check
+(`iter_length` over an `array int`, pre-existing) and FAILED at base for that reason, so every witness was rewritten to a
+shape that PROVES at base: a `List[<record>]` field read through `len(p.f)` on a `@mutable_state` class, or a method
+reading an element under `#@ no_exception \all`.)
+
+Blast radius (byte-diff base 919533395 vs candidate 40d416a0f+): root **36 MOVED** — exactly the census's 36 emitting
+`\length` classes, each diff ONLY `+ goal _check_class_inv_<c> : ...` (checked mechanically: no other line changes, incl.
+the 13 edited sources) / 0 GONE / 0 APPEARED (2356 / 2371, 15 new sources); every mover fully re-proved to its label (24
+SUCCESS, 12 expected-FAIL FAILED: 0596, 0615, 0901, 1679, 1680, 1685-1687, 1689, 1873, 2221, 3693); pyref 0/0/0
+(2186/2186); mirror 53/53, **1 MOVED** `proof2why3/parser.py` (+ `goal _check_class_inv__parser : forall toks : array
+token, pos : int, tokens : array token. toks = tokens -> pos = 0 -> ..`), whole-file proof via heavy.sh HEAVY_LOW=1:
+**SUCCESS** — no OWED proof.
+
+Ledgers: `check-clause-survival` (slow plane) KNOWN_DEFICITS +4 (2220, 5110, 5111, 5114: a `List[<record>]` constructor
+`requires` reaches only the goal premise — the route #15 residue 0661/0662 already record; mechanically confirmed by the
+plane); the plane's pre-existing UNEXPLAINED `4574_gen37_r342_ctl_param_store_type_self.py` is RED at base too and is
+not this increment's. Refusal census rows 5100-5109 (VERIFY-FAIL) via `_census_row`.
+
+RESIDUALS:
+- Computed container stores (21 classes: `[Tok(0)] * N` names `Tok`, `bytearray(K)` over a module constant ...): no goal,
+  assumed. Repro (SUCCESS at base AND after; CPython `n(C())` is 3 against `ensures \result == 4`):
+  `[Tok(0)] * 3` under `\length(self.disk) == 4` — scratch `r226b/residual/computed_record_list.py`. Module 5 marks the field
+  unknown (route #79) although the length is name-free; carrying the length for a record-element repeat is a Module 5 change.
+  `bin/check-class-invariant-establishment.py` evaluates the C()-constructible PASS ones at runtime (0 FALSE).
+- Element / subscript / quantifier / predicate / str terms (11 classes), bool fields (red team 29 a04/a05/a24), computed int
+  stores (increment 3; a08 field-from-field, a46), `default_factory` int fields (a10/a11), ClassVar through `self` (a34).
+- `List[int]` constructor parameters WITH a `#@ requires` get route #15's checking-only `<c>__init` over `any_array ()` (the
+  dropped-parameter detector misfires when the parameter shares the field label), which FAILS an honest constructor
+  (measured: 4954 / a `List[int]` twin of 5110 — Timeout). Fail-closed incompleteness, not a false proof.
+- The 13 corpus `#@ requires len(toks) >= 1` are premises, not call-site obligations (route #15 residue); in-module
+  construction sites fail closed.
+
