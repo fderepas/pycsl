@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #360 + #361 + #362 + #363 REPAIRED, candidate (r360 executor off fcc2c822; code 6550de83, corpus eae6a9d8 +
+##   dea007f9, census 69d1e9f2, docs 5be7bed4 (annotations 7.32 / T.6.43), route docs; inline in the #346-#349 `_run_pipeline` block,
+##   no new def, ledger 3). Sound refusals + a sharper #347 summary, no emission change. #360 PYCSL-R360-SLOTS-STORE: a store (any
+##   form, `setattr`) on a receiver whose class is FULLY SLOTTED (every C3-MRO class a file class with a literal `__slots__` /
+##   `@dataclass(slots=True)`, or object / Generic / Protocol; no `__dict__` slot) of a name outside the slot union, and any
+##   non-literal `__slots__`, refused. #361 PYCSL-R361-DATACLASS-PSEUDO-FIELD: InitVar / KW_ONLY (bare, dotted, string) leave #347's
+##   field sets; any access of a pseudo-field name in a verified function refused (a defaulted InitVar reads the CLASS default).
+##   #362 PYCSL-R362-INITVAR-INVARIANT: an invariant record whose dataclass closure declares a pseudo-field refused (route #226's goal
+##   is dropped outside int fields / int-bool params). #363: #347 resolves `super(X, self)` through the C3 MRO (the class after X);
+##   any other shape credits nothing. Witnesses 4850-4869 (18 PROVED at base, 2 FAILED) -> REFUSED; controls 4880-4886 PROVED.
+##   Root 0/0/0 (7 new controls), pyref 0/0/0, mirror 53/53 0/0/0 (no OWED); fast planes 61/61. NEW SUSPECTED (route #226 debt, not
+##   repaired): an invariant class with a str / list field (dataclass or explicit `__init__`) gets no goal -> invariant assumed,
+##   PROVED at base and after (q362str / q362list / q362xinit; 96 corpus classes out of that scope). Residuals: see REPAIRs.
+
 ## gen #37 (2026-10-25): #357 + #358 + #359 REPAIRED, candidate (r357 executor off 1a9cfa42; code 0bd03380 / fb898973 / 66f2f2ea /
 ##   acec0e22 / af97b85a, corpus + docs 570c626f (annotations 7.31 / T.6.42), census 66f2dd33 + route docs; inline, no new def,
 ##   ledger 3). #357: a `self.`-resolved method result annotated with a field-less class (string annotations too), every
