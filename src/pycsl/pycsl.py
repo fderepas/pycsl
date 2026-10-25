@@ -4343,7 +4343,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                   if isinstance(_s, (_ast341.FunctionDef,
                                                      _ast341.AsyncFunctionDef))
                                   and _s.name == _fx380.id]
-                    elif isinstance(_fx380, _ast341.Attribute):
+                    elif (isinstance(_fx380, _ast341.Attribute)
+                          and not (isinstance(_fx380.value, _ast341.Name)
+                                   and _fx380.value.id not in _cls341
+                                   and (_fx380.value.id in _imp341
+                                        or _fx380.value.id not in _bound341))):
+                        # (a receiver NAME that is imported, or bound nowhere in the file —
+                        # a builtin / a dynamically created global such as the mirror's
+                        # `Constant.__new__(cls, *args, **kwargs)` — is no file instance)
                         for _ks379 in _cls341.values():
                             for _k379 in _ks379:
                                 for _s in _k379.body:
