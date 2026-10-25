@@ -4423,6 +4423,23 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     _zz372.add("dict")
                                 else:
                                     _zz372.add("#UNK")
+        # (#374) PRIVATE-NAME MANGLING. CPython mangles a `__x` (two leading underscores,
+        # not a dunder) written lexically inside a class body — including its methods and
+        # the defs nested in them — to `_<Class>__x` (the class name stripped of leading
+        # underscores), and it mangles every `__slots__` entry by the class that declares
+        # it. The #360 comparison read both sides as written, so `self.__x` in a subclass
+        # (`_B__x`) and `a.__x` outside any class (`__x`) matched the slot `__x` of `A`
+        # (really `_A__x`) and PROVED, while CPython raises AttributeError; conversely the
+        # real slot `self._A__x` was over-refused. `_mg374[id(Attribute)]` = the innermost
+        # lexically enclosing class of an attribute node (absent at module scope).
+        _mg374 = {}
+        _st374 = [(_n374, None) for _n374 in _ast341.iter_child_nodes(_t341)]
+        while _st374:
+            _n374, _c374 = _st374.pop()
+            if isinstance(_n374, _ast341.Attribute) and _c374 is not None:
+                _mg374[id(_n374)] = _c374
+            _cc374 = _n374.name if isinstance(_n374, _ast341.ClassDef) else _c374
+            _st374.extend((_x374, _cc374) for _x374 in _ast341.iter_child_nodes(_n374))
         for _f346, _ec346 in _fn346:
             _pa346 = (_f346.args.posonlyargs + _f346.args.args + _f346.args.kwonlyargs
                       + [_x for _x in (_f346.args.vararg, _f346.args.kwarg) if _x])
@@ -4519,6 +4536,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                               and isinstance(_n346.args[1].value, str) else "*")
                 if _rv348 is None or not (_imm348 or _sl360):
                     continue
+                # (#374) the stored name as CPython sees it: an attribute spelling `__x` is
+                # mangled by its lexical class; a `setattr` string is never mangled.
+                _fm374 = _fd348
+                if (isinstance(_n346, _ast341.Attribute) and id(_n346) in _mg374
+                        and _fd348.startswith("__") and not _fd348.endswith("__")
+                        and _mg374[id(_n346)].lstrip("_")):
+                    _fm374 = "_" + _mg374[id(_n346)].lstrip("_") + _fd348
                 _kc348 = set(_ex346.get(id(_rv348), set()))
                 if (isinstance(_rv348, _ast341.Name) and _rv348.id in _unk346
                         and _rv348.id != _self346):
@@ -4543,19 +4567,25 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         continue
                     _su360 = set()
                     for _a360 in _mr360:
-                        _su360 |= _sl360.get(_a360, set())
-                    if "__dict__" in _su360 or _fd348 in _su360:
+                        # (#374) each slot mangled by the class that declares it
+                        _su360 |= {("_" + _a360.lstrip("_") + _s374
+                                    if (_s374.startswith("__") and not _s374.endswith("__")
+                                        and _a360.lstrip("_")) else _s374)
+                                   for _s374 in _sl360.get(_a360, set())}
+                    if "__dict__" in _su360 or _fm374 in _su360:
                         continue
                     raise _PyCSLSemErr341(
                         f"'{_f346.name}' line {getattr(_n346, 'lineno', 0)}: "
                         f"`{_ast341.unparse(_n346)}` stores or deletes the attribute "
-                        f"`{_fd348}` of an instance of '{_c360}', whose every class "
+                        f"`{_fm374}` of an instance of '{_c360}', whose every class "
                         f"declares `__slots__` (MRO {_mr360}; slots {sorted(_su360)}). "
                         f"Such an instance has no `__dict__`, so CPython raises "
                         f"AttributeError on a store of a name outside the slots, while the "
                         f"record model lowers it as an ordinary field store and would "
-                        f"verify it as succeeding (route #360). Add `{_fd348}` to "
-                        f"`__slots__`, or drop `__slots__`.",
+                        f"verify it as succeeding (route #360; slot and attribute names are "
+                        f"compared after private-name mangling, route #374). Add "
+                        f"`{_fd348}` to the `__slots__` of the class that stores it, or drop "
+                        f"`__slots__`.",
                         stage="ir-semantic", code="PYCSL-R360-SLOTS-STORE")
                 if not _imm348:
                     continue
