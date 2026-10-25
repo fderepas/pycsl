@@ -35,7 +35,7 @@ invariant-carrying dataclass with a pseudo-field. Root / pyref / mirror byte-dif
 candidate); byte-diff-compare root rc=0 (2313 base / 2320 candidate: 0 MOVED / 0 GONE / 0 APPEARED, 7 new control sources), pyref
 rc=0 (2186/2186 0/0/0, `--min-files 2000`), mirror rc=0 (53/53 0/0/0, `--min-files 50`: **no OWED proof**);
 check-self-annotate-sync.sh rc=0 (926 verbatim); self-annotate-mirror-check.sh rc=0 (53); check-getattr-erasure rc=0;
-check-stdlib-modules-verify @@STDLIB@@; run-soundness-planes.sh fast **61/61** rc=0; `--slow` NOT run; doc-coherency --check rc=0;
+check-stdlib-modules-verify rc=0 (one command via heavy.sh: 104 modules, 83 VERIFY, the known 21 non-verifying); run-soundness-planes.sh fast **61/61** rc=0; `--slow` NOT run; doc-coherency --check rc=0;
 check-assumed-facts rc=0 (85 facts, all reviewed families); check-dropped-mutation rc=0 (0 / 51 / 5 / 0); check-refusal-witness-coverage
 rc=0 (300 demonstrated / 5 not, ceiling 5; rows 4850-4869 via `_census_row`); check-trusted-reasons rc=0 (420 / 420);
 check-trusted-raises-honesty rc=0 (19 / 61, ratchet 61); check-assigns-underdeclaration --transitive rc=0 (TRAP 3, HOLE 0);
