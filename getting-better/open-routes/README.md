@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #384 (`\length` invariant with no statable goal assumed), #385 (`\length` goal binding / `[]*N` / super().__init__
+##   requires), #386 (nested def shadowing a builtin), #387 (class-body defs never bound), #388 (getattr default vs imported base), #389 (getattr
+##   default vs setattr / mangled store), #390 (`**` into builtins), #391 (Protocol / TypedDict construction) OPENED (red team 30: 60/233
+##   confirmed; 8/8 sample driver-reproduced rc=0 on a064a298f).
+
 ## gen #37 (2026-10-25): #226 INCREMENT 2c (`\length` over array fields) REPAIRED, candidate (r226b executor off 919533395; code cabbeced2 +
 ##   40d416a0f, corpus + witnesses 40d416a0f / c4812834c, docs f0e1494c1 (annotations 7.37 / T.6.48), clause-survival ledger 2930c0af8,
 ##   census 31093ce1c, conformance golden 0595 c4812834c, route docs; Module 6 `_emit_type_decls` only, inline, no new def, ledger 3).
