@@ -4527,6 +4527,38 @@ $\ell(f)$, `Array` or `length`. A `requires` conjunct may also contain `Call(len
 `forall <b..> : τ1, <b..> : τ2. ...`; an all-int binder list prints as in §T.6.45. Emitted:
 `goal _check_class_inv_<C> : forall <groups>. <premises> -> (⟦I_1⟧) /\ .. /\ (⟦I_k⟧)`.
 
+### §T.6.51  The constructor's end state of list fields; unstatable `\length` goals refused (routes #384 / #385, gen #37)
+
+_Corresponds to `annotations.md` §7.40._
+
+Refines §T.6.48's binding of an ARRAY field $f$ of $P$ by a map $\sigma_C(f)$ computed in
+`_run_pipeline` over the source of $C$'s own `__init__` (a class without one takes its first file
+base's map), passed to Module 6 as `ctor_len_r384`. Walking the TOP-LEVEL statements in order:
+a store `self.f = e` with $e$ a fresh list of literal length — `List` without `Starred` ($n$ =
+number of elements), `[..] * K` / `K * [..]` ($n \cdot \max(K, 0)$), `bytearray(K)` / `bytes(K)`
+with $K \ge 0$, `list()` / `bytearray()` / `bytes()` ($0$), $K$ an int literal (or unary minus) or a
+module constant with exactly one binding in the file and the builtin names unbound — sets
+$\sigma(f) = \mathrm{LEN}(n)$; `self.f = p`, $p$ an `__init__` parameter, sets $\mathrm{PARAM}(p)$;
+any other store sets $\mathrm{UNKNOWN}$. A statement `self.f.m(args)` with $\sigma(f) = \mathrm{LEN}(n)$
+and call / attribute / subscript / walrus / lambda / starred-free args maps $n$ by `append`,
+`insert` $+1$, `extend(<list or tuple display>)` $+k$, `pop()` / `pop(i)` ($-1$, $n \ge 1$,
+$-n \le i < n$), `clear` $0$, `reverse` / `sort` $n$; other methods: UNKNOWN. In every statement,
+an occurrence of `self.g` ($g$ already stored) other than the statement's own target / receiver,
+`len(self.g)`, or a non-slice `self.g[i]` load / store sets $\sigma(g) = $ UNKNOWN; a `Call` other than
+`len` after a PARAM store, and an `__init__` attribute (another constructor) after any store, set
+the stored fields UNKNOWN. A PARAM($p$) field becomes UNKNOWN if $p$ occurs anywhere in `__init__`
+other than as that store's value, `len(p)` or a non-slice `p[i]`; a `return` / `yield` / `await`
+outside nested scopes makes every field UNKNOWN. In Module 6: $\sigma(f) = \mathrm{LEN}(n)$ gives the
+premise `(Array.length ℓ(f)) = n` (overriding `field_defaults` and admitting $f \in$
+`init_unknown_fields`); UNKNOWN, or §T.6.48's binding failing for an array field, is a STATE
+obstacle: no goal, and when the projection found no TERM obstacle the record name is recorded in
+`nogoal_r384` and `_run_pipeline` raises `PYCSL-R384-INVARIANT-GOAL-UNSTATABLE` after
+`transpile()`. Before Module 6, a `Call` whose function is `super(..).__init__` or `B.__init__`
+($B$ a file class) in a method of a file class $K$ is refused
+(`PYCSL-R385-DELEGATED-INIT-REQUIRES-UNCHECKED`) when a file class reachable from $K$'s bases (resp.
+$B$ and its bases) has a non-empty `init_contract_check.requires` and a `param_types` entry outside
+`""`, `int`, `bool`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

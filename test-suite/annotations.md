@@ -2488,6 +2488,37 @@ list field whose initialiser the constructor COMPUTES (`[Tok(0)] * 3`, `bytearra
 module constant, a call), an element / subscript / quantifier / predicate term, `bool` fields.
 Witnesses `5100`-`5109`; controls `5110`-`5114`.
 
+### 7.40 The `\length` constructor goal reads the list field at the END of `__init__`; an unstatable one is refused (routes #384 / #385, gen #37)
+
+§7.37's goal bound a list field at its STORE, so a later change in `__init__` was invisible
+(`self.disk = [0] * 4; self.disk.pop()` under `\length(self.disk) == 4`, or
+`self.toks = toks; toks.clear()` through the parameter alias, PROVED a `no_exception` read of
+`self.disk[3]` / `self.toks[0]`; CPython raises IndexError), `[] * 4` was read as length 4, and a
+computed initialiser (`default_factory`, `[0] * 2 + [0]`, a comprehension, a slice) or a subclass
+whose field comes from `super().__init__(..)` left NO goal, so the invariant was assumed. Now the
+goal uses the field's value at the end of `__init__`:
+- a FRESH list of known length — a display, `[..] * K` (length `len * max(K, 0)`, so `[] * N`
+  and a negative repeat are EMPTY), `bytearray(K)` / `bytes(K)` / `list()`, K an int literal or
+  a module constant bound exactly once — followed only by top-level `self.f.append(x)` /
+  `insert(i, x)` / `extend([..])` / `pop()` / `pop(i)` / `clear()` / `reverse()` / `sort()`
+  (arguments call-free) is stated as `Array.length f = N` for the final N;
+- a field stored from an `__init__` parameter p keeps §7.37's binding only when neither p nor
+  `self.f` is otherwise named in `__init__` (`len(..)`, `x[i]` reads and `x[i] = v` element
+  stores are allowed) and no call follows the store;
+- anything else (a later `remove` / alias / second or tuple store / loop / branch / walrus, a
+  `return`, another `__init__` call after the store, a computed initialiser, no binding at all)
+  has no statable goal: a class whose `\length` invariant is otherwise statable is REFUSED
+  (`PYCSL-R384-INVARIANT-GOAL-UNSTATABLE`), never assumed.
+A `super().__init__(..)` / `super(X, self).__init__(..)` / `B.__init__(self, ..)` call reaching a
+file class whose `__init__` has a `#@ requires` and a parameter that is not `int` / `bool` /
+unannotated is REFUSED (`PYCSL-R385-DELEGATED-INIT-REQUIRES-UNCHECKED`): that requires is a premise
+of the goal and of `B(..)` constructions but nothing checks it at the delegating call (over int
+parameters route #335 already substitutes the arguments into the subclass's own goal). NOT
+COVERED: an invariant whose goal also stops at an element / quantifier / string / predicate term
+(route #226's residual, including two mirror parsers) is still assumed; an unverified caller that
+keeps an alias of the list it passed and mutates it later (`c = Cur(DEF); DEF.clear()` in
+`__main__`). Witnesses `5240`-`5259`; controls `5270`-`5275`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
