@@ -5,7 +5,6 @@ class A:
     def __init__(self, k: int) -> None:
         self.x = k
 
-    #@ requires True
     #@ ensures \result == self.x
     def get(self) -> int:
         return self.x
