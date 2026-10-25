@@ -1,5 +1,18 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #346 + #347 + #348 + #349 REPAIRED, candidate (r346 executor off b83a217b; code 2054301b, corpus + docs
+##   ff6941ee (annotations 7.28 / T.6.39), census 44f8d480, route docs; one inline `_run_pipeline` block after #341/#342's, no new
+##   def, ledger 3). Sound refusals, no emission change. #346 PYCSL-R346-POST-INIT-INVARIANT: an invariant-carrying record whose base
+##   closure holds a `@dataclass` and a `__post_init__` (route #150's opacity dropped route #226's goal). #347
+##   PYCSL-R347-FIELD-MAYBE-UNASSIGNED: definite assignment over each constructor (if/loop/try/with/early return/raise/super chain,
+##   dataclass `field(init=False)`); a maybe-absent field read under an AttributeError-covering `no_exception`. #348
+##   PYCSL-R348-IMMUTABLE-RECORD-STORE: attribute store / augmented / del / setattr / delattr on NamedTuple, namedtuple, frozen
+##   dataclass (and subclasses). #349 PYCSL-R349-UNHASHABLE-RECORD: Python's hashability rule per class; an unhashable record as a
+##   set element / dict key / subscript / `hash` / membership / set-method argument, or in a `Set[U]` / `Dict[U, ..]` annotation.
+##   Witnesses 4660-4685 (8 red-team + 18 new shapes; 17 PROVED at base, 9 new latent) -> REFUSED; controls 4686-4696 PROVED. Census
+##   screen 1286 class-bearing files: 0 hits. Root 0/0/0 (11 new controls), pyref 0/0/0, mirror 53/53 0/0/0 (no OWED proof).
+##   Residuals: ambient callees (#347), by-name receiver fallback, per-file analysis, underivable element classes (see REPAIRs).
+
 ## gen #37 (2026-10-24): #343 + #344 + #345 REPAIRED, candidate (r343 executor off b83a217b; code 9b8ee8b8 / e8f0cc77, corpus
 ##   3aa9c2b2, docs e1ea6c14 (annotations 7.27 / T.6.38) + route docs; inline, no new def, ledger 3, no new refusal code).
 ##   #343: a non-record class's method receiver `self` joins route #249's erased set (alias / walrus / element / builtin
