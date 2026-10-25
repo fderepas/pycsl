@@ -9806,13 +9806,14 @@ class PreambleEmissionMixin:
                     # (PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH); this check stays as the
                     # emitter's own guard so it never STATES the conflated goal.
                     # The record of a class whose `\length` goal failed on a field STATE
-                    # (no term obstacle): `_run_pipeline` REFUSES it after emission
-                    # (PYCSL-R384-INVARIANT-GOAL-UNSTATABLE) rather than let every method
-                    # assume the invariant.
+                    # (no term obstacle) is MARKED in the emission; `_run_pipeline` REFUSES the
+                    # file on the marker (PYCSL-R384-INVARIANT-GOAL-UNSTATABLE) rather than let
+                    # every method assume the invariant. A comment, not a `self` field: the
+                    # mirror twin's `#@ assigns` stays exact (check-assigns-underdeclaration).
                     if _pj_state384 and not _ci_emitted:
-                        if not hasattr(self, "nogoal_r384"):
-                            self.nogoal_r384 = {}
-                        self.nogoal_r384[td["name"]] = _pj_state384
+                        out.append("  (* PYCSL-R384-NO-GOAL %s: %s *)" % (
+                            td["name"], _pj_state384.replace("*)", "* )").replace("(*", "( *")
+                            .replace("\n", " ")))
                 out.append("")
                 # UB-7.2 — hash/eq consistency. Module 5 marks classes
                 # whose `__hash__` and `__eq__` are both defined.

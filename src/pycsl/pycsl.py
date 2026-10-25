@@ -8011,11 +8011,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # from the constructor's end state of each list field (`ctor_len_r384` above); when that
     # state is unknown (a computed initialiser, a later `pop` / `clear` / `remove` / alias /
     # second store / loop / branch, a subclass whose fields come from `super().__init__`) and
-    # nothing else in the invariant stops the goal, it records the class in `nogoal_r384`.
+    # nothing else in the invariant stops the goal, it MARKS the class in the emission
+    # (`(* PYCSL-R384-NO-GOAL <class>: <why> *)`).
     # MEASURED (red team 30, 29 witnesses): no goal, the invariant assumed by every method,
     # `#@ no_exception` on `self.disk[3]` PROVED while CPython raised IndexError. Inline;
     # `_run_pipeline`'s mirror twin is `\trusted`.
-    _ng384 = getattr(transpiler, "nogoal_r384", None) or {}
+    _ng384 = {}
+    import re as _re384
+    for _mm384 in _re384.finditer(r"\(\* PYCSL-R384-NO-GOAL (\S+): (.*) \*\)", _mlw or ""):
+        _ng384.setdefault(_mm384.group(1), _mm384.group(2))
     for _c384 in sorted(_ng384):
         raise _PyCSLSemanticError(
             f"class '{_c384}' carries a `#@ class invariant` over "

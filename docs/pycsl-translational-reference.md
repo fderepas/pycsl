@@ -4551,9 +4551,9 @@ other than as that store's value, `len(p)` or a non-slice `p[i]`; a `return` / `
 outside nested scopes makes every field UNKNOWN. In Module 6: $\sigma(f) = \mathrm{LEN}(n)$ gives the
 premise `(Array.length ℓ(f)) = n` (overriding `field_defaults` and admitting $f \in$
 `init_unknown_fields`); UNKNOWN, or §T.6.48's binding failing for an array field, is a STATE
-obstacle: no goal, and when the projection found no TERM obstacle the record name is recorded in
-`nogoal_r384` and `_run_pipeline` raises `PYCSL-R384-INVARIANT-GOAL-UNSTATABLE` after
-`transpile()`. Before Module 6, a `Call` whose function is `super(..).__init__` or `B.__init__`
+obstacle: no goal, and when the projection found no TERM obstacle Module 6 emits the marker
+comment `(* PYCSL-R384-NO-GOAL <C>: <why> *)` and `_run_pipeline` raises
+`PYCSL-R384-INVARIANT-GOAL-UNSTATABLE` on it after `transpile()`. Before Module 6, a `Call` whose function is `super(..).__init__` or `B.__init__`
 ($B$ a file class) in a method of a file class $K$ is refused
 (`PYCSL-R385-DELEGATED-INIT-REQUIRES-UNCHECKED`) when a file class reachable from $K$'s bases (resp.
 $B$ and its bases) has a non-empty `init_contract_check.requires` and a `param_types` entry outside
