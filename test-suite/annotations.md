@@ -2305,15 +2305,16 @@ Four gaps of §7.32 (dataclass pseudo-fields), §7.33 (4) (the enum member set) 
 The dataclass model recognises `ClassVar` / `InitVar` / `KW_ONLY` / `field` / `dataclass` by
 their literal names, so `from dataclasses import InitVar as IV`, `CV = ClassVar`, `field as
 fld` or `KW_ONLY as KO` made a pseudo-field an ordinary field (`d.k`, `D(1, 5)` and `fld(default=7)`
-read as 0 all PROVED; CPython AttributeError / TypeError / 7). Every class decorator and every
-`@dataclass` annotation head (through a string annotation and one subscript) and default call
-is now RESOLVED through the file's imports and module-level aliases: a stdlib origin, a file
+read as 0 all PROVED; CPython AttributeError / TypeError / 7). Every `@dataclass` annotation
+head (through a string annotation and one subscript) and default call is now RESOLVED through the file's imports and module-level aliases: a stdlib origin, a file
 class / function, a builtin, an unbound name (never a specifier), or UNKNOWN (a non-stdlib or
 relative import, a star import, a name bound by anything but a plain alias). REFUSED: a
 specifier spelled other than by its own name (an alias), a specifier spelling that resolves
-elsewhere, an UNKNOWN head, default callee or `@dataclass`, a `dataclasses.dataclass` decorator
-not spelled `dataclass`, a default call to a file function (it may return a `Field`), and an
-annotated member nested in class-body control flow. A `field(..)` call takes only its keywords
+elsewhere, an UNKNOWN head or default callee, a default call to a file function (it may return
+a `Field`: `x: int = mk()` with `mk` returning `field(default=7)` PROVED `D().x == 0`, CPython
+7), and an annotated member nested in class-body control flow. (A decorator that is not the
+literal `dataclasses.dataclass` — `dataclass as dc`, a rebound `dataclass` — was already refused
+by the decorator-binding rule of routes #130-#133, measured.) A `field(..)` call takes only its keywords
 (`default`, `default_factory`, `init`, `repr`, `hash`, `compare`, `metadata`, `kw_only`, `doc`),
 with `init` / `kw_only` as `True` / `False` literals and never both defaults.
 

@@ -3450,16 +3450,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # never checked (`D(1, 5)` past `t.ClassVar`, a positional argument for a
         # keyword-only field, a missing required `field(kw_only=True)`). RULES (sound
         # refusals, no emission change):
-        #   (a) every class decorator, `@dataclass` annotation head (through a string
-        #       annotation and one subscript) and default call is RESOLVED through the
+        #   (a) every `@dataclass` annotation head (through a string annotation and one
+        #       subscript) and default call is RESOLVED through the
         #       file's imports and module-level aliases (`_rs369`): a stdlib origin
         #       (`typing.ClassVar`, `dataclasses.InitVar` ...), a file class / def, a
         #       builtin, an unbound name (it can never be a specifier), or UNKNOWN (a
         #       non-stdlib or relative import, a star import, a name bound otherwise).
         #       REFUSED: a specifier whose spelling is not its own name (an alias), a
-        #       specifier spelling that resolves elsewhere, an UNKNOWN head / default call
-        #       / `dataclass` decorator, a `dataclasses.dataclass` decorator not spelled
-        #       `dataclass`, and an annotated member nested in class-body control flow;
+        #       specifier spelling that resolves elsewhere, an UNKNOWN head / default call,
+        #       a default call of a file `def` (it may return a `Field`), and an annotated
+        #       member nested in class-body control flow. (A `dataclass` decorator that is
+        #       not the literal `dataclasses.dataclass` — `dataclass as dc`, a rebound
+        #       `dataclass` — is already refused by Module 3's decorator-binding rule,
+        #       routes #130-#133, measured.)
         #   (b) a `field(..)` call takes only its keywords (`default`, `default_factory`,
         #       `init`, `repr`, `hash`, `compare`, `metadata`, `kw_only`, `doc`), `init` /
         #       `kw_only` as `True` / `False` literals, never both defaults (CPython
@@ -3536,7 +3539,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         for _n369 in _ast341.walk(_t341):
             if isinstance(_n369, _ast341.NamedExpr) and isinstance(_n369.target, _ast341.Name):
                 _md369.setdefault(_n369.target.id, []).append(None)
-        # `_rs369[id(e)]`: the resolution of each decorator / annotation head / default
+        # `_rs369[id(e)]`: the resolution of each annotation head / default
         # callee of a class body (see (a)); filled below for the expressions it is asked of.
         _SP369 = {"dataclasses.InitVar": "InitVar", "dataclasses.KW_ONLY": "KW_ONLY",
                   "typing.ClassVar": "ClassVar"}
@@ -3544,8 +3547,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _hd369 = {}     # id(AnnAssign) -> its annotation head node (string parsed once)
         for _cn346, _ks346 in _cls341.items():
             for _k346 in _ks346:
-                for _d369 in _k346.decorator_list:
-                    _rq369.append(_d369.func if isinstance(_d369, _ast341.Call) else _d369)
                 for _s369 in _k346.body:
                     if isinstance(_s369, _ast341.AnnAssign):
                         _h369 = _s369.annotation
@@ -3631,22 +3632,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _rs369[id(_e0369)] = _r369
         for _cn346, _ks346 in _cls341.items():
             for _k346 in _ks346:
-                for _d369 in _k346.decorator_list:
-                    _df369 = _d369.func if isinstance(_d369, _ast341.Call) else _d369
-                    _sp369 = (_df369.id if isinstance(_df369, _ast341.Name) else
-                              _df369.attr if isinstance(_df369, _ast341.Attribute) else "")
-                    _r369 = _rs369.get(id(_df369), "?")
-                    if (_r369 == "dataclasses.dataclass") != (_sp369 == "dataclass"):
-                        raise _PyCSLSemErr341(
-                            f"class '{_cn346}' line {_d369.lineno}: the decorator "
-                            f"`@{_ast341.unparse(_d369)}` resolves to `{_r369}` (through "
-                            f"this file's imports / aliases). PyCSL's dataclass model "
-                            f"recognises the decorator by its literal name `dataclass`, so "
-                            f"an alias of `dataclasses.dataclass` (or another object named "
-                            f"`dataclass`) would be modelled as the wrong class (route "
-                            f"#369). Import and spell it `dataclass` "
-                            f"(`from dataclasses import dataclass`).",
-                            stage="ir-semantic", code="PYCSL-R369-DATACLASS-SPECIFIER")
                 if _cn346 not in _dc346:
                     continue
                 _cq369 = [(_s, True) for _s in _k346.body]

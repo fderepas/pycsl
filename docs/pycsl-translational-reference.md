@@ -4352,7 +4352,7 @@ _Corresponds to `annotations.md` §7.35._
 Refusals only, inside the inline blocks of §T.6.39 / §T.6.43 (#369, #371, #372) and §T.6.41
 (#370) of `_run_pipeline` (mirror twin `\trusted`; no emission change).
 
-**#369 (resolution).** $\rho(e)$, for a decorator, a `@dataclass` annotation head $h$ (a string
+**#369 (resolution).** $\rho(e)$, for a `@dataclass` annotation head $h$ (a string
 annotation parsed once, one `Subscript` stripped) or a default callee: an attribute chain
 $e_0.a_1 \ldots a_k$ resolves $e_0$ and appends the suffix (only onto a module path); a `Name`
 $n$ imported by `from M import X as n` (level 0, $M$ stdlib or `typing_extensions` $\to$
@@ -4365,8 +4365,7 @@ $\rho$ of that value, to a string constant $\rho$ of its parse, to another const
 name $\bot$; a builtin is `builtins.n`; an unbound name is `unbound`. With $\Sigma$ =
 \{`typing.ClassVar` $\mapsto$ `ClassVar`, `dataclasses.InitVar` $\mapsto$ `InitVar`,
 `dataclasses.KW_ONLY` $\mapsto$ `KW_ONLY`\} and $\mathit{sp}(e)$ the tail spelling: refused
-(`PYCSL-R369-DATACLASS-SPECIFIER`) iff for a decorator $(\rho = \texttt{dataclasses.dataclass})
-\neq (\mathit{sp} = \texttt{dataclass})$; for a member of a model dataclass: it is nested in
+(`PYCSL-R369-DATACLASS-SPECIFIER`) iff, for a member of a model dataclass: it is nested in
 class-body control flow, $\rho(h) \in \Sigma \wedge \Sigma(\rho(h)) \neq \mathit{sp}(h)$,
 $\rho(h) \notin \Sigma \wedge \mathit{sp}(h) \in \Sigma$, $\rho(h) = \bot$; for its default
 call $c$: $(\rho = \texttt{dataclasses.field}) \neq (\mathit{sp} = \texttt{field})$, $\rho(c) =
