@@ -38,7 +38,7 @@ class Tok:
 @mutable_state
 class Cursor:
     #@ \trusted reviewer: pycsl-reference-1190
-    #@ requires True
+    #@ requires len(toks) >= 1
     #@ ensures True
     #@ assigns \nothing
     def __init__(self, toks: List[Tok]):

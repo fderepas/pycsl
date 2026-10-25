@@ -78,6 +78,8 @@ class Node:
 #@ class invariant \length(self.nodes) >= 1
 @mutable_state
 class Parser:
+    #@ requires len(toks) >= 1
+    #@ requires len(nodes) >= 1
     def __init__(self, toks: List[Tok], nodes: List[Node]):
         self.toks: List[Tok] = toks
         self.nodes: List[Node] = nodes

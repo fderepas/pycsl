@@ -9711,6 +9711,11 @@ class PreambleEmissionMixin:
                                                   _n2_pj["args"][0].get("name") or ""), "int") != "int"):
                                             # `len(p)` of an ARRAY-bound parameter (2c)
                                             pass
+                                        elif (_t2_pj == "ArrayLen"
+                                              and isinstance(_n2_pj.get("var"), str)
+                                              and _pj_ty.get(whyml_ident(_n2_pj["var"]), "int") != "int"):
+                                            # `\length(p)` of an ARRAY-bound parameter (2c)
+                                            _vs_pj.add(_n2_pj["var"])
                                         elif _t2_pj not in ("BinOp", "UnaryOp", "Compare",
                                                             "BoolOp", "Number", "Num", "Int",
                                                             "Bool", "BoolLit", "Constant",

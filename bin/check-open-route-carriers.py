@@ -171,11 +171,17 @@ CARRIERS = {
     # 4950-4952 FAIL. This shape is what the projection cannot state: a `\length` invariant
     # over a LIST field bound to an `__init__` parameter (census: 25 classes, 17 in PASS files
     # incl. 2 mirrors, so a refusal is not inert; see the route file's gen #37 REPAIR).
+    # (#49) gen #37 — THIS CARRIER IS CLOSED by route #226 increment 2c: a `\\length(self.f)`
+    # term over an ARRAY field is stated in the goal with `f` bound at its array type (to the
+    # `__init__` parameter, or to the literal length Module 5 records), so the carrier's
+    # `forall xs : array int. xs = xs -> (Array.length xs >= 1)` FAILS; corpus witness 5100
+    # (expected FAIL), controls 5110-5114. The row now ASSERTS the failure (kept gating, not
+    # removed): a regression that makes the carrier prove again turns this plane red.
     "getting-better/open-routes/route226-carrier-length-invariant-over-list-param.py": (
-        "SUCCESS", "#226",
-        "`\\length(self.xs) >= 1` over a field bound to a list parameter gets no constructor "
-        "goal, so `#@ no_exception \\all` on `self.xs[0]` PROVES while CPython `D([]).first()` "
-        "raises IndexError"),
+        "FAILED", "#226",
+        "`\\length(self.xs) >= 1` over a field bound to a list parameter now gets the "
+        "constructor goal `forall xs : array int. xs = xs -> (Array.length xs >= 1)`, which "
+        "FAILS (CPython `D([]).first()` raises IndexError)"),
 }
 FLAGS = ["--memory-model", "hoare"]
 

@@ -109,6 +109,7 @@ class BinOp:
 #@ class invariant \length(self.toks) >= 1
 @mutable_state
 class Parser:
+    #@ requires len(toks) >= 1
     def __init__(self, toks: List[Tok]):
         self.toks: List[Tok] = toks
         self.i: int = 0

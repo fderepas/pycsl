@@ -1,7 +1,7 @@
 """ROUTE #226 CARRIER (gen #37) — a `\\length` invariant over a LIST field bound to an
 `__init__` parameter, with no `#@ requires`, is ASSUMED.
 
-This file PROVES A FALSE CONTRACT TODAY (`#@ no_exception \\all` on `first`), which is why it
+This file PROVED A FALSE CONTRACT until increment 2c (`#@ no_exception \\all` on `first`), which is why it
 lives here and not in the corpus. `bin/check-open-route-carriers.py` runs it and asserts the
 verdict this route's record states.
 
@@ -19,8 +19,9 @@ files, so a refusal is not inert. The
 honest goal quantifies an `array` binder (`forall xs: array int. inv`) and needs `#@ requires
 len(xs) >= 1` on those constructors — the next increment.
 
-EXPECTED TODAY: SUCCESS. WHEN THIS STOPS PROVING, update
-`route226-a-class-invariant-the-constructor-never-establishes.md` in the SAME commit.
+CLOSED (gen #37, increment 2c): the goal now binds `xs` as an array,
+`forall xs : array int. xs = xs -> (Array.length xs >= 1)`, and FAILS. EXPECTED: FAILED
+(asserted by `bin/check-open-route-carriers.py`); corpus witness 5100.
 """
 from typing import List
 
