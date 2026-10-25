@@ -9541,6 +9541,7 @@ class PreambleEmissionMixin:
                     _pj_strs = []
                     _pj_arr = {}
                     _pj_ty = {}
+                    _pj_state384 = ""
                     if not _ci_emitted and class_invs:
                         _pj_P = []
                         _stk_pj = list(class_invs)
@@ -9576,14 +9577,25 @@ class PreambleEmissionMixin:
                                 _f_pj = _nd_pj["var"][5:]
                                 _et_pj = (self._emitted_record_field_types.get(type_name)
                                           or {}).get(_q(_f_pj), "")
+                                # (#49) gen #37, ROUTES #384 / #385: the constructor's END
+                                # state of the field (`_run_pipeline`'s `ctor_len_r384`). A
+                                # field the goal cannot state is a STATE obstacle: the walk
+                                # goes on (a term obstacle elsewhere keeps the #226 residual),
+                                # and with no term obstacle the class is REFUSED, not assumed.
+                                _s384 = ((getattr(self, "ctor_len_r384", None) or {})
+                                         .get(td["name"]) or {}).get(_f_pj)
                                 if _f_pj not in field_names:
                                     _pj_why = "names `self.%s`, which is not a field of the record" % _f_pj
                                 elif not _et_pj.startswith("array "):
                                     _pj_why = ("takes the length of the non-array field `self.%s` (%s)"
                                                % (_f_pj, _et_pj or field_types.get(_f_pj)))
-                                elif _f_pj in _ci_unk:
-                                    _pj_why = ("reads `self.%s`, which the constructor COMPUTES "
-                                               "or stores under control flow" % _f_pj)
+                                elif _s384 is not None and _s384[0] == "UNKNOWN":
+                                    _pj_state384 = _pj_state384 or _s384[1]
+                                elif _f_pj in _ci_unk and not (_s384 is not None
+                                                               and _s384[0] == "LEN"):
+                                    _pj_state384 = _pj_state384 or (
+                                        "the constructor COMPUTES `self.%s` or stores it under "
+                                        "control flow" % _f_pj)
                                 else:
                                     _pj_arr[_f_pj] = _et_pj
                                     if _f_pj not in _pj_P:
@@ -9597,6 +9609,10 @@ class PreambleEmissionMixin:
                             else:
                                 _pj_why = ("contains a `%s` term (a call, a name other than a "
                                            "field, a subscript ...)" % _ty_pj)
+                        if not _pj_why and _pj_state384:
+                            _pj_why = _pj_state384
+                        else:
+                            _pj_state384 = ""
                         if not _pj_why and not _pj_P:
                             _pj_why = "names no field of the record"
                         _pj_vals = {}
@@ -9615,7 +9631,11 @@ class PreambleEmissionMixin:
                                     # `field_defaults` (`[0] * 8`, `[1, 2, 3]`), stated as
                                     # `Array.length f = N`. Anything else: no goal.
                                     _pj_ty[_q(fn)] = _pj_arr[fn]
-                                    if isinstance(_v_ci, dict) and _v_ci.get("type") == "Var":
+                                    _s384 = ((getattr(self, "ctor_len_r384", None) or {})
+                                             .get(td["name"]) or {}).get(fn)
+                                    if _s384 is not None and _s384[0] == "LEN":
+                                        _val_ci = "#len %d" % _s384[1]
+                                    elif isinstance(_v_ci, dict) and _v_ci.get("type") == "Var":
                                         _nm_ci = _v_ci.get("name")
                                         if (_nm_ci in _ci_params
                                                 and _ci_ptypes.get(_nm_ci, "") not in ("int", "bool", "str", "float")
@@ -9649,6 +9669,10 @@ class PreambleEmissionMixin:
                                     _pj_why = ("the constructor binds `self.%s` to something "
                                                "other than an int literal or an int parameter"
                                                % fn)
+                                    if fn in _pj_arr:
+                                        _pj_state384 = ("the constructor does not bind the list "
+                                                        "field `self.%s` to a literal or to an "
+                                                        "`__init__` parameter" % fn)
                                     break
                                 _pj_vals[fn] = _val_ci
                         # A parameter binder that is ALSO the label of a field it is not
@@ -9781,6 +9805,14 @@ class PreambleEmissionMixin:
                     # invariant field) is REFUSED earlier, in `_run_pipeline`
                     # (PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH); this check stays as the
                     # emitter's own guard so it never STATES the conflated goal.
+                    # The record of a class whose `\length` goal failed on a field STATE
+                    # (no term obstacle): `_run_pipeline` REFUSES it after emission
+                    # (PYCSL-R384-INVARIANT-GOAL-UNSTATABLE) rather than let every method
+                    # assume the invariant.
+                    if _pj_state384 and not _ci_emitted:
+                        if not hasattr(self, "nogoal_r384"):
+                            self.nogoal_r384 = {}
+                        self.nogoal_r384[td["name"]] = _pj_state384
                 out.append("")
                 # UB-7.2 — hash/eq consistency. Module 5 marks classes
                 # whose `__hash__` and `__eq__` are both defined.

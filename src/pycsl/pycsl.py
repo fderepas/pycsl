@@ -3289,6 +3289,70 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 f"(the shapes the constructor goal states), and keep "
                                 f"`self` out of calls and aliases in the constructor.",
                                 stage="ir-semantic", code="PYCSL-R342-CONSTRUCTOR-STORE-FORM")
+        # (#49) gen #37, ROUTE #385 — `__init__`'s `#@ requires` IS NOT CHECKED AT
+        # `super().__init__(..)` / `C.__init__(self, ..)`. Route #15 / #226 read a constructor's
+        # `#@ requires` as a PREMISE of its class-invariant goal and of `C(..)` construction, but
+        # a delegating call from a subclass constructor reaches no call-site check. MEASURED
+        # (red team 30 c31 / l04): `super().__init__([])` into `#@ requires len(toks) >= 1`
+        # under `\length(self.toks) >= 1` PROVED a `no_exception` read of `self.toks[0]`
+        # (CPython IndexError). RULE: a `super().__init__(..)` / `super(X, self).__init__(..)`
+        # call in a method of file class K, or `B.__init__(self, ..)` with B a file class, is
+        # REFUSED when any file class it can reach (K's file bases and their bases; B and its
+        # bases) has an `__init__` with a non-trivial `#@ requires` and a parameter that is not
+        # `int` / `bool` / unannotated. (Over those parameters route #335 already substitutes the
+        # delegated arguments into the subclass's own goal, so the invariant is checked on them
+        # directly — measured: 4475 `super().__init__(3)`, `pycsl_lib` plib `Path`; outside that
+        # domain nothing composes the call and nothing checks the requires.) Inline;
+        # `_run_pipeline`'s mirror twin is `\trusted`.
+        _rq385 = {_td385.get("name") for _td385 in (_ir342.get("type_decls") or [])
+                  if isinstance(_td385, dict)
+                  and ((_td385.get("init_contract_check") or {}).get("requires") or [])
+                  and any(_pt385 not in ("", "int", "bool") for _pt385 in (
+                      (_td385.get("init_contract_check") or {}).get("param_types")
+                      or {"?": "?"}).values())}
+        if _rq385:
+            for _cn385, _ks385 in _cls341.items():
+                for _k385 in _ks385:
+                    for _x385 in _ast341.walk(_k385):
+                        if not (isinstance(_x385, _ast341.Call)
+                                and isinstance(_x385.func, _ast341.Attribute)
+                                and _x385.func.attr == "__init__"):
+                            continue
+                        _r385 = []
+                        _v385 = _x385.func.value
+                        if (isinstance(_v385, _ast341.Call) and isinstance(_v385.func, _ast341.Name)
+                                and _v385.func.id == "super"):
+                            for _b385 in _k385.bases:
+                                if isinstance(_b385, _ast341.Name):
+                                    _r385.append(_b385.id)
+                        elif isinstance(_v385, _ast341.Name) and _v385.id in _cls341:
+                            _r385.append(_v385.id)
+                        _seen385 = set()
+                        while _r385:
+                            _c385 = _r385.pop()
+                            if _c385 in _seen385 or _c385 not in _cls341:
+                                continue
+                            _seen385.add(_c385)
+                            if _c385 in _rq385:
+                                raise _PyCSLSemErr341(
+                                    f"class '{_cn385}' line {getattr(_x385, 'lineno', 0)}: "
+                                    f"`{_ast341.unparse(_x385)[:80]}` runs the constructor of "
+                                    f"'{_c385}', whose `__init__` carries a `#@ requires`. That "
+                                    f"precondition is read as a premise of the class's "
+                                    f"constructor-invariant goal and of `{_c385}(..)` "
+                                    f"constructions, but nothing checks it at a delegating "
+                                    f"`super().__init__(..)` / `{_c385}.__init__(self, ..)` call "
+                                    f"(route #385; measured: `super().__init__([])` into "
+                                    f"`#@ requires len(toks) >= 1` PROVED a `no_exception` read "
+                                    f"under `\\length(self.toks) >= 1`, CPython raises "
+                                    f"IndexError). Construct through `{_c385}(..)` instead, or "
+                                    f"drop the `#@ requires` from `{_c385}.__init__`.",
+                                    stage="ir-semantic",
+                                    code="PYCSL-R385-DELEGATED-INIT-REQUIRES-UNCHECKED")
+                            for _k2385 in _cls341[_c385]:
+                                for _b385 in _k2385.bases:
+                                    if isinstance(_b385, _ast341.Name):
+                                        _r385.append(_b385.id)
         # (#49) gen #37, ROUTES #346 / #347 / #348 / #349 — FOUR CLASS SHAPES WHOSE RUNTIME
         # BEHAVIOUR THE RECORD MODEL DOES NOT HAVE (red team 25; each MEASURED PROVED at
         # b83a217b, CPython violates). Sound REFUSALS on the source, no emission change;
@@ -7637,7 +7701,332 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _nd373.add(_y373.name)
                     _q373.extend(_ast376.iter_child_nodes(_y373))
         transpiler.nested_method_defs_r373 = _nd373
+        # (#49) gen #37, ROUTES #384 / #385 — WHAT `__init__` LEAVES IN EACH LIST FIELD.
+        # Route #226 increment 2c states the constructor-invariant goal over `\length(self.f)`
+        # from Module 5's view of the field's STORE (`init_body` / `field_defaults` /
+        # `init_unknown_fields`), so a later `self.f.pop()` / `toks.clear()` through the
+        # parameter alias / a tuple re-store was invisible (`[0] * 4; self.disk.pop()` under
+        # `\length == 4`, or `self.toks = toks; toks.clear()`, PROVED; CPython IndexError),
+        # `[] * 4` read as length 4, and a computed initialiser left NO goal, so the
+        # invariant was ASSUMED. This pass reads the constructor's END state per field,
+        # read by Module 6 (`_emit_type_decls`) as `ctor_len_r384[class][field]`:
+        #   ("LEN", n)   — a fresh list of exactly n elements: a display, `[..] * K`
+        #                  (n = len * max(K, 0)), `bytearray(K)` / `bytes(K)` / `list()`, K an
+        #                  int literal or a module constant bound exactly once, then only
+        #                  top-level `self.f.append/insert/extend/pop/clear/reverse/sort`
+        #                  with literal effect on the length;
+        #   ("PARAM", p) — `self.f = p` (p an `__init__` parameter) and p / `self.f` never
+        #                  otherwise named in `__init__` (beyond `len(..)` / `x[i]` reads)
+        #                  and no call after the store (an alias can reach the list);
+        #   ("UNKNOWN", why) — anything else once `self.f` is stored; Module 6 then states
+        #                  no goal and `_run_pipeline` REFUSES (PYCSL-R384-...).
+        # A class without its own `__init__` takes its first file base's entry. INLINE (no
+        # nested def: check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+        _bind384 = {}
+        _glob384 = set()
+        for _n384 in _ast376.walk(_t376):
+            if isinstance(_n384, _ast376.Name) and not isinstance(_n384.ctx, _ast376.Load):
+                _bind384[_n384.id] = _bind384.get(_n384.id, 0) + 1
+            elif isinstance(_n384, (_ast376.FunctionDef, _ast376.AsyncFunctionDef,
+                                    _ast376.ClassDef)):
+                _bind384[_n384.name] = _bind384.get(_n384.name, 0) + 1
+            elif isinstance(_n384, _ast376.arg):
+                _bind384[_n384.arg] = _bind384.get(_n384.arg, 0) + 1
+            elif isinstance(_n384, (_ast376.Import, _ast376.ImportFrom)):
+                for _al384 in _n384.names:
+                    _k384 = (_al384.asname or _al384.name).split(".")[0]
+                    _bind384[_k384] = _bind384.get(_k384, 0) + 1
+            elif isinstance(_n384, (_ast376.Global, _ast376.Nonlocal)):
+                _glob384 |= set(_n384.names)
+        _mc384 = {}
+        for _s384 in _t376.body:
+            _tg384 = _v384 = None
+            if isinstance(_s384, _ast376.Assign) and len(_s384.targets) == 1:
+                _tg384, _v384 = _s384.targets[0], _s384.value
+            elif isinstance(_s384, _ast376.AnnAssign) and _s384.value is not None:
+                _tg384, _v384 = _s384.target, _s384.value
+            if (isinstance(_tg384, _ast376.Name) and _bind384.get(_tg384.id) == 1
+                    and _tg384.id not in _glob384
+                    and isinstance(_v384, _ast376.Constant)
+                    and isinstance(_v384.value, int) and not isinstance(_v384.value, bool)):
+                _mc384[_tg384.id] = int(_v384.value)
+        _cl384 = {}
+        _cdefs384 = {}
+        for _k384 in _ast376.walk(_t376):
+            if isinstance(_k384, _ast376.ClassDef):
+                _cdefs384.setdefault(_k384.name, []).append(_k384)
+        for _cn384, _ks384 in _cdefs384.items():
+            if len(_ks384) != 1:
+                continue
+            _in384 = [_m for _m in _ks384[0].body
+                      if isinstance(_m, (_ast376.FunctionDef, _ast376.AsyncFunctionDef))
+                      and _m.name == "__init__"]
+            if len(_in384) != 1:
+                continue
+            _m384 = _in384[0]
+            _pa384 = _m384.args.posonlyargs + _m384.args.args
+            if not _pa384:
+                continue
+            _self384 = _pa384[0].arg
+            _pn384 = {_a.arg for _a in (_pa384[1:] + _m384.args.kwonlyargs)}
+            if _m384.args.vararg is not None:
+                _pn384.add(_m384.args.vararg.arg)
+            if _m384.args.kwarg is not None:
+                _pn384.add(_m384.args.kwarg.arg)
+            _par384 = {}
+            for _x384 in _ast376.walk(_m384):
+                for _c384 in _ast376.iter_child_nodes(_x384):
+                    _par384[id(_c384)] = _x384
+            _ret384 = False
+            _skip384 = set()
+            for _x384 in _ast376.walk(_m384):
+                if _x384 is not _m384 and isinstance(
+                        _x384, (_ast376.FunctionDef, _ast376.AsyncFunctionDef,
+                                _ast376.Lambda, _ast376.ClassDef)):
+                    _skip384 |= {id(_y) for _y in _ast376.walk(_x384)} - {id(_x384)}
+            for _x384 in _ast376.walk(_m384):
+                if isinstance(_x384, (_ast376.Return, _ast376.Yield, _ast376.YieldFrom,
+                                      _ast376.Await)) and id(_x384) not in _skip384:
+                    _ret384 = True
+            _st384 = {}
+            _prm384 = {}
+            _bltin384 = all(_bind384.get(_b, 0) == 0 for _b in ("bytearray", "bytes", "list"))
+            for _s384 in _m384.body:
+                _ok384 = set()
+                _tgt384 = _rhs384 = None
+                _eff384 = None
+                if isinstance(_s384, _ast376.Assign) and len(_s384.targets) == 1:
+                    _tgt384, _rhs384 = _s384.targets[0], _s384.value
+                elif isinstance(_s384, _ast376.AnnAssign) and _s384.value is not None:
+                    _tgt384, _rhs384 = _s384.target, _s384.value
+                if not (isinstance(_tgt384, _ast376.Attribute)
+                        and isinstance(_tgt384.value, _ast376.Name)
+                        and _tgt384.value.id == _self384):
+                    _tgt384 = _rhs384 = None
+                else:
+                    _ok384.add(id(_tgt384))
+                if (_tgt384 is None and isinstance(_s384, _ast376.Expr)
+                        and isinstance(_s384.value, _ast376.Call)
+                        and isinstance(_s384.value.func, _ast376.Attribute)
+                        and isinstance(_s384.value.func.value, _ast376.Attribute)
+                        and isinstance(_s384.value.func.value.value, _ast376.Name)
+                        and _s384.value.func.value.value.id == _self384
+                        and (_st384.get(_s384.value.func.value.attr) or ("",))[0] == "LEN"
+                        and not _s384.value.keywords
+                        and not any(isinstance(_y, (_ast376.Call, _ast376.NamedExpr,
+                                                    _ast376.Lambda, _ast376.Starred,
+                                                    _ast376.Attribute, _ast376.Subscript))
+                                    for _a in _s384.value.args for _y in _ast376.walk(_a))):
+                    _eff384 = _s384.value
+                    _ok384.add(id(_eff384.func.value))
+                # 1. every other mention of a stored field in this statement poisons it
+                for _x384 in _ast376.walk(_s384):
+                    if not (isinstance(_x384, _ast376.Attribute)
+                            and isinstance(_x384.value, _ast376.Name)
+                            and _x384.value.id == _self384
+                            and _x384.attr in _st384 and id(_x384) not in _ok384):
+                        continue
+                    _pp384 = _par384.get(id(_x384))
+                    if isinstance(_x384.ctx, _ast376.Load) and (
+                            (isinstance(_pp384, _ast376.Call)
+                             and isinstance(_pp384.func, _ast376.Name)
+                             and _pp384.func.id == "len" and _bind384.get("len", 0) == 0
+                             and _pp384.args == [_x384])
+                            or (isinstance(_pp384, _ast376.Subscript)
+                                and _pp384.value is _x384
+                                and isinstance(_pp384.ctx, _ast376.Load)
+                                and not isinstance(_pp384.slice, _ast376.Slice))):
+                        continue
+                    _st384[_x384.attr] = ("UNKNOWN",
+                                          "`__init__` uses `%s.%s` after storing it (line %d: "
+                                          "`%s`)" % (_self384, _x384.attr,
+                                                     getattr(_s384, "lineno", 0),
+                                                     _ast376.unparse(_s384)[:80]))
+                # 2. a call after a PARAM store: an alias of the caller's list can reach it
+                if any(isinstance(_y, _ast376.Call)
+                       and not (isinstance(_y.func, _ast376.Name) and _y.func.id == "len"
+                                and _bind384.get("len", 0) == 0)
+                       for _y in _ast376.walk(_s384)):
+                    for _f384 in list(_st384):
+                        if _st384[_f384][0] == "PARAM" and _f384 in _prm384:
+                            _st384[_f384] = ("UNKNOWN",
+                                             "`__init__` makes a call after binding `%s.%s` "
+                                             "to its parameter `%s` (line %d), and an alias "
+                                             "of that list can reach it"
+                                             % (_self384, _f384, _st384[_f384][1],
+                                                getattr(_s384, "lineno", 0)))
+                # 3. the statement's own effect
+                if _eff384 is not None:
+                    _fe384 = _eff384.func.value.attr
+                    _n0384 = _st384[_fe384][1]
+                    _me384 = _eff384.func.attr
+                    _na384 = len(_eff384.args)
+                    _nw384 = None
+                    if _me384 == "append" and _na384 == 1:
+                        _nw384 = _n0384 + 1
+                    elif _me384 == "insert" and _na384 == 2:
+                        _nw384 = _n0384 + 1
+                    elif _me384 == "clear" and _na384 == 0:
+                        _nw384 = 0
+                    elif _me384 in ("reverse", "sort") and _na384 == 0:
+                        _nw384 = _n0384
+                    elif _me384 == "pop" and _na384 == 0 and _n0384 >= 1:
+                        _nw384 = _n0384 - 1
+                    elif (_me384 == "pop" and _na384 == 1 and _n0384 >= 1
+                          and isinstance(_eff384.args[0], _ast376.Constant)
+                          and isinstance(_eff384.args[0].value, int)
+                          and not isinstance(_eff384.args[0].value, bool)
+                          and -_n0384 <= _eff384.args[0].value < _n0384):
+                        _nw384 = _n0384 - 1
+                    elif (_me384 == "extend" and _na384 == 1
+                          and isinstance(_eff384.args[0], (_ast376.List, _ast376.Tuple))):
+                        _nw384 = _n0384 + len(_eff384.args[0].elts)
+                    if _nw384 is None:
+                        _st384[_fe384] = ("UNKNOWN",
+                                          "`__init__` calls `%s` (line %d), whose effect on "
+                                          "the length is not stated"
+                                          % (_ast376.unparse(_eff384)[:80],
+                                             getattr(_s384, "lineno", 0)))
+                    else:
+                        _st384[_fe384] = ("LEN", _nw384)
+                elif _tgt384 is not None:
+                    _fs384 = _tgt384.attr
+                    _ln384 = None
+                    _e384 = _rhs384
+                    if isinstance(_e384, _ast376.List):
+                        if not any(isinstance(_y, _ast376.Starred) for _y in _e384.elts):
+                            _ln384 = len(_e384.elts)
+                    elif isinstance(_e384, _ast376.BinOp) and isinstance(_e384.op, _ast376.Mult):
+                        for _a384, _b384 in ((_e384.left, _e384.right),
+                                             (_e384.right, _e384.left)):
+                            if not (isinstance(_a384, _ast376.List) and not any(
+                                    isinstance(_y, _ast376.Starred) for _y in _a384.elts)):
+                                continue
+                            _kv384 = None
+                            if (isinstance(_b384, _ast376.Constant)
+                                    and isinstance(_b384.value, int)
+                                    and not isinstance(_b384.value, bool)):
+                                _kv384 = int(_b384.value)
+                            elif (isinstance(_b384, _ast376.UnaryOp)
+                                  and isinstance(_b384.op, _ast376.USub)
+                                  and isinstance(_b384.operand, _ast376.Constant)
+                                  and isinstance(_b384.operand.value, int)
+                                  and not isinstance(_b384.operand.value, bool)):
+                                _kv384 = -int(_b384.operand.value)
+                            elif isinstance(_b384, _ast376.Name) and _b384.id in _mc384:
+                                _kv384 = _mc384[_b384.id]
+                            if _kv384 is not None:
+                                _ln384 = len(_a384.elts) * max(_kv384, 0)
+                                break
+                    elif (isinstance(_e384, _ast376.Call) and _bltin384
+                          and isinstance(_e384.func, _ast376.Name)
+                          and _e384.func.id in ("bytearray", "bytes", "list")
+                          and not _e384.keywords):
+                        if not _e384.args:
+                            _ln384 = 0
+                        elif len(_e384.args) == 1 and _e384.func.id != "list":
+                            _a384 = _e384.args[0]
+                            if (isinstance(_a384, _ast376.Constant)
+                                    and isinstance(_a384.value, int)
+                                    and not isinstance(_a384.value, bool)
+                                    and _a384.value >= 0):
+                                _ln384 = int(_a384.value)
+                            elif (isinstance(_a384, _ast376.Name) and _a384.id in _mc384
+                                  and _mc384[_a384.id] >= 0):
+                                _ln384 = _mc384[_a384.id]
+                    if _ln384 is not None:
+                        _st384[_fs384] = ("LEN", _ln384)
+                    elif isinstance(_e384, _ast376.Name) and _e384.id in _pn384:
+                        _st384[_fs384] = ("PARAM", _e384.id)
+                        _prm384[_fs384] = id(_e384)
+                    else:
+                        _st384[_fs384] = ("UNKNOWN",
+                                          "`__init__` stores `%s.%s = %s` (line %d), whose "
+                                          "length the goal cannot state"
+                                          % (_self384, _fs384, _ast376.unparse(_e384)[:60],
+                                             getattr(_s384, "lineno", 0)))
+                # a `super().__init__(..)` / `B.__init__(self, ..)` may re-store any field
+                if any(isinstance(_y, _ast376.Attribute) and _y.attr == "__init__"
+                       for _y in _ast376.walk(_s384)):
+                    for _f384 in list(_st384):
+                        if _f384 != (_tgt384.attr if _tgt384 is not None else None):
+                            _st384[_f384] = ("UNKNOWN",
+                                             "`__init__` calls another `__init__` after "
+                                             "storing `%s.%s` (line %d)"
+                                             % (_self384, _f384, getattr(_s384, "lineno", 0)))
+            # 4. a PARAM field's parameter named anywhere else in `__init__` (an alias taken
+            # before or after the store, a rebinding, an argument) can change the list
+            for _f384, _v384 in list(_st384.items()):
+                if _v384[0] != "PARAM":
+                    continue
+                for _x384 in _ast376.walk(_m384):
+                    if not (isinstance(_x384, _ast376.Name) and _x384.id == _v384[1]
+                            and id(_x384) != _prm384.get(_f384)):
+                        continue
+                    _pp384 = _par384.get(id(_x384))
+                    if isinstance(_x384.ctx, _ast376.Load) and (
+                            (isinstance(_pp384, _ast376.Call)
+                             and isinstance(_pp384.func, _ast376.Name)
+                             and _pp384.func.id == "len" and _bind384.get("len", 0) == 0
+                             and _pp384.args == [_x384])
+                            or (isinstance(_pp384, _ast376.Subscript)
+                                and _pp384.value is _x384
+                                and isinstance(_pp384.ctx, _ast376.Load)
+                                and not isinstance(_pp384.slice, _ast376.Slice))):
+                        continue
+                    _st384[_f384] = ("UNKNOWN",
+                                     "`__init__` names its parameter `%s` (line %d) other "
+                                     "than in the store `%s.%s = %s`, so an alias of the "
+                                     "list can change it" % (_v384[1],
+                                                             getattr(_x384, "lineno", 0),
+                                                             _self384, _f384, _v384[1]))
+                    break
+            if _ret384:
+                for _f384 in list(_st384):
+                    _st384[_f384] = ("UNKNOWN", "`__init__` contains a `return` / `yield` / "
+                                                "`await`, so its later effects are conditional")
+            _cl384[_cn384] = _st384
+        # a class with no `__init__` of its own runs its first file base's
+        for _cn384, _ks384 in _cdefs384.items():
+            if _cn384 in _cl384 or len(_ks384) != 1:
+                continue
+            _c384 = _ks384[0]
+            _seen384 = set()
+            while _c384 is not None and _c384.name not in _seen384:
+                _seen384.add(_c384.name)
+                if _c384.name in _cl384:
+                    _cl384[_cn384] = _cl384[_c384.name]
+                    break
+                _nx384 = None
+                if _c384.bases and isinstance(_c384.bases[0], _ast376.Name):
+                    _bk384 = _cdefs384.get(_c384.bases[0].id) or []
+                    if len(_bk384) == 1:
+                        _nx384 = _bk384[0]
+                _c384 = _nx384
+        transpiler.ctor_len_r384 = _cl384
     _mlw = transpiler.transpile()
+    # (#49) gen #37, ROUTE #384 — A `\length` CLASS INVARIANT WHOSE CONSTRUCTOR GOAL CANNOT BE
+    # STATED IS REFUSED, NOT ASSUMED. Module 6 states route #226's `_check_class_inv_<c>` goal
+    # from the constructor's end state of each list field (`ctor_len_r384` above); when that
+    # state is unknown (a computed initialiser, a later `pop` / `clear` / `remove` / alias /
+    # second store / loop / branch, a subclass whose fields come from `super().__init__`) and
+    # nothing else in the invariant stops the goal, it records the class in `nogoal_r384`.
+    # MEASURED (red team 30, 29 witnesses): no goal, the invariant assumed by every method,
+    # `#@ no_exception` on `self.disk[3]` PROVED while CPython raised IndexError. Inline;
+    # `_run_pipeline`'s mirror twin is `\trusted`.
+    _ng384 = getattr(transpiler, "nogoal_r384", None) or {}
+    for _c384 in sorted(_ng384):
+        raise _PyCSLSemanticError(
+            f"class '{_c384}' carries a `#@ class invariant` over "
+            f"`\\length(self.<field>)`, but its constructor obligation (route #226) cannot be "
+            f"stated: {_ng384[_c384]}. Without that goal every method would ASSUME the "
+            f"invariant although nothing checks that `__init__` establishes it (route #384; "
+            f"measured: `self.disk = [0] * 4; self.disk.pop()` under `\\length(self.disk) == 4` "
+            f"PROVED a `no_exception` read of `self.disk[3]`, CPython raises IndexError). "
+            f"Initialise the list field with a literal (`[0] * 4`, `[1, 2]`, `bytearray(16)`) or "
+            f"bind it directly to an `__init__` parameter, and do not change it later in "
+            f"`__init__` except by `append` / `insert` / `extend([..])` / `pop()` / `clear()`.",
+            filename=args.file, stage="ir-semantic", code="PYCSL-R384-INVARIANT-GOAL-UNSTATABLE")
 
     # ROUTE #30 (relaunch #45) — REFUSE an UNINTERPRETED `match` pattern.
     #
