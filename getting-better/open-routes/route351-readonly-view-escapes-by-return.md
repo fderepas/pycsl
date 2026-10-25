@@ -48,8 +48,8 @@ default; whole-file PROVED) / 0 GONE. No OWED proof.
 after — at base 12 PROVED (9 #350 + 3 #351), 5 VERIFY-FAIL, 1 REFUSED — plus 0698 PROVED -> REFUSED, controls 4721 / 4729 PROVED at base and after; byte-diff root (`--expect-gone
 0698`) / pyref / mirror (`--expect-moved frontend__Module2_Parser`, `--min-files 50`) above; fidelity
 `check-self-annotate-sync.sh` (926 verbatim) + `self-annotate-mirror-check.sh` (53/53); `run-soundness-planes.sh`
-fast 61/61 green; check-getattr-erasure OK (DECLARED 0); STDLIB_GATE; doc-coherency --check OK;
-ASSUMED_GATE; check-dropped-mutation OK (0/51/5/0); check-refusal-witness-coverage OK (291 demonstrated, 5
+fast 61/61 green; check-getattr-erasure OK (DECLARED 0); check-stdlib-modules-verify OK (83 VERIFY, known 21 non-verifying); doc-coherency --check OK;
+check-assumed-facts OK (85 facts, all reviewed families); check-dropped-mutation OK (0/51/5/0); check-refusal-witness-coverage OK (291 demonstrated, 5
 undemonstrated = ceiling; rows via `_census_row`); check-trusted-reasons OK (420/420, unclassified 259);
 check-trusted-raises-honesty OK (ratchet 61); check-assigns-underdeclaration --transitive OK (TRAP 3, HOLE 0).
 **Residuals.** (1) View names are syntactic: a nested def's parameter shadowing an outer view name is
