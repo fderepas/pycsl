@@ -3440,6 +3440,302 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _res363.append(_pk363)
                 _sq363 = [(_s[1:] if _s[0] == _pk363 else _s) for _s in _sq363]
             _mro363[_cn346] = _res363
+        # (#49) gen #37, ROUTE #369 (red team 28; each MEASURED PROVED at 863a844a, CPython
+        # AttributeError / TypeError / wrong value) — the dataclass readers (Module 5's
+        # synthesized `__init__`, routes #144 / #146 / #151 / #347 / #361 / #362) recognise
+        # `InitVar` / `KW_ONLY` / `ClassVar` / `field` / `dataclass` by their LITERAL
+        # spelling (a `Name.id` / `Attribute.attr`), so an alias (`InitVar as IV`, `CV =
+        # ClassVar`, `field as fld`, `KW_ONLY as KO`) made a pseudo-field an ordinary field
+        # and `fld(default=7)` an opaque default; and a synthesized constructor's ARITY was
+        # never checked (`D(1, 5)` past `t.ClassVar`, a positional argument for a
+        # keyword-only field, a missing required `field(kw_only=True)`). RULES (sound
+        # refusals, no emission change):
+        #   (a) every class decorator, `@dataclass` annotation head (through a string
+        #       annotation and one subscript) and default call is RESOLVED through the
+        #       file's imports and module-level aliases (`_rs369`): a stdlib origin
+        #       (`typing.ClassVar`, `dataclasses.InitVar` ...), a file class / def, a
+        #       builtin, an unbound name (it can never be a specifier), or UNKNOWN (a
+        #       non-stdlib or relative import, a star import, a name bound otherwise).
+        #       REFUSED: a specifier whose spelling is not its own name (an alias), a
+        #       specifier spelling that resolves elsewhere, an UNKNOWN head / default call
+        #       / `dataclass` decorator, a `dataclasses.dataclass` decorator not spelled
+        #       `dataclass`, and an annotated member nested in class-body control flow;
+        #   (b) a `field(..)` call takes only its keywords (`default`, `default_factory`,
+        #       `init`, `repr`, `hash`, `compare`, `metadata`, `kw_only`, `doc`), `init` /
+        #       `kw_only` as `True` / `False` literals, never both defaults (CPython
+        #       TypeError / ValueError otherwise): anything else is REFUSED;
+        #   (c) a call `C(..)` of a file class whose constructor is known — the first
+        #       class of its C3 MRO defining a plain `def __init__`, else a `@dataclass`'s
+        #       synthesized one (the fields over the MRO's dataclasses, CPython's order:
+        #       positional, then keyword-only by `kw_only=True`, `field(kw_only=..)` or
+        #       after a `KW_ONLY` sentinel; `InitVar` included, `ClassVar` /
+        #       `init=False` excluded), else `object.__init__` (no argument) — must bind:
+        #       too many positionals, an unknown or repeated keyword, or a missing
+        #       required parameter is CPython's TypeError, which the model never raises:
+        #       REFUSED in every function that is not `\trusted` / `\abstract`. A `*` /
+        #       `**` argument, a `__new__` or metaclass anywhere in the MRO, a non-file
+        #       base, or an unknown C3 skips the check.
+        # CENSUS before landing: 497 `@dataclass` classes, 1000 annotated members, 103
+        # `field(..)` calls (corpora, mirrors, `pycsl_lib`): every one resolved, 0 aliases.
+        import builtins as _bi369
+        _STD369 = set(getattr(sys, "stdlib_module_names", ()))
+        _im369 = {}
+        _star369 = False
+        for _n369 in _ast341.walk(_t341):
+            if isinstance(_n369, _ast341.ImportFrom):
+                for _a369 in _n369.names:
+                    if _a369.name == "*":
+                        _star369 = True
+                        continue
+                    _k369 = _a369.asname or _a369.name
+                    _v369 = ("?" if _n369.level or (_n369.module or "").split(".")[0]
+                             not in _STD369 | {"typing_extensions"} else
+                             ((_n369.module or "") + "." + _a369.name).replace(
+                                 "typing_extensions.", "typing."))
+                    _im369[_k369] = _v369 if _im369.get(_k369, _v369) == _v369 else "?"
+            elif isinstance(_n369, _ast341.Import):
+                for _a369 in _n369.names:
+                    _k369 = _a369.asname or _a369.name.split(".")[0]
+                    _v369 = _a369.name if _a369.asname else _a369.name.split(".")[0]
+                    _v369 = ("typing" if _v369 == "typing_extensions" else _v369
+                             if _v369.split(".")[0] in _STD369 else "?")
+                    _im369[_k369] = _v369 if _im369.get(_k369, _v369) == _v369 else "?"
+        # module-level bindings (through `if` / `try` / `with` / loop bodies): a value,
+        # "def", "class", or None (a binding whose value is not a plain alias)
+        _md369 = {}
+        _q369 = list(_t341.body)
+        while _q369:
+            _s369 = _q369.pop(0)
+            _tg369 = []
+            if isinstance(_s369, _ast341.Assign):
+                _tg369 = [(_x, _s369.value if len(_s369.targets) == 1 else None)
+                          for _x in _s369.targets]
+            elif isinstance(_s369, _ast341.AnnAssign):
+                _tg369 = [(_s369.target, _s369.value)]
+            elif isinstance(_s369, _ast341.AugAssign):
+                _tg369 = [(_s369.target, None)]
+            elif isinstance(_s369, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                _md369.setdefault(_s369.name, []).append("def")
+            elif isinstance(_s369, _ast341.ClassDef):
+                _md369.setdefault(_s369.name, []).append("class")
+            elif isinstance(_s369, (_ast341.If, _ast341.While, _ast341.For, _ast341.AsyncFor,
+                                    _ast341.With, _ast341.AsyncWith, _ast341.Try)):
+                if isinstance(_s369, (_ast341.For, _ast341.AsyncFor)):
+                    _tg369 = [(_s369.target, None)]
+                elif isinstance(_s369, (_ast341.With, _ast341.AsyncWith)):
+                    _tg369 = [(_w.optional_vars, None) for _w in _s369.items
+                              if _w.optional_vars is not None]
+                _q369 = (list(_s369.body) + list(getattr(_s369, "orelse", []))
+                         + [_z for _h in getattr(_s369, "handlers", []) for _z in _h.body]
+                         + list(getattr(_s369, "finalbody", [])) + _q369)
+            for _x369, _v369 in _tg369:
+                for _y369 in _ast341.walk(_x369):
+                    if isinstance(_y369, _ast341.Name):
+                        _md369.setdefault(_y369.id, []).append(
+                            _v369 if _y369 is _x369 and _v369 is not None else None)
+        for _n369 in _ast341.walk(_t341):
+            if isinstance(_n369, _ast341.NamedExpr) and isinstance(_n369.target, _ast341.Name):
+                _md369.setdefault(_n369.target.id, []).append(None)
+        # `_rs369[id(e)]`: the resolution of each decorator / annotation head / default
+        # callee of a class body (see (a)); filled below for the expressions it is asked of.
+        _SP369 = {"dataclasses.InitVar": "InitVar", "dataclasses.KW_ONLY": "KW_ONLY",
+                  "typing.ClassVar": "ClassVar"}
+        _rq369 = []
+        for _cn346, _ks346 in _cls341.items():
+            for _k346 in _ks346:
+                for _d369 in _k346.decorator_list:
+                    _rq369.append(_d369.func if isinstance(_d369, _ast341.Call) else _d369)
+                for _s369 in _k346.body:
+                    if isinstance(_s369, _ast341.AnnAssign):
+                        _h369 = _s369.annotation
+                        if isinstance(_h369, _ast341.Constant) and isinstance(_h369.value, str):
+                            try:
+                                _h369 = _ast341.parse(_h369.value, mode="eval").body
+                            except (SyntaxError, ValueError):
+                                _h369 = None
+                        if isinstance(_h369, _ast341.Subscript):
+                            _h369 = _h369.value
+                        if _h369 is not None:
+                            _rq369.append(_h369)
+                        if isinstance(_s369.value, _ast341.Call):
+                            _rq369.append(_s369.value.func)
+        _rs369 = {}
+        for _e0369 in _rq369:
+            _e369 = _e0369
+            _sx369 = ""
+            _r369 = None
+            _g369 = 0
+            while _r369 is None:
+                _g369 += 1
+                if _g369 > 64:
+                    _r369 = "?"
+                elif isinstance(_e369, _ast341.Subscript) and not _sx369:
+                    _e369 = _e369.value
+                elif isinstance(_e369, _ast341.Attribute):
+                    _sx369 = "." + _e369.attr + _sx369
+                    _e369 = _e369.value
+                elif isinstance(_e369, _ast341.Name):
+                    _b369 = _md369.get(_e369.id)
+                    if _e369.id in _im369:
+                        _r369 = "?" if _b369 else _im369[_e369.id]
+                    elif _b369:
+                        _v369 = _b369[0] if len(_b369) == 1 else None
+                        if _v369 in ("def", "class"):
+                            _r369 = _v369 + ":" + _e369.id
+                        elif isinstance(_v369, _ast341.Constant) and isinstance(_v369.value,
+                                                                                str):
+                            try:
+                                _e369 = _ast341.parse(_v369.value, mode="eval").body
+                            except (SyntaxError, ValueError):
+                                _r369 = "?"
+                        elif isinstance(_v369, _ast341.Constant):
+                            _r369 = "const"
+                        elif isinstance(_v369, _ast341.BinOp):
+                            _r369 = "union"
+                        elif isinstance(_v369, (_ast341.Name, _ast341.Attribute,
+                                                _ast341.Subscript)):
+                            _e369 = _v369
+                        elif isinstance(_v369, _ast341.Call):
+                            _cf369 = _v369.func
+                            while isinstance(_cf369, _ast341.Attribute):
+                                _cf369 = _cf369.value
+                            _r369 = ("safe" if isinstance(_cf369, _ast341.Name)
+                                     and _im369.get(_cf369.id, "?").split(".")[0]
+                                     in ("typing", "collections")
+                                     and (_v369.func.id if isinstance(_v369.func, _ast341.Name)
+                                          else _v369.func.attr)
+                                     in ("TypeVar", "NewType", "ParamSpec", "TypeVarTuple",
+                                         "TypeAliasType", "NamedTuple", "namedtuple",
+                                         "TypedDict") and not _md369.get(_cf369.id)
+                                     else "?")
+                        else:
+                            _r369 = "?"
+                    elif _star369:
+                        _r369 = "?"
+                    elif hasattr(_bi369, _e369.id):
+                        _r369 = "builtins." + _e369.id
+                    else:
+                        _r369 = "unbound"
+                elif isinstance(_e369, _ast341.Constant) and _e369.value is None:
+                    _r369 = "builtins.None"
+                elif isinstance(_e369, _ast341.BinOp) and not _sx369:
+                    _r369 = "union"
+                else:
+                    _r369 = "?"
+                if _r369 is not None and _sx369:
+                    _r369 = ("?" if _r369 == "?" or ":" in _r369 or "." not in _r369
+                             and _r369 in ("unbound", "const", "union", "safe")
+                             else _r369 + _sx369)
+            _rs369[id(_e0369)] = _r369
+        for _cn346, _ks346 in _cls341.items():
+            for _k346 in _ks346:
+                for _d369 in _k346.decorator_list:
+                    _df369 = _d369.func if isinstance(_d369, _ast341.Call) else _d369
+                    _sp369 = (_df369.id if isinstance(_df369, _ast341.Name) else
+                              _df369.attr if isinstance(_df369, _ast341.Attribute) else "")
+                    _r369 = _rs369.get(id(_df369), "?")
+                    if (_r369 == "dataclasses.dataclass") != (_sp369 == "dataclass"):
+                        raise _PyCSLSemErr341(
+                            f"class '{_cn346}' line {_d369.lineno}: the decorator "
+                            f"`@{_ast341.unparse(_d369)}` resolves to `{_r369}` (through "
+                            f"this file's imports / aliases). PyCSL's dataclass model "
+                            f"recognises the decorator by its literal name `dataclass`, so "
+                            f"an alias of `dataclasses.dataclass` (or another object named "
+                            f"`dataclass`) would be modelled as the wrong class (route "
+                            f"#369). Import and spell it `dataclass` "
+                            f"(`from dataclasses import dataclass`).",
+                            stage="ir-semantic", code="PYCSL-R369-DATACLASS-SPECIFIER")
+                if _cn346 not in _dc346:
+                    continue
+                _cq369 = [(_s, True) for _s in _k346.body]
+                while _cq369:
+                    _s369, _top369 = _cq369.pop(0)
+                    if isinstance(_s369, (_ast341.If, _ast341.While, _ast341.For,
+                                          _ast341.AsyncFor, _ast341.With, _ast341.AsyncWith,
+                                          _ast341.Try)):
+                        _cq369 = [(_z, False) for _z in (
+                            list(_s369.body) + list(getattr(_s369, "orelse", []))
+                            + [_y for _h in getattr(_s369, "handlers", []) for _y in _h.body]
+                            + list(getattr(_s369, "finalbody", [])))] + _cq369
+                        continue
+                    if not (isinstance(_s369, _ast341.AnnAssign)
+                            and isinstance(_s369.target, _ast341.Name)):
+                        continue
+                    _why369 = ""
+                    _h369 = _s369.annotation
+                    if isinstance(_h369, _ast341.Constant) and isinstance(_h369.value, str):
+                        try:
+                            _h369 = _ast341.parse(_h369.value, mode="eval").body
+                        except (SyntaxError, ValueError):
+                            _h369 = None
+                    if isinstance(_h369, _ast341.Subscript):
+                        _h369 = _h369.value
+                    _sp369 = (_h369.id if isinstance(_h369, _ast341.Name) else
+                              _h369.attr if isinstance(_h369, _ast341.Attribute) else "")
+                    _r369 = _rs369.get(id(_h369), "?") if _h369 is not None else "?"
+                    if not _top369:
+                        _why369 = ("is declared inside class-body control flow (CPython's "
+                                   "`__annotations__` holds it; the model reads top-level "
+                                   "members only)")
+                    elif _r369 in _SP369 and _SP369[_r369] != _sp369:
+                        _why369 = (f"has the annotation head `{_ast341.unparse(_h369)}`, an "
+                                   f"ALIAS of `{_r369}`")
+                    elif _r369 not in _SP369 and _sp369 in _SP369.values():
+                        _why369 = (f"has the annotation head `{_ast341.unparse(_h369)}`, "
+                                   f"spelled like the dataclass specifier `{_sp369}` but "
+                                   f"resolving to `{_r369}`")
+                    elif _r369 == "?":
+                        _why369 = (f"has the annotation head "
+                                   f"`{_ast341.unparse(_h369) if _h369 is not None else _ast341.unparse(_s369.annotation)}`"
+                                   f", which cannot be resolved (it may be an alias of "
+                                   f"`ClassVar` / `InitVar` / `KW_ONLY`)")
+                    _v369 = _s369.value
+                    if not _why369 and isinstance(_v369, _ast341.Call):
+                        _vf369 = _v369.func
+                        _vs369 = (_vf369.id if isinstance(_vf369, _ast341.Name) else
+                                  _vf369.attr if isinstance(_vf369, _ast341.Attribute) else "")
+                        _vr369 = _rs369.get(id(_vf369), "?")
+                        if (_vr369 == "dataclasses.field") != (_vs369 == "field"):
+                            _why369 = (f"has the default `{_ast341.unparse(_v369)}` whose "
+                                       f"callee resolves to `{_vr369}` (the model reads "
+                                       f"`dataclasses.field` by its literal name `field`)")
+                        elif _vr369 == "?" or _vr369.startswith("def:"):
+                            _why369 = (f"has the default `{_ast341.unparse(_v369)}`, a call "
+                                       f"the verifier cannot resolve (it may return a "
+                                       f"`dataclasses.Field`)")
+                        elif _vr369 == "dataclasses.field":
+                            _kn369 = [_kw.arg for _kw in _v369.keywords]
+                            if (_v369.args or None in _kn369 or any(
+                                    _a not in ("default", "default_factory", "init", "repr",
+                                               "hash", "compare", "metadata", "kw_only",
+                                               "doc") for _a in _kn369)
+                                    or len(_kn369) != len(set(_kn369))):
+                                _why369 = (f"calls `{_ast341.unparse(_v369)}` with a "
+                                           f"positional, `**` or unknown keyword argument "
+                                           f"(CPython TypeError)")
+                            elif "default" in _kn369 and "default_factory" in _kn369:
+                                _why369 = (f"calls `{_ast341.unparse(_v369)}` with both "
+                                           f"`default` and `default_factory` (CPython "
+                                           f"ValueError)")
+                            elif any(_kw.arg in ("init", "kw_only") and not (
+                                    isinstance(_kw.value, _ast341.Constant)
+                                    and isinstance(_kw.value.value, bool))
+                                     for _kw in _v369.keywords):
+                                _why369 = (f"calls `{_ast341.unparse(_v369)}` with an "
+                                           f"`init` / `kw_only` that is not a `True` / "
+                                           f"`False` literal (the model reads literals only)")
+                    if _why369:
+                        raise _PyCSLSemErr341(
+                            f"class '{_cn346}' line {_s369.lineno}: the `@dataclass` member "
+                            f"`{_s369.target.id}` {_why369}. PyCSL's dataclass model "
+                            f"recognises `ClassVar` / `InitVar` / `KW_ONLY` / `field` by "
+                            f"their literal names and reads `field(..)` keywords as "
+                            f"literals, so this member would be modelled with the wrong "
+                            f"constructor signature, default or attribute set (route "
+                            f"#369). Import the specifier under its own name (`from typing "
+                            f"import ClassVar`, `from dataclasses import InitVar, KW_ONLY, "
+                            f"field`) and write the member at the top of the class body.",
+                            stage="ir-semantic", code="PYCSL-R369-DATACLASS-SPECIFIER")
         # ROUTE #346 — A `__post_init__` IS NEVER VERIFIED. Route #150 makes a dataclass
         # construction that runs `__post_init__` OPAQUE (no field value known), and an opaque
         # construction gets NO constructor-invariant goal (route #226), so the invariant is
@@ -3905,6 +4201,181 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"(`@dataclass(frozen=True)`, or define `__hash__`) or key the "
                         f"collection by a field.",
                         stage="ir-semantic", code="PYCSL-R349-UNHASHABLE-RECORD")
+        # (c) constructor arity. `_sg369[C]` = (positional [(name, has_default)],
+        # keyword-only {name: has_default}, *args?, **kwargs?, positional-only names) or
+        # None when unknown.
+        _sg369 = {}
+        for _cn346 in _cls341:
+            _mr369 = _mro363.get(_cn346)
+            _sig369 = None
+            if (_mr369 and len(_cls341[_cn346]) == 1
+                    and not any(_k.keywords for _a in _mr369 for _k in _cls341.get(_a, []))
+                    and not any(isinstance(_z, _ast341.Name) and _z.id == "__new__"
+                                and not isinstance(_z.ctx, _ast341.Load)
+                                or isinstance(_z, (_ast341.FunctionDef,
+                                                   _ast341.AsyncFunctionDef))
+                                and _z.name == "__new__"
+                                for _a in _mr369 for _k in _cls341.get(_a, [])
+                                for _s in _k.body for _z in _ast341.walk(_s)
+                                if not isinstance(_s, _ast341.ClassDef))):
+                for _a369 in _mr369:
+                    if _a369 not in _cls341:
+                        if _a369 == "object":
+                            _sig369 = ([], {}, False, False, [])
+                        break
+                    if len(_cls341[_a369]) != 1:
+                        break
+                    _k369 = _cls341[_a369][0]
+                    _ib369 = [_s for _s in _k369.body
+                              if (isinstance(_s, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                                  _ast341.ClassDef))
+                                  and _s.name == "__init__")
+                              or (isinstance(_s, (_ast341.Assign, _ast341.AnnAssign,
+                                                  _ast341.AugAssign))
+                                  and any(isinstance(_y, _ast341.Name) and _y.id == "__init__"
+                                          for _t in (_s.targets if isinstance(_s, _ast341.Assign)
+                                                     else [_s.target])
+                                          for _y in _ast341.walk(_t)))]
+                    if any(isinstance(_z, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                           and _z.name == "__init__"
+                           or isinstance(_z, _ast341.Name) and _z.id == "__init__"
+                           and not isinstance(_z.ctx, _ast341.Load)
+                           for _s in _k369.body
+                           if not isinstance(_s, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                                  _ast341.ClassDef))
+                           and _s not in _ib369 for _z in _ast341.walk(_s)):
+                        break
+                    if _ib369:
+                        _i369 = _ib369[-1]
+                        if (len(_ib369) == 1 and isinstance(_i369, _ast341.FunctionDef)
+                                and not _i369.decorator_list
+                                and (_i369.args.posonlyargs + _i369.args.args)):
+                            _ar369 = _i369.args
+                            _pp369 = (_ar369.posonlyargs + _ar369.args)[1:]
+                            _nd369 = len(_pp369) - len(_ar369.defaults)
+                            _sig369 = ([(_p.arg, _j >= _nd369) for _j, _p in enumerate(_pp369)],
+                                       {_p.arg: _d is not None for _p, _d in
+                                        zip(_ar369.kwonlyargs, _ar369.kw_defaults)},
+                                       _ar369.vararg is not None, _ar369.kwarg is not None,
+                                       [_p.arg for _p in _ar369.posonlyargs[1:]])
+                        break
+                    if _a369 in _dc346:
+                        if _dc346[_a369]["init"] is not True:
+                            break
+                        _fo369 = {}
+                        _ok369 = True
+                        for _b369 in reversed(_mr369[_mr369.index(_a369):]):
+                            if _b369 not in _dc346:
+                                continue
+                            if _b369 not in _cls341 or len(_cls341[_b369]) != 1:
+                                _ok369 = False
+                                break
+                            _kb369 = _cls341[_b369][0]
+                            _kwall369 = False
+                            for _d369 in _kb369.decorator_list:
+                                if isinstance(_d369, _ast341.Call):
+                                    for _kw in _d369.keywords:
+                                        if _kw.arg == "kw_only":
+                                            if (isinstance(_kw.value, _ast341.Constant)
+                                                    and isinstance(_kw.value.value, bool)):
+                                                _kwall369 = _kw.value.value
+                                            else:
+                                                _ok369 = False
+                            _sent369 = False
+                            for _s369 in _kb369.body:
+                                if not (isinstance(_s369, _ast341.AnnAssign)
+                                        and isinstance(_s369.target, _ast341.Name)):
+                                    continue
+                                _h369 = _s369.annotation
+                                if isinstance(_h369, _ast341.Constant) and isinstance(
+                                        _h369.value, str):
+                                    try:
+                                        _h369 = _ast341.parse(_h369.value, mode="eval").body
+                                    except (SyntaxError, ValueError):
+                                        _h369 = None
+                                if isinstance(_h369, _ast341.Subscript):
+                                    _h369 = _h369.value
+                                _r369 = _rs369.get(id(_h369), "?")
+                                if _r369 == "typing.ClassVar":
+                                    continue
+                                if _r369 == "dataclasses.KW_ONLY":
+                                    _sent369 = True
+                                    continue
+                                _v369 = _s369.value
+                                _in369 = True
+                                _kf369 = None
+                                _hd369 = _v369 is not None
+                                if (isinstance(_v369, _ast341.Call)
+                                        and _rs369.get(id(_v369.func)) == "dataclasses.field"):
+                                    _hd369 = False
+                                    for _kw in _v369.keywords:
+                                        if _kw.arg in ("default", "default_factory"):
+                                            _hd369 = True
+                                        elif _kw.arg == "init":
+                                            _in369 = bool(getattr(_kw.value, "value", True))
+                                        elif _kw.arg == "kw_only":
+                                            _kf369 = bool(getattr(_kw.value, "value", False))
+                                _fo369[_s369.target.id] = (
+                                    _in369, _hd369,
+                                    _kf369 if _kf369 is not None else (_kwall369 or _sent369))
+                        if _ok369:
+                            _sig369 = ([(_f, _v[1]) for _f, _v in _fo369.items()
+                                        if _v[0] and not _v[2]],
+                                       {_f: _v[1] for _f, _v in _fo369.items()
+                                        if _v[0] and _v[2]}, False, False, [])
+                        break
+                else:
+                    _sig369 = ([], {}, False, False, [])
+            _sg369[_cn346] = _sig369
+        _tr369 = set()
+        for _f347 in (_ir342.get("functions") or []):
+            if isinstance(_f347, dict) and (_f347.get("trusted") or _f347.get("abstract")):
+                _tr369.add(_f347.get("name"))
+        for _f346, _ec346 in _fn346:
+            if ((_ec346.lower() + "__" + _f346.name) if _ec346 else _f346.name) in _tr369:
+                continue
+            for _n369 in _ast341.walk(_f346):
+                if not (isinstance(_n369, _ast341.Call) and isinstance(_n369.func, _ast341.Name)
+                        and _n369.func.id in _cls341 and _n369.func.id not in _bound341
+                        and _n369.func.id not in _imp341
+                        and _sg369.get(_n369.func.id) is not None
+                        and not any(isinstance(_a, _ast341.Starred) for _a in _n369.args)
+                        and not any(_kw.arg is None for _kw in _n369.keywords)):
+                    continue
+                _pp369, _kk369, _va369, _vk369, _po369 = _sg369[_n369.func.id]
+                _bd369 = ""
+                _gv369 = set()
+                if len(_n369.args) > len(_pp369) and not _va369:
+                    _bd369 = (f"takes {len(_pp369)} positional argument(s) but "
+                              f"{len(_n369.args)} were given")
+                _gv369 = {_p for _p, _d in _pp369[:len(_n369.args)]}
+                for _kw in _n369.keywords:
+                    if _bd369:
+                        break
+                    if _kw.arg in _gv369:
+                        _bd369 = f"got multiple values for argument '{_kw.arg}'"
+                    elif _kw.arg in _po369 and not _vk369:
+                        _bd369 = f"got the positional-only argument '{_kw.arg}' by keyword"
+                    elif (_kw.arg not in {_p for _p, _d in _pp369} and _kw.arg not in _kk369
+                          and not _vk369):
+                        _bd369 = f"got an unexpected keyword argument '{_kw.arg}'"
+                    _gv369.add(_kw.arg)
+                if not _bd369:
+                    _ms369 = ([_p for _p, _d in _pp369 if not _d and _p not in _gv369]
+                              + [_p for _p, _d in _kk369.items() if not _d
+                                 and _p not in _gv369])
+                    if _ms369:
+                        _bd369 = f"is missing the required argument(s) {_ms369}"
+                if _bd369:
+                    raise _PyCSLSemErr341(
+                        f"'{_f346.name}' line {getattr(_n369, 'lineno', 0)}: the construction "
+                        f"`{_ast341.unparse(_n369)}` {_bd369} — CPython raises TypeError "
+                        f"here, while the record model binds the arguments it can and "
+                        f"verifies the construction as succeeding (route #369). Call the "
+                        f"constructor with exactly its parameters (for a `@dataclass`: its "
+                        f"fields in declaration order, `InitVar`s included, `ClassVar` / "
+                        f"`init=False` members excluded, keyword-only fields by keyword).",
+                        stage="ir-semantic", code="PYCSL-R369-CONSTRUCTOR-ARITY")
         # (#372) each file class's fields: `_fa372[C][f]` the annotation ASTs of `f` (class
         # body, `self.f: T = ..` in a method), `_ff372[C][f]` the classes `f` may hold in a
         # hashed position (those annotations' `_dp365`, plus each `self.f = e` store of a
