@@ -2420,6 +2420,53 @@ Witnesses `5050`-`5081`; controls `5090`-`5093` (a nested `-> int` def in a meth
 plain function; mangled real slots; int augmented assignments under `no_exception \all`; an
 absent attribute's default).
 
+### 7.38 A class-body name bound once, `*` / `**` call arguments, `init=False` / `super().__init__` arity, metaclass `__call__` (routes #377 / #378 / #379 / #380)
+
+Four more places where the model read a class body or a call otherwise than CPython does, each a
+sound REFUSAL; no emission changes.
+
+(1) A NAME BOUND TWICE IN A CLASS BODY (routes #377 / #378; the shared Module 3 refusal of
+routes #122 / #130-#133, "a name's runtime binding is not the `def` the model resolves it to").
+CPython's class namespace keeps the LAST binding, while the method tables, the constructor
+reader and the dataclass field reader took the FIRST: two `def __init__` gave the constructor
+goal (and a `requires` premise) from the dead first one, two `def get` resolved `c.get()` to the
+first contract over the last body, and `n: int = field(default=3, init=False)` followed by
+`n = -1` (or a second annotated `n`) read the default 3 (CPython -1). In every class body, a
+name with two or more binding sites (defs, stores, imports, except-as / match captures; nested
+function / lambda bodies excluded) of which one is a `def` / `class` statement or an annotated
+member is REFUSED, except a property accessor chain (`@property def x`, then only `@x.setter` /
+`@x.getter` / `@x.deleter` defs) and an `@overload` chain (every def but the last decorated
+`overload` / `typing.overload`, whose stubs' `ensures` already bind the implementation). The
+module scope is unchanged (a duplicate module `def` is fail-closed: the model agrees the last
+wins).
+
+(2) `*` / `**` CALL ARGUMENTS (route #379, `PYCSL-R379-STARRED-CALL-ARGUMENT`). The lowering
+dropped a `*` / `**` argument (or counted `*xs` as ONE positional), so `D(**{"x": 5}).x == 0`,
+`D(1, **kw).y == 0` and `h(1, **kw)` / `C(**{"y": 1})` under `no_exception` all PROVED (CPython 5,
+7, TypeError). In a function that is not `\trusted` / `\abstract`, a call with a `*` or `**`
+argument of a file class (a construction), a module-level `def`, or a method name defined in a
+file class is REFUSED, except a `*xs` that lands entirely in the `*args` parameter of every
+candidate callee whose contract does not name that parameter (the contract then holds for any
+tuple there). Calls of imported / builtin callees are unchanged.
+
+(3) CONSTRUCTOR ARITY, CONTINUED (route #380, `PYCSL-R369-CONSTRUCTOR-ARITY`). §7.35 (2)'s
+constructor is now found past a `@dataclass(init=False)` (which writes no `__init__`: the MRO
+walk goes on, ending at `object.__init__`, so `D(1)` is refused); a `super().__init__(..)` /
+`super(X, self).__init__(..)` is checked against the `__init__` of the class after `X` in the
+MRO of `X` and of every file subclass of `X` whose MRO tail after `X` is that class's own MRO
+(`object.__init__` at the end: no argument); an explicit `C.__init__(self, ..)` is checked
+against `C`'s constructor.
+
+(4) A METACLASS `__call__` (route #380, `PYCSL-R380-METACLASS-CALL`). A metaclass `__call__`
+decides what `C(..)` returns (one returning 42 made `C(1).x == 1` PROVE; CPython
+AttributeError). A construction `C(..)` of a file class whose MRO names a `metaclass=` other
+than `type`, `abc.ABCMeta`, or a file metaclass whose MRO (over `type` / `ABCMeta` only) binds no
+`__call__`, is REFUSED.
+
+Witnesses `5140`-`5157` (red team 29) and `5158`-`5160` (NEW latents); controls `5170`-`5174`
+(`init=False` with `D()`, a metaclass without `__call__`, a matching `super().__init__(3)`, an
+`@overload` chain, distinct method names).
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

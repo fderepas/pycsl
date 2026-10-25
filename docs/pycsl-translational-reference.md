@@ -4472,6 +4472,42 @@ not declare $k$; also route #309's `_current_record_var_classes` arm) raises
 $k \in CB^*(c)$, $k \in$ `dir(object)` or $k$ is a dunder; otherwise the default is the answer as
 before.
 
+### §T.6.49  Class-body single binding, starred call arguments, `init=False` / `super().__init__` arity, metaclass `__call__` (routes #377 / #378 / #379 / #380)
+
+_Corresponds to `annotations.md` §7.38._
+
+Refusals only; no emission change. #377 / #378 sit in `Module3_Weaver.process` (the shared step
+of the file and dependency pipelines, mirror twin `\trusted`), #379 / #380 in §T.6.46's inline
+arity block of `_run_pipeline` (mirror twin `\trusted`).
+
+**#377 / #378.** For each class body $B$, let $\beta_B(n)$ be the binding sites of $n$ found by
+the scope walk of routes #122 / #130 (every child of $B$ except nested function / lambda bodies:
+`def` / `class` statements, `Name` stores and deletes, import aliases, except-as and match
+captures). Refused iff $|\beta_B(n)| \geq 2$ and some site is a `def` / `class` statement or the
+target of an `AnnAssign`, unless (in source order) every site is a `def`, the first decorated
+`property` and each later one decorated `n.setter` / `n.getter` / `n.deleter`; or every site is a
+`def` and all but the last are decorated `overload` / `typing.overload`.
+
+**#379.** For a call $c$ with a `Starred` positional or a `**` keyword in a function not
+`\trusted` / `\abstract`: the candidate callees are the file class $C$ (a name never rebound or
+imported: refused outright), the module-level `def`s named $f$ (a name not imported), or, for
+`e.m(..)`, every top-level `def m` of a file class (dropping the first parameter except for a
+`staticmethod`, or a plain method called as `C.m(..)` on a file class). Refused
+(`PYCSL-R379-STARRED-CALL-ARGUMENT`) iff there is a candidate and $c$ has a `**` argument, or a
+candidate has no `*args`, or a `Starred` sits at a position below the candidate's positional
+parameter count, or the `*args` name occurs in the candidate's `#@` lines.
+
+**#380.** In §T.6.46's $\sigma$: a model dataclass with `init=False` (a literal) is skipped (the
+walk continues), so `object` may be reached. For `super().__init__(args, kws)` in a method of
+$X$ (or `super(X, self)`): for every file class $S$ with known MRO $m \ni X$, with $t$ the part of
+$m$ after $X$: $t = []$ gives $\sigma = ()$ when $\sigma(S)$ is defined; $t_0$ a file class with
+$\mathrm{MRO}(t_0) = t$ and $\sigma(t_0)$ defined gives $\sigma(t_0)$; otherwise no check. For
+`C.__init__(e, args, kws)`, $\sigma(C)$ binds `args`. Each $\sigma$ is checked by §T.6.46's
+binding rule. A construction `C(..)` (§T.6.46's call shape) is refused
+(`PYCSL-R380-METACLASS-CALL`) iff a class of $C$'s MRO has a `metaclass=` $M$ that is neither the
+unrebound `type`, nor `abc.ABCMeta` (imported from `abc`), nor a file class whose MRO consists
+of file classes binding no `__call__` and `type` / `ABCMeta`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
