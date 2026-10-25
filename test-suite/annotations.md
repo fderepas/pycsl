@@ -2054,6 +2054,45 @@ a receiver not known to be a list, and an annotation `Set[U]` / `Dict[U, ..]` (a
 keyed collection heads), is REFUSED (`PYCSL-R349-UNHASHABLE-RECORD`). Witnesses `4660`-`4685`;
 controls `4686`-`4696`.
 
+### 7.29 A default is of its annotation's kind; a read-only view never leaves as a mutable one (routes #350 / #351)
+
+(1) DEFAULTS (route #350). The body of a lowered function is verified with every parameter of
+its annotated type, but CPython binds an OMITTED argument to the default VALUE: `def f(x: int =
+0.5)` PROVED `\result == 0` for `x % 1` (CPython `f()` is `0.5`) and `def f(s: str = None)`
+PROVED `len(s)` under `no_exception \all` (CPython `TypeError`). Every annotated parameter
+default of every def in a lowered function tree (module-level functions, methods, nested defs;
+positional, positional-only and keyword-only) must now be of the annotation's KIND. The
+annotation is split into arms through module aliases, `Optional`, `Union`, `|`, `Annotated` and
+string forward references; one arm must admit the default: `None` only under a `None` arm
+(`Optional[T]`, `T | None`), `Any`, `object` or a TypeVar; `int` <- an `int` / `bool` literal;
+`float` <- `int` / `float` / `bool`; `bool` <- `bool`; `str` <- `str`; `bytes` <- `bytes`;
+`Literal[...]` <- one of its values; `List` <- a list display, `tuple` <- a tuple display,
+`Dict` / `Mapping` <- a dict display, `Set` <- a set display, `Sequence` <- a list / tuple
+display or a string; a container, class or other arm <- a non-literal expression (a
+constructor call, a name), never `None` or a scalar literal. A signed numeric literal is a
+literal; a bare-name default resolves to a once-bound module constant, or to the enclosing
+function's parameter of the same annotation (nested defs); any other non-literal default of a
+scalar / `Literal` arm is refused. Display elements are checked against the element type.
+Otherwise `PYCSL-SEM-DEFAULT-ANNOTATION-MISMATCH`. `\trusted` / `\abstract` defs are outside
+(their contract is assumed). Corpus `0698` (`sep: str = None`, filled `""` at the call) is now
+refused. Witnesses `4710`-`4720`; control `4721`.
+
+(2) READ-ONLY VIEW ESCAPES (route #351). Route #336 (§7.23) reads a `Sequence[T]` /
+`tuple[T, ...]` / `Mapping[K, V]` parameter as a `List` / `Dict` and refuses a store on it, but
+the view could still leave under a mutable type: `as_list(xs: Sequence[int]) -> List[int]:
+return xs` PROVED, and a verified `poke(ys: List[int])` storing `ys[0] = 5` PROVED as well
+(CPython `poke(as_list((1, 2)))` raises `TypeError`). The VIEW names of a def are its read-only
+view parameters plus, to a fixpoint, the names bound to an expression whose value may be a view
+(the name, a slice of it, `+` / `*` on it, a conditional / `and` / `or` / walrus / starred /
+display position holding one). REFUSED (`PYCSL-SEM-READONLY-VIEW-ESCAPE`): returning such a
+value (or a lambda body) unless the return annotation is itself read-only-view-safe
+(`Sequence`, `Mapping`, `tuple[T, ...]`, `Iterable`, `Collection`, `Any`, `object`, `None`,
+through `Optional` / `Union`) and the view is not wrapped in a display; storing it into an
+attribute or subscript target, or binding it to a name annotated otherwise (`ys: List[int] =
+xs`); passing it to any call but the read-only builtins of route #336; and a store, `del`,
+augmented assignment or mutating method call through an ALIAS of a view. Copy first
+(`list(xs)`, `dict(d)`). Witnesses `4722`-`4728`; control `4729`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

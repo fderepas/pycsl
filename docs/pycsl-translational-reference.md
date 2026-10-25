@@ -4100,6 +4100,54 @@ non-trusted def whose IR contract has `no_exception_all` or names `AttributeErro
 `Exception` / `BaseException`, an `Attribute` load / del / augmented target $r.f$ with $f \in
 M$ and $r$ not an imported module raises `PYCSL-R347-FIELD-MAYBE-UNASSIGNED`.
 
+### §T.6.40  Parameter defaults of the annotated kind; read-only view escapes (routes #350 / #351)
+
+_Corresponds to `annotations.md` §7.29._
+
+Two inline blocks of `_run_pipeline`, after route #273's definition-time block (mirror twin
+`\trusted`; no emission change, only refusals). Module 5 has already rewritten annotations in
+place (route #336), so both read a fresh parse of the SOURCE, restricted to the defs of the
+lowered trees $\mathcal{L}$ of route #273 (matched by line and name). $\mathit{Al}$ = the module
+names bound exactly once at module level (`Assign` / `AnnAssign` / `type` statement; no
+`global`, `nonlocal` or augmented rebinding) with their values.
+
+(#350) For every def $g$ in a tree of $\mathcal{L}$ and every annotated parameter $p : A$ with a
+default $d$, let $\mathit{arms}(A)$ be $A$ split through $\mathit{Al}$, `Optional` (adding the
+`None` arm), `Union`, `|`, `Annotated` and string forward references. Resolve $d$: a bare name
+in $\mathit{Al}$ becomes its value; a bare name that is a parameter of a def of the tree carries
+that parameter's annotation set $O$. The pair is admitted iff some arm $a$ admits $d$:
+$a \in \{\texttt{Any},\texttt{object}\} \cup \mathit{TypeVars}$; $d$ = `None` and $a$ = `None`;
+$a \in \{\texttt{int},\texttt{float},\texttt{complex},\texttt{bool},\texttt{str},\texttt{bytes}\}$
+and $d$ a (signed) literal of a type in its numeric-tower set ($\texttt{bool} \subseteq
+\texttt{int} \subseteq \texttt{float} \subseteq \texttt{complex}$), or $d$ an outer parameter
+with $O \subseteq \{a\}$ ($\{\texttt{int},\texttt{bool}\}$ for `int`); $a$ = `Literal[`$v_i$`]`
+and $d = v_i$; $a$ a container head and $d$ a display of its kind (list / tuple / dict / set;
+`Sequence` admits list, tuple and strings); any other head and $d$ a non-literal, non-`None`
+expression (a scalar literal is admitted only for a head that is neither a container nor a
+class of the file). When exactly one arm admits a display, each element (key / value) is
+checked against the element annotation(s) the same way, and a fixed `Tuple[..]` needs the
+arity. No admitting arm raises `PYCSL-SEM-DEFAULT-ANNOTATION-MISMATCH`. Hence every omitted
+argument binds a value of the parameter's verified type.
+
+(#351) For each tree $F \in \mathcal{L}$, $V_0$ = the parameters (of any def of $F$) whose
+annotation resolves, through $\mathit{Al}$ / `Optional` / `Annotated`, to `Sequence[..]`,
+`Mapping[..]` or `tuple[T, ...]`. $\mathit{flow}(e)$ = the names reached from $e$ through
+`IfExp` branches, `BoolOp` operands, walrus / starred values, display elements, slice
+subscripts' value and `+` / `*` operands. $V$ = the fixpoint of $V_0 \cup \{y \mid y$ bound
+by `y = e` / `y := e` / `y: T = e` / `for y in (display)` with $\mathit{flow}(e) \cap V \ne
+\emptyset\}$. With $\mathit{own}(n)$ the innermost def / lambda of $n$, raise
+`PYCSL-SEM-READONLY-VIEW-ESCAPE` when $\mathit{flow}(e) \cap V \neq \emptyset$ for: `return e`
+where $\mathit{own}$'s return annotation is absent, has an arm outside
+$\{\texttt{Sequence},\texttt{Mapping},\texttt{Iterable},\texttt{Collection},\texttt{Reversible},
+\texttt{Container},\texttt{Iterator},\texttt{AbstractSet},\texttt{Any},\texttt{object},
+\texttt{None}\} \cup \{\texttt{tuple[T, ...]}\} \cup \mathit{TypeVars}$, or $e$ contains a
+display; a lambda body $e$; an `Assign` / `AnnAssign` / `AugAssign` value $e$ with an attribute
+or subscript target, or an `AnnAssign` to a name annotated outside that set; an argument $e$
+of a call other than route #336's read-only builtins (a bare parameter of $V_0$ there is route
+#336's own refusal in Module 5). A subscript store / `del` / augmented assignment / mutating
+method call on $y \in V \setminus V_0$ is refused likewise. Hence the only list / dict the
+model may store into is one that was never a read-only view argument.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
