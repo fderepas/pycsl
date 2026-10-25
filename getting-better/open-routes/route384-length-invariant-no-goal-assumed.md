@@ -80,7 +80,7 @@ new emitting sources; the 15 refused witnesses do not emit); every mover re-prov
 **no OWED proof**. No conformance golden is a mover (the core goldens bypass `_run_pipeline`; no golden class is a state obstacle).
 **Gates** (rc, logs in the r384 scratchpad `gates/`): witnesses / controls above; byte-diff-compare root rc=0 (`--expect-moved`
 the 21), pyref rc=0, mirror rc=0; check-self-annotate-sync.sh rc=0 (926 verbatim); self-annotate-mirror-check.sh rc=0 (53);
-run-soundness-planes.sh fast @@PLANES@@; check-getattr-erasure rc=0 (DECLARED 0); check-stdlib-modules-verify @@STDLIB@@;
+run-soundness-planes.sh fast **61/61** rc=0 (incl. trusted-raises-honesty, core-only-conformance); check-getattr-erasure rc=0 (DECLARED 0); check-stdlib-modules-verify rc=0 (one command via heavy.sh: 83 VERIFY, the known 21 non-verifying);
 doc-coherency --check rc=0; check-assumed-facts rc=0 (ledger 3); check-dropped-mutation rc=0 (0 / 51 / 5 / 0);
 check-refusal-witness-coverage rc=0 (310 demonstrated / 5 undemonstrated = ceiling; the 2 new raise sites demonstrated by rows
 5244-5258); check-trusted-reasons rc=0 (420 / 420); check-assigns-underdeclaration --transitive rc=0 (TRAP 3, HOLE 0 — a first cut
