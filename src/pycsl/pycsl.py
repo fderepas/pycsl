@@ -3758,12 +3758,27 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _cn346 in _fnt366 and _cn346 not in _cls341:
                     _fl366 = list(_fnt366[_cn346])
                 else:
-                    for _a346 in _clo346[_cn346]:
+                    # (#49) gen #37, ROUTE #371 (red team 28; MEASURED PROVED at 863a844a,
+                    # CPython TypeError): the walk stopped at the first ancestor already
+                    # decided, so `D(N, M)` took the plain first base `N`'s "hashable" and
+                    # never saw the mixin `M`'s `__hash__ = None` / `__eq__` / eq-dataclass
+                    # (h22, h56, h60, h63, h64 via an intermediate, h67 as a frozen field).
+                    # RULE: `__hash__` is looked up as CPython does, along the C3 MRO
+                    # (`_mro363`): the FIRST class whose own body decides (an own
+                    # `__hash__` binding, a `@dataclass` option, an own `__eq__` — which
+                    # sets `__hash__ = None` in that class) wins; a functional namedtuple
+                    # ancestor decides by its fields (tuple's hash); `list` / `dict` /
+                    # `set` / `bytearray` are unhashable; other outside bases are skipped.
+                    # A class whose C3 linearisation is unknown counts as unhashable.
+                    _mr371 = _mro363.get(_cn346)
+                    if _mr371 is None:
+                        _dec349 = True
+                    for _a346 in (_mr371 or []):
                         if _a346 in ("list", "dict", "set", "bytearray"):
                             _dec349 = True
                             break
-                        if _a346 != _cn346 and _a346 in _uh349:
-                            _dec349 = _uh349[_a346]
+                        if _a346 != _cn346 and _a346 in _fnt366 and _a346 not in _cls341:
+                            _dec349 = bool(_uh349.get(_a346, True))
                             break
                         if _a346 not in _cls341:
                             continue
@@ -3890,6 +3905,80 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"(`@dataclass(frozen=True)`, or define `__hash__`) or key the "
                         f"collection by a field.",
                         stage="ir-semantic", code="PYCSL-R349-UNHASHABLE-RECORD")
+        # (#372) each file class's fields: `_fa372[C][f]` the annotation ASTs of `f` (class
+        # body, `self.f: T = ..` in a method), `_ff372[C][f]` the classes `f` may hold in a
+        # hashed position (those annotations' `_dp365`, plus each `self.f = e` store of a
+        # method: a typed parameter's annotation, a constructor call's class, a literal's
+        # type; anything else "#UNK").
+        _fa372 = {}
+        _ff372 = {}
+        for _cn346, _fd372 in _cf346.items():
+            for _fn372, _an372 in _fd372.items():
+                _fa372.setdefault(_cn346, {}).setdefault(_fn372, []).append(_an372)
+                _ff372.setdefault(_cn346, {}).setdefault(_fn372, set()).update(
+                    _dp365.get(id(_an372), set()))
+        for _cn346, _ks346 in _cls341.items():
+            for _k346 in _ks346:
+                for _m346 in _k346.body:
+                    if not (isinstance(_m346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                            and (_m346.args.posonlyargs + _m346.args.args)
+                            and not any(isinstance(_d, _ast341.Name)
+                                        and _d.id in ("staticmethod", "classmethod")
+                                        for _d in _m346.decorator_list)):
+                        continue
+                    _pm372 = _m346.args.posonlyargs + _m346.args.args
+                    _sf372 = _pm372[0].arg
+                    _pt372 = {_p.arg: _p.annotation for _p in _pm372[1:]
+                              + _m346.args.kwonlyargs if _p.annotation is not None}
+                    for _n346 in _ast341.walk(_m346):
+                        _st372 = []
+                        if isinstance(_n346, _ast341.AnnAssign):
+                            _st372 = [(_n346.target, None, _n346.annotation)]
+                        elif isinstance(_n346, _ast341.Assign):
+                            _st372 = [(_t, _n346.value, None) for _t in _n346.targets]
+                        elif isinstance(_n346, (_ast341.For, _ast341.AsyncFor,
+                                                _ast341.comprehension, _ast341.NamedExpr)):
+                            _st372 = [(_n346.target, False, None)]
+                        elif isinstance(_n346, (_ast341.With, _ast341.AsyncWith)):
+                            _st372 = [(_w.optional_vars, False, None) for _w in _n346.items
+                                      if _w.optional_vars is not None]
+                        for _tg372, _vv372, _aa372 in _st372:
+                            for _y372 in _ast341.walk(_tg372):
+                                if not (isinstance(_y372, _ast341.Attribute)
+                                        and isinstance(_y372.value, _ast341.Name)
+                                        and _y372.value.id == _sf372
+                                        and isinstance(_y372.ctx, _ast341.Store)):
+                                    continue
+                                _zz372 = _ff372.setdefault(_cn346, {}).setdefault(
+                                    _y372.attr, set())
+                                if _aa372 is not None and _y372 is _tg372:
+                                    _fa372.setdefault(_cn346, {}).setdefault(
+                                        _y372.attr, []).append(_aa372)
+                                    _zz372.update(_dp365.get(id(_aa372), set()))
+                                elif _y372 is not _tg372 or _vv372 is False or _vv372 is None:
+                                    _zz372.add("#UNK")
+                                elif (isinstance(_vv372, _ast341.Name)
+                                      and _vv372.id in _pt372):
+                                    _zz372.update(_dp365.get(id(_pt372[_vv372.id]), set())
+                                                  or {"#UNK"})
+                                elif (isinstance(_vv372, _ast341.Call)
+                                      and isinstance(_vv372.func, _ast341.Name)
+                                      and (_vv372.func.id in _cls341
+                                           or _vv372.func.id in _imm348)):
+                                    _zz372.add(_vv372.func.id)
+                                elif (isinstance(_vv372, _ast341.Constant)
+                                      and not isinstance(_vv372.value, (list, dict, set))):
+                                    _zz372.add(type(_vv372.value).__name__)
+                                elif isinstance(_vv372, (_ast341.BinOp, _ast341.UnaryOp,
+                                                         _ast341.Compare, _ast341.JoinedStr)):
+                                    _zz372.add("int")
+                                elif isinstance(_vv372, (_ast341.List, _ast341.ListComp)):
+                                    _zz372.add("list")
+                                elif isinstance(_vv372, (_ast341.Dict, _ast341.DictComp,
+                                                         _ast341.Set, _ast341.SetComp)):
+                                    _zz372.add("dict")
+                                else:
+                                    _zz372.add("#UNK")
         for _f346, _ec346 in _fn346:
             _pa346 = (_f346.args.posonlyargs + _f346.args.args + _f346.args.kwonlyargs
                       + [_x for _x in (_f346.args.vararg, _f346.args.kwarg) if _x])
@@ -4054,6 +4143,146 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             # or a list-typed name INSIDE a tuple is "#UB") is also run by the hashing check.
             if not _u365:
                 continue
+            # (#49) gen #37, ROUTE #372 (red team 28; MEASURED PROVED at 863a844a, CPython
+            # TypeError): the class of a hashed element was read from a name / `self` /
+            # constructor call / class-body-annotated field only, so `{r.d}` / `{self.d}`
+            # (a field stored by `__init__` from a typed parameter), `{t[0]}` (`t: Tuple[D,
+            # int]`), `{m[0]}` (`m: Dict[int, D]`) and `{xs[0]}` (`xs: List[D]`) were never
+            # checked. RULE: `_eh372[id(e)]` adds, for an attribute `b.f` whose receiver's
+            # class is known, the classes of `f` over the receiver's base closure — from
+            # its class-body / `self.f: T` annotations and from every `self.f = e` store in
+            # a method of the class (a typed parameter, a constructor call, a literal;
+            # anything else is "#UNK": the field may hold ANY class, and with an
+            # unhashable class in the file it counts as possibly that class) — and, for a
+            # subscript `b[i]` of a name / field annotated `List` / `Sequence` / `Deque`
+            # (the element), `Dict` / `Mapping` / ... (the value) or `Tuple` (the `i`-th
+            # component for a literal `i`, else every component), the classes that
+            # element annotation may hold (route #365's tuple walk). Three passes reach
+            # nested forms (`r.d.e`, `r.ts[0]`).
+            _anx365 = set()
+            for _n346 in _ast341.walk(_f346):
+                for _a365 in ([_n346.annotation] if isinstance(_n346, (_ast341.arg,
+                                                                       _ast341.AnnAssign))
+                              else [_n346.returns] if isinstance(_n346, (
+                                  _ast341.FunctionDef, _ast341.AsyncFunctionDef)) else []):
+                    if _a365 is not None:
+                        _anx365 |= {id(_z) for _z in _ast341.walk(_a365)}
+            _eh372 = {}
+            _ba372 = {}
+            for _p346 in _pa346:
+                if _p346.annotation is not None:
+                    _ba372.setdefault(_p346.arg, []).append(_p346.annotation)
+            for _n346 in _ast341.walk(_f346):
+                if (isinstance(_n346, _ast341.AnnAssign)
+                        and isinstance(_n346.target, _ast341.Name)):
+                    _ba372.setdefault(_n346.target.id, []).append(_n346.annotation)
+            for _ps372 in range(3):
+                for _n346 in _ast341.walk(_f346):
+                    if id(_n346) in _anx365:
+                        continue
+                    if isinstance(_n346, _ast341.Attribute):
+                        _rc372 = (_ex346.get(id(_n346.value), set())
+                                  | _eh372.get(id(_n346.value), set())) - {"#UNK"}
+                        for _c372 in sorted(_rc372):
+                            for _a372 in _clo346.get(_c372, []):
+                                _fz372 = _ff372.get(_a372, {}).get(_n346.attr)
+                                if _fz372 is not None:
+                                    _eh372.setdefault(id(_n346), set()).update(_fz372)
+                    elif isinstance(_n346, _ast341.Subscript):
+                        _sa372 = []
+                        _bv372 = _n346.value
+                        if isinstance(_bv372, _ast341.Name):
+                            _sa372 = list(_ba372.get(_bv372.id, []))
+                        elif isinstance(_bv372, _ast341.Attribute):
+                            _rc372 = (_ex346.get(id(_bv372.value), set())
+                                      | _eh372.get(id(_bv372.value), set())) - {"#UNK"}
+                            for _c372 in sorted(_rc372):
+                                for _a372 in _clo346.get(_c372, []):
+                                    _sa372 += _fa372.get(_a372, {}).get(_bv372.attr, [])
+                        _el372 = []
+                        while _sa372:
+                            _x372 = _sa372.pop()
+                            if isinstance(_x372, _ast341.Constant) and isinstance(_x372.value,
+                                                                                  str):
+                                try:
+                                    _sa372.append(_ast341.parse(_x372.value,
+                                                                mode="eval").body)
+                                except (SyntaxError, ValueError):
+                                    pass
+                            elif (isinstance(_x372, _ast341.BinOp)
+                                  and isinstance(_x372.op, _ast341.BitOr)):
+                                _sa372 += [_x372.left, _x372.right]
+                            elif isinstance(_x372, _ast341.Subscript):
+                                _hv372 = _x372.value
+                                _hn372 = (_hv372.id if isinstance(_hv372, _ast341.Name) else
+                                          _hv372.attr if isinstance(_hv372, _ast341.Attribute)
+                                          else "")
+                                _ar372 = (list(_x372.slice.elts)
+                                          if isinstance(_x372.slice, _ast341.Tuple)
+                                          else [_x372.slice])
+                                _ix372 = _n346.slice
+                                if _hn372 in ("Optional", "Union"):
+                                    _sa372 += _ar372
+                                elif _hn372 in ("Annotated", "Final"):
+                                    _sa372 += _ar372[:1]
+                                elif _hn372 in ("List", "list", "Sequence", "MutableSequence",
+                                                "Deque", "deque"):
+                                    _el372 += _ar372[:1]
+                                elif _hn372 in ("Dict", "dict", "Mapping", "MutableMapping",
+                                                "DefaultDict", "defaultdict", "OrderedDict",
+                                                "ChainMap"):
+                                    _el372 += _ar372[1:2]
+                                elif _hn372 in ("Tuple", "tuple"):
+                                    _ar372 = [_e for _e in _ar372 if not (
+                                        isinstance(_e, _ast341.Constant)
+                                        and _e.value is Ellipsis)]
+                                    if (isinstance(_ix372, _ast341.Constant)
+                                            and type(_ix372.value) is int
+                                            and -len(_ar372) <= _ix372.value < len(_ar372)):
+                                        _el372.append(_ar372[_ix372.value])
+                                    else:
+                                        _el372 += _ar372
+                        for _z372 in _el372:
+                            _cz372 = set()
+                            _qz372 = [(_z372, False)]
+                            while _qz372:
+                                _x372, _in372 = _qz372.pop()
+                                if (isinstance(_x372, _ast341.Constant)
+                                        and isinstance(_x372.value, str)):
+                                    try:
+                                        _qz372.append((_ast341.parse(
+                                            _x372.value, mode="eval").body, _in372))
+                                    except (SyntaxError, ValueError):
+                                        pass
+                                elif isinstance(_x372, (_ast341.Name, _ast341.Attribute)):
+                                    _hn372 = (_x372.id if isinstance(_x372, _ast341.Name)
+                                              else _x372.attr)
+                                    _cz372.add(_hn372)
+                                    if _in372 and _hn372.lower() in _UB365:
+                                        _cz372.add("#UB")
+                                elif (isinstance(_x372, _ast341.BinOp)
+                                      and isinstance(_x372.op, _ast341.BitOr)):
+                                    _qz372 += [(_x372.left, _in372), (_x372.right, _in372)]
+                                elif isinstance(_x372, _ast341.Subscript):
+                                    _hv372 = _x372.value
+                                    _hn372 = (_hv372.id if isinstance(_hv372, _ast341.Name)
+                                              else _hv372.attr
+                                              if isinstance(_hv372, _ast341.Attribute) else "")
+                                    _ar372 = (list(_x372.slice.elts)
+                                              if isinstance(_x372.slice, _ast341.Tuple)
+                                              else [_x372.slice])
+                                    if _hn372 in ("Optional", "Union"):
+                                        _qz372 += [(_e, _in372) for _e in _ar372]
+                                    elif _hn372 in ("Tuple", "tuple"):
+                                        _qz372 += [(_e, True) for _e in _ar372]
+                                    elif _hn372 in ("Annotated", "Final"):
+                                        _qz372 += [(_e, _in372) for _e in _ar372[:1]]
+                                    else:
+                                        _cz372.add(_hn372)
+                                        if _in372 and _hn372.lower() in _UB365:
+                                            _cz372.add("#UB")
+                            if _cz372:
+                                _eh372.setdefault(id(_n346), set()).update(_cz372)
             _dt365 = {}
             for _p346 in _pa346:
                 if _p346.annotation is not None:
@@ -4089,6 +4318,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _wq365.extend([(_y365.body, _iy365), (_y365.orelse, _iy365)])
                         else:
                             _cs365 |= _ex346.get(id(_y365), set())
+                            _cs365 |= _eh372.get(id(_y365), set())
                             if isinstance(_y365, _ast341.Name):
                                 _cs365 |= _dt365.get(_y365.id, set())
                                 if (_iy365 and {_h.lower() for _h in _hh346.get(_y365.id, set())}
@@ -4105,14 +4335,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     break
             # (#349) unhashable records in hashing positions (outside annotations: a type
             # expression such as `Callable[[int], int]` / `Dict[K, V]` hashes nothing).
-            _anx365 = set()
-            for _n346 in _ast341.walk(_f346):
-                for _a365 in ([_n346.annotation] if isinstance(_n346, (_ast341.arg,
-                                                                       _ast341.AnnAssign))
-                              else [_n346.returns] if isinstance(_n346, (
-                                  _ast341.FunctionDef, _ast341.AsyncFunctionDef)) else []):
-                    if _a365 is not None:
-                        _anx365 |= {id(_z) for _z in _ast341.walk(_a365)}
             for _n346 in _ast341.walk(_f346):
                 if id(_n346) in _anx365:
                     continue
@@ -4193,6 +4415,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _wq365.extend([(_y365.body, _iy365), (_y365.orelse, _iy365)])
                         else:
                             _hc349 |= _ex346.get(id(_y365), set())
+                            # (#372) a field / container element's class; "#UNK" may be any
+                            # (unhashable) record class of the file
+                            _hc349 |= _eh372.get(id(_y365), set())
                             if isinstance(_y365, _ast341.Name):
                                 _hc349 |= _dt365.get(_y365.id, set())
                                 if (_iy365 and {_h.lower() for _h in _hh346.get(_y365.id, set())}
@@ -4202,6 +4427,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     _ast341.List, _ast341.ListComp, _ast341.Dict,
                                     _ast341.DictComp, _ast341.Set, _ast341.SetComp)):
                                 _hc349.add("#UB")
+                    if "#UNK" in _hc349:
+                        _hc349 |= _u349
                     _hc349 = {_c if _c != "#UB" else "a list / dict / set"
                               for _c in _hc349 & _u365}
                     if _hc349:
