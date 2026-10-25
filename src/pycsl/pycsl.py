@@ -3059,6 +3059,58 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"instance of the target class instead.",
                     stage="ir-semantic", code="PYCSL-R342-CLASS-REASSIGNMENT")
         _ir342 = _json.loads(json_ir)
+        # (#49) gen #37, ROUTE #226 — A CONSTRUCTOR PARAMETER NAMED LIKE ANOTHER INVARIANT FIELD.
+        # The constructor-invariant goal `_check_class_inv_<C>` quantifies the record's field
+        # labels and `__init__`'s int parameters TOGETHER, so a parameter whose WhyML name is the
+        # label of a DIFFERENT field the invariant reads conflates the two values. MEASURED
+        # (c6d1156c): `__init__(self, x, y): self.x = y; self.y = x` under `self.x == self.y`
+        # was stated `forall x y. x = y -> y = x -> (x = y)` and PROVED `\result == 0` on
+        # `d.x - d.y` (CPython `D(1, 2)` gives 1). RULE: for a class with class invariants, a
+        # field f read by them and bound by `init_body` to a parameter p, and another field
+        # g != f read by them, p's WhyML name may not be g's label (bare or record-qualified).
+        # REFUSAL here, not in Module 6 (its `_emit_type_decls` mirror twin is a `\trusted`
+        # stub with no `#@ raises`; Module 6 also declines to state such a goal). Census: 0 users.
+        from module6_whyml.identifiers import whyml_ident as _wid226
+        for _td226 in (_ir342.get("type_decls") or []):
+            if not (isinstance(_td226, dict) and _td226.get("class_invariants")):
+                continue
+            _fn226 = [_f226.get("name") for _f226 in (_td226.get("fields") or [])
+                      if isinstance(_f226, dict) and isinstance(_f226.get("name"), str)]
+            _rd226 = set()
+            _st226 = list(_td226.get("class_invariants") or [])
+            while _st226:
+                _n226 = _st226.pop()
+                if isinstance(_n226, dict):
+                    _st226.extend(_n226.values())
+                elif isinstance(_n226, list):
+                    _st226.extend(_n226)
+                elif isinstance(_n226, str) and _n226 in _fn226:
+                    _rd226.add(_n226)
+            _pp226 = set(_td226.get("init_params") or [])
+            _tn226 = _wid226(str(_td226.get("name") or ""))
+            for _b226 in (_td226.get("init_body") or []):
+                if not isinstance(_b226, dict) or _b226.get("field") not in _rd226:
+                    continue
+                _v226 = _b226.get("value")
+                if not (isinstance(_v226, dict) and _v226.get("type") == "Var"
+                        and _v226.get("name") in _pp226):
+                    continue
+                _pw226 = _wid226(_v226["name"])
+                for _g226 in sorted(_rd226 - {_b226["field"]}):
+                    if _pw226 in (_g226, _wid226(_g226), "%s_%s" % (_tn226, _g226)):
+                        raise _PyCSLSemErr341(
+                            f"class '{_td226.get('name')}': `__init__` stores its parameter "
+                            f"`{_v226['name']}` into `self.{_b226['field']}`, but "
+                            f"`{_v226['name']}` is also the name of the field "
+                            f"`self.{_g226}` that the class invariant reads. The "
+                            f"constructor-invariant goal (route #226) quantifies field "
+                            f"labels and parameters together, so the two values would be "
+                            f"read as one — measured: `self.x = y; self.y = x` under "
+                            f"`self.x == self.y` was stated `forall x y. x = y -> y = x -> "
+                            f"(x = y)` and PROVED, while CPython's `D(1, 2)` has x == 2 and "
+                            f"y == 1. Give each `__init__` parameter a name that is not the "
+                            f"name of a different field.",
+                            stage="ir-semantic", code="PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH")
         _rel342 = {}
         _invf342 = set()
         for _td342 in (_ir342.get("type_decls") or []):
