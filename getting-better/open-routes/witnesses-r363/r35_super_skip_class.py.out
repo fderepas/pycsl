@@ -1,0 +1,8 @@
+[*] Parsing and Semantic Analysis for 'scratchpad/rt27/r35_super_skip_class.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+[+] Verification SUCCESS! All contracts formally proven.
+rc=0

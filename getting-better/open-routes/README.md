@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #360 (`__slots__` not modelled), #361 (InitVar / KW_ONLY counted as fields), #362 (InitVar drops the invariant
+##   goal), #363 (`super(X, self)` misresolved), #364 (hash scan too narrow), #365 (unhashable inside a tuple), #366 (record field hashability),
+##   #367 (enum `_ignore_` / private names as members) OPENED (red team 27: 31/~200 confirmed; 8/8 sample driver-reproduced rc=0 on ccdb07e6).
+
 ## gen #37 (2026-10-25): #352 + #353 + #354 + #355 + #356 REPAIRED, candidate (r352 executor off 1a9cfa42; code 46558356, corpus +
 ##   census 0855e796, docs 9a2cbb48 (annotations 7.30 / T.6.41), route docs; route #339's classifier rewritten in its inline
 ##   `_run_pipeline` block, no new def, ledger 3, no new refusal code). Sound refusals (PYCSL-SEM-ENUM-MEMBER-OPERATION), no emission
