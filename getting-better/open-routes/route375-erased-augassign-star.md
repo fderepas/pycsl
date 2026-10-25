@@ -47,8 +47,8 @@ above (full proof via heavy.sh, base dc378283c vs candidate); byte-diff root + p
 `check-trusted-reasons` rc=0 (420 / 420, unclassified 259); `check-trusted-raises-honesty` rc=0 (19 / 61, ratchet 61 — the
 R376 raises sit in `_lower_getattr`, which has no mirror twin; #373 / #375 add no raise); `check-assigns-underdeclaration
 --transitive` rc=0; `check-dropped-mutation` rc=0 (0 / 51 / 5 / 0); `check-refusal-witness-coverage` rc=0 (303 demonstrated,
-5 not = ceiling 5; rows 5050-5082 via `_census_row`); `doc-coherency --check` rc=0; `check-getattr-erasure` HEAVYGETATTR;
-`check-assumed-facts` HEAVYASSUMED; `run-soundness-planes.sh` (fast) HEAVYPLANES; `check-stdlib-modules-verify` HEAVYSTDLIB.
+5 not = ceiling 5; rows 5050-5082 via `_census_row`); `doc-coherency --check` rc=0; `check-getattr-erasure` rc=0 (DECLARED 0; rows for 5082 (UNKNOWN 1, refused after the census line) and control 5093 (ABSENT 1) registered by `--emit-baseline`, diff = exactly those two rows);
+`check-assumed-facts` rc=0 (85 facts, ledger 3); `run-soundness-planes.sh` fast 61/61 rc=0 (`--slow` not run); `check-stdlib-modules-verify` rc=0 (one command via heavy.sh: 104 modules, 83 VERIFY, the known 21).
 **Residuals.** (1) A starred CALL argument of an erased value outside `no_exception` keeps the bare-element lowering (the callee's
 vararg sequence holds one element; the mirror forwards erased `*nodes` to variadic emitters — measured MOVED, so it was scoped
 out). (2) A starred element of a NON-erased value (`[*xs]`, `xs: List[int]`) is untouched (route #297 refuses its size folds;

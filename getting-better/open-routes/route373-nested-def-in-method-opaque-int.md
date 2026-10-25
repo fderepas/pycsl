@@ -46,8 +46,8 @@ above (full proof via heavy.sh, base dc378283c vs candidate); byte-diff root + p
 `check-trusted-reasons` rc=0 (420 / 420, unclassified 259); `check-trusted-raises-honesty` rc=0 (19 / 61, ratchet 61 — the
 R376 raises sit in `_lower_getattr`, which has no mirror twin; #373 / #375 add no raise); `check-assigns-underdeclaration
 --transitive` rc=0; `check-dropped-mutation` rc=0 (0 / 51 / 5 / 0); `check-refusal-witness-coverage` rc=0 (303 demonstrated,
-5 not = ceiling 5; rows 5050-5082 via `_census_row`); `doc-coherency --check` rc=0; `check-getattr-erasure` HEAVYGETATTR;
-`check-assumed-facts` HEAVYASSUMED; `run-soundness-planes.sh` (fast) HEAVYPLANES; `check-stdlib-modules-verify` HEAVYSTDLIB.
+5 not = ceiling 5; rows 5050-5082 via `_census_row`); `doc-coherency --check` rc=0; `check-getattr-erasure` rc=0 (DECLARED 0; rows for 5082 (UNKNOWN 1, refused after the census line) and control 5093 (ABSENT 1) registered by `--emit-baseline`, diff = exactly those two rows);
+`check-assumed-facts` rc=0 (85 facts, ledger 3); `run-soundness-planes.sh` fast 61/61 rc=0 (`--slow` not run); `check-stdlib-modules-verify` rc=0 (one command via heavy.sh: 104 modules, 83 VERIFY, the known 21).
 **Residuals.** (1) A nested `-> int` / `-> bool` def's call is still an unconstrained int stub: its body / contract does not
 reach the call (sound, incomplete). (2) Its name is matched file-wide, not per enclosing method (two methods with nested defs of
 one name share the decision; conservative). (3) Lambdas bound in a method keep route #255's argument propagation.
