@@ -1953,7 +1953,9 @@ its members are ints. Every other enum is OPAQUE, and an expression denoting one
 unary `-` / `+` / `~`, ordering, an index, an augmented store, a container element or a
 container annotation, a builtin or string conversion, an `int` parameter — is REFUSED
 (`PYCSL-SEM-ENUM-MEMBER-OPERATION`). The class object handed to a callee (`list(C)`) is refused
-likewise. Witnesses `4590`-`4599`; controls `4600`, `4601`.
+likewise. Witnesses `4590`-`4599`; controls `4600`, `4601`. The classifier is refined by §7.30 (bases
+resolved through imports, dunders over the whole MRO, flags opaque, `C(v)` and class-object
+attributes, routes #352-#356).
 
 (2) NESTED-DEF DEFAULTS (route #340). The def-time rule of route #273 (translational reference, `PYCSL-SEM-DEF-TIME-EVALUATION`) admitted a BARE-NAME
 default because it cannot raise or write; but Python binds its VALUE when the nested
@@ -2092,6 +2094,53 @@ attribute or subscript target, or binding it to a name annotated otherwise (`ys:
 xs`); passing it to any call but the read-only builtins of route #336; and a store, `del`,
 augmented assignment or mutating method call through an ALIAS of a view. Copy first
 (`list(xs)`, `dict(d)`). Witnesses `4722`-`4728`; control `4729`.
+
+### 7.30 Enum classification through imports, the whole MRO, flags, value lookup and the class object (routes #352 / #353 / #354 / #355 / #356)
+
+Five gaps of §7.26 (1)'s enum classifier, each a sound REFUSAL (`PYCSL-SEM-ENUM-MEMBER-OPERATION`);
+no emission changes.
+
+(1) BASES ARE RESOLVED THROUGH IMPORTS (route #352). `from enum import Enum as E; class C(E)`
+was not an enum, so `x - x` on its member PROVED under `no_exception \all` (CPython TypeError),
+and `IntEnum as IE` with a user `__eq__` PROVED `x == x`. Every class base is now resolved
+through the file's imports (`from enum import X as Y`, `import enum as e` then `e.X`) and
+module-level aliases to a stdlib enum class, a file class, a builtin, a non-enum stdlib import,
+or UNKNOWN (a non-stdlib import, an unbound name). An attribute base whose tail names an enum
+class but whose module is not `enum` is an enum of unknown origin: OPAQUE. A class with an
+UNKNOWN base in its ancestry and a member-shaped body (a plain non-lambda class-body binding)
+may be an enum built on an imported member-less enum: it is treated as OPAQUE with every
+operator dunder assumed user-defined (0 such classes in the corpus, measured).
+
+(2) DUNDERS OVER THE WHOLE MRO (route #353). Dunders were collected from the class and its
+ENUM bases only, so a non-enum mixin's `__sub__` / `__lt__` / `__eq__` (`class C(M, IntEnum)`,
+`class C(M, int, Enum)`, `class C(M, Base)`) was invisible. An enum's dunders are now those of
+every file class of its MRO, each treated as overriding; an enum is int-like only when its MRO
+holds nothing but `IntEnum` / `int` / `Enum` / `ReprEnum` / `object` and file enum classes
+(a non-enum mixin, even dunder-free, makes it OPAQUE). A user `__eq__` without `__hash__`
+anywhere in the MRO makes `hash(x)` refused (`__hash__` is `None`).
+
+(3) FLAGS ARE NOT INTS (route #354). `IntFlag` / `Flag` define `~` (`~A == B`, not `-2`) and a
+`boundary=STRICT` flag raises ValueError on `x | 4` / `x ^ 8`; both were lowered as int. `IntFlag`,
+`Flag` (also with an `int` mixin) are OPAQUE now, and so is any enum whose MRO holds a class
+keyword (`boundary=`, `metaclass=`).
+
+(4) VALUE LOOKUP `C(v)` (route #355). `C(99)` was emitted as an unconstrained value and PROVED
+under `no_exception \all` (CPython ValueError). For EVERY enum (int-like ones too), in every
+lowered function, `C(v)` is admitted only when its one positional argument is an `int` / `str`
+literal equal, with the same type, to a literal member value of `C` (with `int` for an
+int-mixin enum, `str` for a str-mixin one, no `__new__` in the MRO, no other mixin), or a
+member `C.M`. Anything else is refused.
+
+(5) THE CLASS OBJECT'S ATTRIBUTES (route #356). `for m in C.__members__.values(): m - m` PROVED
+(CPython TypeError): the members reached through `__members__`, `_member_map_`,
+`_value2member_map_`, ... were not tracked. A load `C.X` of an enum class, with `X` neither a
+member nor a name bound in the body of a file class of `C`'s MRO, is refused, as is any store
+or delete through `C.X`.
+
+Witnesses `4750`-`4766`; controls `4770`-`4774` (`import enum as e; class P(e.IntEnum)` keeps
+int semantics — the self-annotate mirror's `_Precedence` shape —, an alias-based member bound
+and compared by `is`, `class C(int, Enum)` arithmetic, an IntFlag member compared by `is`,
+literal-member `C(1)` / `C("b")`).
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 

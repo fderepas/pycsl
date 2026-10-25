@@ -4013,7 +4013,8 @@ keyword / default whose parameter is annotated $\mathit{ann}(C)$; `isinstance` /
 (`hash` when `__hash__` $\notin D_C$). Every other parent, an `AugAssign` to a member name, and
 the class name $C$ as a call argument (other than to `isinstance` / `issubclass`) raise
 `PYCSL-SEM-ENUM-MEMBER-OPERATION`. Hence no int operation of $\mathcal{T}$ is applied to an
-opaque member, and no user operator dunder is bypassed by $\mathcal{T}$'s int operators.
+opaque member, and no user operator dunder is bypassed by $\mathcal{T}$'s int operators. The
+classifier ($\mathcal{E}$, $D_C$, $M_C$, $\mathit{int}_C$) is the one of §T.6.41 (routes #352-#356).
 
 (#340) For each lowered $F$ let $B_F$ = the names bound anywhere in $F$ (store / del `Name`s,
 nested `def` / `class` names, import aliases, `except` / `match` captures) $\cup$ every
@@ -4147,6 +4148,52 @@ of a call other than route #336's read-only builtins (a bare parameter of $V_0$ 
 #336's own refusal in Module 5). A subscript store / `del` / augmented assignment / mutating
 method call on $y \in V \setminus V_0$ is refused likewise. Hence the only list / dict the
 model may store into is one that was never a read-only view argument.
+
+### §T.6.41  Enum base resolution, MRO-wide dunders, flags, value lookup, class-object attributes (routes #352 / #353 / #354 / #355 / #356)
+
+_Corresponds to `annotations.md` §7.30._
+
+The classifier of §T.6.37 (#339) is replaced inside the same inline `_run_pipeline` block
+(mirror twin `\trusted`; refusals only, no emission change). Over the source AST:
+
+**Base resolution (#352).** $\mathit{imp}(y)$ = `E:X` for `from enum import X as y` ($X$ an enum
+class name; otherwise unknown), the enum module for `import enum [as y]`, `S` for an import from
+a stdlib module other than `enum`, `U` otherwise. A base expression is resolved (through
+`Subscript` heads and module-level aliases bound exactly once) to a token: `C:n` for a file class
+$n$; $\mathit{imp}(y)$ for an imported name (the module itself is `U`); `E:X` for a bare enum
+class name (`T:X` when a non-`enum` star import is present); `B:n` for a builtin; for an
+`Attribute` $r.\ldots.a$: `E:a` when $r$ is the enum module and the chain has length 1, `S` when
+$r$ is a stdlib module and $a$ is not an enum class name, `T:a` when $a$ is an enum class name,
+`U` otherwise; any other expression is `U`. A class keyword adds `K`. $\mathit{anc}(n)$ = the
+file classes reachable through `C:` tokens (fixpoint; the class set of $n$'s C3 MRO restricted
+to the file), $\mathit{tok}(n) = \bigcup_{m \in \mathit{anc}(n)} \mathit{tok}_0(m)$.
+$\mathcal{E}$ = $\{n \mid \mathit{tok}(n)$ holds an `E:` or `T:` token$\}$; $\mathcal{E}^?$ =
+$\{n \notin \mathcal{E} \mid \texttt{U} \in \mathit{tok}(n)$ and $n$'s body has a non-lambda
+plain binding of a non-dunder name$\}$.
+
+**Dunders and int-likeness (#353, #354).** $D_n = \bigcup_{m \in \mathit{anc}(n)}$ (dunders bound
+in $m$'s body, less those of §T.6.37), plus every operator dunder for $n \in \mathcal{E}^?$;
+$M_n$ likewise for member names. $\mathit{int}_n$ iff $\mathit{tok}(n) \cap
+\{\texttt{E:IntEnum}, \texttt{B:int}\} \neq \emptyset$ and $\mathit{tok}(n) \subseteq
+\{\texttt{E:IntEnum}, \texttt{E:Enum}, \texttt{E:ReprEnum}, \texttt{B:int}, \texttt{B:object}\}
+\cup \{\texttt{C:}m \mid m \in \mathcal{E}\}$ — so `IntFlag` / `Flag`, a keyword, a non-enum
+mixin, a stdlib / unknown base each make $n$ OPAQUE. $n$ is TRANSPARENT iff $\mathit{int}_n \wedge
+D_n = \emptyset$; §T.6.37's context rule applies to every opaque $n \in \mathcal{E} \cup
+\mathcal{E}^?$ with these $D_n$ / $M_n$, and its `hash` admission now requires
+$\{\texttt{\_\_hash\_\_}, \texttt{\_\_eq\_\_}\} \cap D_n = \emptyset$.
+
+**Value lookup (#355).** For every $n \in \mathcal{E}$ and every `Call` $n(\ldots)$ in a lowered
+function: admitted iff it has exactly one positional argument and no keyword, and the argument
+is $n.M$ ($M \in M_n$), or a `Constant` $v$ with $\mathit{type}(v) \in \{\texttt{int},
+\texttt{str}\}$ such that some member of $n$'s own body is bound to a `Constant` $w$ with
+$\mathit{type}(w) = \mathit{type}(v) \wedge w = v$, every non-`C:` token of $\mathit{tok}(n)$ is
+an enum class or `B:object` / `B:int` / `B:str` (not both an int and a str mixin), no class of
+$\mathit{anc}(n)$ binds `__new__`, and $\mathit{type}(v)$ is `int` under an int mixin, `str` under
+a str mixin. Hence an admitted lookup is one CPython's `_value2member_map_` resolves.
+
+**Class-object attributes (#356).** For every $n \in \mathcal{E}$, an `Attribute` $n.X$ in a
+lowered function whose context is not `Load`, or whose $X \notin M_n$ and $X$ is bound in no
+body of $\mathit{anc}(n)$, raises `PYCSL-SEM-ENUM-MEMBER-OPERATION`.
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
