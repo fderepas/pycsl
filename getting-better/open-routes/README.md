@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #373 + #374 + #375 + #376 REPAIRED, candidate (r373 executor off dc378283c; code ada49f2d / 7a051eec /
+##   34a579bb / 39d61190 / 9d029328, corpus e8488149 + 0c64cab1, census 98378213, getattr sites 51f0fbb1, docs f19c7b7a + c037431b
+##   (annotations 7.36 / T.6.47), route docs; inline, no new def, ledger 3, one new refusal code). #373: the bare call of a def
+##   nested in a METHOD (lifted to a method, lowered to the opaque int stub `g_0 ()`) is route #249-erased unless every method of
+##   that name returns int / bool (names from the source). #374: `__slots__` entries mangled by their declaring class and attribute
+##   stores by their lexical class before the #360 comparison (also fixes the `self._A__x` over-refusal). #375: a PyCSL-R375
+##   failing assertion for an augmented assignment on an erased target / value under `no_exception`, and for a starred erased
+##   element of a display (any context) or call (under `no_exception`). #376: NEW PYCSL-R376-GETATTR-CLASS-BINDING — `getattr` on
+##   a known record of a non-field name bound in a class body of its file MRO (or a dunder / `object` name, or under a user
+##   `__getattr__`) is refused instead of folding to the default. Witnesses 5050-5082 (22 route witnesses, 11 further shapes; 28 PROVED at
+##   base, all CPython-violating) -> FAIL / REFUSED; controls 5090-5093 PROVED (5091 was an over-refusal at base). Root 0/0/0
+##   (1723 GONE once = `--verify-imports` resource artefact, re-emitted identical), pyref 0/0/0, mirror 53/53 0/0/0 (no OWED).
+##   Residuals: outside-file bases not read (#376), starred call args outside `no_exception` (#375), nested `-> int` stubs (#373).
+
 ## gen #37 (2026-10-25): #377 (class-body name bound twice), #378 (dataclass default from first binding), #379 (`*`/`**` call args dropped),
 ##   #380 (constructor arity gaps: init=False / super().__init__ / metaclass __call__), #381 (stdlib bases skipped in hash MRO), #382 (container
 ##   set-display elements), #383 (hash element-class sources) OPENED (red team 29: 75/~270 confirmed; 7/7 sample driver-reproduced rc=0 on
