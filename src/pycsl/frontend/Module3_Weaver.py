@@ -2771,8 +2771,9 @@ class Module3_Weaver:
                                                ast.ClassDef)) or id(_dc_y) in _dc_ann377
                             for _dc_y in _dc_ns):
                         continue
-                    _dc_ns = sorted(_dc_ns, key=lambda _dc_y: (getattr(_dc_y, "lineno", 0),
-                                                               getattr(_dc_y, "col_offset", 0)))
+                    _dc_ns = [_dc_ns[_dc_o[2]] for _dc_o in sorted(
+                        [(getattr(_dc_y, "lineno", 0), getattr(_dc_y, "col_offset", 0), _dc_i)
+                         for _dc_i, _dc_y in enumerate(_dc_ns)])]
                     _dc_fd = all(isinstance(_dc_y, (ast.FunctionDef, ast.AsyncFunctionDef))
                                  for _dc_y in _dc_ns)
                     if _dc_fd and any(isinstance(_dc_dd, ast.Name) and _dc_dd.id == "property"
