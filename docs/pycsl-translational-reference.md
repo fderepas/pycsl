@@ -4559,6 +4559,27 @@ comment `(* PYCSL-R384-NO-GOAL <C>: <why> *)` and `_run_pipeline` raises
 $B$ and its bases) has a non-empty `init_contract_check.requires` and a `param_types` entry outside
 `""`, `int`, `bool`.
 
+### §T.6.52  Locally rebound builtin names; class-body members under `global` or a compound statement (routes #386 / #387, gen #37)
+
+_Corresponds to `annotations.md` §7.41._
+
+Both are side conditions of `Module3_Weaver.process` (file and dependency pipelines); the
+translation is unchanged where they hold. Let $\mathcal{B}$ be route #131's builtin-name set
+(`_nb_builtin_names`). (#386) For every scope $S$ that is the module or a function / method
+body (not descending into nested def / class / lambda bodies or comprehension targets), let
+$R(S) \subseteq \mathcal{B}$ be the names bound in $S$ by a store, a parameter, a nested
+`def` / `class` statement (function scopes only), or an `import` / `from .. import` other than
+one from `builtins` / `__builtin__`. If some $x \in R(S)$ has a `Name` load anywhere under $S$'s
+node (nested scopes included), the translation is undefined (refused). For every `Lambda` with a
+parameter $x \in \mathcal{B}$, and every comprehension with a target name $x \in \mathcal{B}$, a
+load of $x$ under that node is likewise refused. (#387) For every `ClassDef` body $K$, walking
+$K$ without entering nested def / class / lambda bodies: a `Global` / `Nonlocal` statement naming
+$x$ with $x$ among $K$'s binding sites is refused; a `FunctionDef` / `AsyncFunctionDef` /
+`ClassDef` / `AnnAssign` reached through an `If`, `While`, `For`, `AsyncFor`, `Try`, `TryStar`,
+`With`, `AsyncWith` or `Match` node of $K$ is refused. Both append to the existing raise sites
+(route #131's "a name's runtime value is not the one the model reads", route #122's "a name's
+runtime binding is not the `def` the model resolves it to").
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

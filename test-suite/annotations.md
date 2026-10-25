@@ -2519,6 +2519,39 @@ COVERED: an invariant whose goal also stops at an element / quantifier / string 
 keeps an alias of the list it passed and mutates it later (`c = Cur(DEF); DEF.clear()` in
 `__main__`). Witnesses `5240`-`5259`; controls `5270`-`5275`.
 
+### 7.41 A builtin name rebound by a nested def / class / import / lambda / comprehension; class-body members CPython may never bind (routes #386 / #387, gen #37)
+
+Two more places where a name's runtime binding is not the one the model reads, each a sound
+REFUSAL in the shared Module 3 checks of routes #122 / #130-#133 and #377; no emission changes.
+
+(1) A BUILTIN NAME REBOUND LOCALLY (route #386; "a name's runtime value is not the one the model
+reads"). Route #131 refused a builtin name rebound by an assignment, a loop / with / except target
+or a parameter and then read. A `def` or `class` nested in a function or METHOD, an import
+(function-local or module-level, other than an unaliased `from builtins import X`), a LAMBDA
+parameter and a COMPREHENSION target named like a builtin were still lowered to the builtin model:
+`def max(x, y): return -100` in a method, then `max(self.a, 1) >= self.a` PROVED (CPython -100);
+`from operator import sub as max` then `max(3, 1) == 3` PROVED (CPython 2); `g = lambda max:
+max(1, 2)` then `g(min) == 2` PROVED (CPython 1). Each of these bindings now joins route #131's
+rule: a read of the name in the binding's scope (nested scopes included) is REFUSED. A
+module-level `def len` keeps route #75's user-shadowing model; a METHOD named like a builtin
+(`def max(self)`, called as `self.max()`) is a class attribute, not a shadow, and is unchanged.
+
+(2) A CLASS-BODY MEMBER CPython MAY NEVER BIND (route #387; "a name's runtime binding is not the
+`def` the model resolves it to"). The method tables take every def / class / annotated member of
+a class body as an attribute. `global get` (or `nonlocal get`) in the body sends the def's
+binding to the module scope (`c.get()` raises AttributeError; `global __init__` leaves
+`object.__init__`, so the constructor goal was proved over a body CPython never runs), and a def
+under `if False:` / `while False:` / `if sys.version_info < (3, 0):` / `for _ in range(0):` or
+after a `raise` inside `try:` is never executed. In every class body, a `global` / `nonlocal`
+naming a name the body binds is REFUSED, and so is any def / class / annotated member nested under
+a compound statement (`if` / `while` / `for` / `try` / `with` / `match`), whatever its condition:
+whether it runs is not modelled (no corpus, mirror or library class body has one outside
+witnesses already refused). Write the member at the top level of the class body.
+
+Witnesses `5290`-`5309`; controls `5320`-`5324` (a nested def not named like a builtin beside the
+builtin `max`, a method named `max`, plain class-body members, an `if True:` inside a method, a
+function-local `from builtins import max`).
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
