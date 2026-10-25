@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #352 + #353 + #354 + #355 + #356 REPAIRED, candidate (r352 executor off 1a9cfa42; code 46558356, corpus +
+##   census 0855e796, docs 9a2cbb48 (annotations 7.30 / T.6.41), route docs; route #339's classifier rewritten in its inline
+##   `_run_pipeline` block, no new def, ledger 3, no new refusal code). Sound refusals (PYCSL-SEM-ENUM-MEMBER-OPERATION), no emission
+##   change. #352: bases resolved through imports / module aliases (`from enum import X as Y`, `import enum as e`); an attribute
+##   tail enum of non-`enum` origin is opaque; a class over an unclassifiable import with a member-shaped body is a possible enum,
+##   opaque with every dunder assumed. #353: dunders over every file class of the MRO; int-like only if the MRO is IntEnum / int /
+##   Enum / ReprEnum / object / file enums; `hash` refused under any `__eq__`. #354: IntFlag / Flag (and `int`+Flag) opaque; a class
+##   keyword makes an enum opaque. #355: `C(v)` admitted only for a same-type literal member value or a member. #356: `C.X` that is
+##   neither a member nor bound in an MRO class body (`__members__`, `_value2member_map_`, ..) and stores through `C.X` refused.
+##   Witnesses 4750-4766 (13 red-team + 4 new shapes incl. 1 new latent `class F(int, Flag)`; all PROVED at base) -> REFUSED;
+##   controls 4770-4774 PROVED. Census: 0 non-witness users in any plane; mirror `_Precedence(_enum.IntEnum)` stays transparent.
+##   Root 0/0/0 (5 new controls), pyref 0/0/0, mirror 53/53 0/0/0 (no OWED). Residuals: possible-enum `C(v)`, class object via
+##   `type(x)` / aliases, over-refusals (dunder-free mixins, IntFlag int ops, `C(v)` outside `no_exception`) (see REPAIRs).
+
 ## gen #37 (2026-10-25): #350 + #351 REPAIRED, candidate (r350 executor off 5c3b3413; code 2bfdb686 / b67bbe0f, corpus 24945d20,
 ##   census c40dd1dd, docs 656526be + route docs; two inline `_run_pipeline` blocks over a fresh source parse, no new def, ledger 3).
 ##   Sound refusals, no emission change. #350 PYCSL-SEM-DEFAULT-ANNOTATION-MISMATCH: every annotated parameter default of a lowered
