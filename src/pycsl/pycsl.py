@@ -3530,7 +3530,53 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     else:
                         _tp346.add(_hn346)
             _at346[id(_a346)] = _tp346
+        # (#365) `_dp365[id(ann)]`: the class names a value of the annotation may hold in a
+        # HASHED position — through Optional / Union / `|` / Annotated / Final / ClassVar /
+        # string forms AND every `Tuple[...]` / `tuple[...]` argument (hashing a tuple hashes
+        # each component, at any depth); "#UB" marks a builtin unhashable container (`List`,
+        # `dict`, `set` ...) reached inside a tuple. `_ae365[id(ann)]` is that set for the
+        # annotation's first type argument (the element / key of a set / dict / iterable).
+        _UB365 = {"list", "dict", "set", "bytearray", "defaultdict", "ordereddict", "counter",
+                  "deque", "mutablesequence", "mutablemapping", "mutableset"}
+        _dp365 = {}
+        for _a346 in _an346:
+            _tp365 = set()
+            _q365 = [(_a346, False)]
+            while _q365:
+                _x365, _in365 = _q365.pop()
+                if isinstance(_x365, _ast341.Constant) and isinstance(_x365.value, str):
+                    try:
+                        _q365.append((_ast341.parse(_x365.value, mode="eval").body, _in365))
+                    except (SyntaxError, ValueError):
+                        pass
+                elif isinstance(_x365, (_ast341.Name, _ast341.Attribute)):
+                    _hn365 = _x365.id if isinstance(_x365, _ast341.Name) else _x365.attr
+                    _tp365.add(_hn365)
+                    if _in365 and _hn365.lower() in _UB365:
+                        _tp365.add("#UB")
+                elif isinstance(_x365, _ast341.BinOp) and isinstance(_x365.op, _ast341.BitOr):
+                    _q365.extend([(_x365.left, _in365), (_x365.right, _in365)])
+                elif isinstance(_x365, _ast341.Subscript):
+                    _hv365 = _x365.value
+                    _hn365 = (_hv365.id if isinstance(_hv365, _ast341.Name) else
+                              _hv365.attr if isinstance(_hv365, _ast341.Attribute) else "")
+                    _sl365 = _x365.slice
+                    _el365 = (list(_sl365.elts) if isinstance(_sl365, _ast341.Tuple)
+                              else [_sl365])
+                    if _hn365 in ("Optional", "Union"):
+                        _q365.extend([(_e, _in365) for _e in _el365])
+                    elif _hn365 in ("Tuple", "tuple"):
+                        _q365.extend([(_e, True) for _e in _el365])
+                    elif _hn365 in ("Annotated", "Final", "ClassVar"):
+                        _q365.extend([(_e, _in365) for _e in _el365[:1]])
+                    else:
+                        _tp365.add(_hn365)
+                        if _in365 and _hn365.lower() in _UB365:
+                            _tp365.add("#UB")
+            _dp365[id(_a346)] = _tp365
+        _ae365 = {}
         for _k346, _v346 in list(_ae346.items()):
+            _ae365[_k346] = _dp365.get(_v346, set())
             _ae346[_k346] = _at346.get(_v346, set())
         # Each class's annotated body fields (`x: T` in the class body): name -> annotation.
         _cf346 = {}
@@ -3610,70 +3656,180 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # (`list` / `dict` / `set` / `bytearray` bases unhashable). A hashable NamedTuple /
         # frozen record with a `list` / `dict` / `set` / unhashable-record field still
         # raises on `hash`, so it counts as unhashable.
+        # (#49) gen #37, ROUTES #364 / #366 (red team 27; each MEASURED PROVED at fcc2c822,
+        # CPython TypeError). #364: the class-body scan saw only a top-level `def __eq__` and
+        # a LITERAL `__hash__ = None` (`__eq__ = lambda ..`, `__eq__` under `if`, `__hash__ =
+        # NOHASH`, `__hash__ = None if .. else ..`, `__hash__, tag = None, 1` all PROVED `{r}`).
+        # RULE: every binding of the name in the CLASS SCOPE counts (any statement, any target
+        # form, any nesting, an import, a `del`, a match / except capture; nested function /
+        # class / lambda bodies are other scopes): any binding of `__eq__` DEFINES it, and a
+        # class binding `__hash__` is hashable only when EVERY such binding is a top-level
+        # undecorated `def __hash__` — any other binding may be None, so the class counts as
+        # unhashable. #366: the field check ran in ONE (closure length, name)-ordered pass (a
+        # field class declared later was not yet known unhashable), read a field annotation by
+        # its head (`object` / `Any` / `Tuple[Z, int]` / `Union[int, List[int]]` admitted any
+        # value) and skipped `unsafe_hash=True` records. RULE: unhashability is the least
+        # FIXPOINT over every class and functional namedtuple of the file; a record whose hash
+        # hashes its fields (NamedTuple / namedtuple, frozen or `unsafe_hash=True` `@dataclass`,
+        # or a subclass of one) is unhashable unless EVERY field annotation is provably
+        # hashable: `int` / `str` / `float` / `bool` / `bytes` / `complex` / `None` /
+        # `Literal[..]` / `frozenset[..]` / `type[..]`, a hashable file class, or an Optional /
+        # Union / `|` / Tuple / Annotated / Final / ClassVar of those (`object`, `Any`, a
+        # TypeVar, an imported or unknown name, any other container, an untyped namedtuple
+        # field: possibly unhashable).
+        _HB366 = {"int", "str", "float", "bool", "bytes", "complex", "None", "NoneType",
+                  "Literal", "frozenset", "FrozenSet", "type", "Type"}
+        _fnt366 = {}
+        for _n346 in _ast341.walk(_t341):
+            if (isinstance(_n346, _ast341.Assign) and len(_n346.targets) == 1
+                    and isinstance(_n346.targets[0], _ast341.Name)
+                    and _n346.targets[0].id in _imm348
+                    and _n346.targets[0].id not in _cls341
+                    and isinstance(_n346.value, _ast341.Call)):
+                _fv366 = [None]
+                _cf366 = _n346.value.func
+                _fa366 = _n346.value.args[1] if len(_n346.value.args) >= 2 else None
+                if (((isinstance(_cf366, _ast341.Name) and _cf366.id == "NamedTuple")
+                        or (isinstance(_cf366, _ast341.Attribute)
+                            and _cf366.attr == "NamedTuple"))
+                        and isinstance(_fa366, (_ast341.List, _ast341.Tuple))
+                        and all(isinstance(_e, (_ast341.Tuple, _ast341.List))
+                                and len(_e.elts) == 2 for _e in _fa366.elts)):
+                    _fv366 = [_e.elts[1] for _e in _fa366.elts]
+                _fnt366.setdefault(_n346.targets[0].id, []).extend(_fv366)
         _uh349 = {}
-        for _cn346 in [_c for _l, _c in sorted((len(_clo346[_c]), _c) for _c in _cls341)]:
-            _dec349 = None
-            for _a346 in _clo346[_cn346]:
-                if _a346 in ("list", "dict", "set", "bytearray"):
-                    _dec349 = True
-                    break
-                if _a346 not in _cls341:
-                    continue
-                if _a346 != _cn346 and _a346 in _uh349:
-                    _dec349 = _uh349[_a346]
-                    break
-                _own349 = None
-                _eq349 = False
-                for _k346 in _cls341[_a346]:
-                    for _s346 in _k346.body:
-                        if (isinstance(_s346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
-                                and _s346.name == "__hash__"):
-                            _own349 = False
-                        elif isinstance(_s346, (_ast341.Assign, _ast341.AnnAssign)):
-                            _tg349 = (_s346.targets if isinstance(_s346, _ast341.Assign)
-                                      else [_s346.target])
-                            if any(isinstance(_t, _ast341.Name) and _t.id == "__hash__"
-                                   for _t in _tg349):
-                                _own349 = (isinstance(_s346.value, _ast341.Constant)
-                                           and _s346.value.value is None)
-                        if (isinstance(_s346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
-                                and _s346.name == "__eq__"):
-                            _eq349 = True
-                if _own349 is None and _a346 in _dc346:
-                    _o346 = _dc346[_a346]
-                    if _o346["unsafe_hash"] is True:
-                        _own349 = False
-                    elif _o346["unsafe_hash"] is None:
-                        _own349 = True
-                    elif _o346["eq"] is not False:
-                        _own349 = _o346["frozen"] is not True
-                if _own349 is None and _eq349:
-                    _own349 = True
-                if _own349 is not None:
-                    _dec349 = _own349
-                    break
-            if not _dec349 and _cn346 in _imm348:
-                for _a346 in _clo346[_cn346]:
-                    for _fan349 in _cf346.get(_a346, {}).values():
-                        if ((_ah346.get(id(_fan349)) or "").lower() in (
-                                "list", "dict", "set", "bytearray", "defaultdict",
-                                "ordereddict", "counter", "deque")
-                                or (_at346.get(id(_fan349), set()) & {
-                                    _c for _c, _u in _uh349.items() if _u})):
+        for _it366 in range(len(_cls341) + len(_fnt366) + 3):
+            _nu366 = {}
+            for _cn346 in list(_cls341) + [_f for _f in _fnt366 if _f not in _cls341]:
+                _dec349 = None
+                _fl366 = None
+                if _cn346 in _fnt366 and _cn346 not in _cls341:
+                    _fl366 = list(_fnt366[_cn346])
+                else:
+                    for _a346 in _clo346[_cn346]:
+                        if _a346 in ("list", "dict", "set", "bytearray"):
                             _dec349 = True
-            _uh349[_cn346] = bool(_dec349)
+                            break
+                        if _a346 != _cn346 and _a346 in _uh349:
+                            _dec349 = _uh349[_a346]
+                            break
+                        if _a346 not in _cls341:
+                            continue
+                        _own349 = None
+                        _eq349 = False
+                        _hb364 = []
+                        for _k346 in _cls341[_a346]:
+                            _sq364 = [(_s, True) for _s in _k346.body]
+                            while _sq364:
+                                _s346, _top364 = _sq364.pop()
+                                _bn364 = []
+                                if isinstance(_s346, (_ast341.FunctionDef,
+                                                      _ast341.AsyncFunctionDef,
+                                                      _ast341.ClassDef)):
+                                    _bn364 = [(_s346.name, _top364 and not _s346.decorator_list
+                                               and not isinstance(_s346, _ast341.ClassDef))]
+                                elif isinstance(_s346, _ast341.Lambda):
+                                    continue
+                                elif isinstance(_s346, (_ast341.Import, _ast341.ImportFrom)):
+                                    _bn364 = [((_al.asname or _al.name).split(".")[0], False)
+                                              for _al in _s346.names]
+                                else:
+                                    if (isinstance(_s346, _ast341.Name)
+                                            and not isinstance(_s346.ctx, _ast341.Load)):
+                                        _bn364 = [(_s346.id, False)]
+                                    elif (isinstance(_s346, (_ast341.MatchAs, _ast341.MatchStar,
+                                                             _ast341.ExceptHandler))
+                                          and _s346.name):
+                                        _bn364 = [(_s346.name, False)]
+                                    elif (isinstance(_s346, _ast341.MatchMapping)
+                                          and _s346.rest):
+                                        _bn364 = [(_s346.rest, False)]
+                                    _sq364.extend((_c, False)
+                                                  for _c in _ast341.iter_child_nodes(_s346))
+                                for _bx364, _df364 in _bn364:
+                                    if _bx364 == "__hash__":
+                                        _hb364.append(_df364)
+                                    elif _bx364 == "__eq__":
+                                        _eq349 = True
+                        if _hb364:
+                            _own349 = not all(_hb364)
+                        if _own349 is None and _a346 in _dc346:
+                            _o346 = _dc346[_a346]
+                            if _o346["unsafe_hash"] is True:
+                                _own349 = False
+                            elif _o346["unsafe_hash"] is None:
+                                _own349 = True
+                            elif _o346["eq"] is not False:
+                                _own349 = _o346["frozen"] is not True
+                        if _own349 is None and _eq349:
+                            _own349 = True
+                        if _own349 is not None:
+                            _dec349 = _own349
+                            break
+                    if not _dec349 and (_cn346 in _imm348 or any(
+                            _dc346.get(_a, {}).get("unsafe_hash") is True
+                            for _a in _clo346[_cn346])):
+                        _fl366 = [_fan for _a in _clo346[_cn346]
+                                  for _fan in _cf346.get(_a, {}).values()]
+                if _fl366 is not None and not _dec349:
+                    _fq366 = list(_fl366)
+                    while _fq366 and not _dec349:
+                        _z366 = _fq366.pop()
+                        if isinstance(_z366, _ast341.Constant) and isinstance(_z366.value, str):
+                            try:
+                                _fq366.append(_ast341.parse(_z366.value, mode="eval").body)
+                            except (SyntaxError, ValueError):
+                                _dec349 = True
+                        elif (isinstance(_z366, _ast341.Constant)
+                              and (_z366.value is None or _z366.value is Ellipsis)):
+                            pass
+                        elif isinstance(_z366, (_ast341.Name, _ast341.Attribute)):
+                            _zn366 = _z366.id if isinstance(_z366, _ast341.Name) else _z366.attr
+                            if _zn366 in _cls341 or _zn366 in _fnt366:
+                                _dec349 = bool(_uh349.get(_zn366))
+                            elif _zn366 not in _HB366:
+                                _dec349 = True
+                        elif (isinstance(_z366, _ast341.BinOp)
+                              and isinstance(_z366.op, _ast341.BitOr)):
+                            _fq366.extend([_z366.left, _z366.right])
+                        elif isinstance(_z366, _ast341.Subscript):
+                            _hv366 = _z366.value
+                            _hn366 = (_hv366.id if isinstance(_hv366, _ast341.Name) else
+                                      _hv366.attr if isinstance(_hv366, _ast341.Attribute)
+                                      else "")
+                            _el366 = (list(_z366.slice.elts)
+                                      if isinstance(_z366.slice, _ast341.Tuple)
+                                      else [_z366.slice])
+                            if _hn366 in ("Optional", "Union", "Tuple", "tuple"):
+                                _fq366.extend(_el366)
+                            elif _hn366 in ("Annotated", "Final", "ClassVar"):
+                                _fq366.extend(_el366[:1])
+                            elif _hn366 not in ("Literal", "frozenset", "FrozenSet", "type",
+                                                "Type"):
+                                _dec349 = True
+                        else:
+                            _dec349 = True
+                _nu366[_cn346] = bool(_dec349)
+            if _nu366 == _uh349:
+                break
+            _uh349 = _nu366
+        else:
+            _uh349 = {_c: True for _c in _uh349}
         _u349 = {_c for _c, _u in _uh349.items() if _u}
         _keyed349 = ("Set", "set", "FrozenSet", "frozenset", "AbstractSet", "MutableSet",
                      "Dict", "dict", "Mapping", "MutableMapping", "DefaultDict",
                      "defaultdict", "OrderedDict", "Counter", "ChainMap")
-        if _u349:
+        # (#365) the element / key type is read through `Tuple[...]` arguments too ("#UB": a
+        # builtin unhashable container inside a tuple).
+        _u365 = _u349 | {"#UB"}
+        if _u365:
             for _a346 in _an346:
                 if (_ah346.get(id(_a346)) in _keyed349
-                        and _ae346.get(id(_a346), set()) & _u349):
+                        and _ae365.get(id(_a346), set()) & _u365):
                     raise _PyCSLSemErr341(
                         f"line {getattr(_a346, 'lineno', 0)}: the annotation "
                         f"`{_ast341.unparse(_a346)}` puts an UNHASHABLE class "
-                        f"({sorted(_ae346[id(_a346)] & _u349)}) in a set element / dict "
+                        f"({sorted(_ae365[id(_a346)] & _u365)}) in a set element / dict "
                         f"key position. Its instances have `__hash__ = None` (an explicit "
                         f"`__hash__ = None`, a `@dataclass` with `eq` and without `frozen` "
                         f"/ `unsafe_hash`, or an `__eq__` without `__hash__`), so CPython "
@@ -3839,9 +3995,63 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"(`n._replace(x=...)`, `dataclasses.replace(d, x=...)`), or make "
                         f"the class a mutable record (annotate the receiver with it).",
                         stage="ir-semantic", code="PYCSL-R348-IMMUTABLE-RECORD-STORE")
-            # (#349) unhashable records in hashing positions.
-            if not _u349:
+            # (#365) the classes a name may hold in a hashed position through tuples: its
+            # annotations' `_dp365` and every value bound to it (a tuple display contributes
+            # each component's classes), closed over the bindings. The expression walk (a
+            # tuple display / walrus / `x if c else y` is entered; a list / dict / set display
+            # or a list-typed name INSIDE a tuple is "#UB") is also run by the hashing check.
+            if not _u365:
                 continue
+            _dt365 = {}
+            for _p346 in _pa346:
+                if _p346.annotation is not None:
+                    _dt365.setdefault(_p346.arg, set()).update(
+                        _dp365.get(id(_p346.annotation), set()))
+            _tb365 = []
+            for _n346 in _ast341.walk(_f346):
+                if isinstance(_n346, _ast341.AnnAssign) and isinstance(_n346.target,
+                                                                        _ast341.Name):
+                    _dt365.setdefault(_n346.target.id, set()).update(
+                        _dp365.get(id(_n346.annotation), set()))
+                    if _n346.value is not None:
+                        _tb365.append((_n346.target.id, _n346.value))
+                elif isinstance(_n346, _ast341.Assign):
+                    for _t346 in _n346.targets:
+                        if isinstance(_t346, _ast341.Name):
+                            _tb365.append((_t346.id, _n346.value))
+                elif (isinstance(_n346, _ast341.NamedExpr)
+                      and isinstance(_n346.target, _ast341.Name)):
+                    _tb365.append((_n346.target.id, _n346.value))
+            for _it365 in range(len(_tb365) + 2):
+                _ch365 = False
+                for _nm365, _ix365 in _tb365:
+                    _cs365 = set()
+                    _wq365 = [(_ix365, False)]
+                    while _wq365:
+                        _y365, _iy365 = _wq365.pop()
+                        if isinstance(_y365, _ast341.Tuple):
+                            _wq365.extend((_e, True) for _e in _y365.elts)
+                        elif isinstance(_y365, _ast341.NamedExpr):
+                            _wq365.append((_y365.value, _iy365))
+                        elif isinstance(_y365, _ast341.IfExp):
+                            _wq365.extend([(_y365.body, _iy365), (_y365.orelse, _iy365)])
+                        else:
+                            _cs365 |= _ex346.get(id(_y365), set())
+                            if isinstance(_y365, _ast341.Name):
+                                _cs365 |= _dt365.get(_y365.id, set())
+                                if (_iy365 and {_h.lower() for _h in _hh346.get(_y365.id, set())}
+                                        & _UB365):
+                                    _cs365.add("#UB")
+                            if _iy365 and isinstance(_y365, (
+                                    _ast341.List, _ast341.ListComp, _ast341.Dict,
+                                    _ast341.DictComp, _ast341.Set, _ast341.SetComp)):
+                                _cs365.add("#UB")
+                    if not _cs365 <= _dt365.get(_nm365, set()):
+                        _dt365.setdefault(_nm365, set()).update(_cs365)
+                        _ch365 = True
+                if not _ch365:
+                    break
+            # (#349) unhashable records in hashing positions.
             for _n346 in _ast341.walk(_f346):
                 _hx349 = []
                 if isinstance(_n346, _ast341.Set):
@@ -3887,16 +4097,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         elif isinstance(_it349, _ast341.Name):
                             for _p346 in _pa346:
                                 if (_p346.arg == _it349.id and _p346.annotation is not None
-                                        and _ae346.get(id(_p346.annotation), set()) & _u349):
+                                        and _ae365.get(id(_p346.annotation), set()) & _u365):
                                     _hx349 = [_it349]
-                                    _ex346[id(_it349)] = _ae346[id(_p346.annotation)]
+                                    _ex346[id(_it349)] = _ae365[id(_p346.annotation)]
                             for _y349 in _ast341.walk(_f346):
                                 if (isinstance(_y349, _ast341.AnnAssign)
                                         and isinstance(_y349.target, _ast341.Name)
                                         and _y349.target.id == _it349.id
-                                        and _ae346.get(id(_y349.annotation), set()) & _u349):
+                                        and _ae365.get(id(_y349.annotation), set()) & _u365):
                                     _hx349 = [_it349]
-                                    _ex346[id(_it349)] = _ae346[id(_y349.annotation)]
+                                    _ex346[id(_it349)] = _ae365[id(_y349.annotation)]
                     elif (isinstance(_fu349, _ast341.Attribute)
                           and _fu349.attr in ("add", "discard", "remove", "get", "setdefault",
                                               "pop", "__contains__", "__getitem__")
@@ -3908,7 +4118,29 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                    <= {"list", "sequence", "mutablesequence"})):
                         _hx349 = list(_n346.args[:1])
                 for _h349 in _hx349:
-                    _hc349 = _ex346.get(id(_h349), set()) & _u349
+                    _hc349 = set()
+                    _wq365 = [(_h349, False)]
+                    while _wq365:
+                        _y365, _iy365 = _wq365.pop()
+                        if isinstance(_y365, _ast341.Tuple):
+                            _wq365.extend((_e, True) for _e in _y365.elts)
+                        elif isinstance(_y365, _ast341.NamedExpr):
+                            _wq365.append((_y365.value, _iy365))
+                        elif isinstance(_y365, _ast341.IfExp):
+                            _wq365.extend([(_y365.body, _iy365), (_y365.orelse, _iy365)])
+                        else:
+                            _hc349 |= _ex346.get(id(_y365), set())
+                            if isinstance(_y365, _ast341.Name):
+                                _hc349 |= _dt365.get(_y365.id, set())
+                                if (_iy365 and {_h.lower() for _h in _hh346.get(_y365.id, set())}
+                                        & _UB365):
+                                    _hc349.add("#UB")
+                            if _iy365 and isinstance(_y365, (
+                                    _ast341.List, _ast341.ListComp, _ast341.Dict,
+                                    _ast341.DictComp, _ast341.Set, _ast341.SetComp)):
+                                _hc349.add("#UB")
+                    _hc349 = {_c if _c != "#UB" else "a list / dict / set"
+                              for _c in _hc349 & _u365}
                     if _hc349:
                         raise _PyCSLSemErr341(
                             f"'{_f346.name}' line {getattr(_n346, 'lineno', 0)}: "
@@ -9389,6 +9621,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     import builtins as _bi352
     _STD352 = set(getattr(_sys352, "stdlib_module_names", ())) - {"enum"}
     _im352 = {}     # local name -> "E:<X>" (from enum), "M" (the enum module), "S", "U"
+    _ime367 = {}    # (#367) local name -> the `enum` name it imports (`member`, `nonmember`)
     _star352 = False
     for _x352 in _A273.walk(unified_ast):
         if isinstance(_x352, _A273.ImportFrom):
@@ -9397,6 +9630,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _a352.name == "*":
                     _star352 = _star352 or _md352 != "enum" or bool(_x352.level)
                     continue
+                if _md352 == "enum" and not _x352.level:
+                    _ime367[_a352.asname or _a352.name] = _a352.name
                 _im352[_a352.asname or _a352.name] = (
                     ("E:" + _a352.name if _a352.name in _EB339 else "U")
                     if _md352 == "enum" and not _x352.level else
@@ -9425,6 +9660,23 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     _onm352 = {}    # class name -> every name its body binds
     _olv352 = {}    # class name -> own member literal values ([] when any is not a literal)
     _onw352 = set()  # classes whose body defines `__new__`
+    # (#49) gen #37, ROUTE #367 (red team 27; MEASURED PROVED at fcc2c822, CPython ValueError /
+    # AttributeError) — the member set was every simple-name binding of the body, so names
+    # listed in `_ignore_` (list / tuple / string form: CPython deletes them from the class)
+    # and private `__x` names (mangled, plain attributes since 3.11) were "members": `C(2)`,
+    # `C(1)`, `C.B` were admitted by routes #355 / #356. RULE: the member set is built as
+    # `enum._EnumDict` builds it — a top-level binding is a member unless its name is in
+    # `_ignore_`, private (`__x`, not ending `__`), a CPython dunder / sunder, an annotation
+    # without value (binds nothing), or its value is a descriptor (`def` / `class` / `lambda` /
+    # `property(..)` / `classmethod(..)` / `staticmethod(..)` of the builtins) or
+    # `nonmember(..)`; `member(v)` counts with value `v`. Ignored / private / value-less names
+    # are not class attributes either (`C.B` is refused). An `_ignore_` that is not ONE
+    # top-level binding to a literal string / list / tuple of strings (a name, a nested or
+    # tuple-target binding ...) makes the member set unknown: REFUSED. And every binding in the
+    # class scope (any nesting / target form, route #364's rule) counts for the user dunders
+    # (`if ..: def __eq__`, `__eq__, x = ..`) and `__new__`.
+    _mdf367 = {_s.name for _s in unified_ast.body if isinstance(_s, _FN273 + (_A273.ClassDef,))}
+    _igbad367 = []
     for _n352, _cs352 in _cdn352.items():
         _tk352 = set()
         _du352 = set()
@@ -9479,6 +9731,52 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     else:
                         _r352 = "U"
                 _tk352.add(_r352 or "U")
+            _ig367 = set()
+            _ign367 = 0
+            _sq367 = [_s for _s in _c352.body]
+            while _sq367:
+                _s367 = _sq367.pop()
+                _bn367 = []
+                if isinstance(_s367, _FN273 + (_A273.ClassDef,)):
+                    _bn367 = [_s367.name]
+                elif isinstance(_s367, _A273.Lambda):
+                    continue
+                elif isinstance(_s367, (_A273.Import, _A273.ImportFrom)):
+                    _bn367 = [(_al.asname or _al.name).split(".")[0] for _al in _s367.names]
+                else:
+                    if isinstance(_s367, _A273.Name) and not isinstance(_s367.ctx, _A273.Load):
+                        _bn367 = [_s367.id]
+                    elif (isinstance(_s367, (_A273.MatchAs, _A273.MatchStar, _A273.ExceptHandler))
+                          and _s367.name):
+                        _bn367 = [_s367.name]
+                    elif isinstance(_s367, _A273.MatchMapping) and _s367.rest:
+                        _bn367 = [_s367.rest]
+                    _sq367.extend(_A273.iter_child_nodes(_s367))
+                for _b367 in _bn367:
+                    if _b367 == "_ignore_":
+                        _ign367 += 1
+                    if _b367 == "__new__":
+                        _onw352.add(_n352)
+                    if (_b367.startswith("__") and _b367.endswith("__")
+                            and _b367 not in _ND339):
+                        _du352.add(_b367)
+            if _ign367:
+                _iv367 = [_s for _s in _c352.body
+                          if (isinstance(_s, _A273.Assign) and len(_s.targets) == 1
+                              and isinstance(_s.targets[0], _A273.Name)
+                              and _s.targets[0].id == "_ignore_")
+                          or (isinstance(_s, _A273.AnnAssign) and _s.value is not None
+                              and isinstance(_s.target, _A273.Name)
+                              and _s.target.id == "_ignore_")]
+                _iw367 = _iv367[0].value if len(_iv367) == 1 and _ign367 == 1 else None
+                if isinstance(_iw367, _A273.Constant) and isinstance(_iw367.value, str):
+                    _ig367 = set(_iw367.value.replace(",", " ").split())
+                elif isinstance(_iw367, (_A273.List, _A273.Tuple)) and all(
+                        isinstance(_e, _A273.Constant) and isinstance(_e.value, str)
+                        for _e in _iw367.elts):
+                    _ig367 = {_e.value for _e in _iw367.elts}
+                else:
+                    _igbad367.append((_n352, _c352.lineno))
             for _s339 in _c352.body:
                 _ts339 = ([_s339.name] if isinstance(_s339, _FN273 + (_A273.ClassDef,)) else
                           [_t.id for _t in _s339.targets if isinstance(_t, _A273.Name)]
@@ -9486,15 +9784,37 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                           [_s339.target.id] if isinstance(_s339, _A273.AnnAssign)
                           and isinstance(_s339.target, _A273.Name) else [])
                 _vl352 = getattr(_s339, "value", None)
+                _vf367 = _vl352.func if isinstance(_vl352, _A273.Call) else None
+                _vk367 = (_ime367.get(_vf367.id) if isinstance(_vf367, _A273.Name)
+                          and _vf367.id not in _cdn352 and _vf367.id not in _al352
+                          and _vf367.id not in _mdf367 else
+                          _vf367.attr if isinstance(_vf367, _A273.Attribute)
+                          and isinstance(_vf367.value, _A273.Name)
+                          and _im352.get(_vf367.value.id) == "M" else None)
+                _ds367 = (isinstance(_vl352, _A273.Lambda) or _vk367 == "nonmember"
+                          or (isinstance(_vf367, _A273.Name)
+                              and _vf367.id in ("property", "classmethod", "staticmethod")
+                              and _vf367.id not in _cdn352 and _vf367.id not in _al352
+                              and _vf367.id not in _mdf367 and _vf367.id not in _im352
+                              and not _star352))
+                if _vk367 == "member":
+                    _vl352 = (_vl352.args[0] if len(_vl352.args) == 1
+                              and not _vl352.keywords else None)
                 for _t339 in _ts339:
+                    if (_t339 in _ig367 or (_t339.startswith("__") and not _t339.endswith("__"))
+                            or (isinstance(_s339, _A273.AnnAssign) and _s339.value is None)):
+                        continue
                     _nm352.add(_t339)
                     if _t339 == "__new__":
                         _onw352.add(_n352)
                     if _t339.startswith("__") and _t339.endswith("__"):
                         if _t339 not in _ND339:
                             _du352.add(_t339)
-                    elif not isinstance(_s339, _FN273 + (_A273.ClassDef,)) and not (
-                            _t339.startswith("_") and _t339.endswith("_")):
+                    if (not isinstance(_s339, _FN273 + (_A273.ClassDef,)) and not _ds367
+                            and not (len(_t339) > 4 and _t339[:2] == _t339[-2:] == "__"
+                                     and _t339[2] != "_" and _t339[-3] != "_")
+                            and not (len(_t339) > 2 and _t339[0] == _t339[-1] == "_"
+                                     and _t339[1] != "_" and _t339[-2] != "_")):
                         _mm352.add(_t339)
                         if (isinstance(_vl352, _A273.Constant)
                                 and type(_vl352.value) in (int, str)):
@@ -9542,6 +9862,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _cls339[_n352] = [_il339, _du339, _mm339]
     _op339 = {_k: _v for _k, _v in _cls339.items() if not (_v[0] and not _v[1])}
     _bad339 = []
+    for _n367, _l367 in _igbad367:
+        if _n367 in _cls339:
+            _bad339.append(("?", _l367, _n367,
+                            f"class {_n367}: its `_ignore_` is not one top-level binding to "
+                            f"a literal string / list / tuple of names (route #367: the "
+                            f"member set is unknown)"))
     if _op339:
         _par339 = {}
         for _x339 in _A273.walk(unified_ast):
