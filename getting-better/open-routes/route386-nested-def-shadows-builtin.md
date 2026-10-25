@@ -45,8 +45,8 @@ statement: 1355 (route #122, refused), 4821 (refused by PYCSL-SEM-OVERRIDE-REFIN
 **Gates** (rc, one run for routes #386 / #387 on the final tree; logs in the executor scratchpad `r386/g/`): witnesses / controls
 above (full proof via heavy.sh, base 5addbdeef worktree vs candidate); byte-diff-compare root rc=0, pyref rc=0, mirror rc=0
 (above); check-self-annotate-sync.sh rc=0 (926 verbatim); self-annotate-mirror-check.sh rc=0 (53); run-soundness-planes.sh fast
-@PLANES@ (`--slow` NOT run); check-getattr-erasure @GETATTR@; check-stdlib-modules-verify @STDLIB@ (one command via heavy.sh);
-doc-coherency --check rc=0; check-assumed-facts @ASSUMED@; check-dropped-mutation rc=0 (0 / 51 / 5 / 0);
+**61/61** rc=0 (`--slow` NOT run); check-getattr-erasure rc=0 (DECLARED 0; ABSENT 10 / UNKNOWN 43 unchanged); check-stdlib-modules-verify rc=0 (83 VERIFY, the known 21 non-verifying) (one command via heavy.sh);
+doc-coherency --check rc=0; check-assumed-facts rc=0 (85 facts, all reviewed families; ledger 3); check-dropped-mutation rc=0 (0 / 51 / 5 / 0);
 check-refusal-witness-coverage rc=0 (310 demonstrated / 5 undemonstrated = ceiling 5; no new raise site; rows 5290-5310 via
 `_census_row`); check-trusted-reasons rc=0 (420 / 420, ratchet 259); check-trusted-raises-honesty rc=0 (19 / 61, ratchet 61);
 check-assigns-underdeclaration --transitive rc=0 (TRAP 3, HOLE 0).
