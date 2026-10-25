@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #226 INCREMENT 2c (`\length` over array fields) REPAIRED, candidate (r226b executor off 919533395; code cabbeced2 +
+##   40d416a0f, corpus + witnesses 40d416a0f / c4812834c, docs f0e1494c1 (annotations 7.37 / T.6.48), clause-survival ledger 2930c0af8,
+##   census 31093ce1c, conformance golden 0595 c4812834c, route docs; Module 6 `_emit_type_decls` only, inline, no new def, ledger 3).
+##   The constructor-invariant goal now admits `\length(self.f)` over an array field: `f` bound at its array type to the `__init__`
+##   parameter it is stored from (quantified, premise-free for a synthesized dataclass `__init__`) or to its literal initial length
+##   (`(Array.length f) = N`); `#@ requires` conjuncts with `len(p)` / `\length(p)` are premises. Census: 60 `\length` classes; 39 now
+##   get a goal (18 discharge, 21 FAIL), 21 computed container stores stay goal-less. 13 PASS corpus constructors (0925-0929,
+##   0933-0935, 1190, 1681, 1682, 1690, 2220; 2220 a latent false proof across the module boundary) gained `#@ requires len(toks) >= 1`
+##   (callers satisfy it, labels unchanged, all re-proved). Registered carrier + witnesses 5100-5109 (incl. red team 29 a06 / a07)
+##   PROVED at base -> FAIL; carrier row now asserts FAILED; controls 5110-5114 PROVED. Root 36 MOVED (goal line only, all re-proved
+##   to label) / 0 / 0; pyref 0/0/0; mirror 1 MOVED (`proof2why3/parser`, whole-file proof SUCCESS, no OWED). Residuals: computed
+##   container stores (`[Tok(0)] * 3`), element / quantifier / str terms, bool fields (rt29 a04/a05/a24), a08/a10/a11/a34/a46,
+##   computed int stores (increment 3) — see REPAIR.
+
 ## gen #37 (2026-10-25): #377 + #378 + #379 + #380 REPAIRED, candidate (r377 executor off b815ee8d8; code 718bb669 / 13ee6e9e / 47fed51b,
 ##   corpus 91dc9137 / 7b794661 / 4f3a5cfc / 672aa0c5, docs 91dc9137 (annotations 7.38 / T.6.49), census 7b794661, route docs; no new def,
 ##   ledger 3). Sound refusals, no emission change. #377/#378: in every CLASS body a name bound twice where one binding is a `def` /

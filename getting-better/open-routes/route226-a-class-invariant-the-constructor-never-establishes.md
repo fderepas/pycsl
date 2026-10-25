@@ -885,7 +885,7 @@ Probe table (`pycsl.py`, full proof; CPython ground truth in each file's `__main
 | 5109 red team 29 a07: separate `\length` clause beside `self.x >= 0` | SUCCESS | FAILED |
 | 5110 CONTROL cursor + `#@ requires len(toks) >= 1` | SUCCESS | SUCCESS |
 | 5111 CONTROL `#@ requires \length(tokens) >= 2`, renamed parameter | SUCCESS | SUCCESS |
-| 5112 CONTROL paramless `[Tok(0)] * 4`... computed (no goal) — `[0] * 4`-shape covered by 0595/1252 | SUCCESS | SUCCESS |
+| 5112 CONTROL paramless `[0] * 4` under `\length == 4`, `no_exception` on `self.disk[3]` (goal `(Array.length disk) = 4 -> ..`) | SUCCESS | SUCCESS |
 | 5113 CONTROL mirror shape `pos <= \length(toks)`, no requires | SUCCESS | SUCCESS |
 | 5114 CONTROL two list params, two requires | SUCCESS | SUCCESS |
 | red team 29 a04 / a05 / a24 (bool fields), a08 (field from field), a10 / a11 (`default_factory` int), a34 (ClassVar via self), a46 | SUCCESS | SUCCESS (residuals, not in 2c's design) |
@@ -902,6 +902,9 @@ SUCCESS, 12 expected-FAIL FAILED: 0596, 0615, 0901, 1679, 1680, 1685-1687, 1689,
 (2186/2186); mirror 53/53, **1 MOVED** `proof2why3/parser.py` (+ `goal _check_class_inv__parser : forall toks : array
 token, pos : int, tokens : array token. toks = tokens -> pos = 0 -> ..`), whole-file proof via heavy.sh HEAVY_LOW=1:
 **SUCCESS** — no OWED proof.
+
+Conformance: core golden `0595.expected.mlw` regenerated (`bin/regen-ir-conformance-goldens.py mlw`; only that golden moved,
++ the goal line) — the first fast-planes run was RED on `core-only-conformance` 0595 MISMATCH; 38/38 OK after.
 
 Ledgers: `check-clause-survival` (slow plane) KNOWN_DEFICITS +4 (2220, 5110, 5111, 5114: a `List[<record>]` constructor
 `requires` reaches only the goal premise — the route #15 residue 0661/0662 already record; mechanically confirmed by the
