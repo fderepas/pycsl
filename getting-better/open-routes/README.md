@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #226 INCREMENT 2b (int-field projection) REPAIRED, candidate (r226 executor off c6d1156c; code 3633864b,
+##   corpus 09b5ef35 / 79cabed2, docs e29abd71 (annotations 7.34 / T.6.45), census 26f2fd53 + route docs; Module 6 only, inline, no
+##   new def, ledger 3). The constructor-invariant goal is now stated over the INT fields the invariant reads even when other
+##   fields / `__init__` parameters are str / List / record / Optional (unconstrained in the goal); `#@ requires` conjuncts over the
+##   bound int params are premises. NEW latent (increment 2's own goal): a param named like ANOTHER field conflated binders
+##   (`self.x = y; self.y = x` PROVED `x == y`) -> REFUSED (NEW PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH). Witnesses q362str / q362list /
+##   q362xinit = 4950-4952 + 4953/4955/4956 PROVED at base -> FAIL/REFUSED; controls 4960-4964 PROVED. Census: 227 invariant classes
+##   reach emission, 147 had a goal, projection moves 4 (1 corpus file, 4573, re-proved); refusing the other 76 measured not inert
+##   (NOT landed). Root 1 MOVED (4573) / 0 GONE / 0 APPEARED; pyref 0/0/0; mirror 53/53 0/0/0 (no OWED). Residuals: `\length` /
+##   non-int-field invariants (59+11 classes; NEW registered carrier `route226-carrier-length-invariant-over-list-param.py`),
+##   computed stores (increment 3), `field(init=False)` without default reads a fabricated 0 (see REPAIR).
+
 ## gen #37 (2026-10-25): #369 (dataclass specifier aliases), #370 (enum non-member bodies as members), #371 (hashability: first base only),
 ##   #372 (hashed element class from fields/subscripts), #373 (nested def in a method = opaque int), #374 (slots names unmangled), #375 (erased
 ##   augassign / star-unpack), #376 (getattr default vs class attribute) OPENED (red team 28: 67/360 confirmed; 8/8 sample driver-reproduced
