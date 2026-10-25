@@ -1257,7 +1257,8 @@ inconsistent rules.
 
 This invariant is enforced mechanically by `bin/doc-coherency.py`,
 wired into `bin/run-reference-tests.sh` as a leading CI gate
-(immediately after the stdlib-coverage gate, before any corpus test).
+(before any corpus test; the stdlib-coverage gate that used to precede it was retired
+when `pure_lib` was promoted to `src/pycsl_lib/` — see the NOTE in that script).
 A drift in documentation parity fails fast, before any proof is
 attempted.
 
@@ -1313,14 +1314,14 @@ trigger table that `no_exception` relies on).
 ### Operational gates, same shape
 
 PyCSL enforces four mechanical gates, each a *systems* invariant
-rather than a per-file property. Two of them — stdlib API coverage and
-directive doc coherency — run **before every corpus test** (wired into
+rather than a per-file property. One of them — directive doc coherency —
+runs **before every corpus test** (wired into
 `bin/run-reference-tests.sh`, fail-fast); the self-annotation suite and
 mirror-drift checks run separately:
 
 | Gate | Canonical source | Tool | Skill |
 |---|---|---|---|
-| Stdlib API coverage | `stdlib-coverage-report.toml` | `bin/stdlib-coverage.py --check` | `pycsl-stdlib-coverage` |
+| Stdlib API coverage (RETIRED, not run by any battery) | `stdlib-coverage-report.toml` | `attic/stdlib-coverage-tooling/stdlib-coverage.py` | `pycsl-stdlib-coverage` |
 | Directive doc coherency | `test-suite/annotations.md` | `bin/doc-coherency.py --check` | `pycsl-doc-coherency` |
 | Self-annotation suite | `bin/run-self-annotation-suite.sh` (suite list) | the script itself | `pycsl-stdlib-coverage` §step 5 |
 | Self-annotation mirror | `src/pycsl/*.py` (canonical sources) | `bin/self-annotate-mirror-check.sh` | `pycsl-stdlib-coverage` §step 5 |
