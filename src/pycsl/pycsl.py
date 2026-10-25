@@ -4783,7 +4783,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #      over-approximates their defaults).
     # `\trusted`/`\abstract`/imported subs speak by their declarations only (no body).
     # INLINE (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
-    if _ov278:
+    # (route #359: also with no recorded pair — an inherited non-`def` binding records none)
+    if _ov278 or getattr(args, "check_behavioral_subtyping", False):
         from exception_model import handler_catches as _hc278
         _viol278 = []
         # ROUTE #338: the Python annotations of every method (class, name) -> def, and
@@ -4791,6 +4792,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         import ast as _ast338
         _cm338 = {}
         _anc338 = {}
+        _nd359 = {}
         try:
             _t338 = _ast338.parse(source_code)
         except (SyntaxError, ValueError):
@@ -4802,6 +4804,77 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 for _m338 in _c338.body:
                     if isinstance(_m338, (_ast338.FunctionDef, _ast338.AsyncFunctionDef)):
                         _cm338.setdefault((_c338.name, _m338.name), _m338)
+                # (#49) ROUTE #359 — A CLASS BODY BINDS A METHOD BY MORE THAN A TOP-LEVEL
+                # `def`. `m = _bm`, `m = lambda self: 0.5`, a `def m` under `if` / `try` /
+                # `with` (or any assignment, import, loop target, ...) also define `B.m`, and
+                # the MRO walk below skipped them: `C(B, A)` resolved to `A.m` and R5
+                # compared it with itself (`a.m() % 1 == 0` PROVED, CPython 0.5). Every such
+                # binding is recorded (nested function / class scopes excluded); R5 cannot
+                # read its annotations, so a pair resolving to it is refused.
+                _wl359 = [(_s359, False) for _s359 in _c338.body]
+                while _wl359:
+                    _x359, _nest359 = _wl359.pop()
+                    _tg359 = []
+                    if isinstance(_x359, (_ast338.FunctionDef, _ast338.AsyncFunctionDef,
+                                          _ast338.ClassDef)):
+                        if _nest359 or isinstance(_x359, _ast338.ClassDef):
+                            _nd359.setdefault((_c338.name, _x359.name), _x359.lineno)
+                        continue
+                    if isinstance(_x359, _ast338.Assign):
+                        _tg359 = list(_x359.targets)
+                    elif isinstance(_x359, (_ast338.AugAssign, _ast338.AnnAssign)):
+                        if not (isinstance(_x359, _ast338.AnnAssign) and _x359.value is None):
+                            _tg359 = [_x359.target]
+                    elif isinstance(_x359, (_ast338.For, _ast338.AsyncFor)):
+                        _tg359 = [_x359.target]
+                    elif isinstance(_x359, (_ast338.With, _ast338.AsyncWith)):
+                        _tg359 = [_i359.optional_vars for _i359 in _x359.items
+                                  if _i359.optional_vars is not None]
+                    elif isinstance(_x359, _ast338.Delete):
+                        _tg359 = list(_x359.targets)
+                    elif isinstance(_x359, (_ast338.Import, _ast338.ImportFrom)):
+                        for _al359 in _x359.names:
+                            _nd359.setdefault((_c338.name, (_al359.asname or _al359.name)
+                                               .split(".")[0]), _x359.lineno)
+                    # the statement's own expressions (a compound statement's header only:
+                    # its child statements are queued below): walrus targets; a handler's
+                    # `as` name; a `match` capture
+                    _ex359 = ([getattr(_x359, _h359) for _h359 in ("test", "iter", "subject")
+                               if getattr(_x359, _h359, None) is not None]
+                              + [_i359.context_expr for _i359 in
+                                 (getattr(_x359, "items", None) or [])]
+                              + [_h359 for _h359 in (getattr(_x359, "handlers", None) or [])]
+                              + [_h359.pattern for _h359 in (getattr(_x359, "cases", None)
+                                                              or [])]
+                              if hasattr(_x359, "body") else [_x359])
+                    for _y359 in [_z359 for _e359 in _ex359 for _z359 in (
+                            [_e359] if isinstance(_e359, _ast338.ExceptHandler)
+                            else _ast338.walk(_e359))]:
+                        if isinstance(_y359, _ast338.NamedExpr) and isinstance(
+                                _y359.target, _ast338.Name):
+                            _tg359.append(_y359.target)
+                        elif (isinstance(_y359, _ast338.ExceptHandler)
+                              and isinstance(_y359.name, str)):
+                            _nd359.setdefault((_c338.name, _y359.name), _x359.lineno)
+                        elif isinstance(getattr(_y359, "name", None), str) and isinstance(
+                                _y359, (getattr(_ast338, "MatchAs", ()),
+                                        getattr(_ast338, "MatchStar", ()))):
+                            _nd359.setdefault((_c338.name, _y359.name), _x359.lineno)
+                    while _tg359:
+                        _t359 = _tg359.pop()
+                        if isinstance(_t359, _ast338.Name):
+                            _nd359.setdefault((_c338.name, _t359.id), _x359.lineno)
+                        elif isinstance(_t359, (_ast338.Tuple, _ast338.List)):
+                            _tg359.extend(_t359.elts)
+                        elif isinstance(_t359, _ast338.Starred):
+                            _tg359.append(_t359.value)
+                    for _fld359 in ("body", "orelse", "finalbody", "handlers", "cases"):
+                        for _c359 in (getattr(_x359, _fld359, None) or []):
+                            if isinstance(_c359, (_ast338.ExceptHandler,
+                                                  getattr(_ast338, "match_case", ()))):
+                                _wl359.extend((_d359, True) for _d359 in _c359.body)
+                            elif isinstance(_c359, _ast338.stmt):
+                                _wl359.append((_c359, True))
         for _o278 in _ov278:
             _sf278 = _byname263.get(_o278.get("sub_method"))
             _bf278 = _byname263.get(_o278.get("base_method"))
@@ -4919,10 +4992,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             # name, as `_anc338` holds them) to the first class of its MRO that defines the
             # method. Inline (no new def: `_run_pipeline`'s mirror twin is `\trusted`).
             for _ix344, _fx344 in ((0, _sf278), (1, _bf278)):
-                if (_sd338, _bd338)[_ix344] is not None:
-                    continue
                 _cn344 = _fx344.get("self_type")
                 _mn344 = (_sn278, _bn278)[_ix344][len(str(_cn344)) + 2:]
+                # route #359: a later non-`def` binding in the side's own class wins too
+                if (_sd338, _bd338)[_ix344] is not None and (_cn344, _mn344) in _nd359:
+                    _viol278.append((_sn278, _bn278, "binds `%s` in class `%s` (line %d) by "
+                                     "a statement that is not a top-level `def`, whose "
+                                     "annotations R5 cannot compare" % (
+                                         _mn344, _cn344, _nd359[(_cn344, _mn344)])))
+                if (_sd338, _bd338)[_ix344] is not None:
+                    continue
                 _lin344 = {}
                 _todo344 = [_cn344] if _cn344 in _anc338 else []
                 _gd344 = 0
@@ -4956,6 +5035,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _q344.pop(0)
                     _lin344[_k344] = _rs344
                 for _k344 in (_lin344.get(_cn344) or []):
+                    # ROUTE #359: the first MRO class BINDING the name decides, whatever
+                    # the statement; a class from outside this file (an imported base, or
+                    # one a file mixin inherits) may define it, and R5 cannot read it.
+                    if (_k344, _mn344) in _nd359:
+                        _viol278.append((_sn278, _bn278, "inherits `%s` from class `%s`, "
+                                         "which binds it (line %d) by a statement that is "
+                                         "not a top-level `def`, whose annotations R5 cannot "
+                                         "compare" % (_mn344, _k344,
+                                                      _nd359[(_k344, _mn344)])))
+                        break
+                    if _k344 not in _anc338 and _k344 != "object":
+                        _viol278.append((_sn278, _bn278, "resolves `%s` through `%s`, a "
+                                         "class from outside this file that precedes its "
+                                         "defining class in the MRO, which R5 cannot read"
+                                         % (_mn344, _k344)))
+                        break
                     if (_k344, _mn344) in _cm338:
                         if _ix344 == 0:
                             _sd338 = _cm338[(_k344, _mn344)]
@@ -5029,6 +5124,75 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                  if _wh338.startswith("its return")
                                                  else "parameter types are contravariant")))
                             break
+        # (#49) ROUTE #359 — AN INHERITED BINDING NO PAIR RECORDS. Module 6 records a
+        # refinement pair only for a `def` it lowers, so `class C(B, A): pass` whose MRO
+        # picks `B.m = _bm` (or a lambda, or an imported `Bf.m`, directly or through a file
+        # mixin `B(Bf)`) over `A.m` recorded NONE and nothing above ran: `g(a: A)` with
+        # `ensures a.m() % 1 == 0` PROVED, CPython `g(C())` 0.5. For every file class K and
+        # every method `m` a file class A after K in K's C3 MRO defines by a top-level
+        # `def`, the first MRO class binding `m` must be a file class whose top-level `def`
+        # R5 reads: a non-`def` binding, or a class from outside this file (other than
+        # `object`) before A, is refused. Same C3 merge as route #344's (inline).
+        _lin359 = {}
+        for _cn359 in sorted(_anc338):
+            _todo359 = [_cn359]
+            _gd359 = 0
+            while _todo359 and _gd359 < 100000:
+                _gd359 += 1
+                _k359 = _todo359[-1]
+                if _k359 in _lin359:
+                    _todo359.pop()
+                    continue
+                _bs359 = list(_anc338.get(_k359, []))
+                _ms359 = [_b for _b in _bs359 if _b in _anc338 and _b not in _lin359]
+                if _ms359:
+                    if any(_b in _todo359 for _b in _ms359):
+                        break  # a base cycle (CPython rejects it)
+                    _todo359.extend(_ms359)
+                    continue
+                _todo359.pop()
+                _sq359 = [list(_lin359.get(_b, [_b])) for _b in _bs359] + [list(_bs359)]
+                _rs359 = [_k359]
+                while True:
+                    _sq359 = [_q for _q in _sq359 if _q]
+                    if not _sq359:
+                        break
+                    _cd359 = None
+                    for _q359 in _sq359:
+                        if not any(_q359[0] in _r359[1:] for _r359 in _sq359):
+                            _cd359 = _q359[0]
+                            break
+                    if _cd359 is None:
+                        _rs359 = None  # no consistent MRO (CPython TypeError)
+                        break
+                    _rs359.append(_cd359)
+                    for _q359 in _sq359:
+                        if _q359[0] == _cd359:
+                            _q359.pop(0)
+                if _rs359 is None:
+                    break
+                _lin359[_k359] = _rs359
+        for _cn359 in sorted(_lin359):
+            _l359 = _lin359[_cn359]
+            for _mn359 in sorted({_m for (_c, _m) in _cm338 if _c in _l359[1:]}):
+                for _k359 in _l359:
+                    if (_k359, _mn359) in _nd359:
+                        _why359 = ("inherits `%s` from class `%s`, which binds it (line %d) "
+                                   "by a statement that is not a top-level `def`, whose "
+                                   "annotations R5 cannot compare"
+                                   % (_mn359, _k359, _nd359[(_k359, _mn359)]))
+                    elif _k359 not in _anc338 and _k359 != "object":
+                        _why359 = ("resolves `%s` through `%s`, a class from outside this "
+                                   "file that precedes its defining class in the MRO, which "
+                                   "R5 cannot read" % (_mn359, _k359))
+                    elif (_k359, _mn359) in _cm338:
+                        break
+                    else:
+                        continue
+                    _viol278.append(("%s.%s" % (_cn359, _mn359), "%s.%s" % (
+                        [_a for _a in _l359 if (_a, _mn359) in _cm338][0], _mn359),
+                        _why359))
+                    break
         if _viol278:
             from errors import PyCSLSemanticError as _PyCSLSemErr278
             _v278 = _viol278[0]
