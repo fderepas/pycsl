@@ -4420,7 +4420,10 @@ of the name $b$ (or of the field $b$), through Optional / Union / `|` / Annotate
 string forms, $\mathit{dp}$ of: the first argument of `List` / `Sequence` / `MutableSequence` /
 `Deque`, the second of `Dict` / `Mapping` / `MutableMapping` / `DefaultDict` / `OrderedDict` /
 `ChainMap`, the $i$-th of `Tuple` for a literal in-range $i$ (else every one, `...` dropped);
-three passes. A hashed $h$ with `#UNK` $\in \kappa(h)$ is refused when $U \neq \emptyset$.
+a `For` / `comprehension` target $n$ over such a name / field gets (into $\mathit{dt}(n)$)
+$\mathit{dp}$ of the first argument of the list-likes above and of `Set` / `FrozenSet` /
+`AbstractSet` / `MutableSet` / `Iterable` / `Iterator` / `Collection` / `Reversible` / `Container`,
+the first (key) argument of the mappings, every `Tuple` argument; three passes. A hashed $h$ with `#UNK` $\in \kappa(h)$ is refused when $U \neq \emptyset$.
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 

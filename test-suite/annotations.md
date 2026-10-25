@@ -2359,10 +2359,13 @@ annotations and every `self.f = e` store of a method (a typed parameter, a const
 literal; anything else may be any class: with an unhashable class in the file such a field is
 refused in a hashing position); a subscript of a name / field annotated `List` / `Sequence` /
 `Deque` gives the element, `Dict` / `Mapping` / ... the value, `Tuple` the indexed component
-(every component for a non-literal index).
+(every component for a non-literal index); a `for` / comprehension target over such a name or field
+takes the element (`List` / `Set` / `Sequence` / `Iterable` ...), the key of a `Dict` / `Mapping`,
+every component of a `Tuple`.
 
-Witnesses `4990`-`5035` (`5008` / `5009`: NEW latent arity false proofs of an explicit
-`__init__` and a plain dataclass); controls `5040`-`5044` (literal specifiers with `t.ClassVar`,
+Witnesses `4990`-`5039` and `5045` (NEW latents: `5008` / `5009` / `5037` / `5038` arity of an
+explicit `__init__`, a plain dataclass, a literal `KW_ONLY`, a literal `field(init=False)`; `5036`
+a `field(..)` returned by a helper; `5039` / `5045` a loop element and a field of a field); controls `5040`-`5044` (literal specifiers with `t.ClassVar`,
 well-formed constructor calls, an enum with `_ignore_` / an alias / a `def`, `D(N, M)` with
 `N.__hash__` first, hashable fields / components / values).
 

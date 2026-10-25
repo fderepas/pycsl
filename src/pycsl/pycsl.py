@@ -4612,6 +4612,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if _a365 is not None:
                         _anx365 |= {id(_z) for _z in _ast341.walk(_a365)}
             _eh372 = {}
+            _it372 = {}
             _ba372 = {}
             for _p346 in _pa346:
                 if _p346.annotation is not None:
@@ -4632,9 +4633,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _fz372 = _ff372.get(_a372, {}).get(_n346.attr)
                                 if _fz372 is not None:
                                     _eh372.setdefault(id(_n346), set()).update(_fz372)
-                    elif isinstance(_n346, _ast341.Subscript):
+                    elif (isinstance(_n346, _ast341.Subscript)
+                          or (isinstance(_n346, (_ast341.For, _ast341.AsyncFor,
+                                                 _ast341.comprehension))
+                              and isinstance(_n346.target, _ast341.Name))):
+                        # (#372) also a `for` / comprehension target over an annotated
+                        # name / field: the element (`List` / `Set` / `Sequence` /
+                        # `Iterable` ...), the key of a `Dict` / `Mapping`, every component
+                        # of a `Tuple`
+                        _sb372 = isinstance(_n346, _ast341.Subscript)
                         _sa372 = []
-                        _bv372 = _n346.value
+                        _bv372 = _n346.value if _sb372 else _n346.iter
                         if isinstance(_bv372, _ast341.Name):
                             _sa372 = list(_ba372.get(_bv372.id, []))
                         elif isinstance(_bv372, _ast341.Attribute):
@@ -4664,18 +4673,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _ar372 = (list(_x372.slice.elts)
                                           if isinstance(_x372.slice, _ast341.Tuple)
                                           else [_x372.slice])
-                                _ix372 = _n346.slice
+                                _ix372 = _n346.slice if _sb372 else None
                                 if _hn372 in ("Optional", "Union"):
                                     _sa372 += _ar372
                                 elif _hn372 in ("Annotated", "Final"):
                                     _sa372 += _ar372[:1]
                                 elif _hn372 in ("List", "list", "Sequence", "MutableSequence",
-                                                "Deque", "deque"):
+                                                "Deque", "deque") or (not _sb372 and _hn372 in (
+                                                    "Set", "set", "FrozenSet", "frozenset",
+                                                    "AbstractSet", "MutableSet", "Iterable",
+                                                    "Iterator", "Collection", "Reversible",
+                                                    "Container")):
                                     _el372 += _ar372[:1]
                                 elif _hn372 in ("Dict", "dict", "Mapping", "MutableMapping",
                                                 "DefaultDict", "defaultdict", "OrderedDict",
                                                 "ChainMap"):
-                                    _el372 += _ar372[1:2]
+                                    _el372 += _ar372[1:2] if _sb372 else _ar372[:1]
                                 elif _hn372 in ("Tuple", "tuple"):
                                     _ar372 = [_e for _e in _ar372 if not (
                                         isinstance(_e, _ast341.Constant)
@@ -4725,9 +4738,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         _cz372.add(_hn372)
                                         if _in372 and _hn372.lower() in _UB365:
                                             _cz372.add("#UB")
-                            if _cz372:
+                            if _cz372 and _sb372:
                                 _eh372.setdefault(id(_n346), set()).update(_cz372)
+                            elif _cz372:
+                                _it372.setdefault(_n346.target.id, set()).update(_cz372)
             _dt365 = {}
+            for _nm372, _cz372 in _it372.items():
+                _dt365.setdefault(_nm372, set()).update(_cz372)
             for _p346 in _pa346:
                 if _p346.annotation is not None:
                     _dt365.setdefault(_p346.arg, set()).update(
