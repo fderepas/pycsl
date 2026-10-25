@@ -105,6 +105,24 @@ KNOWN_DEFICITS = {
     # `requires { }` clause. Measured NOT exploitable: `B(-1)` inside a verified function FAILS
     # (getting-better/open-routes/witnesses-r342/drv4574_ctor_requires_still_checked.py, rc=1; CPython violates), because the construction site is still checked.
     "4574_gen37_r342_ctl_param_store_type_self.py": ("__init__", "route #15 residue: computed non-int field, no let b__init; construction site still checked"),
+    # (#49) gen #37 — route #226 increment 2c. A `#@ requires len(toks) >= 1` on an
+    # `__init__` whose parameter is a `List[<record>]` is the same route #15 residue: no
+    # checking-only `let <c>__init` is emitted for a parameter type outside
+    # `_INIT_PARAM_WHYML`, so the clause does not reach a `requires { }`. It is NOT discarded:
+    # it is a PREMISE of `goal _check_class_inv_<c>` (the constructor-invariant goal), and every
+    # construction site still raises the record's type-invariant VC. 2220 gained the clause in
+    # increment 2c (its `\length(self.toks) >= 1` invariant was assumed, CPython
+    # `count(Parser([]))` is 0 against `ensures \result >= 1`); 5110 / 5111 / 5114 are 2c's
+    # controls. (The other 12 corpus constructors that gained the same clause are masked by
+    # this plane's count slack — it is a lower bound.)
+    "2220_gen36_ch15_len_record_param_array_field.py": (
+        "__init__", "route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only"),
+    "5110_gen37_r226_ctl_length_inv_requires_establishes.py": (
+        "__init__", "route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only"),
+    "5111_gen37_r226_ctl_length_inv_backslash_length_requires.py": (
+        "__init__", "route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only"),
+    "5114_gen37_r226_ctl_length_inv_two_list_params.py": (
+        "__init__", "route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only"),
     # (#49) gen #31 — THE TWO DUNDER ENTRIES THAT USED TO LIVE HERE ARE GONE, AND THAT IS
     # THE POINT OF WRITING A CLOSE CONDITION DOWN. Both said "dunder dropped from
     # emission", both named the same close condition ("emit dunders"), and route #219's
