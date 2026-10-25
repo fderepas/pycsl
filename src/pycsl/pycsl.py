@@ -3867,6 +3867,27 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         for _n369 in _ast341.walk(_t341):
             if isinstance(_n369, _ast341.NamedExpr) and isinstance(_n369.target, _ast341.Name):
                 _md369.setdefault(_n369.target.id, []).append(None)
+        # (#49) gen #37, ROUTE #383 (red team 29; MEASURED PROVED at 919533395, CPython
+        # TypeError) — MODULE TYPE ALIASES. `DD = D` / `DL = List[D]` made `d: DD` / `ds: DL`
+        # an unknown head, so `{d}` / `{ds[0]}` were never hash-checked (k14, k39, k40).
+        # `_al383[name]` = the aliased type expression of a module-level name bound ONCE to
+        # a name / dotted name / subscript / `|` union / string annotation (not an import, a
+        # class or a def); the hashability readers below follow it.
+        _al383 = {}
+        for _k383, _b383 in _md369.items():
+            _v383 = _b383[0] if len(_b383) == 1 else None
+            if isinstance(_v383, _ast341.Constant) and isinstance(_v383.value, str):
+                try:
+                    _v383 = _ast341.parse(_v383.value, mode="eval").body
+                except (SyntaxError, ValueError):
+                    _v383 = None
+            if (_k383 not in _im369 and _k383 not in _cls341
+                    and (isinstance(_v383, (_ast341.Name, _ast341.Attribute, _ast341.Subscript))
+                         or (isinstance(_v383, _ast341.BinOp)
+                             and isinstance(_v383.op, _ast341.BitOr)))
+                    and not any(isinstance(_z, _ast341.Name) and _z.id == _k383
+                                for _z in _ast341.walk(_v383))):
+                _al383[_k383] = _v383
         # `_rs369[id(e)]`: the resolution of each annotation head / default
         # callee of a class body (see (a)); filled below for the expressions it is asked of.
         _SP369 = {"dataclasses.InitVar": "InitVar", "dataclasses.KW_ONLY": "KW_ONLY",
@@ -4145,6 +4166,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _r346 = _ast341.parse(_r346.value, mode="eval").body
                 except (SyntaxError, ValueError):
                     _r346 = None
+            # (#383) a module type alias denotes its value
+            _g383 = 0
+            while isinstance(_r346, _ast341.Name) and _r346.id in _al383 and _g383 < 16:
+                _r346 = _al383[_r346.id]
+                _g383 += 1
             _hd346 = ""
             if isinstance(_r346, _ast341.Subscript):
                 _hv346 = _r346.value
@@ -4169,6 +4195,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _q346.append(_ast341.parse(_x346.value, mode="eval").body)
                     except (SyntaxError, ValueError):
                         pass
+                elif isinstance(_x346, _ast341.Name) and _x346.id in _al383 and len(_q346) < 64:
+                    _q346.append(_al383[_x346.id])
                 elif isinstance(_x346, _ast341.Name):
                     _tp346.add(_x346.id)
                 elif isinstance(_x346, _ast341.Attribute):
@@ -4207,6 +4235,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _q365.append((_ast341.parse(_x365.value, mode="eval").body, _in365))
                     except (SyntaxError, ValueError):
                         pass
+                elif (isinstance(_x365, _ast341.Name) and _x365.id in _al383
+                      and len(_q365) < 64):
+                    _q365.append((_al383[_x365.id], _in365))
                 elif isinstance(_x365, (_ast341.Name, _ast341.Attribute)):
                     _hn365 = _x365.id if isinstance(_x365, _ast341.Name) else _x365.attr
                     _tp365.add(_hn365)
@@ -4355,6 +4386,141 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 and len(_e.elts) == 2 for _e in _fa366.elts)):
                     _fv366 = [_e.elts[1] for _e in _fa366.elts]
                 _fnt366.setdefault(_n346.targets[0].id, []).extend(_fv366)
+        # (#49) gen #37, ROUTES #381 / #382 (red team 29; MEASURED PROVED at 919533395,
+        # CPython TypeError). #381: the #371 MRO lookup SKIPPED every base outside the file,
+        # so `class D(UserList)` / `D(deque)` / `D(collections.abc.Set)` / `D(N, UserDict)`
+        # ... were hashable (their `__hash__` is None). #382: a set element / dict key whose
+        # annotation is a stdlib container (`deque`, `Deque[int]`, `Set[int]`, `UserList`,
+        # `SimpleNamespace`, `array.array`, `list` ...) was never refused. RULE: every
+        # base / annotation name outside the file is RESOLVED through the file's imports
+        # (`_im369`) and the builtins to its qualified stdlib name and classified on the
+        # REAL class (an allow-listed stdlib module, imported only from the standard
+        # library directory; a `typing` alias by its origin):
+        #   `_kb381[n]` (a base): "U" when its `__hash__` is None, or when it is unknown (a
+        #     non-stdlib / relative import, a name bound otherwise, a module off the allow
+        #     list) — #371's unknown rule; "S" (skipped in the MRO walk) otherwise
+        #     (`object`, `Exception`, `int`, `Enum`, `Generic`, `NamedTuple`, `ABC` ...);
+        #   `_kv381[n]` (a value's annotation): "U" when its `__hash__` is None or it admits
+        #     a list / dict / set / bytearray / deque (`Sequence`, `Iterable`, `Mapping`
+        #     ...); "?" (unknown: `Any`, `object`, a TypeVar, an unknown import) — read as
+        #     "#UNK", any unhashable class of the file; "S" otherwise.
+        # A name with several resolutions takes the worst (U, then ?, then S).
+        import importlib as _il381
+        import importlib.util as _ilu381
+        import sysconfig as _sc381
+        import typing as _ty381
+        import collections as _co381
+        _OKM381 = {"builtins", "collections", "typing", "abc", "enum", "types", "array",
+                   "argparse", "numbers", "decimal", "fractions", "datetime", "pathlib",
+                   "dataclasses", "functools", "contextlib", "io", "threading", "queue",
+                   "string", "re", "weakref", "itertools", "operator", "heapq", "bisect",
+                   "json", "random", "math", "statistics", "copy", "uuid", "ipaddress",
+                   "struct", "time", "textwrap", "os", "sys", "socket", "logging",
+                   "unittest", "configparser", "email", "http", "urllib", "csv",
+                   "shlex", "graphlib", "zoneinfo", "calendar", "secrets", "hashlib"}
+        _SPC381 = {"typing.Any": ("U", "?"), "builtins.object": ("S", "?"),
+                   "typing.Self": ("U", "?"), "typing.NamedTuple": ("S", "S"),
+                   "typing.TypedDict": ("U", "U"), "typing.Optional": ("U", "S"),
+                   "typing.Union": ("U", "S"), "typing.Literal": ("U", "S"),
+                   "typing.Annotated": ("U", "S"), "typing.Final": ("U", "S"),
+                   "typing.ClassVar": ("U", "S"), "builtins.NoneType": ("U", "S"),
+                   "builtins.None": ("U", "S")}
+        _sd381 = {_os381 for _os381 in (_sc381.get_paths().get("stdlib"),
+                                         _sc381.get_paths().get("platstdlib")) if _os381}
+        _rk381 = {"S": 0, "?": 1, "U": 2}
+        _kb381 = {}
+        _kv381 = {}
+        _oc381 = [(_x381, "builtins." + _x381, "v") for _x381 in (
+            "int", "str", "float", "bool", "bytes", "complex", "list", "dict", "set", "tuple",
+            "frozenset", "range", "bytearray", "type")] + [("NoneType", "builtins.NoneType", "v"),
+                                                          ("None", "builtins.None", "v")]
+        _wl381 = []
+        for _ks346 in _cls341.values():
+            for _k346 in _ks346:
+                _wl381 += [(_b, "b") for _b in _k346.bases]
+        _wl381 += [(_a, "v") for _a in _an346] + [(_a, "v") for _a in _al383.values()]
+        while _wl381:
+            _x381, _r381 = _wl381.pop()
+            if isinstance(_x381, _ast341.Constant) and isinstance(_x381.value, str):
+                try:
+                    _wl381.append((_ast341.parse(_x381.value, mode="eval").body, _r381))
+                except (SyntaxError, ValueError):
+                    pass
+                continue
+            if isinstance(_x381, _ast341.Attribute):
+                _pt381 = []
+                _y381 = _x381
+                while isinstance(_y381, _ast341.Attribute):
+                    _pt381.insert(0, _y381.attr)
+                    _y381 = _y381.value
+                _q381 = ((_im369[_y381.id] + "." + ".".join(_pt381))
+                         if isinstance(_y381, _ast341.Name) and _y381.id in _im369
+                         and _y381.id not in _md369 and _im369[_y381.id] != "?" else "?")
+                _oc381.append((_x381.attr, _q381, _r381))
+                continue
+            if isinstance(_x381, _ast341.Name):
+                _n381 = _x381.id
+                if _n381 in _cls341 or _n381 in _fnt366 or _n381 in _al383:
+                    continue
+                _q381 = ("?" if _n381 in _md369 else _im369[_n381] if _n381 in _im369 else
+                         "builtins." + _n381 if hasattr(_bi369, _n381) else "?")
+                _oc381.append((_n381, _q381, _r381))
+                continue
+            _wl381 += [(_c, _r381) for _c in _ast341.iter_child_nodes(_x381)]
+        _vq381 = {}
+        for _n381, _q381, _r381 in _oc381:
+            if _q381 not in _vq381:
+                _vd381 = _SPC381.get(_q381)
+                _ob381 = None
+                if _vd381 is None and _q381 != "?":
+                    _pt381 = _q381.split(".")
+                    for _i381 in range(len(_pt381) - 1, 0, -1):
+                        _mn381 = ".".join(_pt381[:_i381])
+                        if _pt381[0] not in _OKM381:
+                            break
+                        try:
+                            _sp381 = (_ilu381.find_spec(_mn381)
+                                      if _mn381 not in sys.modules else None)
+                            if _sp381 is not None and not (
+                                    _sp381.origin in ("built-in", "frozen")
+                                    or any(str(_sp381.origin or "").startswith(_d)
+                                           for _d in _sd381)):
+                                break
+                            _ob381 = _il381.import_module(_mn381)
+                            _mf381 = getattr(_ob381, "__file__", None)
+                            if _mf381 and not any(str(_mf381).startswith(_d) for _d in _sd381):
+                                _ob381 = None
+                                break
+                            for _p381 in _pt381[_i381:]:
+                                _ob381 = getattr(_ob381, _p381)
+                            break
+                        except Exception:
+                            _ob381 = None
+                    if isinstance(_ob381, _ty381.TypeVar):
+                        _ob381 = None
+                    elif _ob381 is not None and not isinstance(_ob381, type):
+                        _ob381 = _ty381.get_origin(_ob381)
+                    if not isinstance(_ob381, type):
+                        _vd381 = ("U", "?")
+                    elif _ob381 is object:
+                        _vd381 = ("S", "?")
+                    else:
+                        try:
+                            _hn381 = getattr(_ob381, "__hash__", None) is None
+                            _ad381 = any(issubclass(_c, _ob381) for _c in (
+                                list, dict, set, bytearray, _co381.deque))
+                        except Exception:
+                            _hn381, _ad381 = True, True
+                        _vd381 = ("U" if _hn381 else "S", "U" if _hn381 or _ad381 else "S")
+                elif _vd381 is None:
+                    _vd381 = ("U", "?")
+                _vq381[_q381] = _vd381
+            _vd381 = _vq381[_q381]
+            if _r381 == "b":
+                if _rk381[_vd381[0]] >= _rk381[_kb381.get(_n381, "S")]:
+                    _kb381[_n381] = _vd381[0]
+            elif _rk381[_vd381[1]] >= _rk381[_kv381.get(_n381, "S")]:
+                _kv381[_n381] = _vd381[1]
         _uh349 = {}
         for _it366 in range(len(_cls341) + len(_fnt366) + 3):
             _nu366 = {}
@@ -4385,6 +4551,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             break
                         if _a346 != _cn346 and _a346 in _fnt366 and _a346 not in _cls341:
                             _dec349 = bool(_uh349.get(_a346, True))
+                            break
+                        # (#381) an outside base decides unhashable when its real class
+                        # has `__hash__ = None` or it is unknown; a hashable one is skipped
+                        if _a346 not in _cls341 and _kb381.get(_a346, "U") == "U":
+                            _dec349 = True
                             break
                         if _a346 not in _cls341:
                             continue
