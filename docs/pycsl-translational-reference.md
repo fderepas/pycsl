@@ -4321,6 +4321,27 @@ builtins `property` / `classmethod` / `staticmethod`; `member(v)` contributes $v
 values. Names in $I(c)$, private names and value-less annotations leave the class-attribute set
 of §T.6.41 (#356). $D_c$ and the `__new__` test range over $B(c)$.
 
+### §T.6.45  The constructor-invariant goal over the int-field projection (route #226, gen #37)
+
+_Corresponds to `annotations.md` §7.34._
+
+In `_emit_type_decls`, for a record with class invariants $I_1 .. I_k$ (IR), when increments 1/2
+emitted no `_check_class_inv_<C>` goal: let $P$ = the fields $f$ of the `FieldGet(self, f)`
+leaves of the $I_j$, where every other node is a `BinOp` / `UnaryOp` / `Compare` / `BoolOp`, an
+int `Number` or a bool constant. The goal is emitted only if every $f \in P$ is a record field
+of type `int`, not in `init_unknown_fields` / `init_unknown_cf_fields`, with value $v_f$ = an
+int literal of `init_body`, or $\mathcal{T}_{id}(p)$ for an `init_body` binding `Var p` with $p
+\in$ `init_params` of `param_types` `int` / `bool` / unknown, or `field_defaults[f]` when
+`init_body` has no binding; let $U$ = those parameters. If some $f' \in P$ has label $\ell(f')
+\in U$ and $v_{f'} \neq \ell(f')$, the program is refused
+(`PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH`); increments 1/2 skip that case too. The invariants are
+lowered as for the type's `invariant` clauses, and every identifier of the result must be an
+$\ell(f)$, $f \in P$. The `init_contract_check.requires` clauses are split at top-level `and`;
+a conjunct is kept iff its variables are a non-empty subset of $U$ and its nodes are of the
+kinds above, lowered with symbol table $U \mapsto$ `int` and every identifier in $U$. Emitted:
+`goal _check_class_inv_<C> : forall <ℓ(P) ∪ U> : int. ℓ(f) = v_f -> .. -> <kept requires> ->
+(⟦I_1⟧) /\ .. /\ (⟦I_k⟧)`. Fields outside $P$ are not bound.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

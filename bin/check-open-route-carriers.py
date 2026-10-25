@@ -166,6 +166,16 @@ CARRIERS = {
         "a `#@ class invariant` over a field the constructor COMPUTES (`self.n = three()`) "
         "is marked unknown and gets no obligation, so `\\result >= 5` still PROVES while "
         "CPython answers 3"),
+    # (#49) gen #37 — ROUTE #226 INT-FIELD PROJECTION. The three gen #37 carriers (an int
+    # invariant beside a `str` / `List` field or parameter) are CLOSED: corpus witnesses
+    # 4950-4952 FAIL. This shape is what the projection cannot state: a `\length` invariant
+    # over a LIST field bound to an `__init__` parameter (census: 25 classes, 17 in PASS files
+    # incl. 2 mirrors, so a refusal is not inert; see the route file's gen #37 REPAIR).
+    "getting-better/open-routes/route226-carrier-length-invariant-over-list-param.py": (
+        "SUCCESS", "#226",
+        "`\\length(self.xs) >= 1` over a field bound to a list parameter gets no constructor "
+        "goal, so `#@ no_exception \\all` on `self.xs[0]` PROVES while CPython `D([]).first()` "
+        "raises IndexError"),
 }
 FLAGS = ["--memory-model", "hoare"]
 

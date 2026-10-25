@@ -2271,6 +2271,31 @@ Witnesses `4900`-`4933`; controls `4940`-`4943` (`__eq__` under `if` with a top-
 `def __hash__`; tuples of a hashable frozen record; frozen / unsafe_hash records with hashable
 fields; an enum with `_ignore_`, `member(2)` and a lambda attribute).
 
+### 7.34 The constructor-invariant goal is stated over the int fields the invariant reads (route #226, gen #37)
+
+Route #226's goal `_check_class_inv_<C>` (the constructor establishes the `#@ class invariant`)
+was stated only when EVERY field of the record is an `int` bound to a literal or to an int
+`__init__` parameter. A class whose invariant reads only int fields but which also has a
+`str` / `List` / record field, or an `__init__` parameter of such a type, therefore got NO goal
+and the invariant was ASSUMED by every method and every reader (measured: `@dataclass` `x: int;
+s: str` under `self.x >= 0` proved `ensures \result >= 0` on `d.x`; CPython `D(-1, "a").x` is
+-1). Now the goal is stated over the fields the invariant reads, which must all be int fields
+bound to an int literal (or the constructor's literal default) or directly to an int `__init__`
+parameter; the other fields cannot occur in the invariant and are unconstrained. `__init__`'s
+`#@ requires` are premises conjunct by conjunct (a top-level `and` is split), keeping only a
+conjunct over those int parameters: `#@ requires x >= 0 and len(xs) == x` keeps `x >= 0`, and a
+`#@ requires len(xs) > 0` alone adds nothing (dropping a premise only makes the goal harder).
+A synthesized `@dataclass` `__init__` has no contract, so its goal is premise-free over the
+parameters feeding the invariant's fields (a field with `field(init=False, default=3)` is bound
+to its literal). An `__init__` PARAMETER NAMED LIKE A DIFFERENT FIELD (`self.x = y; self.y = x`)
+would make the goal's binders read one value as another (the increment-2 goal stated `forall x
+y. x = y -> y = x -> (x = y)` and PROVED `self.x == self.y`, CPython `D(1, 2)`): REFUSED
+(`PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH`); rename the parameter. NOT COVERED (no goal, the
+invariant is still assumed; recorded in route #226's file): an invariant reading a non-int
+field (`\length(self.toks)`, a `str` / record / element term, a quantifier, a predicate call), and
+a field the constructor computes (`self.n = three()`). Witnesses `4950`-`4956`; controls
+`4960`-`4964`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
