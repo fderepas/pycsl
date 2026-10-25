@@ -1,5 +1,18 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-25): #377 + #378 + #379 + #380 REPAIRED, candidate (r377 executor off b815ee8d8; code 718bb669 / 13ee6e9e / 47fed51b,
+##   corpus 91dc9137 / 7b794661 / 4f3a5cfc / 672aa0c5, docs 91dc9137 (annotations 7.38 / T.6.49), census 7b794661, route docs; no new def,
+##   ledger 3). Sound refusals, no emission change. #377/#378: in every CLASS body a name bound twice where one binding is a `def` /
+##   `class` / annotated member is REFUSED (Module 3's class-scope walk of #122/#130; property-accessor and `@overload` chains
+##   exempt). #379: a `*` / `**` argument at a call of a file class / module `def` / file-class method is REFUSED
+##   (PYCSL-R379-STARRED-CALL-ARGUMENT), except `*xs` landing wholly in an `*args` the contract does not read (mirror
+##   `set_precedence`). #380: the constructor walk continues past `@dataclass(init=False)` to `object.__init__`; `super().__init__` /
+##   `super(X, self).__init__` / `C.__init__(self, ..)` arity-checked (PYCSL-R369-CONSTRUCTOR-ARITY); construction through a metaclass
+##   binding `__call__` (or unresolvable) REFUSED (PYCSL-R380-METACLASS-CALL). Witnesses 5140-5157 (18 red-team) + NEW latents
+##   5158 / 5159 (`super().__init__(5)` over `__init__(self)` / `object`; PROVED at base) -> REFUSED; controls 5170-5174 PROVED at
+##   base and after. Root 0/0/0 (5 new controls), pyref 0/0/0, mirror 53/53 0/0/0 (no OWED). All gates rc=0 (planes fast 61/61).
+##   Residuals: module scope, imported callees / `cls(..)`, diamond `super()` tails, inherited imported metaclasses (see REPAIRs).
+
 ## gen #37 (2026-10-25): #373 + #374 + #375 + #376 REPAIRED, candidate (r373 executor off dc378283c; code ada49f2d / 7a051eec /
 ##   34a579bb / 39d61190 / 9d029328, corpus e8488149 + 0c64cab1, census 98378213, getattr sites 51f0fbb1, docs f19c7b7a + c037431b
 ##   (annotations 7.36 / T.6.47), route docs; inline, no new def, ledger 3, one new refusal code). #373: the bare call of a def
