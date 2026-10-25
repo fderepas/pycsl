@@ -4234,6 +4234,47 @@ $(A, t)$ a top-level def for some $A \in L[K]_{1..}$: the first $K' \in L[K]$ th
 $\mathit{ND}$ for $t$, or outside the file under the same exemptions, before any top-level def
 of $t$, adds a violation reported as `PYCSL-SEM-OVERRIDE-REFINEMENT`.
 
+### §T.6.43  Slots, dataclass pseudo-fields, explicit `super(X, self)` (routes #360 / #361 / #362 / #363)
+
+_Corresponds to `annotations.md` §7.32._
+
+Inline in §T.6.39's block of `_run_pipeline` (mirror twin `\trusted`; refusals plus a sharper
+§T.6.39 #347 summary, no emission change), with its $\mathit{bn}$, $\mathit{clo}$,
+$\mathit{DC}$, $\tau$. New facts over the source AST:
+$\mathit{PF}(K)$ = for $K \in \mathit{DC}$, the class-body `AnnAssign` names whose annotation
+head (through a string annotation and one subscript) is `InitVar` or `KW_ONLY` (a `Name` or an
+`Attribute`'s tail), $\mathit{IV}(K) \subseteq \mathit{PF}(K)$ the `InitVar` ones;
+$\mathit{SL}(K)$ = the union of $K$'s literal class-body `__slots__` values (a `str` constant
+$\mapsto$ itself; a `Tuple` / `List` / `Set` of `str` constants; a `Dict` with `str` constant
+keys) and, for `@dataclass(slots=` non-false-literal `)`, $K$'s annotated names — undefined when
+$K$ binds no `__slots__`; any other class-body binding of `__slots__` raises
+`PYCSL-R360-SLOTS-STORE`; $\mathit{mro}(K)$ = the C3 merge of $[\mathit{mro}(B) \mid B \in
+\mathit{bn}(K)] \cdot [\mathit{bn}(K)]$ with $\mathit{mro}(B) = [B]$ for a non-file $B$ (computed
+in increasing $|\mathit{clo}|$), $\bot$ when the merge fails or a file base's is $\bot$.
+
+**#360.** $K$ is FULLY SLOTTED iff every $A \in \mathit{mro}(K)$ (else $\mathit{clo}(K)$) is a
+file class with $\mathit{SL}(A)$ defined or is `object` / `Generic` / `Protocol`, and
+`__dict__` $\notin \bigcup_A \mathit{SL}(A)$. Each store site of §T.6.39 #348 ($r.f$ store /
+del / augmented, `setattr` / `delattr`$(r, f, ..)$, $f = \star$ when non-constant) with $K \in
+\tau(r)$ fully slotted and $f \notin \bigcup_{A} \mathit{SL}(A)$ raises
+`PYCSL-R360-SLOTS-STORE`, except $r$ the first parameter of a `classmethod`.
+
+**#362.** In #346's loop, for a record $C$ with merged `class_invariants` $\ne \emptyset$ and
+$\mathit{clo}(C) \cap \mathit{DC} \ne \emptyset$: if $\mathit{PF}(K) \ne \emptyset$ for some
+$K \in \mathit{clo}(C)$, raise `PYCSL-R362-INITVAR-INVARIANT`.
+
+**#361.** $\mathit{PF}$ names are removed from #347's dataclass $\mathit{DA}$ and $\mathit{Fld}$
+(with `ClassVar`). With $P = \bigcup_K \mathit{PF}(K)$: in every def whose IR function is not
+`trusted` / `abstract`, an `Attribute` $r.f$ (any context; $r$ not an imported module) or
+`getattr` / `setattr` / `delattr`$(r, \texttt{"f"}, ..)$ with $f \in P$ raises
+`PYCSL-R361-DATACLASS-PSEUDO-FIELD`.
+
+**#363.** In #347's statement summary, `super().__init__(..)` keeps its gen (the first in-file
+ancestor's $\mathit{DA}$); `super(X, s).__init__(..)` with `Name` arguments, $s$ the
+constructor's first parameter, $\mathit{mro}(K) \ne \bot$ and $X \in \mathit{mro}(K)$ gens
+$\mathit{DA}(A)$ for the first $A$ after $X$ in $\mathit{mro}(K)$ (stopping, with
+$\emptyset$, at a non-file class); every other `super(..)` argument shape gens $\emptyset$.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

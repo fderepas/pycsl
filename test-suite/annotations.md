@@ -2177,6 +2177,53 @@ a class from outside the file (an import, a builtin class that owns the name, di
 through a file mixin `B(Bf)`) before A, is refused. `object` and a builtin class not owning the
 name are skipped. Witnesses `4800`-`4827`; controls `4830`-`4832`.
 
+### 7.32 `__slots__`, dataclass pseudo-fields and explicit `super(X, self)` (routes #360 / #361 / #362 / #363)
+
+Four more class shapes whose runtime behaviour the record model does not have (§7.28). Sound
+REFUSALS on the source plus a sharper §7.28 (2) definite-assignment summary; no emission change.
+
+(1) `__slots__` (route #360). An instance of a class whose every class declares `__slots__` has
+no `__dict__`: CPython raises AttributeError on a store of any name outside the union of the
+slots over the MRO, while the record model lowers `self.f = e` as an ordinary field store, so a
+store outside the slots PROVED (tuple, list, empty `()` and inherited forms). Slots are read
+from a literal `__slots__` (a string = one slot, a tuple / list / set of strings, a dict with
+string keys) or `@dataclass(slots=True)` (its annotated fields). A class whose C3 MRO consists of
+file classes that each declare slots, plus `object` / `Generic` / `Protocol`, with no
+`__dict__` slot, is FULLY SLOTTED. In every function / method body, an attribute store,
+augmented store, `del`, `for` / `with` target, or a `setattr` / `delattr` call whose receiver is
+`self` of a method of a fully slotted class (not a `classmethod`'s class) or a name annotated
+with / constructed as one, and whose name is outside the slot union, is REFUSED
+(`PYCSL-R360-SLOTS-STORE`); so is a non-literal `__slots__` (its slot set is unknown). A class
+with a base without `__slots__` (or an imported base) keeps a `__dict__` and is unchanged.
+
+(2) DATACLASS PSEUDO-FIELDS (route #361). `k: InitVar[T]` (an `__init__` parameter handed to
+`__post_init__`) and `_: KW_ONLY` (a sentinel) are not instance attributes, but they joined the
+record and §7.28 (2)'s synthesized field set, so `d.k` / `d._` read under `no_exception`
+PROVED and `D(1, 5).k == 5` PROVED (CPython AttributeError; a defaulted `InitVar` reads the
+CLASS default). Pseudo-fields (bare, `dataclasses.`-dotted and string spellings) are excluded
+from the definite-assignment sets as `ClassVar` is, and any attribute access (load, store,
+`del`; `getattr` / `setattr` / `delattr` by literal name) of a pseudo-field NAME of a file
+`@dataclass`, any receiver but an imported module, in a function that is not `\trusted` /
+`\abstract`, is REFUSED (`PYCSL-R361-DATACLASS-PSEUDO-FIELD`). Keep the value in a real field.
+
+(3) PSEUDO-FIELDS DROP THE CONSTRUCTOR GOAL (route #362). §3's constructor obligation
+`_check_class_inv_<C>` is stated only over `int` fields and `int` / `bool` parameters; an
+`InitVar[T]` parameter (or the `KW_ONLY` sentinel field) puts the synthesized constructor
+outside that scope, NO goal was emitted and the invariant was ASSUMED: `invariant x >= 0`
+PROVED `f(d) >= 0` with `D(-1, 0)` (CPython -1). A record carrying a class invariant whose base
+closure holds a `@dataclass` declaring an `InitVar` or `KW_ONLY` pseudo-field is REFUSED
+(`PYCSL-R362-INITVAR-INVARIANT`), as §7.28 (1) refuses `__post_init__`.
+
+(4) `super(X, self).__init__()` (route #363). §7.28 (2) credited the DIRECT base's constructor
+whatever `X` was; Python runs the constructor of the class AFTER `X` in the C3 MRO
+(`super(A, self)` in `B(A)` runs `object.__init__`). The definite-assignment summary now
+resolves `super(X, self)` (second argument the constructor's own `self`) through the class's
+C3 linearisation; an `X` not on that MRO, a failed linearisation or any other argument shape
+credits NOTHING (the sound direction), so a read of a field only the skipped constructor
+stores is refused by `PYCSL-R347-FIELD-MAYBE-UNASSIGNED`. The constructor itself is already
+opaque for route #150 and, on an invariant class, refused by §7.25 (2) (`self` escapes as an
+argument of `super(..)`). Witnesses `4850`-`4869`; controls `4880`-`4886`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
