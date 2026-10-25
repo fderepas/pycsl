@@ -719,3 +719,12 @@ store FORMS, not only computed values: `for self.x in ..`, tuple / `with` / `del
 REFUSED in the constructor of an invariant-carrying class (`PYCSL-R342-CONSTRUCTOR-STORE-FORM`, annotations §7.25). The
 remaining open carrier is exactly the straight-line COMPUTED store (`self.n = three()`, `route226-carrier-computed-constructor-store.py`,
 still SUCCESS — `bin/check-open-route-carriers.py` green).
+
+## gen #37 (2026-10-25) — three more carriers measured live (r360 executor, driver-reproduced on main 403f6e07..cc714036)
+An invariant over INT fields of a class whose OTHER fields / constructor parameters are out of increment 1's scope (non-int /
+non-literal) gets NO goal, so the invariant is assumed by every method: `witnesses-r226-gen37/` — `q362str.py` (`@dataclass`
+`x: int; s: str`, invariant `x >= 0`), `q362list.py` (`@dataclass` with a `List` field), `q362xinit.py` (explicit
+`__init__(self, x: int, xs: List[int])`). Each: pycsl rc=0 SUCCESS for `ensures \result >= 0` on `d.x`; CPython `D(-1, ..)` -> -1.
+Census B's "out of scope, non-int / non-literal field 96" is the population; a blanket refusal is NOT inert (96 corpus classes).
+Next step: increment 2 restricted to the int-field projection — state the premise-free / `requires`-premised goal over the
+int fields the invariant mentions, treating the other fields as unconstrained (they cannot occur in an int-only invariant).
