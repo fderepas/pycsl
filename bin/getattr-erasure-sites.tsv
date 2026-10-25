@@ -23,3 +23,5 @@ test-suite/corpus/pycsl-reference/3945_gen37_r309_getattr_empty_default_ctor_loc
 test-suite/corpus/pycsl-reference/3946_gen37_r309_getattr_nonliteral_name_known_record.py	0	1
 test-suite/corpus/pycsl-reference/3948_gen37_r309_getattr_absent_call_default_control.py	0	1
 test-suite/corpus/pycsl-reference/3949_gen37_r309_getattr_ctor_local_call_default_control.py	0	1
+test-suite/corpus/pycsl-reference/5082_gen37_r376_getattr_class_attr_ctor_local.py	0	1
+test-suite/corpus/pycsl-reference/5093_gen37_r376_ctl_getattr_absent_default.py	1	0
