@@ -8355,7 +8355,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # before landing (CPython-`ast` prototype over pycsl-reference, python-reference, the
     # self-annotate mirror and pycsl_lib): pycsl-reference 0698 (`sep: str = None`, the
     # call-site `""` fill — the model of the very defect) and mirror
-    # `Module2_Parser.expect_name(val: str = None)` (re-annotated `Optional[str]`); 23 mirror
+    # `Module2_Parser.expect_name(val: str = None)` (live + mirror default now `""`, every
+    # caller passes a literal name or nothing; `Optional[str]` does not type-check there); 23 mirror
     # and 1 pycsl_lib `int`/`str = None` defaults sit on `\trusted` stubs.
     # INLINE (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
     _bad350: List[Any] = []

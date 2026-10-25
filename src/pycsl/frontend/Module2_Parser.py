@@ -1292,8 +1292,8 @@ class _ContractParser:
             self._err(f"expected {val!r}")
         return self.advance()
 
-    def expect_name(self, val=None):
-        if not self.at_name() or (val is not None and not self.at_name(val)):
+    def expect_name(self, val=""):
+        if not self.at_name() or (val != "" and not self.at_name(val)):
             self._err(f"expected name {val!r}" if val else "expected name")
         return self.advance().string
 
