@@ -4508,6 +4508,25 @@ binding rule. A construction `C(..)` (§T.6.46's call shape) is refused
 unrebound `type`, nor `abc.ABCMeta` (imported from `abc`), nor a file class whose MRO consists
 of file classes binding no `__call__` and `type` / `ABCMeta`.
 
+### §T.6.48  The constructor-invariant goal over array-length terms (route #226 increment 2c, gen #37)
+
+_Corresponds to `annotations.md` §7.37._
+
+Extends §T.6.45. A leaf `ArrayLen(self.f)` of the $I_j$ is admitted when $f$ is a record field
+whose emitted label type $\tau_f$ (the `_emitted_record_field_types` entry of $\ell(f)$) starts with
+`array `, and $f \notin$ `init_unknown_fields` / `init_unknown_cf_fields`; such $f$ join $P$ as
+ARRAY fields. Their binding: for an `init_body` binding `Var p` with $p \in$ `init_params` whose
+`param_types` entry is not `int` / `bool` / `str` / `float`, $v_f = \mathcal{T}_{id}(p)$ and $p$
+is typed $\tau_f$; with no `init_body` binding and `field_defaults[f]` $= N \ge 0$ (Module 5's
+literal initial length, `_array_init_size`), the premise is `(Array.length ℓ(f)) = N`; otherwise
+no goal. A parameter bound to both an int and an array field, or to two array fields of
+different types, yields no goal. Every identifier of the lowered invariants must be an
+$\ell(f)$, `Array` or `length`. A `requires` conjunct may also contain `Call(len, [Var p])` or
+`ArrayLen(p)` for an array-typed $p \in U$, lowered with symbol table $p \mapsto$ `list` (so to
+`Array.length p`). Binders are grouped by type in first-occurrence order:
+`forall <b..> : τ1, <b..> : τ2. ...`; an all-int binder list prints as in §T.6.45. Emitted:
+`goal _check_class_inv_<C> : forall <groups>. <premises> -> (⟦I_1⟧) /\ .. /\ (⟦I_k⟧)`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

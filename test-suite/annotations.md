@@ -2292,7 +2292,7 @@ would make the goal's binders read one value as another (the increment-2 goal st
 y. x = y -> y = x -> (x = y)` and PROVED `self.x == self.y`, CPython `D(1, 2)`): REFUSED
 (`PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH`); rename the parameter. NOT COVERED (no goal, the
 invariant is still assumed; recorded in route #226's file): an invariant reading a non-int
-field (`\length(self.toks)`, a `str` / record / element term, a quantifier, a predicate call), and
+field (`\length(self.toks)` -- now stated, §7.37 --, a `str` / record / element term, a quantifier, a predicate call), and
 a field the constructor computes (`self.n = three()`). Witnesses `4950`-`4956`; controls
 `4960`-`4964`.
 
@@ -2466,6 +2466,27 @@ than `type`, `abc.ABCMeta`, or a file metaclass whose MRO (over `type` / `ABCMet
 Witnesses `5140`-`5157` (red team 29) and `5158` / `5159` (NEW latents: `super().__init__(5)` over a no-argument `__init__` and over `object`); controls `5170`-`5174`
 (`init=False` with `D()`, a metaclass without `__call__`, a matching `super().__init__(3)`, an
 `@overload` chain, distinct method names).
+
+### 7.37 The constructor-invariant goal states `\length(self.f)` over list fields (route #226 increment 2c, gen #37)
+
+§7.34's projection stated the goal `_check_class_inv_<C>` only over INT fields, so an invariant
+reading `\length(self.f)` of a LIST field got NO goal and was assumed by every method and reader
+(measured: `#@ class invariant \length(self.xs) >= 1` over `self.xs = xs` from an `__init__`
+parameter proved `#@ no_exception \all` on `self.xs[0]`; CPython `D([]).first()` raises
+IndexError). Now a `\length(self.f)` term is allowed in the projected invariant when `f` is a
+list field (emitted as `array <T>`) that the constructor does not compute: `f` is bound in the goal
+at its array type, either to the `__init__` parameter it is stored from (quantified, nothing
+assumed of it) or, with no parameter binding, to the literal LENGTH of its initialiser (`[0] * 8`,
+`[1, 2, 3]`, `[]`), stated as `Array.length f = N`. `__init__`'s `#@ requires` conjuncts over the
+bound parameters are premises, now including `len(p)` / `\length(p)` of a list parameter. So a
+constructor that takes a list and claims `\length(self.toks) >= 1` must say so:
+`#@ requires len(toks) >= 1` on `__init__`. An invariant that is true of every list
+(`self.pos <= \length(self.toks)` with `self.pos = 0`) needs no precondition. A synthesized
+`@dataclass` `__init__` has no contract, so a dataclass list field under a `\length` lower bound
+cannot establish it. NOT COVERED (no goal, the invariant is still assumed; route #226's file): a
+list field whose initialiser the constructor COMPUTES (`[Tok(0)] * 3`, `bytearray(N)` over a
+module constant, a call), an element / subscript / quantifier / predicate term, `bool` fields.
+Witnesses `5100`-`5109`; controls `5110`-`5114`.
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
