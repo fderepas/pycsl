@@ -728,3 +728,59 @@ non-literal) gets NO goal, so the invariant is assumed by every method: `witness
 Census B's "out of scope, non-int / non-literal field 96" is the population; a blanket refusal is NOT inert (96 corpus classes).
 Next step: increment 2 restricted to the int-field projection — state the premise-free / `requires`-premised goal over the
 int fields the invariant mentions, treating the other fields as unconstrained (they cannot occur in an int-only invariant).
+
+## REPAIR gen #37 (2026-10-25, r226 executor off c6d1156c) — INCREMENT 2b, THE INT-FIELD PROJECTION
+Code 3633864b (Module 6 `_emit_type_decls` only, inline, no new def, ledger 3; `_emit_type_decls`' mirror twin is `\trusted`),
+corpus 09b5ef35 + 79cabed2, docs e29abd71 (annotations 7.34 / T.6.45), census 26f2fd53.
+
+MEASURED FIRST — the emitter-level census (the goal emitter instrumented, `--no-proof` over every file carrying a
+`#@ class invariant` in the corpus, the 53 mirrors and `pycsl_lib`: 303 files; 76 refused / no record before emission):
+227 invariant-carrying classes reach `_emit_type_decls`; **147** get increment 1/2's goal, **80** got none (census B's
+"96 out of scope" is the AST-level count over the same roots, refused files included). Of the 80:
+
+| bucket (first term the int-only goal cannot state) | classes | option "project" | option "refuse" |
+|---|---|---|---|
+| invariant reads only int fields bound to literals / int params (other fields str / List / record / Optional) | **4** (`4573` S, `pycsl_lib` hlib `Sha256`, proc `ProcessState`, subproc `Popen`) | goal stated (all 4 discharge; proc/subproc are REFUSED files anyway) | — |
+| `\length(self.f)` / `ArrayLen` over a list field | 59 (59 files, 55 of them emit today) | no goal | 59 refused |
+| subscript / quantifier / predicate call / `str` literal / attribute term | 11 (0659, 0661, 0662, 0663, 0664, 0706, 0900, 0980, mirrors `Module2_Parser._ContractParser` / `pure_ast._Parser`, `pycsl_lib` os) | no goal | 11 refused |
+| int field the constructor COMPUTES / stores under control flow | 5 (4574, mirror `errors.py` x4) | no goal (open carrier, increment 3) | 5 refused |
+| int field bound to a non-literal non-param | 1 (`pycsl_lib` dt `datetime`, has `#@ requires`) | no goal | 1 refused |
+
+So "project" moves 4 classes (1 corpus file emits differently: 4573) and "refuse every no-goal class" moves 76 classes in
+~70 files, almost all emitting PASS files — measured disproportionate, NOT landed. A narrower refusal (a `\length` invariant over a field
+bound to an `__init__` parameter with no `#@ requires`, the shape that is certainly not established) is 25 classes, 17 in
+PASS files (0900, 0925-0935, 0966, 1190, 1681/1682, 1690, 2220, mirrors `pure_ast._Parser` / `proof2why3/parser._Parser`):
+also not inert, recorded as the next increment (below) with a registered carrier.
+
+RULES (as built; `annotations.md` §7.34, T.6.45):
+- Run only when increments 1/2 emitted no goal, so their 147 goals are byte-identical.
+- P = the fields of the invariants' `FieldGet(self, f)` leaves; every other invariant node must be `BinOp` / `UnaryOp` /
+  `Compare` / `BoolOp` / an int literal / a bool constant. Each f in P: an `int` record field, not computed /
+  control-flow (`init_unknown_fields` / `init_unknown_cf_fields`), bound to an int literal, to an int-typed (or untyped)
+  `__init__` parameter, or (no `init_body` binding) to its literal `field_defaults` entry (`field(default=3, init=False)`).
+  Fields outside P are not bound — they cannot occur in the invariant.
+- `__init__`'s `#@ requires` (route #15's `init_contract_check`) are split at top-level `and`; a conjunct is a premise iff
+  its variables are a non-empty subset of the int parameters bound to P (dropping a premise only strengthens the goal).
+- NEW (also in increment 2's own path): a parameter binder that is ALSO the label of a field it is not bound to conflates
+  two values. Measured at c6d1156c: `__init__(self, x, y): self.x = y; self.y = x` under `self.x == self.y` was stated
+  `forall x y. x = y -> y = x -> (x = y)` and PROVED `\result == 0` on `d.x - d.y` (CPython `D(1, 2)` gives 1) — a NEW
+  latent false proof of increment 2. Now REFUSED, `PYCSL-R226-INIT-PARAM-FIELD-NAME-CLASH` (census: 0 corpus users).
+
+Probe table (`pycsl.py`, full proof; CPython ground truth in each file's `__main__`):
+
+| file | c6d1156c | after |
+|---|---|---|
+| `witnesses-r226-gen37/q362str.py` = 4950 (`@dataclass x: int; s: str`) | PROVED | FAIL (`forall x. x = x -> (x >= 0)`) |
+| `q362list.py` = 4951 (`@dataclass` + `List` field, `default_factory`) | PROVED | FAIL |
+| `q362xinit.py` = 4952 (explicit `__init__(x: int, xs: List[int])`) | PROVED | FAIL |
+| 4953 param named like the other field (`self.x = y; self.y = x`) | PROVED | REFUSED (R226-INIT-PARAM-FIELD-NAME-CLASH) |
+| 4954 `#@ requires len(xs) > 0` only (route #15's `d__init` already builds the record) | FAIL | FAIL |
+| 4955 paramless `self.n = 0` + annotated `self.name: str` under `n >= 5` | PROVED | FAIL (`n = 0 -> n >= 5`) |
+| 4956 `@dataclass x: int; p: Optional[int]` | PROVED | FAIL |
+| 4960 CONTROL `s: str; n: int = field(default=3, init=False)` under `n >= 0` | PROVED | PROVED (`n = 3 -> ..`) |
+| 4961 CONTROL `#@ requires x >= 0`, `x: int, s: str, xs: List[int]` + literal `n = 0` | PROVED | PROVED |
+| 4962 CONTROL `#@ requires x >= 0 and len(xs) == x` (int conjunct kept) | PROVED | PROVED |
+| 4963 CONTROL one param `a` into both fields under `x == y` | PROVED | PROVED |
+| 4964 CONTROL 4955 with `self.n = 7` | PROVED | PROVED |
+| `route226-carrier-computed-constructor-store.py` (open, increment 3) | SUCCESS | SUCCESS |
+| NEW `route226-carrier-length-invariant-over-list-param.py` (`\length(self.xs) >= 1`, `#@ no_exception \all` on `self.xs[0]`) | SUCCESS | SUCCESS (registered) |
