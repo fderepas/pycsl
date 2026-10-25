@@ -8263,6 +8263,597 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"{'' if len(_bad273) == 1 else f' (also: {_bad273[1:]})'}.",
             filename=args.file, stage="ir-semantic",
             code="PYCSL-SEM-DEF-TIME-EVALUATION")
+    # (#49) ROUTES #350 / #351 — SHARED MODULE-LEVEL ALIAS / CONSTANT MAP. A module name
+    # bound EXACTLY ONCE at module level (`Num = int`, `K = 7`, `X: TypeAlias = ...`,
+    # `type X = ...`) is followed by both rules below; anything rebound is not.
+    # Both rules read the SOURCE as written: Module 5 (already run) rewrites annotations in
+    # place (route #336: `Sequence` -> `List`, module aliases resolved), so a fresh parse of
+    # `source_code` is walked, restricted to the defs `_low273` lowers (by line and name).
+    _lw350 = {(getattr(_n, "lineno", 0), _n.name) for _F in _low273
+              for _n in _A273.walk(_F) if isinstance(_n, _FN273)}
+    try:
+        _src350 = _A273.parse(source_code)
+    except Exception:
+        _src350 = unified_ast
+    _low350 = []
+    _st350 = [_src350]
+    while _st350:
+        _n350 = _st350.pop()
+        if isinstance(_n350, _FN273):
+            if (getattr(_n350, "lineno", 0), _n350.name) in _lw350:
+                _low350.append(_n350)
+            continue
+        _st350.extend(_A273.iter_child_nodes(_n350))
+    _TA350 = getattr(_A273, "TypeAlias", None)
+    _nb350: Dict[str, int] = {}
+    _mv350: Dict[str, Any] = {}
+    for _s350 in getattr(_src350, "body", None) or []:
+        _k350, _v350 = None, None
+        if isinstance(_s350, _A273.Assign):
+            for _t350 in _s350.targets:
+                for _w350 in _A273.walk(_t350):
+                    if isinstance(_w350, _A273.Name):
+                        _nb350[_w350.id] = _nb350.get(_w350.id, 0) + 1
+            if len(_s350.targets) == 1 and isinstance(_s350.targets[0], _A273.Name):
+                _k350, _v350 = _s350.targets[0].id, _s350.value
+        elif isinstance(_s350, _A273.AnnAssign) and isinstance(_s350.target, _A273.Name):
+            _nb350[_s350.target.id] = _nb350.get(_s350.target.id, 0) + 1
+            _k350, _v350 = _s350.target.id, _s350.value
+        elif _TA350 is not None and isinstance(_s350, _TA350) and isinstance(
+                getattr(_s350, "name", None), _A273.Name):
+            _nb350[_s350.name.id] = _nb350.get(_s350.name.id, 0) + 1
+            _k350, _v350 = _s350.name.id, _s350.value
+        elif isinstance(_s350, _FN273 + (_A273.ClassDef,)):
+            _nb350[_s350.name] = _nb350.get(_s350.name, 0) + 1
+        elif isinstance(_s350, (_A273.Import, _A273.ImportFrom)):
+            for _al350 in _s350.names:
+                _q350 = (_al350.asname or _al350.name).split(".")[0]
+                _nb350[_q350] = _nb350.get(_q350, 0) + 1
+        if _k350 is not None and _v350 is not None:
+            _mv350[_k350] = _v350
+    for _x350 in _A273.walk(_src350):
+        if isinstance(_x350, (_A273.Global, _A273.Nonlocal)):
+            for _g350 in _x350.names:
+                _nb350[_g350] = 2   # rebindable from a function: not a constant
+        elif isinstance(_x350, _A273.AugAssign) and isinstance(_x350.target, _A273.Name):
+            _nb350[_x350.target.id] = 2
+    _mv350 = {_k: _v for _k, _v in _mv350.items() if _nb350.get(_k) == 1}
+    _cls350 = {_c.name for _c in _A273.walk(_src350) if isinstance(_c, _A273.ClassDef)}
+    _tv350 = {_k for _k, _v in _mv350.items()
+              if isinstance(_v, _A273.Call) and (
+                  getattr(_v.func, "id", None) or getattr(_v.func, "attr", None))
+              in ("TypeVar", "ParamSpec", "TypeVarTuple", "NewType")}
+    # (#49) ROUTE #350 — A PARAMETER DEFAULT THAT CONTRADICTS ITS ANNOTATION. The body of a
+    # lowered function is verified with every parameter of its annotated type, but CPython
+    # binds an OMITTED argument to the default VALUE, whatever its type. MEASURED at
+    # 78c92b39 / 5c3b3413 (witnesses-r350/): `def f(x: int = 0.5)` PROVED `\result == 0`
+    # for `x % 1` (CPython `f()` = 0.5); `def f(s: str = None)` PROVED `len(s)` under
+    # `no_exception \all` (CPython TypeError); a method / kw-only / nested-def / alias
+    # (`Num = int`) / module-constant (`K = 0.5`) / `Literal[1, 2] = 3` / `str = False`
+    # default likewise. RULE (fail-closed, AST-level, every def inside a LOWERED function
+    # tree — module-level functions, methods, nested defs; a lambda has no annotation):
+    # each annotated parameter's default must be of the annotation's KIND. The annotation is
+    # split into ARMS (through module aliases, `Optional`, `Union`, `|`, `Annotated`,
+    # string forward references); the default is admitted when ONE arm admits it:
+    #   `None` arm / `Any` / `object` / a TypeVar  — `None` admitted only here (or any);
+    #   int  <- int / bool literal;  float <- int / float / bool;  complex <- numeric;
+    #   bool <- bool;  str <- str;  bytes <- bytes;  `Literal[...]` <- one of its values;
+    #   List/list/MutableSequence <- a list display;  tuple/Tuple <- a tuple display;
+    #   Sequence/Collection/Iterable/Reversible/Container <- list/tuple display, str/bytes;
+    #   Dict/dict/Mapping/MutableMapping/... <- a dict display;  Set/set/FrozenSet/... <- a
+    #   set display;  a container / class / other arm <- any NON-literal expression (a
+    #   constructor call, a name), never `None` and never a scalar literal for a container
+    #   or a class of this file.
+    # A signed numeric literal is a literal; a bare-name default resolves to a once-bound
+    # module constant, else to the enclosing function's parameter of the SAME annotation
+    # (route #340 already guarantees it is never rebound); any other NON-literal default of
+    # a scalar / Literal arm (a call, an attribute, arithmetic) is REFUSED: its value is not
+    # known to be of the kind (an obligation at the default would need the def-time state).
+    # Display elements are checked against the element type when exactly one arm admits the
+    # display. `\trusted` / `\abstract` defs are outside (their contract is assumed, the
+    # call-site fill of an omitted `None` is part of that trust). BLAST RADIUS, measured
+    # before landing (CPython-`ast` prototype over pycsl-reference, python-reference, the
+    # self-annotate mirror and pycsl_lib): pycsl-reference 0698 (`sep: str = None`, the
+    # call-site `""` fill — the model of the very defect) and mirror
+    # `Module2_Parser.expect_name(val: str = None)` (re-annotated `Optional[str]`); 23 mirror
+    # and 1 pycsl_lib `int`/`str = None` defaults sit on `\trusted` stubs.
+    # INLINE (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+    _bad350: List[Any] = []
+    for _F350 in _low350:
+        _pa350: Dict[str, Set[str]] = {}
+        for _x350 in _A273.walk(_F350):
+            if isinstance(_x350, _FN273):
+                _xa350 = _x350.args
+                for _p350 in (list(getattr(_xa350, "posonlyargs", None) or [])
+                              + list(_xa350.args or []) + list(_xa350.kwonlyargs or [])):
+                    _pa350.setdefault(_p350.arg, set()).add(
+                        _A273.unparse(_p350.annotation) if _p350.annotation is not None
+                        else "?")
+        for _N350 in _A273.walk(_F350):
+            if not isinstance(_N350, _FN273) or _bad350:
+                continue
+            _na350 = _N350.args
+            _po350 = list(getattr(_na350, "posonlyargs", None) or []) + list(_na350.args or [])
+            _ob350: List[Any] = []
+            for _p350, _d350 in (list(zip(_po350[len(_po350) - len(_na350.defaults or []):],
+                                          _na350.defaults or []))
+                                 + list(zip(_na350.kwonlyargs or [], _na350.kw_defaults or []))):
+                if _d350 is not None and _p350.annotation is not None:
+                    _ob350.append((_p350.annotation, _d350, _p350.arg, _d350))
+            _guard350 = 0
+            while _ob350 and not _bad350 and _guard350 < 512:
+                _guard350 += 1
+                _an350, _dv350, _pn350, _top350 = _ob350.pop()
+                # -- the default, with a bare name resolved (module constant / outer parameter)
+                _rs350 = _dv350
+                _outer350 = None
+                if isinstance(_rs350, _A273.Name) and _rs350.id not in ("None", "True", "False"):
+                    if _rs350.id in _pa350:
+                        _outer350 = _pa350[_rs350.id]
+                    elif _rs350.id in _mv350:
+                        _rs350 = _mv350[_rs350.id]
+                _cv350: Any = ("?",)
+                if isinstance(_rs350, _A273.Constant):
+                    _cv350 = _rs350.value
+                elif (isinstance(_rs350, _A273.UnaryOp)
+                        and isinstance(_rs350.op, (_A273.USub, _A273.UAdd))
+                        and isinstance(_rs350.operand, _A273.Constant)
+                        and type(_rs350.operand.value) in (int, float, complex, bool)):
+                    _cv350 = _rs350.operand.value
+                elif isinstance(_rs350, _A273.Name) and _rs350.id in ("None", "True", "False"):
+                    _cv350 = {"None": None, "True": True, "False": False}[_rs350.id]
+                _lit350 = not (isinstance(_cv350, tuple) and _cv350 == ("?",))
+                _disp350 = (_A273.List if isinstance(_rs350, _A273.List)
+                            else _A273.Tuple if isinstance(_rs350, _A273.Tuple)
+                            else _A273.Dict if isinstance(_rs350, _A273.Dict)
+                            else _A273.Set if isinstance(_rs350, _A273.Set) else None)
+                # -- the annotation's arms
+                _arms350: List[Any] = []
+                _wk350: List[Any] = [_an350]
+                _g2350 = 0
+                while _wk350 and _g2350 < 64:
+                    _g2350 += 1
+                    _a350 = _wk350.pop()
+                    if isinstance(_a350, _A273.Constant) and isinstance(_a350.value, str):
+                        try:
+                            _wk350.append(_A273.parse(_a350.value, mode="eval").body)
+                        except Exception:
+                            _arms350.append(("Any", None))
+                        continue
+                    if isinstance(_a350, _A273.Constant) and _a350.value is None:
+                        _arms350.append(("None", None))
+                        continue
+                    if (isinstance(_a350, _A273.BinOp)
+                            and isinstance(_a350.op, _A273.BitOr)):
+                        _wk350 += [_a350.left, _a350.right]
+                        continue
+                    if (isinstance(_a350, _A273.Name) and _a350.id in _mv350
+                            and _a350.id not in _cls350 and _a350.id not in _tv350):
+                        _wk350.append(_mv350[_a350.id])
+                        continue
+                    _hd350 = (_a350.id if isinstance(_a350, _A273.Name)
+                              else _a350.attr if isinstance(_a350, _A273.Attribute)
+                              else "")
+                    _sa350: Any = None
+                    if isinstance(_a350, _A273.Subscript):
+                        _v2350 = _a350.value
+                        _hd350 = (_v2350.id if isinstance(_v2350, _A273.Name)
+                                  else _v2350.attr if isinstance(_v2350, _A273.Attribute)
+                                  else "")
+                        _sl350 = _a350.slice
+                        if type(_sl350).__name__ == "Index":
+                            _sl350 = _sl350.value
+                        _sa350 = (list(_sl350.elts) if isinstance(_sl350, _A273.Tuple)
+                                  else [_sl350])
+                        if _hd350 == "Optional":
+                            _wk350 += _sa350[:1]
+                            _arms350.append(("None", None))
+                            continue
+                        if _hd350 == "Union":
+                            _wk350 += _sa350
+                            continue
+                        if _hd350 == "Annotated":
+                            _wk350 += _sa350[:1]
+                            continue
+                    if _hd350 in ("None", "NoneType"):
+                        _arms350.append(("None", None))
+                    elif _hd350 in ("Any", "object") or _hd350 in _tv350 or not _hd350:
+                        _arms350.append(("Any", None))
+                    else:
+                        _arms350.append((_hd350, _sa350))
+                # -- which arms admit the default (shallow)
+                _ok350: List[Any] = []
+                for _hd350, _sa350 in _arms350:
+                    _adm350 = False
+                    if _hd350 == "Any":
+                        _adm350 = True
+                    elif _cv350 is None and _lit350:
+                        _adm350 = _hd350 == "None"
+                    elif _hd350 == "None":
+                        _adm350 = False
+                    elif _hd350 in ("int", "float", "complex", "bool", "str", "bytes"):
+                        _ty350 = {"int": (int, bool), "float": (int, float, bool),
+                                  "complex": (int, float, complex, bool), "bool": (bool,),
+                                  "str": (str,), "bytes": (bytes,)}[_hd350]
+                        if _lit350:
+                            _adm350 = type(_cv350) in _ty350
+                        elif _outer350 is not None:
+                            _adm350 = all(_o350 == _hd350 or (_hd350 == "int"
+                                                                and _o350 == "bool")
+                                          for _o350 in _outer350)
+                    elif _hd350 == "Literal":
+                        _adm350 = _lit350 and any(
+                            isinstance(_e350, _A273.Constant) and type(_e350.value) is
+                            type(_cv350) and _e350.value == _cv350
+                            for _e350 in (_sa350 or [])) or (
+                            _lit350 and isinstance(_rs350, _A273.UnaryOp) and any(
+                                _A273.unparse(_e350) == _A273.unparse(_rs350)
+                                for _e350 in (_sa350 or [])))
+                    elif _lit350:
+                        # a scalar literal for a container / a class of this file is never
+                        # of its kind; an unknown (imported, erased) head keeps it
+                        _adm350 = not (_hd350 in _cls350 or _hd350 in (
+                            "List", "list", "MutableSequence", "Tuple", "tuple", "Dict",
+                            "dict", "Mapping", "MutableMapping", "DefaultDict",
+                            "defaultdict", "OrderedDict", "Counter", "Set", "set",
+                            "MutableSet", "FrozenSet", "frozenset", "AbstractSet",
+                            "Callable", "Type", "type")) or (
+                            isinstance(_cv350, (str, bytes)) and _hd350 in (
+                                "Sequence", "Collection", "Iterable", "Reversible",
+                                "Container"))
+                        if _hd350 in ("Sequence", "Collection", "Iterable", "Reversible",
+                                      "Container") and not isinstance(_cv350, (str, bytes)):
+                            _adm350 = False
+                    elif _disp350 is not None:
+                        _adm350 = (
+                            (_hd350 in ("List", "list", "MutableSequence")
+                             and _disp350 is _A273.List)
+                            or (_hd350 in ("Tuple", "tuple") and _disp350 is _A273.Tuple)
+                            or (_hd350 in ("Sequence", "Collection", "Iterable",
+                                           "Reversible", "Container")
+                                and _disp350 in (_A273.List, _A273.Tuple, _A273.Set,
+                                                 _A273.Dict))
+                            or (_hd350 in ("Dict", "dict", "Mapping", "MutableMapping",
+                                           "DefaultDict", "defaultdict", "OrderedDict",
+                                           "Counter") and _disp350 is _A273.Dict)
+                            or (_hd350 in ("Set", "set", "MutableSet", "FrozenSet",
+                                           "frozenset", "AbstractSet")
+                                and _disp350 is _A273.Set)
+                            or (_hd350 not in _cls350 and _hd350 not in (
+                                "int", "float", "complex", "bool", "str", "bytes",
+                                "List", "list", "MutableSequence", "Tuple", "tuple",
+                                "Dict", "dict", "Mapping", "MutableMapping", "DefaultDict",
+                                "defaultdict", "OrderedDict", "Counter", "Set", "set",
+                                "MutableSet", "FrozenSet", "frozenset", "AbstractSet",
+                                "Callable", "Type", "type", "Literal")))
+                    else:
+                        # a non-literal, non-display default (a call, a name, an
+                        # attribute) for a container / class / other arm
+                        _adm350 = True
+                    if _adm350:
+                        _ok350.append((_hd350, _sa350))
+                if not _ok350:
+                    _bad350.append((_N350.name, getattr(_N350, "lineno", 0), _pn350,
+                                    _A273.unparse(_an350)[:60], _A273.unparse(_top350)[:60]))
+                    break
+                # -- element obligations, when exactly one arm admits a display
+                if len(_ok350) == 1 and _disp350 is not None and _ok350[0][1]:
+                    _hd350, _sa350 = _ok350[0]
+                    if _disp350 is _A273.Dict and len(_sa350) == 2:
+                        for _ke350, _ve350 in zip(_rs350.keys, _rs350.values):
+                            if _ke350 is not None:
+                                _ob350.append((_sa350[0], _ke350, _pn350, _top350))
+                                _ob350.append((_sa350[1], _ve350, _pn350, _top350))
+                    elif _disp350 is not _A273.Dict:
+                        _el350 = [_e for _e in _rs350.elts
+                                  if not isinstance(_e, _A273.Starred)]
+                        if _hd350 in ("Tuple", "tuple") and not (
+                                len(_sa350) == 2 and isinstance(_sa350[1], _A273.Constant)
+                                and _sa350[1].value is ...):
+                            if len(_sa350) == len(_rs350.elts) and len(_el350) == len(
+                                    _rs350.elts):
+                                _ob350 += [(_t, _e, _pn350, _top350)
+                                           for _t, _e in zip(_sa350, _el350)]
+                            elif not (len(_sa350) == 1 and isinstance(_sa350[0], _A273.Tuple)):
+                                _bad350.append((_N350.name, getattr(_N350, "lineno", 0),
+                                                _pn350, _A273.unparse(_an350)[:60],
+                                                _A273.unparse(_top350)[:60]))
+                                break
+                        elif len(_sa350) >= 1:
+                            _ob350 += [(_sa350[0], _e, _pn350, _top350) for _e in _el350]
+    if _bad350:
+        from errors import PyCSLSemanticError as _PyCSLSemErr350
+        raise _PyCSLSemErr350(
+            f"'{_bad350[0][0]}' (line {_bad350[0][1]}) gives the parameter "
+            f"'{_bad350[0][2]}: {_bad350[0][3]}' the default `{_bad350[0][4]}`, which is not "
+            f"of the annotation's kind (route #350). The body is verified with "
+            f"'{_bad350[0][2]}' of the annotated type, but Python binds an omitted argument "
+            f"to the default VALUE, so the call `{_bad350[0][0]}()` would run the body outside "
+            f"what was proved. Use a default of the annotated kind (a literal; `None` only for "
+            f"an `Optional[...]` / `... | None` annotation), or widen the annotation.",
+            filename=args.file, stage="ir-semantic",
+            code="PYCSL-SEM-DEFAULT-ANNOTATION-MISMATCH")
+    # (#49) ROUTE #351 — A READ-ONLY VIEW ESCAPES THROUGH A MUTABLE-TYPED SLOT. Route #336
+    # reads a `Sequence[T]` / `tuple[T, ...]` / `Mapping[K, V]` parameter as a `List` /
+    # `Dict` and refuses a STORE on the parameter itself (PYCSL-R336-READONLY-VIEW-STORE);
+    # the view could still LEAVE under a mutable type and be stored into elsewhere.
+    # MEASURED at 78c92b39 / 5c3b3413 (witnesses-r351/): `as_list(xs: Sequence[int]) ->
+    # List[int]: return xs` PROVED, and a separately verified `poke(ys: List[int])` storing
+    # `ys[0] = 5` under `no_exception \all` PROVED too (CPython `poke(as_list((1, 2)))`
+    # TypeError); `return xs if c else xs` and a `Mapping` returned as `Dict` likewise.
+    # RULE (fail-closed, AST-level, every def / lambda inside a LOWERED function tree): the
+    # VIEW names of a def are its read-only-view parameters (through module aliases,
+    # `Optional`, `Annotated`) and, to a fixpoint, every name bound by `y = E` / `y := E` /
+    # `y: <read-only-view> = E` where E's VALUE may be a view. E's value may be a view when
+    # it is a view name, a slice of one, `+` / `*` on one, or a conditional / `and` / `or` /
+    # walrus / starred / container-display position holding such an E. REFUSED: (a) a
+    # `return E` (a lambda body) whose owner's return annotation is not read-only-view-safe
+    # (`Sequence` / `Mapping` / `tuple[T, ...]` / `Iterable` / `Collection` / `Any` /
+    # `object` / `None`, through `Optional` / `Union`) or whose E wraps the view in a
+    # display; (b) E stored into an attribute / subscript target, or bound to a name
+    # annotated otherwise; (c) E passed to a call other than the read-only builtins of
+    # route #336's list; (d) a store / `del` / augmented assignment / mutating method call
+    # through an ALIAS of a view (the parameter itself is route #336's). The view NAME is
+    # syntactic (a nested def's parameter shadowing an outer view name is over-refused).
+    # BLAST RADIUS, measured before landing: see the route file (pycsl-reference,
+    # python-reference, mirror, pycsl_lib).
+    # INLINE (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+    _bad351: List[Any] = []
+    _ro351h = ("Sequence", "Mapping")
+    _safe351h = ("Sequence", "Mapping", "Iterable", "Collection", "Reversible", "Container",
+                 "Iterator", "AbstractSet", "Any", "object", "None", "NoneType")
+    _bi351 = ("len", "sum", "min", "max", "sorted", "list", "tuple", "set", "frozenset",
+              "dict", "enumerate", "zip", "any", "all", "isinstance", "reversed", "iter",
+              "str", "repr", "print", "hash", "id", "type", "bool", "map", "filter")
+    for _F351 in _low350:
+        if _bad351:
+            break
+        # -- every def of the tree: read-only-view params; owner map (innermost def/lambda)
+        _view351: Set[str] = set()
+        _own351: Dict[int, Any] = {}
+        for _D351 in _A273.walk(_F351):
+            if not isinstance(_D351, _FN273 + (_A273.Lambda,)):
+                continue
+            for _x351 in _A273.walk(_D351):
+                if _x351 is not _D351:
+                    _own351[id(_x351)] = _D351
+            if isinstance(_D351, _A273.Lambda):
+                continue
+            _da351 = _D351.args
+            for _p351 in (list(getattr(_da351, "posonlyargs", None) or [])
+                          + list(_da351.args or []) + list(_da351.kwonlyargs or [])):
+                _h351 = _p351.annotation
+                for _r351 in range(8):
+                    if isinstance(_h351, _A273.Constant) and isinstance(_h351.value, str):
+                        try:
+                            _h351 = _A273.parse(_h351.value, mode="eval").body
+                        except Exception:
+                            break
+                    elif (isinstance(_h351, _A273.Name) and _h351.id in _mv350
+                            and _h351.id not in _cls350):
+                        _h351 = _mv350[_h351.id]
+                    elif (isinstance(_h351, _A273.Subscript) and (
+                            getattr(_h351.value, "id", None)
+                            or getattr(_h351.value, "attr", None)) in ("Optional",
+                                                                       "Annotated")):
+                        _h351 = (_h351.slice.elts[0] if isinstance(_h351.slice, _A273.Tuple)
+                                 and _h351.slice.elts else _h351.slice)
+                    else:
+                        break
+                if isinstance(_h351, _A273.Subscript):
+                    _hn351 = (getattr(_h351.value, "id", None)
+                              or getattr(_h351.value, "attr", None))
+                    if (_hn351 in _ro351h or (
+                            _hn351 in ("tuple", "Tuple") and isinstance(_h351.slice, _A273.Tuple)
+                            and len(_h351.slice.elts) == 2
+                            and isinstance(_h351.slice.elts[1], _A273.Constant)
+                            and _h351.slice.elts[1].value is ...)):
+                        _view351.add(_p351.arg)
+        if not _view351:
+            continue
+        _param351 = set(_view351)
+        # -- alias fixpoint. `_vx351(E)`: E's value may be a view (inline worklist, twice)
+        for _rd351 in range(8):
+            _grew351 = False
+            for _x351 in _A273.walk(_F351):
+                _tg351: List[Any] = []
+                _val351 = None
+                if isinstance(_x351, _A273.Assign):
+                    _tg351, _val351 = list(_x351.targets), _x351.value
+                elif isinstance(_x351, _A273.NamedExpr):
+                    _tg351, _val351 = [_x351.target], _x351.value
+                elif isinstance(_x351, _A273.AnnAssign) and _x351.value is not None:
+                    _tg351, _val351 = [_x351.target], _x351.value
+                elif isinstance(_x351, (_A273.For, _A273.AsyncFor)):
+                    # `for y in (xs, ys)` binds a view
+                    if isinstance(_x351.iter, (_A273.Tuple, _A273.List, _A273.Set)):
+                        _tg351, _val351 = [_x351.target], _x351.iter
+                if _val351 is None:
+                    continue
+                _hit351 = False
+                _wk351: List[Any] = [_val351]
+                while _wk351 and not _hit351:
+                    _e351 = _wk351.pop()
+                    if isinstance(_e351, _A273.Name):
+                        _hit351 = _e351.id in _view351
+                    elif isinstance(_e351, _A273.IfExp):
+                        _wk351 += [_e351.body, _e351.orelse]
+                    elif isinstance(_e351, _A273.BoolOp):
+                        _wk351 += list(_e351.values)
+                    elif isinstance(_e351, (_A273.NamedExpr, _A273.Starred)):
+                        _wk351.append(_e351.value)
+                    elif isinstance(_e351, (_A273.Tuple, _A273.List, _A273.Set)):
+                        _wk351 += list(_e351.elts)
+                    elif isinstance(_e351, _A273.Dict):
+                        _wk351 += [_k for _k in _e351.keys if _k is not None] + list(
+                            _e351.values)
+                    elif isinstance(_e351, _A273.Subscript) and isinstance(
+                            _e351.slice, _A273.Slice):
+                        _wk351.append(_e351.value)
+                    elif isinstance(_e351, _A273.BinOp) and isinstance(
+                            _e351.op, (_A273.Add, _A273.Mult)):
+                        _wk351 += [_e351.left, _e351.right]
+                if not _hit351:
+                    continue
+                for _t351 in _tg351:
+                    for _w351 in _A273.walk(_t351):
+                        if (isinstance(_w351, _A273.Name) and _w351.id not in _view351
+                                and (not isinstance(_x351, _A273.AnnAssign)
+                                     or _w351 is _t351)):
+                            _view351.add(_w351.id)
+                            _grew351 = True
+            if not _grew351:
+                break
+        # -- the escapes
+        for _x351 in _A273.walk(_F351):
+            if _bad351:
+                break
+            _esc351: List[Any] = []    # (expression, why)
+            if isinstance(_x351, _A273.Return) and _x351.value is not None:
+                _O351 = _own351.get(id(_x351))
+                _ra351 = getattr(_O351, "returns", None)
+                _safe351 = _ra351 is not None
+                _wk351 = [_ra351] if _ra351 is not None else []
+                _g351 = 0
+                while _wk351 and _safe351 and _g351 < 64:
+                    _g351 += 1
+                    _a351 = _wk351.pop()
+                    if isinstance(_a351, _A273.Constant) and isinstance(_a351.value, str):
+                        try:
+                            _wk351.append(_A273.parse(_a351.value, mode="eval").body)
+                        except Exception:
+                            _safe351 = False
+                        continue
+                    if isinstance(_a351, _A273.Constant) and _a351.value is None:
+                        continue
+                    if isinstance(_a351, _A273.BinOp) and isinstance(_a351.op, _A273.BitOr):
+                        _wk351 += [_a351.left, _a351.right]
+                        continue
+                    if (isinstance(_a351, _A273.Name) and _a351.id in _mv350
+                            and _a351.id not in _cls350):
+                        _wk351.append(_mv350[_a351.id])
+                        continue
+                    _hd351 = (getattr(_a351, "id", None) or getattr(_a351, "attr", None)
+                              or getattr(getattr(_a351, "value", None), "id", None)
+                              or getattr(getattr(_a351, "value", None), "attr", None))
+                    if isinstance(_a351, _A273.Subscript):
+                        _hd351 = (getattr(_a351.value, "id", None)
+                                  or getattr(_a351.value, "attr", None))
+                        _sl351 = _a351.slice
+                        _el351 = (list(_sl351.elts) if isinstance(_sl351, _A273.Tuple)
+                                  else [_sl351])
+                        if _hd351 in ("Optional", "Union"):
+                            _wk351 += _el351
+                            continue
+                        if _hd351 == "Annotated":
+                            _wk351 += _el351[:1]
+                            continue
+                        if _hd351 in ("tuple", "Tuple") and len(_el351) == 2 and isinstance(
+                                _el351[1], _A273.Constant) and _el351[1].value is ...:
+                            continue
+                    if _hd351 not in _safe351h and _hd351 not in _tv350:
+                        _safe351 = False
+                # a view wrapped in a display (`return (xs, 1)`) is not covered by a
+                # view-safe annotation of the whole value
+                _wrap351 = any(isinstance(_w351, (_A273.Tuple, _A273.List, _A273.Set,
+                                                  _A273.Dict))
+                               for _w351 in _A273.walk(_x351.value))
+                if not _safe351 or _wrap351:
+                    _esc351.append((_x351.value, "returned from '%s' %s" % (
+                        getattr(_O351, "name", "lambda"),
+                        "annotated `-> %s`" % _A273.unparse(_ra351)[:40]
+                        if _ra351 is not None else "with no return annotation")))
+            elif isinstance(_x351, _A273.Lambda):
+                _esc351.append((_x351.body, "returned from a lambda"))
+            elif isinstance(_x351, (_A273.Assign, _A273.AnnAssign, _A273.AugAssign)):
+                _tg351 = (list(_x351.targets) if isinstance(_x351, _A273.Assign)
+                          else [_x351.target])
+                if _x351.value is not None and any(
+                        isinstance(_w351, (_A273.Attribute, _A273.Subscript))
+                        for _t351 in _tg351 for _w351 in _A273.walk(_t351)):
+                    _esc351.append((_x351.value, "stored into `%s`"
+                                    % _A273.unparse(_tg351[0])[:40]))
+                elif (isinstance(_x351, _A273.AnnAssign) and _x351.value is not None
+                        and isinstance(_x351.target, _A273.Name)):
+                    _ah351 = _x351.annotation
+                    if isinstance(_ah351, _A273.Subscript):
+                        _ah351 = _ah351.value
+                    if (getattr(_ah351, "id", None) or getattr(_ah351, "attr", None)) not in (
+                            _safe351h + ("tuple", "Tuple", "Optional")):
+                        _esc351.append((_x351.value, "bound to `%s: %s`" % (
+                            _x351.target.id, _A273.unparse(_x351.annotation)[:40])))
+            elif isinstance(_x351, _A273.Call):
+                _cn351 = _x351.func.id if isinstance(_x351.func, _A273.Name) else ""
+                if _cn351 not in _bi351:
+                    for _aa351 in list(_x351.args) + [_k.value for _k in _x351.keywords]:
+                        # a bare view PARAMETER is route #336's (same rule, Module 5)
+                        if not (isinstance(_aa351, _A273.Name) and _aa351.id in _param351):
+                            _esc351.append((_aa351, "passed to `%s`"
+                                            % _A273.unparse(_x351.func)[:40]))
+            # (d) a store through an ALIAS
+            _st351: List[Any] = []
+            if isinstance(_x351, (_A273.Assign, _A273.Delete)):
+                _st351 = list(_x351.targets)
+            elif isinstance(_x351, (_A273.AugAssign, _A273.AnnAssign)):
+                _st351 = [_x351.target]
+            for _t351 in _st351:
+                for _w351 in _A273.walk(_t351):
+                    if (isinstance(_w351, _A273.Subscript) and isinstance(_w351.value, _A273.Name)
+                            and _w351.value.id in _view351 and _w351.value.id not in _param351):
+                        _bad351.append((_F351.name, getattr(_x351, "lineno", 0),
+                                        _w351.value.id, "stored into through the alias"))
+            if (isinstance(_x351, _A273.AugAssign) and isinstance(_x351.target, _A273.Name)
+                    and _x351.target.id in _view351 and _x351.target.id not in _param351):
+                _bad351.append((_F351.name, getattr(_x351, "lineno", 0), _x351.target.id,
+                                "updated in place through the alias"))
+            if (isinstance(_x351, _A273.Call) and isinstance(_x351.func, _A273.Attribute)
+                    and isinstance(_x351.func.value, _A273.Name)
+                    and _x351.func.value.id in _view351
+                    and _x351.func.value.id not in _param351
+                    and _x351.func.attr not in ("count", "index", "get", "keys", "values",
+                                                "items", "copy", "__len__", "__contains__",
+                                                "__getitem__")):
+                _bad351.append((_F351.name, getattr(_x351, "lineno", 0), _x351.func.value.id,
+                                "mutated through the alias (`.%s`)" % _x351.func.attr))
+            for _ee351, _why351 in _esc351:
+                _hit351 = None
+                _wk351 = [_ee351]
+                while _wk351 and _hit351 is None:
+                    _e351 = _wk351.pop()
+                    if isinstance(_e351, _A273.Name):
+                        _hit351 = _e351.id if _e351.id in _view351 else None
+                    elif isinstance(_e351, _A273.IfExp):
+                        _wk351 += [_e351.body, _e351.orelse]
+                    elif isinstance(_e351, _A273.BoolOp):
+                        _wk351 += list(_e351.values)
+                    elif isinstance(_e351, (_A273.NamedExpr, _A273.Starred)):
+                        _wk351.append(_e351.value)
+                    elif isinstance(_e351, (_A273.Tuple, _A273.List, _A273.Set)):
+                        _wk351 += list(_e351.elts)
+                    elif isinstance(_e351, _A273.Dict):
+                        _wk351 += [_k for _k in _e351.keys if _k is not None] + list(
+                            _e351.values)
+                    elif isinstance(_e351, _A273.Subscript) and isinstance(
+                            _e351.slice, _A273.Slice):
+                        _wk351.append(_e351.value)
+                    elif isinstance(_e351, _A273.BinOp) and isinstance(
+                            _e351.op, (_A273.Add, _A273.Mult)):
+                        _wk351 += [_e351.left, _e351.right]
+                if _hit351 is not None:
+                    _bad351.append((_F351.name, getattr(_x351, "lineno", 0), _hit351, _why351))
+                    break
+    if _bad351:
+        from errors import PyCSLSemanticError as _PyCSLSemErr351
+        raise _PyCSLSemErr351(
+            f"in '{_bad351[0][0]}' (line {_bad351[0][1]}), the value of '{_bad351[0][2]}' — a "
+            f"READ-ONLY view parameter (`Sequence`, `tuple[T, ...]`, `Mapping`) or an alias of "
+            f"one — is {_bad351[0][3]} (route #351). PyCSL reads the view as a list / dict, so "
+            f"once it leaves under a mutable type a store into it would be verified, while "
+            f"the argument may be a tuple or a mapping proxy whose store raises TypeError. "
+            f"Return / store / pass a copy (`list(xs)`, `dict(d)`), or keep the read-only "
+            f"annotation on the receiving slot.",
+            filename=args.file, stage="ir-semantic",
+            code="PYCSL-SEM-READONLY-VIEW-ESCAPE")
     # (#49) ROUTE #339 — AN ENUM MEMBER IS NOT AN INT. `C.A` of a user enum class lowers
     # to the opaque getter `get_A _class_c : int` (and route #325 keeps it int, its value
     # being an int literal), so every int operation applies to it. MEASURED at 5e517ffc
