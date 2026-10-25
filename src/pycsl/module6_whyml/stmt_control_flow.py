@@ -370,6 +370,28 @@ class ControlFlowStmtMixin:
         (default "0"; for `range(start, stop)`, the `start` expression).
         """
         self._for_idx_init = "0"
+        # (#49) ROUTE #358 — `for z in self` (a field-less class) / `for z in x` (`x:
+        #   object`) lowered to the opaque `iter_length`/`iter_get`, so `no_exception \all`
+        #   PROVED a loop CPython rejects with TypeError (or runs a user `__iter__` that may
+        #   raise). Under `no_exception` (program context), when route #251's probe calls
+        #   the iterable erased, the opaque bound below is preceded by a failing assertion
+        #   (inline: this method's mirror twin is `\trusted`).
+        _r358_it = ""
+        if ((getattr(self, "_current_no_exception", set())
+                or getattr(self, "_current_no_exception_all", False))
+                and not getattr(self, "_in_spec", False) and isinstance(iter_ir, dict)
+                and ((getattr(self, "_r249_scope", None) or {}).get("erased")
+                     or (getattr(self, "_r249_scope", None) or {}).get("ret_erased")
+                     or (getattr(self, "_r249_scope", None) or {}).get("any_ret")
+                     or (getattr(self, "_r249_scope", None) or {}).get("eq_classes"))):
+            from ir_schema import OpaqueExpr as _OpaqueExpr358
+            if self._handle_binop(_OpaqueExpr358(
+                    kind="BinOp", raw={"type": "BinOp", "op": "r251_erased?", "left": iter_ir,
+                                       "right": {"type": "Number", "value": 0}}),
+                    local_refs, False, None):
+                _r358_it = ("begin assert { [@expl:PyCSL-R358 iterating an erased (Any / "
+                            "object / field-less class) value runs a user __iter__ or raises "
+                            "TypeError] false }; ")
         self._pyast_loop_variant_len = None
         self._for_iter_materialize = None
         self._for_target_is_pyval = False
@@ -760,7 +782,9 @@ class ControlFlowStmtMixin:
                 return f"Array.length {iter_expr}", f"{iter_expr}[!{idx}]", False
             self._add_abstract_op("val iter_length (x: int) : int")
             self._add_abstract_op("val iter_get (x: int) (i: int) : int")
-            return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False
+            return ((f"({_r358_it}(iter_length {iter_expr}) end)" if _r358_it
+                     else f"(iter_length {iter_expr})"),
+                    f"(iter_get {iter_expr} !{idx})", False)
         # `for x in self.<method>(...)` / `for x in <fn>(...)` where the
         # callee returns `array int`. Without this branch the iter
         # expression is `array int` but `iter_length`/`iter_get` are
@@ -899,7 +923,9 @@ class ControlFlowStmtMixin:
             self._abstract_ops = _ab310
         self._add_abstract_op("val iter_length (x: int) : int")
         self._add_abstract_op("val iter_get (x: int) (i: int) : int")
-        return f"(iter_length {iter_expr})", f"(iter_get {iter_expr} !{idx})", False
+        return ((f"({_r358_it}(iter_length {iter_expr}) end)" if _r358_it
+                     else f"(iter_length {iter_expr})"),
+                    f"(iter_get {iter_expr} !{idx})", False)
 
     # The emit_ir reflection projectors whose result is a WhyML `array` (`args_of` ->
     # `array emit_ir`, the stmt-list readers -> `array int`). Everything else in

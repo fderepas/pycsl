@@ -542,6 +542,30 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Comparison operators and bool literals are already bool.
         Calls to isinstance_check, hasattr_check are already bool.
         Other expressions (int) need `<> 0` coercion."""
+        # (#49) ROUTE #358 — THE TRUTH TEST OF AN ERASED VALUE RUNS ITS `__bool__` /
+        #   `__len__`. `if self:` / `not self` on a field-less class lowered to `self <> 0`,
+        #   so `no_exception \all` PROVED them for a `__len__` returning -1 (CPython
+        #   ValueError). Under `no_exception` (program context), the truth test of a value
+        #   route #251's probe calls erased is preceded by a failing assertion; the
+        #   re-entry carries `_pycsl_r358n` (inline: this method's mirror twin is `\trusted`).
+        if isinstance(ir_expr, dict) and ir_expr.get("_pycsl_r358n"):
+            ir_expr = {_k358: _v358 for _k358, _v358 in ir_expr.items()
+                       if _k358 != "_pycsl_r358n"}
+        elif (isinstance(ir_expr, dict) and not getattr(self, "_in_spec", False)
+                and (getattr(self, "_current_no_exception", set())
+                     or getattr(self, "_current_no_exception_all", False))
+                and ((getattr(self, "_r249_scope", None) or {}).get("erased")
+                     or (getattr(self, "_r249_scope", None) or {}).get("ret_erased")
+                     or (getattr(self, "_r249_scope", None) or {}).get("any_ret")
+                     or (getattr(self, "_r249_scope", None) or {}).get("eq_classes"))
+                and self._handle_binop(OpaqueExpr(
+                    kind="BinOp", raw={"type": "BinOp", "op": "r251_erased?", "left": ir_expr,
+                                       "right": {"type": "Number", "value": 0}}),
+                    set(), False, None)):
+            return ("(begin assert { [@expl:PyCSL-R358 the truth test of an erased (Any / "
+                    "object / field-less class) value runs a user __bool__ or __len__ that "
+                    "may raise] false }; %s end)"
+                    % self._to_bool(whyml_str, dict(ir_expr, _pycsl_r358n=True)))
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
         # (#44) ROUTES #25/#26/#27 — REFUSE THE TRUTHINESS OF AN ERASED LOCAL. Placed
@@ -20465,6 +20489,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         _nr311 = isinstance(expr, dict) and bool(expr.get("_pycsl_r311n"))
         if _nr311:
             expr = {_k311: _v311 for _k311, _v311 in expr.items() if _k311 != "_pycsl_r311n"}
+        # Route #358's re-emission of a node it has already guarded carries `_pycsl_r358n`.
+        _nr358 = isinstance(expr, dict) and bool(expr.get("_pycsl_r358n"))
+        if _nr358:
+            expr = {_k358: _v358 for _k358, _v358 in expr.items() if _k358 != "_pycsl_r358n"}
         _r307_k = expr.get("type") if isinstance(expr, dict) else getattr(expr, "kind", None)
         # RESIDUAL (mirror-only): a dict literal inside an `@mutable_state` emitter-model class
         # is an IR-node construction (`_lower_irnode_construction` /
@@ -21603,6 +21631,130 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # --- legacy dict body (un-converted kinds) ---
         expr = node.to_dict()
         t = expr["type"]
+        # (#49) ROUTE #358 — A PROTOCOL OPERATION ON AN ERASED VALUE RUNS USER CODE OR RAISES.
+        #   Route #343's failing assertion covered builtins handed an erased (route #249:
+        #   `Any`, `object`, unannotated, a field-less class, a field-less class's `self`)
+        #   value; three more program-context operations on one lowered to an opaque read
+        #   with NO exception VC, so `no_exception \all` PROVED them while CPython raises:
+        #   an ATTRIBUTE LOAD the value is not known to have (`self.zz` on a field-less
+        #   class, `x.foo` on `object` / `Any`: AttributeError); a COMPREHENSION over it
+        #   (`'P' object is not iterable`); a METHOD OF A BUILTIN-TYPED RECEIVER handed it
+        #   (`"".join([self])`: TypeError; `xs.index(x)` runs `__eq__`). (`for` loops and
+        #   truth tests are guarded at `_classify_iterable` / `_to_bool`.) Under
+        #   `no_exception`, such a node is preceded by `assert { false }`. "Known": a name
+        #   every object has (`dir(object)`) or, for a value whose declared class is a
+        #   field-less class of this file (Module 5's `nonrecord335`: no fields, no bases),
+        #   a name its class body binds or one of its methods stores on `self`. Asked
+        #   through route #251's probe; inline (this method's mirror twin is `\trusted`).
+        _r358_why = None
+        if (not _nr358 and t in ("FieldGet", "Attribute", "ListComp", "SetComp", "DictComp",
+                                 "GenExp", "Call")
+                and not getattr(self, "_in_spec", False) and not invariant_ctx
+                and (getattr(self, "_current_no_exception", set())
+                     or getattr(self, "_current_no_exception_all", False))):
+            _r358_sc = getattr(self, "_r249_scope", None) or {}
+            _r358_es: List[Any] = []
+            if not (_r358_sc.get("erased") or _r358_sc.get("ret_erased")
+                    or _r358_sc.get("any_ret") or _r358_sc.get("eq_classes")):
+                pass
+            elif t in ("FieldGet", "Attribute"):
+                _r358_b = expr.get("object")
+                if isinstance(_r358_b, str):
+                    _r358_b = {"type": "Var", "name": _r358_b}
+                _r358_at = expr.get("attr") or expr.get("field")
+                if (isinstance(_r358_b, dict) and isinstance(_r358_at, str)
+                        and self._handle_binop(OpaqueExpr(
+                            kind="BinOp", raw={"type": "BinOp", "op": "r251_erased?",
+                                               "left": _r358_b,
+                                               "right": {"type": "Number", "value": 0}}),
+                            local_refs, invariant_ctx, subst)):
+                    _r358_kn = set(dir(object))
+                    _r358_cl = None
+                    if _r358_b.get("type") == "Var" and _r358_b.get("name") == "self":
+                        _r358_cl = getattr(self, "_current_self_type", None)
+                    elif _r358_b.get("type") == "Var":
+                        _r358_cl = (getattr(self, "_current_symbol_table", {}) or {}).get(
+                            _r358_b.get("name"))
+                    _r358_nr = (getattr(self, "ir", {}) or {}).get("nonrecord335") or {}
+                    for _r358_cn, _r358_ci in (_r358_nr.items() if isinstance(_r358_cl, str)
+                                               else ()):
+                        if (_r358_cn.lower() == _r358_cl.lower()
+                                and isinstance(_r358_ci, dict)):
+                            _r358_kn |= set(_r358_ci.get("binds") or [])
+                            _r358_ws: List[Any] = [
+                                _g.get("body") for _g in
+                                ((getattr(self, "ir", {}) or {}).get("functions") or [])
+                                if isinstance(_g, dict) and isinstance(_g.get("self_type"), str)
+                                and _g["self_type"].lower() == _r358_cn.lower()]
+                            while _r358_ws:
+                                _r358_n = _r358_ws.pop()
+                                if isinstance(_r358_n, list):
+                                    _r358_ws.extend(_r358_n)
+                                    continue
+                                if not isinstance(_r358_n, dict):
+                                    continue
+                                if (_r358_n.get("stmt") in ("FieldAssign", "FieldAugAssign")
+                                        and _r358_n.get("object") == "self"):
+                                    _r358_kn.add(_r358_n.get("field"))
+                                if (_r358_n.get("type") == "Call"
+                                        and _r358_n.get("func") == "setattr"
+                                        and len(_r358_n.get("args") or []) >= 2
+                                        and isinstance(_r358_n["args"][1], dict)
+                                        and _r358_n["args"][1].get("type") == "String"):
+                                    _r358_kn.add(_r358_n["args"][1].get("value"))
+                                _r358_ws.extend(_v for _v in _r358_n.values()
+                                                if isinstance(_v, (list, dict)))
+                    if _r358_at not in _r358_kn:
+                        _r358_why = ("loading attribute %s, which it is not known to have, "
+                                     "may raise AttributeError" % _r358_at)
+            elif t in ("ListComp", "SetComp", "DictComp", "GenExp"):
+                _r358_es = [_g.get("iter") for _g in (expr.get("generators") or [])
+                            if isinstance(_g, dict)]
+                if isinstance(expr.get("iter"), dict):
+                    _r358_es.append(expr["iter"])
+                _r358_why = "iterating it runs a user __iter__ or raises TypeError"
+            elif t == "Call" and isinstance(expr.get("func"), str):
+                _r358_bt = None
+                if isinstance(expr.get("receiver"), dict):
+                    _r358_rc = expr["receiver"]
+                    _r358_bt = {"String": "str", "ArrayLit": "list", "ListLit": "list",
+                                "List": "list", "DictLit": "dict", "SetLit": "set",
+                                "Tuple": "tuple"}.get(str(_r358_rc.get("type")))
+                    _r358_mn = expr["func"]
+                elif "." in expr["func"] and expr["func"].count(".") == 1:
+                    _r358_rv, _r358_mn = expr["func"].split(".")
+                    _r358_bt = (getattr(self, "_current_symbol_table", {}) or {}).get(_r358_rv)
+                    if _r358_rv in (_r358_sc.get("cont") or {}):
+                        _r358_bt = "dict"
+                if (isinstance(_r358_bt, str)
+                        and _r358_bt.split("[")[0].lower() in (
+                            "str", "list", "dict", "set", "tuple", "bytes", "frozenset",
+                            "bytearray")
+                        and _r358_mn != "append"):
+                    _r358_es = list(expr.get("args") or [])
+                    if _r358_mn == "insert":
+                        _r358_es = _r358_es[:1]
+                    _r358_es += [_k.get("value") for _k in (expr.get("keywords") or [])
+                                 if isinstance(_k, dict)]
+                    _r358_why = ("a %s method handed it runs a user dunder or raises "
+                                 "TypeError" % _r358_bt.split("[")[0].lower())
+            if _r358_es:
+                _r358_why0, _r358_why = _r358_why, None
+                for _r358_a in _r358_es:
+                    if isinstance(_r358_a, dict) and _r358_a.get("type") == "Starred":
+                        _r358_a = _r358_a.get("value")
+                    if isinstance(_r358_a, dict) and self._handle_binop(OpaqueExpr(
+                            kind="BinOp", raw={"type": "BinOp", "op": "r251_erased?",
+                                               "left": _r358_a,
+                                               "right": {"type": "Number", "value": 0}}),
+                            local_refs, invariant_ctx, subst):
+                        _r358_why = _r358_why0
+                        break
+        if _r358_why is not None:
+            return ("(begin assert { [@expl:PyCSL-R358 an operation on an erased (Any / object "
+                    "/ field-less class) value: %s] false }; %s end)"
+                    % (_r358_why, self._expr_to_whyml(dict(expr, _pycsl_r358n=True),
+                                                      local_refs, invariant_ctx, subst)))
 
         # self-tcb-reduction giants (generic class-body lowering): a READ over a
         # `pyast_stmt`-typed class-body loop var lowers to the ADT projector chain.
