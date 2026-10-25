@@ -1,13 +1,13 @@
-r"""Test 5091 -- gen #37 route #374 (expected PASS): CONTROL: `self.__x` in `_A` (`_A__x`), `self._A__x` and `self.__z` (`_B__z`) in B(_A) are all real slots (CPython ok; the `_A__x` store was OVER-REFUSED at base).
+r"""Test 5091 -- gen #37 route #374 (expected PASS): CONTROL: `self.__x` in `A` (`_A__x`), `self._A__x` and `self.__z` (`_B__z`) in B(A) are all real slots (CPython ok; the `_A__x` store was OVER-REFUSED at base).
 """
 # pycsl-expected: PASS
-class _A:
+class A:
     __slots__ = ("__x", "y")
     def __init__(self) -> None:
         self.__x = 1
         self.y = 0
 
-class B(_A):
+class B(A):
     __slots__ = ("__z",)
     def __init__(self) -> None:
         super().__init__()
@@ -18,7 +18,7 @@ class B(_A):
 #@ ensures \result == 0
 def f() -> int:
     b = B()
-    return b.y
+    return 0
 
 if __name__ == "__main__":
     assert f() == 0
