@@ -5045,7 +5045,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                          "compare" % (_mn344, _k344,
                                                       _nd359[(_k344, _mn344)])))
                         break
-                    if _k344 not in _anc338 and _k344 != "object":
+                    if (_k344 not in _anc338 and _k344 != "object" and _ix344 == 0
+                            and _bf278.get("self_type") in _anc338):
                         _viol278.append((_sn278, _bn278, "resolves `%s` through `%s`, a "
                                          "class from outside this file that precedes its "
                                          "defining class in the MRO, which R5 cannot read"
