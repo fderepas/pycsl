@@ -3036,6 +3036,106 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"`class` statement's name, or `module.Name` for an imported "
                             f"class) in the class header.",
                             stage="ir-semantic", code="PYCSL-R341-CLASS-BASE-NOT-A-NAME")
+        # (#49) gen #37, SYSTEMATIC RULE S1 (getting-better/systematic-soundness-r3.md) — A BASE
+        # CLASS THE MODEL HAS NO ENTRY FOR IS REFUSED BY DEFAULT. Every reader of a class's MRO
+        # (hashability #349/#364/#371/#381, `getattr` defaults #376/#388, constructor arity
+        # #369/#380, R5 #338/#344/#359, invariants #335) walks the classes of this file and a
+        # few bases with a dedicated model, and SKIPS every other base -- so the attributes,
+        # `__eq__` / `__hash__` / `__init__` / `__getattr__` a standard-library or builtin base
+        # contributes were silently absent (route #381, red team 29, 14 witnesses all PROVED
+        # at 7bf752d4e: `class D(collections.UserList)` / `deque` / `OrderedDict` / `Counter`
+        # / `defaultdict` / `types.SimpleNamespace` / `array.array` / `argparse.Namespace` /
+        # `collections.abc.Set` / `Mapping` hashed in a set under `no_exception`, CPython
+        # TypeError). Repairing each reader one base at a time is the deny-list that kept
+        # leaking; the rule flips the polarity at the ONE place a base is resolved. RULE: a
+        # base that resolves (through this file's imports, or as a builtin name) to a
+        # standard-library / builtin class is admitted only if it is in the BASE-MODEL table
+        # -- `object`, `type`, a builtin exception class, `enum.{Enum, IntEnum, Flag, IntFlag,
+        # StrEnum}` (and `int` / `str` as the mixin of an enum base, route #353), `typing.
+        # {NamedTuple, Protocol, Generic, TypedDict}`, `abc.ABC`, `ast.{NodeVisitor,
+        # NodeTransformer}`; any other is REFUSED when the class is named by code outside the
+        # `__main__` driver (an unreferenced class is never reached by verified code; a
+        # subclass names it in its own bases, so the closure is refused too). Bases of user
+        # modules, file classes and unresolved names are not this rule's (routes #341/#345).
+        # CENSUS (systematic-soundness-r3.md): both corpora, the 53 mirrors and `pycsl_lib`
+        # hold 4 such bases, all in classes named only by `__main__` (2506 `I(int)`, 4634
+        # `S(om.Fraction)`, 4832 `D(float, A)`) or an int-mixin enum (4772): 0 refused.
+        _ts1 = [_x for _x in _t341.body
+                if not (isinstance(_x, _ast341.If) and isinstance(_x.test, _ast341.Compare)
+                        and isinstance(_x.test.left, _ast341.Name)
+                        and _x.test.left.id == "__name__")]
+        _imps1 = {}
+        _refs1 = set()
+        _stks1 = list(_ts1)
+        _clss1 = []
+        while _stks1:
+            _ns1 = _stks1.pop()
+            if isinstance(_ns1, _ast341.Import):
+                for _as1 in _ns1.names:
+                    if _as1.asname:
+                        _imps1[_as1.asname] = (_as1.name, "")
+                    else:
+                        _imps1[_as1.name.split(".")[0]] = (_as1.name.split(".")[0], "")
+            elif isinstance(_ns1, _ast341.ImportFrom) and _ns1.module and not _ns1.level:
+                for _as1 in _ns1.names:
+                    _imps1[_as1.asname or _as1.name] = (_ns1.module, _as1.name)
+            elif isinstance(_ns1, _ast341.Name) and isinstance(_ns1.ctx, _ast341.Load):
+                _refs1.add(_ns1.id)
+            elif isinstance(_ns1, _ast341.ClassDef):
+                _clss1.append(_ns1)
+            _stks1.extend(_ast341.iter_child_nodes(_ns1))
+        _std1 = set(getattr(sys, "stdlib_module_names", ())) | {"builtins", "typing_extensions"}
+        _model1 = ({("enum", _e1) for _e1 in ("Enum", "IntEnum", "Flag", "IntFlag", "StrEnum")}
+                   | {(_m1, _e1) for _m1 in ("typing", "typing_extensions")
+                      for _e1 in ("NamedTuple", "Protocol", "Generic", "TypedDict")}
+                   | {("abc", "ABC"), ("ast", "NodeVisitor"), ("ast", "NodeTransformer"),
+                      ("builtins", "object"), ("builtins", "type")})
+        import builtins as _bi1
+        for _ks1 in _clss1:
+            if _ks1.name not in _refs1:
+                continue
+            _qs1 = []
+            for _b1 in _ks1.bases:
+                _h1 = _b1.value if isinstance(_b1, _ast341.Subscript) else _b1
+                _p1 = []
+                while isinstance(_h1, _ast341.Attribute):
+                    _p1.insert(0, _h1.attr)
+                    _h1 = _h1.value
+                _q1 = None
+                if isinstance(_h1, _ast341.Name) and _h1.id not in _cls341:
+                    if _h1.id in _imps1:
+                        _mo1, _at1 = _imps1[_h1.id]
+                        if _at1:
+                            _q1 = (_mo1, ".".join([_at1] + _p1))
+                        elif _p1:
+                            _q1 = (".".join([_mo1] + _p1[:-1]), _p1[-1])
+                    elif not _p1 and _h1.id not in _bound341 and isinstance(
+                            getattr(_bi1, _h1.id, None), type):
+                        _q1 = ("builtins", _h1.id)
+                if _q1 is not None and _q1[0].split(".")[0] in _std1:
+                    _qs1.append((_b1, _q1))
+            _enum1 = any(_q1 in _model1 and _q1[0] == "enum" for (_b1, _q1) in _qs1)
+            for _b1, _q1 in _qs1:
+                if _q1 in _model1:
+                    continue
+                if _q1[0] == "builtins" and isinstance(getattr(_bi1, _q1[1], None), type) and (
+                        issubclass(getattr(_bi1, _q1[1]), BaseException)
+                        or (_enum1 and _q1[1] in ("int", "str"))):
+                    continue
+                raise _PyCSLSemErr341(
+                    f"class '{_ks1.name}' at line {_ks1.lineno}: its base "
+                    f"`{_ast341.unparse(_b1)}` is the standard-library / builtin class "
+                    f"`{_q1[0]}.{_q1[1]}`, which PyCSL has no model of. The verifier reads a "
+                    f"class's MRO only through the classes of this file and the modelled "
+                    f"bases (`object`, builtin exceptions, `enum.Enum` / `IntEnum` / `Flag` / "
+                    f"`IntFlag` / `StrEnum`, `typing.NamedTuple` / `Protocol` / `Generic` / "
+                    f"`TypedDict`, `abc.ABC`, `ast.NodeVisitor` / `NodeTransformer`, `type`); "
+                    f"the attributes, `__eq__` / `__hash__`, `__init__` and `__getattr__` "
+                    f"this base contributes would be absent from the model (systematic rule "
+                    f"S1; route #381 measured `class D(collections.UserList)` hashed in a set "
+                    f"under `no_exception` PROVED, CPython TypeError). Keep the "
+                    f"standard-library object in a field instead of deriving from it.",
+                    stage="ir-semantic", code="PYCSL-S1-UNMODELLED-BASE")
         for _n341 in _ast341.walk(_t341):
             _cl341 = ""
             if (isinstance(_n341, _ast341.Attribute) and _n341.attr == "__class__"

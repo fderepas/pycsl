@@ -2554,6 +2554,29 @@ builtin `max`, a method named `max`, plain class-body members, an `if True:` ins
 function-local `from builtins import max`, a method under a class-body `if True:`); witness `5310` is the `else` arm of
 that `if True:`.
 
+### 7.42 A base class the model has no entry for is refused by default (systematic rule S1, closes route #381's stdlib-base share, gen #37)
+
+Every reader of a class's MRO (hashability, `getattr` defaults, constructor arity, the override
+checks, inherited invariants) walks the classes of the file and a few bases with a dedicated
+model, and SKIPPED every other base: the attributes, `__eq__` / `__hash__`, `__init__` and
+`__getattr__` a standard-library or builtin base contributes were absent from the model.
+Measured (red team 29, route #381, all PROVED at `7bf752d4e`, CPython TypeError): `class
+D(collections.UserList)` (also `UserDict`, `deque`, `OrderedDict`, `Counter`, `defaultdict`,
+`types.SimpleNamespace`, `array.array`, `argparse.Namespace`, `collections.abc.Set` /
+`Mapping`, a second base, a subclass of such a class) hashed in a set under `no_exception`.
+RULE (one check where route #341 resolves every base, `PYCSL-S1-UNMODELLED-BASE`): a base that
+resolves through the file's imports, or as a builtin name, to a standard-library / builtin class
+is admitted only if it is in the BASE-MODEL table -- `object`, `type`, a builtin exception class,
+`enum.Enum` / `IntEnum` / `Flag` / `IntFlag` / `StrEnum` (with `int` / `str` admitted as the mixin
+of an enum base, route #353), `typing.NamedTuple` / `Protocol` / `Generic` / `TypedDict`,
+`abc.ABC`, `ast.NodeVisitor` / `NodeTransformer`. Any other is REFUSED when the class is named by
+code outside the `__main__` driver (a subclass names it in its bases, so the closure is refused
+too). Bases from user modules, file classes and unresolved names are routes #341 / #345's.
+Census (both corpora, the 53 mirrors, `pycsl_lib`): 4 such bases, none refused (classes named only
+by `__main__`, or an int-mixin enum). Witnesses `5420`-`5435` (`5434` / `5435` new two-level latents); controls `5460`-`5463`. See
+`getting-better/systematic-soundness-r3.md` for why the rule is a polarity flip (admit what is
+modelled) instead of another deny-list entry.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

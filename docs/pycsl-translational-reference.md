@@ -4581,6 +4581,23 @@ $x$ with $x$ among $K$'s binding sites is refused; a `FunctionDef` / `AsyncFunct
 (route #131's "a name's runtime value is not the one the model reads", route #122's "a name's
 runtime binding is not the `def` the model resolves it to").
 
+### §T.6.53  Unmodelled base classes (systematic rule S1, gen #37)
+
+_Corresponds to `annotations.md` §7.42._
+
+A side condition of `_run_pipeline` (the route #341 base walk; the translation is unchanged where
+it holds). Let $M$ be the BASE-MODEL table $\{$`builtins.object`, `builtins.type`, `enum.`$\{$`Enum`,
+`IntEnum`, `Flag`, `IntFlag`, `StrEnum`$\}$, `typing`/`typing_extensions.`$\{$`NamedTuple`,
+`Protocol`, `Generic`, `TypedDict`$\}$, `abc.ABC`, `ast.NodeVisitor`, `ast.NodeTransformer`$\}$.
+Outside the top-level `if __name__ ...:` driver, let $L$ be the set of loaded names and, for each
+`ClassDef` $C$ with $C \in L$, resolve each base head (a `Name` or attribute chain, through a
+subscript) through the file's `import` / `from .. import` bindings, or as a builtin class name not
+rebound in the file, to a qualified pair $(m, a)$. If the root of $m$ is a standard-library module
+(`sys.stdlib_module_names`, `builtins`, `typing_extensions`), $(m, a) \notin M$, and $a$ is neither
+a builtin `BaseException` subclass nor `int` / `str` beside a base of $M$ from `enum`, the translation
+is undefined (refused, `PYCSL-S1-UNMODELLED-BASE`). File classes and user-module bases are
+unaffected.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
