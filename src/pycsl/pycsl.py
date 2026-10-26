@@ -4410,6 +4410,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         import sysconfig as _sc381
         import typing as _ty381
         import collections as _co381
+        import types as _tyx381
+        import weakref as _wr381
         _OKM381 = {"builtins", "collections", "typing", "abc", "enum", "types", "array",
                    "argparse", "numbers", "decimal", "fractions", "datetime", "pathlib",
                    "dataclasses", "functools", "contextlib", "io", "threading", "queue",
@@ -4509,6 +4511,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _hn381 = getattr(_ob381, "__hash__", None) is None
                             _ad381 = any(issubclass(_c, _ob381) for _c in (
                                 list, dict, set, bytearray, _co381.deque))
+                            # a class whose `__hash__` DELEGATES to its contents (`slice`,
+                            # `memoryview`, `types.MappingProxyType`, `weakref.ref`, or a
+                            # subclass of one) may raise on hashing: measured
+                            # `hash(MappingProxyType({}))` TypeError, a writable `memoryview`
+                            # ValueError (an un-parameterised `tuple`: "#tuple0" below)
+                            _hn381 = _hn381 or issubclass(_ob381, (
+                                slice, memoryview, _tyx381.MappingProxyType, _wr381.ref))
                         except Exception:
                             _hn381, _ad381 = True, True
                         _vd381 = ("U" if _hn381 else "S", "U" if _hn381 or _ad381 else "S")
@@ -4627,6 +4636,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         elif (isinstance(_z366, _ast341.Constant)
                               and (_z366.value is None or _z366.value is Ellipsis)):
                             pass
+                        elif (isinstance(_z366, _ast341.Name) and _z366.id in _al383
+                              and _z366.id not in _cls341 and _z366.id not in _fnt366
+                              and len(_fq366) < 256):
+                            # (#383) a module type alias denotes its value (an alias was
+                            # read as an unknown name: unhashable)
+                            _fq366.append(_al383[_z366.id])
                         elif isinstance(_z366, (_ast341.Name, _ast341.Attribute)):
                             _zn366 = _z366.id if isinstance(_z366, _ast341.Name) else _z366.attr
                             if _zn366 in _cls341 or _zn366 in _fnt366:
@@ -5100,6 +5115,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                       and _vv372.id in _pt372):
                                     _zz372.update(_dp365.get(id(_pt372[_vv372.id]), set())
                                                   or {"#UNK"})
+                                    # (#383) the parameter's annotation types the field
+                                    _fa372.setdefault(_cn346, {}).setdefault(
+                                        _y372.attr, []).append(_pt372[_vv372.id])
                                 elif (isinstance(_vv372, _ast341.Call)
                                       and isinstance(_vv372.func, _ast341.Name)
                                       and (_vv372.func.id in _cls341
@@ -5135,6 +5153,79 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _mg374[id(_n374)] = _c374
             _cc374 = _n374.name if isinstance(_n374, _ast341.ClassDef) else _c374
             _st374.extend((_x374, _cc374) for _x374 in _ast341.iter_child_nodes(_n374))
+        # (#383) `_me383[C][m]`: the declared return type of method `m` of a file class C
+        # (the first definition along its MRO, stopping at an outside base other than
+        # `object` / `Generic` / `Protocol` / `ABC`; no `-> T` or `async`: "#UNK");
+        # `_mf383[f]`: the same for a module-level function.
+        # an UNDERIVABLE type ("#UND": an unknown callee / receiver, an un-annotated
+        # return) adds no class — as before #383 (residual); annotation-unknown values
+        # (`Any` / `object` / a TypeVar) and #372's `#UNK` field stores still read as "#UNK"
+        _U383 = _ast341.Name(id="#UND", ctx=_ast341.Load())
+        _B383 = _ast341.Name(id="#BOT", ctx=_ast341.Load())
+        # (#383) `_cb383[C]`: the names C's class body binds; `_xa383`: the attribute names
+        # stored through a receiver other than `self`; `_dy383`: the file may add attributes
+        # dynamically (`setattr` / `__dict__` / `vars` / `__setattr__`)
+        _cb383 = {}
+        for _cn346, _ks346 in _cls341.items():
+            for _k346 in _ks346:
+                for _s346 in _k346.body:
+                    for _z346 in ([_s346] if isinstance(_s346, (
+                            _ast341.FunctionDef, _ast341.AsyncFunctionDef, _ast341.ClassDef))
+                            else _ast341.walk(_s346)):
+                        if isinstance(_z346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                              _ast341.ClassDef)):
+                            _cb383.setdefault(_cn346, set()).add(_z346.name)
+                        elif (isinstance(_z346, _ast341.Name)
+                              and not isinstance(_z346.ctx, _ast341.Load)):
+                            _cb383.setdefault(_cn346, set()).add(_z346.id)
+                        elif isinstance(_z346, (_ast341.Import, _ast341.ImportFrom)):
+                            _cb383.setdefault(_cn346, set()).update(
+                                (_a.asname or _a.name).split(".")[0] for _a in _z346.names)
+        _xa383 = set()
+        _dy383 = False
+        for _z346 in _ast341.walk(_t341):
+            if (isinstance(_z346, _ast341.Attribute)
+                    and not isinstance(_z346.ctx, _ast341.Load)
+                    and not (isinstance(_z346.value, _ast341.Name)
+                             and _z346.value.id == "self")):
+                _xa383.add(_z346.attr)
+            elif ((isinstance(_z346, _ast341.Name)
+                   and _z346.id in ("setattr", "vars", "__dict__", "__setattr__"))
+                  or (isinstance(_z346, _ast341.Attribute)
+                      and _z346.attr in ("__dict__", "__setattr__"))):
+                _dy383 = True
+        _me383 = {}
+        for _cn346 in _cls341:
+            _mm383 = {}
+            for _a346 in (_mro363.get(_cn346) or _clo346.get(_cn346, [])):
+                if _a346 not in _cls341:
+                    if _a346 in ("object", "Generic", "Protocol", "ABC"):
+                        continue
+                    break
+                for _k346 in _cls341[_a346]:
+                    for _s346 in _k346.body:
+                        if (isinstance(_s346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                                and _s346.name not in _mm383):
+                            _mm383[_s346.name] = (
+                                _s346.returns if _s346.returns is not None
+                                and isinstance(_s346, _ast341.FunctionDef) else _U383)
+            _me383[_cn346] = _mm383
+        _mf383 = {}
+        for _s346 in _t341.body:
+            if isinstance(_s346, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                _mf383[_s346.name] = (
+                    _s346.returns if _s346.returns is not None and _s346.name not in _mf383
+                    and isinstance(_s346, _ast341.FunctionDef) else _U383)
+        # synthesized type heads of displays / views ("#list" ...: never a file class)
+        _SQ383 = ("List", "list", "Sequence", "MutableSequence", "Deque", "deque", "UserList",
+                  "#list")
+        _IT383 = _SQ383 + ("Set", "set", "FrozenSet", "frozenset", "AbstractSet", "MutableSet",
+                           "Iterable", "Iterator", "Collection", "Reversible", "Container",
+                           "Generator", "KeysView", "ValuesView", "ItemsView", "AsyncIterator",
+                           "AsyncIterable", "#set", "#iter", "#keys", "#values", "#items")
+        _DK383 = ("Dict", "dict", "Mapping", "MutableMapping", "DefaultDict", "defaultdict",
+                  "OrderedDict", "ChainMap", "Counter", "UserDict", "#dict")
+        _TP383 = ("Tuple", "tuple", "#tuple")
         for _f346, _ec346 in _fn346:
             _pa346 = (_f346.args.posonlyargs + _f346.args.args + _f346.args.kwonlyargs
                       + [_x for _x in (_f346.args.vararg, _f346.args.kwarg) if _x])
@@ -5467,6 +5558,664 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _eh372.setdefault(id(_n346), set()).update(_cz372)
                             elif _cz372:
                                 _it372.setdefault(_n346.target.id, set()).update(_cz372)
+            # (#49) gen #37, ROUTE #383 (red team 29; MEASURED PROVED at 919533395, CPython
+            # TypeError): #372 derived a hashed element's class from typed names, fields and
+            # one subscript only, so `v = m.get(..)`, `for v in m.values()` / `for k, v in
+            # m.items()`, `xs = [d for ..]; xs[0]`, `ds[0:1][0]`, `r.get()` (a method's
+            # `-> D`), `{*ds}` were never checked. RULE: a per-function TYPE PROPAGATION
+            # (`_ty383[id(e)]`: the type expressions `e` may have, as annotation ASTs;
+            # `_tn383[x]`: those of an un-annotated local over all its bindings), passes in
+            # post-order to a fixpoint: a typed name / `self` / constant / operator / display /
+            # comprehension (`#list[..]` ...); `b[i]` (a sequence's element — a slice keeps the
+            # sequence —, a mapping's value, a tuple's component, `__getitem__`'s `-> T`);
+            # `b.f` (field annotations and stores); `b.m(..)` (a file class's `-> T`, a
+            # mapping's `get` / `pop` / `setdefault` / `keys` / `values` / `items`, a
+            # sequence's / set's `pop` / `copy`, `str` methods); `f(..)` (a constructor, a
+            # module function's `-> T`, the builtins: `list` / `dict` / `set` / `sorted` /
+            # `tuple` / `iter` / `enumerate` / `zip` / `min` ...); `*b` and every `for` /
+            # comprehension target (the element; tuple targets unpack componentwise). A
+            # source form whose type cannot be derived (an unknown callee or receiver, an
+            # un-annotated return) is UNDERIVABLE ("#UND": no class — measured: reading it as
+            # "#UNK" refused 13 of 53 mirrors and 5 PROVED corpus files). Each expression's
+            # classes join `_eh372`.
+            _ty383 = {}
+            _ei383 = {}
+            _tn383 = {}
+            _tk383 = {}
+            _po383 = [_z for _z in _ast341.walk(_f346) if id(_z) not in _anx365][::-1]
+            # a local read before any of its bindings is typed reads as BOTTOM ("#BOT",
+            # dropped at bindings), not "#UNK": `i = 0 .. i = i + 1` is `int` (a least
+            # fixpoint); passes run until no local's types change (else every local "#UNK")
+            _lb383 = {_z.id for _z in _ast341.walk(_f346)
+                      if isinstance(_z, _ast341.Name) and not isinstance(_z.ctx, _ast341.Load)}
+            _sg383 = None
+            for _ps383 in range(12):
+                _ng383 = sorted((_k, len(_v)) for _k, _v in _tn383.items())
+                if _ng383 == _sg383:
+                    break
+                _sg383 = _ng383
+                if _ps383 == 11:
+                    _tn383 = {_k: [_U383] for _k in _tn383}
+                for _n383 in _po383:
+                    _rw383 = None
+                    _bd383 = []
+                    if isinstance(_n383, _ast341.Name) and isinstance(_n383.ctx, _ast341.Load):
+                        if _self346 is not None and _n383.id == _self346 and _ec346:
+                            _rw383 = [_ast341.Name(id=_ec346, ctx=_ast341.Load())]
+                        elif _n383.id in _ba372:
+                            _rw383 = list(_ba372[_n383.id])
+                        elif _n383.id in _tn383:
+                            _rw383 = list(_tn383[_n383.id])
+                        elif _n383.id in _lb383:
+                            _rw383 = [_B383]
+                    elif isinstance(_n383, _ast341.Constant):
+                        _rw383 = [_ast341.Name(id="None" if _n383.value is None else
+                                               type(_n383.value).__name__, ctx=_ast341.Load())]
+                    elif isinstance(_n383, _ast341.JoinedStr):
+                        _rw383 = [_ast341.Name(id="str", ctx=_ast341.Load())]
+                    elif (isinstance(_n383, _ast341.Compare)
+                          or (isinstance(_n383, _ast341.UnaryOp)
+                              and isinstance(_n383.op, _ast341.Not))):
+                        _rw383 = [_ast341.Name(id="bool", ctx=_ast341.Load())]
+                    elif isinstance(_n383, (_ast341.BinOp, _ast341.UnaryOp, _ast341.BoolOp,
+                                            _ast341.IfExp, _ast341.NamedExpr)):
+                        _ch383 = ([_n383.left, _n383.right] if isinstance(_n383, _ast341.BinOp)
+                                  else [_n383.operand] if isinstance(_n383, _ast341.UnaryOp)
+                                  else list(_n383.values) if isinstance(_n383, _ast341.BoolOp)
+                                  else [_n383.body, _n383.orelse]
+                                  if isinstance(_n383, _ast341.IfExp) else [_n383.value])
+                        if any(id(_c) in _ty383 for _c in _ch383):
+                            _rw383 = [_t for _c in _ch383 for _t in (_ty383.get(id(_c))
+                                                                      or [_U383])]
+                        if (isinstance(_n383, _ast341.NamedExpr)
+                                and isinstance(_n383.target, _ast341.Name)):
+                            _bd383.append((_n383.target, list(_rw383 or [_U383])))
+                    elif isinstance(_n383, (_ast341.List, _ast341.Set, _ast341.Tuple,
+                                            _ast341.ListComp, _ast341.SetComp,
+                                            _ast341.GeneratorExp)):
+                        if isinstance(_n383, (_ast341.List, _ast341.Set, _ast341.Tuple)):
+                            _cs383 = [(_ei383.get(id(_e.value)) or [_U383])
+                                      if isinstance(_e, _ast341.Starred)
+                                      else (_ty383.get(id(_e)) or [_U383]) for _e in _n383.elts]
+                        else:
+                            _cs383 = [_ty383.get(id(_n383.elt)) or [_U383]]
+                        _cu383 = [(_c[0] if len(_c) == 1 else _ast341.Subscript(
+                            value=_ast341.Name(id="Union", ctx=_ast341.Load()),
+                            slice=_ast341.Tuple(elts=list(_c), ctx=_ast341.Load()),
+                            ctx=_ast341.Load())) for _c in _cs383]
+                        if isinstance(_n383, _ast341.Tuple):
+                            if isinstance(_n383.ctx, _ast341.Load):
+                                _rw383 = [_ast341.Subscript(
+                                    value=_ast341.Name(id="#tuple", ctx=_ast341.Load()),
+                                    slice=_ast341.Tuple(elts=(_cu383 or [_ast341.Constant(
+                                        value=Ellipsis)]), ctx=_ast341.Load()),
+                                    ctx=_ast341.Load())]
+                        else:
+                            _rw383 = [_ast341.Subscript(
+                                value=_ast341.Name(id="#list" if isinstance(
+                                    _n383, (_ast341.List, _ast341.ListComp)) else "#set"
+                                    if isinstance(_n383, (_ast341.Set, _ast341.SetComp))
+                                    else "#iter", ctx=_ast341.Load()),
+                                slice=(_cu383[0] if len(_cu383) == 1 else _ast341.Subscript(
+                                    value=_ast341.Name(id="Union", ctx=_ast341.Load()),
+                                    slice=_ast341.Tuple(elts=(_cu383 or [_U383]),
+                                                        ctx=_ast341.Load()),
+                                    ctx=_ast341.Load())),
+                                ctx=_ast341.Load())]
+                    elif isinstance(_n383, (_ast341.Dict, _ast341.DictComp)):
+                        _kz383 = ([_t for _k in _n383.keys if _k is not None
+                                   for _t in (_ty383.get(id(_k)) or [_U383])]
+                                  if isinstance(_n383, _ast341.Dict)
+                                  else list(_ty383.get(id(_n383.key)) or [_U383]))
+                        _vz383 = ([_t for _v in _n383.values
+                                   for _t in (_ty383.get(id(_v)) or [_U383])]
+                                  if isinstance(_n383, _ast341.Dict)
+                                  else list(_ty383.get(id(_n383.value)) or [_U383]))
+                        if isinstance(_n383, _ast341.Dict) and None in _n383.keys:
+                            _kz383.append(_U383)
+                            _vz383.append(_U383)
+                        _rw383 = [_ast341.Subscript(
+                            value=_ast341.Name(id="#dict", ctx=_ast341.Load()),
+                            slice=_ast341.Tuple(elts=[_ast341.Subscript(
+                                value=_ast341.Name(id="Union", ctx=_ast341.Load()),
+                                slice=_ast341.Tuple(elts=(_z or [_U383]), ctx=_ast341.Load()),
+                                ctx=_ast341.Load()) for _z in (_kz383, _vz383)],
+                                ctx=_ast341.Load()), ctx=_ast341.Load())]
+                    elif isinstance(_n383, _ast341.Starred):
+                        _rw383 = list(_ei383.get(id(_n383.value)) or [_U383])
+                    elif (isinstance(_n383, _ast341.Subscript)
+                          and isinstance(_n383.ctx, _ast341.Load)):
+                        _rw383 = []
+                        _sx383 = isinstance(_n383.slice, _ast341.Slice)
+                        for _x383 in (_ty383.get(id(_n383.value)) or [_U383]):
+                            if _x383 is _B383:
+                                _rw383.append(_B383)
+                                continue
+                            _hn383 = (_x383.id if isinstance(_x383, _ast341.Name) else
+                                      _x383.attr if isinstance(_x383, _ast341.Attribute) else "")
+                            if isinstance(_x383, _ast341.Subscript):
+                                _hv383 = _x383.value
+                                _hn383 = (_hv383.id if isinstance(_hv383, _ast341.Name) else
+                                          _hv383.attr if isinstance(_hv383, _ast341.Attribute)
+                                          else "")
+                                _ar383 = (list(_x383.slice.elts)
+                                          if isinstance(_x383.slice, _ast341.Tuple)
+                                          else [_x383.slice])
+                                if _hn383 in _SQ383:
+                                    _rw383 += [_x383] if _sx383 else _ar383[:1]
+                                elif _hn383 == "Counter":
+                                    _rw383.append(_ast341.Name(id="int", ctx=_ast341.Load()))
+                                elif _hn383 in _DK383:
+                                    _rw383 += _ar383[1:2] or [_U383]
+                                elif _hn383 in _TP383:
+                                    _ar383 = [_e for _e in _ar383 if not (
+                                        isinstance(_e, _ast341.Constant)
+                                        and _e.value is Ellipsis)]
+                                    if _sx383:
+                                        _rw383.append(_x383)
+                                    elif (isinstance(_n383.slice, _ast341.Constant)
+                                          and type(_n383.slice.value) is int
+                                          and len(_ar383) == len(_x383.slice.elts
+                                                                 if isinstance(_x383.slice,
+                                                                               _ast341.Tuple)
+                                                                 else [_x383.slice])
+                                          and -len(_ar383) <= _n383.slice.value
+                                          < len(_ar383)):
+                                        _rw383.append(_ar383[_n383.slice.value])
+                                    else:
+                                        _rw383 += _ar383 or [_U383]
+                                else:
+                                    _rw383.append(_U383)
+                            elif _hn383 in ("str", "bytes"):
+                                _rw383.append(_ast341.Name(
+                                    id=_hn383 if _sx383 or _hn383 == "str" else "int",
+                                    ctx=_ast341.Load()))
+                            elif _hn383 in _cls341:
+                                _rw383.append(_me383.get(_hn383, {}).get("__getitem__",
+                                                                         _U383))
+                            else:
+                                _rw383.append(_U383)
+                    elif (isinstance(_n383, _ast341.Attribute)
+                          and isinstance(_n383.ctx, _ast341.Load)):
+                        for _x383 in (_ty383.get(id(_n383.value)) or []):
+                            if isinstance(_x383, _ast341.Name) and _x383.id in _cls341:
+                                _rw383 = _rw383 or []
+                                _fd383 = False
+                                for _a372 in _clo346.get(_x383.id, []):
+                                    if _n383.attr in _fa372.get(_a372, {}):
+                                        _rw383 += _fa372[_a372][_n383.attr]
+                                        _fd383 = True
+                                    if _n383.attr in _ff372.get(_a372, {}):
+                                        # the stored classes beyond the annotations' own
+                                        _hz383 = set()
+                                        for _an383 in _fa372.get(_a372, {}).get(_n383.attr,
+                                                                                []):
+                                            _hz383 |= _dp365.get(id(_an383), set())
+                                        _rw383 += [_ast341.Name(id=_c, ctx=_ast341.Load())
+                                                   for _c in sorted(_ff372[_a372][_n383.attr]
+                                                                    - _hz383)]
+                                        _fd383 = True
+                                if not _fd383:
+                                    # (#383) a class (and its bases) WITHOUT the field: an
+                                    # instance of it raises AttributeError before hashing,
+                                    # so only the file subclasses that define it count —
+                                    # unless the attribute may exist otherwise (a class-body
+                                    # binding, an outside base, a store through a receiver
+                                    # other than `self`, `setattr` / `__dict__` / `vars`)
+                                    _sb383 = [_c for _c in _cls341 if _c != _x383.id
+                                              and _x383.id in _clo346.get(_c, [])]
+                                    _ok383 = not _dy383 and _n383.attr not in _xa383
+                                    for _c in [_x383.id] + _sb383:
+                                        for _a372 in _clo346.get(_c, []):
+                                            if (_a372 not in _cls341 and _a372 != "object"
+                                                    or _n383.attr in _cb383.get(_a372, ())):
+                                                _ok383 = False
+                                            elif _c != _x383.id:
+                                                _rw383 += _fa372.get(_a372, {}).get(
+                                                    _n383.attr, [])
+                                                _rw383 += [_ast341.Name(id=_z, ctx=_ast341.Load())
+                                                           for _z in sorted(_ff372.get(
+                                                               _a372, {}).get(_n383.attr,
+                                                                              set()))]
+                                    if not _ok383:
+                                        _rw383.append(_U383)
+                    elif isinstance(_n383, _ast341.Call):
+                        _fu383 = _n383.func
+                        _a0383 = _n383.args[0] if _n383.args else None
+                        if isinstance(_fu383, _ast341.Name):
+                            _fn383 = _fu383.id
+                            if (_fn383 in _al383 and isinstance(_al383[_fn383], _ast341.Name)
+                                    and _al383[_fn383].id in _cls341):
+                                _fn383 = _al383[_fn383].id
+                            if _fn383 in _cls341 or _fn383 in _imm348:
+                                _rw383 = [_ast341.Name(id=_fn383, ctx=_ast341.Load())]
+                            elif _fn383 in _mf383:
+                                _rw383 = [_mf383[_fn383]]
+                            elif (_fn383 in _bound341 | _imp341
+                                  or not hasattr(_bi369, _fn383)):
+                                _rw383 = [_U383]
+                            elif _fn383 in ("len", "hash", "id", "ord", "int", "round"):
+                                _rw383 = [_ast341.Name(id="int", ctx=_ast341.Load())]
+                            elif _fn383 in ("str", "repr", "chr", "bin", "hex", "oct",
+                                            "format", "ascii", "input"):
+                                _rw383 = [_ast341.Name(id="str", ctx=_ast341.Load())]
+                            elif _fn383 in ("bool", "isinstance", "issubclass", "callable",
+                                            "hasattr", "all", "any"):
+                                _rw383 = [_ast341.Name(id="bool", ctx=_ast341.Load())]
+                            elif _fn383 in ("float", "bytes", "complex", "frozenset", "range",
+                                            "type", "list", "dict", "set", "bytearray",
+                                            "object"):
+                                _rw383 = [_ast341.Name(id=_fn383, ctx=_ast341.Load())]
+                            elif _fn383 in ("abs", "pow", "divmod", "sum") and _n383.args:
+                                _rw383 = [_t for _c in _n383.args
+                                          for _t in (_ty383.get(id(_c)) or [_U383])]
+                            elif _fn383 in ("min", "max") and len(_n383.args) > 1:
+                                _rw383 = [_t for _c in _n383.args
+                                          for _t in (_ty383.get(id(_c)) or [_U383])]
+                            elif (_fn383 in ("min", "max", "next", "sorted", "tuple", "iter",
+                                             "reversed", "enumerate", "filter", "zip")
+                                  and _a0383 is not None
+                                  and not isinstance(_a0383, _ast341.Starred)):
+                                _ea383 = list(_ei383.get(id(
+                                    _n383.args[1] if _fn383 == "filter"
+                                    and len(_n383.args) > 1 else _a0383)) or [_U383])
+                                if _fn383 == "enumerate":
+                                    _ea383 = [_ast341.Subscript(
+                                        value=_ast341.Name(id="#tuple", ctx=_ast341.Load()),
+                                        slice=_ast341.Tuple(elts=[
+                                            _ast341.Name(id="int", ctx=_ast341.Load()),
+                                            _ast341.Subscript(
+                                                value=_ast341.Name(id="Union",
+                                                                   ctx=_ast341.Load()),
+                                                slice=_ast341.Tuple(elts=_ea383,
+                                                                    ctx=_ast341.Load()),
+                                                ctx=_ast341.Load())], ctx=_ast341.Load()),
+                                        ctx=_ast341.Load())]
+                                elif _fn383 == "zip":
+                                    _ea383 = [_ast341.Subscript(
+                                        value=_ast341.Name(id="#tuple", ctx=_ast341.Load()),
+                                        slice=_ast341.Tuple(elts=[_ast341.Subscript(
+                                            value=_ast341.Name(id="Union", ctx=_ast341.Load()),
+                                            slice=_ast341.Tuple(
+                                                elts=list(_ei383.get(id(_c)) or [_U383]),
+                                                ctx=_ast341.Load()), ctx=_ast341.Load())
+                                            for _c in _n383.args], ctx=_ast341.Load()),
+                                        ctx=_ast341.Load())]
+                                if _fn383 in ("min", "max", "next"):
+                                    _rw383 = _ea383 + ([_U383] if _n383.keywords
+                                                       or len(_n383.args) > 1 else [])
+                                else:
+                                    _rw383 = [_ast341.Subscript(
+                                        value=_ast341.Name(
+                                            id="#list" if _fn383 == "sorted" else "#tuple"
+                                            if _fn383 == "tuple" else "#iter",
+                                            ctx=_ast341.Load()),
+                                        slice=(_ast341.Tuple(elts=[_ast341.Subscript(
+                                            value=_ast341.Name(id="Union", ctx=_ast341.Load()),
+                                            slice=_ast341.Tuple(elts=_ea383,
+                                                                ctx=_ast341.Load()),
+                                            ctx=_ast341.Load()), _ast341.Constant(
+                                                value=Ellipsis)], ctx=_ast341.Load())
+                                            if _fn383 == "tuple" else _ast341.Subscript(
+                                            value=_ast341.Name(id="Union", ctx=_ast341.Load()),
+                                            slice=_ast341.Tuple(elts=_ea383,
+                                                                ctx=_ast341.Load()),
+                                            ctx=_ast341.Load())), ctx=_ast341.Load())]
+                            elif _fn383 in ("print", "setattr", "delattr", "exec"):
+                                _rw383 = [_ast341.Name(id="None", ctx=_ast341.Load())]
+                            else:
+                                _rw383 = [_U383]
+                        elif isinstance(_fu383, _ast341.Attribute):
+                            _rw383 = []
+                            _md383 = _fu383.attr
+                            _rt383 = _ty383.get(id(_fu383.value))
+                            if (_rt383 is None and isinstance(_fu383.value, _ast341.Constant)):
+                                _rt383 = [_ast341.Name(id=type(_fu383.value.value).__name__,
+                                                       ctx=_ast341.Load())]
+                            for _x383 in (_rt383 or [_U383]):
+                                if _x383 is _B383:
+                                    _rw383.append(_B383)
+                                    continue
+                                _hn383 = (_x383.id if isinstance(_x383, _ast341.Name) else
+                                          _x383.attr if isinstance(_x383, _ast341.Attribute)
+                                          else "")
+                                _ar383 = []
+                                if isinstance(_x383, _ast341.Subscript):
+                                    _hv383 = _x383.value
+                                    _hn383 = (_hv383.id if isinstance(_hv383, _ast341.Name) else
+                                              _hv383.attr if isinstance(_hv383, _ast341.Attribute)
+                                              else "")
+                                    _ar383 = (list(_x383.slice.elts)
+                                              if isinstance(_x383.slice, _ast341.Tuple)
+                                              else [_x383.slice])
+                                _dv383 = [_t for _c in _n383.args[1:2]
+                                          for _t in (_ty383.get(id(_c)) or [_U383])]
+                                if _hn383 in _cls341 and not _ar383:
+                                    _rw383.append(_me383.get(_hn383, {}).get(_md383, _U383))
+                                elif _hn383 in _DK383 and _ar383:
+                                    _vt383 = ([_ast341.Name(id="int", ctx=_ast341.Load())]
+                                              if _hn383 == "Counter" else _ar383[1:2] or [_U383])
+                                    if _md383 == "get":
+                                        _rw383 += _vt383 + (_dv383 or [_ast341.Name(
+                                            id="None", ctx=_ast341.Load())])
+                                    elif _md383 in ("pop", "setdefault", "__getitem__"):
+                                        _rw383 += _vt383 + _dv383
+                                    elif _md383 == "copy":
+                                        _rw383.append(_x383)
+                                    elif _md383 in ("keys", "values", "items"):
+                                        _rw383.append(_ast341.Subscript(
+                                            value=_ast341.Name(id="#" + _md383,
+                                                               ctx=_ast341.Load()),
+                                            slice=(_ar383[0] if _md383 == "keys" else
+                                                   _vt383[0] if _md383 == "values" else
+                                                   _ast341.Subscript(
+                                                       value=_ast341.Name(
+                                                           id="#tuple", ctx=_ast341.Load()),
+                                                       slice=_ast341.Tuple(
+                                                           elts=[_ar383[0], _vt383[0]],
+                                                           ctx=_ast341.Load()),
+                                                       ctx=_ast341.Load())),
+                                            ctx=_ast341.Load()))
+                                    elif _md383 in ("clear", "update"):
+                                        _rw383.append(_ast341.Name(id="None",
+                                                                   ctx=_ast341.Load()))
+                                    else:
+                                        _rw383.append(_U383)
+                                elif _hn383 in _IT383 and _ar383:
+                                    if _md383 == "pop":
+                                        _rw383 += _ar383[:1]
+                                    elif _md383 in ("copy", "union", "intersection",
+                                                    "difference", "symmetric_difference"):
+                                        _rw383.append(_x383)
+                                    elif _md383 in ("index", "count"):
+                                        _rw383.append(_ast341.Name(id="int", ctx=_ast341.Load()))
+                                    elif _md383 in ("append", "extend", "insert", "remove",
+                                                    "sort", "reverse", "clear", "add",
+                                                    "discard", "update", "appendleft"):
+                                        _rw383.append(_ast341.Name(id="None",
+                                                                   ctx=_ast341.Load()))
+                                    else:
+                                        _rw383.append(_U383)
+                                elif _hn383 in ("str", "bytes") and not _ar383:
+                                    if _md383 in ("split", "rsplit", "splitlines"):
+                                        _rw383.append(_ast341.Subscript(
+                                            value=_ast341.Name(id="#list", ctx=_ast341.Load()),
+                                            slice=_ast341.Name(id=_hn383, ctx=_ast341.Load()),
+                                            ctx=_ast341.Load()))
+                                    elif _md383 in ("partition", "rpartition"):
+                                        _rw383.append(_ast341.Subscript(
+                                            value=_ast341.Name(id="#tuple", ctx=_ast341.Load()),
+                                            slice=_ast341.Name(id=_hn383, ctx=_ast341.Load()),
+                                            ctx=_ast341.Load()))
+                                    elif _md383 in ("find", "rfind", "index", "rindex",
+                                                    "count"):
+                                        _rw383.append(_ast341.Name(id="int", ctx=_ast341.Load()))
+                                    elif (_md383.startswith("is") or _md383 in (
+                                            "startswith", "endswith")):
+                                        _rw383.append(_ast341.Name(id="bool",
+                                                                   ctx=_ast341.Load()))
+                                    elif _md383 in ("encode", "decode"):
+                                        _rw383.append(_ast341.Name(
+                                            id="bytes" if _md383 == "encode" else "str",
+                                            ctx=_ast341.Load()))
+                                    else:
+                                        _rw383.append(_ast341.Name(id=_hn383,
+                                                                   ctx=_ast341.Load()))
+                                else:
+                                    _rw383.append(_U383)
+                        else:
+                            _rw383 = [_U383]
+                    elif isinstance(_n383, (_ast341.Assign, _ast341.AugAssign)):
+                        _vr383 = list(_ty383.get(id(_n383.value)) or [_U383])
+                        for _tg383 in (_n383.targets if isinstance(_n383, _ast341.Assign)
+                                       else [_n383.target]):
+                            if isinstance(_tg383, (_ast341.Name, _ast341.Tuple, _ast341.List)):
+                                _bd383.append((_tg383, _vr383))
+                    elif isinstance(_n383, (_ast341.For, _ast341.AsyncFor,
+                                            _ast341.comprehension)):
+                        _bd383.append((_n383.target, list(_ei383.get(id(_n383.iter))
+                                                         or [_U383])))
+                    elif isinstance(_n383, (_ast341.With, _ast341.AsyncWith)):
+                        for _w383 in _n383.items:
+                            if _w383.optional_vars is not None:
+                                _bd383.append((_w383.optional_vars, [_U383]))
+                    # bindings: a name target takes the types; a tuple / list target
+                    # takes, per position, the components of a `Tuple[..]` value (all of
+                    # them when the arity differs), else the value's element.
+                    while _bd383:
+                        _tg383, _tz383 = _bd383.pop()
+                        if isinstance(_tg383, _ast341.Name):
+                            if _tg383.id in _ba372 or _tg383.id == _self346:
+                                continue
+                            for _t383 in _tz383:
+                                if _t383 is _B383:
+                                    continue
+                                _dk383 = _ast341.dump(_t383)
+                                if _dk383 not in _tk383.setdefault(_tg383.id, set()):
+                                    _tk383[_tg383.id].add(_dk383)
+                                    _tn383.setdefault(_tg383.id, []).append(_t383)
+                            if len(_tn383.get(_tg383.id, [])) > 24:
+                                _tn383[_tg383.id] = [_U383]
+                        elif isinstance(_tg383, (_ast341.Tuple, _ast341.List)):
+                            _pz383 = [[] for _e in _tg383.elts]
+                            for _t383 in _tz383:
+                                _wq383 = [_t383]
+                                _g383 = 0
+                                while _wq383 and _g383 < 64:
+                                    _g383 += 1
+                                    _x383 = _wq383.pop()
+                                    if _x383 is _B383:
+                                        continue
+                                    if (isinstance(_x383, _ast341.Constant)
+                                            and isinstance(_x383.value, str)):
+                                        try:
+                                            _wq383.append(_ast341.parse(
+                                                _x383.value, mode="eval").body)
+                                        except (SyntaxError, ValueError):
+                                            _wq383.append(_U383)
+                                        continue
+                                    if (isinstance(_x383, _ast341.Name)
+                                            and _x383.id in _al383):
+                                        _wq383.append(_al383[_x383.id])
+                                        continue
+                                    _hv383 = (_x383.value if isinstance(_x383, _ast341.Subscript)
+                                              else None)
+                                    _hn383 = (_hv383.id if isinstance(_hv383, _ast341.Name) else
+                                              _hv383.attr if isinstance(_hv383,
+                                                                        _ast341.Attribute)
+                                              else "")
+                                    _ar383 = ((list(_x383.slice.elts)
+                                               if isinstance(_x383.slice, _ast341.Tuple)
+                                               else [_x383.slice]) if _hv383 is not None else [])
+                                    if _hn383 in ("Optional", "Union"):
+                                        _wq383 += _ar383
+                                    elif _hn383 in _TP383:
+                                        _ar383 = [_e for _e in _ar383 if not (
+                                            isinstance(_e, _ast341.Constant)
+                                            and _e.value is Ellipsis)]
+                                        for _i383, _z383 in enumerate(_pz383):
+                                            _z383 += ([_ar383[_i383]]
+                                                      if len(_ar383) == len(_pz383)
+                                                      and len(_x383.slice.elts if isinstance(
+                                                          _x383.slice, _ast341.Tuple)
+                                                          else [_x383.slice]) == len(_ar383)
+                                                      else _ar383 or [_U383])
+                                    elif _hn383 in _IT383 or _hn383 in _DK383:
+                                        for _z383 in _pz383:
+                                            _z383.append(_ar383[0] if _ar383 else _U383)
+                                    elif (isinstance(_x383, _ast341.Name)
+                                          and _x383.id in ("str", "bytes")):
+                                        for _z383 in _pz383:
+                                            _z383.append(_x383)
+                                    else:
+                                        for _z383 in _pz383:
+                                            _z383.append(_U383)
+                            for _e383, _z383 in zip(_tg383.elts, _pz383):
+                                if isinstance(_e383, _ast341.Starred):
+                                    _bd383.append((_e383.value, [_U383]))
+                                elif isinstance(_e383, (_ast341.Name, _ast341.Tuple,
+                                                        _ast341.List)):
+                                    # a nested target unpacks this position's value
+                                    _bd383.append((_e383, _z383 or (
+                                        [_B383] if _tz383 and all(_t is _B383 for _t in _tz383)
+                                        else [_U383])))
+                    if _rw383 is None:
+                        continue
+                    # atoms: through string annotations, aliases, `|`, Optional / Union,
+                    # Annotated / Final / ClassVar
+                    _at383 = []
+                    _sn383 = set()
+                    _wq383 = list(_rw383)
+                    _g383 = 0
+                    while _wq383 and _g383 < 256:
+                        _g383 += 1
+                        _x383 = _wq383.pop()
+                        _hv383 = _x383.value if isinstance(_x383, _ast341.Subscript) else None
+                        _hn383 = (_hv383.id if isinstance(_hv383, _ast341.Name) else
+                                  _hv383.attr if isinstance(_hv383, _ast341.Attribute) else "")
+                        if isinstance(_x383, _ast341.Constant) and isinstance(_x383.value, str):
+                            try:
+                                _wq383.append(_ast341.parse(_x383.value, mode="eval").body)
+                            except (SyntaxError, ValueError):
+                                _wq383.append(_U383)
+                        elif isinstance(_x383, _ast341.Constant) and _x383.value is None:
+                            _wq383.append(_ast341.Name(id="None", ctx=_ast341.Load()))
+                        elif isinstance(_x383, _ast341.Name) and _x383.id in _al383:
+                            _wq383.append(_al383[_x383.id])
+                        elif isinstance(_x383, _ast341.BinOp) and isinstance(_x383.op,
+                                                                              _ast341.BitOr):
+                            _wq383 += [_x383.left, _x383.right]
+                        elif _hn383 in ("Optional", "Union"):
+                            _wq383 += (list(_x383.slice.elts)
+                                       if isinstance(_x383.slice, _ast341.Tuple)
+                                       else [_x383.slice])
+                        elif _hn383 in ("Annotated", "Final", "ClassVar"):
+                            _wq383.append(_x383.slice.elts[0]
+                                          if isinstance(_x383.slice, _ast341.Tuple)
+                                          and _x383.slice.elts else _x383.slice)
+                        else:
+                            # an `Any` / `object` / TypeVar reached THROUGH a container
+                            # (`Dict[str, Any]`'s `m[k]` / `.get(k)` / element) is
+                            # underivable ("#UND"); only a value DECLARED so reads "#UNK"
+                            if (isinstance(_n383, (_ast341.Subscript, _ast341.Call,
+                                                   _ast341.Starred))
+                                    and isinstance(_x383, (_ast341.Name, _ast341.Attribute))
+                                    and (_x383.id if isinstance(_x383, _ast341.Name)
+                                         else _x383.attr) not in _cls341
+                                    and _kv381.get(_x383.id if isinstance(_x383, _ast341.Name)
+                                                   else _x383.attr) == "?"):
+                                _x383 = _U383
+                            _dk383 = _ast341.dump(_x383)
+                            if _dk383 not in _sn383:
+                                _sn383.add(_dk383)
+                                _at383.append(_x383)
+                    if _wq383 or len(_at383) > 24:
+                        _at383 = [_U383]
+                    _ty383[id(_n383)] = _at383
+                    # the element of an iteration over this expression
+                    _el383 = []
+                    for _x383 in _at383:
+                        if _x383 is _B383:
+                            _el383.append(_B383)
+                        elif isinstance(_x383, _ast341.Subscript):
+                            _hv383 = _x383.value
+                            _hn383 = (_hv383.id if isinstance(_hv383, _ast341.Name) else
+                                      _hv383.attr if isinstance(_hv383, _ast341.Attribute)
+                                      else "")
+                            _ar383 = (list(_x383.slice.elts)
+                                      if isinstance(_x383.slice, _ast341.Tuple)
+                                      else [_x383.slice])
+                            if _hn383 in _IT383 or _hn383 in _DK383:
+                                _el383 += _ar383[:1]
+                            elif _hn383 in _TP383:
+                                _el383 += [_e for _e in _ar383 if not (
+                                    isinstance(_e, _ast341.Constant)
+                                    and _e.value is Ellipsis)] or [_U383]
+                            else:
+                                _el383.append(_U383)
+                        elif isinstance(_x383, _ast341.Name) and _x383.id == "str":
+                            _el383.append(_x383)
+                        elif isinstance(_x383, _ast341.Name) and _x383.id in ("bytes",
+                                                                               "bytearray",
+                                                                               "range"):
+                            _el383.append(_ast341.Name(id="int", ctx=_ast341.Load()))
+                        else:
+                            _el383.append(_U383)
+                    # (as above) an element `Any` / `object` / TypeVar is underivable
+                    _ex383 = []
+                    _wq383 = list(_el383)
+                    _g383 = 0
+                    while _wq383 and _g383 < 64:
+                        _g383 += 1
+                        _x383 = _wq383.pop()
+                        _hv383 = _x383.value if isinstance(_x383, _ast341.Subscript) else None
+                        _hn383 = (_hv383.id if isinstance(_hv383, _ast341.Name) else
+                                  _hv383.attr if isinstance(_hv383, _ast341.Attribute) else "")
+                        if _hn383 in ("Optional", "Union"):
+                            _wq383 += (list(_x383.slice.elts)
+                                       if isinstance(_x383.slice, _ast341.Tuple)
+                                       else [_x383.slice])
+                        elif isinstance(_x383, _ast341.BinOp) and isinstance(_x383.op,
+                                                                              _ast341.BitOr):
+                            _wq383 += [_x383.left, _x383.right]
+                        elif (isinstance(_x383, (_ast341.Name, _ast341.Attribute))
+                              and (_x383.id if isinstance(_x383, _ast341.Name)
+                                   else _x383.attr) not in _cls341
+                              and _kv381.get(_x383.id if isinstance(_x383, _ast341.Name)
+                                             else _x383.attr) == "?"):
+                            _ex383.append(_U383)
+                        else:
+                            _ex383.append(_x383)
+                    _el383 = _ex383 + ([_U383] if _wq383 else [])
+                    _ei383[id(_n383)] = _el383 or [_U383]
+            # each expression's classes (componentwise through tuples) join `_eh372`
+            for _n383 in _po383:
+                if id(_n383) not in _ty383:
+                    continue
+                _cz383 = set()
+                _qz383 = list(_ty383[id(_n383)])
+                _g383 = 0
+                while _qz383 and _g383 < 256:
+                    _g383 += 1
+                    _x383 = _qz383.pop()
+                    if isinstance(_x383, _ast341.Constant) and isinstance(_x383.value, str):
+                        try:
+                            _qz383.append(_ast341.parse(_x383.value, mode="eval").body)
+                        except (SyntaxError, ValueError):
+                            _cz383.add("#UNK")
+                    elif isinstance(_x383, _ast341.Constant) and _x383.value is None:
+                        _cz383.add("None")
+                    elif isinstance(_x383, _ast341.Name) and _x383.id in _al383:
+                        _qz383.append(_al383[_x383.id])
+                    elif isinstance(_x383, (_ast341.Name, _ast341.Attribute)):
+                        _cz383.add(_x383.id if isinstance(_x383, _ast341.Name) else _x383.attr)
+                        # an UN-PARAMETERISED `tuple` / `Tuple` may hold any components:
+                        # any (unhashable) class of the file, as `Any` does
+                        if ((_x383.id if isinstance(_x383, _ast341.Name) else _x383.attr)
+                                in ("tuple", "Tuple") and (_x383.id if isinstance(
+                                    _x383, _ast341.Name) else _x383.attr) not in _cls341):
+                            _cz383.add("#UNK")
+                    elif isinstance(_x383, _ast341.BinOp) and isinstance(_x383.op,
+                                                                          _ast341.BitOr):
+                        _qz383 += [_x383.left, _x383.right]
+                    elif isinstance(_x383, _ast341.Subscript):
+                        _hv383 = _x383.value
+                        _hn383 = (_hv383.id if isinstance(_hv383, _ast341.Name) else
+                                  _hv383.attr if isinstance(_hv383, _ast341.Attribute) else "")
+                        _ar383 = (list(_x383.slice.elts)
+                                  if isinstance(_x383.slice, _ast341.Tuple) else [_x383.slice])
+                        if _hn383 in ("Optional", "Union"):
+                            _qz383 += _ar383
+                        elif _hn383 in ("Annotated", "Final", "ClassVar"):
+                            _qz383 += _ar383[:1]
+                        elif _hn383 in _TP383:
+                            _qz383 += [_e for _e in _ar383 if not (
+                                isinstance(_e, _ast341.Constant) and _e.value is Ellipsis)]
+                        else:
+                            _cz383.add(_hn383)
+                if _qz383:
+                    _cz383.add("#UNK")
+                _eh372.setdefault(id(_n383), set()).update(_cz383)
             _dt365 = {}
             for _nm372, _cz372 in _it372.items():
                 _dt365.setdefault(_nm372, set()).update(_cz372)
@@ -5606,13 +6355,27 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _hc349 |= _eh372.get(id(_y365), set())
                             if isinstance(_y365, _ast341.Name):
                                 _hc349 |= _dt365.get(_y365.id, set())
-                                if (_iy365 and {_h.lower() for _h in _hh346.get(_y365.id, set())}
-                                        & _UB365):
+                                # (#382) a container-bound name, at any depth
+                                if ({_h.lower() for _h in _hh346.get(_y365.id, set())
+                                     if _h not in _cls341} & _UB365):
                                     _hc349.add("#UB")
-                            if _iy365 and isinstance(_y365, (
+                            # (#382) a list / dict / set display, at any depth
+                            if isinstance(_y365, (
                                     _ast341.List, _ast341.ListComp, _ast341.Dict,
                                     _ast341.DictComp, _ast341.Set, _ast341.SetComp)):
                                 _hc349.add("#UB")
+                    # (#381 / #382 / #383) each outside class name by its real class: a
+                    # container / `__hash__ = None` ("U") is unhashable, an unknown one
+                    # (`Any`, `object`, a TypeVar, an unknown import: "?") may be any class
+                    for _c382 in list(_hc349):
+                        if _c382 in ("#list", "#set", "#dict", "#keys", "#items"):
+                            _hc349.add("#UB")
+                        elif (_c382[:1] != "#" and _c382 not in _cls341
+                              and _c382 not in _imm348):
+                            if _kv381.get(_c382, "?") == "U":
+                                _hc349.add("#UB")
+                            elif _kv381.get(_c382, "?") == "?":
+                                _hc349.add("#UNK")
                     if "#UNK" in _hc349:
                         _hc349 |= _u349
                     _hc349 = {_c if _c != "#UB" else "a list / dict / set"
@@ -5623,7 +6386,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"`{_ast341.unparse(_h349)}` (an instance of {sorted(_hc349)}) "
                             f"is HASHED by `{_ast341.unparse(_n346)}` (a set element, a dict "
                             f"key, a membership test or subscript of a set / dict, or "
-                            f"`hash(...)`). Its class has `__hash__ = None` (an explicit "
+                            f"`hash(...)`). Its class has — or, when it cannot be derived, "
+                            f"may have (routes #381-#383) — `__hash__ = None` (a list / dict "
+                            f"/ set / stdlib container or a subclass of one, an explicit "
                             f"`__hash__ = None`, a `@dataclass` with `eq` and without "
                             f"`frozen` / `unsafe_hash`, an `__eq__` without `__hash__`, or "
                             f"an unhashable field of a NamedTuple / frozen record), so "
