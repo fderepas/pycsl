@@ -2577,7 +2577,7 @@ unreferenced in `m` PROVED `{d}`), and an unresolved base name in a file with a 
 star import (`from collections import *`) is refused. File classes, user-module classes and other
 unresolved names are routes #341 / #345's.
 Census (both corpora, the 53 mirrors, `pycsl_lib`): 4 such bases, none refused (classes named only
-by `__main__`, or an int-mixin enum). Witnesses `5420`-`5435` (`5434` / `5435` new two-level latents), `5448`-`5450` (star import, dependency module, re-bound import); controls `5460`-`5463`. See
+by `__main__`, or an int-mixin enum). Witnesses `5420`-`5435` (`5434` / `5435` new two-level latents), `5448`-`5452` (star import, dependency module, re-bound import, star import in a dependency, transitive re-export); controls `5460`-`5463`. See
 `getting-better/systematic-soundness-r3.md` for why the rule is a polarity flip (admit what is
 modelled) instead of another deny-list entry.
 
