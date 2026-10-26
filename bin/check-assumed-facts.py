@@ -130,6 +130,11 @@ def main():
     tmp = None
     if not emit:
         tmp = tempfile.mkdtemp(prefix="assumedfacts_")
+        # (run #3) the private sweep is a full emitted corpus (~4600 inodes); it was never
+        # removed, and 73 leaked copies filled /tmp's inodes to 99% (2026-10-26). Remove it on
+        # every exit path.
+        import atexit, shutil
+        atexit.register(shutil.rmtree, tmp, True)
         emit = tmp
         rc = subprocess.run([os.path.join(ROOT, "bin", "byte-diff-sweep.sh"), emit],
                             cwd=ROOT, capture_output=True, text=True).returncode
