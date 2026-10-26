@@ -7767,6 +7767,42 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _q376.extend(_ast376.iter_child_nodes(_y376))
             if _own376 & {"__getattr__", "__getattribute__"}:
                 _own376.add("*")
+            # (#49) gen #37, SYSTEMATIC RULE GD (systematic-soundness-r3.md; routes #388 /
+            # #389) — a name-mangled attribute `self.__x` stored in the class lives at
+            # `_<Class>__x`, which is what a literal `getattr(o, "_C__x", d)` finds
+            # (measured g12: PROVED the default 0, CPython 5).
+            for _y376 in _ast376.walk(_k376):
+                if (isinstance(_y376, _ast376.Attribute) and _y376.attr.startswith("__")
+                        and not _y376.attr.endswith("__")):
+                    _own376.add("_" + _k376.name.lstrip("_") + _y376.attr)
+        # (#49) gen #37, SYSTEMATIC RULE GD — THE ABSENT-ATTRIBUTE ANSWER IS GIVEN ONLY WHEN
+        # THE WHOLE LOOKUP IS MODELLED (polarity flip of route #376: admit the default only
+        # when every place CPython looks is known, instead of refusing only the bindings
+        # found). (1) A base the file does not define (a builtin exception, `abc.ABC`,
+        # `typing.NamedTuple`, any imported class) contributes class attributes the model
+        # never reads: measured (route #388, red team 30, PROVED at 7bf752d4e)
+        # `getattr(e, "args", 0)` over `class E(Exception)`, `getattr(r, "_abc_impl", 0)`
+        # over `R(ABC)`, `getattr(p, "count", 0)` over a NamedTuple proved the default
+        # (CPython `()` / an `_abc_data` / a method). Such a class answers "*" (unknown);
+        # `object` alone is known (its names are already refused by route #376). (2) A
+        # dynamic attribute store anywhere outside the `__main__` driver -- `setattr` /
+        # `delattr` / `vars(..)` / `.__dict__` / `.__setattr__` -- creates instance
+        # attributes no field list records (route #389: `setattr(self, "k", 5)` in
+        # `__init__` / `__post_init__`, or with a computed name, proved `getattr(r, "k", 0)
+        # == 0`, CPython 5): then every class answers "*". CENSUS (both corpora, 53 mirrors,
+        # `pycsl_lib`): no PASS file has both a 3-argument `getattr` and a dynamic store.
+        _dyn376 = False
+        for _y376 in _t376.body:
+            if (isinstance(_y376, _ast376.If) and isinstance(_y376.test, _ast376.Compare)
+                    and isinstance(_y376.test.left, _ast376.Name)
+                    and _y376.test.left.id == "__name__"):
+                continue
+            for _z376 in _ast376.walk(_y376):
+                if ((isinstance(_z376, _ast376.Call) and isinstance(_z376.func, _ast376.Name)
+                     and _z376.func.id in ("setattr", "delattr", "vars"))
+                        or (isinstance(_z376, _ast376.Attribute)
+                            and _z376.attr in ("__dict__", "__setattr__", "__delattr__"))):
+                    _dyn376 = True
         _cl376 = {}
         for _cn376 in _cb376:
             _all376 = set(_cb376[_cn376])
@@ -7780,6 +7816,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _a376 in _cb376:
                     _all376 |= _cb376[_a376]
                     _wl376.extend(_bs376.get(_a376, ()))
+                elif _a376 != "object":
+                    _all376.add("*")
+            if _dyn376:
+                _all376.add("*")
             _cl376.setdefault(_cn376.lower(), set()).update(_all376)
         transpiler.class_binds_r376 = _cl376
         # ROUTE #373 — the names of the defs nested (at any depth) in a METHOD: Module 5

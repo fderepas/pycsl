@@ -2577,6 +2577,22 @@ by `__main__`, or an int-mixin enum). Witnesses `5420`-`5435` (`5434` / `5435` n
 `getting-better/systematic-soundness-r3.md` for why the rule is a polarity flip (admit what is
 modelled) instead of another deny-list entry.
 
+### 7.43 `getattr`'s default is the answer only when the whole lookup is modelled (systematic rule GD, routes #388 / #389, gen #37)
+
+Route #376 refused `getattr(o, "k", d)` on a known record when a class body of the file's MRO
+binds `k`; every OTHER place CPython looks was assumed empty, so the default was answered
+(measured, red team 30, all PROVED at `7bf752d4e`): a base the file does not define --
+`getattr(e, "args", 0)` over `class E(Exception)` (CPython `()`), `getattr(r, "_abc_impl", 0)`
+over `R(ABC)`, `getattr(p, "count", 0)` over a `NamedTuple` (a method) -- an attribute created
+by `setattr(self, "k", 5)` in `__init__` / `__post_init__` or with a computed name (CPython 5), and
+the mangled `_R__k` of a `self.__k` store (CPython 5). RULE (polarity flip, one place: the
+`class_binds_r376` map built in `_run_pipeline`): a class answers UNKNOWN (so a `getattr` default
+on it is refused, `PYCSL-R376-GETATTR-CLASS-BINDING`) when its MRO reaches a base that is not a
+file class and not `object`, or when any code outside the `__main__` driver calls `setattr` /
+`delattr` / `vars` or touches `.__dict__` / `.__setattr__` / `.__delattr__`; and a `self.__x`
+attribute of class `C` binds `_C__x`. Census (both corpora, 53 mirrors, `pycsl_lib`): no PASS
+file affected. Witnesses `5436`-`5442`; controls `5464`, `5465`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

@@ -14715,7 +14715,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 f"getattr({_ga_o}, {_ga_n!r}, ...): '{_ga_n}' is not an instance field of "
                 f"'{_ga_t}', but it is not ABSENT either: a class body in its MRO binds it "
                 f"(a class attribute, method, property or nested class), `object` has it, "
-                f"or the MRO has a `__getattr__` / `__getattribute__`. CPython's lookup finds that binding before the default, while "
+                f"or the MRO has a `__getattr__` / `__getattribute__`, a base this file does not "
+                f"define (its class attributes are not read), or the file stores attributes "
+                f"dynamically (`setattr` / `delattr` / `vars` / `__dict__`, systematic rule GD, "
+                f"routes #388 / #389). CPython's lookup finds that binding before the default, while "
                 f"the model answered the default (route #376: `k = -1` in the class proved "
                 f"`getattr(r, \"k\", 0) >= 0`). The class attribute's value is not "
                 f"modelled, so this is refused: read the attribute directly, or rename it.",

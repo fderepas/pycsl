@@ -4598,6 +4598,19 @@ a builtin `BaseException` subclass nor `int` / `str` beside a base of $M$ from `
 is undefined (refused, `PYCSL-S1-UNMODELLED-BASE`). File classes and user-module bases are
 unaffected.
 
+### §T.6.54  `getattr` defaults over a partially modelled lookup (systematic rule GD, gen #37)
+
+_Corresponds to `annotations.md` §7.43._
+
+Extends route #376's side condition on `getattr(o, n, d)` with $o$ a known record of class $C$ and
+$n$ not a field of $C$ (ABSENT): the per-class map $B(C)$ (`class_binds_r376`) additionally
+contains `*` when the base closure of $C$ over the file's classes reaches a base name that is not a
+file class and not `object`, or when the module outside the top-level `if __name__ ...:` driver
+contains a call of `setattr` / `delattr` / `vars` or an attribute `__dict__` / `__setattr__` /
+`__delattr__`; and $B(C)$ contains `_C__x` for every attribute `__x` (not a dunder) under $C$'s
+body. If `*` $\in B(C)$ or $n \in B(C)$ the translation is undefined (refused); otherwise it is
+unchanged (the default $d$).
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
