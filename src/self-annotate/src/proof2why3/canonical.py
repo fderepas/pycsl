@@ -124,12 +124,28 @@ def _normalize_names(t: Term) -> Term:
 def _normalize_type_string(ty: str) -> str:
     return ""
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _iff_app_to_binop(t: Term) -> Term:
-    return None
+    if isinstance(t, App) and t.head == "iff" and len(t.args) == 2:
+        return BinOp("iff", _iff_app_to_binop(t.args[0]),
+                     _iff_app_to_binop(t.args[1]))
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_iff_app_to_binop(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _iff_app_to_binop(t.lhs),
+                     _iff_app_to_binop(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _iff_app_to_binop(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty,
+                     body=_iff_app_to_binop(t.body))
+    raise TypeError(f"_iff_app_to_binop: unknown {type(t)}")
 
 # TERM CARRIER, MODULE-LEVEL (self-tcb-reduction, relaunch #17): CONVERTED, and FULLY
 # FAITHFUL. Verbatim body port of the LIVE `canonicalize`. The `val` it replaces was
