@@ -1,17 +1,12 @@
-r"""Test 5390 -- gen #37 route #381 (expected PASS): CONTROL: hashable outside bases (Exception, int, ABC, NamedTuple, Generic[T], UserString, abc.Sequence) (CPython ok).
+r"""Test 5390 -- gen #37 route #381 (expected PASS): CONTROL: hashable outside bases the model has (Exception, ABC, NamedTuple, Generic[T]) (CPython ok). The int / UserString / abc.Sequence bases of the original r381s control are refused by systematic rule S1 (unmodelled base) and live in 5394.
 """
 # pycsl-expected: PASS
 from abc import ABC
 from typing import NamedTuple, Generic, TypeVar
-from collections import UserString
-from collections.abc import Sequence, Iterator
 
 T = TypeVar("T")
 
 class E(Exception):
-    pass
-
-class I(int):
     pass
 
 class A(ABC):
@@ -23,20 +18,11 @@ class P(NamedTuple):
 class G(Generic[T]):
     pass
 
-class S(UserString):
-    pass
-
-class Q(Sequence):
-    def __getitem__(self, i: int) -> int:
-        return 0
-    def __len__(self) -> int:
-        return 0
-
 #@ no_exception \all
 #@ ensures \result == 1
-def g(e: E, i: I, a: A, p: P, q: G, s: S, w: Q) -> int:
-    t = {e, i, a, p, q, s, w}
+def g(e: E, a: A, p: P, q: G) -> int:
+    t = {e, a, p, q}
     return 1
 
 if __name__ == "__main__":
-    print(g(E(), I(3), A(), P(1), G(), S("x"), Q()))
+    print(g(E(), A(), P(1), G()))
