@@ -4691,6 +4691,77 @@ constants (undefined otherwise). For a hashed $h$ at node $n$: when `#UNK` $\in 
 \kappa(h)$ and $n \notin G$, also `#UB`; $h$ is refused when $\kappa(h) \cap (U \cup
 \{\texttt{\#UB}\}) \neq \emptyset$.
 
+### §T.6.59  Base names resolved by scope (route #392, gen #37)
+
+_Corresponds to `annotations.md` §7.48._
+
+Refusals only, inline in `_run_pipeline` before S1 (§T.6.53; mirror twin `\trusted`; no
+emission change). For every class statement $K$ of the main file and of each dependency module,
+and each base whose head (through one subscript and an attribute chain) is a name $x$, let
+$s_0$ be the scope enclosing $K$ and $s_0, s_1, \ldots$ the chain of enclosing scopes in which
+class bodies other than $s_0$ are skipped. $B(s)(x) \subseteq \{\mathit{class}, \mathit{import},
+\mathit{other}, \mathit{global}\}$ collects the bindings of $x$ in $s$ (its parameters, and its
+body without entering nested def / class / lambda bodies: a `class` statement, an import, a
+`global` declaration, any other store / def / except / match capture / `nonlocal`). $\rho(x)$ is
+read at the first $s_i$ with $B(s_i)(x) \setminus \{\mathit{global}\} \neq \emptyset$ (a
+$\mathit{global}$ in a function jumps to the module): $\mathit{class}$ when that set is
+$\{\mathit{class}\}$, $\mathit{import}$ when it is $\{\mathit{import}\}$, $\mathit{other}$
+otherwise; when no scope binds $x$, $\mathit{builtin}$ if `builtins` has $x$, else $\mathit{star}$
+if the module has a standard-library star import, else $\mathit{unbound}$. S1 resolves a base
+through the imports only when $\rho = \mathit{import}$, as `builtins.x` only when $\rho =
+\mathit{builtin}$ and as a star-import name only when $\rho = \mathit{star}$. In §T.6.46 / §T.6.57,
+a `Name` base $x$ of a main-file class with $\rho(x) \in \{\mathit{import}, \mathit{builtin},
+\mathit{star}\}$ while a class named $x$ exists in the file is the token `x@` in the base lists
+(so in $\mathit{clo}$ and the C3 MRO), and $\beta(\texttt{x@})$ is computed from $q(x)$ as for
+any outside base.
+
+### §T.6.60  Sources of a hashed value's class: module globals, class attributes, stdlib objects, copies, iterables (route #394, gen #37)
+
+_Corresponds to `annotations.md` §7.49._
+
+Refusals only, in the inline block of §T.6.57 (mirror twin `\trusted`; no emission change).
+New atoms: `#H` (a hashable object, no class), `#UNK` as an element type. $\gamma(g)$ for a
+module name bound once (§T.6.57's module binding map, no `global g`, not imported) and
+$\gamma_C(k)$ for a name bound once at the top of the body of a file class $C$ (a single
+definition of $C$) are computed (two passes, in binding order) by a post-order map $\mu$ over the
+initializer: a constant / f-string $\mapsto$ its type; a tuple display $\mapsto$
+`#tuple[`$\mu$ of components`]`; a lambda, a module class / def name $\mapsto$ `#H`; a call of a
+module file class or functional namedtuple $\mapsto$ that class, of an unbound builtin
+`frozenset` / `str` / `int` / `float` / `bool` / `bytes` / `complex` / `range` $\mapsto$ that
+type, of `list` / `sorted` / `set` / `dict` $\mapsto$ `#list` / `#set` / `#dict` of `#UND`; a
+name in $\gamma$ $\mapsto \gamma$; an operator over primitives $\mapsto$ their types (a comparison
+`bool`); `D.k` $\mapsto \gamma_D(k)$; a list / set / dict display $\mapsto$ `#list[E]` / `#set[E]`
+/ `#dict[K, V]` with $E, K, V$ the unions of the element / key / value $\mu$ when the root
+display is the whole initializer and the bound name is READ-ONLY (§7.49), else `#UNK`; anything
+else `#UND`. Class bodies: an undecorated / static / class method or a nested class $\mapsto$
+`#H`; a sole `@property` $\mapsto$ its `-> T`; an `Enum` member (a non-sunder name of a class
+whose closure reaches an `enum.` base) $\mapsto C$. $\iota(e)$ for a load rooted at a
+standard-library import or an unbound builtin name: the real object $o$ (imported as §T.6.57):
+a primitive constant $\mapsto$ its type, `hash(o)` succeeding $\mapsto$ `#H`, else `#UND`. In
+$\tau$ (§T.6.57): a name load that is not a parameter (of the function or of any def / lambda
+nested in it), a nested def / class name, a local, or a binding of an enclosing function
+$\mapsto \gamma(x)$, else $\iota$; `C.k` for a module file class $C$ $\mapsto \gamma_A(k)$ of the
+first class $A$ of $C$'s MRO whose body binds $k$ (`#UND` past an outside base, when $k$ is stored
+through a non-`self` receiver, or with dynamic attribute stores); `o.k` with $o$ of class $C$ and
+no field $k$ in $C$'s closure $\mapsto$ the union over $C$ and its file subclasses of the first
+binder's $\gamma_A(k)$ (same exclusions); `copy.copy(x)` / `copy.deepcopy(x)` /
+`dataclasses.replace(x, ..)` (callee resolved through a stdlib import, not shadowed)
+$\mapsto \tau(x)$. At a call `set` / `frozenset` / `Counter` / `dict` / `.fromkeys` whose first
+argument $a$ is neither a display nor a §T.6.44 annotated name, the hashed values are the
+element types $\epsilon(a)$ (for `dict`: the first component of each `#tuple`, `#UND`
+otherwise; skipped when every $\tau(a)$ atom is a mapping), unfolded like $\kappa$.
+
+### §T.6.61  Hashability over file subclasses (route #395, gen #37)
+
+_Corresponds to `annotations.md` §7.50._
+
+Refusal only, in §T.6.46's unhashability fixpoint (mirror twin `\trusted`). Let $H_v$ be the IR
+functions that are neither `trusted` nor `abstract` and carry `no_exception_all`, and $D$ the file
+classes with a top-level `def __hash__` whose IR name `c____hash__` ($c$ the lowered class name)
+is not in $H_v$. After each fixpoint step computes $u'(C)$ for every class, every class $A$ in
+$\mathit{clo}(C) \setminus \{C\}$ of a file class $C$ with $u'(C)$ or $C \in D$ gets $u'(A) =
+\mathit{true}$; the iteration continues to the fixpoint. $U$ is its true set.
+
 ### §T.6.63  Builtin exception bases and their constructor (route #393, gen #37)
 
 _Corresponds to `annotations.md` §7.52._
@@ -4762,7 +4833,6 @@ $C$ or a file ancestor of $C$ defines a `def visit_*`, then a `Call` whose `func
 `Attribute` `visit` / `generic_visit` inside a module-level function or a method whose IR entry
 is not `trusted` / `abstract` makes the translation undefined
 (`PYCSL-R400-NODEVISITOR-DISPATCH`).
-
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

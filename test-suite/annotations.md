@@ -2704,6 +2704,84 @@ genuinely `Any`; refusing it would lose that proved mirror); a HASHABLE class im
 non-stdlib module (a frozen dataclass of `mylib`) is now refused in a hashing position
 (over-refusal: its module is not inspected; measured 0 corpus / mirror / `pycsl_lib` users).
 
+### 7.48 A base name is resolved by SCOPE (route #392, gen #37)
+
+S1 (§7.42), its standard-library star-import rule, and §7.46's hash MRO took a base name for a
+FILE class whenever a class of that name was defined ANYWHERE in the file, so `from collections
+import UserList` + `def _unused(): class UserList: ...` (a LOCAL of `_unused`) + `class
+D(UserList)` hashed `{d}` PROVED `no_exception` (also `UserDict`, a shadowing class nested in a
+method, `from collections import *` + a nested `class OrderedDict`; red team 31, all PROVED at
+`7859e8fb0`, CPython TypeError). RULE (one resolver, inline where S1 resolves bases; every reader
+reads its result): a base head name is resolved as CPython evaluates a class header -- in the
+scope enclosing the `class` statement (a class body only when it is the immediately enclosing
+scope), then the enclosing function scopes (a `global` declaration jumps to the module), then the
+module (through `if` / `try` / `with` / loop bodies; nested def / class / lambda bodies are other
+scopes), then the builtins, then a standard-library star import. It resolves to a file class only
+when the scope that binds the name binds it only by `class` statements; an import / builtin / star
+import there is read as that outside class by S1 (refused when unmodelled,
+`PYCSL-S1-UNMODELLED-BASE`) and by the hash MRO (classified through the imports like any outside
+base, §7.46 (1); NEW latent: `from typing import TypedDict` + a nested `class TypedDict` + `class
+T(TypedDict)` hashed `{t}` PROVED, an instance is a `dict`; now `PYCSL-R349-UNHASHABLE-RECORD`).
+Census (both corpora, 53 mirrors, `pycsl_lib`): 0 emission changes. Witnesses `5550`-`5554`;
+control `5590` (a module-level `class UserList` without an import, a base from the same def, a
+module `class E(object)` beside a nested `class object`).
+
+### 7.49 The hashed value's class from module globals, class attributes, copies and any iterable (route #394, gen #37)
+
+§7.46 (3)'s propagation had no SOURCE for a module global, a class attribute or a copy, and
+`set` / `frozenset` / `Counter` / `fromkeys` read only a display or an annotated name, so the
+hashed value had no class and was ADMITTED: `{K}` with `K = D(1)` (D an eq dataclass), `{XS}`
+with `XS = [1]`, `{G[0]}` / `{G["a"]}` / `set(G)` of a global display, `{(G, 1)}`, `{C.K}`,
+`{self.K}`, `C.XS in s`, `frozenset(C.XS)`, `set(d.values())` / `set(d.items())` /
+`frozenset(m.values())` of a `Dict[str, D]` / `Dict[str, List[int]]`, `{copy.copy(x)}`,
+`{dataclasses.replace(x)}`, `b = copy.copy(a); {b}` (red team 31, 22 witnesses, all PROVED at
+`7859e8fb0`, CPython TypeError). RULE (sources added to the derivation, each precise; a
+`PYCSL-R349-UNHASHABLE-RECORD` refusal): (1) a module name bound ONCE (no `global` of it) has
+the class of its initializer -- a literal, an f-string, a tuple of such, a file-class
+constructor, a builtin `frozenset` / `str` / `int` / `float` / `bool` / `bytes` / `complex` /
+`range` call, another such global, a class / def / lambda (a hashable object), primitive
+arithmetic; a list / set / dict display is that container, with its elements' classes when the
+name is READ-ONLY (every load is the receiver of a subscript load, of `get` / `keys` / `values`
+/ `items` / `copy` / `count` / `index`, an `in` container, an iterable, or the argument of `len`
+/ `sorted` / `list` / `tuple` / `set` / `frozenset` / `iter` / `enumerate` / `min` / `max` /
+`sum` / `any` / `all`) and UNKNOWN elements (refused when hashed) otherwise; (2) a class-body
+name bound once at the top of the body the same way (a method / nested class is a hashable
+object, a `@property` its `-> T`, an `Enum` member an instance of the enum), read for `C.k` along
+C's MRO and, when no field `k` exists, for `o.k` over o's class and every file subclass (not when
+`k` is stored through a receiver other than `self` or the file adds attributes dynamically); (3)
+a standard-library import or a builtin name, by the real object (a primitive constant by its
+type, a hashable object as hashable); (4) `copy.copy(x)` / `copy.deepcopy(x)` /
+`dataclasses.replace(x, ..)` has x's class; (5) `set` / `frozenset` / `Counter` / `fromkeys` /
+`dict` over ANY other iterable hash its ELEMENTS (the propagation's element types; `dict(..)`
+the first component of each pair; a mapping argument of `dict` hashes nothing new). Census
+(both corpora, 53 mirrors, `pycsl_lib`): 0 emission changes, `pycsl_lib` screen identical.
+Witnesses `5555`-`5576`; control `5591`. MEASURED AND NOT LANDED -- the full allow-list flip
+("a value no recognised source derives is unknown, and unknown is refused"): refusing every
+underivable (`#UND`) hashed value REFUSES 27 of the 53 mirrors (679 sites: `node.get('name')`
+/ `node['target']` of `Dict[str, Any]` IR, values derived from them, un-annotated parameters),
+(first scan, before a declared annotation dominated a binding's underivable value) 7 root / pyref PASS files (`0882`, `0883`, `1318`, `3600`, pyref `0091`, `0212`,
+`stdlib/collections/counter_proves`) and 1 `pycsl_lib` file (`syscfg`); refusing only values
+with NO source at all still refuses 7 mirrors (19 sites: attributes of `ast` nodes and of
+imported user-module records, un-annotated parameters). Residual (as §7.47): an underivable
+value (an unknown callee or receiver, an `Any` reached through a container, an un-annotated
+parameter) is still checked only against what the derivation finds.
+
+### 7.50 A hashed value may be an instance of any file subclass of its static class (route #395, gen #37)
+
+The hash check read the STATIC class only: `b: B` (hashable) hashed by `{b}` PROVED although
+`__main__` passed an instance of a file subclass `@dataclass D(B)` (eq, not frozen), `D(B)` with
+`__eq__` only, `D(B)` with `__hash__ = None`, or `D(B)` whose `def __hash__` raises ValueError
+(red team 31, PROVED at `7859e8fb0`). RULE (closed world: a value of static class B may be an
+instance of any class of the file that derives from B): B counts as unhashable at a hashing site
+-- a fixpoint step of §7.33's unhashability -- when one of its proper file subclasses is
+unhashable, or defines its own `def __hash__` that is not a verified method carrying `no_exception
+\all` (`PYCSL-R349-UNHASHABLE-RECORD`, message extended). Census (both corpora, 53 mirrors,
+`pycsl_lib`): 0 emission changes. Witnesses `5577`-`5580`; control `5592` (a plain, a frozen
+dataclass and a verified-`__hash__` subclass). Residual: a class's OWN `def __hash__` is not
+required to be verified (a raising `__hash__` on the static class itself still PROVES `{d}`;
+requiring it refuses PASS controls `4694`, `4940`, `5043`, whose `__hash__` carry no contract);
+`__eq__` raising on a hash collision is not modelled.
+
 ### 7.52 A builtin exception base is modelled with its constructor; a construction is checked against it (route #393, gen #37)
 
 §7.42 (S1) admitted EVERY builtin exception class as a base, and a subclass construction was
@@ -2804,7 +2882,6 @@ REFUSED (`PYCSL-R400-NODEVISITOR-DISPATCH`). Removing the two bases from the tab
 not taken: the mirror files above use them. Witness `5646`; controls `5684` (a visitor with no
 `visit_*` method) and `5685` (the advice followed: `visit_Constant` called directly). Residual: the havoc model (`visit` assigns the union of the `visit_*`
 methods' frames) is not built, so a verified caller of a dispatching visitor is refused.
-
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
