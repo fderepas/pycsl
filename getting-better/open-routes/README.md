@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-26): #401 (a `\trusted` stub's `assigns \nothing` over a body that mutates its PARAMETER in place:
+##   pure_ast NodeTransformer.generic_visit; check-trusted-frame-honesty only sees self writes) OPENED (e2 side note, driver-confirmed).
+
 ## gen #37 / run #3 (2026-10-26): #392 (nested class shadows a stdlib base for S1 / §7.46), #393 (builtin-exception subclass construction
 ##   unchecked), #394 (§7.47 hash allow-list misses module globals / class attributes / set()-frozenset() over dict views / copy), #395 (hash
 ##   check reads the static class only: unhashable subclass instance), #396 (GD folds getattr default when only a subclass binds), #397 (GD
