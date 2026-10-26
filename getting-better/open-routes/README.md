@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-26): #402 (a user `__hash__` on the static class itself is never called in the model: a raising `__hash__`
+##   proves `{d}` under no_exception) OPENED (e1 residual of #395, driver-reproduced rc=0, CPython ValueError).
+
 ## run #3 (2026-10-26): #401 (a `\trusted` stub's `assigns \nothing` over a body that mutates its PARAMETER in place:
 ##   pure_ast NodeTransformer.generic_visit; check-trusted-frame-honesty only sees self writes) OPENED (e2 side note, driver-confirmed).
 
