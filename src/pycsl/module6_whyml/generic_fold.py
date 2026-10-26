@@ -38616,3 +38616,144 @@ def emit_check_noreturn_successors_group(desc: Dict[str, Any], whyml_ident
                f' {n}__ffold (pget_list "{fkey}" d) nn')
     out.append("    | _ -> () end")
     return out
+
+
+# ---------------------------------------------------------------------------
+# ROUTE #420 — THE BESPOKE LOWERINGS DISCARD THE DECLARED CONTRACT (central gate).
+#
+# Every `recognize_*` in this module selects a function whose body is then REPLACED by a
+# hand-built WhyML group. Almost every such group emits a FIXED `requires { true }` /
+# `ensures { true }`: the user's `#@ requires/ensures` and any `raises ... when C` /
+# `no_exception` claim are NOT carried. MEASURED at `b8bd00a9d` (rc1 census, marker
+# injection): 278 mirror functions + 52 corpus functions had their contract absent from
+# the emitted WhyML, over 14 shape families that fire on ordinary user programs (generic
+# fold, pyval walkers/search/flatten, the 7 term-ADT families, the crosscheck readers);
+# each `#@ ensures False` probe of those shapes printed `Verification SUCCESS`.
+#
+# THE RULE (fail closed, one point): a recognizer may claim a function ONLY when the
+# function's declared contract is what the recognizer's emission establishes —
+#   * `requires` / `ensures`: every clause the literal `True`, unless the family is listed
+#     in `_RC420_HONOURS` as threading that clause onto its top-level `let` as a CHECKED
+#     obligation (`_lower_fold_ensures` / `_lower_fold_requires` at the dispatch site);
+#   * `raises E [when C]`: allowed only with `C` absent/literal `True` (a pure permission:
+#     an emission that raises an undeclared exception is rejected by Why3, and one that
+#     does not raise only claims more); a conditioned `raises` is a claim and declines;
+#   * `no_exception` / `no_exception \all`: always declines (no family emits the
+#     implicit-exception obligations the generic lowering emits).
+# A `\trusted` / `\abstract` function is exempt: its contract is an ASSUMPTION, and a
+# bespoke body that drops an assumption only weakens what callers may use.
+# Declining hands the function to the generic lowering, which carries the contract (or
+# refuses). The gate is applied below to EVERY public `recognize_*` of this module, so the
+# preamble's needs/cluster scans and the `_emit_function_block` dispatch see the SAME
+# verdict. Multi-function (list) recognizers keep their full-list result unless it claims
+# a non-conforming function, in which case they are re-run on the conforming functions
+# only (the cluster/pair then declines or forms without it). The `FunctionEmissionMixin`
+# local bespoke branches apply the same predicate inline (`functions.py`).
+_RC420_HONOURS: Dict[str, frozenset] = {
+    "recognize_setfold": frozenset({"ensures"}),
+    "recognize_self_method_calls": frozenset({"ensures"}),
+    "recognize_stmt_setfold": frozenset({"ensures"}),
+    "recognize_substmap": frozenset({"ensures", "requires"}),
+    "recognize_collect_escaping_exceptions": frozenset({"ensures"}),
+    "recognize_callee_implicit_exceptions": frozenset({"ensures"}),
+    "recognize_find_array_and_dict_vars": frozenset({"ensures"}),
+}
+
+
+def _rc420_lit_true(e: Any) -> bool:
+    if not isinstance(e, dict):
+        return False
+    t = e.get("type")
+    v = e.get("value", e.get("id"))
+    return ((t in ("Bool", "Constant", "NameConstant") and v is True)
+            or (t in ("Name", "Var") and v in ("True", "true"))
+            or (t == "Number" and v == 1 and not isinstance(v, bool)))
+
+
+def bespoke_contract_ok(func: Any, honours: frozenset = frozenset()) -> bool:
+    """Route #420: True iff a bespoke lowering that honours exactly the clause kinds in
+    `honours` may replace `func` without dropping a declared claim (see the note above)."""
+    if not isinstance(func, dict):
+        return True
+    if func.get("trusted") or func.get("abstract"):
+        return True
+    c = func.get("contracts") or {}
+    if not isinstance(c, dict):
+        return False
+    for key in ("requires", "ensures"):
+        if key in honours:
+            continue
+        if not all(_rc420_lit_true(e) for e in (c.get(key) or [])):
+            return False
+    for r in (c.get("raises") or []):
+        cond = r.get("condition") if isinstance(r, dict) else None
+        if cond is not None and not _rc420_lit_true(cond):
+            return False
+    if c.get("no_exception") or c.get("no_exception_all"):
+        return False
+    return True
+
+
+def _rc420_is_func(x: Any) -> bool:
+    return isinstance(x, dict) and "name" in x and "body" in x
+
+
+def _rc420_claims(res: Any, bad: List[Dict[str, Any]]) -> bool:
+    """Does a list-recognizer result reference (by object, `id`, or name) a function in
+    `bad`? Over-approximate on purpose: a hit only triggers the conforming-only re-run."""
+    ids = {id(f) for f in bad}
+    names = {f.get("name") for f in bad if isinstance(f.get("name"), str)}
+    seen: set = set()
+    stack = [res]
+    while stack:
+        x = stack.pop()
+        if isinstance(x, (dict, list, tuple, set, frozenset)):
+            if id(x) in ids:
+                return True
+            if id(x) in seen:
+                continue
+            seen.add(id(x))
+            if isinstance(x, dict):
+                stack.extend(x.keys())
+                stack.extend(x.values())
+            else:
+                stack.extend(x)
+        elif isinstance(x, bool):
+            continue
+        elif isinstance(x, int):
+            if x in ids:
+                return True
+        elif isinstance(x, str):
+            if x in names:
+                return True
+    return False
+
+
+def _rc420_gate(name: str, fn: Any) -> Any:
+    honours = _RC420_HONOURS.get(name, frozenset())
+
+    def gated(*args: Any, **kwargs: Any) -> Any:
+        if args and _rc420_is_func(args[0]):
+            if not bespoke_contract_ok(args[0], honours):
+                return None
+            return fn(*args, **kwargs)
+        if args and isinstance(args[0], list):
+            bad = [f for f in args[0] if _rc420_is_func(f) and not bespoke_contract_ok(f)]
+            res = fn(*args, **kwargs)
+            if not bad or not _rc420_claims(res, bad):
+                return res
+            bad_ids = {id(f) for f in bad}
+            return fn([f for f in args[0] if id(f) not in bad_ids], *args[1:], **kwargs)
+        return fn(*args, **kwargs)
+    gated.__name__ = getattr(fn, "__name__", name)
+    gated.__doc__ = getattr(fn, "__doc__", None)
+    gated.__wrapped__ = fn
+    gated.__rc420_gated__ = True
+    return gated
+
+
+for _rc420_name in [n for n in list(globals()) if n.startswith("recognize_")]:
+    _rc420_fn = globals()[_rc420_name]
+    if callable(_rc420_fn) and not getattr(_rc420_fn, "__rc420_gated__", False):
+        globals()[_rc420_name] = _rc420_gate(_rc420_name, _rc420_fn)
+del _rc420_name, _rc420_fn

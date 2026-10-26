@@ -2968,6 +2968,25 @@ python-reference / mirror / `pycsl_lib` files refused). NOT COVERED (refused, no
 an unverified caller that keeps an alias of a list it passed (§7.40). Witnesses `5870`-`5880`,
 `5883`-`5885`; controls `5890`-`5896`.
 
+### 7.59 A bespoke lowering may replace a function only when it establishes the declared contract (route #420)
+
+Module 6 recognizes many function SHAPES (folds and walkers over the `pyval` / `term`
+models, the crosscheck readers, the emitter's own handlers) and replaces the function's body
+with a hand-built WhyML group. Almost every such group carries a fixed `requires { true }` /
+`ensures { true }`, so the function's declared `#@ requires` / `#@ ensures`, a conditioned
+`#@ raises E when C` and a `#@ no_exception` claim were silently DROPPED: measured at
+`b8bd00a9d`, 15 probes over the user-reachable shape families (`#@ ensures False`, or
+`#@ no_exception IndexError` over a body that raises it) printed `Verification SUCCESS`.
+RULE: a recognized shape is lowered by its bespoke group only when every `requires` and
+`ensures` clause is the literal `True` (or the family threads that clause onto its group as a
+checked obligation: the set/stmt folds, `_substitute`-style maps and the emitter's
+comprehension/compare handlers), every `raises` is unconditioned, and no `no_exception` is
+declared. `\trusted` / `\abstract` functions are exempt (their contract is assumed). Otherwise
+the function is lowered by the generic path, which checks the contract or refuses the file.
+Nothing new is refused by name: a declining shape that the generic lowering cannot model is
+refused or fails to type-check there. Witnesses `5920`-`5925`, `5927`-`5934`; controls are the
+shape files they derive from (`0883`, `0942`, `0943`, `0945`, `0948`, `0950`-`0964`), still
+proved and byte-identical.
 ### 7.60 A verified `__eq__` is verified for ANY `other` (route #403, gen #37)
 
 §7.57 counted a `def __eq__` carrying `#@ no_exception \all` as verified whatever its `other`

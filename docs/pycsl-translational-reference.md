@@ -4888,6 +4888,21 @@ identifiers are bound parameters, quantifier / `let` binders, Why3 builtins or o
 labels. No goal when a parameter binder is the label of a field it does not bind or occurs in
 $\overline{I}$, when $\overline{I}$ names `_k226`, or when a field of $L$ has another type.
 
+### §T.6.70  Bespoke lowerings and the declared contract (route #420)
+
+_Corresponds to `annotations.md` §7.59._
+
+Let $R$ be a shape recognizer of Module 6 (`generic_fold.recognize_*`, and the
+`FunctionEmissionMixin`-local `_is_*` / `_recognize_*` handlers of `_emit_function_block`) and
+$H_R \subseteq \{\texttt{requires}, \texttt{ensures}\}$ the clause kinds its group emits as
+obligations on the function's top-level `let`. $R$ may replace $f$ only if
+`bespoke_contract_ok`$(f, H_R)$: $f$ is `trusted` / `abstract`, or every clause of a kind
+$\notin H_R$ is the literal `True`, every `raises` entry has no condition or the literal `True`,
+and $f$ has no `no_exception` / `no_exception_all`. A multi-function recognizer (cluster, pair,
+family) whose result references a function failing the predicate is re-evaluated on the
+functions satisfying it. A function $R$ declines is translated by the generic function rules, which carry its
+contract or make the translation undefined.
+
 ### §T.6.71  A verified `__eq__` takes any `other` (route #403, gen #37)
 
 _Corresponds to `annotations.md` §7.60._
@@ -5020,7 +5035,6 @@ Refusal only, inline in `_run_pipeline` after `IRScanner.find_iteration_mutation
 arms, not opted out by `allow_iteration_mutation`) whose `iter` is
 `Call(func = "`$r$`.keys" | "`$r$`.values" | "`$r$`.items")` has iterated collection $r$, exactly
 as a `For` over `Var(`$r$`)`: it is refused when `_collect_mutations` finds a mutation of $r$ in its body.
-
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
