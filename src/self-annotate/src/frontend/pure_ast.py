@@ -48,12 +48,11 @@ _OPTIONAL_FIELDS = {'AnnAssign': ('value',), 'Assert': ('msg',), 'Assign': ('typ
 def _build_nodes(namespace):
     pass
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _const_value_getter(self):
-    pass
+    return self.value
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
