@@ -13001,3 +13001,4 @@ measurement instead of re-running two hours of it.
 2026-10-22T17:35Z --slow 84/84 GREEN (post r2c)
 2026-10-22T19:08Z route #303 REPAIRED
 2026-10-26T11:07:50Z conv pure_ast._const_value_getter/_setter BROKEN-cheap — 448->446 (cv2)
+2026-10-26T17:34:08Z wall int-erasure-seam BROKEN(narrow) — 446->445 (R5-str, ies1)
