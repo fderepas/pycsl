@@ -2926,6 +2926,48 @@ unverified `__eq__` at sites that never compare). Residuals: a cyclic value comp
 field-wise `__eq__` (RecursionError) is not modelled; `__eq__` reached through a stdlib container
 element (a `frozenset` of user objects inside a set) is not traced; an unverified `__eq__` at a
 `hash(x)` / one-element site is admitted because CPython never calls it there.
+### 7.58 A class invariant is admitted only when its constructor goal is stated; otherwise the class is refused (route #226 polarity flip, run #3)
+
+§7.34 / §7.37 / §7.40 state the constructor goal `_check_class_inv_<c>` for the shapes they model
+and, for every other shape, emitted NO goal while every method still ASSUMED the invariant (a
+bool field, a computed int store `self.n = three()`, an element / quantifier / string /
+predicate term, a `default_factory` field, a `ClassVar` read through `self`: red team 29
+a04..a46 and route #384's element-term carrier, each PROVED a false postcondition). The
+polarity is now flipped: a `#@ class invariant` of a class defined in the verified file is
+admitted only when its goal is emitted; otherwise the file is REFUSED
+(`PYCSL-R226-INVARIANT-GOAL-NOT-STATED`). The goal is stated (goal stage 2d) from `__init__`'s
+END state when every field the lowered invariant names is, when `__init__` returns:
+- an int / bool literal, or an int (bool) `__init__` parameter never re-bound in `__init__`;
+- an int expression over int parameters and literals with `+`, `-`, `*`, unary `-` and
+  two-argument `max` / `min` (`self.t = year * 365 + day`, `self.line = max(line, 0)`; `//` / `%`
+  are not stated, Python floors);
+- a list of literal length (§7.40) — and, when the invariant reads ELEMENTS, a fresh
+  `[c] * K` / `bytearray(K)` (c an int literal) that `__init__` then only reads (`len(..)`,
+  `x[i]`), stated `forall k. 0 <= k < K -> f[k] = c`; or a list parameter (§7.37), whose
+  elements are constrained only by `__init__`'s `#@ requires`.
+Each binding is the LAST top-level store `self.f = <value>`; any other store or mutation of
+`self.f` (augmented, tuple, under control flow, in a nested scope) leaves no goal, and so does a
+whole `__init__` that lets `self` escape (a bare `self` other than `type(self)`), calls `super()`
+other than as its leading statement, stores an attribute of another object, returns / yields, or
+makes any call other than `len` / `type` / `int` / `bool` / `abs` / `min` / `max` after a field is
+stored. `__init__`'s `#@ requires` (a class without `__init__` uses its first file base's) are
+premises, conjunct by conjunct over the bound parameters. A class whose `__init__` is
+`#@ \trusted` is admitted without a goal: its establishment is the declared, counted TCB (the
+mirror parsers `_ContractParser`, `pure_ast._Parser`, corpus `0900`). A class imported from
+another module is stated, or refused, when that module is run. The mirror `errors.py`'s invariant
+`self.line >= 0` is NOT established by `PyCSLError.__init__` (`line=-1` is accepted) and no raise
+site constructs the error record in the model, so neither a goal nor a `#@ requires` can be
+checked: its `__init__` is now `#@ \trusted` (`cost-scale:exception-payload-model`; one marker,
+the measured cost of this rule on the mirrors); corpus `0661` / `0662` gained `#@ requires \length(initial) == 18`
+(`\valid(initial, 18)` only gives `>= 18`, their invariant says `== 18`). A `#@ requires` used as a
+premise is not a call-site obligation (route #15 residue), but a construction in verified code
+still raises the record's type-invariant VC (witness `5885`). OVER-REFUSAL: none measured (0 root /
+python-reference / mirror / `pycsl_lib` files refused). NOT COVERED (refused, not stated): a
+`@dataclass` (no `__init__` in the source) whose invariant needs stage 2d, `str` / record /
+`Optional` fields read by the invariant, a field computed from another field or by a call;
+an unverified caller that keeps an alias of a list it passed (§7.40). Witnesses `5870`-`5880`,
+`5883`-`5885`; controls `5890`-`5896`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

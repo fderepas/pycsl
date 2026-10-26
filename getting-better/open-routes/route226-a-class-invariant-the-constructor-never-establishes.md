@@ -9,6 +9,11 @@ carriers and a new param/field-name clash FAIL / are REFUSED; STILL LIVE for `\l
 `route226-carrier-length-invariant-over-list-param.py` now FAILS (row asserts FAILED), witnesses 5100-5109 FAIL; STILL LIVE
 for computed container stores (`[Tok(0)] * 3`, `bytearray(N)`; 21 classes), element / quantifier / predicate / str terms,
 bool fields, and computed int stores (increment 3).**
+**run #3 (2026-10-26, c226): THE POLARITY FLIP REPAIRED, candidate — a class invariant is admitted only when its constructor
+goal is STATED (new goal stage 2d covers element / quantifier / predicate terms over `[c] * K`, bool fields, computed int
+stores); every other class is REFUSED (`PYCSL-R226-INVARIANT-GOAL-NOT-STATED`). The computed-store carrier and route #384's
+element-term carrier are REFUSED (rows assert REFUSED); rt29 a04..a46 REFUSED. Residual: the #385 unverified-caller alias
+carrier; a `\trusted` `__init__` is declared TCB (see the run #3 REPAIR section).**
 
 ## The witness
 
@@ -951,3 +956,108 @@ mirror / library classes refused. Goal-less classes left: 18 — element / quant
 0661-0664, 0706, 0900, 0980, mirrors `Module2_Parser._ContractParser` / `pure_ast._Parser`, `pycsl_lib` os) and computed / bool int
 fields (increment 3, rt29). NEW registered carrier `route384-carrier-element-term-masks-length-state.py` (SUCCESS): an element term
 masks a mutated length field, so neither a goal nor a refusal fires.
+
+## REPAIR driver run #3 (2026-10-26, c226 executor off main 8f4221371) — THE POLARITY FLIP: no stated goal, no invariant
+Strategy (getting-better/systematic-soundness-r3.md §4, finding 2): the constructor goal was a deny-list — stated where modelled,
+and otherwise the invariant was ASSUMED. Flipped: a `#@ class invariant` of a class defined in the verified file is ADMITTED only
+when Module 6 emitted its `goal _check_class_inv_<c>`; otherwise the file is REFUSED (NEW `PYCSL-R226-INVARIANT-GOAL-NOT-STATED`,
+`_run_pipeline` after emission, inline; mirror twin `\trusted`). Two principled exemptions: a class whose `__init__` (own, else the
+first file base's) is `#@ \trusted` — its establishment is declared, counted TCB (mirror `_ContractParser`, `pure_ast._Parser`,
+corpus 0900); a class IMPORTED from another module — stated, or refused, when that module is run (else every importer of the mirror
+`errors.py` would move). To keep the refusal set empty on the mirrors / small elsewhere, a NEW goal stage 2d (Module 6
+`_emit_type_decls`, inline, runs only where no earlier goal and no route #384 state obstacle exist, so every existing goal is
+byte-identical) states the goal from `_run_pipeline`'s AST end state of `__init__` (`ctor_state_c226`): int / bool literals, int /
+bool parameters never re-bound, int expressions over int parameters (`+ - *`, unary `-`; computed int stores), list lengths from
+route #384 and element CONTENTS of a fresh `[c] * K` / `bytearray(K)` (`forall _k226. 0 <= _k226 < K -> f[_k226] = c`) for element /
+quantifier terms, list parameters with the owner's `#@ requires` as premises; registry predicates / other records' labels / `let`
+and quantifier binders keep their module meaning (the goal sits right after the record). Unknown (whole class): a bare `self`
+other than `type(self)`, a non-leading `super`, an attribute store into another object, a `return` / `yield`, a call other than
+`len type int bool abs min max` after a store. annotations §7.58, translational §T.6.69.
+
+CENSUS (measured FIRST at HEAD 8f4221371, the emitter instrumented — temporary, removed before commit — `--no-proof` over the 426
+files carrying `#@ class invariant`: 283 root corpus, 0 python-reference, 5 mirrors, 46 `pycsl_lib`, 92 `open-routes`):
+336 invariant classes reach `_emit_type_decls`: **270 goal fully stated**, 38 route #384 STATE obstacles (already refused),
+**28 no goal (TERM obstacle) = assumed**; "partially stated" does not occur (a goal is all-or-nothing). Of the 28 assumed: open-routes
+witnesses / carriers 10 (rt29 a04..a46, the two carriers, r342 drv4574), and 18 in the tree:
+
+| class | shape | wholesale-refuse cost | after this repair |
+|---|---|---|---|
+| corpus 0659 `FS` | `self._v0 == self.disk[0] * 256 + ..` over `[0] * 8` | PASS refused | goal (fill) — PROVED |
+| corpus 0661 / 0662 `Inode` | 18 element bounds over a list parameter, `\valid(initial, 18)` | 2 PASS refused | goal; FAILED (`\valid` is `>= 18`, invariant `== 18`: `Inode([0]*20)` violated it) -> source repair `#@ requires \length(initial) == 18` -> PROVED |
+| corpus 0663 / 0664 `Disk` | `\forall i ..` byte range over `[0] * N` | 2 PASS refused | goal (fill) — PROVED |
+| corpus 0706 `C` | registry predicate `field_nonneg(self.x)` | PASS refused | goal `x = 0 -> field_nonneg x` — PROVED |
+| corpus 4574 `B` | `self.x = k` then `type(self).__name__` (Module 5: computed) | PASS refused | goal `x = k -> k >= 0 -> ..` — PROVED |
+| corpus 0900 `Cursor` | EOF-sentinel element term, `\trusted` `__init__` | PASS refused | admitted (trusted) — unchanged |
+| corpus 0980 `C` | expected-FAIL file | (FAIL) | still FAIL |
+| mirror `errors.py` x4 | `self.line = line` after a leading `super().__init__(message)`, no `#@ requires` | mirror REFUSED (errors.py GONE) | the invariant is NOT established (`PyCSLError("m", line=-1)`) and NO raise site constructs the record in the model. Measured options: (1) `#@ requires line >= 0`: goal PROVED, but `check-mirror-clause-survival` RED (1 unlocated `pycslerror____init__` > 0) — rightly, nothing checks it; (2) clamp `self.line = max(line, 0)` in live + mirror: goal statable, but route #315 then refuses every importer's error construction (10 mirrors GONE); (3) refuse: 1 mirror GONE; (4) drop the invariant: 2 mirrors move (errors, pycsl). TAKEN: `#@ \trusted` `__init__` (`cost-scale:exception-payload-model`), the rule's exemption: emission byte-identical, `\trusted` 446 -> 447, trusted-reasons 418 -> 419 (0 unclassified added), trust-blast-radius 799 <= 804. **This +1 marker is the flip's mirror cost.** |
+| mirror `Module2_Parser._ContractParser`, `pure_ast._Parser` | element / attribute terms, `\trusted` `__init__` | 2 mirrors REFUSED (Module2_Parser GONE) | admitted (trusted) — unchanged |
+| `pycsl_lib` `dt.DateTime` | `self._timestamp = year * 365 + month * 30 + day` | lib REFUSED | goal (int expression + 5 requires) — PROVED |
+| `pycsl_lib` `os/__init__` (`UnixInodeFileSystem`, a DEPENDENCY) | axiom-call term | lib REFUSED | not refused (imported; its own module states its goal) |
+
+OVER-REFUSAL: wholesale "refuse every goal-less class" at HEAD = **8 PASS corpus files (0659, 0661, 0662, 0663, 0664, 0706, 0900,
+4574) + 3 mirror files (errors.py, Module2_Parser.py GONE, pure_ast.py) + 2 `pycsl_lib` modules (dt, os)**; this repair = **0 corpus / 0 python-reference / 0 mirror / 0 `pycsl_lib` refused**, at the cost of ONE new `\trusted` marker (mirror `errors.py`)
+(candidate census, the same 336 classes: **283 stated / 38 refused by #384 / 15 goal-less**, measured before `PyCSLError.__init__`
+became `\trusted`; with it **279 / 38 / 19** — 10 open-routes witnesses and carriers now REFUSED, 7 with a `\trusted` `__init__`
+(mirror `_ContractParser`, `pure_ast._Parser`, `errors.py` x4, corpus 0900), the IMPORTED
+`UnixInodeFileSystem` in `pycsl_lib/os/__init__` (stated in its own module), and the expected-FAIL 0980; the 13 that gained a goal:
+0659, 0661, 0662, 0663, 0664, 0706, 4574, `pycsl_lib` dt, r342's drv4574 (and `errors.py` x4 before its trusted marker)).
+
+PROBE TABLE (full `pycsl.py` proof via heavy.sh; base = worktree at 8f4221371; CPython ground truth in each `__main__`):
+
+| file | base | candidate |
+|---|---|---|
+| carrier `route226-carrier-computed-constructor-store.py` (`self.n = three()`) | PROVED | REFUSED R226 (ledger row now asserts REFUSED) |
+| carrier `route384-carrier-element-term-masks-length-state.py` | PROVED | REFUSED R226 (ledger row now asserts REFUSED) |
+| carrier `route385-carrier-unverified-caller-alias.py` | PROVED | PROVED (residual, unchanged) |
+| `witnesses-r226-rt29/` a04, a05, a08, a10, a11, a24, a34, a46 | PROVED (8) | REFUSED (8) |
+| `witnesses-r226-rt29/` a06, a07; `witnesses-r226-gen37/` q362*; the 3 earlier #226 carriers | FAIL | FAIL (unchanged) |
+| 5870-5877 (rt29 a04..a46 in the corpus) | PROVED | REFUSED |
+| 5878 computed int store, 5879 element term masks `pop()`, 5880 element store after `[0] * 4` | PROVED | REFUSED |
+| 5883 `[-1] * 4` under a quantified `>= 0` | PROVED | FAIL (fill premise `disk[k] = (-1)`) |
+| 5884 list parameter under `self.xs[0] >= 0`, no requires | PROVED | FAIL |
+| 5885 requires-premise probe: `E("m", line=-1)` in a verified function | FAIL | FAIL (construction site checked) |
+| controls 5890 bool literal, 5891 fill + element read, 5892 leading super + kw-only requires, 5893 quantifier fill, 5894 `type(self)` after the store, 5895 trusted `__init__`, 5896 `max(line, 0)` | PROVED | PROVED |
+| movers 0659, 0663, 0664, 0706, 4574 | PROVED | PROVED |
+| movers 0661, 0662 (source repaired: `#@ requires \length(initial) == 18`) | PROVED (both sources) | PROVED (FAILED before the source repair) |
+| `pycsl_lib/dt` (goal `_timestamp = year*365 + month*30 + day -> ..`) | PROVED | PROVED |
+
+BLAST RADIUS (byte-diff, base worktree at 8f4221371 vs the final candidate): root **7 MOVED** — 0659, 0661, 0662, 0663, 0664, 0706,
+4574, each diff exactly `+ goal _check_class_inv_<c> : ..` and a blank line (checked line by line; 0661 / 0662's added
+`#@ requires` changes nothing else) / 0 GONE / 0 APPEARED in the gated sweep (2433 base / 2441 candidate .mlw, 8 new emitting
+sources; the 11 refused witnesses do not emit); every mover re-proved at base and candidate (PROVED both; 0661 / 0662 FAILED on the
+candidate before their source repair). A second candidate sweep (after the `max` / `min` fold) showed the same 7 movers
+byte-identical plus `1723_route212_verify_imports_control` APPEARED; 1723 (`--verify-imports`) is absent from BOTH the base and
+the first candidate sweep and PROVES with a full proof at base and at candidate — an emission-time flake of the sweep, not this
+change. pyref **0 / 0 / 0** (2186 / 2186, `--min-files 2000`). Mirror **53 / 53, 0 / 0 / 0** (`errors.py` byte-identical: its
+`__init__` is `\trusted`, so stage 2d states nothing) — **no OWED proof**. `pycsl_lib`: `dt` gains its goal (PROVED);
+`check-stdlib-modules-verify` 83 VERIFY / the known 21.
+
+GATES (rc, logs in the c226 scratchpad `gates*/`): check-self-annotate-sync.sh rc=0 (927 verbatim: one fewer because
+`PyCSLError.__init__` is now trusted); self-annotate-mirror-check.sh rc=0 (53); byte-diff-compare root rc=0 (`--expect-moved` the 7),
+pyref rc=0; mirror-emit-sweep compare rc=0; run-soundness-planes.sh fast **61/61** rc=0 (two earlier runs were RED and are part of
+the record: `check-claim-vacuity` on control 5895's `requires True` / `ensures True` — removed; `check-trusted-raises-honesty` 62 > 61
+on the new trusted `PyCSLError.__init__`, which the plane paired by NAME with `pure_ast.py`'s raising `__init__` — the plane now
+prefers the same-path live def (name-only fallback for relocated defs) and its ratchet is TIGHTENED 61 -> 56: the 6 dropped rows are
+exactly the false pairings); check-getattr-erasure rc=0 (DECLARED 0); check-clause-survival `--emit-dir` candidate rc=0 (10 ledgered,
++2 entries: controls 5892 / 5894, route #15 residue); check-mirror-clause-survival rc=0 (unlocated 0); check-open-route-carriers rc=0
+(10 carriers; the two closed rows assert REFUSED); check-refusal-witness-coverage rc=0 (316 -> 317 demonstrated, 5 undemonstrated =
+ceiling; 14 rows via `_census_row`); check-refusal-advice-audited rc=0 (148 audited, the new message FOLLOWABLE via controls
+5890-5894); doc-coherency --check rc=0; check-trusted-reasons rc=0 (419 / 419, unclassified 257); check-trust-blast-radius rc=0 (799 /
+804); check-assumed-facts rc=0 (85 facts); check-dropped-mutation rc=0 (TRYFINAL 5); check-assigns-underdeclaration --transitive rc=0
+(TRAP 3, HOLE 0); check-stdlib-modules-verify rc=0. `\trusted` lines 446 -> 447. `--slow` planes not run.
+
+RESIDUALS:
+- The #385 carrier (an unverified caller keeps an alias of the list it passed) is unchanged: the goal is right at construction.
+- A `#@ \trusted` `__init__` exempts its class (declared TCB): the mirror `_ContractParser`, `pure_ast._Parser`, `PyCSLError` (+1
+  marker this run), corpus 0900 / control 5895. A false trusted establishment is a false review, not a lowering bug.
+- An imported class's invariant is checked only when its own module is run (modular assumption, as for imported contracts).
+- `#@ requires` used as goal premises are not call-site obligations (route #15 residue): construction sites in verified code still
+  raise the type-invariant VC (5885); a construction in unverified code is outside the model (as for #385).
+- Stage 2d is conservative: a `@dataclass` (no `__init__` in the source), `str` / record / `Optional` fields read by the invariant,
+  a field stored from another field or a call, and a call / bare `self` after a store leave no goal and are REFUSED (0 corpus /
+  mirror / library users today). A base `__init__` reached by a leading `super().__init__(..)` could leak `self` before the stores
+  and an operator / property on another object could reach it through that alias without a call or attribute store; not
+  measured, recorded.
+- An operational note: while stopping a stale gate run a pattern `kill` matched `bin/run-soundness-planes.sh` processes; the
+  executor's own planes job was queued at the time, so the pids killed (2486357, 2486579, 2489197, 2489200, 2491027) may have
+  included another executor's planes run around 18:45Z.

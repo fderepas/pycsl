@@ -2,10 +2,39 @@
 
 ## run #3 (2026-10-26): #403-#416 OPENED (red team 32 on 085ee3dcc: 63 confirmed / 345 screened / 157 fully proved; 11/11 sample
 ##   driver-reproduced rc=0): #403 verified __eq__ only for own-class `other`, #404 `type` base = metaclass unmodelled, #405 dynamic
+
 ##   subclasses escape the closed world, #406 GD misses stdlib attribute setters, #407 arithmetic/BoolOp/IfExp/slice over a container
+
 ##   global classed hashable, #408 read-only global test misses __main__ subscript store, #409 stdlib module attributes hashed
+
 ##   unclassified, #410 copy ignores __copy__/__replace__, #411 Latin-1 literal emitted as UTF-8 bytes, #412 float / by zero, #413 int
+
 ##   true-division overflow, #414 size limits, #415 `%` formatting, #416 dict mutation while iterating a view.
+
+## run #3 (2026-10-26): #226 POLARITY FLIP REPAIRED, candidate (c226 executor off main 8f4221371; code + corpus + docs on this
+##   branch, annotations 7.58 / T.6.69, route #226 REPAIR section). A `#@ class invariant` of a class of the verified file is
+
+##   ADMITTED only when its constructor goal `_check_class_inv_<c>` is emitted; otherwise REFUSED (NEW
+
+##   PYCSL-R226-INVARIANT-GOAL-NOT-STATED; exemptions: a `\trusted` `__init__`, an imported class). NEW goal stage 2d states the
+
+##   goal from `__init__`'s AST end state (int / bool literals and parameters, int expressions incl. `max` / `min`, `[c] * K`
+
+##   element contents for element / quantifier terms, registry predicates). Census at HEAD: 336 invariant classes, 270 stated /
+
+##   38 refused (#384) / 28 ASSUMED; after: 279 / 38 / 19 (10 refused witnesses, 7 trusted `__init__`, 1 imported, 1 expected-FAIL).
+
+##   Gates: root 7 MOVED (goal line only, re-proved base + candidate), pyref 0/0/0, mirror 53/53 0/0/0 (no OWED); fast planes
+
+##   61/61 (trusted-raises-honesty now pairs a mirror def with its SAME-PATH live def first; ratchet tightened 61 -> 56).
+
+##   Wholesale-refusal cost 8 PASS corpus + 3 mirrors + 2 pycsl_lib -> 0 / 0 / 0, at ONE new `\trusted` marker (mirror
+
+##   `errors.py` `PyCSLError.__init__`: its `self.line >= 0` is not established and no raise site is modelled). Closed: carriers
+
+##   #226 computed store and #384 element-term (rows assert REFUSED), rt29 a04/a05/a08/a10/a11/a24/a34/a46 (REFUSED). Corpus
+
+##   0661/0662 source-repaired (`\valid(initial, 18)` is `>= 18`, invariant `== 18`). Residual: #385 unverified caller alias.
 
 ## run #3 (2026-10-26): #402 (a user `__hash__` on the static class itself is never called in the model: a raising `__hash__`
 ##   proves `{d}` under no_exception) OPENED (e1 residual of #395, driver-reproduced rc=0, CPython ValueError).

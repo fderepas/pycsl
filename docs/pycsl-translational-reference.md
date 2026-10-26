@@ -4860,6 +4860,34 @@ At a hashing site $n$ (§T.6.46) that is not a `Call` of the builtin `hash`, a `
 non-`Starred` element or a `Dict` with one non-`None` key, the hashed value's class set $K$
 (including its tuple elements; `#UNK` / `#UNKT` read as $Q$) with $K \cap U = \emptyset$ and
 $K \cap Q \ne \emptyset$ makes the translation undefined (`PYCSL-R402-UNVERIFIED-EQ`).
+### §T.6.69  Constructor goals are mandatory for admitted class invariants (route #226 polarity flip, run #3)
+
+_Corresponds to `annotations.md` §7.58._
+
+Let $C$ be a record of a class defined in the translated file with $\mathit{Inv}_C \neq \emptyset$,
+whose record type is emitted. The translation is defined only if Module 6 emits
+`goal _check_class_inv_c` for $C$ (§T.6.45 / §T.6.48 / §T.6.51, or stage 2d below), or $C$'s
+`__init__` (its own, else its first file base's) is `\trusted`; otherwise it is undefined
+(`PYCSL-R226-INVARIANT-GOAL-NOT-STATED`). Stage 2d runs when no earlier goal and no route #384
+state obstacle exists. `_run_pipeline` computes, from the source AST, the end state
+$\sigma(f)$ of every field stored by `__init__`'s top-level statements: $\mathsf{INT}(n)$,
+$\mathsf{BOOL}(b)$, $\mathsf{PARAM}(p)$ (p a parameter with no store / `global` / `nonlocal` in
+`__init__`), $\mathsf{EXPR}(e)$ (e over int parameters and literals, `+ - *`, unary `-`, two-argument
+`max` / `min` as `if a >= b then a else b`), or
+unknown; $\mathit{fill}(f) = c$ for `[c] * K` / `bytearray(K)` with only `len` / element-read
+mentions afterwards; every state is unknown when `__init__` has a bare `self` other than
+`type(self)`, a non-leading `super`, a store into another object's attribute, a
+`return` / `yield` / `await`, or a call outside `len type int bool abs min max` after a store.
+With $L$ = the labels of $C$'s fields occurring in the lowered invariant $\overline{I}$
+(string literals removed), stage 2d emits
+$\forall \vec{\ell}, \vec{p}.\ \bigwedge_{\ell \in L} \pi(\ell) \to \bigwedge R \to \overline{I}$,
+with $\pi(\ell)$ = `f = n` / `f = b` / `f = p` / `f = e`, or for an array field the route #384
+premise `(Array.length f) = N` plus `forall _k226. 0 <= _k226 < N -> f[_k226] = c` when
+$\overline{I}$ reads elements (else no goal); $R$ the `#@ requires` conjuncts whose
+identifiers are bound parameters, quantifier / `let` binders, Why3 builtins or other records'
+labels. No goal when a parameter binder is the label of a field it does not bind or occurs in
+$\overline{I}$, when $\overline{I}$ names `_k226`, or when a field of $L$ has another type.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
