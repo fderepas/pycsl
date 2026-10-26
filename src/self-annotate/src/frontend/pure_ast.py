@@ -54,12 +54,11 @@ def _build_nodes(namespace):
 def _const_value_getter(self):
     return self.value
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns self.value
 def _const_value_setter(self, value):
-    pass
+    self.value = value
 
 Constant.n = property(_const_value_getter, _const_value_setter)
 Constant.s = property(_const_value_getter, _const_value_setter)

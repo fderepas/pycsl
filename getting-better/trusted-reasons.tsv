@@ -191,7 +191,6 @@ frontend/monomorphize.py	_rewrite_annotations	cost-scale:int-erasure-seam	THE IN
 frontend/monomorphize.py	_rewrite_annotation_str	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/monomorphize.py	_record_classification	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 frontend/pure_ast.py	_build_nodes	cost-scale:name-rebinding-model	A NAME REBOUND AFTER ITS DEFINITION
-frontend/pure_ast.py	_const_value_setter	unclassified	-
 frontend/pure_ast.py	Ellipsis.__new__	unclassified	-
 frontend/pure_ast.py	_Tok.__repr__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_lex	cost-scale:nested-closure-lift	the nested-closure lift
