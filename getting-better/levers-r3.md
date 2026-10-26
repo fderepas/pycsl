@@ -41,4 +41,61 @@ conversions left are shape extensions of an existing certified recognizer in a c
 
 ## L-T1 — build record (STEP 2)
 
-See the commit messages and §"Battery" below (filled in as each gate lands).
+**B1 `cc380d4fa`** — `src/pycsl/module6_whyml/generic_fold.py` only (not mirrored: mirror
+coverage and the mirror sweep cannot move by construction; measured 0 MOVED anyway).
+- The guarded arm (above). First emission recursed directly on the pattern-bound elements
+  (`_iff_app_to_binop v__g0`): canonical.py then had **2 non-Valid** (`variant decrease`,
+  Timeout 26.75 s / 30 s) — Why3's structural variant does not discharge the two-step
+  `element < list < term` descent. Fixed by reading the recursed elements off the
+  element-wise `n__list` map (one step, the step `_flip_comparisons` already proves) with a
+  fallback arm (unreachable at run time; an over-approximation, never an assumption).
+- **SOUNDNESS REPAIR found while building it.** The term-ADT recognizers emit a FIXED
+  `ensures { true }` and drop the user's contract. MEASURED at base `76537c560`: a
+  `_flip_comparisons`-shape transform annotated `#@ ensures False` emitted
+  `let rec ... ensures { true }` and printed `Verification SUCCESS! All contracts formally
+  proven.` — a false proof. New fail-closed gate `_term_contract_trivial` on all 7 term
+  recognizers (fold, transform, list_build, flatten_arrow, free_vars, pp_wrapper, string_pp):
+  they fire only when every `ensures`/`requires` is the literal `True` and no raises /
+  no_exception claim is made. Corpus and mirror byte-diff 0 => no existing file depended on
+  the hole.
+- Witnesses (IDs 5820-5822): 5820 PASS (base: REFUSED, route #252 erased->builtin slot),
+  5821 PASS twin, **5822 expected FAIL** (base: false SUCCESS; now refused). 5820/5821 carry no
+  `requires/ensures True` lines (the claim-vacuity ratchet went RED on the first planes run
+  when they did: 1793 > 1791 / 1133 > 1131; removed, re-run green).
+
+| gate (B1) | rc | result |
+|---|---|---|
+| fidelity `check-self-annotate-sync.sh` / `self-annotate-mirror-check.sh` | 0 / 0 | 929 verbatim / 53 mirrors in sync |
+| corpus root `byte-diff-compare.py bd-base bd-cand2 --new-source 5820 5821 5822` | 0 | 2429 base / 2431 cand .mlw, 0 MOVED / 0 GONE / 0 APPEARED (5822 refused -> no .mlw) |
+| corpus pyref `byte-diff-compare.py .../pyref --min-files 2000` | 0 | 2186 / 2186, 0 MOVED |
+| mirror `mirror-emit-sweep.sh` base vs cand2 | 0 | 53 / 53, 0 MOVED -> no mirror proof owed |
+| `run-soundness-planes.sh` | 1 -> 0 | first run 1 RED (`check-claim-vacuity`, witness contracts), after the fix all 61 green (817 s) |
+| ledger | — | `proof_axiom_allowlist.py` untouched; no `axiom` emitted |
+
+**B2 `418aa28f8`** — conversion `proof2why3/canonical.py::_iff_app_to_binop` (445 -> 444).
+
+| gate (B2) | rc | result |
+|---|---|---|
+| whole-file `pycsl.py src/self-annotate/src/proof2why3/canonical.py` | 0 | 65 Valid / 0 non-Valid, SUCCESS (309 s incl. queue) |
+| `--fun _iff_app_to_binop` | 0 | 52 Valid, SUCCESS |
+| emit-diff | — | `val _iff_app_to_binop (t: term) : term requires/ensures {true}` -> `let rec` match over all 9 ctors + `__list` helper; nothing else moves; reads head/args/op/lhs/rhs/arg/body (non-vacuous) |
+| fidelity | 0 / 0 | 930 verbatim / 53 in sync |
+| mirror sweep vs B1 | 0 with `--expect-moved proof2why3__canonical` | exactly 1 MOVED = canonical.mlw, its diff byte-equal to the proved emission's diff |
+| corpus | — | `src/pycsl` unchanged since B1 (inert by construction) |
+| planes | 0 | 61 green (732 s) |
+| `check-trusted-reasons.py` | 0 | 416 markers <-> 416 rows |
+| count | — | `#@ \trusted` lines 445 -> **444** |
+
+## Residuals (honest)
+
+1. **Contract-dropping beyond the term family is UN-PROBED.** `generic_fold.py` has 399
+   fixed `ensures { true }` emission sites; only the 7 term recognizers are now gated. Any
+   other recognizer that fires on a function with a non-trivial user contract would drop it
+   the same way. Next step: one probe per recognizer family (a program of the recognized
+   shape with `#@ ensures False`), then the same fail-closed gate.
+2. L-T2 (`_expand_nat_to_int`, 5 fragments) and the remaining 8 canonical.py stubs: each needs
+   its own shape extension (mapping param + dict comprehension, `re`, counter mutation,
+   tuple-unpacking aliasing route #303, in-place `extend`).
+3. L-R5x stays un-built (0 yield); its chains stop at `re` (R5-lib) and a string-tuple list.
+4. `pycsl.py --help` crashes (`ValueError: unsupported format character ' '` in an argparse
+   help string) — noticed in passing, not fixed.
