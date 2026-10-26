@@ -34549,10 +34549,40 @@ def _isinstance_target_classes(test: Any, subj: str) -> List[str]:
     return []
 
 
+
+def _term_contract_trivial(func: Dict[str, Any]) -> bool:
+    """levers-r3 SOUNDNESS GATE (corpus 5822 witness / 5823 control). The term-ADT
+    recognizers below emit their group with a FIXED `ensures { true }` and no `requires`/
+    `raises` — the user's contract is NOT carried. MEASURED at base `76537c560`: a
+    Term->Term transform annotated `#@ ensures False` was emitted as `let rec ... ensures
+    { true }` and reported `Verification SUCCESS` (a false proof). So a recognizer may
+    fire ONLY when the declared contract claims nothing it drops: every `ensures` and
+    `requires` is the literal `True`, and no `raises` / `no_exception` claim is made.
+    Anything else declines (fail closed) to the generic lowering, which carries the
+    contract (or refuses)."""
+    c = func.get("contracts", {}) or {}
+
+    def _true(e: Any) -> bool:
+        if not isinstance(e, dict):
+            return False
+        t = e.get("type")
+        v = e.get("value", e.get("id"))
+        return ((t in ("Bool", "Constant", "NameConstant") and v is True)
+                or (t in ("Name", "Var") and v in ("True", "true"))
+                or (t == "Number" and v == 1 and not isinstance(v, bool)))
+    for key in ("ensures", "requires"):
+        if not all(_true(e) for e in (c.get(key, []) or [])):
+            return False
+    if c.get("raises") or c.get("no_exception") or c.get("no_exception_all"):
+        return False
+    return True
+
 def recognize_term_isinstance_fold(func: Dict[str, Any],
                                    spec: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """Fail-closed recognizer for the bool existence fold over the `term`
     variant (the `contains_unsupported` shape). Returns a desc or None."""
+    if not _term_contract_trivial(func):
+        return None
     if not spec:
         return None
     try:
@@ -34767,6 +34797,8 @@ def recognize_term_isinstance_transform(func: Dict[str, Any],
                                         ) -> Optional[Dict[str, Any]]:
     """Fail-closed recognizer for the Term->Term transform over the `term`
     variant (the `_flip_comparisons` shape). Returns a desc or None."""
+    if not _term_contract_trivial(func):
+        return None
     if not spec:
         return None
     try:
@@ -34804,11 +34836,30 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
     name = func.get("name")
     ctor_set = set(spec["ctors"].keys())
     arms: Dict[str, Any] = {}
+    guards: Dict[str, Any] = {}
     for st in body:
         if isinstance(st, dict) and st.get("stmt") == "Raise":
             continue                    # trailing unreachable raise (total match)
         if not (isinstance(st, dict) and st.get("stmt") == "If" and not st.get("orelse")):
             raise _PVWBail()
+        # GUARDED ARM (levers-r3 L-T1, `_iff_app_to_binop` shape):
+        #     if isinstance(t, C) and t.F == "<lit>" and len(t.L) == K:
+        #         return Ctor(<"lit" | self(t.L[i]) | t.G | self(t.G) | ...>)
+        # placed BEFORE C's general arm. Python tries it first for a C term and falls
+        # through to the general arm otherwise, so it lowers INSIDE C's match arm to
+        #     if pystr_eq v_F "<lit>" then (match v_L with <K-cons> ->
+        #         (match (n__list v_L) with <K-cons r> -> <build over r_i> | _ -> <general>)
+        #       | _ -> <general> end) else <general>
+        # `len(t.L) == K` is EXACTLY the K-cons pattern (faithful); the string test is
+        # the existing VC-free `val pystr_eq` guard (the condmap precedent), so neither
+        # branch is assumed. `self(t.L[i])` is read off the element-wise `n__list` map
+        # (see the emitter for why). No new value shape, no axiom.
+        _g = _parse_transform_guard(st, subj, name, spec, ctor_set)
+        if _g is not None:
+            if _g["ctor"] in arms or _g["ctor"] in guards:
+                raise _PVWBail()        # guard AFTER the general arm (dead) / twice
+            guards[_g["ctor"]] = _g
+            continue
         classes = _isinstance_target_classes(st.get("test"), subj)
         if not classes or any(c not in ctor_set for c in classes):
             raise _PVWBail()
@@ -34822,8 +34873,98 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
         raise _PVWBail()                # totality over the ADT
     uses_list = _transform_uses_list(arms)
     uses_streq = any(a.get("kind") == "condmap" for a in arms.values())
+    if guards:
+        for _gc, _gd in guards.items():
+            if arms[_gc].get("kind") == "condmap":
+                raise _PVWBail()        # keep the guard composition to rebuild/id arms
+            arms[_gc] = dict(arms[_gc], guard=_gd)
+            if any(b[0] == "maprec" for b in _gd["fields"]):
+                uses_list = True
+        uses_streq = True
     return {"param": subj, "arms": arms,
             "uses_list": uses_list, "uses_streq": uses_streq}
+
+
+def _parse_transform_guard(st: Dict[str, Any], subj: str, name: str,
+                           spec: Dict[str, Any], ctor_set: set) -> Optional[Dict[str, Any]]:
+    """levers-r3 L-T1: `if isinstance(t, C) and t.F == "<lit>" and len(t.L) == K:
+    return Ctor(...)` -> a guard descriptor, or None when `st` is not that shape (the
+    caller then tries the ordinary arm forms). A malformed guard BODY bails."""
+    test = st.get("test")
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    l1, rlen = test.get("left"), test.get("right")
+    if not (isinstance(l1, dict) and l1.get("type") == "BinOp" and l1.get("op") == "and"):
+        return None
+    inst, heq = l1.get("left"), l1.get("right")
+    cls = _isinstance_target_classes(inst, subj)
+    if not (len(cls) == 1 and cls[0] in ctor_set):
+        return None
+    c = cls[0]
+    ftypes = dict((fn, wt) for fn, wt in spec["ctors"][c])
+    # t.F == "<lit>"  (F a string field of C)
+    if not (isinstance(heq, dict) and heq.get("type") == "BinOp" and heq.get("op") == "=="
+            and _is_term_field_read(heq.get("left"), subj)
+            and isinstance(heq.get("right"), dict)
+            and heq["right"].get("type") == "String"):
+        return None
+    sfield = _term_field_of(heq["left"])
+    slit = heq["right"].get("value")
+    if ftypes.get(sfield) != "string":
+        return None
+    # len(t.L) == K  (L a `list term` field of C, 1 <= K <= 4)
+    if not (isinstance(rlen, dict) and rlen.get("type") == "BinOp" and rlen.get("op") == "=="
+            and isinstance(rlen.get("left"), dict) and rlen["left"].get("type") == "Call"
+            and rlen["left"].get("func") == "len"
+            and len(rlen["left"].get("args") or []) == 1
+            and _is_term_field_read(rlen["left"]["args"][0], subj)
+            and isinstance(rlen.get("right"), dict)
+            and rlen["right"].get("type") == "Number"
+            and isinstance(rlen["right"].get("value"), int)
+            and not isinstance(rlen["right"].get("value"), bool)):
+        return None
+    lfield = _term_field_of(rlen["left"]["args"][0])
+    k = rlen["right"]["value"]
+    if ftypes.get(lfield) != "list term" or not (1 <= k <= 4):
+        return None
+    _mlw_str_lit(slit)                  # bail on a literal it cannot spell
+    ibody = st.get("body", [])
+    if not (isinstance(ibody, list) and len(ibody) == 1 and _is_return(ibody[0])):
+        raise _PVWBail()
+    call = ibody[0].get("value")
+    if not (isinstance(call, dict) and call.get("type") == "Call"
+            and call.get("func") in ctor_set):
+        raise _PVWBail()
+    gc = call["func"]
+    fields = [fn for fn, _ in spec["ctors"][gc]]
+    if call.get("keywords") or len(call.get("args") or []) != len(fields):
+        raise _PVWBail()
+    builders = []
+    for (fn, wt), av in zip(spec["ctors"][gc], call.get("args") or []):
+        if (isinstance(av, dict) and av.get("type") == "String" and wt == "string"):
+            _mlw_str_lit(av.get("value"))
+            builders.append(("strlit", av.get("value")))
+            continue
+        if (isinstance(av, dict) and av.get("type") == "Call" and av.get("func") == name
+                and len(av.get("args") or []) == 1 and wt == "term"):
+            sub = av["args"][0]
+            if (isinstance(sub, dict) and sub.get("type") == "Subscript"
+                    and _is_term_field_read(sub.get("value"), subj)
+                    and _term_field_of(sub.get("value")) == lfield
+                    and isinstance(sub.get("index"), dict)
+                    and sub["index"].get("type") == "Number"
+                    and isinstance(sub["index"].get("value"), int)
+                    and not isinstance(sub["index"].get("value"), bool)
+                    and 0 <= sub["index"]["value"] < k):
+                builders.append(("recidx", sub["index"]["value"]))
+                continue
+        b = _parse_field_builder(av, subj, name)
+        if b[0] == "mapval" or b[1] not in ftypes:
+            raise _PVWBail()            # only C's own fields may be copied/recursed
+        builders.append(b)
+    return {"ctor": c, "sfield": sfield, "slit": slit, "lfield": lfield, "k": k,
+            "build_ctor": gc, "fields": builders}
 
 
 def _parse_transform_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
@@ -35054,6 +35195,13 @@ def _transform_used_fields(arm: Dict[str, Any]) -> set:
     """Source field names the arm's builders read (to name vs `_` the pattern
     binders)."""
     out: set = set()
+    _gd = arm.get("guard")
+    if _gd:
+        out.add(_gd["sfield"])
+        out.add(_gd["lfield"])
+        for b in _gd["fields"]:
+            if b[0] in ("copy", "rec", "maprec"):
+                out.add(b[1])
     if arm.get("kind") == "id":
         return out
     lists = []
@@ -35095,6 +35243,39 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
         binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
         pat = c + ((" " + binders) if binders else "")
         rhs = _emit_transform_arm(arm, subj, n)
+        _gd = arm.get("guard")
+        if _gd:
+            # The K elements are recursed THROUGH the `{n}__list` map helper (one
+            # structural step `v_<L>` < `v_<subj>`, the step `_flip_comparisons`'s App arm
+            # already proves), not by calling `{n}` on a pattern-bound element: Why3's
+            # structural variant does not discharge the two-step `elem < list < term`
+            # descent (measured: 2 `variant decrease` timeouts). The helper maps
+            # element-wise, so its result on a K-cons list is the K-cons of the recursed
+            # elements; its `ensures { true }` does not say so, hence the second match
+            # keeps a fallback arm (unreachable at run time; an over-approximation, never
+            # an assumption).
+            _k = _gd["k"]
+
+            def _kpat(_pfx: Optional[str]) -> str:
+                _pt = "Nil"
+                for _i in range(_k - 1, -1, -1):
+                    _el = f"{_pfx}{_i}" if _pfx else "_"
+                    _pt = f"Cons {_el} ({_pt})" if _pt != "Nil" else f"Cons {_el} Nil"
+                return _pt
+            _bs = []
+            for b in _gd["fields"]:
+                if b[0] == "strlit":
+                    _bs.append(_mlw_str_lit(b[1]))
+                elif b[0] == "recidx":
+                    _bs.append(f"v__r{b[1]}")
+                else:
+                    _bs.append(_emit_builder(b, n))
+            _gb = _gd["build_ctor"] + ((" " + " ".join(_bs)) if _bs else "")
+            _lf = _gd["lfield"]
+            rhs = (f"if pystr_eq v_{_gd['sfield']} {_mlw_str_lit(_gd['slit'])}"
+                   f" then (match v_{_lf} with {_kpat(None)} ->"
+                   f" (match ({n}__list v_{_lf}) with {_kpat('v__r')} -> {_gb}"
+                   f" | _ -> {rhs} end) | _ -> {rhs} end) else {rhs}")
         out.append(f"    | {pat} -> {rhs}")
     out.append("    end")
     if desc.get("uses_list"):
@@ -35178,6 +35359,8 @@ def recognize_term_list_build(func: Dict[str, Any],
     """Fail-closed recognizer for the `mk_arrow_chain` shape: a two-param
     (`list term`, `term`) accumulator fold that rebuilds a `term` via a single
     constructor call in the loop body. Returns a desc or None."""
+    if not _term_contract_trivial(func):
+        return None
     if not spec:
         return None
     try:
@@ -35349,6 +35532,8 @@ def recognize_term_flatten_arrow(func: Dict[str, Any],
     """Fail-closed recognizer for the `flatten_arrow_chain` shape: a while-spine
     walk down a right-leaning BinOp `->` chain, returning `(list term, term)`.
     Returns a desc or None."""
+    if not _term_contract_trivial(func):
+        return None
     if not spec:
         return None
     try:
@@ -35489,6 +35674,8 @@ def recognize_term_free_vars(func: Dict[str, Any],
     """Fail-closed recognizer for the `free_vars` shape: a set-of-strings
     catamorphism over the `term` variant (singleton / `|`-union / `-`-diff /
     list-union fold), returning a `set`. Returns a desc or None."""
+    if not _term_contract_trivial(func):
+        return None
     if not spec:
         return None
     try:
@@ -35743,6 +35930,8 @@ def recognize_term_pp_wrapper(func: Dict[str, Any], pp_names: set,
     recognized term-string-pp function (§10.4 cascade: `ir_to_whyml_axiom_body`,
     the sole caller of `_pp`, must type its `x` as the `term` variant now that
     `_pp` takes `term`). Returns {param, callee, prec} or None."""
+    if not _term_contract_trivial(func):
+        return None
     try:
         if not pp_names:
             return None
@@ -35802,6 +35991,8 @@ def recognize_term_string_pp(func: Dict[str, Any],
     """Fail-closed recognizer for the term->string BUILD catamorphism (the
     `_pp` shape). Returns a desc (with the fully-parsed, constant-resolved per-arm
     blocks) or None. Never raises."""
+    if not _term_contract_trivial(func):
+        return None
     if not spec:
         return None
     try:
