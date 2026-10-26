@@ -4634,6 +4634,43 @@ Extends route #379's side condition: in a lowered function, a `Call` whose calle
 that the file neither binds nor imports, that names no file class, and that is an attribute of
 the `builtins` module, with a `Starred` positional argument or a `keyword` whose `arg` is `None`,
 makes the translation undefined (refused).
+### §T.6.57  Outside bases and stdlib values by their real class, containers in every hashing position, propagated element types (routes #381 / #382 / #383, gen #37)
+
+_Corresponds to `annotations.md` §7.42._
+
+Refusals only, inside the inline block of §T.6.39 / §T.6.44 / §T.6.46 of `_run_pipeline` (mirror
+twin `\trusted`; no emission change). **Resolution.** Each base or annotation name $n$ not bound
+by a file class, a functional namedtuple or a module type alias is mapped to a qualified name
+$q(n)$ through the file's imports (`_im369`) or `builtins.`; $q(n) = ?$ when $n$ is bound in the
+module otherwise. For $q$ in an allow-listed stdlib module whose spec lies in the interpreter's
+stdlib directory, the object $o$ is imported (a `typing` alias by `get_origin`); $\beta(n)$ (as a
+base) $= U$ when $o$ is not a class, `__hash__` is None, or $o$ is a subclass of `slice` /
+`memoryview` / `types.MappingProxyType` / `weakref.ref`; else $S$. $\nu(n)$ (as a value) $= ?$
+for `Any` / `object` / a TypeVar / an unresolvable name; $U$ as $\beta$ or when one of `list` /
+`dict` / `set` / `bytearray` / `deque` is a subclass of $o$; else $S$. A name with several
+resolutions takes the worst ($U > ? > S$). **#381.** In §T.6.46 #371's MRO walk an outside base
+with $\beta = U$ decides unhashable (an $S$ base is skipped). **#382.** For a hashed $h$, the
+`#UB` (container) mark of §T.6.44 #365 is added at any depth (not only inside a tuple) for a
+name whose annotation head is a container and for a display; every class name $c \in \kappa(h)$
+outside the file adds `#UB` when $\nu(c) = U$ and `#UNK` when $\nu(c) = ?$; an un-parameterised
+`tuple` / `Tuple` type adds `#UNK`. **#383.** $\tau(e)$, a set of type expressions per
+expression node, computed in post-order passes over the function: annotations of
+parameters / locals (through module aliases $\alpha$: a module name bound once to a name /
+attribute / subscript / `|` / string type, not an import, class or def), $\{C\}$ for `self` and
+constructor calls, literal types, displays and comprehensions as `#list[..]` / `#set[..]` /
+`#dict[..]` / `#tuple[..]`, a subscript's element / value / component (a slice keeps the
+sequence), field annotations and stores (§T.6.46 #372's $\phi$, plus a parameter's annotation),
+`-> T` of a file method / function, the mapping / sequence / set / `str` methods and the common
+builtins; un-annotated locals join $\tau$ of all their bindings (a local read before any binding
+is typed is $\bot$, dropped at bindings; the passes iterate to a fixpoint, at most 12, else every
+local is underivable); a field absent from $C$'s file closure contributes only the fields of the
+file subclasses of $C$ (underivable when a class body binds the name, an outside base is on the
+MRO, the attribute is stored through a non-`self` receiver, or the file uses `setattr` /
+`vars` / `__dict__` / `__setattr__`); anything else is UNDERIVABLE (`#UND`, no class), and so is a
+$\nu = ?$ atom of a `Subscript` / `Call` / `Starred` node or of an iteration element. Each
+$\tau(e)$, unfolded through Optional / Union / `|` / Annotated / Final / ClassVar and Tuple
+components, adds its class names to $\kappa(e)$. A hashed $h$ with `#UNK` $\in \kappa(h)$ is
+refused when $U \neq \emptyset$ (§T.6.46).
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 

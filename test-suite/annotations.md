@@ -2623,6 +2623,57 @@ argument was dropped: `sorted(xs, **{"reverse": True})` proved ascending and `su
 modelled): a `*` / `**` argument at a call of a builtin name the file does not bind or import is
 REFUSED (`PYCSL-R379-STARRED-CALL-ARGUMENT`). Census (both corpora, 53 mirrors, `pycsl_lib`): 0
 such calls. Witnesses `5453`-`5455`; control `5467`.
+### 7.46 Hashability of outside bases and stdlib values, containers in every hashing position, element classes through aliases / calls / views (routes #381 / #382 / #383, gen #37)
+
+Three more gaps of route #349's unhashable-record refusal (§7.28 / §7.33 / §7.35 (4)-(5)), each a
+sound REFUSAL (`PYCSL-R349-UNHASHABLE-RECORD`, message extended); no emission changes.
+
+(1) OUTSIDE BASES AND STDLIB VALUES BY THEIR REAL CLASS (route #381). §7.35 (4)'s MRO lookup
+SKIPPED every base outside the file, so `class D(UserList)` / `D(deque)` / `D(OrderedDict)` /
+`D(Counter)` / `D(defaultdict)` / `D(SimpleNamespace)` / `D(array.array)` / `D(argparse.Namespace)`
+/ `D(collections.abc.Set)` / `D(collections.abc.Mapping)` / `D(N, UserList)` were hashable (`{d}`
+PROVED; CPython TypeError). Every base and annotation name not defined in the file is now RESOLVED
+through the file's imports (and the builtins) to its qualified name, and an allow-listed
+standard-library module (loaded only from the interpreter's stdlib directory) is imported to read
+the REAL class: a base whose `__hash__` is None, or that is UNKNOWN (a non-stdlib or relative
+import, a name bound otherwise), decides UNHASHABLE in the MRO walk; a hashable one (`object`,
+`Exception`, `int`, `ABC`, `Generic`, `NamedTuple`, `UserString`, `abc.Sequence` ...) is skipped
+as before. A class whose `__hash__` DELEGATES to its contents — `types.MappingProxyType`,
+`weakref.ref`, `slice`, `memoryview` (a writable one raises ValueError) — counts as unhashable.
+
+(2) CONTAINERS IN EVERY HASHING POSITION (route #382). A set element / dict key / `add` /
+`hash(..)` argument annotated by a stdlib container (`deque`, `Deque[int]`, `Set[int]`,
+`MutableSet`, `SimpleNamespace`, `UserList`, `OrderedDict`, `defaultdict`, `Counter`,
+`array.array`, `list`, `dict`, `List[..]`, `Dict[..]`), a list display bound to a local, a
+`List[List[int]]` element is REFUSED at any depth, not only inside a tuple. A value annotation
+admitting a list / dict / set / bytearray / deque (`Sequence`, `Iterable`, `Mapping` ...) is
+unhashable; a value DECLARED `Any`, `object`, a TypeVar, an unknown import or an
+un-parameterised `tuple` may be any class of the file.
+
+(3) ELEMENT CLASSES THROUGH ALIASES, CALLS AND VIEWS (route #383). §7.35 (5) derived a hashed
+element's class from typed names, fields and one subscript only. A per-function TYPE PROPAGATION
+now follows module type aliases (`DD = D`, `DL = List[D]`), `m.get(..)` / `pop` / `setdefault`,
+loops over `.keys()` / `.values()` / `.items()` (tuple targets componentwise), comprehensions and
+displays, slices then subscripts, `{*ds}`, a method's or module function's `-> T`, constructor
+calls and the common builtins (`sorted`, `list`, `tuple`, `iter`, `enumerate`, `zip`, `min` ...),
+and fields typed by the parameter they are stored from (a field absent from a class and its
+file bases counts only through the file subclasses defining it, unless the attribute may be
+bound otherwise). A local read before its bindings are typed is a least fixpoint (`i = 0 .. i =
+i + 1` is `int`). With an unhashable class in the file, a value declared `Any` / `object` / a
+TypeVar (a parameter, a local, a field) is refused in a hashing position.
+
+Witnesses `5330`-`5385` (47 red-team witnesses plus NEW latents `5377`-`5385`: `s.add(d)` and
+`{d: 1}` with `d: deque`, `types.MappingProxyType` (two spellings), `memoryview`, `slice`,
+`weakref.ref`, a field defined only by a file subclass, a base from `from collections import
+*`); controls `5390`-`5393` (hashable outside
+bases, hashable values and components, every #383 source over a FROZEN element class in a file
+with an unhashable class, hashable stdlib values `Fraction` / `Decimal` / `date` / `FrozenSet`).
+Residuals (the rule is still a DENY-list): an UNDERIVABLE value (an unknown callee or receiver, an
+un-annotated return, an `Any` reached through a container such as `Dict[str, Any]`'s `.get(..)`)
+is not checked; a value declared `Any` / `object` / a TypeVar / an un-parameterised `tuple` is
+checked only against the FILE's unhashable classes — a builtin container reaching it (`d: Any`
+called with a list, `t: tuple` holding a list) is not seen. A class imported from a non-stdlib module (`from mylib import
+D`, `D(UserList)` there) is an unknown value class, also checked only against the file's own.
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
