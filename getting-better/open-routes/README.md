@@ -1,5 +1,12 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-26): #403-#416 OPENED (red team 32 on 085ee3dcc: 63 confirmed / 345 screened / 157 fully proved; 11/11 sample
+##   driver-reproduced rc=0): #403 verified __eq__ only for own-class `other`, #404 `type` base = metaclass unmodelled, #405 dynamic
+##   subclasses escape the closed world, #406 GD misses stdlib attribute setters, #407 arithmetic/BoolOp/IfExp/slice over a container
+##   global classed hashable, #408 read-only global test misses __main__ subscript store, #409 stdlib module attributes hashed
+##   unclassified, #410 copy ignores __copy__/__replace__, #411 Latin-1 literal emitted as UTF-8 bytes, #412 float / by zero, #413 int
+##   true-division overflow, #414 size limits, #415 `%` formatting, #416 dict mutation while iterating a view.
+
 ## run #3 (2026-10-26): #402 (a user `__hash__` on the static class itself is never called in the model: a raising `__hash__`
 ##   proves `{d}` under no_exception) OPENED (e1 residual of #395, driver-reproduced rc=0, CPython ValueError).
 
