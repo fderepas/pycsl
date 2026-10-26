@@ -1,0 +1,13 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5634_gen37_r397_gd_tuple_target_attr.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_3m803i2c.mlw", line 9, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.01s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_3m803i2c.mlw", line 8, characters 9-10: unused variable r
+
+[+] Verification SUCCESS! All contracts formally proven.

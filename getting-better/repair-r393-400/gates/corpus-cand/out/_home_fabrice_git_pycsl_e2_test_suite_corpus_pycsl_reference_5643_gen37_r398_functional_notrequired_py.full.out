@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5643_gen37_r398_functional_notrequired.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: function 'f': the key `"b"` is OPTIONAL in the TypedDict `TD` (`NotRequired`, `total=False`, or a key set the verifier cannot read), so a value may lack it and CPython raises KeyError (or answers the default / False), while the model holds every key as a record field (route #398: `d["b"]` for `b: NotRequired[int]` under `no_exception` PROVED). Make the key required, or keep optional data in a plain `dict` / an `Optional` field.

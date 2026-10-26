@@ -3637,23 +3637,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if _wh398 == "key" and not (_kk398 in _tdo398[_rtd398]
                                                     or "*" in _tdo398[_rtd398]):
                             continue
+                    _why398 = (f"`.{_kk398}` reads an ATTRIBUTE of a value that may be the "
+                               f"TypedDict `{_rtd398 or ', '.join(sorted(_tdk398))}`, so CPython "
+                               f"raises AttributeError (`d.a` on `d: TD` under `no_exception` "
+                               f"PROVED). Use `d[\"{_kk398}\"]`."
+                               if _wh398 == "attribute" else
+                               f"the key `\"{_kk398}\"` is OPTIONAL in the TypedDict "
+                               f"`{_rtd398 or ', '.join(sorted(_tdk398))}` (`NotRequired`, "
+                               f"`total=False`, or a key set the verifier cannot read), so a "
+                               f"value may lack it and CPython raises KeyError (or answers the "
+                               f"default / False) (`d[\"b\"]` for `b: NotRequired[int]` under "
+                               f"`no_exception` PROVED). Make the key required, or keep optional "
+                               f"data in a plain `dict` / an `Optional` field.")
                     raise _PyCSLSemErr341(
-                        f"function '{_f398.get('name')}': "
-                        + (f"`.{_kk398}` reads an ATTRIBUTE of a value that may be the "
-                           f"TypedDict `{_rtd398 or ', '.join(sorted(_tdk398))}`: a TypedDict "
-                           f"value is a plain `dict` at runtime, so CPython raises "
-                           f"AttributeError, while the model reads the record field "
-                           f"(route #398: `d.a` on `d: TD` under `no_exception` PROVED). "
-                           f"Use `d[\"{_kk398}\"]`."
-                           if _wh398 == "attribute" else
-                           f"the key `\"{_kk398}\"` is OPTIONAL in the TypedDict "
-                           f"`{_rtd398 or ', '.join(sorted(_tdk398))}` (`NotRequired`, "
-                           f"`total=False`, or a key set the verifier cannot read), so a "
-                           f"value may lack it and CPython raises KeyError (or answers the "
-                           f"default / False), while the model holds every key as a "
-                           f"record field (route #398: `d[\"b\"]` for `b: NotRequired[int]` "
-                           f"under `no_exception` PROVED). Make the key required, or keep "
-                           f"optional data in a plain `dict` / an `Optional` field."),
+                        f"function '{_f398.get('name')}': {_why398} A TypedDict value is a plain "
+                        f"`dict` at runtime, while the model holds every declared key as a "
+                        f"record field (route #398).",
                         stage="ir-semantic", code="PYCSL-R398-TYPEDDICT-ACCESS")
         # (#49) gen #37, ROUTE #226 — A CONSTRUCTOR PARAMETER NAMED LIKE ANOTHER INVARIANT FIELD.
         # The constructor-invariant goal `_check_class_inv_<C>` quantifies the record's field

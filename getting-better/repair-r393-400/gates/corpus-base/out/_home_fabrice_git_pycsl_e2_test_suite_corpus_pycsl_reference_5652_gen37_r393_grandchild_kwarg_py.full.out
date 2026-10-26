@@ -1,0 +1,10 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5652_gen37_r393_grandchild_kwarg.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_cc1l2asw.mlw", line 16, characters 8-9: unused variable e
+
+[+] Verification SUCCESS! All contracts formally proven.

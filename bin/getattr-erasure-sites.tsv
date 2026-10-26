@@ -27,3 +27,4 @@ test-suite/corpus/pycsl-reference/5082_gen37_r376_getattr_class_attr_ctor_local.
 test-suite/corpus/pycsl-reference/5093_gen37_r376_ctl_getattr_absent_default.py	1	0
 test-suite/corpus/pycsl-reference/5464_gen37_gd_ctl_absent_default_file_mro.py	1	0
 test-suite/corpus/pycsl-reference/5465_gen37_gd_ctl_mangled_other_name_absent.py	1	0
+test-suite/corpus/pycsl-reference/5681_gen37_r396_ctl_gd_absent_in_subclass_closure.py	1	0

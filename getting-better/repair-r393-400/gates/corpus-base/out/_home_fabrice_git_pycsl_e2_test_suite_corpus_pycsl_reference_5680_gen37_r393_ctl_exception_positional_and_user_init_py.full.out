@@ -1,0 +1,14 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5680_gen37_r393_ctl_exception_positional_and_user_init.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_moop9sah.mlw", line 15, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_moop9sah.mlw", line 18, characters 8-9: unused variable g
+Warning, file "/tmp/.pycsl_moop9sah.mlw", line 17, characters 8-9: unused variable e
+
+[+] Verification SUCCESS! All contracts formally proven.

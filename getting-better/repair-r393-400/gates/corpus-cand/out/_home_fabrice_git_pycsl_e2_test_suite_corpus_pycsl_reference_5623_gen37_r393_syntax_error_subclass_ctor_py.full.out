@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/test-suite/corpus/pycsl-reference/5623_gen37_r393_syntax_error_subclass_ctor.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic]: 'f' line 10: the construction `D('m', 1)` passes arguments a `SyntaxError` does not take: CPython accepts `()`, `(msg)` or `(msg, details)` with `details` a 4- or 6-item sequence and raises TypeError otherwise, while the model builds the instance (route #393: `class D(SyntaxError)`; `D("m", 1)` under `no_exception` PROVED). Pass the details as a literal `(filename, lineno, offset, text)` tuple.

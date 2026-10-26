@@ -8,3 +8,6 @@
 2026-10-26T09:15:06Z fixed TD contract over-refusal (0889/0890) and SyntaxError mirror GONE; re-sweeping
 2026-10-26T09:15:24Z cand re-sweep running
 2026-10-26T09:25:18Z cand re-sweep still running
+2026-10-26T09:43:07Z census append running
+2026-10-26T10:16:24Z getattr-erasure gate running; route REPAIR docs written
+2026-10-26T10:26:38Z getattr --emit-baseline running

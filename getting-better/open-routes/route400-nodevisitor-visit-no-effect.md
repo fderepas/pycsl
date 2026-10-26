@@ -44,3 +44,17 @@ CORRECTLY REFUSED / FAILED (selection)
 - Enum/NamedTuple/ABC: E(n) lookup (refused), aliases / auto values / len(E) / IntFlag | (unprovable or refused),
   abstract instantiation (refused), metaclass __call__ (refused, n33).
 ```
+
+## REPAIR (2026-10-26, e2 executor off 3b2d2e763; code + corpus + docs ffec1ac18 and follow-ups on this branch; inline in `_run_pipeline`, mirror twin `\trusted`, no new def, no emission change, ledger unchanged)
+**MEASURED FIRST.** The self-annotation mirror's NodeVisitor users (`Module3_Weaver`, `Module5_IREmitter`, `desugar`, `exec_splice`,
+`pure_ast`) all import `frontend.pure_ast as ast` -- a USER module, not the stdlib `ast` -- and the corpus PASS users (0448 / 0450 /
+0451 / 0453) call no dispatching `visit`; so neither removing the bases from S1's table nor modelling havoc is needed by any PASS file.
+**Design (refusal, the table kept):** when a file class derives (through file classes) from the stdlib `ast.NodeVisitor` /
+`NodeTransformer` and it or a file ancestor defines a `visit_*` method (or it is a transformer, which rewrites the tree in place), a
+`.visit(..)` / `.generic_visit(..)` call in a verified (non-`\trusted`) function is refused (`PYCSL-R400-NODEVISITOR-DISPATCH`).
+Witness 5646 (n32) PROVED at 3b2d2e763 -> REFUSED; controls 5684 (visitor without `visit_*`) and 5685 (`visit_Constant` called
+directly, the advice followed; audited FOLLOWABLE) PROVED both. Docs annotations §7.56, translational §T.6.67. Residuals: the havoc
+model is not built (a verified caller of a dispatching stdlib visitor is refused); the mirror's own `pure_ast.NodeVisitor` dispatch
+(a user-module class) is outside this rule -- `desugar_chained_comparisons` / `splice_constant_exec` declare `assigns \nothing`
+around a `NodeTransformer.visit` that rewrites the tree in place, which deserves its own look.
+Over-refusal measured (emission sweeps vs a worktree at 3b2d2e763, logs `getting-better/repair-r393-400/gates/`): root corpus 2424 -> 2431 .mlw (7 new controls), 0 MOVED / 0 GONE / 0 APPEARED; python-reference 2186 -> 2186, 0 / 0 / 0; mirror 53 / 53, 0 / 0 / 0 (no OWED proof). The FIRST cut over-refused 3 files, each removed by a justified refinement: mirror `frontend/pure_ast` (`class PyCSLSyntaxError(SyntaxError)` raised `(msg, (file, line, col, text))`: the SyntaxError family is now MODELLED by its constructor shape instead of refused) and corpus 0889 / 0890 (a CONTRACT's `r.n` on a TypedDict is the spec notation for a required key, not a runtime attribute read).

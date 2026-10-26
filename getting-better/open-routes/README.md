@@ -3,6 +3,20 @@
 ## run #3 (2026-10-26): #401 (a `\trusted` stub's `assigns \nothing` over a body that mutates its PARAMETER in place:
 ##   pure_ast NodeTransformer.generic_visit; check-trusted-frame-honesty only sees self writes) OPENED (e2 side note, driver-confirmed).
 
+## gen #37 / run #3 (2026-10-26): #393 + #396 + #397 + #398 + #399 + #400 REPAIRED, candidate (e2 executor off 3b2d2e763; code + corpus +
+##   docs ffec1ac18 + follow-ups on this branch, annotations 7.52-7.56 / T.6.63-T.6.67, route REPAIR sections; inline in `_run_pipeline`,
+##   no new def, no emission change, ledger unchanged). Allow-list polarity per model decision: #393 builtin exception bases admitted only
+##   with a constructor model (any-arity `(self, *args)` no keyword via route #369; SyntaxError family by shape; ExceptionGroup /
+##   Unicode*Error refused by S1); #396/#397 GD reads the closed-world SUBCLASS closure and binds every identifier a class-scope node
+##   carries unless its kind is on a NON-binding allow-list, every Store/Del attribute in any target (self -> its class, else every
+##   class); #398 functional TypedDict is a TC construct, body `.k` on a TypedDict refused, optional-key reads (NotRequired / total=False
+##   / unknown) refused (new PYCSL-R398-TYPEDDICT-ACCESS); #399 builtins resolved through `from builtins import` / `builtins.` before SB;
+##   #400 `.visit` / `.generic_visit` refused when a stdlib NodeVisitor subclass dispatches to `visit_*` (new PYCSL-R400-NODEVISITOR-
+##   DISPATCH; the mirror's visitors use `pure_ast`, so the table keeps the bases). 27 red-team witnesses + 5 latents PROVED at base ->
+##   REFUSED (corpus 5620-5646, 5650-5654); controls 5680-5686 PROVED both. Root 2424/2431 0/0/0, pyref 2186/2186 0/0/0, mirror 53/53
+##   0/0/0 (first cut GONE'd mirror pure_ast + corpus 0889/0890: refined). Residuals: other-module subclasses / user-module bases (GD),
+##   `cls(..)` constructions (#393), visit havoc model not built (#400).
+
 ## gen #37 / run #3 (2026-10-26): #392 (nested class shadows a stdlib base for S1 / §7.46), #393 (builtin-exception subclass construction
 ##   unchecked), #394 (§7.47 hash allow-list misses module globals / class attributes / set()-frozenset() over dict views / copy), #395 (hash
 ##   check reads the static class only: unhashable subclass instance), #396 (GD folds getattr default when only a subclass binds), #397 (GD

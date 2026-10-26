@@ -16,3 +16,17 @@ Witnesses `witnesses-r398/`: `t05_typeddict_functional.py`, `t08_typeddict_field
   the record field as option; (3) TC must recognise the functional forms `X = TypedDict("X", ..)` (and NamedTuple / Enum
   functional forms) as typing constructs.
 ```
+
+## REPAIR (2026-10-26, e2 executor off 3b2d2e763; code + corpus + docs ffec1ac18 and follow-ups on this branch; inline in `_run_pipeline`, mirror twin `\trusted`, no new def, no emission change, ledger unchanged)
+**Design: a TypedDict value is a `dict`; a key is READ only when positively REQUIRED.** (3) the functional form `X =
+TypedDict("X", ..)` (any `typing` / `typing_extensions` spelling) is a typing construct for TC (t05 `TD(a=1).a` now
+`PYCSL-TC-TYPING-CONSTRUCT-VALUE`). (1)+(2) On the resolved IR of each non-trusted function, `PYCSL-R398-TYPEDDICT-ACCESS` refuses:
+in the body, `X.k` for a key of a file TypedDict unless `X` is `self` / `cls` or a variable of a known non-TypedDict type (t08); and
+anywhere (contracts included) `X["k"]`, `X.get("k" ..)`, `X.pop`, `X.setdefault`, `"k" in X` for an OPTIONAL key -- `NotRequired`,
+`Annotated`, `total=False` (inherited totality per class), non-literal totality / key set, a non-TypedDict base -- unless `X` is a
+variable of a known type without that optional key (t06, t07, u48). No guard is admitted (the record has no presence bit; at base
+the guarded `in` / `try` forms were ill-typed and `.get` of an optional key FAILED, so nothing measured is lost). Not taken: making
+the field an `option` (an emission change). Witnesses 5639-5643 PROVED at 3b2d2e763 -> REFUSED; control 5682 (required key in a
+contract and a body) PROVED both. Docs annotations §7.54, translational §T.6.65. Over-refusal: an optional key read after the
+function stored it; `.k` on a receiver of unknown type in a file defining a TypedDict with a key `k`.
+Over-refusal measured (emission sweeps vs a worktree at 3b2d2e763, logs `getting-better/repair-r393-400/gates/`): root corpus 2424 -> 2431 .mlw (7 new controls), 0 MOVED / 0 GONE / 0 APPEARED; python-reference 2186 -> 2186, 0 / 0 / 0; mirror 53 / 53, 0 / 0 / 0 (no OWED proof). The FIRST cut over-refused 3 files, each removed by a justified refinement: mirror `frontend/pure_ast` (`class PyCSLSyntaxError(SyntaxError)` raised `(msg, (file, line, col, text))`: the SyntaxError family is now MODELLED by its constructor shape instead of refused) and corpus 0889 / 0890 (a CONTRACT's `r.n` on a TypedDict is the spec notation for a required key, not a runtime attribute read).
