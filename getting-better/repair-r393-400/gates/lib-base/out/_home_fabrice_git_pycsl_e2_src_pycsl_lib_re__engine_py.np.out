@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/src/pycsl_lib/re/_engine.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+[ir-semantic] /home/fabrice/git/pycsl-e2/src/pycsl_lib/re/_engine.py: override '_ColorMatch.group' of 'ReMatch.group' inherits `group` from class `_ColorMatch`, which binds it (line 390) by a statement that is not a top-level `def`, whose annotations R5 cannot compare: a caller holding a value typed with the base class is verified against the BASE method's whole contract (its raises / no_exception / assigns, its parameters by position), and a subclass instance runs the override, so the claim would be proved while CPython does otherwise (route #278). Make the override refine the base (declare at most the base's exceptions and locations, keep its parameter names and order, return a subtype of the base's return annotation and accept a supertype of each base parameter annotation), widen the base's contract, or pass `--assume-class-exact` to declare the assumption that values are exact instances (CLASS-EXACT, listed by `--soundness-report`).

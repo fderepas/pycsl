@@ -291,9 +291,15 @@ DANGLING_EXEMPT = frozenset({
 # (#49) gen #37, route #342: the same treatment for 4560, the witness whose whole point is a
 # `with open(..) as self.x` target in an invariant-carrying constructor. It is `pycsl-expected:
 # FAIL` and REFUSED (PYCSL-R342-CONSTRUCTOR-STORE-FORM) before any lowering.
+#
+# (#49) gen #37, route #397 (e2, run #3): the same treatment for 5636, red team 31's k56 witness
+# whose whole point is a `with nullcontext(5) as self.k` target that GD's attribute census
+# missed. It is `pycsl-expected: FAIL` and REFUSED (PYCSL-R376-GETATTR-CLASS-BINDING) before
+# any lowering.
 CTXBIND_EXEMPT = frozenset({
     "1784_gen30_witness_with_as_binding_unmodelled.py",
     "4560_gen37_r342_own_with_target_store.py",
+    "5636_gen37_r397_gd_with_target.py",
 })
 
 

@@ -11,3 +11,7 @@
 2026-10-26T09:43:07Z census append running
 2026-10-26T10:16:24Z getattr-erasure gate running; route REPAIR docs written
 2026-10-26T10:26:38Z getattr --emit-baseline running
+2026-10-26T10:32:32Z sync+mirror-check running
+2026-10-26T10:36:43Z soundness planes running
+2026-10-26T10:53:40Z planes re-run (CTXBIND exemption for witness 5636)
+2026-10-26T11:12:48Z all gates green; committing
