@@ -4671,6 +4671,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                   if isinstance(_s, (_ast341.FunctionDef,
                                                      _ast341.AsyncFunctionDef))
                                   and _s.name == _fx380.id]
+                    elif (isinstance(_fx380, _ast341.Name) and _fx380.id not in _imp341
+                          and _fx380.id not in _bound341 and _fx380.id not in _cls341
+                          and hasattr(__import__("builtins"), _fx380.id)):
+                        # (#49) gen #37, SYSTEMATIC RULE SB (systematic-soundness-r3.md;
+                        # route #390) — the same polarity flip for a BUILTIN callee: the
+                        # builtin models (`sorted`, `sum`, `min`, `print`, ...) read
+                        # positional / named arguments only, so a `*` / `**` argument was
+                        # dropped: `sorted(xs, **{"reverse": True})` proved ascending,
+                        # `sum([1, 2], **{"start": 10}) == 3` (CPython reversed / 13).
+                        # Admitted only where the callee's binding is modelled; CENSUS (both
+                        # corpora, 53 mirrors, `pycsl_lib`): 0 `*` / `**` arguments to a
+                        # builtin.
+                        _why379 = (f"passes a `*` / `**` argument to the builtin "
+                                   f"`{_fx380.id}`, whose model reads explicit arguments only "
+                                   f"(systematic rule SB, route #390)")
                     elif (isinstance(_fx380, _ast341.Attribute)
                           and not (isinstance(_fx380.value, _ast341.Name)
                                    and _fx380.value.id not in _cls341

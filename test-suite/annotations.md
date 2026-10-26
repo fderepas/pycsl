@@ -2613,6 +2613,17 @@ class `C(P)` deriving from a protocol without listing `Protocol` is an ordinary 
 corpora, 53 mirrors, `pycsl_lib`): no PASS file uses a typing construct as a value. Witnesses
 `5443`-`5447`; control `5466`.
 
+### 7.45 `*` / `**` arguments to a builtin (systematic rule SB, route #390, gen #37)
+
+Route #379 refused a `*` / `**` argument at a call of a file class, a module `def` or a file
+method; the builtin models read explicit arguments only, so at a BUILTIN callee the starred
+argument was dropped: `sorted(xs, **{"reverse": True})` proved ascending and `sum([1, 2],
+**{"start": 10}) == 3` proved (red team 30, PROVED at `7bf752d4e`; CPython reversed / 13). RULE
+(the same polarity flip: a starred argument is admitted only where the callee's binding is
+modelled): a `*` / `**` argument at a call of a builtin name the file does not bind or import is
+REFUSED (`PYCSL-R379-STARRED-CALL-ARGUMENT`). Census (both corpora, 53 mirrors, `pycsl_lib`): 0
+such calls. Witnesses `5453`-`5455`; control `5467`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

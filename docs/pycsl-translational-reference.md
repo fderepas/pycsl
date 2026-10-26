@@ -4626,6 +4626,15 @@ the driver that is not under an annotation, a `returns`, a class base, or the fi
 the keyword values of a `cast` / `TypeVar` / `NewType` call makes the translation undefined
 (refused, `PYCSL-TC-TYPING-CONSTRUCT-VALUE`).
 
+### §T.6.56  Starred arguments to builtins (systematic rule SB, gen #37)
+
+_Corresponds to `annotations.md` §7.45._
+
+Extends route #379's side condition: in a lowered function, a `Call` whose callee is a `Name` $f$
+that the file neither binds nor imports, that names no file class, and that is an attribute of
+the `builtins` module, with a `Starred` positional argument or a `keyword` whose `arg` is `None`,
+makes the translation undefined (refused).
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
