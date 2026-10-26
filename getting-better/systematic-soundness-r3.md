@@ -1,6 +1,6 @@
 # Systematic soundness repair — measurement report (driver run #3, executor sys1)
 
-**Status: INTERIM (2026-10-26, committed before 04:00Z).** Base: main `7bf752d4e`. Evidence and
+**Status: FINAL (2026-10-26; interim committed e2a5342cf at ~23:45Z).** Base: main `7bf752d4e`. Evidence and
 scripts: `getting-better/systematic-soundness-r3/` (`classify.py`, `routes.tsv`, `probes.tsv`,
 `families.txt`, `proto_rules.py`, `screen.sh`, `head-*-verdicts.tsv`, `live-at-7bf752d4e.txt`).
 
@@ -132,3 +132,44 @@ invariant) was such a flip and closed its family's assumption path.
 
 Per-rule in-tool measurement of RA (byte-diff sweeps root / pyref / mirror vs base) and its gate
 battery follow in the FINAL section.
+
+## 6. FINAL — what was built (four polarity flips), measured in-tool
+
+All four are sound refusals, inline (no new def; `_run_pipeline`'s mirror twin is `\trusted`; the
+`expressions.py` text edit is outside the mirror), no emission change, no new axiom, `\trusted`
+count 448 unchanged. Witnesses / controls are in this executor's ID block.
+
+| rule | where | refuses | witnesses (PROVED at 7bf752d4e -> REFUSED) | controls (PROVED both) |
+|---|---|---|---|---|
+| **S1** unmodelled base (= RA) | `_run_pipeline`, after route #341's base walk | a base resolving to a stdlib / builtin class outside the BASE-MODEL table; main-file classes when named outside `__main__`, every class of a dependency module (route #181 resolution, transitive); an unresolved base in a file with a stdlib star import. `PYCSL-S1-UNMODELLED-BASE` | 5420-5433 (all 14 #381 witnesses), 5434/5435 (new two-level latents), 5448-5452 (driver probes a1 star, a4 dependency, a11 re-bound import, b1 star in dependency, b5 transitive re-export) | 5460-5463 |
+| **GD** getattr default | `_run_pipeline`'s route #376 map | the default answered when the MRO reaches a stdlib / builtin base (`object` excepted), when the file stores attributes dynamically (`setattr` / `delattr` / `vars` / `__dict__` / `__setattr__` outside `__main__`), or for the mangled `_C__x` of a `self.__x` store. Existing `PYCSL-R376-GETATTR-CLASS-BINDING` | 5436-5442 (all 7 #388/#389 witnesses) | 5464, 5465 |
+| **TC** typing constructs | after S1 | a `Protocol` / `TypedDict` class used as a value (call, isinstance, binding) — only annotation / base / cast positions admitted. `PYCSL-TC-TYPING-CONSTRUCT-VALUE` | 5443-5447 (all 5 #391 witnesses) | 5466 |
+| **SB** starred args to builtins | route #379's call walk | a `*` / `**` argument at a call of a builtin name. Existing `PYCSL-R379-STARRED-CALL-ARGUMENT` | 5453, 5454 (both #390 witnesses), 5455 (`max(*xs)`, ill-typed at base) | 5467 |
+
+**Over-refusal, measured in-tool** (emission sweeps vs a base worktree at `7bf752d4e`, logs in
+`systematic-soundness-r3/gates-v3/`): root corpus 2411 -> 2419 .mlw, 0 MOVED / 0 GONE / 0 APPEARED
+(8 new controls); python-reference 2186 -> 2186, 0 / 0 / 0; mirror 53 / 53, 0 / 0 / 0 (no OWED
+proof). Every over-refusal the prototype predicted was removed by a justified refinement, not
+by re-labelling a PASS file: 4634 / 4832 (stdlib-base classes named only by `__main__`) and 4772
+(`int` mixin of an enum) stay PASS. One measured over-refusal was REJECTED: GD's first cut also
+treated a USER-module base as unknown and GONE'd mirrors `module6_whyml/expressions` and
+`statements` (emitter mixins from sibling modules) — that part is a residual, not landed.
+
+**Live census after the four rules** (`--no-proof` screen of the 82 live false proofs): 26 now
+REFUSED (S1 14, GD 7, TC 5) + the 2 #390 ones refused by SB as corpus witnesses 5453 / 5454 = **28
+of 82**. Remaining 54: #382 / #383 hashability 33 (r381s owns it; RH allow-list recommended to it),
+#226 not-covered invariant shapes 8, #385 1, older documented residuals 12.
+
+**Gate battery** (commit `c19787b5c` + census `SB` rows; the S1-only battery for `3e69a82b8` is
+in `gates-s1/`): check-self-annotate-sync rc 0; self-annotate-mirror-check rc 0 (53/53);
+byte-diff root rc 0 and pyref rc 0 (counts above); mirror sweep compare rc 0; refusal-witness
+coverage rc 0 (312 demonstrated, 5 undemonstrated = ceiling 5); refusal-advice audit rc 0;
+doc-coherency rc 0; fast soundness planes rc 0, 61/61 green (`gates-v3/planes.log`; the
+first v2 run was RED 2/61 on control 5466's vacuous helper, fixed in 5466 and re-run green);
+no new axiom; `\trusted` 448.
+
+**Residuals (not closed):** (1) user-module bases are still not read by the getattr map
+(#376/#388 residual); (2) S1 trusts route #341 for unresolved names outside a stdlib star import
+(e.g. names created by `globals()` writes) and `exec`-built classes; (3) TC admits a
+`@runtime_checkable` protocol nowhere (sound, but would over-refuse a future user of it; 0 today);
+(4) RH (type-directed hash allow-list) not built here by agreement with the driver.
