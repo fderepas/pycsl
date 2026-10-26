@@ -7,6 +7,16 @@
 ##   (ast.NodeVisitor admitted but `visit` has no effect) OPENED (red team 31: 59 confirmed / ~470 probes, 57 on these routes + 2 documented
 ##   residuals c23 / g24; 9/9 sample driver-reproduced rc=0 on 7859e8fb0).
 
+## gen #37 (2026-10-26): #383 ALLOW-LIST ADDENDUM, candidate (rh1 executor off b62ff2e23; code 948b0ba72, corpus + census 6d4cac6a3,
+##   docs annotations 7.47 / T.6.58, route383 REPAIR ADDENDUM). r381s "Variant A" landed: a hashed value of an UNKNOWN class
+##   (declared Any / object / TypeVar, a non-stdlib module's class, a `Dict[str, Any]` subscript value) is refused unless known
+##   hashable (PYCSL-R349-UNHASHABLE-RECORD, same message). Variant A alone GONEs 2/53 mirrors (root / pyref / lib 0): narrowed by
+##   a PRECISE guarded re-hash (`if A in B:` then `B[A]`: module6_whyml/functions.py) and by keeping an UN-PARAMETERISED tuple
+##   on the deny-list (pycsl.py `_record_key -> Tuple` of why3-JSON values: genuinely unknown-typed; residual). Witnesses
+##   5500-5506 PROVED at base -> REFUSED; controls 5510-5511 PROVED. Root 2421/2421 0/0/0, pyref 2186/2186 0/0/0, mirror 53/53
+##   0/0/0, lib identical, planes 61/61. Residuals: underivable (#UND) values unchecked; bare `tuple` holding a list PROVES; a
+##   hashable class of a user module is over-refused (0 measured users).
+
 ## gen #37 (2026-10-26): #381 + #382 + #383 REPAIRED, candidate (r381s executor off 7bf752d4e; code 324907ddc / 9942dc760 (from the
 ##   r381 WIP, measured and narrowed), corpus + census b89ed1f91, docs ed1448bd4 (annotations 7.46 / T.6.57), route docs; inline, no
 ##   new def, no new refusal code, ledger 3). Sound refusals, no emission change, all PYCSL-R349-UNHASHABLE-RECORD. #381: outside bases

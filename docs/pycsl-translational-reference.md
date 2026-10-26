@@ -4672,6 +4672,25 @@ $\tau(e)$, unfolded through Optional / Union / `|` / Annotated / Final / ClassVa
 components, adds its class names to $\kappa(e)$. A hashed $h$ with `#UNK` $\in \kappa(h)$ is
 refused when $U \neq \emptyset$ (§T.6.46).
 
+### §T.6.58  A value of an unknown class is refused in a hashing position (allow-list polarity, route #383 addendum, gen #37)
+
+_Corresponds to `annotations.md` §7.47._
+
+Refusal only, in the same inline block as §T.6.57 (mirror twin `\trusted`; no emission change).
+The un-parameterised `tuple` / `Tuple` atom of $\tau$ now adds `#UNKT` to $\kappa$ (not
+`#UNK`). Let $G$ be the set of guarded subscript nodes: for each `If` whose first body statement
+$s$ is an `Assign` / `AnnAssign` / `AugAssign` / `Expr` / `Return` with no `Call` / `NamedExpr` /
+`Yield` / `YieldFrom` / `Await` / `Lambda` node, and each conjunct `A in B` of its test (a single
+`In`; the test itself or an `and` conjunct whose later conjuncts contain none of those nodes), a
+subscript node `B'[A']` of $s$ is in $G$ when $\delta(A') = \delta(A)$ and $\delta(B') =
+\delta(B)$, where $\delta$ rewrites `x.get(K)` ($K$ a constant, $x$ a local whose annotation
+heads are all `dict` / `defaultdict` / `OrderedDict` and with no binding of unknown class) to
+`x[K]` and is the AST dump of an expression built only of names, attributes, subscripts and
+constants (undefined otherwise). For a hashed $h$ at node $n$: when `#UNK` $\in \kappa(h)$ or
+`#UNKT` $\in \kappa(h)$, $\kappa(h)$ gains $U$ (§T.6.46, as before) and, when `#UNK` $\in
+\kappa(h)$ and $n \notin G$, also `#UB`; $h$ is refused when $\kappa(h) \cap (U \cup
+\{\texttt{\#UB}\}) \neq \emptyset$.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

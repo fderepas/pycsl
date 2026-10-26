@@ -2675,6 +2675,35 @@ checked only against the FILE's unhashable classes — a builtin container reach
 called with a list, `t: tuple` holding a list) is not seen. A class imported from a non-stdlib module (`from mylib import
 D`, `D(UserList)` there) is an unknown value class, also checked only against the file's own.
 
+### 7.47 A value of an unknown class is refused in a hashing position (allow-list polarity, route #383 addendum, gen #37)
+
+§7.46 checked a value DECLARED `Any` / `object` / a TypeVar, or of a class imported from a
+non-stdlib module, only against the file's OWN unhashable classes (a DENY-list: refuse only what
+is proved unhashable), so `def g(d: Any): {d}` called with a list, `m: Dict[str, Any]` with
+`{m["a"]}`, `{d: 1}` with `d: object`, `s.add(d)` with `d: Any`, and `{d}` with `d: D` where
+`from mylib import D` defines `__eq__` without `__hash__`, all PROVED `no_exception \all`
+(CPython TypeError). Such a value is now refused in every hashing position (a set display /
+comprehension element, a dict key, the argument of `add` / `discard` / `remove` / `get` /
+`setdefault` / `pop` / `__contains__` / `__getitem__`, an `in` test or subscript, `hash(..)`, the
+elements of `set` / `frozenset` / `Counter` / `fromkeys` over a display) unless its
+class is KNOWN hashable (`PYCSL-R349-UNHASHABLE-RECORD`, same message). Exception: in the FIRST
+statement of the body of `if A in B:` (the test, or a conjunct of an `and` test whose later
+conjuncts run no code), `B[A2]` with `A2` the same value as `A` (`x.get(K)` and `x[K]` for a
+`Dict`-annotated local `x` and a constant `K`), and no call / walrus / yield / await / lambda in
+that statement, is the value `A in B` has just hashed, and keeps the §7.46 check only (the
+mirror's `func.get("return_value_type") in self._record_types` then
+`self._record_types[func['return_value_type']]`).
+
+Witnesses `5500`-`5506`; controls `5510`-`5511` (int / str / `Tuple[str, str]` / `Optional[str]`
+values and a frozen file dataclass PROVE). Residuals: an UNDERIVABLE value (an unknown callee
+or receiver, an un-annotated return, `.get(..)` of a `Dict[str, Any]`, an `Any` element of a
+declared container) is still unchecked; an UN-PARAMETERISED `tuple` / `Tuple` keeps the §7.46
+check only (`t: tuple` holding a list PROVES — the self-annotation mirror `pycsl.py` keys
+`_merge_records_best_of_n` by `_record_key(..) -> Tuple` whose components are why3 JSON values,
+genuinely `Any`; refusing it would lose that proved mirror); a HASHABLE class imported from a
+non-stdlib module (a frozen dataclass of `mylib`) is now refused in a hashing position
+(over-refusal: its module is not inspected; measured 0 corpus / mirror / `pycsl_lib` users).
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

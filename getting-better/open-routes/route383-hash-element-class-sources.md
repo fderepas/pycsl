@@ -55,3 +55,51 @@ or a cross-module unhashable class (driver probes a4_xmod `from s1lib import D`,
 is not seen. (3) Outside bases from local (non-stdlib) modules count as unhashable (sound, possibly over-refusing; 0 measured
 users). (4) The classification imports stdlib modules of the RUNNING interpreter (3.14), so a stdlib class's hashability is that
 interpreter's (`slice` / `memoryview` are classed unhashable regardless, as their hash depends on contents).
+
+## REPAIR ADDENDUM — ALLOW-LIST POLARITY (2026-10-26, rh1 executor off b62ff2e23; code 948b0ba72, corpus + census 6d4cac6a3, docs annotations §7.47 / translational §T.6.58)
+**Rule.** A hashed value whose class set holds `#UNK` (declared `Any` / `object` / a TypeVar, a class of a non-stdlib module, a
+`Dict[str, Any]` subscript value) is refused in every hashing position unless its class is known hashable: `#UNK` now adds the
+container mark `#UB` as well as the file's unhashable classes (r381s "Variant A"). Same code / message
+(`PYCSL-R349-UNHASHABLE-RECORD`), inline in the #349 block of `_run_pipeline` (mirror twin `\trusted`), no emission change,
+no new def, ledger unchanged.
+**Over-refusal, measured (byte-diff vs a b62ff2e23 worktree).** Variant A as ported: root 2421/2421 0 MOVED / 0 GONE / 0 APPEARED
+(the sweep shows `1723_route212_verify_imports_control` GONE in BOTH candidate sweeps — its `--verify-imports` dependency proof
+times out under load; re-emitted standalone, byte-identical), pyref 2186/2186 0/0/0, `pycsl_lib` 104/104 identical (87 rc=0),
+mirror **2/53 GONE**: (a) `module6_whyml/functions.py` `_compute_return_type` l.536 `self._record_types[func['return_value_type']]`
+(`func: Dict[str, PyVal]`, `PyVal = Any`); (b) `pycsl.py` `_merge_records_best_of_n` l.802-810 (`occ.get(k, 0)`, `best[key]`,
+`key not in best`), all from `k = _record_key(rec)` declared `-> "Tuple"` and `order: "List[Tuple]"`.
+**Narrowing (both sites analysed).** (a) is PRECISE: it sits in the first statement of the body of
+`elif func.get("return_value_type") in self._record_types:` — the same value was just hashed by that test. Rule: in the first
+call-free statement of an `if A in B:` body, `B[A2]` with `A2` the value of `A` (`x.get(K)` == `x[K]` for a `Dict`-annotated
+local, constant `K`) keeps the deny-list check only. (b) is GENUINELY UNKNOWN-TYPED: `_record_key` builds its tuple from
+`rec: dict` why3-JSON fields (`loc.get("file-name")` ...), whose values are `Any` in every derivation; no precise type exists.
+Refusing it GONEs a proved mirror, so an UN-PARAMETERISED `tuple` / `Tuple` now marks `#UNKT` and keeps the deny-list check
+only (a residual, not a site exemption: `t: tuple` holding a list still PROVES — probe r3 / p03).
+After narrowing: root 2421/2421 0/0/0 (same 1723 load flake, re-emitted identical), pyref 2186/2186 0/0/0, mirror 53/53 0/0/0
+(no OWED proof), `pycsl_lib` identical. Unnarrowed candidate kept as a patch (scratchpad `rh1/candidate-AG.patch` = Variant A +
+the guarded re-hash: mirror 1/53 GONE, pycsl.py).
+**Probe table** (full proof via heavy.sh; REFUSED rows by the --no-proof screen, the refusal precedes proving; CPython checked for every file):
+| probe | corpus | CPython | base b62ff2e23 | candidate |
+|---|---|---|---|---|
+| `d: Any`, `{d}` (residual probe r1) | 5500 | TypeError | rc=0 PROVED | rc=1 REFUSED |
+| `m: Dict[str, Any]`, `{m["a"]}` (residual probe r4) | 5501 | TypeError | rc=0 PROVED | rc=1 REFUSED |
+| `d: object`, `{d: 1}` | 5502 | TypeError | rc=0 PROVED | rc=1 REFUSED |
+| `d: Any`, `s.add(d)` | 5503 | TypeError | rc=0 PROVED | rc=1 REFUSED |
+| `from multi_file_lib.r383a_eqlib import D` (plain `__eq__`, no stdlib base), `{d}` | 5504 | TypeError | rc=0 PROVED | rc=1 REFUSED |
+| same, `import D as E; D = E` | 5505 | TypeError | rc=0 PROVED | rc=1 REFUSED |
+| `d: T` (TypeVar), `{d}` | 5506 | TypeError | rc=0 PROVED | rc=1 REFUSED |
+| controls: int / str / `Tuple[str, str]` / `Optional[str]` values; frozen file dataclass | 5510 / 5511 | ok | rc=0 PROVED | rc=0 PROVED |
+| driver probes a4_xmod / a11_xmod_alias (`D(UserList)` in a user module, `--import-path lib`) | (5449 / 5450) | TypeError | rc=1 REFUSED by S1 already | rc=1 REFUSED by S1 |
+| `t: tuple` holding a list (residual probe r3) | — | TypeError | rc=0 PROVED | rc=0 PROVED (#UNKT residual) |
+| `from mylib import K` (frozen dataclass), `{k}` | — | ok | rc=0 PROVED | rc=1 REFUSED (over-refusal; 0 corpus / mirror / lib users) |
+**Residuals.** (1) UNDERIVABLE values (`#UND`: unknown callee / receiver, un-annotated return, `.get` of a `Dict[str, Any]`,
+an `Any` element of a declared container) are still unchecked — the "Variant B" polarity (`#UND` refused too) is not measured
+here. (2) Un-parameterised `tuple` / `Tuple` (above). (3) A hashable class of a non-stdlib module is refused (its module is not
+inspected). (4) The guarded re-hash trusts that attribute reads are pure and that `B`'s `__contains__` and `__getitem__` agree
+on hashing (true for dict / set; a user class whose `__contains__` does not hash but whose `__getitem__` does is only
+deny-list checked there).
+**Gates (candidate 6d4cac6a3 + docs).** fidelity `check-self-annotate-sync.sh && self-annotate-mirror-check.sh` rc=0 (926 un-trusted
+mirror functions verbatim, 53 mirrors in sync); byte-diff root rc=0 (2421/2421 0/0/0 after re-emitting the 1723 flake) and pyref
+rc=0 (2186/2186 0/0/0); mirror-emit-sweep 53/53 0/0/0 (no OWED proof); `pycsl_lib` screen identical; `run-soundness-planes.sh`
+fast 61/61 rc=0; `check-refusal-witness-coverage.py` rc=0 (312 demonstrated); `check-refusal-advice-audited.py` rc=0 (message
+unchanged); `doc-coherency.py --check` rc=0; `\trusted` lines 448 (unchanged); no axiom, ledger unchanged.
