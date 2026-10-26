@@ -2571,9 +2571,13 @@ is admitted only if it is in the BASE-MODEL table -- `object`, `type`, a builtin
 of an enum base, route #353), `typing.NamedTuple` / `Protocol` / `Generic` / `TypedDict`,
 `abc.ABC`, `ast.NodeVisitor` / `NodeTransformer`. Any other is REFUSED when the class is named by
 code outside the `__main__` driver (a subclass names it in its bases, so the closure is refused
-too). Bases from user modules, file classes and unresolved names are routes #341 / #345's.
+too). Every class of a DEPENDENCY module the file's imports reach (resolved like route #181) is
+checked with no reference filter (it is importable: `from m import D` with `class D(UserList)`
+unreferenced in `m` PROVED `{d}`), and an unresolved base name in a file with a standard-library
+star import (`from collections import *`) is refused. File classes, user-module classes and other
+unresolved names are routes #341 / #345's.
 Census (both corpora, the 53 mirrors, `pycsl_lib`): 4 such bases, none refused (classes named only
-by `__main__`, or an int-mixin enum). Witnesses `5420`-`5435` (`5434` / `5435` new two-level latents); controls `5460`-`5463`. See
+by `__main__`, or an int-mixin enum). Witnesses `5420`-`5435` (`5434` / `5435` new two-level latents), `5448`-`5450` (star import, dependency module, re-bound import); controls `5460`-`5463`. See
 `getting-better/systematic-soundness-r3.md` for why the rule is a polarity flip (admit what is
 modelled) instead of another deny-list entry.
 
@@ -2587,11 +2591,27 @@ over `R(ABC)`, `getattr(p, "count", 0)` over a `NamedTuple` (a method) -- an att
 by `setattr(self, "k", 5)` in `__init__` / `__post_init__` or with a computed name (CPython 5), and
 the mangled `_R__k` of a `self.__k` store (CPython 5). RULE (polarity flip, one place: the
 `class_binds_r376` map built in `_run_pipeline`): a class answers UNKNOWN (so a `getattr` default
-on it is refused, `PYCSL-R376-GETATTR-CLASS-BINDING`) when its MRO reaches a base that is not a
-file class and not `object`, or when any code outside the `__main__` driver calls `setattr` /
+on it is refused, `PYCSL-R376-GETATTR-CLASS-BINDING`) when its MRO reaches a STANDARD-LIBRARY or
+builtin base other than `object` (resolved through the imports; an unresolved name in a file with
+a standard-library star import counts), or when any code outside the `__main__` driver calls `setattr` /
 `delattr` / `vars` or touches `.__dict__` / `.__setattr__` / `.__delattr__`; and a `self.__x`
-attribute of class `C` binds `_C__x`. Census (both corpora, 53 mirrors, `pycsl_lib`): no PASS
-file affected. Witnesses `5436`-`5442`; controls `5464`, `5465`.
+attribute of class `C` binds `_C__x`. A base from a USER module is still not read (residual of
+route #376: marking it unknown refuses the mirror's `getattr(self, .., default)` over emitter
+mixins defined in sibling modules, 2 mirrors GONE when measured). Census (both corpora, 53
+mirrors, `pycsl_lib`): no PASS file affected. Witnesses `5436`-`5442`; controls `5464`, `5465`.
+
+### 7.44 A `Protocol` / `TypedDict` class is a type, not a value (systematic rule TC, route #391, gen #37)
+
+A class one of whose bases resolves to `typing` / `typing_extensions` `.Protocol` or `.TypedDict`
+(or that derives from a file `TypedDict` class) is a TYPING CONSTRUCT with no runtime model. It is
+admitted where a type is written -- an annotation, a class base, the type argument of `cast` /
+`TypeVar` / `NewType` -- and any other load of its name outside the `__main__` driver is REFUSED
+(`PYCSL-TC-TYPING-CONSTRUCT-VALUE`). Measured (red team 30, all PROVED at `7bf752d4e`): `P()` and
+`Q()` for `class Q(P, Protocol)` under `no_exception` (CPython TypeError), `TD(a=1).a` (the call
+returns a `dict`: AttributeError), `isinstance(x, TD)` / `isinstance(x, P)` (TypeError). A concrete
+class `C(P)` deriving from a protocol without listing `Protocol` is an ordinary class. Census (both
+corpora, 53 mirrors, `pycsl_lib`): no PASS file uses a typing construct as a value. Witnesses
+`5443`-`5447`; control `5466`.
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 

@@ -3091,51 +3091,215 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                    | {("abc", "ABC"), ("ast", "NodeVisitor"), ("ast", "NodeTransformer"),
                       ("builtins", "object"), ("builtins", "type")})
         import builtins as _bi1
-        for _ks1 in _clss1:
-            if _ks1.name not in _refs1:
-                continue
-            _qs1 = []
-            for _b1 in _ks1.bases:
-                _h1 = _b1.value if isinstance(_b1, _ast341.Subscript) else _b1
-                _p1 = []
-                while isinstance(_h1, _ast341.Attribute):
-                    _p1.insert(0, _h1.attr)
-                    _h1 = _h1.value
-                _q1 = None
-                if isinstance(_h1, _ast341.Name) and _h1.id not in _cls341:
-                    if _h1.id in _imps1:
+        # The main file, then every DEPENDENCY module its imports reach (resolved like route
+        # #181: the main file's directory and `--import-path`, transitively, `.py` or package
+        # `__init__.py`). A dependency's class is importable, so its reference filter is off:
+        # every class of a dependency is checked (driver measured `from s1lib import D` with
+        # `class D(UserList)` unreferenced in s1lib PROVED `{d}`, CPython TypeError). A
+        # base name a file does not resolve, in a file with a STANDARD-LIBRARY star import
+        # (`from collections import *`), is refused too: the star may have bound it.
+        import os as _os1
+        _work1 = [(_t341, True, os.path.abspath(str(args.file)) if getattr(args, "file", None)
+                   else "")]
+        _dirs1 = ([_os1.path.dirname(_work1[0][2])] if _work1[0][2] else [])
+        _dirs1 += [str(_d1) for _d1 in (getattr(args, "import_path", None) or [])]
+        _seen1 = {_work1[0][2]}
+        _wi1 = 0
+        while _wi1 < len(_work1) and len(_work1) < 64:
+            _tr1, _mn1, _src1 = _work1[_wi1]
+            _wi1 += 1
+            _here1 = _os1.path.dirname(_src1) if _src1 else ""
+            for _im1 in _ast341.walk(_tr1):
+                _mods1 = []
+                if isinstance(_im1, _ast341.ImportFrom) and _im1.module:
+                    _mods1.append((_im1.module, _im1.level or 0))
+                elif isinstance(_im1, _ast341.Import):
+                    _mods1.extend((_a1.name, 0) for _a1 in _im1.names)
+                for _mm1, _lv1 in _mods1:
+                    if _mm1.split(".")[0] in _std1:
+                        continue
+                    for _dd1 in ([_here1] if _lv1 else [_here1] + _dirs1):
+                        for _pp1 in (_os1.path.join(_dd1, *_mm1.split(".")) + ".py",
+                                     _os1.path.join(_dd1, *_mm1.split("."), "__init__.py")):
+                            _pp1 = _os1.path.abspath(_pp1)
+                            if _pp1 in _seen1 or not _os1.path.isfile(_pp1):
+                                continue
+                            _seen1.add(_pp1)
+                            try:
+                                _work1.append((_ast341.parse(open(_pp1).read()), False, _pp1))
+                            except Exception:
+                                pass
+        for _tr1, _mn1, _src1 in _work1:
+            _tw1 = [_x for _x in _tr1.body
+                    if not (isinstance(_x, _ast341.If) and isinstance(_x.test, _ast341.Compare)
+                            and isinstance(_x.test.left, _ast341.Name)
+                            and _x.test.left.id == "__name__")]
+            _iw1 = {}
+            _rw1 = set()
+            _cw1 = []
+            _bw1 = set()
+            _star1 = False
+            _stks1 = list(_tw1)
+            while _stks1:
+                _ns1 = _stks1.pop()
+                if isinstance(_ns1, _ast341.Import):
+                    for _as1 in _ns1.names:
+                        if _as1.asname:
+                            _iw1[_as1.asname] = (_as1.name, "")
+                        else:
+                            _iw1[_as1.name.split(".")[0]] = (_as1.name.split(".")[0], "")
+                elif isinstance(_ns1, _ast341.ImportFrom) and _ns1.module and not _ns1.level:
+                    for _as1 in _ns1.names:
+                        if _as1.name == "*":
+                            _star1 = _star1 or _ns1.module.split(".")[0] in _std1
+                        else:
+                            _iw1[_as1.asname or _as1.name] = (_ns1.module, _as1.name)
+                elif isinstance(_ns1, _ast341.ImportFrom):
+                    for _as1 in _ns1.names:
+                        _iw1[_as1.asname or _as1.name] = ("." + (_ns1.module or ""), _as1.name)
+                elif isinstance(_ns1, _ast341.Name):
+                    if isinstance(_ns1.ctx, _ast341.Load):
+                        _rw1.add(_ns1.id)
+                    else:
+                        _bw1.add(_ns1.id)
+                elif isinstance(_ns1, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                    _bw1.add(_ns1.name)
+                if isinstance(_ns1, _ast341.ClassDef):
+                    _cw1.append(_ns1)
+                _stks1.extend(_ast341.iter_child_nodes(_ns1))
+            _fw1 = {_k1.name for _k1 in _ast341.walk(_tr1) if isinstance(_k1, _ast341.ClassDef)}
+            for _ks1 in _cw1:
+                if _mn1 and _ks1.name not in _rw1:
+                    continue
+                _qs1 = []
+                for _b1 in _ks1.bases:
+                    _h1 = _b1.value if isinstance(_b1, _ast341.Subscript) else _b1
+                    _p1 = []
+                    while isinstance(_h1, _ast341.Attribute):
+                        _p1.insert(0, _h1.attr)
+                        _h1 = _h1.value
+                    _q1 = None
+                    if isinstance(_h1, _ast341.Name) and _h1.id not in _fw1:
+                        if _h1.id in _iw1:
+                            _mo1, _at1 = _iw1[_h1.id]
+                            if _at1:
+                                _q1 = (_mo1, ".".join([_at1] + _p1))
+                            elif _p1:
+                                _q1 = (".".join([_mo1] + _p1[:-1]), _p1[-1])
+                        elif not _p1 and _h1.id not in _bw1 and isinstance(
+                                getattr(_bi1, _h1.id, None), type):
+                            _q1 = ("builtins", _h1.id)
+                        elif _star1 and not _p1 and _h1.id not in _bw1:
+                            _q1 = ("<star import>", _h1.id)
+                    if _q1 is not None and (_q1[0].split(".")[0] in _std1
+                                            or _q1[0] == "<star import>"):
+                        _qs1.append((_b1, _q1))
+                _enum1 = any(_q1 in _model1 and _q1[0] == "enum" for (_b1, _q1) in _qs1)
+                for _b1, _q1 in _qs1:
+                    if _q1 in _model1:
+                        continue
+                    if _q1[0] == "builtins" and isinstance(getattr(_bi1, _q1[1], None),
+                                                            type) and (
+                            issubclass(getattr(_bi1, _q1[1]), BaseException)
+                            or (_enum1 and _q1[1] in ("int", "str"))):
+                        continue
+                    raise _PyCSLSemErr341(
+                        f"class '{_ks1.name}' at line {_ks1.lineno}"
+                        + ("" if _mn1 else f" of the imported module `{_src1}`")
+                        + f": its base `{_ast341.unparse(_b1)}` is "
+                        + (f"the standard-library / builtin class `{_q1[0]}.{_q1[1]}`"
+                           if _q1[0] != "<star import>" else
+                           f"a name a standard-library star import (`from .. import *`) "
+                           f"may bind")
+                        + ", which PyCSL has no model of. The verifier reads a "
+                        f"class's MRO only through the classes of this file and the modelled "
+                        f"bases (`object`, builtin exceptions, `enum.Enum` / `IntEnum` / `Flag` / "
+                        f"`IntFlag` / `StrEnum`, `typing.NamedTuple` / `Protocol` / `Generic` / "
+                        f"`TypedDict`, `abc.ABC`, `ast.NodeVisitor` / `NodeTransformer`, `type`); "
+                        f"the attributes, `__eq__` / `__hash__`, `__init__` and `__getattr__` "
+                        f"this base contributes would be absent from the model (systematic rule "
+                        f"S1; route #381 measured `class D(collections.UserList)` hashed in a set "
+                        f"under `no_exception` PROVED, CPython TypeError). Keep the "
+                        f"standard-library object in a field instead of deriving from it, and "
+                        f"import standard-library names explicitly.",
+                        stage="ir-semantic", code="PYCSL-S1-UNMODELLED-BASE")
+        # (#49) gen #37, SYSTEMATIC RULE TC (systematic-soundness-r3.md; route #391) — A
+        # `typing.Protocol` / `typing.TypedDict` CLASS HAS NO RUNTIME MODEL: it is a TYPE, so
+        # it is admitted only where a type is written (an annotation, a class base, the type
+        # argument of `cast` / `TypeVar` / `NewType`). The model lowered a value use as an
+        # ordinary record: measured (red team 30, all PROVED at 7bf752d4e) `P()` and `Q()`
+        # for `class Q(P, Protocol)` under `no_exception` (CPython TypeError: protocols
+        # cannot be instantiated), `TD(a=1).a` (the call returns a `dict`: AttributeError),
+        # `isinstance(x, TD)` and `isinstance(x, P)` for a non-runtime-checkable protocol
+        # (TypeError). RULE: a class one of whose bases resolves to `typing` /
+        # `typing_extensions` `.Protocol` / `.TypedDict` -- or that derives from a file
+        # TypedDict class (still a TypedDict) -- is a TYPING CONSTRUCT; any other load of its
+        # name outside the `__main__` driver is REFUSED. A concrete class `C(P)` deriving
+        # from a protocol without listing `Protocol` is an ordinary class. CENSUS (both
+        # corpora, 53 mirrors, `pycsl_lib`): no PASS file uses a typing construct as a value.
+        _tck1 = {}
+        _chg1 = True
+        while _chg1:
+            _chg1 = False
+            for _ks1 in _clss1:
+                if _ks1.name in _tck1:
+                    continue
+                for _b1 in _ks1.bases:
+                    _h1 = _b1.value if isinstance(_b1, _ast341.Subscript) else _b1
+                    _p1 = []
+                    while isinstance(_h1, _ast341.Attribute):
+                        _p1.insert(0, _h1.attr)
+                        _h1 = _h1.value
+                    _q1 = None
+                    if isinstance(_h1, _ast341.Name) and _h1.id in _imps1:
                         _mo1, _at1 = _imps1[_h1.id]
                         if _at1:
                             _q1 = (_mo1, ".".join([_at1] + _p1))
                         elif _p1:
                             _q1 = (".".join([_mo1] + _p1[:-1]), _p1[-1])
-                    elif not _p1 and _h1.id not in _bound341 and isinstance(
-                            getattr(_bi1, _h1.id, None), type):
-                        _q1 = ("builtins", _h1.id)
-                if _q1 is not None and _q1[0].split(".")[0] in _std1:
-                    _qs1.append((_b1, _q1))
-            _enum1 = any(_q1 in _model1 and _q1[0] == "enum" for (_b1, _q1) in _qs1)
-            for _b1, _q1 in _qs1:
-                if _q1 in _model1:
-                    continue
-                if _q1[0] == "builtins" and isinstance(getattr(_bi1, _q1[1], None), type) and (
-                        issubclass(getattr(_bi1, _q1[1]), BaseException)
-                        or (_enum1 and _q1[1] in ("int", "str"))):
-                    continue
-                raise _PyCSLSemErr341(
-                    f"class '{_ks1.name}' at line {_ks1.lineno}: its base "
-                    f"`{_ast341.unparse(_b1)}` is the standard-library / builtin class "
-                    f"`{_q1[0]}.{_q1[1]}`, which PyCSL has no model of. The verifier reads a "
-                    f"class's MRO only through the classes of this file and the modelled "
-                    f"bases (`object`, builtin exceptions, `enum.Enum` / `IntEnum` / `Flag` / "
-                    f"`IntFlag` / `StrEnum`, `typing.NamedTuple` / `Protocol` / `Generic` / "
-                    f"`TypedDict`, `abc.ABC`, `ast.NodeVisitor` / `NodeTransformer`, `type`); "
-                    f"the attributes, `__eq__` / `__hash__`, `__init__` and `__getattr__` "
-                    f"this base contributes would be absent from the model (systematic rule "
-                    f"S1; route #381 measured `class D(collections.UserList)` hashed in a set "
-                    f"under `no_exception` PROVED, CPython TypeError). Keep the "
-                    f"standard-library object in a field instead of deriving from it.",
-                    stage="ir-semantic", code="PYCSL-S1-UNMODELLED-BASE")
+                    if (_q1 is not None and _q1[0] in ("typing", "typing_extensions")
+                            and _q1[1] in ("Protocol", "TypedDict")):
+                        _tck1[_ks1.name] = _q1[1]
+                    elif (isinstance(_h1, _ast341.Name) and not _p1
+                          and _tck1.get(_h1.id) == "TypedDict"):
+                        _tck1[_ks1.name] = "TypedDict"
+                    if _ks1.name in _tck1:
+                        _chg1 = True
+                        break
+        if _tck1:
+            _skp1 = set()
+            _stks1 = list(_ts1)
+            while _stks1:
+                _ns1 = _stks1.pop()
+                _ty1 = []
+                for _fa1 in ("annotation", "returns"):
+                    if getattr(_ns1, _fa1, None) is not None:
+                        _ty1.append(getattr(_ns1, _fa1))
+                if isinstance(_ns1, _ast341.ClassDef):
+                    _ty1.extend(_ns1.bases)
+                if (isinstance(_ns1, _ast341.Call)
+                        and ((isinstance(_ns1.func, _ast341.Name)
+                              and _ns1.func.id in ("cast", "TypeVar", "NewType"))
+                             or (isinstance(_ns1.func, _ast341.Attribute)
+                                 and _ns1.func.attr in ("cast", "TypeVar", "NewType")))):
+                    _ty1.extend(_ns1.args[:2])
+                    _ty1.extend(_k1.value for _k1 in _ns1.keywords)
+                for _y1 in _ty1:
+                    _skp1.update(id(_z1) for _z1 in _ast341.walk(_y1))
+                if (isinstance(_ns1, _ast341.Name) and isinstance(_ns1.ctx, _ast341.Load)
+                        and _ns1.id in _tck1 and id(_ns1) not in _skp1):
+                    raise _PyCSLSemErr341(
+                        f"line {getattr(_ns1, 'lineno', 0)}: `{_ns1.id}` is a "
+                        f"`typing.{_tck1[_ns1.id]}` class, a TYPE with no runtime model, used "
+                        f"here as a value (called, passed to `isinstance` / `issubclass`, or "
+                        f"bound). CPython refuses to instantiate a Protocol, a TypedDict call "
+                        f"returns a plain `dict`, and `isinstance` against either raises "
+                        f"TypeError (unless `@runtime_checkable`), while the model treated "
+                        f"`{_ns1.id}` as an ordinary record (systematic rule TC, route #391: "
+                        f"`P()` under `no_exception` PROVED, CPython TypeError). Use `{_ns1.id}` "
+                        f"only in annotations; build a concrete class (or a `dict`) for values.",
+                        stage="ir-semantic", code="PYCSL-TC-TYPING-CONSTRUCT-VALUE")
+                _stks1.extend(_ast341.iter_child_nodes(_ns1))
         for _n341 in _ast341.walk(_t341):
             _cl341 = ""
             if (isinstance(_n341, _ast341.Attribute) and _n341.attr == "__class__"
@@ -7735,6 +7899,29 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     except (SyntaxError, ValueError):
         _t376 = None
     if _t376 is not None:
+        # (systematic rule GD, see below) where each imported name comes from, and the
+        # file's class names: a base is OUTSIDE-STD when it resolves to a standard-library
+        # module, is a builtin class name, or is unresolved in a file with a standard-library
+        # star import.
+        _std376 = set(getattr(sys, "stdlib_module_names", ())) | {"builtins",
+                                                                   "typing_extensions"}
+        _im376 = {}
+        _star376 = False
+        _fc376 = set()
+        for _k376 in _ast376.walk(_t376):
+            if isinstance(_k376, _ast376.ClassDef):
+                _fc376.add(_k376.name)
+            elif isinstance(_k376, _ast376.Import):
+                for _al376 in _k376.names:
+                    _im376[_al376.asname or _al376.name.split(".")[0]] = \
+                        _al376.name.split(".")[0]
+            elif isinstance(_k376, _ast376.ImportFrom) and _k376.module and not _k376.level:
+                for _al376 in _k376.names:
+                    if _al376.name == "*":
+                        _star376 = _star376 or _k376.module.split(".")[0] in _std376
+                    else:
+                        _im376[_al376.asname or _al376.name] = _k376.module.split(".")[0]
+        import builtins as _bi376
         for _k376 in _ast376.walk(_t376):
             if not isinstance(_k376, _ast376.ClassDef):
                 continue
@@ -7746,6 +7933,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _bl376.add(_h376.id)
                 elif isinstance(_h376, _ast376.Attribute):
                     _bl376.add(_h376.attr)
+                _r376 = _h376
+                while isinstance(_r376, _ast376.Attribute):
+                    _r376 = _r376.value
+                if isinstance(_r376, _ast376.Name) and _r376.id != "object" and (
+                        (_r376.id in _im376 and _im376[_r376.id] in _std376)
+                        or (_r376 is _h376 and _r376.id not in _im376
+                            and _r376.id not in _fc376
+                            and (isinstance(getattr(_bi376, _r376.id, None), type)
+                                 or _star376))):
+                    _own376.add("*")
             _q376 = list(_k376.body)
             while _q376:
                 _y376 = _q376.pop()
@@ -7778,13 +7975,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # (#49) gen #37, SYSTEMATIC RULE GD — THE ABSENT-ATTRIBUTE ANSWER IS GIVEN ONLY WHEN
         # THE WHOLE LOOKUP IS MODELLED (polarity flip of route #376: admit the default only
         # when every place CPython looks is known, instead of refusing only the bindings
-        # found). (1) A base the file does not define (a builtin exception, `abc.ABC`,
-        # `typing.NamedTuple`, any imported class) contributes class attributes the model
+        # found). (1) A STANDARD-LIBRARY / builtin base (a builtin exception, `abc.ABC`,
+        # `typing.NamedTuple`, `collections.*`, ...) contributes class attributes the model
         # never reads: measured (route #388, red team 30, PROVED at 7bf752d4e)
         # `getattr(e, "args", 0)` over `class E(Exception)`, `getattr(r, "_abc_impl", 0)`
         # over `R(ABC)`, `getattr(p, "count", 0)` over a NamedTuple proved the default
-        # (CPython `()` / an `_abc_data` / a method). Such a class answers "*" (unknown);
-        # `object` alone is known (its names are already refused by route #376). (2) A
+        # (CPython `()` / an `_abc_data` / a method). Such a class answers "*" (unknown,
+        # marked on the class above, inherited by its file subclasses); `object` alone is
+        # known (its names are already refused by route #376). A base from a USER module
+        # is still not read (route #376's recorded residual: the mirror's emitter mixins
+        # derive from sibling-module mixins, and marking them GONEs two mirrors). (2) A
         # dynamic attribute store anywhere outside the `__main__` driver -- `setattr` /
         # `delattr` / `vars(..)` / `.__dict__` / `.__setattr__` -- creates instance
         # attributes no field list records (route #389: `setattr(self, "k", 5)` in
@@ -7816,8 +8016,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _a376 in _cb376:
                     _all376 |= _cb376[_a376]
                     _wl376.extend(_bs376.get(_a376, ()))
-                elif _a376 != "object":
-                    _all376.add("*")
             if _dyn376:
                 _all376.add("*")
             _cl376.setdefault(_cn376.lower(), set()).update(_all376)

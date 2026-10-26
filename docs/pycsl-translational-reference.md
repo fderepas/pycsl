@@ -4595,8 +4595,11 @@ subscript) through the file's `import` / `from .. import` bindings, or as a buil
 rebound in the file, to a qualified pair $(m, a)$. If the root of $m$ is a standard-library module
 (`sys.stdlib_module_names`, `builtins`, `typing_extensions`), $(m, a) \notin M$, and $a$ is neither
 a builtin `BaseException` subclass nor `int` / `str` beside a base of $M$ from `enum`, the translation
-is undefined (refused, `PYCSL-S1-UNMODELLED-BASE`). File classes and user-module bases are
-unaffected.
+is undefined (refused, `PYCSL-S1-UNMODELLED-BASE`). The same condition is applied, WITHOUT the
+$C \in L$ filter, to every class of each dependency module reached from the file's imports (route
+#181's resolution: the file's directory and `--import-path`, transitively); and an unresolved base
+name in a file containing `from` $m$ `import *` with $m$ a standard-library module is refused.
+File classes and user-module bases are unaffected.
 
 ### §T.6.54  `getattr` defaults over a partially modelled lookup (systematic rule GD, gen #37)
 
@@ -4604,12 +4607,24 @@ _Corresponds to `annotations.md` §7.43._
 
 Extends route #376's side condition on `getattr(o, n, d)` with $o$ a known record of class $C$ and
 $n$ not a field of $C$ (ABSENT): the per-class map $B(C)$ (`class_binds_r376`) additionally
-contains `*` when the base closure of $C$ over the file's classes reaches a base name that is not a
-file class and not `object`, or when the module outside the top-level `if __name__ ...:` driver
+contains `*` when a class of the base closure of $C$ over the file's classes has a base that
+resolves to a standard-library module or a builtin class other than `object` (or is unresolved in
+a file with a standard-library star import), or when the module outside the top-level `if __name__ ...:` driver
 contains a call of `setattr` / `delattr` / `vars` or an attribute `__dict__` / `__setattr__` /
 `__delattr__`; and $B(C)$ contains `_C__x` for every attribute `__x` (not a dunder) under $C$'s
 body. If `*` $\in B(C)$ or $n \in B(C)$ the translation is undefined (refused); otherwise it is
 unchanged (the default $d$).
+
+### §T.6.55  Typing constructs as values (systematic rule TC, gen #37)
+
+_Corresponds to `annotations.md` §7.44._
+
+Let $T$ be the least set of the file's classes (outside the `__main__` driver) such that $C \in T$
+when a base of $C$ resolves to `typing` / `typing_extensions` `.Protocol` or `.TypedDict`, or a
+base of $C$ is a file class of $T$ obtained through `TypedDict`. A `Name` load of $C \in T$ outside
+the driver that is not under an annotation, a `returns`, a class base, or the first two arguments /
+the keyword values of a `cast` / `TypeVar` / `NewType` call makes the translation undefined
+(refused, `PYCSL-TC-TYPING-CONSTRUCT-VALUE`).
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
