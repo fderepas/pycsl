@@ -6194,7 +6194,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if ((_x383.id if isinstance(_x383, _ast341.Name) else _x383.attr)
                                 in ("tuple", "Tuple") and (_x383.id if isinstance(
                                     _x383, _ast341.Name) else _x383.attr) not in _cls341):
-                            _cz383.add("#UNK")
+                            _cz383.add("#UNKT")
                     elif isinstance(_x383, _ast341.BinOp) and isinstance(_x383.op,
                                                                           _ast341.BitOr):
                         _qz383 += [_x383.left, _x383.right]
@@ -6268,6 +6268,70 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _ch365 = True
                 if not _ch365:
                     break
+            # (#383 allow-list) a value ALREADY HASHED on the path is hashable: in the first statement
+            # of the body of `if A in B:` (the test, or a conjunct of an `and` test whose
+            # later conjuncts run no code), `B[A2]` with `A2` the value of `A` (`x.get(K)`
+            # and `x[K]`, `K` a constant, are one value for a `Dict`-annotated local `x`;
+            # `A2` and `B` are names / attributes / constant subscripts); the statement
+            # holds no call / walrus / yield / await / lambda, so nothing runs in between.
+            # Such a site keeps the deny-list check (#349-#383) only.
+            _gr383g = set()
+            for _z383g in _ast341.walk(_f346):
+                if not (isinstance(_z383g, _ast341.If) and isinstance(
+                        _z383g.body[0], (_ast341.Assign, _ast341.AnnAssign, _ast341.AugAssign,
+                                        _ast341.Expr, _ast341.Return))):
+                    continue
+                _cj383g = (list(_z383g.test.values) if isinstance(_z383g.test, _ast341.BoolOp)
+                          and isinstance(_z383g.test.op, _ast341.And) else [_z383g.test])
+                _gk383g = set()
+                for _i383g, _c383g in enumerate(_cj383g + [_z383g.body[0]]):
+                    _ky383g = []
+                    if _i383g == len(_cj383g):
+                        # the guarded statement: its constant-key subscripts `B[A2]`
+                        if any(isinstance(_w, (_ast341.Call, _ast341.NamedExpr,
+                                               _ast341.Yield, _ast341.YieldFrom,
+                                               _ast341.Await, _ast341.Lambda))
+                               for _w in _ast341.walk(_c383g)):
+                            break
+                        _cp383g = [(_w.slice, _w.value, _w) for _w in _ast341.walk(_c383g)
+                                  if isinstance(_w, _ast341.Subscript)]
+                    elif (isinstance(_c383g, _ast341.Compare) and len(_c383g.ops) == 1
+                          and isinstance(_c383g.ops[0], _ast341.In)
+                          and not any(isinstance(_w, (_ast341.Call, _ast341.NamedExpr,
+                                                      _ast341.Yield, _ast341.YieldFrom,
+                                                      _ast341.Await, _ast341.Lambda))
+                                      for _r383g in _cj383g[_i383g + 1:]
+                                      for _w in _ast341.walk(_r383g))):
+                        _cp383g = [(_c383g.left, _c383g.comparators[0], None)]
+                    else:
+                        continue
+                    for _a383g, _b383g, _w383g in _cp383g:
+                        _ky383g = []
+                        for _e383g in (_a383g, _b383g):
+                            if (isinstance(_e383g, _ast341.Call)
+                                    and isinstance(_e383g.func, _ast341.Attribute)
+                                    and _e383g.func.attr == "get" and len(_e383g.args) == 1
+                                    and not _e383g.keywords
+                                    and isinstance(_e383g.args[0], _ast341.Constant)
+                                    and isinstance(_e383g.func.value, _ast341.Name)
+                                    and _e383g.func.value.id not in _unk346
+                                    and _hh346.get(_e383g.func.value.id)
+                                    and {_h.lower() for _h in _hh346[_e383g.func.value.id]}
+                                    <= {"dict", "defaultdict", "ordereddict"}):
+                                _e383g = _ast341.Subscript(value=_e383g.func.value,
+                                                          slice=_e383g.args[0],
+                                                          ctx=_ast341.Load())
+                            _ky383g.append(_ast341.dump(_e383g) if all(
+                                isinstance(_w, (_ast341.Name, _ast341.Attribute,
+                                                _ast341.Subscript, _ast341.Constant,
+                                                _ast341.Load))
+                                for _w in _ast341.walk(_e383g)) else None)
+                        if None in _ky383g:
+                            continue
+                        if _w383g is None:
+                            _gk383g.add(tuple(_ky383g))
+                        elif tuple(_ky383g) in _gk383g:
+                            _gr383g.add(id(_w383g))
             # (#349) unhashable records in hashing positions (outside annotations: a type
             # expression such as `Callable[[int], int]` / `Dict[K, V]` hashes nothing).
             for _n346 in _ast341.walk(_f346):
@@ -6376,8 +6440,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _hc349.add("#UB")
                             elif _kv381.get(_c382, "?") == "?":
                                 _hc349.add("#UNK")
-                    if "#UNK" in _hc349:
-                        _hc349 |= _u349
+                    # (#383 allow-list polarity) a value of an UNKNOWN class (`Any` /
+                    # `object` / a TypeVar / a class of a non-stdlib module, declared or
+                    # reached through a declared container) may be a list / dict / set:
+                    # refused unless its class is known hashable (or it was hashed above).
+                    # An UN-PARAMETERISED `tuple` ("#UNKT") keeps the deny-list check only
+                    # (measured: the mirror's `_record_key -> Tuple` keys, residual)
+                    if "#UNK" in _hc349 or "#UNKT" in _hc349:
+                        _hc349 |= _u349 | ({"#UB"} if "#UNK" in _hc349
+                                           and id(_n346) not in _gr383g else set())
                     _hc349 = {_c if _c != "#UB" else "a list / dict / set"
                               for _c in _hc349 & _u365}
                     if _hc349:
