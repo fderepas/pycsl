@@ -1955,6 +1955,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             arms = ("| Some _ -> false | None -> true" if negate
                     else "| Some _ -> true | None -> false")
             return f"(match Map.get ({right}) ({left_c}) with {arms} end)"
+        # R5-str (int-erasure-seam-r3-impl.md, refine e): `x in xs` with a STRING `x` and
+        # `xs` an `array string` (an R5 split/splitlines local or a flat `List[str]`
+        # formal) is the REAL element membership, defined by its `ensures` (the
+        # `seq_mem_str` shape over an array) — not the int-hash `contains_check`.
+        _r5m = rhs.get("name") if rhs.get("type") == "Var" else None
+        if (_r5m is not None and not self._in_spec
+                and getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())
+                and isinstance(expr.get("left"), dict)
+                and self._is_string_expr(expr["left"])
+                and (_r5m in {_k for _k, _e in (getattr(self, "_array_elem_types", {}) or {}).items() if _e == "string"}
+                     or (_r5m in set(getattr(self, "_formal_params", []) or [])
+                         and (getattr(self, "_param_list_flat_elem", {}) or {}
+                              ).get(_r5m) == "string"
+                         and _r5m not in getattr(self, "_seq_locals", set())))):
+            self._add_abstract_op(
+                "val arr_mem_str (x: string) (a: array string) : bool\n"
+                "    ensures { result <-> (exists _mi: int. 0 <= _mi < Array.length a\n"
+                "      /\\ a[_mi] = x) }")
+            _amc = f"(arr_mem_str {left} {right})"
+            return f"(not {_amc})" if negate else _amc
         # strings-plan Stage 2: `needle in haystack` for strings is substring containment, an
         # uninterpreted bool op over string operands (content witness deferred — see plan).
         if self._is_string_expr(rhs):
@@ -7305,6 +7326,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if (atype == "Result" and self._in_spec
                 and getattr(self, "_func_return_type", None) == "array string"):
             return f"(Array.length {args[0]})"
+        # R5-str: `len(<str>.split(sep))` / `len(<str>.splitlines())` outside `@mutable_state`
+        # — the argument lowered to the receiver-passing `array string` op (`_handle_call_expr`),
+        # so its length is the ARRAY length, not the opaque `iter_length : int -> int`.
+        if (atype == "Call" and args and isinstance(args[0], str)
+                and args[0].startswith(("(str_split_op ", "(str_splitlines_op "))
+                and getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            return f"(Array.length {args[0]})"
         # nested-list-mutable.md: a matrix-routed (in-place inner-mutated int-leaf)
         # nested list `a` is a built-in `matrix int`. `len(a)` = `a.rows` (outer row
         # count); `len(a[i])` = `a.columns` (the rectangular per-row length). Emit the
@@ -10036,6 +10065,57 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op("val str_split_op (s sep: string) : array string")
             self._seq_snapshot_op()
             return f"(snapshot (str_split_op {_recvw} {_sep}))"
+        # R5-str (refine f): `xs.index(x)` on an `array string` `xs` (R5 local / flat
+        # `List[str]` formal) with a STRING `x`: Python raises ValueError when `x` is
+        # absent, so the model REQUIRES presence (an obligation at the call, never an
+        # assumption) and returns a valid index holding `x`.
+        if (isinstance(func_name, str) and func_name.endswith(".index")
+                and "." not in func_name[:-len(".index")]
+                and len(expr.get("args", [])) == 1 and not expr.get("keywords")
+                and getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())
+                and isinstance(expr["args"][0], dict)
+                and self._is_string_expr(expr["args"][0])):
+            _r5x = func_name[:-len(".index")]
+            if (_r5x in {_k for _k, _e in (getattr(self, "_array_elem_types", {}) or {}).items() if _e == "string"}
+                    or (_r5x in set(getattr(self, "_formal_params", []) or [])
+                        and (getattr(self, "_param_list_flat_elem", {}) or {}
+                             ).get(_r5x) == "string"
+                        and _r5x not in getattr(self, "_seq_locals", set()))):
+                _r5xw = self._expr_to_whyml({"type": "Var", "name": _r5x},
+                                            local_refs or set(), invariant_ctx, subst)
+                _r5aw = self._expr_to_whyml(expr["args"][0], local_refs or set(),
+                                            invariant_ctx, subst)
+                self._add_abstract_op(
+                    "val arr_index_str (a: array string) (x: string) : int\n"
+                    "    requires { exists _k: int. 0 <= _k < Array.length a /\\ a[_k] = x }\n"
+                    "    ensures { 0 <= result < Array.length a /\\ a[result] = x }")
+                return f"(arr_index_str {_r5xw} {_r5aw})"
+        # R5-str (int-erasure-seam-r3-impl.md step a/b): OUTSIDE `@mutable_state` (whose
+        # CF5 branch above owns the `seq string` form), a whole-list `<str>.split(sep)` /
+        # `<str>.splitlines()` on a STRING receiver is the receiver-passing `array string`
+        # model, not the receiver-less opaque `x_split_1 <hash>` / `x_splitlines_0 ()`.
+        # Plain `val` (not `val function`): content unmodelled, each call a fresh array.
+        if (isinstance(func_name, str)
+                and getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())
+                and not expr.get("keywords")):
+            _r5r, _r5t = self._str_method_recv_and_tail(expr)
+            if (_r5r is not None and self._is_string_expr(_r5r)
+                    and ((_r5t == "split" and len(expr.get("args", [])) == 1)
+                         or (_r5t == "splitlines" and not expr.get("args")))):
+                _r5w = self._expr_to_whyml(_r5r, local_refs or set(), invariant_ctx, subst)
+                if _r5t == "split":
+                    _r5s = self._expr_to_whyml(expr["args"][0], local_refs or set(),
+                                               invariant_ctx, subst)
+                    self._add_abstract_op(
+                        "val str_split_op (s: string) (sep: string) : array string\n"
+                        "    ensures { Array.length result >= 0 }")
+                    return f"(str_split_op {_r5w} {_r5s})"
+                self._add_abstract_op(
+                    "val str_splitlines_op (s: string) : array string\n"
+                    "    ensures { Array.length result >= 0 }")
+                return f"(str_splitlines_op {_r5w})"
         # no-more-int: `x.__str__()` / `super().__str__()` returns a `string` (the Python
         # str dunder), not the opaque int the generic dotted-call assigns — so a `-> str`
         # method returning `super().__str__()` (errors.py `message`) type-checks. Faithful and

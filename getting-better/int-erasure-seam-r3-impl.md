@@ -105,6 +105,67 @@ B2. Conversions the capability unlocks, **one commit per conversion**, each with
   `_split_rocq_check_output` is a pure parser (no subprocess) and is checked against the list
   before any conversion.
 
-## 5. Spike results (Gate S) — filled in by the run
+## 5. Spike results (Gate S) — measured 2026-10-26 (scratch trees under the session scratchpad `ies1/`)
 
-(pending)
+**Instrument.** `T_n` = `git archive a6ea830ed` + the census-r3 guard-neutralisation patch (cv2 `h-all`,
+10 hunks, re-applied with offsets only); `T_c` = `T_n` + the R5-str edits. Driver `ies1/tc.sh` = the cv2
+`hyptc.sh` loop (port → `--no-proof --keep-mlw` → clash slice), restoring the mirror file after each stub.
+
+**S1 — edits a+b+c alone (no annotation edits), all 179 census stubs in `T_c`:**
+- TC-OK **0 / 179** (179 L3-TC).
+- Clash line changed vs census r3 (cv2 `hyp-tc`) in **4 / 179**; in every one the R5-str value now
+  reaches one link further and stops at the next consumer that is still int-modelled:
+
+  | stub | old first clash | new first clash |
+  |---|---|---|
+  | `proof2why3/extract.py::_split_rocq_check_output` | `(strip_1 (subscript_get !lines !i)) = !qn` | `contains_check (str_hash_op !stripped) qualnames` (`x in <List[str]>`) |
+  | `pycsl.py::_parse_goal_blocks` | `join_1 !cur_header` | `iter_length (str_splitlines_op output)` (`for line in output.splitlines()` — iterating the CALL) |
+  | `pycsl.py::_function_body_eqs` | `Arm_3_0 (m_group_1 1)` (`re`) | `iter_length (enumerate_1 !lines)` (`enumerate(<array string>)`) |
+  | `frontend/ir_resolve.py::_resolve_module_path` | `path_isfile_op !pkg_init` | `os_path_join_3 (str_hash_op !base) !parts …` (`os.path.join(base, *parts)` star-arg) |
+
+  The other 175 never reach a `split`/`splitlines`/element-of-`List[str]` site before their first clash
+  (their first link is a comprehension, `re`, `subprocess`, a dict value, a record field, …).
+- User-level probes (response `q1a/q1b/q1c/q4a/q4b`) all go from L3-TC (or a `ln_strip_0 ()` facade) to
+  TC-OK with the faithful `str_split_op`/`str_splitlines_op`/`str_strip_op`/`str_eq_op` chain — the
+  facade is gone (`grep -c '_0 ()'` = 0 on each emitted function).
+
+**S2 — REFINE, one step on the same pattern** (plan §1 allowance): two more receiver-passing
+`array string` ops, no new value shape, no axiom:
+- e. `x in xs` (string `x`, `xs` an R5 local or a flat `List[str]` formal) →
+  `val arr_mem_str (x: string) (a: array string) : bool ensures { result <-> exists i. 0 <= i < length a /\ a[i] = x }`
+  (the existing `seq_mem_str` shape over an array);
+- f. `xs.index(x)` on the same receivers → `val arr_index_str (a: array string) (x: string) : int
+  requires { exists k. 0 <= k < length a /\ a[k] = x } ensures { 0 <= result < length a /\ a[result] = x }`
+  — Python raises `ValueError` on absence, so presence is an OBLIGATION at the call (response §4.2 `s3b`);
+- d. (mirror annotations only) `_split_rocq_check_output`'s mirror return `-> int` placeholder →
+  the live `-> Dict[str, str]`, plus `#@ loop invariant 0 <= i` / `#@ loop variant len(lines) - i` on its
+  two `while` loops and `#@ loop invariant 0 <= i` on the `for` (the live loops carry no variant).
+
+Result on stub 3 in `T_c`: **TC-OK**, emitted function contains **0** `_0 ()` facades and reads
+`stdout` (`str_splitlines_op stdout`), every `lines[i]`, and `qualnames` (`arr_mem_str`, `arr_index_str`,
+element reads); `why3 prove -a split_vc -P alt-ergo -t 10` on the emitted file: **66 Valid, 0 non-Valid**
+(before the loop annotations: 8 non-Valid = 3 loop terminations + 5 `lines[!i]` bounds, all fixed by the
+`0 <= i` invariants/variants — none by the model).
+
+**Gate S verdict: PASS (narrow) — 1 stub of 179 reaches non-vacuous TC-OK and proves; the capability
+moves the chain of 4.** Corpus/mirror cost: measured in the build battery (§6).
+
+## 6. Build B1 — the emitter change (Module 6), battery
+
+Landed in `src/pycsl/module6_whyml/` (all touched methods are `\trusted` in the mirror —
+`_handle_call_expr`, `_handle_len_call`, `_emit_membership`, `_is_string_expr` (unchanged here),
+`_typed_local_vars`, `_classify_iterable`, `_handle_for_stmt` — so no verified twin is edited, §10.4
+not triggered). **No new `self` field**: the R5 local set is merged into the existing
+`_array_elem_types` map as `string` (that map is empty outside `@mutable_state`, so outside it a
+`string` entry is exactly an R5 local), which keeps every declared `#@ assigns` frame honest.
+Edits, all gated OFF inside `@mutable_state` (whose CF5 `seq string` model is untouched):
+- a/b `_handle_call_expr`: `<str>.split(sep)` (1 positional arg, no keywords) → `str_split_op`;
+  `<str>.splitlines()` → `str_splitlines_op` (plain `val`, `ensures { Array.length result >= 0 }`);
+- c `_typed_local_vars`: a local EVERY assignment of which is such a call (and bound no other way,
+  not a formal) is let-bound `array string` (`_array_elem_types[x] = "string"`), so `x[i]` is a
+  string (existing classifier arm), `if x:`/`for t in x` use the array paths;
+- c `_handle_for_stmt`: `for t in <R5 local | flat List[str] formal>` types `t` as a string local;
+  `_classify_iterable`: `for t in <str>.splitlines()` materialised once like the `.split` arm;
+- `_handle_len_call`: `len(<R5 split/splitlines call>)` → `Array.length`;
+- e `_emit_membership`: `x in <R5 local | flat List[str] formal>` → `arr_mem_str`;
+- f `_handle_call_expr`: `<same>.index(x)` → `arr_index_str` (presence REQUIRED).

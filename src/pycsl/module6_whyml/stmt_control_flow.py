@@ -696,6 +696,22 @@ class ControlFlowStmtMixin:
             # (this mirror class is not @mutable_state, so it has no variant otherwise).
             self._pyast_loop_variant_len = f"(Array.length {_sv})"
             return (f"Array.length {_sv}", f"{_sv}[!{idx}]", False)
+        # R5-str: `for line in <string>.splitlines()` — the `.split` arm above, for the
+        # no-arg `splitlines` (receiver-passing `str_splitlines_op : array string`),
+        # materialised once for the same reason. Gated exactly like the `.split` arm.
+        if (self._value_semantic and isinstance(iter_ir, dict)
+                and iter_ir.get("type") == "Call" and not iter_ir.get("args")
+                and not iter_ir.get("keywords")):
+            _slr, _slt = self._str_method_recv_and_tail(iter_ir)
+            if (_slt == "splitlines" and _slr is not None and self._is_string_expr(_slr)):
+                _slw = self._expr_to_whyml(_slr, local_refs)
+                self._add_abstract_op(
+                    "val str_splitlines_op (s: string) : array string\n"
+                    "    ensures { Array.length result >= 0 }")
+                _sv = f"_split{idx}"
+                self._for_iter_materialize = (_sv, f"(str_splitlines_op {_slw})")
+                self._pyast_loop_variant_len = f"(Array.length {_sv})"
+                return (f"Array.length {_sv}", f"{_sv}[!{idx}]", False)
         # faithful for-over-literal (self-tcb-reduction): `for k in ("body", "orelse")` /
         # `for prefix in array_prefixes` — a for-loop over an ALL-string tuple/list literal
         # (the emitter's OWN unmodeled Python literal), either DIRECT or via a Var bound to
@@ -1040,6 +1056,20 @@ class ControlFlowStmtMixin:
             extra_locals = {n for n in (_idx_name, _ch_name) if n and n != "_"}
             saved_str_locals = getattr(self, "_string_local_vars", set())
             self._string_local_vars = set(saved_str_locals) | {_ch_name}
+        elif (not tuple_targets and isinstance(iter_ir, dict)
+              and iter_ir.get("type") == "Var"
+              and getattr(self, "_current_self_type", None)
+              not in getattr(self, "_mutable_state_classes", set())
+              and (iter_ir.get("name") in {_k for _k, _e in (getattr(self, "_array_elem_types", {}) or {}).items() if _e == "string"}
+                   or (iter_ir.get("name") in set(getattr(self, "_formal_params", []) or [])
+                       and (getattr(self, "_param_list_flat_elem", {}) or {}
+                            ).get(iter_ir.get("name")) == "string"
+                       and iter_ir.get("name") not in getattr(self, "_seq_locals", set())))):
+            # R5-str step c: `for x in <array string>` (an R5 split/splitlines local or a
+            # flat `List[str]` formal) binds `x` to a real string element, so type `x` as a
+            # string local for the body (`x.strip()` -> `str_strip_op`, not `x_strip_0 ()`).
+            saved_str_locals = getattr(self, "_string_local_vars", set())
+            self._string_local_vars = set(saved_str_locals) | {target}
         elif enum_seq is not None:
             # enumerate(<seq>) binds the index i (int) and the element x. Both tuple
             # targets are in scope for the body; a string-element seq types x as string.
@@ -1128,6 +1158,13 @@ class ControlFlowStmtMixin:
         # through the faithful string ops, not the opaque int path. Restored after the body.
         _is_splitbody = (self._value_semantic
                          and self._split_call_recv_sep(iter_ir) is not None)
+        if (not _is_splitbody and self._value_semantic and not tuple_targets
+                and isinstance(iter_ir, dict) and iter_ir.get("type") == "Call"
+                and not iter_ir.get("args") and not iter_ir.get("keywords")):
+            # R5-str: the `splitlines` twin of the `.split` loop-target typing above.
+            _slr2, _slt2 = self._str_method_recv_and_tail(iter_ir)
+            _is_splitbody = (_slt2 == "splitlines" and _slr2 is not None
+                             and self._is_string_expr(_slr2))
         # route #296: the bare `for x in <pyval local>` dict-KEY typing (`x` registered
         # symbol-type "str") is gone with its `_classify_iterable` arm -- a bare pyval local
         # now binds `x` to a real `hval` element via the R2b judgement below.

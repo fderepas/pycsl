@@ -7252,6 +7252,49 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         array_param_seed = array_vars | getattr(self, "_current_array1d_params", set())
         array_vars |= self._collect_array_var_assigns(body_stmts, seed=array_param_seed)
         array_vars -= getattr(self, "_current_array1d_params", set())
+        # R5-str (int-erasure-seam-r3-impl.md step c): OUTSIDE `@mutable_state`, a local
+        # EVERY assignment of which is a whole-list `<str>.split(sep)` / `<str>.splitlines()`
+        # on a STRING receiver is an `array string` (the receiver-passing model) — let-bound,
+        # never `ref 0`, and its element reads / `for` targets are strings. Any other binding
+        # form of the name (tuple/for/with target, aug-assign, a formal) excludes it.
+        _r5_asg: Dict[str, bool] = {}
+        _r5_other: Set[str] = set()
+        if (getattr(self, "_current_self_type", None)
+                not in getattr(self, "_mutable_state_classes", set())):
+            _r5_stack: List[Any] = list(body_stmts)
+            while _r5_stack:
+                _r5n = _r5_stack.pop()
+                if isinstance(_r5n, list):
+                    _r5_stack.extend(_r5n)
+                    continue
+                if not isinstance(_r5n, dict):
+                    continue
+                if _r5n.get("stmt") == "Assign" and isinstance(_r5n.get("target"), str):
+                    _r5v = _r5n.get("value")
+                    _r5ok = False
+                    if (isinstance(_r5v, dict) and _r5v.get("type") == "Call"
+                            and not _r5v.get("keywords")):
+                        _r5r, _r5t = self._str_method_recv_and_tail(_r5v)
+                        _r5ok = (_r5r is not None and self._is_string_expr(_r5r)
+                                 and ((_r5t == "split" and len(_r5v.get("args") or []) == 1)
+                                      or (_r5t == "splitlines" and not _r5v.get("args"))))
+                    _r5_asg[_r5n["target"]] = _r5_asg.get(_r5n["target"], True) and _r5ok
+                elif _r5n.get("stmt") is not None:
+                    for _r5k in ("target", "targets", "tuple_targets", "name", "var"):
+                        _r5x = _r5n.get(_r5k)
+                        if isinstance(_r5x, str):
+                            _r5_other.add(_r5x)
+                        elif isinstance(_r5x, list):
+                            _r5_other.update(x for x in _r5x if isinstance(x, str))
+                _r5_stack.extend(_r5n.values())
+        # (a local set, merged into `_array_elem_types` as `string` right after each of its
+        # computations below — that map is EMPTY outside `@mutable_state`, so outside it a
+        # `string` entry is exactly an R5 local; no new `self` field, so no frame moves.)
+        _r5_strlist = {
+            n for n, ok in _r5_asg.items()
+            if ok and n not in _r5_other
+            and n not in set(getattr(self, "_formal_params", []) or [])}
+        array_vars |= _r5_strlist
         dict_vars |= self._collect_dict_var_assigns(body_stmts)
         lambda_vars = IRScanner.find_lambda_vars(body_stmts)
         record_vars = IRScanner.find_record_vars(body_stmts, self._record_types)
@@ -7301,6 +7344,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # emit_ir surface is `cases`-field- and @mutable_state-gated, so no corpus/non-match
         # local reclassifies (pass 2 is a no-op there and pass 3 == pass 1).
         self._array_elem_types = self._collect_array_elem_types(body_stmts)
+        for _r5n in _r5_strlist:
+            self._array_elem_types.setdefault(_r5n, "string")
         self._emit_ir_local_vars = self._collect_emit_ir_result_locals(body_stmts)
         # V1 pyconst-dispatch (self-tcb-reduction M5, B-bucket): a local whose FIRST assignment
         # is `<emit_ir>.value` inside `_classify_literal_value` (whose scoped `.value` projection
@@ -7351,6 +7396,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         self._tdrl_hval_locals = _tdrl_hval
         self._tdrl_present_locals = _tdrl_present
         self._array_elem_types = self._collect_array_elem_types(body_stmts)
+        for _r5n in _r5_strlist:
+            self._array_elem_types.setdefault(_r5n, "string")
         # cap4/5 (self-tcb-reduction `_refine_tuple_return_type`): the three string list-comp
         # locals (`slots`/`_names`/`_s`) are `seq string` — a REASSIGNED list local must be
         # an immutable `seq` (freely reassignable through a `ref`), never a mutable `array`
