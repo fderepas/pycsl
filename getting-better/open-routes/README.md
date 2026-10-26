@@ -1,7 +1,7 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
 ## gen #37 (2026-10-26): #381 + #382 + #383 REPAIRED, candidate (r381s executor off 7bf752d4e; code 324907ddc / 9942dc760 (from the
-##   r381 WIP, measured and narrowed), corpus + census b89ed1f91, docs ed1448bd4 (annotations 7.42 / T.6.53), route docs; inline, no
+##   r381 WIP, measured and narrowed), corpus + census b89ed1f91, docs ed1448bd4 (annotations 7.46 / T.6.57), route docs; inline, no
 ##   new def, no new refusal code, ledger 3). Sound refusals, no emission change, all PYCSL-R349-UNHASHABLE-RECORD. #381: outside bases
 ##   classified on the REAL stdlib class (`__hash__` None, contents-delegating hash: slice / memoryview / MappingProxyType /
 ##   weakref.ref; unknown = unhashable). #382: container mark at every depth of every hashing position; outside value classes by

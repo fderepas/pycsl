@@ -13,7 +13,7 @@ over-refusal risk of the #383 `#UNK` rule unmeasured (mirror emit sweep required
 yet witnessed: `s.add(d)` and `{d: 1}` with `d: deque` PROVE (contrary to this route's note); `types.MappingProxyType` is
 classed hashable. Next: sweep 9cb374e71 alone first, then the full candidate.
 
-## REPAIR (2026-10-26, r381s executor off 7bf752d4e; code 324907ddc (from r381 WIP 9cb374e71) + 9942dc760 (from 18acf06af / 5b063cdd0, narrowed), corpus + census b89ed1f91, docs ed1448bd4 (annotations §7.42 / translational §T.6.53), route docs)
+## REPAIR (2026-10-26, r381s executor off 7bf752d4e; code 324907ddc (from r381 WIP 9cb374e71) + 9942dc760 (from 18acf06af / 5b063cdd0, narrowed), corpus + census b89ed1f91, docs ed1448bd4 (annotations §7.46 / translational §T.6.57), route docs)
 **Design (shared by #381-#383): sound refusals, no emission change, no new def, no new refusal code** (inline in the #346-#349 /
 #364-#366 / #369-#372 block of `_run_pipeline`, mirror twin `\trusted`; reuses `PYCSL-R349-UNHASHABLE-RECORD`, message extended with
 "or, when it cannot be derived, may have (routes #381-#383)"). Ledger 3, no axiom.
