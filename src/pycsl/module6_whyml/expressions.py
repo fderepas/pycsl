@@ -14713,8 +14713,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             from errors import PyCSLSemanticError as _PyCSLSemErr376
             raise _PyCSLSemErr376(
                 f"getattr({_ga_o}, {_ga_n!r}, ...): '{_ga_n}' is not an instance field of "
-                f"'{_ga_t}', but it is not ABSENT either: a class body in its MRO binds it "
-                f"(a class attribute, method, property or nested class), `object` has it, "
+                f"'{_ga_t}', but it is not ABSENT either: a class body in its MRO or in any "
+                f"file subclass binds it (a class attribute, method, property, nested class, "
+                f"dataclass field, or an attribute store in any target form -- `for` / "
+                f"`with` / tuple / augmented, routes #396 / #397), `object` has it, "
                 f"or the MRO has a `__getattr__` / `__getattribute__`, a standard-library / builtin "
                 f"base (its class attributes are not read), or the file stores attributes "
                 f"dynamically (`setattr` / `delattr` / `vars` / `__dict__`, systematic rule GD, "

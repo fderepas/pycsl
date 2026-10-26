@@ -1,0 +1,13 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/getting-better/open-routes/witnesses-r396/k52_subclass_classattr.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+File "/tmp/.pycsl_q7sgpb9r.mlw", line 11, characters 15-27:
+Sub-goal postcondition of goal f'vc.
+Prover result is: Valid (0.00s, 6 steps).
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_q7sgpb9r.mlw", line 10, characters 9-10: unused variable r
+
+[+] Verification SUCCESS! All contracts formally proven.

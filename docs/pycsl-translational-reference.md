@@ -4691,6 +4691,78 @@ constants (undefined otherwise). For a hashed $h$ at node $n$: when `#UNK` $\in 
 \kappa(h)$ and $n \notin G$, also `#UB`; $h$ is refused when $\kappa(h) \cap (U \cup
 \{\texttt{\#UB}\}) \neq \emptyset$.
 
+### §T.6.63  Builtin exception bases and their constructor (route #393, gen #37)
+
+_Corresponds to `annotations.md` §7.52._
+
+Refines §T.6.53: the builtin-exception exemption from $M$ holds only for $a \in E$, the
+allow-list of builtin exception classes whose constructor accepts every positional arity
+(`BaseException`, `Exception`, `ArithmeticError`, ..., `ZeroDivisionError`; the literal set
+`_exok1` of `_run_pipeline`), or $a \in Y = \{$`SyntaxError`, `IndentationError`,
+`TabError`$\}$; $a \in \{$`BaseExceptionGroup`, `ExceptionGroup`, `UnicodeDecodeError`,
+`UnicodeEncodeError`, `UnicodeTranslateError`$\}$ makes the translation undefined. An entry
+$a \in Y$ yields the shape SYNTAX: at most two positional arguments, none starred, no keyword,
+and a second one only as a `Tuple` display of 4 or 6 non-starred elements. In route #369's signature
+walk over the file MRO of a class $C$ (§T.6.49), the first non-file entry $a \in E$, not bound or
+imported by the file, yields the signature $(\mathit{self}, {*}\mathit{args})$ with no keyword
+parameter; the same signature checks `super().__init__(..)` when the next MRO entry is such an
+$a$, and `a.__init__(self, ..)`. A construction `C(..)` of a class whose MRO contains such an
+$a$ and whose signature is undetermined makes the translation undefined
+(`PYCSL-R369-CONSTRUCTOR-ARITY`). Emission is unchanged where the translation is defined.
+
+### §T.6.64  `getattr` defaults: subclass closure and store forms (routes #396 / #397, gen #37)
+
+_Corresponds to `annotations.md` §7.53._
+
+Replaces the definition of $B(C)$ in §T.6.54. Let $\mathrm{own}(C)$ be: every `str` field (other
+than `type_comment`) of every node under $C$'s class scope (not entering a `def` / `lambda`),
+except nodes of the kinds `Constant`, `keyword`, `arg`, `MatchClass`, `alias`, f-string
+`Interpolation`, and `Name` / `Attribute` in `Load` context, plus the alias names of an
+`Import` / `ImportFrom` (`*` for a star); the `attr` of every `Attribute` in `Store` / `Del`
+context inside a `def` of $C$'s body (not a `@staticmethod`) whose receiver is a `Name` equal to
+that `def`'s first parameter (never rebound, nor shadowed by a nested parameter, there); `_C__x`
+for every `__x` of these and every attribute `__x` under $C$; `*` as in §T.6.54. Let $G$ be the
+`attr` of every other `Store` / `Del` `Attribute` of the module outside the top-level driver
+(class-scope ones included). With $\mathrm{anc}(D)$ the file-class ancestors of $D$
+(reflexive), $B(C) = G \cup \bigcup \{\mathrm{own}(A) \mid D \text{ a file class},\ C \in
+\mathrm{anc}(D),\ A \in \mathrm{anc}(D)\}$, plus `*` under the dynamic-store condition of
+§T.6.54 (now also a call of `exec` / `eval`). The side condition of §T.6.54 is otherwise unchanged.
+
+### §T.6.65  TypedDict values: attributes and optional keys (route #398, gen #37)
+
+_Corresponds to `annotations.md` §7.54._
+
+Extends §T.6.55: an `Assign` `X = f(..)` with $f$ resolving to `typing` / `typing_extensions`
+`.TypedDict` puts $X$ in $T$. For each file TypedDict $X$ (class or functional form) let $K(X)$
+be its keys and $O(X) \subseteq K(X)$ its optional keys (§7.54; `*` when the key set or the
+totality is not a literal). On the resolved IR of every non-`trusted` function, the translation
+is undefined (`PYCSL-R398-TYPEDDICT-ACCESS`) at: an `Attribute` node of the function's `body`
+(outside `body` an `Attribute` is treated as a key read below) with `attr` $\in \bigcup K$
+whose `object` is not a `Var` `self` / `cls` or a `Var` whose symbol-table type is known and
+names no file TypedDict; a `Subscript` with a `String` index, a `get` / `pop` / `setdefault` call
+with a `String` first argument, or an `in` / `not in` with a `String` left operand, whose key is in
+$\bigcup O$ (or `*` occurs), unless the receiver is a `Var` of a known type that is not a TypedDict
+$X$ with the key (or `*`) in $O(X)$.
+
+### §T.6.66  Builtins reached through `builtins` imports (route #399, gen #37)
+
+_Corresponds to `annotations.md` §7.55._
+
+Extends §T.6.56: the callee also counts as a builtin when it is a `Name` bound by `from builtins
+import a [as b]`, or an `Attribute` whose value is a `Name` bound by `import builtins [as b]`
+(or `__builtins__`, not rebound) — resolved through the file's imports outside the driver.
+
+### §T.6.67  `ast.NodeVisitor` dispatch (route #400, gen #37)
+
+_Corresponds to `annotations.md` §7.56._
+
+Let $V$ be the file classes whose base closure over file classes contains a base resolving to
+`ast.NodeVisitor` / `ast.NodeTransformer`. If some $C \in V$ derives from `NodeTransformer`, or
+$C$ or a file ancestor of $C$ defines a `def visit_*`, then a `Call` whose `func` is an
+`Attribute` `visit` / `generic_visit` inside a module-level function or a method whose IR entry
+is not `trusted` / `abstract` makes the translation undefined
+(`PYCSL-R400-NODEVISITOR-DISPATCH`).
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

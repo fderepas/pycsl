@@ -1,0 +1,10 @@
+2026-10-26T08:30:17Z e2 start: base worktree made
+2026-10-26T08:34:33Z base witnesses 28/28 PROVED
+2026-10-26T08:42:01Z rules S1-exc/GD/TD/SB/NV drafted; measuring
+2026-10-26T08:45:09Z docs drafted, base sweep running
+2026-10-26T08:47:18Z waiting base sweeps; controls/witness list prepared
+2026-10-26T09:00:40Z corpus 5620-5685 written; starting candidate sweeps
+2026-10-26T09:02:01Z cand sweeps running; advice/doc gates rc 0
+2026-10-26T09:15:06Z fixed TD contract over-refusal (0889/0890) and SyntaxError mirror GONE; re-sweeping
+2026-10-26T09:15:24Z cand re-sweep running
+2026-10-26T09:25:18Z cand re-sweep still running

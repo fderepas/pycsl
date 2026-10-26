@@ -2704,6 +2704,107 @@ genuinely `Any`; refusing it would lose that proved mirror); a HASHABLE class im
 non-stdlib module (a frozen dataclass of `mylib`) is now refused in a hashing position
 (over-refusal: its module is not inspected; measured 0 corpus / mirror / `pycsl_lib` users).
 
+### 7.52 A builtin exception base is modelled with its constructor; a construction is checked against it (route #393, gen #37)
+
+§7.42 (S1) admitted EVERY builtin exception class as a base, and a subclass construction was
+lowered as an arbitrary instance with no signature check: measured (red team 31, all PROVED at
+`7859e8fb0`, CPython TypeError) `class D(ExceptionGroup)`; `D()`, `D(UnicodeDecodeError)`;
+`D("x")`, `D(SyntaxError)`; `D("m", 1)`, and `class D(Exception)`; `D(x=1)` under
+`no_exception`. RULE (allow-list polarity, two places): (1) the BASE-MODEL table admits a
+builtin exception only if its constructor is modelled: the classes whose constructor takes ANY
+positional arguments (`BaseException`, `Exception`, `ValueError`, `KeyError`, `OSError`, ... —
+the classes a subclass without `__init__` accepts with every arity 0..7, measured on CPython
+3.14), and the `SyntaxError` family (`IndentationError`, `TabError`), whose shape is checked in
+(2); `BaseExceptionGroup` / `ExceptionGroup` and `UnicodeDecodeError` / `UnicodeEncodeError` /
+`UnicodeTranslateError` are refused like any unmodelled base (`PYCSL-S1-UNMODELLED-BASE`); (2)
+route #369's constructor-arity check reads an any-arity base as the signature `(self, *args)` —
+NO keyword — so `D(x=1)`, `super().__init__(msg=x)` reaching the base, and
+`Exception.__init__(self, msg=x)` are refused, and a `SyntaxError`-family base as `()`, `(msg)`
+or `(msg, details)` with `details` a 4- or 6-element tuple DISPLAY (so `D("m", 1)` is refused;
+the self-annotation mirror's `pure_ast.PyCSLSyntaxError(SyntaxError)` raised `(msg, (file, line,
+col, text))` is admitted: refusing the base GONEs that mirror, measured)
+(`PYCSL-R369-CONSTRUCTOR-ARITY`); a file `__init__` in the MRO is checked as before (§7.38); and a
+construction of a class deriving from a builtin exception whose signature the check cannot read
+(a `__new__` in the file MRO, a class keyword, a decorated or non-`def` `__init__`) is REFUSED
+with the same code. Witnesses `5620`-`5623`,
+`5650`-`5653` (latents: `super().__init__(msg=x)`, a `__new__` override, a grandchild's keyword,
+`raise D(k=1)`); controls `5680` (positional construction, and `F(code=3)` against a plain user
+`__init__`) and `5686` (a `SyntaxError` subclass built with a details tuple). Residual: a construction through `cls(..)` / `type(self)(..)` / `functools.partial`
+is not checked; a class imported from a user module is checked in its module only by S1.
+
+### 7.53 `getattr`'s default: the whole subclass closure and every store form (routes #396 / #397, gen #37)
+
+§7.43 (GD) answered the default when the receiver's MRO did not bind the name, and its census
+saw only `def` / `class` names, `Name` stores and imports in a class body plus `self.k = v`
+instance fields. Measured (red team 31, all PROVED at `7859e8fb0`, CPython 5 / 6 / a bound
+method): `getattr(r, "k", 0) == 0` for `r: R` while a SUBCLASS `S(R)` stores `self.k = 5`,
+binds a class attribute `k`, a dataclass field `k: int = 5`, a property / method `k`, a
+grandchild does, `self.__k` is stored in `S` (`_S__k`); and `for self.k in ..`, `(self.k,) = ..`,
+`[self.k] = ..`, `with .. as self.k`, `self.k, self.j = ..`, a `for` target in `__post_init__`.
+RULE (one place, the `class_binds_r376` map of `_run_pipeline`): a class answers the union of
+the bindings of EVERY class in its closed-world subclass closure (it and each file class
+deriving from it), each with its file ancestors. A class's bindings: every identifier a
+class-scope node carries UNLESS the node kind is known not to bind (an allow-list of
+NON-binding forms: a `Name` / `Attribute` load, a constant, a call keyword, a parameter, a class
+pattern's attribute names, an import's module; so `except .. as k`, `case k`, `global k`, an
+annotation-only member, a type parameter all bind), every attribute STORE / DELETE in any
+target position of any of its methods on the method's first parameter (not a `@staticmethod`'s,
+nor one rebound or shadowed in the method), and the `_C__x` spelling
+of each `__x` it binds. An attribute store on any OTHER receiver, or outside every class (module
+functions and module code; the `__main__` driver excluded), binds that name for EVERY class. A
+call of `exec` / `eval` joins the dynamic stores of §7.43. Refusal: `PYCSL-R376-GETATTR-CLASS-BINDING`
+(message extended). Witnesses `5624`-`5638`, `5654` (latent: `except .. as k` in a subclass body); control `5681`. Residuals: a
+subclass defined in ANOTHER module, and a base from a user module (§7.43), are still not read.
+
+### 7.54 A TypedDict value is a `dict`: no attribute access, no read of an optional key (route #398, gen #37)
+
+The model lowers a TypedDict as a record holding EVERY key and `d["k"]` as the field `d.k`.
+Measured (red team 31, all PROVED at `7859e8fb0`): `d.a` on `d: TD` under `no_exception`
+(CPython AttributeError), `d["b"]` with `b: NotRequired[int]`, under `class TD(TypedDict,
+total=False)`, and for a functional `TypedDict("TD", {"b": NotRequired[int]})` (KeyError); the
+functional form `TD = TypedDict("TD", {"a": int})` also escaped §7.44 (`TD(a=1).a` PROVED). RULE:
+(1) a functional `X = TypedDict(..)` (any import spelling of `typing` / `typing_extensions`) is
+a typing construct for §7.44; (2) a key is REQUIRED only when declared in a TypedDict whose
+totality is the literal default / `True` and not wrapped in `NotRequired` (or wrapped in
+`Required`); inherited keys keep their class's totality; every other key of a file TypedDict
+(`NotRequired`, `Annotated`, `total=False`, a non-literal totality or key set, a base that is not
+a file TypedDict) is OPTIONAL. In a verified function (contracts included) REFUSED
+(`PYCSL-R398-TYPEDDICT-ACCESS`): in a function BODY, `X.k` for a key `k` of a file TypedDict unless
+`X` is `self` / `cls` or a variable of a known non-TypedDict type (in a CONTRACT `r.k` is the spec
+notation for the key, e.g. corpus `0889` / `0890`, and is refused only for an optional key); `X["k"]`, `X.get("k", ..)`, `X.pop("k")`,
+`X.setdefault("k", ..)` and `"k" in X` for an OPTIONAL key unless `X` is a variable of a known
+type that is not a TypedDict having `k` optional. No guard is admitted (the record model has no
+presence bit for `"k" in d` to establish; at base the guarded `in` / `try` forms were ill-typed in WhyML and `.get` of an optional key
+failed, so the refusal costs nothing measured). Witnesses `5639`-`5643`; control `5682`
+(required key in a contract and a body). Over-refusal: an optional key read after the function
+itself stored it.
+
+### 7.55 Builtins imported from `builtins` (route #399, gen #37)
+
+§7.45 (SB) refused a `*` / `**` argument at a builtin name the file does not bind or import, so
+`from builtins import sorted` / `sum` escaped it while the call still lowered to the builtin model
+(red team 31, PROVED at `7859e8fb0`: `sorted(xs, **{"reverse": True})` ascending, `sum([1, 2],
+**{"start": 10}) == 3`; CPython reversed / 13). The callee is now resolved through the imports
+first: a name imported `from builtins` (any alias), an attribute of a name bound by `import
+builtins [as b]`, and `__builtins__.X` are builtins for §7.45 (`PYCSL-R379-STARRED-CALL-ARGUMENT`).
+Witnesses `5644`, `5645`; control `5683` (`b.sum(.., **..)` through `import builtins as b` was ill-typed in WhyML at base; now refused by SB).
+
+### 7.56 `ast.NodeVisitor` dispatch is not modelled: `visit` / `generic_visit` refused where it would run code (route #400, gen #37)
+
+S1 admits `ast.NodeVisitor` / `ast.NodeTransformer` as bases (the self-annotation mirror's
+`Module3_Weaver`, `Module5_IREmitter`, `desugar`, `exec_splice` derive from them), but their
+`visit` / `generic_visit` have no model: the call lowered to an abstract operation with no
+effect, dropping the dispatch to the class's `visit_*` methods. Measured (red team 31 n32,
+PROVED at `7859e8fb0`): a contracted `visit_Constant` doing `self.n += 1`, then `v.visit(ast.
+parse("1")); return v.n` proved `\result == 0` (CPython 1). RULE: when a file class derives
+(through file classes) from the standard-library `ast.NodeVisitor` / `NodeTransformer` and it
+or a file ancestor defines a `visit_*` method, or it is a transformer (which rewrites the tree
+in place), a `.visit(..)` / `.generic_visit(..)` call in a verified (non-`\trusted`) function is
+REFUSED (`PYCSL-R400-NODEVISITOR-DISPATCH`). Removing the two bases from the table instead was
+not taken: the mirror files above use them. Witness `5646`; controls `5684` (a visitor with no
+`visit_*` method) and `5685` (the advice followed: `visit_Constant` called directly). Residual: the havoc model (`visit` assigns the union of the `visit_*`
+methods' frames) is not built, so a verified caller of a dispatching visitor is refused.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

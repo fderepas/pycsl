@@ -682,6 +682,11 @@ AUDITED = {
         "Route #341. 'Write the base class's own name in the class header': control 4572 is witness 4551 with `class S(B)` (the alias `Alias = B` kept, used only as a value) and an override honouring the base `ensures` - VERIFIES; with the override still returning 2 the direct header FAILS (one goal left: the route #277 override-refinement obligation), as it must."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_n341, \'lineno\', 0)}: `{_cl341}` stores an object\'s `__class__`, which changes the class of an EXISTING inst'): (FOLLOWABLE,
         "Route #342. 'Construct an instance of the target class instead': control 4576 is witness 4571 with `d = C()` in place of `d.__class__ = C` - VERIFIES (CPython True)."),
+    # (#49) gen #37 -- routes #393 / #400 (e2, run #3), audited the day they landed.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_fd400.name}\' line {_n400.lineno}: `{_ast341.unparse(_n400)}` calls `ast.NodeVisitor.{_n400.func.attr}`, which dispatche'): (FOLLOWABLE,
+        "Route #400. 'Call the `visit_*` method directly': control 5685 is witness 5646 with `v.visit_Constant(node)` in place of `v.visit(ast.parse(..))` - VERIFIES (`\\result == 1`, CPython 1)."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n369, \'lineno\', 0)}: the construction `{_ast341.unparse(_n369)}` builds the exception class '): (FOLLOWABLE,
+        "Route #393. 'Give the class a plain `def __init__`': control 5680's `F(ValueError)` with `def __init__(self, code: int)` constructed `F(code=3)` under `no_exception` - VERIFIES (witness 5651 has a `__new__` instead)."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit

@@ -1,0 +1,10 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-e2/getting-better/open-routes/witnesses-r393/e06_subclass_init_kw_only_base.py'...
+[*] Memory model: hoare
+[*] Running Proof Engine (provers: Alt-Ergo,2.6.3, → Z3,4.13.3,)...
+
+--- Verification Results ---
+
+Warnings/Errors from Why3:
+Warning, file "/tmp/.pycsl_p5qka_dg.mlw", line 14, characters 8-9: unused variable e
+
+[+] Verification SUCCESS! All contracts formally proven.

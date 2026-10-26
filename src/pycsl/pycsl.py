@@ -3091,6 +3091,26 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                    | {("abc", "ABC"), ("ast", "NodeVisitor"), ("ast", "NodeTransformer"),
                       ("builtins", "object"), ("builtins", "type")})
         import builtins as _bi1
+        _exok1 = {
+            "ArithmeticError", "AssertionError", "AttributeError", "BaseException",
+            "BlockingIOError", "BrokenPipeError", "BufferError", "BytesWarning",
+            "ChildProcessError", "ConnectionAbortedError", "ConnectionError",
+            "ConnectionRefusedError", "ConnectionResetError", "DeprecationWarning", "EOFError",
+            "EncodingWarning", "EnvironmentError", "Exception", "FileExistsError",
+            "FileNotFoundError", "FloatingPointError", "FutureWarning", "GeneratorExit",
+            "IOError", "ImportError", "ImportWarning", "IndexError", "InterruptedError",
+            "IsADirectoryError", "KeyError", "KeyboardInterrupt", "LookupError", "MemoryError",
+            "ModuleNotFoundError", "NameError", "NotADirectoryError", "NotImplementedError",
+            "OSError", "OverflowError", "PendingDeprecationWarning", "PermissionError",
+            "ProcessLookupError", "RecursionError", "ReferenceError", "ResourceWarning",
+            "RuntimeError", "RuntimeWarning", "StopAsyncIteration", "StopIteration",
+            "SyntaxWarning", "SystemError", "SystemExit", "TimeoutError", "TypeError",
+            "UnboundLocalError", "UnicodeError", "UnicodeWarning", "UserWarning", "ValueError",
+            "Warning", "ZeroDivisionError"}
+        # the `SyntaxError` family: `()`, `(msg)` or `(msg, details)` with `details` a
+        # 4- or 6-tuple (route #369's check reads it as the shape "SYNTAX"; the mirror's
+        # `pure_ast.PyCSLSyntaxError(SyntaxError)` is raised `(msg, (file, line, col, text))`)
+        _exsy1 = {"SyntaxError", "IndentationError", "TabError"}
         # The main file, then every DEPENDENCY module its imports reach (resolved like route
         # #181: the main file's directory and `--import-path`, transitively, `.py` or package
         # `__init__.py`). A dependency's class is importable, so its reference filter is off:
@@ -3198,9 +3218,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 for _b1, _q1 in _qs1:
                     if _q1 in _model1:
                         continue
+                    # (#49) gen #37, ROUTE #393 — a builtin exception base is MODELLED only
+                    # with its constructor: `BaseException.__new__` / `__init__` take any
+                    # positional arguments and no keyword (route #369 checks the call against
+                    # that `*args` signature). The classes whose constructor takes SPECIFIC
+                    # arguments -- `(Base)ExceptionGroup` (`__new__(message, exceptions)`),
+                    # `UnicodeDecode/Encode/TranslateError` (exactly 5 / 4), the `SyntaxError`
+                    # family (a details tuple) -- have no model: measured (red team 31, PROVED
+                    # at 7859e8fb0) `class D(ExceptionGroup)`; `D()`, `D(UnicodeDecodeError)`;
+                    # `D("x")`, `D(SyntaxError)`; `D("m", 1)` under `no_exception` (CPython
+                    # TypeError). ALLOW-LIST (measured on CPython 3.14: every positional arity
+                    # 0..7 accepted by a subclass without `__init__`), plus the `SyntaxError`
+                    # family, whose constructions route #369 checks against its own shape; any
+                    # other builtin exception is refused here like any unmodelled base.
                     if _q1[0] == "builtins" and isinstance(getattr(_bi1, _q1[1], None),
                                                             type) and (
-                            issubclass(getattr(_bi1, _q1[1]), BaseException)
+                            _q1[1] in _exok1 or _q1[1] in _exsy1
                             or (_enum1 and _q1[1] in ("int", "str"))):
                         continue
                     raise _PyCSLSemErr341(
@@ -3213,7 +3246,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                            f"may bind")
                         + ", which PyCSL has no model of. The verifier reads a "
                         f"class's MRO only through the classes of this file and the modelled "
-                        f"bases (`object`, builtin exceptions, `enum.Enum` / `IntEnum` / `Flag` / "
+                        f"bases (`object`, builtin exceptions whose constructor takes any "
+                        f"positional arguments, and the `SyntaxError` family -- not "
+                        f"`ExceptionGroup`, `UnicodeDecodeError` / `UnicodeEncodeError` / "
+                        f"`UnicodeTranslateError`, route #393 --, `enum.Enum` / `IntEnum` / `Flag` / "
                         f"`IntFlag` / `StrEnum`, `typing.NamedTuple` / `Protocol` / `Generic` / "
                         f"`TypedDict`, `abc.ABC`, `ast.NodeVisitor` / `NodeTransformer`, `type`); "
                         f"the attributes, `__eq__` / `__hash__`, `__init__` and `__getattr__` "
@@ -3223,6 +3259,86 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"standard-library object in a field instead of deriving from it, and "
                         f"import standard-library names explicitly.",
                         stage="ir-semantic", code="PYCSL-S1-UNMODELLED-BASE")
+        # (#49) gen #37, ROUTE #400 — S1 admits `ast.NodeVisitor` / `ast.NodeTransformer` as
+        # bases, but their `visit` / `generic_visit` have no model: a call lowers to an
+        # abstract operation with no effect, so the dispatch to the class's `visit_*`
+        # methods (and a transformer's in-place rewrite of the tree) is dropped. Measured
+        # (red team 31 n32, PROVED at 7859e8fb0): `V(ast.NodeVisitor)` with a contracted
+        # `visit_Constant` doing `self.n += 1`; `v.visit(ast.parse("1")); return v.n`
+        # proved `\result == 0` (CPython 1). RULE: when a class of the file derives (through
+        # file classes) from the standard-library `ast.NodeVisitor` / `NodeTransformer` and
+        # it or a file ancestor defines a `visit_*` method (or it is a transformer), a
+        # `.visit(..)` / `.generic_visit(..)` call in a verified function is REFUSED.
+        _nvb400 = {}
+        for _ks1 in _clss1:
+            for _b1 in _ks1.bases:
+                _h1 = _b1
+                _p1 = []
+                while isinstance(_h1, _ast341.Attribute):
+                    _p1.insert(0, _h1.attr)
+                    _h1 = _h1.value
+                if isinstance(_h1, _ast341.Name) and _h1.id in _imps1:
+                    _mo1, _at1 = _imps1[_h1.id]
+                    _q1 = ((_mo1, ".".join([_at1] + _p1)) if _at1 else
+                           (".".join([_mo1] + _p1[:-1]), _p1[-1]) if _p1 else None)
+                    if _q1 in (("ast", "NodeVisitor"), ("ast", "NodeTransformer")):
+                        _nvb400.setdefault(_ks1.name, set()).add(_q1[1])
+        _nvc400 = {_k.name: _k for _k in _clss1}
+        _chg400 = True
+        while _chg400:
+            _chg400 = False
+            for _ks1 in _clss1:
+                for _b1 in _ks1.bases:
+                    if (isinstance(_b1, _ast341.Name) and _b1.id in _nvb400
+                            and not _nvb400[_b1.id] <= _nvb400.get(_ks1.name, set())):
+                        _nvb400.setdefault(_ks1.name, set()).update(_nvb400[_b1.id])
+                        _chg400 = True
+        _bad400 = []
+        for _cn400, _kd400 in _nvb400.items():
+            _anc400 = [_cn400]
+            _ix400 = 0
+            while _ix400 < len(_anc400):
+                for _b1 in (_nvc400[_anc400[_ix400]].bases if _anc400[_ix400] in _nvc400
+                            else []):
+                    if isinstance(_b1, _ast341.Name) and _b1.id in _nvc400 \
+                            and _b1.id not in _anc400:
+                        _anc400.append(_b1.id)
+                _ix400 += 1
+            if "NodeTransformer" in _kd400 or any(
+                    isinstance(_s, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                    and _s.name.startswith("visit_")
+                    for _a in _anc400 for _s in _nvc400[_a].body):
+                _bad400.append(_cn400)
+        if _bad400:
+            _trs400 = {str(_f.get("name")) for _f in (_json.loads(json_ir).get("functions")
+                                                      or [])
+                       if isinstance(_f, dict) and (_f.get("trusted") or _f.get("abstract"))}
+            _fq400 = [(_x, "") for _x in _ts1
+                      if isinstance(_x, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))]
+            for _ks1 in _clss1:
+                _fq400.extend((_x, _ks1.name) for _x in _ks1.body
+                              if isinstance(_x, (_ast341.FunctionDef,
+                                                 _ast341.AsyncFunctionDef)))
+            for _fd400, _ec400 in _fq400:
+                if ((_ec400.lower() + "__" + _fd400.name) if _ec400
+                        else _fd400.name) in _trs400:
+                    continue
+                for _n400 in _ast341.walk(_fd400):
+                    if (isinstance(_n400, _ast341.Call)
+                            and isinstance(_n400.func, _ast341.Attribute)
+                            and _n400.func.attr in ("visit", "generic_visit")):
+                        raise _PyCSLSemErr341(
+                            f"'{_fd400.name}' line {_n400.lineno}: `{_ast341.unparse(_n400)}` "
+                            f"calls `ast.NodeVisitor.{_n400.func.attr}`, which dispatches to "
+                            f"the `visit_*` methods of the receiver's class (here "
+                            f"{', '.join('`' + _c + '`' for _c in sorted(_bad400))}) or "
+                            f"rewrites the tree in place (`NodeTransformer`). The verifier "
+                            f"has no model of that dispatch: the call is an abstract operation "
+                            f"with no effect on the visitor or the tree (route #400: a "
+                            f"`visit_Constant` doing `self.n += 1`, then `v.visit(..)`; "
+                            f"`v.n == 0` PROVED, CPython 1). Call the `visit_*` method "
+                            f"directly, or walk the tree with `ast.walk`.",
+                            stage="ir-semantic", code="PYCSL-R400-NODEVISITOR-DISPATCH")
         # (#49) gen #37, SYSTEMATIC RULE TC (systematic-soundness-r3.md; route #391) — A
         # `typing.Protocol` / `typing.TypedDict` CLASS HAS NO RUNTIME MODEL: it is a TYPE, so
         # it is admitted only where a type is written (an annotation, a class base, the type
@@ -3266,6 +3382,29 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if _ks1.name in _tck1:
                         _chg1 = True
                         break
+        # (#49) gen #37, ROUTE #398 (3) — the FUNCTIONAL form `TD = TypedDict("TD", {..})`
+        # (`typing` / `typing_extensions`, through any import spelling) is the same typing
+        # construct: TC never saw a `ClassDef`, so `TD(a=1).a` under `no_exception` PROVED
+        # (red team 31 t05; CPython AttributeError, the call returns a `dict`).
+        for _ns1 in _ast341.walk(_t341):
+            if not (isinstance(_ns1, _ast341.Assign) and isinstance(_ns1.value, _ast341.Call)):
+                continue
+            _h1 = _ns1.value.func
+            _p1 = []
+            while isinstance(_h1, _ast341.Attribute):
+                _p1.insert(0, _h1.attr)
+                _h1 = _h1.value
+            _q1 = None
+            if isinstance(_h1, _ast341.Name) and _h1.id in _imps1:
+                _mo1, _at1 = _imps1[_h1.id]
+                if _at1:
+                    _q1 = (_mo1, ".".join([_at1] + _p1))
+                elif _p1:
+                    _q1 = (".".join([_mo1] + _p1[:-1]), _p1[-1])
+            if _q1 in (("typing", "TypedDict"), ("typing_extensions", "TypedDict")):
+                for _y1 in _ns1.targets:
+                    if isinstance(_y1, _ast341.Name):
+                        _tck1[_y1.id] = "TypedDict"
         if _tck1:
             _skp1 = set()
             _stks1 = list(_ts1)
@@ -3323,6 +3462,199 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"instance of the target class instead.",
                     stage="ir-semantic", code="PYCSL-R342-CLASS-REASSIGNMENT")
         _ir342 = _json.loads(json_ir)
+        # (#49) gen #37, ROUTE #398 — A TypedDict VALUE IS A `dict`, AND A KEY IT MAY LACK IS
+        # NOT A FIELD. The model lowers a TypedDict as a record holding EVERY key and reads
+        # `d["k"]` as the field `d.k`, so (red team 31, all PROVED at 7859e8fb0, CPython
+        # violates): `d.a` on `d: TD` under `no_exception` (AttributeError), `d["b"]` with
+        # `b: NotRequired[int]`, or under `class TD(TypedDict, total=False)`, or a functional
+        # `TypedDict("TD", {"b": NotRequired[int]})` (KeyError). RULE (allow-list polarity):
+        # a key is READ only when it is positively REQUIRED (declared in a TypedDict whose
+        # totality is the literal default / `True`, not wrapped in `NotRequired`, or
+        # wrapped in `Required`; inherited keys keep their own class's totality); any other
+        # key of a file TypedDict (`NotRequired`, `total=False`, a non-literal totality or key
+        # set, a base that is not a file TypedDict) is OPTIONAL. In every verified function
+        # (contracts included), REFUSED: `X.k` for a key `k` of a file TypedDict unless `X`
+        # is `self` / `cls` or a variable whose declared type is a known non-TypedDict type;
+        # `X["k"]`, `X.get("k" ..)` / `X.pop` / `X.setdefault` / `"k" in X` for an OPTIONAL
+        # key `k` unless `X` is a variable of a known type that is not a TypedDict having
+        # `k` optional (the `in` test and `.get` are not modelled on the record either, so
+        # no guard is admitted). `PYCSL-R398-TYPEDDICT-ACCESS`.
+        _tdk398 = {}
+        _tdo398 = {}
+        _tdc398 = {}
+        for _ks398 in _clss1:
+            if _tck1.get(_ks398.name) == "TypedDict":
+                _tdc398[_ks398.name] = _ks398
+        _fun398 = {}
+        for _ns398 in _ast341.walk(_t341):
+            if (isinstance(_ns398, _ast341.Assign) and isinstance(_ns398.value, _ast341.Call)
+                    and len(_ns398.targets) == 1 and isinstance(_ns398.targets[0], _ast341.Name)
+                    and _tck1.get(_ns398.targets[0].id) == "TypedDict"
+                    and _ns398.targets[0].id not in _tdc398):
+                _fun398[_ns398.targets[0].id] = _ns398.value
+
+        _chg398 = True
+        while _chg398:
+            _chg398 = False
+            for _tn398, _kd398 in list(_tdc398.items()) + list(_fun398.items()):
+                if _tn398 in _tdk398:
+                    continue
+                _tot398 = True
+                _kw398 = (_kd398.keywords if isinstance(_kd398, (_ast341.ClassDef,
+                                                                  _ast341.Call)) else [])
+                for _kw in _kw398:
+                    if _kw.arg == "total":
+                        _tot398 = (_kw.value.value if isinstance(_kw.value, _ast341.Constant)
+                                   and isinstance(_kw.value.value, bool) else None)
+                _all398 = set()
+                _opt398 = set()
+                _unk398 = False
+                if isinstance(_kd398, _ast341.ClassDef):
+                    _wait398 = False
+                    for _b398 in _kd398.bases:
+                        _bh398 = _b398.value if isinstance(_b398, _ast341.Subscript) else _b398
+                        if isinstance(_bh398, _ast341.Name) and _bh398.id in _tdk398:
+                            _all398 |= _tdk398[_bh398.id]
+                            _opt398 |= _tdo398[_bh398.id]
+                        elif (isinstance(_bh398, _ast341.Name)
+                              and (_bh398.id in _tdc398 or _bh398.id in _fun398)):
+                            _wait398 = True
+                        elif not (isinstance(_bh398, (_ast341.Name, _ast341.Attribute))
+                                  and (_bh398.id if isinstance(_bh398, _ast341.Name)
+                                       else _bh398.attr) in ("TypedDict", "Generic")):
+                            _unk398 = True
+                    if _wait398:
+                        continue
+                    _prs398 = [(_st398.target.id, _st398.annotation) for _st398 in _kd398.body
+                               if isinstance(_st398, _ast341.AnnAssign)
+                               and isinstance(_st398.target, _ast341.Name)]
+                else:
+                    _fa398 = _kd398.args[1] if len(_kd398.args) > 1 else None
+                    if isinstance(_fa398, _ast341.Dict) and all(
+                            isinstance(_k, _ast341.Constant) and isinstance(_k.value, str)
+                            for _k in _fa398.keys):
+                        _prs398 = [(_k.value, _v) for _k, _v in zip(_fa398.keys,
+                                                                     _fa398.values)]
+                    else:
+                        _prs398 = []
+                        _unk398 = True
+                        for _kw in _kd398.keywords:
+                            if _kw.arg != "total":
+                                _all398.add(_kw.arg)
+                for _kn398, _h398 in _prs398:
+                    _all398.add(_kn398)
+                    if isinstance(_h398, _ast341.Constant) and isinstance(_h398.value, str):
+                        try:
+                            _h398 = _ast341.parse(_h398.value, mode="eval").body
+                        except (SyntaxError, ValueError):
+                            _h398 = None
+                    _hd398 = _h398.value if isinstance(_h398, _ast341.Subscript) else None
+                    _hn398 = (_hd398.id if isinstance(_hd398, _ast341.Name) else
+                              _hd398.attr if isinstance(_hd398, _ast341.Attribute) else "")
+                    if not (_hn398 == "Required"
+                            or (_hn398 not in ("NotRequired", "Annotated") and _tot398 is True
+                                and _h398 is not None)):
+                        _opt398.add(_kn398)
+                if _unk398:
+                    _opt398 = set(_all398) | {"*"}
+                _tdk398[_tn398] = _all398
+                _tdo398[_tn398] = _opt398
+                _chg398 = True
+        for _tn398 in list(_tdc398) + list(_fun398):
+            if _tn398 not in _tdk398:
+                _tdk398[_tn398] = set()
+                _tdo398[_tn398] = {"*"}
+        if _tdk398:
+            _keys398 = set().union(*_tdk398.values())
+            _opts398 = set().union(*_tdo398.values())
+            _anyo398 = "*" in _opts398
+            _tdl398 = {_t.lower() for _t in _tdk398}
+            for _f398 in (_ir342.get("functions") or []):
+                if not isinstance(_f398, dict) or _f398.get("trusted"):
+                    continue
+                _sy398 = _f398.get("symbol_table") or {}
+                # (a contract's `r.k` is the spec notation for the record field, not a
+                # runtime attribute read: outside `body` only an OPTIONAL key is refused)
+                _sk398 = [(_v, _k != "body") for _k, _v in _f398.items()]
+                while _sk398:
+                    _x398, _sp398 = _sk398.pop()
+                    if isinstance(_x398, list):
+                        _sk398.extend((_v, _sp398) for _v in _x398)
+                        continue
+                    if not isinstance(_x398, dict):
+                        continue
+                    _sk398.extend((_v, _sp398) for _v in _x398.values()
+                                  if isinstance(_v, (dict, list)))
+                    _ty398 = _x398.get("type")
+                    _rc398 = None
+                    _kk398 = None
+                    _wh398 = ""
+                    if _ty398 == "Attribute" and _x398.get("attr") in _keys398:
+                        _rc398 = _x398.get("object")
+                        _kk398 = _x398.get("attr")
+                        _wh398 = "attribute"
+                    elif (_ty398 == "Subscript" and isinstance(_x398.get("index"), dict)
+                          and _x398["index"].get("type") == "String"):
+                        _rc398 = _x398.get("value")
+                        _kk398 = _x398["index"].get("value")
+                        _wh398 = "key"
+                    elif (_ty398 == "Call" and isinstance(_x398.get("func"), str)
+                          and _x398["func"].rsplit(".", 1)[-1] in ("get", "pop", "setdefault")
+                          and _x398.get("args") and isinstance(_x398["args"][0], dict)
+                          and _x398["args"][0].get("type") == "String"):
+                        _rc398 = _x398.get("receiver") or _x398.get("object")
+                        if _rc398 is None and "." in _x398["func"]:
+                            _rc398 = {"type": "Var", "name": _x398["func"].rsplit(".", 1)[0]}
+                        _kk398 = _x398["args"][0].get("value")
+                        _wh398 = "key"
+                    elif (_ty398 in ("Compare", "BinOp") and _x398.get("op") in ("in", "not in")
+                          and isinstance(_x398.get("left"), dict)
+                          and _x398["left"].get("type") == "String"):
+                        _rc398 = _x398.get("right")
+                        _kk398 = _x398["left"].get("value")
+                        _wh398 = "key"
+                    if _rc398 is None or _kk398 is None:
+                        continue
+                    if _sp398 and _wh398 == "attribute":
+                        _wh398 = "key"
+                    if _wh398 == "key" and not (_kk398 in _opts398 or _anyo398):
+                        continue
+                    _rt398 = None
+                    if isinstance(_rc398, dict) and _rc398.get("type") == "Var":
+                        if _rc398.get("name") in ("self", "cls"):
+                            _rt398 = "<self>"
+                        else:
+                            _rt398 = _sy398.get(_rc398.get("name"))
+                            if _rt398 in (None, "", "Any", "object"):
+                                _rt398 = None
+                    _rtd398 = None
+                    if _rt398 is not None:
+                        for _tn398 in _tdk398:
+                            if str(_rt398) == _tn398 or str(_rt398).lower() == _tn398.lower():
+                                _rtd398 = _tn398
+                        if _rtd398 is None:
+                            continue
+                        if _wh398 == "key" and not (_kk398 in _tdo398[_rtd398]
+                                                    or "*" in _tdo398[_rtd398]):
+                            continue
+                    raise _PyCSLSemErr341(
+                        f"function '{_f398.get('name')}': "
+                        + (f"`.{_kk398}` reads an ATTRIBUTE of a value that may be the "
+                           f"TypedDict `{_rtd398 or ', '.join(sorted(_tdk398))}`: a TypedDict "
+                           f"value is a plain `dict` at runtime, so CPython raises "
+                           f"AttributeError, while the model reads the record field "
+                           f"(route #398: `d.a` on `d: TD` under `no_exception` PROVED). "
+                           f"Use `d[\"{_kk398}\"]`."
+                           if _wh398 == "attribute" else
+                           f"the key `\"{_kk398}\"` is OPTIONAL in the TypedDict "
+                           f"`{_rtd398 or ', '.join(sorted(_tdk398))}` (`NotRequired`, "
+                           f"`total=False`, or a key set the verifier cannot read), so a "
+                           f"value may lack it and CPython raises KeyError (or answers the "
+                           f"default / False), while the model holds every key as a "
+                           f"record field (route #398: `d[\"b\"]` for `b: NotRequired[int]` "
+                           f"under `no_exception` PROVED). Make the key required, or keep "
+                           f"optional data in a plain `dict` / an `Optional` field."),
+                        stage="ir-semantic", code="PYCSL-R398-TYPEDDICT-ACCESS")
         # (#49) gen #37, ROUTE #226 — A CONSTRUCTOR PARAMETER NAMED LIKE ANOTHER INVARIANT FIELD.
         # The constructor-invariant goal `_check_class_inv_<C>` quantifies the record's field
         # labels and `__init__`'s int parameters TOGETHER, so a parameter whose WhyML name is the
@@ -4718,6 +5050,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if _a369 not in _cls341:
                         if _a369 == "object":
                             _sig369 = ([], {}, False, False, [])
+                        elif (_a369 in _exok1 and _a369 not in _bound341
+                              and _a369 not in _imp341):
+                            # (#49) gen #37, ROUTE #393: a builtin exception's constructor
+                            # (`BaseException.__new__` / `__init__`, the allow-list S1
+                            # admits) takes any positional arguments and NO keyword:
+                            # `class D(Exception)`; `D(x=1)` under `no_exception` PROVED
+                            # (CPython TypeError), checked here as `(self, *args)`.
+                            _sig369 = ([], {}, True, False, [])
+                        elif (_a369 in _exsy1 and _a369 not in _bound341
+                              and _a369 not in _imp341):
+                            _sig369 = "SYNTAX"
                         break
                     if len(_cls341[_a369]) != 1:
                         break
@@ -4872,6 +5215,25 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _why379 = (f"passes a `*` / `**` argument to the builtin "
                                    f"`{_fx380.id}`, whose model reads explicit arguments only "
                                    f"(systematic rule SB, route #390)")
+                    elif ((isinstance(_fx380, _ast341.Name)
+                           and _imps1.get(_fx380.id, ("", ""))[0] == "builtins"
+                           and _imps1[_fx380.id][1])
+                          or (isinstance(_fx380, _ast341.Attribute)
+                              and isinstance(_fx380.value, _ast341.Name)
+                              and _fx380.value.id not in _cls341
+                              and (_imps1.get(_fx380.value.id) == ("builtins", "")
+                                   or (_fx380.value.id == "__builtins__"
+                                       and _fx380.value.id not in _bound341)))):
+                        # (#49) gen #37, ROUTE #399 — `from builtins import sorted [as s]`,
+                        # `import builtins [as b]; b.sorted(..)`: the name is IMPORTED, so the
+                        # arm above skipped it, but it still lowers to the builtin model:
+                        # `sorted(xs, **{"reverse": True})` proved ascending, `sum([1, 2],
+                        # **{"start": 10}) == 3` (red team 31, PROVED at 7859e8fb0; CPython
+                        # reversed / 13). The builtin is resolved through the import first.
+                        _why379 = (f"passes a `*` / `**` argument to the builtin "
+                                   f"`{_ast341.unparse(_fx380)}` (imported from `builtins`), "
+                                   f"whose model reads explicit arguments only (systematic "
+                                   f"rule SB, routes #390 / #399)")
                     elif (isinstance(_fx380, _ast341.Attribute)
                           and not (isinstance(_fx380.value, _ast341.Name)
                                    and _fx380.value.id not in _cls341
@@ -4990,6 +5352,28 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         stage="ir-semantic", code="PYCSL-R380-METACLASS-CALL")
                     if _sg369.get(_fx380.id) is not None:
                         _sxs380 = [_sg369[_fx380.id]]
+                    elif any((_a in _exok1 or _a in _exsy1) and _a not in _cls341
+                             and _a not in _bound341
+                             and _a not in _imp341
+                             for _a in (_mro363.get(_fx380.id) or [])):
+                        # (#49) gen #37, ROUTE #393 — the construction of a class deriving
+                        # from a builtin exception is admitted only when its signature is
+                        # MODELLED: the `(self, *args)` of the exception base, or a file
+                        # `__init__` (route #369). Here it is not (a `__new__` in the file
+                        # MRO, a `metaclass=` / class keyword, a decorated or non-`def`
+                        # `__init__`, a class defined twice): REFUSED.
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n369, 'lineno', 0)}: the "
+                            f"construction `{_ast341.unparse(_n369)}` builds the exception "
+                            f"class `{_fx380.id}`, whose constructor signature the verifier "
+                            f"cannot read (a `__new__`, a class keyword, a decorated or "
+                            f"non-`def` `__init__`, or a class defined twice in its MRO). The "
+                            f"model lowers the construction as an arbitrary instance and never "
+                            f"checks the arguments, while CPython raises TypeError for a "
+                            f"mismatch (route #393: `class D(Exception)`; `D(x=1)` under "
+                            f"`no_exception` PROVED). Give the class a plain `def __init__` "
+                            f"or derive it directly from the builtin exception.",
+                            stage="ir-semantic", code="PYCSL-R369-CONSTRUCTOR-ARITY")
                 elif (isinstance(_fx380, _ast341.Attribute) and _fx380.attr == "__init__"
                       and isinstance(_fx380.value, _ast341.Call)
                       and isinstance(_fx380.value.func, _ast341.Name)
@@ -5013,6 +5397,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             if not _tl380:
                                 if _sg369.get(_S380) is not None:
                                     _sxs380.append(([], {}, False, False, []))
+                            elif (_tl380[0] in _exok1 and _tl380[0] not in _cls341
+                                  and _tl380[0] not in _bound341
+                                  and _tl380[0] not in _imp341):
+                                # (#393) the next class is a builtin exception: `(*args)`
+                                _sxs380.append(([], {}, True, False, []))
+                            elif (_tl380[0] in _exsy1 and _tl380[0] not in _cls341
+                                  and _tl380[0] not in _bound341
+                                  and _tl380[0] not in _imp341):
+                                _sxs380.append("SYNTAX")
                             elif (_tl380[0] in _cls341 and _mro363.get(_tl380[0]) == _tl380
                                   and _sg369.get(_tl380[0]) is not None):
                                 _sxs380.append(_sg369[_tl380[0]])
@@ -5024,7 +5417,38 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     # (#380) an explicit `C.__init__(self, ..)`: C's constructor binds the rest.
                     _sxs380 = [_sg369[_fx380.value.id]]
                     _ax380 = _ax380[1:]
+                elif (isinstance(_fx380, _ast341.Attribute) and _fx380.attr == "__init__"
+                      and isinstance(_fx380.value, _ast341.Name)
+                      and _fx380.value.id in _exok1 and _fx380.value.id not in _cls341
+                      and _fx380.value.id not in _bound341
+                      and _fx380.value.id not in _imp341 and _n369.args):
+                    # (#393) an explicit `Exception.__init__(self, ..)`: `(*args)`, no keyword
+                    _sxs380 = [([], {}, True, False, [])]
+                    _ax380 = _ax380[1:]
                 for _sx380 in _sxs380:
+                    if _sx380 == "SYNTAX":
+                        # (#393) `SyntaxError(msg, details)`: CPython requires `details` to be
+                        # a sequence of 4 or 6 items (`("m", 1)` raises TypeError); admitted:
+                        # no keyword / starred argument, at most two, the second a 4- or
+                        # 6-element tuple display.
+                        _sx380 = ([], {}, True, False, [])
+                        if (len(_ax380) > 2 or any(isinstance(_a, _ast341.Starred)
+                                                   for _a in _ax380)
+                                or (len(_ax380) == 2 and not (
+                                    isinstance(_ax380[1], _ast341.Tuple)
+                                    and len(_ax380[1].elts) in (4, 6)
+                                    and not any(isinstance(_e, _ast341.Starred)
+                                                for _e in _ax380[1].elts)))):
+                            raise _PyCSLSemErr341(
+                                f"'{_f346.name}' line {getattr(_n369, 'lineno', 0)}: the "
+                                f"construction `{_ast341.unparse(_n369)}` passes arguments a "
+                                f"`SyntaxError` does not take: CPython accepts `()`, `(msg)` or "
+                                f"`(msg, details)` with `details` a 4- or 6-item sequence and "
+                                f"raises TypeError otherwise, while the model builds the "
+                                f"instance (route #393: `class D(SyntaxError)`; `D(\"m\", 1)` "
+                                f"under `no_exception` PROVED). Pass the details as a literal "
+                                f"`(filename, lineno, offset, text)` tuple.",
+                                stage="ir-semantic", code="PYCSL-R369-CONSTRUCTOR-ARITY")
                     _pp369, _kk369, _va369, _vk369, _po369 = _sx380
                     _bd369 = ""
                     _gv369 = set()
@@ -8944,6 +9368,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     else:
                         _im376[_al376.asname or _al376.name] = _k376.module.split(".")[0]
         import builtins as _bi376
+        _gs376 = set()
         for _k376 in _ast376.walk(_t376):
             if not isinstance(_k376, _ast376.ClassDef):
                 continue
@@ -8965,6 +9390,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             and (isinstance(getattr(_bi376, _r376.id, None), type)
                                  or _star376))):
                     _own376.add("*")
+            # (#49) gen #37, ROUTES #396 / #397 — THE CENSUS IS AN ALLOW-LIST OF NON-BINDING
+            # FORMS. It read `def` / `class` names, `Name` stores and imports only, and
+            # skipped an annotation-only member (a `@dataclass` field: k53) and every other
+            # identifier-carrying node. Now every node of the class scope binds the
+            # identifiers it carries (`except .. as k`, `case k`, `global k`, a type
+            # parameter, ...) unless its kind is KNOWN not to bind a class member: a load
+            # (`Name` / `Attribute`), a constant, a call keyword, a parameter, a class
+            # pattern's attribute names, an f-string interpolation text, an import's module.
             _q376 = list(_k376.body)
             while _q376:
                 _y376 = _q376.pop()
@@ -8974,16 +9407,57 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     continue
                 if isinstance(_y376, _ast376.Lambda):
                     continue
-                if isinstance(_y376, _ast376.AnnAssign) and _y376.value is None:
-                    continue
-                if isinstance(_y376, _ast376.Name) and not isinstance(_y376.ctx,
-                                                                       _ast376.Load):
-                    _own376.add(_y376.id)
-                elif isinstance(_y376, (_ast376.Import, _ast376.ImportFrom)):
+                if isinstance(_y376, (_ast376.Import, _ast376.ImportFrom)):
                     for _al376 in _y376.names:
                         _own376.add("*" if _al376.name == "*" else
                                     (_al376.asname or _al376.name).split(".")[0])
+                elif not (isinstance(_y376, (_ast376.Constant, _ast376.keyword, _ast376.arg,
+                                             _ast376.MatchClass, _ast376.alias))
+                          or (isinstance(_y376, (_ast376.Name, _ast376.Attribute))
+                              and isinstance(_y376.ctx, _ast376.Load))
+                          or type(_y376).__name__ == "Interpolation"):
+                    if isinstance(_y376, _ast376.Attribute):
+                        _gs376.add(_y376.attr)
+                    for _fl376 in _y376._fields:
+                        if _fl376 == "type_comment":
+                            continue
+                        _fv376 = getattr(_y376, _fl376, None)
+                        for _fs376 in (_fv376 if isinstance(_fv376, list) else [_fv376]):
+                            if isinstance(_fs376, str):
+                                _own376.add(_fs376)
                 _q376.extend(_ast376.iter_child_nodes(_y376))
+            # (#397) and an attribute STORE / DELETE in ANY target position anywhere in the
+            # class (a `for` / `with` / tuple / list / starred / augmented target, in any
+            # method, `__post_init__` included): measured (red team 31, PROVED at
+            # 7859e8fb0) `for self.k in range(5, 6)`, `(self.k,) = (5,)`, `[self.k] = [5]`,
+            # `with nullcontext(5) as self.k`, `self.k, self.j = 5, 6` all left `k` out of
+            # the field list and `getattr(r, "k", 0) == 0` PROVED (CPython 5). A store on
+            # the method's own first parameter binds this class; on any other receiver it
+            # may bind ANY instance (`_gs376`, below).
+            for _md376 in _k376.body:
+                if not isinstance(_md376, (_ast376.FunctionDef, _ast376.AsyncFunctionDef)):
+                    continue
+                _pa376 = (_md376.args.posonlyargs + _md376.args.args)
+                _sf376 = _pa376[0].arg if _pa376 else None
+                # (a `@staticmethod`'s first parameter is any object; a first parameter
+                # rebound, or shadowed by a nested `def` / `lambda` parameter, is too)
+                if _sf376 is not None and (
+                        any(isinstance(_d376, _ast376.Name) and _d376.id == "staticmethod"
+                            for _d376 in _md376.decorator_list)
+                        or any((isinstance(_z376, _ast376.Name) and _z376.id == _sf376
+                                and not isinstance(_z376.ctx, _ast376.Load))
+                               or (isinstance(_z376, _ast376.arg) and _z376.arg == _sf376
+                                   and _z376 is not _pa376[0])
+                               for _z376 in _ast376.walk(_md376))):
+                    _sf376 = None
+                for _z376 in _ast376.walk(_md376):
+                    if (isinstance(_z376, _ast376.Attribute)
+                            and not isinstance(_z376.ctx, _ast376.Load)):
+                        if (_sf376 is not None and isinstance(_z376.value, _ast376.Name)
+                                and _z376.value.id == _sf376):
+                            _own376.add(_z376.attr)
+                        else:
+                            _gs376.add(_z376.attr)
             if _own376 & {"__getattr__", "__getattribute__"}:
                 _own376.add("*")
             # (#49) gen #37, SYSTEMATIC RULE GD (systematic-soundness-r3.md; routes #388 /
@@ -8994,6 +9468,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if (isinstance(_y376, _ast376.Attribute) and _y376.attr.startswith("__")
                         and not _y376.attr.endswith("__")):
                     _own376.add("_" + _k376.name.lstrip("_") + _y376.attr)
+            # (#396) a class-body `__k = ..` / `def __k` binds `_C__k` as well
+            for _y376 in list(_own376):
+                if _y376.startswith("__") and not _y376.endswith("__"):
+                    _own376.add("_" + _k376.name.lstrip("_") + _y376)
         # (#49) gen #37, SYSTEMATIC RULE GD — THE ABSENT-ATTRIBUTE ANSWER IS GIVEN ONLY WHEN
         # THE WHOLE LOOKUP IS MODELLED (polarity flip of route #376: admit the default only
         # when every place CPython looks is known, instead of refusing only the bindings
@@ -9021,13 +9499,37 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 continue
             for _z376 in _ast376.walk(_y376):
                 if ((isinstance(_z376, _ast376.Call) and isinstance(_z376.func, _ast376.Name)
-                     and _z376.func.id in ("setattr", "delattr", "vars"))
+                     and _z376.func.id in ("setattr", "delattr", "vars", "exec", "eval"))
                         or (isinstance(_z376, _ast376.Attribute)
                             and _z376.attr in ("__dict__", "__setattr__", "__delattr__"))):
                     _dyn376 = True
-        _cl376 = {}
+        # (#397) an attribute store / delete OUTSIDE every class (a module function, module
+        # code; the `__main__` driver excluded like the dynamic stores above) may bind the
+        # name on an instance of ANY class: `_gs376` is added to every class below.
+        _gq376 = [_y376 for _y376 in _t376.body
+                  if not (isinstance(_y376, _ast376.If)
+                          and isinstance(_y376.test, _ast376.Compare)
+                          and isinstance(_y376.test.left, _ast376.Name)
+                          and _y376.test.left.id == "__name__")]
+        while _gq376:
+            _y376 = _gq376.pop()
+            if isinstance(_y376, _ast376.ClassDef):
+                continue
+            if (isinstance(_y376, _ast376.Attribute)
+                    and not isinstance(_y376.ctx, _ast376.Load)):
+                _gs376.add(_y376.attr)
+            _gq376.extend(_ast376.iter_child_nodes(_y376))
+        # (#49) gen #37, ROUTE #396 — THE RECEIVER MAY HOLD ANY SUBCLASS INSTANCE. A value
+        # typed `R` may be an instance of any file class deriving from `R`, so `getattr(r,
+        # "k", d)` finds what that class (or any of ITS bases) binds: measured (red team 31,
+        # PROVED at 7859e8fb0) a subclass `S(R)` storing `self.k = 5`, binding `k = 5` /
+        # `k: int = 5` (dataclass field) / a property / a method `k`, a grandchild, a
+        # `for self.k in [5]` target, or `self.__k` (`_S__k`) -- the default was answered,
+        # CPython found 5 / a bound method. A class now answers the union of the bindings
+        # of EVERY class in its closed-world subclass closure (it and each file class
+        # deriving from it) together with each such class's file ancestors.
+        _anc376 = {}
         for _cn376 in _cb376:
-            _all376 = set(_cb376[_cn376])
             _seen376 = {_cn376}
             _wl376 = list(_bs376.get(_cn376, ()))
             while _wl376:
@@ -9036,8 +9538,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     continue
                 _seen376.add(_a376)
                 if _a376 in _cb376:
-                    _all376 |= _cb376[_a376]
                     _wl376.extend(_bs376.get(_a376, ()))
+            _anc376[_cn376] = {_a376 for _a376 in _seen376 if _a376 in _cb376}
+        _cl376 = {}
+        for _cn376 in _cb376:
+            _all376 = set(_gs376)
+            for _dn376 in _cb376:
+                if _cn376 in _anc376[_dn376]:
+                    for _a376 in _anc376[_dn376]:
+                        _all376 |= _cb376[_a376]
             if _dyn376:
                 _all376.add("*")
             _cl376.setdefault(_cn376.lower(), set()).update(_all376)
