@@ -4636,7 +4636,7 @@ the `builtins` module, with a `Starred` positional argument or a `keyword` whose
 makes the translation undefined (refused).
 ### §T.6.57  Outside bases and stdlib values by their real class, containers in every hashing position, propagated element types (routes #381 / #382 / #383, gen #37)
 
-_Corresponds to `annotations.md` §7.42._
+_Corresponds to `annotations.md` §7.46._
 
 Refusals only, inside the inline block of §T.6.39 / §T.6.44 / §T.6.46 of `_run_pipeline` (mirror
 twin `\trusted`; no emission change). **Resolution.** Each base or annotation name $n$ not bound
