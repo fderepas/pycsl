@@ -59,3 +59,7 @@ unchanged 0/1, 0/93); `\trusted` lines 446 = base. Negative test: reverting `Nod
 `assigns \nothing` makes the arm fail (UNNAMED offender, ratchet 10 > 9).
 Whole-file proofs of MOVED mirrors, 0 non-Valid each: abstract_ops (20 goals), sertop (21), canonical (49),
 ir_inline (367), preamble (222), Module3_Weaver (288), pycsl.py (743), Module6_WhyMLTranspiler (1764).
+OWED: `module6_whyml/expressions.py` (the 9th mover; its only emission change is `writes { args }` on the
+`_handle_dotted_call` val): the whole-file run reached 23424 prover results, ALL Valid, then was stopped by the
+executor during the post-proof vacuity gate (~1 h 45 min in, ~2000 of the file's lines probed) to stay inside the time
+box. No final SUCCESS line: the vacuity half is OWED (re-run with HEAVY_LOW=1, budget > 3 h).
