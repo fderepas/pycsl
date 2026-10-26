@@ -1,5 +1,12 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 / run #3 (2026-10-26): #392 (nested class shadows a stdlib base for S1 / §7.46), #393 (builtin-exception subclass construction
+##   unchecked), #394 (§7.47 hash allow-list misses module globals / class attributes / set()-frozenset() over dict views / copy), #395 (hash
+##   check reads the static class only: unhashable subclass instance), #396 (GD folds getattr default when only a subclass binds), #397 (GD
+##   census sees only `self.k = v` stores), #398 (TypedDict as an all-keys record), #399 (`from builtins import sorted` bypasses SB), #400
+##   (ast.NodeVisitor admitted but `visit` has no effect) OPENED (red team 31: 59 confirmed / ~470 probes, 57 on these routes + 2 documented
+##   residuals c23 / g24; 9/9 sample driver-reproduced rc=0 on 7859e8fb0).
+
 ## gen #37 (2026-10-26): #381 + #382 + #383 REPAIRED, candidate (r381s executor off 7bf752d4e; code 324907ddc / 9942dc760 (from the
 ##   r381 WIP, measured and narrowed), corpus + census b89ed1f91, docs ed1448bd4 (annotations 7.46 / T.6.57), route docs; inline, no
 ##   new def, no new refusal code, ledger 3). Sound refusals, no emission change, all PYCSL-R349-UNHASHABLE-RECORD. #381: outside bases
