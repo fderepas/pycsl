@@ -1,4 +1,4 @@
-r"""Test 5466 -- gen #37 systematic rule TC (expected PASS): CONTROL: a `typing.Protocol` `P` used only as a TYPE (a parameter annotation) and a concrete class `C(P)` (not itself a protocol: `Protocol` is not among its bases) constructed and passed; PROVED (CPython 1).
+r"""Test 5466 -- gen #37 systematic rule TC (expected PASS): CONTROL: a `typing.Protocol` `P` used only as a TYPE (a local's annotation, a class base) and a concrete class `C(P)` (not itself a protocol: `Protocol` is not among its bases) constructed and passed; PROVED (CPython 1).
 """
 # pycsl-expected: PASS
 from typing import Protocol
@@ -19,12 +19,9 @@ class C(P):
 def g(c: C) -> int:
     return c.m()
 
-#@ ensures \result == 0
-def k(p: P) -> int:
-    return 0
-
 #@ ensures \result == 1
 def h() -> int:
+    p: P = C()
     return g(C())
 
 if __name__ == "__main__":
