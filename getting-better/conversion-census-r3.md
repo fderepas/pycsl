@@ -33,12 +33,81 @@ Executor cv1 (phase A) + cv2 (phase B), driver run #3, base `ba41be495`. Measure
 
 Phase B over the 22 TC-OK: 4-green 8, oracle1-RED 6, vacuity-RED 4, yield-RED 3, shadowed-RED 1.
 
-**Survivors (four oracles green AND emit-diff acceptable): 4** — `proof2why3/parser.py::lex`, `proof2why3/from_sexp.py::_find_construct_idx`, `frontend/pure_ast.py::_const_value_getter`, `frontend/pure_ast.py::_const_value_setter`. Outcome of each conversion attempt: see the section below.
+**Survivors (four oracles green AND emit-diff acceptable): 4** — `proof2why3/parser.py::lex`, `proof2why3/from_sexp.py::_find_construct_idx`, `frontend/pure_ast.py::_const_value_getter`, `frontend/pure_ast.py::_const_value_setter`. **Converted: 2** (the `pure_ast.py` pair, commits 8576b8be9 + 6976916c7; count 448 -> 446); **refused at proof: 2** (termination). Details below.
 
-## Conversion attempts (phase C)
+## Conversion attempts (phase C) — measured
 
-In progress at the time of this commit (cheapest home-file proof first: `proof2why3/parser.py::lex`, `proof2why3/from_sexp.py::_find_construct_idx`, then the `pure_ast.py` pair). This section is updated by the commit that lands or refuses each.
+| stub | home file | result | evidence |
+|---|---|---|---|
+| `proof2why3/parser.py::lex` | parser.py | **REFUSED at proof — termination** | Whole-file proof (verbatim port): 368 Valid, **3 non-Valid**, all `termination of goal lex'vc` (the three variant-less `while` loops). With `#@ loop invariant`/`#@ loop variant` added (n - i outer, n - j inner): 395 Valid, **10 non-Valid** (outer-loop invariant preservation + variant decrease, 5 paths each). Cause read off the emission: `c.isdigit()` lowers to `py_isdigit_op c` but the inner scan's `s[j].isdigit()` to a DIFFERENT abstract op `isdigit_1 (str_sub_op s j 1)` (same for `isalpha`/`isalnum`), so after the INT/IDENT scans the model admits `j = i` and `i = j` makes no progress — the outer loop's termination is not provable in the model. No contract may be weakened (`\diverges` would drop total correctness), so the marker stays. |
+| `proof2why3/from_sexp.py::_find_construct_idx` | from_sexp.py | **REFUSED at proof — termination** | Whole-file proof: 96 Valid, **3 non-Valid**, all `termination of goal _find_construct_idx'vc`: a `let rec` over `payload: int` (an `Any` S-expression tuple lowered to opaque int) — nothing in the model decreases on `elem = iter_get payload idx`, so no `#@ \variant` can be stated. Also: `any(... for x in _flatten_tuples(head))` lowers to the input-blind `any_1 (any (array int))`. |
+| `frontend/pure_ast.py::_const_value_getter` | pure_ast.py | **CONVERTED** | emit-diff: `val _const_value_getter (self: int) : unit` -> `let ... : int = (getattr_2 self <hash>)` (+ the `getattr_2` bridge val), nothing else moves. Whole-file proof 3407 Valid / 0 non-Valid, `Verification SUCCESS`, rc 0 (8582 s incl. queue). |
+| `frontend/pure_ast.py::_const_value_setter` | pure_ast.py | **CONVERTED** | emit-diff: `val _const_value_setter (self: int) (value: int) : unit` (NO `writes` — the declared `#@ assigns self.value` was not emitted on the trusted val, i.e. the stub claimed effect-freedom) -> `let ... writes { _pyobj_state } = setattr_3 self <hash> value`: the frame becomes honest and proved. Whole-file proof 3408 Valid / 0 non-Valid, `Verification SUCCESS`, rc 0 (7130 s incl. queue). |
 
+`--fun` is not available on `pure_ast.py` or `proof2why3/parser.py` **at base either** (measured at `ba41be495`: `--fun _pad_whitespace` / `--fun mk_arrow_chain` fail Why3 parsing with `unexpected 'variant' clause` — `--fun` turns a sibling with `#@ loop variant`/`\variant` into a `val` that keeps its `variant`). The whole-file proof is the (stronger) gate used.
+
+Honest value note: both pure_ast conversions read `self` only through the opaque object model (`getattr_2`/`setattr_3` keyed by a field-name hash); they prove type-safety + frame, not values (the fixed `ensures True` shape). They have no in-file callers (they are installed with `property(...)`).
+
+## Batch gate battery on HEAD 6976916c7 (both conversions) vs base ba41be495
+
+| gate | rc | population / result |
+|---|---|---|
+| fidelity `check-self-annotate-sync.sh` | 0 | 928 un-trusted functions verbatim |
+| fidelity `self-annotate-mirror-check.sh` | 0 | 53 mirrors in sync |
+| corpus byte-diff (root) `byte-diff-sweep.sh` + `byte-diff-compare.py` | 0 | 2411 / 2411 .mlw, 0 MOVED / 0 GONE / 0 APPEARED |
+| corpus byte-diff (pyref) | 0 | 2186 / 2186 .mlw, 0 MOVED / 0 GONE / 0 APPEARED |
+| mirror emit sweep `mirror-emit-sweep.sh` | 1 -> 0 with `--expect-moved frontend__pure_ast` | 53 / 53; exactly 1 MOVED = `frontend/pure_ast.mlw`, whose whole-file proof is the 3408-Valid run above |
+| `run-soundness-planes.sh` (fast + conversion tier) | 0 | 61 planes green |
+| `check-emitted-vacuity.py --emit` | 0 | no NEW erasure, 0 input-blind |
+| `check-trusted-reasons.py` | 0 | 418 markers <-> 418 rows; unclassified 257 (ratchet 259 -> 257) |
+| `#@ \trusted` count | — | 448 -> 446 (exactly the 2 markers removed) |
+| `src/pycsl` / proof-axiom allowlist | — | untouched (0 files differ from base): no emitter change, no new axiom |
+
+## Wall signal (task 3) — measured by NEUTRALISING guards in scratch trees
+
+Method: in a scratch copy of the emitter, each refusal guard below was instrumented to PRINT `HYP-HIT:<code>` and continue instead of raising (never committed); every stub whose phase-A first blocker is one of these guards (153 stubs) was re-ported and re-type-checked, so a stub reaching TC-OK has a blocker set exactly equal to its printed hits.
+
+| guard neutralised alone | population (first blocker) | reach TC-OK | next blocker (top) |
+|---|---|---|---|
+| PYCSL-R325-OPAQUE-INT-FALLBACK | 46 | **0** | Why3 type clash: int->string 13, int->array 8, int->option-fn 4, string->int 4 |
+| receiver in-place mutator (route: `MUTATES its receiver`) | 33 | **2** (`pure_ast._Unparser.write`, `from_lean_json._linearize_app`) | R325 7, int->string 4, route #289 4 |
+| route #252 erased->builtin slot | 25 | 0 | in-place-mutator 6, route #280 4, R325 3 |
+| PYCSL-METHOD-FRAME | 18 | 0 | in-place-mutator 6, route #283 4 |
+| PYCSL-R327-IDENT-COLLISION | 15 | 0 | route #303 5, dict/set-field escape 3 |
+| ALL SEVEN together (+ IPM-ARG #162, NESTED-LIFT) | 153 | **2** (the same two; hits = IPM only) | Why3 type clash 85 (int-involving 68), route #283 11, #303 8, #280 8, #289 5 |
+
+So no refusal guard is the binding constraint: removing all seven unlocks 2 of 153. The binding wall is the **int-erasure type seam**: a Why3 type clash is the first non-guard blocker of **94** stubs in phase A and of **85** more once the guards are lifted (179 of the 398 non-lowering stubs), dominated by an opaque-`int` value (an `Any`/unannotated/dict-value/field) meeting a `string`/`array`/record/`option`-typed site.
+
+**The two IPM-only unlocks are not conversions either** (read off the neutralised emission): `from_lean_json._linearize_app` emits `args.insert(0, ...)` as the receiver-less `args_insert_2 0 (...)` (the mutation the guard exists to refuse), `cur.get("kind")` as the input-blind `cur_get_1 <hash>`, `isinstance(cur, dict)` as `any bool`, and a variant-less `while` (termination); `pure_ast._Unparser.write` emits `self.source.extend(text)` as `self__source_extend_1 text` under `writes { }`. A FAITHFUL receiver-mutation lowering (receiver passed + `writes`) would make `_Unparser.write` a candidate: measured upper bound of that capability = **1-2 stubs**.
+
+### Composition of the 179 Why3 type clashes (`--keep-mlw`, clashing sub-expression read from the emitted line/column; guards neutralised)
+
+| clash pair (has type => expected) | stubs |
+|---|---|
+| int => string | 31 |
+| int => array | 22 |
+| string => int | 15 |
+| int => record (`PyCSL_Program.*`) | 14 |
+| array int => int | 13 |
+| array string => int | 9 |
+| int -> option int (dict) => int | 6 |
+| emit_ir => int | 5 |
+| other / unbound symbol / pattern | 64 |
+
+| clashing expression shape | stubs |
+|---|---|
+| a variable or field read (its declared/inferred type disagrees with the use) | 88 |
+| a call result | 40 |
+| an abstract bridge-op result (`x_N args`, incl. `pycsl_getattr_unknown_*`) | 14 |
+| a list literal / `[]` defaulted to `Array.make 1024 0` (array int) | 10 |
+| a receiver-less 0-ary facade (`path_read_text_0 ()`, `hashlib_sha256_0 ()`) | 5 |
+| a record literal | 4 |
+| a dict defaulted to `map int (option int)` | 2 |
+| other | 16 |
+
+In 58 of the 179 the MIRROR stub's signature differs from the live one (e.g. `-> int` placeholder vs `-> Set[str]`/`Tuple[...]`, `'ExprIR'` vs `Dict[str, Any]`); over all 396 stubs with a live counterpart, 142 signatures differ. The clashes are split roughly evenly between an opaque `int` arriving at a typed site (int => string/array/record: 67) and a typed value arriving at an `int`-typed site (X => int: 50+), so the wall is not one missing lowering but the int placeholder itself.
+
+**Wall signal.** capability: *a typed value model for the int-erasure seam* (lower `Any`/unannotated/dict-value/field values with their real Python type instead of an opaque `int`, so typed and erased code can meet). Stubs it would unlock: **not measurable without building it** — 179 stubs have a Why3 type clash as their first non-guard blocker, and 0 of 153 guard-blocked stubs lower even with ALL seven guards lifted except via IPM. Largest MEASURED single-capability unlock: receiver in-place-mutator model = 2 stubs to TC-OK (`pure_ast._Unparser.write`, `from_lean_json._linearize_app`), of which at most `_Unparser.write` would survive the oracles. Second measured wall (new): **termination over the model** — both TC-OK survivors that failed at proof (`lex`, `_find_construct_idx`) failed ONLY on termination VCs.
 
 ## Phase B — the 22 TC-OK stubs (first blocker)
 
