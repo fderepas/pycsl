@@ -169,3 +169,49 @@ Edits, all gated OFF inside `@mutable_state` (whose CF5 `seq string` model is un
 - `_handle_len_call`: `len(<R5 split/splitlines call>)` → `Array.length`;
 - e `_emit_membership`: `x in <R5 local | flat List[str] formal>` → `arr_mem_str`;
 - f `_handle_call_expr`: `<same>.index(x)` → `arr_index_str` (presence REQUIRED).
+
+B1 battery (commit `dbad763e6`, base `a6ea830ed`, base worktree `pycsl-ies1-base`):
+
+| gate | rc | result |
+|---|---|---|
+| fidelity `check-self-annotate-sync.sh` / `self-annotate-mirror-check.sh` | 0 / 0 | 929 verbatim (incl. the B2 conversion) / 53 mirrors in sync |
+| corpus root `byte-diff-compare.py BASE CAND` | 1 (M1) | 2423 / 2428 (+5 ADDED witnesses 5700–5704); **3 MOVED**: `1174_route72_split_valid_separator` (`s_split_1 <h>` → `str_split_op !s " "`), `1552_route160_split_with_a_literal_separator_is_allowed` (`iter_length (s_split_1 <h>)` → `Array.length (str_split_op !s " ")`), `3754_gen37_ch34_module_str_list_shadowed_false` (`!op = <hash>` → `str_eq_op !op "zz"`, the for-target over a `List[str]` formal). Re-proved at base AND candidate: 1174 PASS/PASS, 1552 PASS/PASS, 3754 (expected FAIL) FAIL/FAIL — verdicts kept, and 3754 now fails on the faithful string compare instead of a hash |
+| corpus pyref `byte-diff-compare.py BASE/pyref CAND/pyref --min-files 2000` | 0 | 2186 / 2186, 0 MOVED |
+| mirror `mirror-emit-sweep.sh` base vs emitter-only | — | 0 of 53 MOVED (emitter-only; with B2 exactly 1 MOVED = `proof2why3/extract`) — no mirror proof owed by B1 |
+| witnesses 5700–5704 (candidate / base) | — | 5700 PASS/FAIL(L3), 5701 PASS, 5702 expected-FAIL FAIL (base: PROVED — the opaque `xs_index_1` carried no obligation), 5703 PASS/FAIL, 5704 expected-FAIL FAIL/FAIL |
+| `run-soundness-planes.sh` (fast 61) | 1 → 0 | first run: 1 RED `check-claim-vacuity` (my witnesses added `requires True`/`ensures True`; contracts tightened, witnesses re-proved); re-run on committed HEAD `3e88d431a`: **rc 0, all 61 green (fast + conversion tier)** |
+| ledger | — | `proof_axiom_allowlist.py` untouched; no `axiom` in any new op (all `val` + `ensures`/`requires`) |
+
+## 7. B2 — conversions
+
+| stub | result |
+|---|---|
+| `proof2why3/extract.py::_split_rocq_check_output` | **CONVERTED** (`3e88d431a`, 446 → 445). Whole-file proof 66/66 Valid, `Verification SUCCESS` (8m47s incl. queue); `--fun` 66 Valid; emit-diff = the trusted `val` becomes its `let` body, nothing else in the file moves; 0 `_0 ()` facades; planes conversion tier green; `check-trusted-reasons` 417↔417. Not on DO-NOT-CONVERT (pure parser, no subprocess). |
+
+## 8. Final reach measurement and verdict
+
+Re-run of all 179 census stubs with the FINAL emitter (`ies1/out-c2`, mirror signatures as at base):
+0 TC-OK as ported (stub 3 needs its step-d return annotation, then converts — §7); clash line
+changed in 3/179 (stub 3 now at its return placeholder; `_resolve_module_path` at
+`os.path.join(base, *parts)`; `_function_body_eqs` at `enumerate(<array string>)` with `re` behind it);
+`_parse_goal_blocks` is back to its census clash (`"\n".join(<List[str] seq local>)`, then a list of
+tuples) after the `splitlines` iteration arm.
+
+**Verdict: BROKEN (narrow).** R5-str is sound, corpus-cheap (3 moved, all re-proved, 0 pyref, 0
+mirror) and converts **1** stub; it advances 3 more chains by one link each, and none of those is one
+small step from TC-OK. The response's expectation ("single digits; stub 3 certainly") is met at its
+low end. Residuals, in reach order:
+1. `enumerate(<array string>)` over an R5 local (`_enumerate_seq_recv` already has the flat-formal
+   array arm) — then `_function_body_eqs` hits `re` (R5-lib, coupling rule: new `re_match` shape);
+2. `"sep".join(<List[str] seq local built by append>)` + `List[Tuple[str,str]]` accumulation
+   (`_parse_goal_blocks`);
+3. `os.path.join(a, *parts)` star-arg (`_resolve_module_path`);
+4. the 175 stubs whose first link is not a `str`-family site (comprehensions, `re`, `subprocess`,
+   dict values, record fields) are untouched by R5-str — the seam itself stands (R4 still blocked by
+   the input-dispatch wall, per the response).
+
+Soundness notes: `strip`/`lstrip`/`rstrip` share one plain `val str_strip_op` (fresh result per call,
+length bound only — no false equalities); `.split`/`.splitlines` on a value `_is_string_expr` calls a
+string but which is a `pathlib.Path` would be modelled instead of raising `AttributeError` — the same
+pre-existing classifier precision as the `.strip()`/`.lower()` path, not new; `arr_index_str`'s
+`requires` refuses the `ValueError` path (conservative: stricter than Python, never weaker).
