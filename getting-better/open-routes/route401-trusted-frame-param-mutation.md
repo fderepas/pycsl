@@ -50,3 +50,12 @@ and calls `super().visit(node)`, which dispatches back into `_Unparser.visit_*` 
 cannot see it (the dispatch is a call through a local name, not `self.<m>()`), and `NodeVisitor.visit`'s own
 `assigns \nothing` is false w.r.t. `self` under an `_Unparser` receiver. No current proof exploits it (`ensures True`),
 but `_Unparser.visit`'s model believes `traverse` leaves `_source` empty.
+
+**Gates (f401, commit a0e9f1734 + this note):** fidelity sync rc 0 (928 verbatim) / mirror-check rc 0 (53);
+corpus byte-diff vs base worktree at dd8e572ad: root 2424/2424 0 MOVED/GONE/APPEARED rc 0, pyref 2186/2186 rc 0
+(no `src/pycsl` change); mirror-emit-sweep 53/53, 9 MOVED (exactly the `writes { <list param> }` additions), all 9
+`--no-proof` type-check; run-soundness-planes fast 61/61 rc 0; check-trusted-frame-honesty rc 0 (existing arms
+unchanged 0/1, 0/93); `\trusted` lines 446 = base. Negative test: reverting `NodeTransformer.generic_visit` to
+`assigns \nothing` makes the arm fail (UNNAMED offender, ratchet 10 > 9).
+Whole-file proofs of MOVED mirrors, 0 non-Valid each: abstract_ops (20 goals), sertop (21), canonical (49),
+ir_inline (367), preamble (222), Module3_Weaver (288), pycsl.py (743), Module6_WhyMLTranspiler (1764).
