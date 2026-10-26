@@ -67,7 +67,7 @@ def _get_module_exports(filepath: str) -> int:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns processing_set, cache
 def _process_dependency(filepath: str, needed_names: int, cache: int, deep: bool=False, processing_set: int=None) -> List[int]:
     return []
 
@@ -113,7 +113,7 @@ def _contract_referenced_var_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns cache, processing_set
 def _find_record_type_from_dep_imports(rec_name: str, dep_file: str, cache: int, deep: bool, processing_set: int) -> int:
     return {}
 
@@ -182,42 +182,42 @@ def _contract_referenced_var_names(dep_funcs: List[Dict[str, Any]]) -> Set[str]:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def _inject_functions(dep_funcs: List[int], ir_data: int) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data, cache, processing_set
 def _resolve_direct_imports(direct_imports: List[Any], all_calls: int, main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns cache, processing_set, ir_data
 def _resolve_wildcard_imports(wildcard_imports: List[Any], all_calls: int, main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns cache, processing_set, ir_data
 def _resolve_module_imports(module_imports: List[Any], all_calls: int, main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data, cache, processing_set
 def _resolve_imported_classes(direct_imports: List[Any], main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data, cache, processing_set
 def _resolve_imported_base_classes(module_imports: List[Any], main_file: str, ir_data: int, deep: bool, cache: int, processing_set: int) -> int:
     return set()
 
@@ -230,14 +230,14 @@ def _resolve_imported_base_classes(module_imports: List[Any], main_file: str, ir
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def apply_inheritance(ir_data: int) -> None:
     pass
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def apply_composition(ir_data: int) -> None:
     pass
 
@@ -249,14 +249,14 @@ def apply_composition(ir_data: int) -> None:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data, cache, processing_set
 def resolve_imports(validated_ast: _ast.AST, main_file: str, ir_data: int, deep: bool=False, cache: int=None, processing_set: int=None) -> int:
     return set()
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def resolve(ir_data: int, validated_ast: _ast.AST, main_file: str, deep: bool=False, import_paths: int=None) -> int:
     return set()
 

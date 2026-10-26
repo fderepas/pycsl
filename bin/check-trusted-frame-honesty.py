@@ -107,6 +107,16 @@ plane's floor were therefore never model-visible at all.
 `--emit-dir DIR` reuses an existing emitted-mirror directory (either naming scheme);
 `--no-emit` falls back to the heuristic and the ratchets then do NOT apply.
 
+THE PARAMETER-WRITE ARM (added at route #401).  Every arm above compares a frame with the
+live body's `self.<f>` writes.  A write THROUGH A PARAMETER is outside that population --
+`pure_ast.NodeTransformer.generic_visit` declared `assigns \\nothing` over an in-place rewrite
+of `node`.  The arm walks EVERY `\\trusted` stub (any frame, not only `\\nothing`) and every
+converted method, computes the parameters its live body may write
+(`bin/lib_param_write_closure.py`), and reports the ones the declared `#@ assigns` does not
+name, each residual NAMED in a ledger with its reason.  A third count measures how many
+declared parameter frames actually reach the emitted `writes` (only list parameters do).
+See the constants block `PARAM_*`.
+
 RATCHET.  The counts may go down, never up -- EXCEPT when the analysis itself gets sharper,
 which must be stated in this docstring with what it newly sees, as the paragraph above does.
 Lower them deliberately when a stub is converted or its `#@ assigns` is corrected.
@@ -291,6 +301,95 @@ MIN_NOTHING_DECLARERS = 400   # (#49) gen #31 — a FLOOR on the POPULATION, and
                               # EMPTY walk satisfies perfectly. Measured 1 trusted +
                               # 499 converted = 500 methods declaring `#@ assigns
                               # \\nothing`. Raise it as the mirror grows.
+
+# ===========================================================================================
+# (#49) ROUTE #401 — THE PARAMETER-WRITE ARM. Everything above compares a stub's frame with
+# the `self.<f>` writes of its live body. A write THROUGH A PARAMETER is outside that
+# population, and the carrier was in the tree: `pure_ast.NodeTransformer.generic_visit` was
+# `\trusted` with `#@ assigns \nothing` while its live body rewrites `node` IN PLACE
+# (`old_value[:] = new_values`, `delattr(node, f)`, `setattr(node, f, v)`), so every caller
+# (`desugar_chained_comparisons`, `splice_constant_exec`, both converted `\nothing`) was
+# entitled to assume the tree it passed came back unchanged. The closure is computed by
+# `bin/lib_param_write_closure.py` (flow-sensitive aliases, receiver-class-context call
+# resolution; its docstring states where it over- and under-approximates).
+#
+# A NEW ARM WITH ITS OWN RATCHETS, never a loosening of the arms above. Population: every
+# mirror method that is `\trusted` (resp. converted), keyed to its LIVE twin. Offender: the
+# live closure writes a parameter the declared `#@ assigns` does not NAME (a target rooted at
+# the parameter: `p`, `p.f`, `p[..]`). First measurement at dd8e572ad: **trusted 70 / 411,
+# converted 19 / 904**. Route #401's repair re-framed 61 trusted + 7 converted to the honest
+# frame; the residue is the ledger below, each entry NAMED with why the honest frame cannot be
+# written today.
+PARAM_TRUSTED_RATCHET = 9       # 70 -> 9 at route #401. May only SHRINK.
+PARAM_CONVERTED_RATCHET = 13    # 19 -> 13 at route #401. May only SHRINK.
+# THE SECOND HALF, AND IT IS THE ONE A PROVER SEES. Naming the parameter in `#@ assigns` is
+# what a HUMAN and the source-level checks (route #278's override refinement, route #280's
+# receiver-writer fixpoint) read; what a CALLER's proof reads is the emitted `writes`. Measured
+# by emit-and-grep: `#@ assigns p` lowers to `writes { p }` ONLY when `p` is emitted as an
+# `array` (a list parameter). An AST-node / record / object parameter is an `int` HANDLE whose
+# field reads are `val function pycsl_getattr_* (o: 'a)` — PURE in the handle — and a set /
+# dict parameter is a by-value `map`, so for those the clause is SOURCE-HONEST AND MODEL-INERT:
+# the val carries no `writes`, and a caller can still prove a field of the argument unchanged
+# across the call. This counts (stub, parameter) pairs whose declared parameter frame does not
+# reach the emitted `writes`. It is the MISSING CAPABILITY, measured: a by-reference lowering
+# for object handles (a heap the field-read functions depend on) and for set/dict parameters.
+# It ROSE when route #401 wrote the honest frames — a NEW ratchet, landed at the value the
+# honest declarations produce, and from here it may only SHRINK.
+PARAM_NOT_LOWERED_RATCHET = 86   # measured at landing (trusted 69, converted 17)
+MIN_PARAM_POPULATION = 1200     # trusted + converted mirror methods examined (measured 1315)
+# The SENTINEL: the carrier itself. If the closure ever stops seeing this write, the arm is
+# blind and its green is meaningless — the #44 rule, made specific.
+PARAM_SENTINEL = ("frontend/pure_ast.py", "NodeTransformer", "generic_visit", "node")
+# Each residual offender NAMED with the reason its honest frame cannot be written. An entry
+# that no longer matches an offender FAILS the arm (a ledger that outlives its site hides the
+# next one); an offender with no entry FAILS it.
+_R62 = ("set parameter lowered BY VALUE (`map int (option int)`): `writes` cannot name it; "
+        "declaring it trips PYCSL-METHOD-ARG-UNFRAMED (route #316) in statements.py and the "
+        "route #62 collection-parameter refusal in stmt_control_flow.py / "
+        "Module6_WhyMLTranspiler.py. Needs a by-reference set/dict lowering.")
+KNOWN_PARAM_FRAME_DEFICITS = {
+    ("frontend/pure_ast.py", "NodeVisitor.visit", "node"): (
+        "dispatches (`getattr(self, 'visit_' + ...)(node)`, default `self.generic_visit`) "
+        "into NodeTransformer.generic_visit's in-place rewrite. Declaring `assigns node` "
+        "makes `visit` a receiver-writer for route #280's fixpoint, which then REFUSES "
+        "the converted `_Unparser.traverse` (`super().visit(node)`, a computed receiver) "
+        "and the whole pure_ast mirror stops emitting. The refusal is RIGHT: under an "
+        "`_Unparser` receiver this dispatch also writes `self._source`, which `traverse`'s "
+        "`assigns \\nothing` omits (a SELF-arm blind spot: the dispatch goes through a "
+        "local name, not `self.<m>()`). Reopened by converting/re-framing `traverse`."),
+}
+for _m in ("_handle_assign_stmt", "_handle_ghost_assign_stmt", "_handle_tuple_unpack_stmt",
+           "_handle_array_set_stmt", "_handle_augassign_stmt", "_handle_expr_stmt",
+           "_stmts_to_whyml"):
+    for _q in ("local_refs", "declared_refs"):
+        KNOWN_PARAM_FRAME_DEFICITS[("module6_whyml/statements.py",
+                                    "StatementEmissionMixin." + _m, _q)] = _R62
+for _q in ("local_refs", "declared_refs"):
+    KNOWN_PARAM_FRAME_DEFICITS[("module6_whyml/stmt_control_flow.py",
+                                "ControlFlowStmtMixin._handle_for_stmt", _q)] = _R62
+# The CONVERTED residue: the same by-value set parameters, in methods whose mirror body is
+# verbatim. The emitter excludes them from route #316's refusal on purpose
+# (`_func_mutated_collection_params` / `_func_stmt_seq_mut_params`), which is the
+# by-value model saying "the callee's mutation is a no-op here" — the deficit, not a fix.
+KNOWN_CONVERTED_PARAM_FRAME_DEFICITS = {}
+for _f, _c, _m in (
+        ("module6_whyml/statements.py", "StatementEmissionMixin", "_handle_seq_assign"),
+        ("module6_whyml/statements.py", "StatementEmissionMixin", "_emit_new_ghost_ref"),
+        ("module6_whyml/statements.py", "StatementEmissionMixin", "_handle_ghost_array_set_stmt"),
+        ("module6_whyml/statements.py", "StatementEmissionMixin", "_handle_array_slice_set_stmt"),
+        ("module6_whyml/statements.py", "StatementEmissionMixin", "_handle_critical_section_stmt"),
+        ("module6_whyml/statements.py", "StatementEmissionMixin", "_handle_fieldassign_stmt"),
+        ("module6_whyml/statements.py", "StatementEmissionMixin", "_handle_fieldaugassign_stmt"),
+        ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_handle_while_stmt"),
+        ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_handle_try_stmt"),
+        ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_try_union_is_none_match"),
+        ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_handle_if_stmt"),
+        ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_handle_match_stmt")):
+    for _q in ("local_refs", "declared_refs"):
+        KNOWN_CONVERTED_PARAM_FRAME_DEFICITS[(_f, _c + "." + _m, _q)] = _R62
+KNOWN_CONVERTED_PARAM_FRAME_DEFICITS[("module6_whyml/expressions.py",
+                                      "ExpressionEmissionMixin._handle_named_expr_expr",
+                                      "local_refs")] = _R62
 
 LIVE_ROOT = "src/pycsl"
 MIRROR_ROOT = "src/self-annotate/src"
@@ -640,6 +739,95 @@ def _mirror_nothing_stubs(mirror_root, want_trusted=True):
     return out
 
 
+def _mirror_param_frames(mirror_root, want_trusted):
+    """(#49, route #401) Every mirror method (`\\trusted` or converted) with the ROOT names
+    of its declared `#@ assigns` targets (`\\nothing` and an absent clause give the empty
+    set). Same walk as `_mirror_nothing_stubs`: module and class bodies, not nested defs."""
+    out = []
+    for dirpath, _dirs, files in os.walk(mirror_root):
+        if "__pycache__" in dirpath:
+            continue
+        for fname in sorted(files):
+            if not fname.endswith(".py"):
+                continue
+            path = os.path.join(dirpath, fname)
+            src = open(path).read()
+            lines = src.splitlines()
+            try:
+                tree = ast.parse(src)
+            except SyntaxError:
+                continue
+
+            def walk(node, cls):
+                for child in node.body:
+                    if isinstance(child, ast.ClassDef):
+                        walk(child, child.name)
+                    elif isinstance(child, ast.FunctionDef):
+                        first = (min(d.lineno for d in child.decorator_list)
+                                 if child.decorator_list else child.lineno) - 1
+                        i = first - 1
+                        trusted = False
+                        roots = set()
+                        while i >= 0 and (lines[i].strip().startswith("#")
+                                          or lines[i].strip() == ""):
+                            stripped = lines[i].lstrip()
+                            if stripped.startswith("#@") and "\\trusted" in stripped:
+                                trusted = True
+                            if stripped.startswith("#@ assigns"):
+                                for tgt in re.split(r",(?![^\[]*\])",
+                                                    stripped[len("#@ assigns"):]):
+                                    m = re.match(r"\s*([A-Za-z_]\w*)", tgt)
+                                    if m:
+                                        roots.add(m.group(1))
+                            i -= 1
+                        if trusted == want_trusted:
+                            out.append((path, cls, child.name, roots))
+            walk(tree, "")
+    return out
+
+
+def _emitted_writes(emit_dir, mirror_root):
+    """(#49, route #401) {mirror_path: {whyml_symbol: set(names in its `writes`)}} for
+    every `val` / `let` the emission declares."""
+    out = {}
+    head = re.compile(r"^  (?:val|let rec|let|with)\s+([A-Za-z_0-9]+)")
+    for dirpath, _dirs, files in os.walk(mirror_root):
+        if "__pycache__" in dirpath:
+            continue
+        for fname in sorted(files):
+            if not fname.endswith(".py"):
+                continue
+            path = os.path.join(dirpath, fname)
+            mlw = None
+            for key in (path.replace(os.sep, "_") + ".mlw",
+                        os.path.relpath(path, mirror_root)[:-3].replace(os.sep, "_") + ".mlw",
+                        os.path.relpath(path, mirror_root)[:-3].replace(os.sep, "__")
+                        + ".mlw"):
+                cand = os.path.join(emit_dir, key)
+                if os.path.exists(cand):
+                    mlw = cand
+                    break
+            if mlw is None:
+                continue
+            syms, cur = {}, None
+            for ln in open(mlw).read().splitlines():
+                m = head.match(ln)
+                if m:
+                    cur = m.group(1)
+                    syms.setdefault(cur, set())
+                    continue
+                if cur is None:
+                    continue
+                if not ln.strip() or ln.lstrip().startswith("="):
+                    cur = None
+                    continue
+                w = re.match(r"\s*writes\s*\{(.*)\}", ln)
+                if w:
+                    syms[cur] |= {x.strip() for x in w.group(1).split(",") if x.strip()}
+            out[path] = syms
+    return out
+
+
 def _emit_all(out_dir):
     """Emit every mirror's `.mlw` into `out_dir` (needs `why3` on PATH)."""
     import glob
@@ -682,6 +870,10 @@ def main():
     ap.add_argument("--converted-ratchet", type=int, default=CONVERTED_RATCHET)
     ap.add_argument("--converted-total-ratchet", type=int,
                     default=CONVERTED_TOTAL_RATCHET)
+    ap.add_argument("--param-trusted-ratchet", type=int, default=PARAM_TRUSTED_RATCHET)
+    ap.add_argument("--param-converted-ratchet", type=int, default=PARAM_CONVERTED_RATCHET)
+    ap.add_argument("--param-not-lowered-ratchet", type=int,
+                    default=PARAM_NOT_LOWERED_RATCHET)
     args = ap.parse_args()
 
     classes, bases, funcs, tables = _parse_tree(LIVE_ROOT)
@@ -696,6 +888,7 @@ def main():
         _emit_all(_tmp)
         _edir = _tmp
     emitted = _emitted_record_fields(_edir, MIRROR_ROOT) if _edir else {}
+    emitted_writes = _emitted_writes(_edir, MIRROR_ROOT) if _edir else None
     if _tmp is not None:
         shutil.rmtree(_tmp, ignore_errors=True)
 
@@ -860,6 +1053,87 @@ def main():
              "which is an ERASURE of the live one — and every OTHER file's caller-side "
              "abstract `val` is minted from the same declared `assigns`, so it inherits "
              "the false frame UNCHECKED.")
+
+    # (#49) ROUTE #401 — THE PARAMETER-WRITE ARM (see the constants' note).
+    import lib_param_write_closure as _lpw
+    _pfuncs, _pinfo, _pclosure = _lpw.analyse(LIVE_ROOT)
+    _sent_live = (os.path.join(LIVE_ROOT, PARAM_SENTINEL[0]), PARAM_SENTINEL[1],
+                  PARAM_SENTINEL[2])
+    if PARAM_SENTINEL[3] not in (_pclosure.get(_sent_live) or {}):
+        print("[!] param-frame-honesty: REFUSING — the closure no longer sees the route #401 "
+              "carrier (%s::%s.%s writes `%s`). The analysis is blind, so any count it "
+              "reports means nothing. THIS IS A REFUSAL, NOT A PASS." % PARAM_SENTINEL,
+              file=sys.stderr)
+        return 2
+
+    def _param_ident(q):
+        q = q[0].lower() + q[1:] if q and q[0].isupper() else q
+        return {q, "py_" + q}
+
+    def _param_arm(want_trusted, ledger):
+        nonlocal rc
+        tag = "param-frame-honesty(%s)" % ("trusted" if want_trusted else "converted")
+        pop = _mirror_param_frames(MIRROR_ROOT, want_trusted)
+        offenders, not_lowered, seen_ledger = [], [], set()
+        for path, cls, name, roots in pop:
+            rel = path[len(MIRROR_ROOT) + 1:]
+            live_key = (LIVE_ROOT + path[len(MIRROR_ROOT):], cls, name)
+            writes = _pclosure.get(live_key) or {}
+            qual = (cls + "." if cls else "") + name
+            for q in sorted(writes):
+                if q in roots:
+                    if emitted_writes is not None:
+                        syms = emitted_writes.get(path)
+                        sym = _sym_of(cls, name)
+                        if syms is not None and sym in syms \
+                                and not (_param_ident(q) & syms[sym]):
+                            not_lowered.append((rel, qual, q))
+                    continue
+                key = (rel, qual, q)
+                if key in ledger:
+                    seen_ledger.add(key)
+                offenders.append((rel, qual, q, writes[q][:2], key in ledger))
+        n_stubs = len({(o[0], o[1]) for o in offenders})
+        print("[*] %s: %d method(s) examined; %d declare a frame omitting a parameter their "
+              "LIVE body writes (%d (method, parameter) pairs, %d of them ledgered)."
+              % (tag, len(pop), n_stubs, len(offenders), sum(1 for o in offenders if o[4])))
+        for o in offenders:
+            if args.verbose or not o[4]:
+                print("    %s %-34s %-48s %-16s %s" % ("ledgered" if o[4] else "[!] UNNAMED",
+                                                       o[0], o[1][:48], o[2], o[3]))
+            if not o[4]:
+                rc = 1
+        for key in sorted(set(ledger) - seen_ledger):
+            print("[!] %s: STALE LEDGER ENTRY %s — no longer an offender. Remove it (and lower "
+                  "the ratchet) in the same commit." % (tag, "::".join(key)))
+            rc = 1
+        if args.verbose:
+            for nl in not_lowered:
+                print("    not-lowered %-34s %-48s %s" % nl)
+        return pop, n_stubs, not_lowered
+
+    _pt_pop, _pt_n, _pt_nl = _param_arm(True, KNOWN_PARAM_FRAME_DEFICITS)
+    _pc_pop, _pc_n, _pc_nl = _param_arm(False, KNOWN_CONVERTED_PARAM_FRAME_DEFICITS)
+    if len(_pt_pop) + len(_pc_pop) < MIN_PARAM_POPULATION:
+        print("[!] param-frame-honesty: REFUSING — only %d mirror method(s) examined, expected "
+              "at least %d. THIS IS A REFUSAL, NOT A PASS."
+              % (len(_pt_pop) + len(_pc_pop), MIN_PARAM_POPULATION), file=sys.stderr)
+        return 2
+    _ratchet("param-frame-honesty",
+             (("trusted", _pt_n, args.param_trusted_ratchet),
+              ("converted", _pc_n, args.param_converted_ratchet)),
+             "A frame that omits a parameter the live body writes lets every caller assume "
+             "the argument UNCHANGED across the call (route #401).")
+    if emitted_writes is not None:
+        _nl = len(_pt_nl) + len(_pc_nl)
+        print("[*] param-frame-honesty: %d (method, parameter) frame(s) name a written "
+              "parameter that the emitted `writes` does NOT carry (object handle / by-value "
+              "set or dict: source-honest, model-inert; trusted %d, converted %d)."
+              % (_nl, len(_pt_nl), len(_pc_nl)))
+        _ratchet("param-frame-honesty",
+                 (("not-lowered", _nl, args.param_not_lowered_ratchet),),
+                 "A declared parameter frame that does not reach the emitted `writes` is a "
+                 "claim the model drops: the caller may still prove the argument unchanged.")
 
     if rc == 0:
         print("[+] frame-honesty: OK — measured trusted %d model-visible / %d total, "

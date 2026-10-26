@@ -65,7 +65,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._cur_func_name, self._final_registry, self._fresh_var_counter, self._globals_lookup_funcs, self._m5_dc_unknown, self._m5_record_class_names, self._mutex_invariants_csl, self._shared_var_names, self._source, self._union_synth_cache, self.program_ir
+    #@ assigns self._cur_func_name, self._final_registry, self._fresh_var_counter, self._globals_lookup_funcs, self._m5_dc_unknown, self._m5_record_class_names, self._mutex_invariants_csl, self._shared_var_names, self._source, self._union_synth_cache, self.program_ir, node
     def visit_Module(self, node: ast.Module) -> None:
         pass
 
@@ -1840,7 +1840,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter
+    #@ assigns self._fresh_var_counter, ir_stmts
     def _py_stmt_while(self, stmt: ast.While, ir_stmts: List[int]) -> None:
         ir_stmts.append(self._process_while(stmt))
 
@@ -1856,7 +1856,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter
+    #@ assigns self._fresh_var_counter, ir_stmts
     def _py_stmt_for(self, stmt: ast.For, ir_stmts: List[int]) -> None:
         ir_stmts.append(self._process_for(stmt))
 
@@ -1867,7 +1867,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \diverges
     #@ requires True
     #@ ensures True
-    #@ assigns self._fresh_var_counter
+    #@ assigns self._fresh_var_counter, ir_stmts
     def _py_stmt_if(self, stmt: ast.If, ir_stmts: List[int]) -> None:
         ir_stmts.append(self._process_if(stmt))
 
@@ -2803,7 +2803,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._current_class, self._fresh_var_counter, self._m5_dc_unknown, self._protocols, self._source, self._union_synth_cache, self.program_ir
+    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._current_class, self._fresh_var_counter, self._m5_dc_unknown, self._protocols, self._source, self._union_synth_cache, self.program_ir, node
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         pass
 
@@ -3358,7 +3358,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns func_ir
     def _detect_array_dimensions(self, func_ir: int) -> None:
         pass
 
@@ -3399,14 +3399,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns func_ir
     def _detect_seq_promotion(self, func_ir: int) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._enclosing_trusted_stack, self._fresh_var_counter, self._m5_dc_unknown, self._pending_overloads, self._source, self._union_synth_cache, self.program_ir
+    #@ assigns self._cur_func_name, self._cur_func_symtab, self._cur_func_vararg_elem, self._cur_func_vararg_str, self._cur_literal_ensures, self._cur_literal_requires, self._enclosing_trusted_stack, self._fresh_var_counter, self._m5_dc_unknown, self._pending_overloads, self._source, self._union_synth_cache, self.program_ir, node
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         pass
 

@@ -44,7 +44,7 @@ _OPTIONAL_FIELDS = {'AnnAssign': ('value',), 'Assert': ('msg',), 'Assign': ('typ
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns namespace
 def _build_nodes(namespace):
     pass
 
@@ -433,7 +433,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns node
     def _fin(self, node, start_tok, end_tok=None):
         pass
 
@@ -455,7 +455,7 @@ class _Parser:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns node
     def _fin_block(self, node, start_tok):
         pass
 
@@ -4002,7 +4002,7 @@ def _merge_str_constants(values: List["ExprIR"], drop_empty: bool = True) -> "Li
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns node
 def _set_ctx(node: "ExprIR", ctx: str) -> "ExprIR":
     pass
 
@@ -4159,7 +4159,7 @@ def fix_missing_locations(node):
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns node
 def increment_lineno(node, n=1):
     pass
 
@@ -4246,14 +4246,14 @@ class NodeVisitor:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._source
+    #@ assigns self._source, node
     def generic_visit(self, node):
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._source
+    #@ assigns self._source, node
     def visit_Constant(self, node):
         pass
 
@@ -4263,7 +4263,7 @@ class NodeTransformer(NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns node
     def generic_visit(self, node):
         pass
 

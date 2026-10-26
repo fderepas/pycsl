@@ -37,7 +37,7 @@ def _sexp_tokens(s: str) -> Iterator[str]:
 #@ requires True
 #@ ensures True
 #@ raises ValueError when True
-#@ assigns \nothing
+#@ assigns tokens
 def _sexp_parse(tokens: List[str]) -> object:
     return None
 
@@ -50,7 +50,7 @@ def parse_sexp(s: str) -> object:
 
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns payloads_by_tag
 def _process_sertop_line(line: str,
                           payloads_by_tag: Dict[int, object]) -> Optional[int]:
     """Parse one sertop output line. On `ObjList` capture the payload

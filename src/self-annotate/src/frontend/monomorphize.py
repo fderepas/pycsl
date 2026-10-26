@@ -14,7 +14,7 @@ from frontend import pure_ast as _ast
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def apply_monomorphization(ir_data: int, validated_ast: Any=None) -> None:
     pass
 
@@ -289,7 +289,7 @@ def _check_bounds(
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def _emit_specializations(ir_data: int, generics: int, instantiations: int) -> None:
     pass
 
@@ -347,7 +347,7 @@ def _subst_type_in_ir(node: Any, tvar: str, concrete: str) -> Any:
 # found on this session's conversions.
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def _rewrite_call_sites(ir_data: int, rename_map: int) -> None:
     for func in ir_data.get("functions", []):
         func["body"] = [
@@ -372,7 +372,7 @@ def _rewrite_subscript_to_name(node: Any, rename_map: int) -> Any:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def _rewrite_annotations(ir_data: int, rename_map: int) -> None:
     pass
 
@@ -386,7 +386,7 @@ def _rewrite_annotation_str(type_str: Any, rename_map: int) -> Any:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def _record_classification(ir_data: int, generics: int, instantiations: int) -> None:
     pass
 

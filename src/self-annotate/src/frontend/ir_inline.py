@@ -177,7 +177,7 @@ class _Inliner:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self.counter
+    #@ assigns self.counter, pre
     def _hoist_calls_in_expr(self, node: Any, pre: List[Any]) -> Any:
         return None
 
@@ -215,14 +215,14 @@ def _check_no_aliasing(funcs: List[Dict[str, Any]], globals_set: Set[str]) -> No
 #@ requires True
 #@ ensures True
 #@ raises PyCSLSemanticError when True
-#@ assigns \nothing
+#@ assigns rewrite_funcs, funcs
 def _inline_calls(funcs: List[int], globals_set: int, g_class: int, rewrite_funcs: Optional[List[int]]=None) -> None:
     pass
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns ir_data
 def apply_inline_globals(ir_data: int) -> None:
     pass
 

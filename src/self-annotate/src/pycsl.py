@@ -443,7 +443,7 @@ def _print_soundness_report(report: Dict[str, Any]) -> None:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns args
 def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace) -> str:
     """Run Modules 1–6 on *source_code*. Returns WhyML code string."""
     print(f"[*] Parsing and Semantic Analysis for '{args.file}'...")

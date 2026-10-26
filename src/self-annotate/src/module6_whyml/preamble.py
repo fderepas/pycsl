@@ -406,7 +406,7 @@ class PreambleEmissionMixin:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns declared_types, out
     def _emit_opaque_class_aliases(self, functions: List[int], out: List[str], declared_types: int) -> None:
         pass
 

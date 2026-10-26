@@ -226,7 +226,7 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns node
     @staticmethod
     def _extract_mixin_directives(node: ast.FunctionDef, contracts: List[Any]) -> List[Any]:
         return []
@@ -234,7 +234,7 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns node
     @staticmethod
     def _dispatch_function_contracts(node: ast.FunctionDef, contracts: List[Any]) -> None:
         pass
@@ -250,14 +250,14 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._source
+    #@ assigns self._source, node
     def visit_FunctionDef(self, node: ast.FunctionDef) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._csl_bound_names, self._csl_star_import, self._source
+    #@ assigns self._csl_bound_names, self._csl_star_import, self._source, node
     def visit_Module(self, node: ast.Module) -> Any:
         return None
 
@@ -265,7 +265,7 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ requires True
     #@ ensures True
     #@ raises PyCSLSemanticError when True
-    #@ assigns self._source
+    #@ assigns self._source, node
     def visit_With(self, node: ast.With) -> Any:
         return None
 
@@ -293,14 +293,14 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._source
+    #@ assigns self._source, node
     def visit_ClassDef(self, node: ast.ClassDef) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns node
     @staticmethod
     def _attach_loop_contracts(node, contracts) -> None:
         pass
@@ -308,14 +308,14 @@ class PyCSLWeaver(ast.NodeVisitor):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._source
+    #@ assigns self._source, node
     def visit_While(self, node: ast.While) -> Any:
         return None
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._source
+    #@ assigns self._source, node
     def visit_For(self, node: ast.For) -> Any:
         return None
 
@@ -340,7 +340,7 @@ class Module3_Weaver:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns python_ast
     @staticmethod
     def _consolidate_module_concurrency(python_ast: ast.AST, contracts_map: Dict[int, List[CSLNode]]) -> None:
         pass
@@ -348,7 +348,7 @@ class Module3_Weaver:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns python_ast
     @staticmethod
     def _attach_labels_and_ghost_assigns(python_ast: ast.AST, contracts_map: Dict[int, List[CSLNode]], trailing_contracts_map: Dict[int, List[CSLNode]]) -> None:
         pass
@@ -379,7 +379,7 @@ class Module3_Weaver:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns python_ast
     def _expand_happy_properties(self, python_ast: ast.AST, happy_props: List[HappyProperty]) -> None:
         pass
 
@@ -494,21 +494,21 @@ class Module3_Weaver:
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns out
     def _collect_self_call_sites(self, node: ast.AST, target: str, cur_func, cur_stmt, out: List[tuple]) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns python_ast
     def _synthesize_selfcomp(self, python_ast: ast.AST, hp: HappyProperty) -> None:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns out
     def _collect_field_read_sites(self, node: ast.AST, field: str, cur_func, cur_stmt, out: List[tuple]) -> None:
         pass
 

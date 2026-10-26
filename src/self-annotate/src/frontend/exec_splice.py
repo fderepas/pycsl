@@ -36,14 +36,14 @@ class _ExecSplicer(ast.NodeTransformer):
     #@ requires True
     #@ ensures True
     #@ raises PyCSLParseError when True
-    #@ assigns self._source
+    #@ assigns self._source, node
     def visit_Expr(self, node):
         pass
 
 
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns tree
 def splice_constant_exec(tree: ast.AST) -> ast.AST:
     """Replace every constant-`exec` expression-statement with its parsed straight-line body.
     No-op (byte-identical emission) for any file that contains no constant `exec`."""

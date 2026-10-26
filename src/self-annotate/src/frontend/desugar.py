@@ -31,7 +31,7 @@ class _ChainDesugarer(ast.NodeTransformer):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._n
+    #@ assigns self._n, node
     def visit_Compare(self, node):
         pass
 
@@ -124,7 +124,7 @@ def reject_unmodelled(tree: ast.AST) -> None:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns tree
 def normalize_stores(tree: ast.AST) -> None:
     """Rewrite the two ASSIGNMENT shapes Module 5 drops, in every statement list.
 
@@ -139,7 +139,7 @@ def normalize_stores(tree: ast.AST) -> None:
 
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns tree
 def desugar_chained_comparisons(tree: ast.AST) -> ast.AST:
     """Rewrite every multi-operator `Compare` into the `and`-chain Python means by it.
     No-op (byte-identical emission) for any file that contains no chained comparison."""

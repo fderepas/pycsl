@@ -26,7 +26,7 @@ def _expand_nat_to_int(t: Term) -> Term:
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
-#@ assigns \nothing
+#@ assigns counter
 def _alpha_rename(t: Term, counter: List[int]) -> Term:
     return None
 
