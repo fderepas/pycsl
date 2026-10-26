@@ -122,7 +122,17 @@ LIVE = os.path.join(ROOT, "src", "pycsl")
 #       `exception` declarations and nothing else; whole-file re-proofs rc=0 with zero
 #       non-Valid goals counted INDEPENDENTLY of the SUCCESS banner
 #       (`getting-better/proofs49/cm5_*.{log,rc}`); markers unchanged at 459.
-MAX_SILENT = 61
+MAX_SILENT = 56
+# (#49) driver run #3 (c226): 61 -> 56, TIGHTENED by a precision fix, not by a conversion. The
+# live counterpart was matched by NAME ALONE, so every mirror `\trusted` def was paired with ANY
+# live def of the same name that raises. Now the live file at the mirror's own relative path
+# decides when it defines that name (fallback: name-only, so a RELOCATED def is never dropped).
+# Measured at 8f4221371 + c226: 62 SILENT under the old matcher (61 + the new mirror
+# `errors.py::PyCSLError.__init__`, `\trusted` by the route #226 polarity flip, whose live twin
+# `src/pycsl/errors.py` has no `raise`) -> 56 under the new one; the 6 rows dropped are exactly
+# the false pairings (errors.py / Module2_Parser.py / Module5_IREmitter.py `__init__`,
+# Module2_Parser.py `parse`, Module5_IREmitter.py `visit_ClassDef`, proof2why3/normalize.py
+# `_alpha_rename`: each has a same-file live def with no direct `raise`).
 # (#49) gen #33: 62 -> 61, and the attribution matters. This is NOT an improvement this
 # generation made — a worktree at 0375dec1 (before any gen #33 source change) measures the
 # SAME 14 declared / 61 silent, so the ratchet has simply been ONE LOOSE since some earlier
@@ -197,6 +207,9 @@ def raising_live_functions():
             for n in ast.walk(tree):
                 if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)):
                     continue
+                _k = (os.path.relpath(path, ROOT), n.name)
+                SAME_FILE[_k] = SAME_FILE.get(_k, False) or any(
+                    isinstance(x, ast.Raise) for x in ast.walk(n))
                 if any(isinstance(x, ast.Raise) for x in ast.walk(n)):
                     out.setdefault(n.name, set()).add(os.path.relpath(path, ROOT))
                     KINDS.setdefault(n.name, set()).update(
@@ -205,6 +218,7 @@ def raising_live_functions():
 
 
 KINDS = {}
+SAME_FILE = {}   # (live relpath, def name) -> any def of that name in that file raises
 
 
 def directive_block(lines, lineno):
@@ -252,7 +266,18 @@ def main():
                 if n.name not in raising:
                     continue
                 rel = os.path.relpath(path, MIRROR)
-                row = (rel, n.name, sorted(raising[n.name])[0])
+                # (#49) driver run #3 (c226) — THE SAME-FILE COUNTERPART FIRST. Matching by
+                # NAME ALONE paired the mirror `errors.py::PyCSLError.__init__` (no `raise`;
+                # live `src/pycsl/errors.py` has none) with `frontend/pure_ast.py`'s raising
+                # `__init__`, a false SILENT row. When the live file at the mirror's own
+                # relative path defines a function of this name, that file decides; otherwise
+                # (a def the mirror RELOCATES) the name-only match stands, so the population
+                # never narrows for a def without a same-file counterpart.
+                _lp = os.path.join(LIVE, rel)
+                _same = SAME_FILE.get((os.path.relpath(_lp, ROOT), n.name))
+                if _same is False:
+                    continue
+                row = (rel, n.name, os.path.relpath(_lp, ROOT) if _same else sorted(raising[n.name])[0])
                 # ANCHORED TOO (gen #4). The `\trusted` test three lines up was hardened to
                 # require the `#@` prefix; this one was left behind in the same pass, and it
                 # is the same hazard one directive over — a justification comment that NAMES

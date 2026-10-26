@@ -161,11 +161,15 @@ CARRIERS = {
     # closed by increment 1, a third and fourth by increment 2; the COMPUTED store is what
     # is left, and it is left because the honest obligation there needs the CALLEE'S
     # postcondition rather than a literal.
+    # (#49) driver run #3 (c226) — THE POLARITY FLIP CLOSES THIS CARRIER: a class invariant is
+    # admitted only when its constructor goal is stated; `self.n = three()` has no statable end
+    # state, so the class is REFUSED (PYCSL-R226-INVARIANT-GOAL-NOT-STATED; corpus witness 5878).
+    # The row now ASSERTS the refusal: a regression that lets it prove again turns this plane red.
     "getting-better/open-routes/route226-carrier-computed-constructor-store.py": (
-        "SUCCESS", "#226",
-        "a `#@ class invariant` over a field the constructor COMPUTES (`self.n = three()`) "
-        "is marked unknown and gets no obligation, so `\\result >= 5` still PROVES while "
-        "CPython answers 3"),
+        "REFUSED", "#226",
+        "a `#@ class invariant` over a field the constructor COMPUTES (`self.n = three()`) has "
+        "no statable constructor goal, so the class is REFUSED (it PROVED `\\result >= 5` "
+        "before the run #3 flip; CPython answers 3)"),
     # (#49) gen #37 — ROUTE #226 INT-FIELD PROJECTION. The three gen #37 carriers (an int
     # invariant beside a `str` / `List` field or parameter) are CLOSED: corpus witnesses
     # 4950-4952 FAIL. This shape is what the projection cannot state: a `\length` invariant
@@ -187,11 +191,13 @@ CARRIERS = {
     # field's end state is read, so the class is neither given a goal nor refused (refusing
     # it would refuse the mirror parsers `Module2_Parser._ContractParser` / `pure_ast._Parser`);
     # (2) an unverified caller clears the list it passed after construction.
+    # (#49) driver run #3 (c226): CLOSED by the route #226 polarity flip — the element term no
+    # longer masks the length state: with no statable goal the class is REFUSED (witness 5879).
     "getting-better/open-routes/route384-carrier-element-term-masks-length-state.py": (
-        "SUCCESS", "#384",
+        "REFUSED", "#384",
         "`[0] * 4; self.disk.pop()` under `\\length(self.disk) == 4` and `self.disk[0] == 0`: no "
-        "goal (element term), not refused; `no_exception` on `self.disk[3]` PROVES, CPython "
-        "IndexError"),
+        "statable goal, now REFUSED (before the run #3 flip `no_exception` on `self.disk[3]` "
+        "PROVED, CPython IndexError)"),
     "getting-better/open-routes/route385-carrier-unverified-caller-alias.py": (
         "SUCCESS", "#385",
         "`c = Cur(DEF); DEF.clear()` in `__main__`: the goal is right at construction, the "

@@ -199,6 +199,15 @@ def sig(node):
 
 # (file, sig(message)) -> (verdict, what was written and what happened)
 AUDITED = {
+    # (#49) driver run #3 (c226) — route #226 polarity flip. The advice ("store such a value
+    # directly, at the top level of `__init__`, with no later call or alias of `self`") was
+    # followed by the controls: 5890 (a bool literal), 5891 (`[0] * 4` read by an element
+    # term), 5892 (a leading `super().__init__` + a keyword-only int parameter under its
+    # `#@ requires`), 5893 (`[0] * 16` under a quantifier), 5894 (`type(self)` after the store)
+    # — each VERIFIES; the witnesses 5878 / 5879 / 5880 are the refused shapes.
+    ('src/pycsl/pycsl.py',
+     '_PyCSLSemanticError(f"class \'{_n226r}\' carries a `#@ class invariant`, but its constructor obligation (route #226: the invariant must hold w'): (FOLLOWABLE,
+        "'store an int / bool literal, an int parameter, a literal-length list ... at the top level of `__init__`' — controls 5890, 5891, 5892, 5893, 5894 follow it and VERIFY; witnesses 5878-5880 are refused."),
     # (#49) gen #31 — FIVE REFUSALS THIS CAMPAIGN ADDED, audited the only way this plane
     # accepts: by WRITING THE PROGRAM THE MESSAGE TELLS YOU TO WRITE and running it. Each
     # one already had that program in the corpus as its CONTROL, which is the point of
@@ -705,6 +714,8 @@ AUDITED = {
 # refuses a truncated census: a stale verdict about prose is indistinguishable from a
 # fresh one from the outside.
 AUDITED_HASH = {
+    # (#49) driver run #3 (c226) — route #226 polarity flip.
+    ("src/pycsl/pycsl.py", '_PyCSLSemanticError(f"class \'{_n226r}\' carries a `#@ class invariant`, but its constructor obligation (route #226: the invariant must hold w'): '90d0102c3b29',
     # (#49) gen #36 -- route #252.
     ("src/pycsl/module6_whyml/functions.py", 'PyCSLSemanticError("function \'%s\': an erased (`Any`/`object`/unannotated/TypeVar) value flows into a slot declared as a builtin type: %s. Py'): 'd838edf22927',
     # (#49) gen #36 -- route #233.

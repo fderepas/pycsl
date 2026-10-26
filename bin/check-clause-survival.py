@@ -126,6 +126,16 @@ KNOWN_DEFICITS = {
     # (#49) gen #37, routes #384 / #385 — control 5275 is 5110's shape (+ `self.n = len(toks)`).
     "5275_gen37_r385_ctl_param_len_read_after_store.py": (
         "__init__", "route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only"),
+    # (#49) driver run #3 (c226), route #226 polarity flip — controls 5892 (the mirror `errors.py`
+    # shape: a leading `super().__init__(message)` then `self.line = line` under `#@ requires
+    # line >= 0`) and 5894 (4574's `type(self).__name__` shape) are 4574's route #15 residue: no
+    # `let <c>__init`, the requires is a premise of `goal _check_class_inv_<c>` (stage 2d) and
+    # every construction site in verified code still raises the record's type-invariant VC
+    # (witness 5885: `E("m", line=-1)` in a verified function FAILS).
+    "5892_r3_c226_ctl_leading_super_kwonly_requires.py": (
+        "__init__", "route #15 residue: no let e__init; requires is a premise of _check_class_inv; construction site still checked"),
+    "5894_r3_c226_ctl_type_self_after_store.py": (
+        "__init__", "route #15 residue: computed non-int field, no let b__init; construction site still checked"),
     # (#49) gen #31 — THE TWO DUNDER ENTRIES THAT USED TO LIVE HERE ARE GONE, AND THAT IS
     # THE POINT OF WRITING A CLOSE CONDITION DOWN. Both said "dunder dropped from
     # emission", both named the same close condition ("emit dunders"), and route #219's

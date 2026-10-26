@@ -28,6 +28,16 @@ PyVal = Any
 class PyCSLError(Exception):
     """Base class for all PyCSL pipeline errors."""
 
+    # (#49) driver run #3, route #226 (c226): the constructor stores `self.line = line`, so the
+    # class invariant `self.line >= 0` holds only for a non-negative `line` — and no raise site
+    # constructs the error record in the model (the exception payload is not modelled), so no
+    # goal or precondition can be CHECKED. The route #226 polarity flip refuses an invariant
+    # whose constructor goal is not stated unless `__init__` is `\trusted`: the establishment
+    # is declared TCB here (every raise site in src/pycsl passes the default 0 or an AST line).
+    #@ \trusted reviewer: pycsl-self-annotate
+    #@ requires True
+    #@ ensures True
+    #@ assigns self.filename, self.line, self.stage, self.code
     def __init__(self, message: str, *, filename: str = "", line: int = 0, stage: str = "",
                  code: str = "") -> None:
         super().__init__(message)

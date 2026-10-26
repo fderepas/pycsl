@@ -60,6 +60,7 @@ core_ir_semantic.py	_typeddict_check_subscript	cost-scale:int-erasure-seam	THE I
 core_ir_semantic.py	_namedtuple_check_call	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 core_ir_semantic.py	_namedtuple_check_subscript	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 exception_model.py	bases_closure	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
+errors.py	PyCSLError.__init__	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
 frontend/ConcurrencyChecker.py	ConcurrencyChecker.check	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker._check_function	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker._walk_stmt	unclassified	-

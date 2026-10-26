@@ -9810,6 +9810,200 @@ class PreambleEmissionMixin:
                     # file on the marker (PYCSL-R384-INVARIANT-GOAL-UNSTATABLE) rather than let
                     # every method assume the invariant. A comment, not a `self` field: the
                     # mirror twin's `#@ assigns` stays exact (check-assigns-underdeclaration).
+                    # (#49) driver run #3, ROUTE #226 (c226) — GOAL STAGE 2d: the shapes the
+                    # projection above stops at (an element / quantifier / string / predicate /
+                    # attribute term, a field Module 5 marks computed, a bool field), stated from
+                    # `_run_pipeline`'s AST view of `__init__`'s END state (`ctor_state_c226`,
+                    # this file's classes only; list lengths from route #384's `ctor_len_r384`).
+                    # Every field label of THIS record that occurs in the lowered invariant is
+                    # bound to that end state; nothing else in the invariant changes meaning in
+                    # the goal (it sits right after the record, same scope), except a name a
+                    # parameter binder would CAPTURE, which is refused below. A field whose end
+                    # state is not modelled leaves no goal, and `_run_pipeline` REFUSES the class
+                    # (PYCSL-R226-INVARIANT-GOAL-NOT-STATED) rather than let methods assume it.
+                    # A class whose `__init__` is `#@ \trusted` is not stated (declared TCB).
+                    # Runs only where no goal was emitted and no route #384 state obstacle was
+                    # found, so every existing goal is byte-identical. INLINE (no nested def).
+                    _d226 = (getattr(self, "ctor_state_c226", None) or {}).get(td["name"])
+                    if (not _ci_emitted and not _pj_state384 and class_invs
+                            and _d226 is not None and not _d226.get("trusted")):
+                        _dwhy = ""
+                        _otd226 = None
+                        for _t226 in type_decls:
+                            if (isinstance(_t226, dict) and _t226.get("kind") == "record"
+                                    and _t226.get("name") == _d226.get("owner")):
+                                _otd226 = _t226
+                        _icc226 = (_otd226 or {}).get("init_contract_check") or {}
+                        _ds226 = []
+                        self._in_spec = True
+                        self._emit_record_ctx = type_name
+                        _prev226 = getattr(self, "_current_self_type", None)
+                        self._current_self_type = type_name
+                        for _inv_ci in class_invs:
+                            _ds226.append(
+                                self._expr_to_whyml(_inv_ci, set(), invariant_ctx=True))
+                        self._current_self_type = _prev226
+                        self._emit_record_ctx = None
+                        self._in_spec = False
+                        _dn226 = " ".join(re.sub(r'"(?:[^"\\]|\\.)*"', '""', _s) for _s in _ds226)
+                        _did226 = set(re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _dn226))
+                        _et226 = self._emitted_record_field_types.get(type_name) or {}
+                        _lens226 = (getattr(self, "ctor_len_r384", None) or {}).get(
+                            _d226.get("owner")) or {}
+                        _dprem = []
+                        _dbind = []
+                        _dty = {}
+                        _dpar = {}
+                        for fn in field_names:
+                            _lb226 = _q(fn)
+                            if _lb226 not in _did226 or _dwhy:
+                                continue
+                            _ft226 = _et226.get(_lb226, "")
+                            _sf226 = (_d226.get("fields") or {}).get(fn)
+                            if _ft226.startswith("array "):
+                                _sl226 = _lens226.get(fn)
+                                _rd226 = re.search(r"\b%s\b" % re.escape(_lb226), re.sub(
+                                    r"Array\.length %s\b" % re.escape(_lb226), "", _dn226))
+                                if _sl226 is not None and _sl226[0] == "LEN":
+                                    _dprem.append("(Array.length %s) = %d" % (_lb226, _sl226[1]))
+                                    if _rd226:
+                                        _c226 = (_d226.get("elems") or {}).get(fn)
+                                        if _c226 is None or _ft226 != "array int":
+                                            _dwhy = ("reads elements of `self.%s`, whose contents "
+                                                     "at the end of `__init__` are not modelled" % fn)
+                                        else:
+                                            _dprem.append(
+                                                "(forall _k226 : int. 0 <= _k226 < %d -> %s[_k226] = %s)"
+                                                % (_sl226[1], _lb226,
+                                                   ("(%d)" % _c226) if _c226 < 0 else str(_c226)))
+                                elif _sl226 is not None and _sl226[0] == "PARAM":
+                                    _pw226 = whyml_ident(_sl226[1])
+                                    if _dty.get(_pw226, _ft226) != _ft226:
+                                        _dwhy = "a parameter feeds fields of two types"
+                                    else:
+                                        _dty[_pw226] = _ft226
+                                        _dpar[_pw226] = (_sl226[1], fn)
+                                        _dprem.append("%s = %s" % (_lb226, _pw226))
+                                else:
+                                    _dwhy = ("the end state of the list field `self.%s` is not "
+                                             "modelled" % fn)
+                                _dty[_lb226] = _ft226
+                            elif _ft226 in ("int", "bool"):
+                                if _sf226 is None or _sf226[0] == "UNK":
+                                    _dwhy = (_sf226[1] if _sf226 is not None else
+                                             "`__init__` does not store `self.%s`" % fn)
+                                elif _sf226[0] == "INT" and _ft226 == "int":
+                                    _dprem.append("%s = %s" % (_lb226, ("(%d)" % _sf226[1])
+                                                               if _sf226[1] < 0 else str(_sf226[1])))
+                                elif _sf226[0] == "BOOL" and _ft226 == "bool":
+                                    _dprem.append("%s = %s" % (_lb226, "true" if _sf226[1] else "false"))
+                                elif (_sf226[0] == "IPARAM"
+                                      and _sf226[2] in (("", "int") if _ft226 == "int" else ("bool",))):
+                                    _pw226 = whyml_ident(_sf226[1])
+                                    if _dty.get(_pw226, _ft226) != _ft226:
+                                        _dwhy = "a parameter feeds fields of two types"
+                                    else:
+                                        _dty[_pw226] = _ft226
+                                        _dpar[_pw226] = (_sf226[1], fn)
+                                        _dprem.append("%s = %s" % (_lb226, _pw226))
+                                elif (_sf226[0] == "IEXPR" and _ft226 == "int"
+                                      and all(_dty.get(whyml_ident(_xp), "int") == "int"
+                                              for _xp in _sf226[2])):
+                                    for _xp in _sf226[2]:
+                                        _dty[whyml_ident(_xp)] = "int"
+                                        if whyml_ident(_xp) not in _dpar:
+                                            _dpar[whyml_ident(_xp)] = (_xp, None)
+                                    _dprem.append("%s = %s" % (_lb226, _sf226[1]))
+                                else:
+                                    _dwhy = ("`self.%s` (%s) is bound to %s" % (fn, _ft226, _sf226[0]))
+                                _dty[_lb226] = _ft226
+                            else:
+                                _dwhy = ("reads the field `self.%s` of type `%s`, whose end state "
+                                         "the goal does not model" % (fn, _ft226 or "?"))
+                            if not _dwhy:
+                                _dbind.append(_lb226)
+                        # a parameter binder must not capture another name of the invariant, nor
+                        # be the label of a field it is not bound to
+                        _labs226 = {_q(_f): _f for _f in field_names}
+                        for _pw226, (_pn226, _pf226) in _dpar.items():
+                            if _pw226 in _labs226 and _labs226[_pw226] != _pf226:
+                                _dwhy = _dwhy or ("the parameter `%s` is named like the field label "
+                                                  "`%s`" % (_pn226, _pw226))
+                            elif _pw226 in _did226 and _pw226 not in _labs226:
+                                _dwhy = _dwhy or ("the parameter `%s` would capture a name of the "
+                                                  "invariant" % _pn226)
+                        if not _dwhy and _did226 & {"_k226"}:
+                            _dwhy = "the invariant names `_k226`"
+                        _dreq = []
+                        if not _dwhy and _dpar:
+                            _stk226 = list(_icc226.get("requires") or [])
+                            _cj226 = []
+                            while _stk226:
+                                _nd226 = _stk226.pop(0)
+                                if (isinstance(_nd226, dict) and _nd226.get("type") in ("BinOp", "BoolOp")
+                                        and _nd226.get("op") == "and"
+                                        and "left" in _nd226 and "right" in _nd226):
+                                    _stk226[0:0] = [_nd226["left"], _nd226["right"]]
+                                else:
+                                    _cj226.append(_nd226)
+                            _pnm226 = [_v[0] for _v in _dpar.values()]
+                            for _r226 in _cj226:
+                                _prev_st_ci = getattr(self, "_current_symbol_table", None)
+                                _prev_fp_ci = getattr(self, "_formal_params", None)
+                                _prev_cp_ci = getattr(self, "_current_params", None)
+                                self._current_symbol_table = {
+                                    _p: ("int" if _dty.get(whyml_ident(_p)) in ("int", None)
+                                         else ("bool" if _dty.get(whyml_ident(_p)) == "bool" else "list"))
+                                    for _p in _pnm226}
+                                self._formal_params = list(_pnm226)
+                                self._current_params = set(_pnm226)
+                                self._in_spec = True
+                                _rs226 = None
+                                try:
+                                    _rs226 = self._expr_to_whyml(_r226, set())
+                                except Exception:
+                                    _rs226 = None
+                                self._in_spec = False
+                                self._current_symbol_table = _prev_st_ci
+                                self._formal_params = _prev_fp_ci
+                                self._current_params = _prev_cp_ci
+                                if _rs226 is None:
+                                    continue
+                                _rn226 = re.sub(r'"(?:[^"\\]|\\.)*"', '""', _rs226)
+                                _qv226 = set(re.findall(r"(?:forall|exists)\s+([A-Za-z_0-9' ]+?)\s*:", _rn226))
+                                _qv226 = {_w for _g in _qv226 for _w in _g.split()} | set(
+                                    re.findall(r"\blet\s+([A-Za-z_][A-Za-z_0-9']*)\s*=", _rn226))
+                                _oth226 = set()
+                                for _tn226, _ls226 in (getattr(self, "_emitted_record_field_labels", None) or {}).items():
+                                    if _tn226 != type_name:
+                                        _oth226 |= set(_ls226)
+                                if all(_id in (set(_dpar) | _qv226 | {"true", "false", "not", "Array",
+                                                                      "length", "forall", "exists", "int",
+                                                                      "bool", "if", "then", "else", "let",
+                                                                      "in", "mod", "div", "abs"}
+                                               | (_oth226 - set(_labs226)))
+                                       for _id in re.findall(r"[A-Za-z_][A-Za-z_0-9']*", _rn226)):
+                                    _dreq.append(_rs226)
+                        if not _dwhy:
+                            _gb226 = []
+                            for _u226 in _dbind + [_p for _p in _dpar if _p not in _dbind]:
+                                _t226 = _dty.get(_u226, "int")
+                                if _gb226 and _gb226[-1][1] == _t226:
+                                    _gb226[-1][0].append(_u226)
+                                else:
+                                    _gb226.append(([_u226], _t226))
+                            _body226 = " /\\ ".join("(%s)" % _s for _s in _ds226)
+                            _pr226 = " -> ".join(_dprem + _dreq)
+                            out.append("")
+                            if _gb226:
+                                out.append(
+                                    f"  goal _check_class_inv_{whyml_ident(type_name)} : forall "
+                                    + ", ".join("%s : %s" % (" ".join(_g[0]), _g[1]) for _g in _gb226)
+                                    + ". " + (_pr226 + " -> " if _pr226 else "") + _body226)
+                            else:
+                                out.append(
+                                    f"  goal _check_class_inv_{whyml_ident(type_name)} : {_body226}")
+                            _ci_emitted = True
                     if _pj_state384 and not _ci_emitted:
                         out.append("  (* PYCSL-R384-NO-GOAL %s: %s *)" % (
                             td["name"], _pj_state384.replace("*)", "* )").replace("(*", "( *")

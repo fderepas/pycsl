@@ -10592,6 +10592,264 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _nx384 = _bk384[0]
                 _c384 = _nx384
         transpiler.ctor_len_r384 = _cl384
+        # (#49) driver run #3, ROUTE #226 (c226) — WHAT `__init__` LEAVES IN EACH SCALAR FIELD,
+        # and the element CONTENTS of a fresh list field. Read by Module 6's goal stage 2d
+        # (`_emit_type_decls`) as `ctor_state_c226[class]`, for the classes of THIS file only
+        # (a dependency's class is stated — or refused — when the dependency itself is run):
+        #   "fields": {f: ("INT", n) | ("BOOL", b) | ("IPARAM", p, annotation) | ("UNK", why)}
+        #             — the value of `self.f` when `__init__` returns: the LAST top-level store
+        #             `self.f = <int / bool literal | parameter p>`, p never re-bound in
+        #             `__init__`; any other store / mutation of `self.f` (augmented, tuple,
+        #             under control flow, in a nested scope) is UNK.
+        #   "elems":  {f: c} — a list field stored `[c] * K` / `bytearray(K)` (c an int
+        #             literal) whose every later mention is `len(self.f)` or an element READ:
+        #             every element is c at the end of `__init__` (its length is route #384's
+        #             `ctor_len_r384` LEN state).
+        #   "owner":  the class whose `__init__` runs (a class without one runs its first file
+        #             base's), "trusted": that `__init__` carries `#@ \trusted` (its establishment
+        #             of the invariant is part of the declared, counted TCB).
+        # The whole class is UNK when `__init__` lets `self` escape (a bare `self` other than
+        # `type(self)`), calls `super()` other than as its leading statement, returns / yields /
+        # awaits, or makes a call (other than `len` / `type` / `int` / `bool` / `abs` / `min` /
+        # `max`) after a field is stored — the callee could reach `self` through an alias.
+        # INLINE (no nested def: check-mirror-coverage); `_run_pipeline`'s mirror twin is
+        # `\trusted`.
+        _cs226 = {}
+        from module6_whyml.identifiers import whyml_ident as _wid226s
+        _src226 = source_code.splitlines()
+        for _cn226, _ks226 in _cdefs384.items():
+            if len(_ks226) != 1:
+                continue
+            _in226 = [_m for _m in _ks226[0].body
+                      if isinstance(_m, (_ast376.FunctionDef, _ast376.AsyncFunctionDef))
+                      and _m.name == "__init__"]
+            if len(_in226) != 1:
+                continue
+            _m226 = _in226[0]
+            _pa226 = _m226.args.posonlyargs + _m226.args.args
+            if not _pa226:
+                continue
+            _self226 = _pa226[0].arg
+            _ann226 = {}
+            for _a226 in _pa226[1:] + _m226.args.kwonlyargs:
+                _ann226[_a226.arg] = (_ast376.unparse(_a226.annotation)
+                                      if _a226.annotation is not None else "")
+            # `#@ \trusted` in the comment block directly above `def __init__` / its decorators
+            _tr226 = False
+            _ln226 = min([_m226.lineno] + [_d.lineno for _d in _m226.decorator_list]) - 2
+            while 0 <= _ln226 < len(_src226) and _src226[_ln226].strip().startswith("#"):
+                if _src226[_ln226].strip().startswith("#@ \\trusted"):
+                    _tr226 = True
+                _ln226 -= 1
+            _par226 = {}
+            _skip226 = set()
+            for _x226 in _ast376.walk(_m226):
+                for _c226 in _ast376.iter_child_nodes(_x226):
+                    _par226[id(_c226)] = _x226
+                if _x226 is not _m226 and isinstance(
+                        _x226, (_ast376.FunctionDef, _ast376.AsyncFunctionDef,
+                                _ast376.Lambda, _ast376.ClassDef)):
+                    _skip226 |= {id(_y) for _y in _ast376.walk(_x226)} - {id(_x226)}
+            # parameters re-bound anywhere in `__init__` (incl. nested scopes) are not values
+            _rb226 = set()
+            for _x226 in _ast376.walk(_m226):
+                if isinstance(_x226, _ast376.Name) and not isinstance(_x226.ctx, _ast376.Load):
+                    _rb226.add(_x226.id)
+                elif isinstance(_x226, (_ast376.Global, _ast376.Nonlocal)):
+                    _rb226 |= set(_x226.names)
+            _fs226 = {}
+            _el226 = {}
+            _why226 = ""
+            _body226 = list(_m226.body)
+            if (_body226 and isinstance(_body226[0], _ast376.Expr)
+                    and isinstance(_body226[0].value, _ast376.Constant)
+                    and isinstance(_body226[0].value.value, str)):
+                _body226 = _body226[1:]
+            for _i226, _s226 in enumerate(_body226):
+                _lead226 = (_i226 == 0 and isinstance(_s226, _ast376.Expr)
+                            and isinstance(_s226.value, _ast376.Call)
+                            and isinstance(_s226.value.func, _ast376.Attribute)
+                            and _s226.value.func.attr == "__init__"
+                            and isinstance(_s226.value.func.value, _ast376.Call)
+                            and isinstance(_s226.value.func.value.func, _ast376.Name)
+                            and _s226.value.func.value.func.id == "super"
+                            and not _s226.value.func.value.args
+                            and _bind384.get("super", 0) == 0)
+                _tgt226 = _rhs226 = None
+                if isinstance(_s226, _ast376.Assign) and len(_s226.targets) == 1:
+                    _tgt226, _rhs226 = _s226.targets[0], _s226.value
+                elif isinstance(_s226, _ast376.AnnAssign) and _s226.value is not None:
+                    _tgt226, _rhs226 = _s226.target, _s226.value
+                if not (isinstance(_tgt226, _ast376.Attribute)
+                        and isinstance(_tgt226.value, _ast376.Name)
+                        and _tgt226.value.id == _self226):
+                    _tgt226 = _rhs226 = None
+                for _x226 in _ast376.walk(_s226):
+                    if isinstance(_x226, (_ast376.Return, _ast376.Yield, _ast376.YieldFrom,
+                                          _ast376.Await)) and id(_x226) not in _skip226:
+                        _why226 = _why226 or ("`__init__` returns / yields / awaits (line %d)"
+                                              % getattr(_x226, "lineno", 0))
+                    elif isinstance(_x226, _ast376.Name) and _x226.id == _self226:
+                        _pp226 = _par226.get(id(_x226))
+                        if isinstance(_pp226, _ast376.Attribute) and _pp226.value is _x226:
+                            if _pp226.attr.startswith("__"):
+                                _why226 = _why226 or ("`__init__` reads `%s.%s` (line %d)"
+                                                      % (_self226, _pp226.attr,
+                                                         getattr(_x226, "lineno", 0)))
+                            elif not isinstance(_pp226.ctx, _ast376.Load) and _pp226 is not _tgt226:
+                                _fs226[_pp226.attr] = ("UNK", "`__init__` changes `%s.%s` other "
+                                                       "than by a top-level store (line %d)"
+                                                       % (_self226, _pp226.attr,
+                                                          getattr(_x226, "lineno", 0)))
+                                _el226.pop(_pp226.attr, None)
+                            elif (_pp226.attr in _el226 and _pp226 is not _tgt226 and not (
+                                    (isinstance(_par226.get(id(_pp226)), _ast376.Call)
+                                     and isinstance(_par226[id(_pp226)].func, _ast376.Name)
+                                     and _par226[id(_pp226)].func.id == "len"
+                                     and _par226[id(_pp226)].args == [_pp226])
+                                    or (isinstance(_par226.get(id(_pp226)), _ast376.Subscript)
+                                        and _par226[id(_pp226)].value is _pp226
+                                        and isinstance(_par226[id(_pp226)].ctx, _ast376.Load)))):
+                                _el226.pop(_pp226.attr, None)
+                        elif not (isinstance(_pp226, _ast376.Call)
+                                  and isinstance(_pp226.func, _ast376.Name)
+                                  and _pp226.func.id == "type" and _pp226.args == [_x226]
+                                  and _bind384.get("type", 0) == 0):
+                            _why226 = _why226 or ("`self` escapes `__init__` (line %d: `%s`)"
+                                                  % (getattr(_s226, "lineno", 0),
+                                                     _ast376.unparse(_s226)[:60]))
+                    elif (isinstance(_x226, _ast376.Attribute)
+                          and not isinstance(_x226.ctx, _ast376.Load)
+                          and not (isinstance(_x226.value, _ast376.Name)
+                                   and _x226.value.id == _self226)):
+                        # `obj.a = v` on another object: `obj` may alias `self` (a base
+                        # `__init__` can have registered it)
+                        _why226 = _why226 or ("`__init__` stores an attribute of another "
+                                              "object (line %d: `%s`)"
+                                              % (getattr(_s226, "lineno", 0),
+                                                 _ast376.unparse(_s226)[:60]))
+                    elif (isinstance(_x226, _ast376.Name) and _x226.id == "super"
+                          and not _lead226):
+                        _why226 = _why226 or ("`__init__` calls `super()` other than as its "
+                                              "first statement (line %d)"
+                                              % getattr(_x226, "lineno", 0))
+                    elif (isinstance(_x226, _ast376.Call) and (_fs226 or _el226)
+                          and not (isinstance(_x226.func, _ast376.Name)
+                                   and _x226.func.id in ("len", "type", "int", "bool", "abs",
+                                                         "min", "max")
+                                   and _bind384.get(_x226.func.id, 0) == 0)):
+                        _why226 = _why226 or ("`__init__` makes a call after storing a field "
+                                              "(line %d: `%s`)"
+                                              % (getattr(_s226, "lineno", 0),
+                                                 _ast376.unparse(_x226)[:60]))
+                if _tgt226 is not None:
+                    _f226 = _tgt226.attr
+                    _e226 = _rhs226
+                    _el226.pop(_f226, None)
+                    if (isinstance(_e226, _ast376.Constant) and isinstance(_e226.value, bool)):
+                        _fs226[_f226] = ("BOOL", bool(_e226.value))
+                    elif (isinstance(_e226, _ast376.Constant) and isinstance(_e226.value, int)):
+                        _fs226[_f226] = ("INT", int(_e226.value))
+                    elif (isinstance(_e226, _ast376.UnaryOp) and isinstance(_e226.op, _ast376.USub)
+                          and isinstance(_e226.operand, _ast376.Constant)
+                          and isinstance(_e226.operand.value, int)
+                          and not isinstance(_e226.operand.value, bool)):
+                        _fs226[_f226] = ("INT", -int(_e226.operand.value))
+                    elif (isinstance(_e226, _ast376.Name) and _e226.id in _ann226
+                          and _e226.id not in _rb226):
+                        _fs226[_f226] = ("IPARAM", _e226.id, _ann226[_e226.id])
+                    else:
+                        # an int expression over int parameters / literals (`+ - *`, unary
+                        # minus): stated as the premise `f = <expr>` (`//`, `%` excluded:
+                        # Python floors). A BOTTOM-UP fold, no nested def.
+                        _ex226 = {}
+                        _xp226 = []
+                        for _y226 in reversed(list(_ast376.walk(_e226))):
+                            if isinstance(_y226, _ast376.Constant) and isinstance(
+                                    _y226.value, int) and not isinstance(_y226.value, bool):
+                                _ex226[id(_y226)] = ("(%d)" % _y226.value if _y226.value < 0
+                                                     else str(_y226.value))
+                            elif (isinstance(_y226, _ast376.Name)
+                                  and isinstance(_y226.ctx, _ast376.Load)
+                                  and _ann226.get(_y226.id, None) in ("", "int")
+                                  and _y226.id not in _rb226):
+                                _ex226[id(_y226)] = _wid226s(_y226.id)
+                                if _y226.id not in _xp226:
+                                    _xp226.append(_y226.id)
+                            elif (isinstance(_y226, _ast376.BinOp)
+                                  and isinstance(_y226.op, (_ast376.Add, _ast376.Sub, _ast376.Mult))
+                                  and id(_y226.left) in _ex226 and id(_y226.right) in _ex226):
+                                _ex226[id(_y226)] = "(%s %s %s)" % (
+                                    _ex226[id(_y226.left)],
+                                    {_ast376.Add: "+", _ast376.Sub: "-",
+                                     _ast376.Mult: "*"}[type(_y226.op)],
+                                    _ex226[id(_y226.right)])
+                            elif (isinstance(_y226, _ast376.UnaryOp)
+                                  and isinstance(_y226.op, _ast376.USub)
+                                  and id(_y226.operand) in _ex226):
+                                _ex226[id(_y226)] = "(- %s)" % _ex226[id(_y226.operand)]
+                            elif (isinstance(_y226, _ast376.Call)
+                                  and isinstance(_y226.func, _ast376.Name)
+                                  and _y226.func.id in ("max", "min")
+                                  and _bind384.get(_y226.func.id, 0) == 0
+                                  and len(_y226.args) == 2 and not _y226.keywords
+                                  and all(id(_a) in _ex226 for _a in _y226.args)):
+                                # two-argument `max` / `min` over ints
+                                _ex226[id(_y226)] = "(if %s %s %s then %s else %s)" % (
+                                    _ex226[id(_y226.args[0])],
+                                    ">=" if _y226.func.id == "max" else "<=",
+                                    _ex226[id(_y226.args[1])],
+                                    _ex226[id(_y226.args[0])], _ex226[id(_y226.args[1])])
+                        if id(_e226) in _ex226 and not isinstance(_e226, _ast376.Name):
+                            _fs226[_f226] = ("IEXPR", _ex226[id(_e226)], _xp226)
+                        else:
+                            _fs226[_f226] = ("UNK", "`__init__` stores `%s.%s = %s` (line %d)"
+                                             % (_self226, _f226, _ast376.unparse(_e226)[:60],
+                                                getattr(_s226, "lineno", 0)))
+                    # element contents of a fresh list: `[c] * K` / `K * [c]` / `bytearray(K)`
+                    _c226 = None
+                    if (isinstance(_e226, _ast376.BinOp) and isinstance(_e226.op, _ast376.Mult)):
+                        for _a226 in (_e226.left, _e226.right):
+                            if (isinstance(_a226, _ast376.List) and len(_a226.elts) == 1
+                                    and isinstance(_a226.elts[0], _ast376.Constant)
+                                    and isinstance(_a226.elts[0].value, int)
+                                    and not isinstance(_a226.elts[0].value, bool)):
+                                _c226 = int(_a226.elts[0].value)
+                            elif (isinstance(_a226, _ast376.List) and len(_a226.elts) == 1
+                                  and isinstance(_a226.elts[0], _ast376.UnaryOp)
+                                  and isinstance(_a226.elts[0].op, _ast376.USub)
+                                  and isinstance(_a226.elts[0].operand, _ast376.Constant)
+                                  and isinstance(_a226.elts[0].operand.value, int)
+                                  and not isinstance(_a226.elts[0].operand.value, bool)):
+                                _c226 = -int(_a226.elts[0].operand.value)
+                    elif (isinstance(_e226, _ast376.Call) and isinstance(_e226.func, _ast376.Name)
+                          and _e226.func.id == "bytearray" and len(_e226.args) == 1
+                          and not _e226.keywords and _bind384.get("bytearray", 0) == 0):
+                        _c226 = 0
+                    if _c226 is not None:
+                        _el226[_f226] = _c226
+            if _why226:
+                _fs226 = {_f: ("UNK", _why226) for _f in _fs226}
+                _el226 = {}
+            _cs226[_cn226] = {"fields": _fs226, "elems": _el226, "owner": _cn226,
+                              "trusted": _tr226, "why": _why226}
+        for _cn226, _ks226 in _cdefs384.items():
+            if _cn226 in _cs226 or len(_ks226) != 1:
+                continue
+            _c226 = _ks226[0]
+            _seen226 = set()
+            while _c226 is not None and _c226.name not in _seen226:
+                _seen226.add(_c226.name)
+                if _c226.name in _cs226:
+                    _cs226[_cn226] = _cs226[_c226.name]
+                    break
+                _nx226 = None
+                if _c226.bases and isinstance(_c226.bases[0], _ast376.Name):
+                    _bk226 = _cdefs384.get(_c226.bases[0].id) or []
+                    if len(_bk226) == 1:
+                        _nx226 = _bk226[0]
+                _c226 = _nx226
+        transpiler.ctor_state_c226 = _cs226
     _mlw = transpiler.transpile()
     # (#49) gen #37, ROUTE #384 — A `\length` CLASS INVARIANT WHOSE CONSTRUCTOR GOAL CANNOT BE
     # STATED IS REFUSED, NOT ASSUMED. Module 6 states route #226's `_check_class_inv_<c>` goal
@@ -10619,6 +10877,48 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"bind it directly to an `__init__` parameter, and do not change it later in "
             f"`__init__` except by `append` / `insert` / `extend([..])` / `pop()` / `clear()`.",
             filename=args.file, stage="ir-semantic", code="PYCSL-R384-INVARIANT-GOAL-UNSTATABLE")
+    # (#49) driver run #3, ROUTE #226 (c226) — THE POLARITY FLIP: a `#@ class invariant` of a
+    # class of THIS file is ADMITTED only when its constructor goal `_check_class_inv_<c>` was
+    # STATED (route #226 increments 1 / 2 / 2b / 2c / 2d, route #384's end states); otherwise the
+    # class is REFUSED, never assumed. Before this rule a goal-less class (an element /
+    # quantifier / string / predicate term, a computed or bool field) got its invariant as a
+    # free assumption in every method (red team 29 a04..a46, route #384's element-term carrier:
+    # `#@ no_exception` on `self.disk[3]` PROVED after `self.disk.pop()`, CPython IndexError).
+    # A class whose `__init__` is `#@ \trusted` keeps its declared, counted TCB. A dependency's
+    # class is stated (or refused) when the dependency itself is run. The record must be in the
+    # emission (an unemitted type assumes nothing). Inline; `_run_pipeline`'s twin is `\trusted`.
+    _cs226r = getattr(transpiler, "ctor_state_c226", None)
+    if _cs226r is not None:
+        from module6_whyml.identifiers import whyml_ident as _wid226r
+        for _td226r in ((getattr(transpiler, "ir", None) or {}).get("type_decls") or []):
+            if not (isinstance(_td226r, dict) and _td226r.get("kind") == "record"
+                    and _td226r.get("class_invariants")):
+                continue
+            _n226r = str(_td226r.get("name") or "")
+            if _n226r not in _cdefs384:
+                continue
+            if (_cs226r.get(_n226r) or {}).get("trusted"):
+                continue
+            _tn226r = _wid226r(_n226r.lower())
+            if not _re384.search(r"(?m)^\s*(?:type|with)\s+%s\b" % _re384.escape(_tn226r), _mlw or ""):
+                continue
+            if _re384.search(r"(?m)^\s*goal _check_class_inv_%s :" % _re384.escape(_wid226r(_tn226r)),
+                         _mlw or ""):
+                continue
+            _w226r = ((_cs226r.get(_n226r) or {}).get("why") or "")
+            raise _PyCSLSemanticError(
+                f"class '{_n226r}' carries a `#@ class invariant`, but its constructor obligation "
+                f"(route #226: the invariant must hold when `__init__` returns) cannot be stated"
+                f"{(': ' + _w226r) if _w226r else ''}. Without that goal every method would ASSUME "
+                f"the invariant although nothing checks that `__init__` establishes it (measured: "
+                f"`self.ok = False` under `self.ok == True` certified `ensures \\result == True`). "
+                f"The goal is stated when every field the invariant reads is, at the end of "
+                f"`__init__`, an int / bool literal, an int / bool `__init__` parameter (with its "
+                f"`#@ requires` as premises), a list of literal length (`[0] * 8`, `[1, 2]`, "
+                f"`bytearray(16)`, element reads need `[c] * K`) or a list parameter; store such a "
+                f"value directly, at the top level of `__init__`, with no later call or alias of "
+                f"`self`.",
+                filename=args.file, stage="ir-semantic", code="PYCSL-R226-INVARIANT-GOAL-NOT-STATED")
 
     # ROUTE #30 (relaunch #45) — REFUSE an UNINTERPRETED `match` pattern.
     #
