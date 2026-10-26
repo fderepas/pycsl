@@ -1,5 +1,18 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## gen #37 (2026-10-26): #381 + #382 + #383 REPAIRED, candidate (r381s executor off 7bf752d4e; code 324907ddc / 9942dc760 (from the
+##   r381 WIP, measured and narrowed), corpus + census b89ed1f91, docs ed1448bd4 (annotations 7.42 / T.6.53), route docs; inline, no
+##   new def, no new refusal code, ledger 3). Sound refusals, no emission change, all PYCSL-R349-UNHASHABLE-RECORD. #381: outside bases
+##   classified on the REAL stdlib class (`__hash__` None, contents-delegating hash: slice / memoryview / MappingProxyType /
+##   weakref.ref; unknown = unhashable). #382: container mark at every depth of every hashing position; outside value classes by
+##   their real class. #383: per-function type propagation (aliases, get / views / loops / comprehensions / slices / `*x` / `-> T`),
+##   underivable = no class; declared Any / object / TypeVar checked against the file's unhashable classes. 47/47 red-team witnesses
+##   + 9 NEW latents (deque `s.add` / dict key, MappingProxyType x2, memoryview, slice, weakref.ref, subclass-only field, star-import
+##   base) PROVED at base -> REFUSED (corpus 5330-5385); controls 5390-5393 PROVED. The WIP's "#UNK for every underivable form"
+##   refused 13/53 mirrors + 5 PROVED corpus files and was narrowed. Root 0 MOVED / 1 GONE (3601, expected-FAIL witness, now a sound
+##   refusal) / 0; pyref 0/0/0; mirror 0/0/0 — no OWED proof; pycsl_lib identical. Planes fast 61/61. Residuals: still a DENY-list
+##   (underivable values unchecked; Any / cross-module classes only vs the file's classes — driver probes a4 / a11 still PROVE).
+
 ## gen #37 (2026-10-25): #386 + #387 REPAIRED, candidate (r386 executor off 5addbdeef; code 13fbfa1ed / a1b4a8dd6 / 20ccfe42d, corpus
 ##   ebed9c6e7 / 20ccfe42d, docs 475527100 (annotations 7.41 / T.6.52), census d3fffd4f9, route docs; Module 3 only, inline, no new def,
 ##   no new raise site, ledger 3). Sound refusals, no emission change. #386: route #131's builtin-shadow arm now also covers a nested
