@@ -2882,6 +2882,50 @@ REFUSED (`PYCSL-R400-NODEVISITOR-DISPATCH`). Removing the two bases from the tab
 not taken: the mirror files above use them. Witness `5646`; controls `5684` (a visitor with no
 `visit_*` method) and `5685` (the advice followed: `visit_Constant` called directly). Residual: the havoc model (`visit` assigns the union of the `visit_*`
 methods' frames) is not built, so a verified caller of a dispatching visitor is refused.
+
+### 7.57 A hashing site calls the class's `__hash__`, and `__eq__` on a collision: both must be verified (route #402, gen #37)
+
+A class that defines `__hash__` counted as hashable, and the call to that `__hash__` at a hashing
+site (§7.33's positions: a set element, a dict key, a membership test or subscript of a set /
+dict, `hash(..)`, a set / dict built from an iterable) was never emitted, so its exceptions and
+preconditions were invisible: `class D` whose `def __hash__` raises ValueError when `self.x == 1`,
+then `s = {d}` under `no_exception \all`, PROVED (driver-reproduced at `526d534de`, CPython
+ValueError). Likewise a set / dict calls `__eq__` between a value and an element already in it
+whose hash is equal: a raising `__eq__` under `{a, b}` PROVED. Option (a), lowering every hashing
+site as a call to the class's `__hash__` / `__eq__` with their contracts, was measured against
+(b) and not taken: (b) moves no emission (root, pyref, 53 mirrors, `pycsl_lib`) and refuses only
+three PASS controls, which are given honest contracts. RULE (b): a `__hash__` / `__eq__` is
+VERIFIED when it is ONE top-level undecorated `def` whose IR function is neither `\trusted` nor
+`\abstract`, carries `#@ no_exception \all`, has no `requires` (a hashing site discharges none)
+and returns `int` / `bool` (a non-`int` hash is a TypeError). Then
+
+* along the C3 MRO, a class whose deciding `__hash__` is a `def __hash__` that is not verified
+  counts as unhashable (the §7.33 fixpoint, so a frozen record with a field of such a class, a
+  subclass of it, and with §7.50 every file base of it, are unhashable too):
+  `PYCSL-R349-UNHASHABLE-RECORD` (message extended). This also tightens §7.50's subclass rule (a
+  subclass `__hash__` with a `requires` no longer counts as verified);
+* a class is EQ-RISKY when the first class of its MRO that decides `__eq__` binds it otherwise
+  than by one verified `def __eq__`, or is a `@dataclass` with `eq` / a NamedTuple / a functional
+  namedtuple (field-wise equality) with a field whose annotation is not eq-safe (`int`, `str`,
+  `float`, `bool`, `bytes`, `complex`, `None`, `Literal` / `type`, a non-eq-risky class of the
+  file, or Optional / Union / `|` / Tuple / List / Set / FrozenSet / Dict / Annotated / Final /
+  ClassVar of those); an unknown linearisation is eq-risky, and a class with an eq-risky file
+  subclass is eq-risky (closed world). At a hashing site that may compare -- every site but
+  `hash(x)`, a one-element set display and a one-key dict display -- a value of an eq-risky class
+  (or of an unknown class, when any class of the file is eq-risky) is REFUSED
+  (`PYCSL-R402-UNVERIFIED-EQ`).
+
+Census: root corpus 0 MOVED / 0 APPEARED and 3 GONE before the corpus edit (`4694`, `4940`,
+`5043`: their `__hash__` bodies are total and now carry `#@ no_exception \all`; re-proved at base
+and candidate), pyref 0/0/0, mirrors 53/53 0/0/0, `pycsl_lib` screen identical. Witnesses
+`5780`-`5789` (own / inherited / `requires`-guarded / tuple-element / frozen-field raising
+`__hash__`; raising `__eq__` on a collision in `{a, b}`, a tuple pair, a starred display, a
+dataclass field, a file subclass); controls `5800` (verified methods, an inheriting subclass, a
+frozen `int` / `str` record and a plain identity class in multi-element displays) and `5801` (an
+unverified `__eq__` at sites that never compare). Residuals: a cyclic value compared by a
+field-wise `__eq__` (RecursionError) is not modelled; `__eq__` reached through a stdlib container
+element (a `frozenset` of user objects inside a set) is not traced; an unverified `__eq__` at a
+`hash(x)` / one-element site is admitted because CPython never calls it there.
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

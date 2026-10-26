@@ -1,10 +1,11 @@
-r"""Test 4694 -- gen #37 route #349: CONTROL: eq-dataclass with an explicit `__hash__` in a set; PROVES (CPython 1).
+r"""Test 4694 -- gen #37 route #349: CONTROL: eq-dataclass with an explicit `__hash__` in a set; PROVES (CPython 1). Route #402: the `__hash__` a hashing site calls carries a verified `#@ no_exception \all` contract.
 """
 from dataclasses import dataclass
 
 @dataclass
 class D:
     x: int
+    #@ no_exception \all
     def __hash__(self) -> int:
         return 0
 

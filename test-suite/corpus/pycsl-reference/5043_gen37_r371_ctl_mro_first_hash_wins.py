@@ -1,4 +1,4 @@
-r"""Test 5043 -- gen #37 route #371 (expected PASS): CONTROL: `D(N, M)`, `N.__hash__` comes first in the MRO, `M.__hash__ = None` is shadowed: hashable (CPython ok).
+r"""Test 5043 -- gen #37 route #371 (expected PASS): CONTROL: `D(N, M)`, `N.__hash__` comes first in the MRO, `M.__hash__ = None` is shadowed: hashable (CPython ok). Route #402: the `__hash__` a hashing site calls carries a verified `#@ no_exception \all` contract.
 """
 # pycsl-expected: PASS
 class M:
@@ -6,6 +6,7 @@ class M:
 
 
 class N:
+    #@ no_exception \all
     def __hash__(self) -> int:
         return 1
 

@@ -687,6 +687,9 @@ AUDITED = {
         "Route #400. 'Call the `visit_*` method directly': control 5685 is witness 5646 with `v.visit_Constant(node)` in place of `v.visit(ast.parse(..))` - VERIFIES (`\\result == 1`, CPython 1)."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n369, \'lineno\', 0)}: the construction `{_ast341.unparse(_n369)}` builds the exception class '): (FOLLOWABLE,
         "Route #393. 'Give the class a plain `def __init__`': control 5680's `F(ValueError)` with `def __init__(self, code: int)` constructed `F(code=3)` under `no_exception` - VERIFIES (witness 5651 has a `__new__` instead)."),
+    # (#49) gen #37 -- route #402 (e3, run #3), audited the day it landed.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_h349)}` (an instance of {sorted(_qc402)}) is COMPARE'): (FOLLOWABLE,
+        "Route #402. 'Give `__eq__` the contract `#@ no_exception \\all` (and no `requires`)': witness 5785 with the contract added is now ADMITTED and its own proof catches the raising body (`no_exception: own raise ValueError reachable` of `d____eq__`); with a total body (`return True`) it VERIFIES, as control 5800's verified `__eq__` in `{a, b, e}` does."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -954,6 +957,8 @@ AUDITED_HASH = {
     # (#49) gen #37 -- routes #341 / #342
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"class \'{_k341.name}\' at line {_k341.lineno}: its base `{_ast341.unparse(_b341)}` {_why341}. The verifier reads a class\'s b'): '7b0eff44fa4d',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_n341, \'lineno\', 0)}: `{_cl341}` stores an object\'s `__class__`, which changes the class of an EXISTING inst'): '8d985b794c44',
+    # (#49) gen #37 -- route #402
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_h349)}` (an instance of {sorted(_qc402)}) is COMPARE'): '75801c49722c',
 }
 
 

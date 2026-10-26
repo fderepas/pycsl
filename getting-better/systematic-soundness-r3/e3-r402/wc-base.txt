@@ -1,0 +1,15 @@
+5780_gen37_r402_own_hash_raises.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5781_gen37_r402_own_hash_requires.py	rc=0	Sub-goal no_exception: own raise ValueError reachable of goal d____hash__'vc. 
+5782_gen37_r402_inherited_hash_raises.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5783_gen37_r402_tuple_elem_hash_raises.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5784_gen37_r402_frozen_field_hash_raises.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5785_gen37_r402_eq_collision_raises.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5786_gen37_r402_tuple_eq_collision_raises.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5787_gen37_r402_dataclass_eq_field_raises.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5788_gen37_r402_subclass_eq_raises.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5789_gen37_r402_starred_eq_collision_raises.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5800_gen37_r402_ctl_verified_hash_eq.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5801_gen37_r402_ctl_eq_unverified_no_compare.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+4694_gen37_r349_ctl_explicit_hash.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+4940_gen37_r364_ctl_eq_and_hash_defs.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 
+5043_gen37_r371_ctl_mro_first_hash_wins.py	rc=0	[+] Verification SUCCESS! All contracts formally proven. 

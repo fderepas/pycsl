@@ -4833,6 +4833,33 @@ $C$ or a file ancestor of $C$ defines a `def visit_*`, then a `Call` whose `func
 `Attribute` `visit` / `generic_visit` inside a module-level function or a method whose IR entry
 is not `trusted` / `abstract` makes the translation undefined
 (`PYCSL-R400-NODEVISITOR-DISPATCH`).
+
+### §T.6.68  Hashing sites call `__hash__` / `__eq__` (route #402, gen #37)
+
+_Corresponds to `annotations.md` §7.57._
+
+Refusal only, in §T.6.46's unhashability fixpoint and §T.6.61's step (mirror twin `\trusted`;
+no emission change). $H_v$ (§T.6.61) is narrowed to the IR functions that are neither `trusted`
+nor `abstract`, carry `no_exception_all`, have an empty `requires` list and a
+`return_annotation` of `bool` for a name ending in `____eq__`, `int` otherwise. In the MRO walk,
+when the deciding class $A$ binds `__hash__` only by top-level undecorated `def`s and
+`a____hash__` $\notin H_v$ ($a$ the lowered name of $A$), $u'(C) = \mathit{true}$.
+
+A second least fixpoint $q$ over the file classes and functional namedtuples: $q'(C)$ is true when
+$C$'s C3 linearisation is unknown, or its first file class $A$ that binds `__eq__` in its own
+body has a binding list other than one top-level undecorated `def` with `a____eq__` $\in H_v$, or
+its first file class that is a `@dataclass` with `eq` $\ne$ `False` or an immutable record (§T.6.39's
+$\mathit{imm}$) has, over its base closure's annotated fields, an annotation that is not eq-safe
+under $q$ (an `_HB366` name; a file class $K$ with $\neg q(K)$; Optional / Union / `|` / Tuple /
+List / Set / FrozenSet / Dict of eq-safe annotations; the first argument of Annotated / Final /
+ClassVar; Literal / type), or its functional-namedtuple ancestor has $q$; then every file base
+of a class with $q'$ gets $q'$. $Q$ is the true set at the fixpoint (all classes, when the
+iteration bound is reached).
+
+At a hashing site $n$ (§T.6.46) that is not a `Call` of the builtin `hash`, a `Set` with one
+non-`Starred` element or a `Dict` with one non-`None` key, the hashed value's class set $K$
+(including its tuple elements; `#UNK` / `#UNKT` read as $Q$) with $K \cap U = \emptyset$ and
+$K \cap Q \ne \emptyset$ makes the translation undefined (`PYCSL-R402-UNVERIFIED-EQ`).
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

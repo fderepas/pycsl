@@ -4982,7 +4982,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if not isinstance(_f395, dict) or _f395.get("trusted") or _f395.get("abstract"):
                 continue
             _ct395 = _f395.get("contracts") or {}
-            if _ct395.get("no_exception_all"):
+            # (#402) a hashing site calls `__hash__` / `__eq__` with no precondition and
+            # reads the result as an `int` / a truth value: the method is verified only
+            # without `requires` and with the return annotation `int` / `bool`
+            if (_ct395.get("no_exception_all") and not _ct395.get("requires")
+                    and _f395.get("return_annotation") == (
+                        "bool" if str(_f395.get("name")).endswith("____eq__") else "int")):
                 _hv395.add(_f395.get("name"))
         _hd395 = {_cn346 for _cn346, _ks346 in _cls341.items() for _k346 in _ks346
                   for _s346 in _k346.body
@@ -4990,6 +4995,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                   and _s346.name == "__hash__"
                   and _cn346.lower() + "____hash__" not in _hv395}
         _uh349 = {}
+        # (#402) `_eb402[C]`: the `__eq__` bindings of class C's own body (True: a top-level
+        # undecorated `def`), filled by the MRO walk below (every file class is walked)
+        _eb402 = {}
         for _it366 in range(len(_cls341) + len(_fnt366) + 3):
             _nu366 = {}
             for _cn346 in list(_cls341) + [_f for _f in _fnt366 if _f not in _cls341]:
@@ -5030,6 +5038,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _own349 = None
                         _eq349 = False
                         _hb364 = []
+                        _ed402 = []
                         for _k346 in _cls341[_a346]:
                             _sq364 = [(_s, True) for _s in _k346.body]
                             while _sq364:
@@ -5063,8 +5072,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         _hb364.append(_df364)
                                     elif _bx364 == "__eq__":
                                         _eq349 = True
+                                        _ed402.append(_df364)
+                        _eb402[_a346] = _ed402
                         if _hb364:
                             _own349 = not all(_hb364)
+                            # (#402) the class's OWN `def __hash__` runs at every hashing
+                            # site: unless it is a verified method (`_hv395`), the class
+                            # counts as unhashable
+                            if not _own349 and _a346.lower() + "____hash__" not in _hv395:
+                                _own349 = True
                         if _own349 is None and _a346 in _dc346:
                             _o346 = _dc346[_a346]
                             if _o346["unsafe_hash"] is True:
@@ -5151,6 +5167,103 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         else:
             _uh349 = {_c: True for _c in _uh349}
         _u349 = {_c for _c, _u in _uh349.items() if _u}
+        # (#49) gen #37, ROUTE #402 (MEASURED PROVED at 526d534de, CPython ValueError) -- a
+        # set / dict COMPARES a hashed value with the elements already in it whose hash is
+        # equal, calling `__eq__`, which the model never calls (an opaque collection). RULE
+        # (the `_q402` EQ-RISKY classes, a least fixpoint like the hash one): along the C3
+        # MRO the first class that decides `__eq__` -- an own binding (any form, #364), or
+        # a `@dataclass` with `eq` (its generated `__eq__` compares the fields), or a
+        # NamedTuple / functional namedtuple (tuple equality) -- makes the class eq-risky
+        # unless the binding is ONE top-level undecorated `def __eq__` verified like
+        # `__hash__` above (`_hv395`: `no_exception \all`, no `requires`, `-> bool`), or
+        # every compared field annotation is eq-safe (`_HB366` names, an eq-safe class of
+        # the file, or Optional / Union / `|` / Tuple / List / Set / FrozenSet / Dict /
+        # Annotated / Final / ClassVar / Literal / type of those); an unknown C3
+        # linearisation is eq-risky; a class with an eq-risky file subclass is eq-risky
+        # (closed world, #395). Outside bases keep their builtin `__eq__` (an outside base
+        # that is not hashable already makes the class unhashable, #381).
+        _er402 = {}
+        for _it402 in range(len(_cls341) + len(_fnt366) + 3):
+            _ne402 = {}
+            for _cn346 in list(_cls341) + [_f for _f in _fnt366 if _f not in _cls341]:
+                _r402 = False
+                _fl402 = None
+                if _cn346 in _fnt366 and _cn346 not in _cls341:
+                    _fl402 = list(_fnt366[_cn346])
+                else:
+                    _mr402 = _mro363.get(_cn346)
+                    if _mr402 is None or (_cn346 not in _eb402):
+                        _r402 = True
+                    for _a346 in (_mr402 or []):
+                        if _a346 not in _cls341:
+                            if _a346 in _fnt366:
+                                _r402 = bool(_er402.get(_a346))
+                                break
+                            continue
+                        if _eb402.get(_a346, [False]):
+                            _r402 = not (_eb402.get(_a346) == [True]
+                                         and _a346.lower() + "____eq__" in _hv395)
+                            break
+                        if ((_a346 in _dc346 and _dc346[_a346]["eq"] is not False)
+                                or _a346 in _imm348):
+                            _fl402 = [_fan for _a in _clo346[_a346]
+                                      for _fan in _cf346.get(_a, {}).values()]
+                            break
+                if _fl402 is not None and not _r402:
+                    _fq402 = list(_fl402)
+                    while _fq402 and not _r402:
+                        _z402 = _fq402.pop()
+                        if isinstance(_z402, _ast341.Constant) and isinstance(_z402.value, str):
+                            try:
+                                _fq402.append(_ast341.parse(_z402.value, mode="eval").body)
+                            except (SyntaxError, ValueError):
+                                _r402 = True
+                        elif (isinstance(_z402, _ast341.Constant)
+                              and (_z402.value is None or _z402.value is Ellipsis)):
+                            pass
+                        elif (isinstance(_z402, _ast341.Name) and _z402.id in _al383
+                              and _z402.id not in _cls341 and _z402.id not in _fnt366
+                              and len(_fq402) < 256):
+                            _fq402.append(_al383[_z402.id])
+                        elif isinstance(_z402, (_ast341.Name, _ast341.Attribute)):
+                            _zn402 = _z402.id if isinstance(_z402, _ast341.Name) else _z402.attr
+                            if _zn402 in _cls341 or _zn402 in _fnt366:
+                                _r402 = bool(_er402.get(_zn402))
+                            elif _zn402 not in _HB366:
+                                _r402 = True
+                        elif (isinstance(_z402, _ast341.BinOp)
+                              and isinstance(_z402.op, _ast341.BitOr)):
+                            _fq402.extend([_z402.left, _z402.right])
+                        elif isinstance(_z402, _ast341.Subscript):
+                            _hv402 = _z402.value
+                            _hn402 = (_hv402.id if isinstance(_hv402, _ast341.Name) else
+                                      _hv402.attr if isinstance(_hv402, _ast341.Attribute)
+                                      else "")
+                            _el402 = (list(_z402.slice.elts)
+                                      if isinstance(_z402.slice, _ast341.Tuple)
+                                      else [_z402.slice])
+                            if _hn402 in ("Optional", "Union", "Tuple", "tuple", "List", "list",
+                                          "Set", "set", "FrozenSet", "frozenset", "Dict",
+                                          "dict"):
+                                _fq402.extend(_el402)
+                            elif _hn402 in ("Annotated", "Final", "ClassVar"):
+                                _fq402.extend(_el402[:1])
+                            elif _hn402 not in ("Literal", "type", "Type"):
+                                _r402 = True
+                        else:
+                            _r402 = True
+                _ne402[_cn346] = _r402
+            for _cn346 in list(_ne402):
+                if _cn346 in _cls341 and _ne402[_cn346]:
+                    for _a346 in _clo346.get(_cn346, [])[1:]:
+                        if _a346 in _ne402:
+                            _ne402[_a346] = True
+            if _ne402 == _er402:
+                break
+            _er402 = _ne402
+        else:
+            _er402 = {_c: True for _c in _er402}
+        _q402 = {_c for _c, _r in _er402.items() if _r}
         _keyed349 = ("Set", "set", "FrozenSet", "frozenset", "AbstractSet", "MutableSet",
                      "Dict", "dict", "Mapping", "MutableMapping", "DefaultDict",
                      "defaultdict", "OrderedDict", "Counter", "ChainMap")
@@ -5168,10 +5281,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"key position. Its instances have `__hash__ = None` (an explicit "
                         f"`__hash__ = None`, a `@dataclass` with `eq` and without `frozen` "
                         f"/ `unsafe_hash`, or an `__eq__` without `__hash__`), so CPython "
-                        f"raises TypeError on any such set or dict, while the model lowers "
+                        f"raises TypeError on any such set or dict, or a `__hash__` that is "
+                        f"not a verified method (`#@ no_exception \\all`, no `requires`, "
+                        f"`-> int`; routes #395 / #402), while the model lowers "
                         f"it as an opaque value (route #349). Make the class hashable "
-                        f"(`@dataclass(frozen=True)`, or define `__hash__`) or key the "
-                        f"collection by a field.",
+                        f"(`@dataclass(frozen=True)`, or define a verified `__hash__`) or "
+                        f"key the collection by a field.",
                         stage="ir-semantic", code="PYCSL-R349-UNHASHABLE-RECORD")
         # (c) constructor arity. `_sg369[C]` = (positional [(name, has_default)],
         # keyword-only {name: has_default}, *args?, **kwargs?, positional-only names) or
@@ -7445,6 +7560,34 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if "#UNK" in _hc349 or "#UNKT" in _hc349:
                         _hc349 |= _u349 | ({"#UB"} if "#UNK" in _hc349
                                            and id(_n346) not in _gr383g else set())
+                    # (#402) a site that may COMPARE the value with an element already in
+                    # the collection calls `__eq__`: every site but `hash(x)` and a one-key
+                    # set / dict display. An eq-risky class there is refused.
+                    _qc402 = (set() if (
+                        (isinstance(_n346, _ast341.Set) and len(_n346.elts) == 1
+                         and not isinstance(_n346.elts[0], _ast341.Starred))
+                        or (isinstance(_n346, _ast341.Dict) and len(_n346.keys) == 1
+                            and _n346.keys[0] is not None)
+                        or (isinstance(_n346, _ast341.Call)
+                            and isinstance(_n346.func, _ast341.Name)
+                            and _n346.func.id == "hash"))
+                              else (_hc349 & _q402) | (_q402 if "#UNK" in _hc349
+                                                       or "#UNKT" in _hc349 else set()))
+                    if _qc402 and not (_hc349 & _u365):
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n346, 'lineno', 0)}: "
+                            f"`{_ast341.unparse(_h349)}` (an instance of {sorted(_qc402)}) "
+                            f"is COMPARED by `{_ast341.unparse(_n346)}`: a set / dict calls "
+                            f"`__eq__` between a value and an element of equal hash, and the "
+                            f"class (or a file subclass of it) has an `__eq__` that is not a "
+                            f"verified method -- a binding other than one top-level `def "
+                            f"__eq__(self, o) -> bool` without `requires` carrying `#@ "
+                            f"no_exception \\all`, or a `@dataclass` / NamedTuple equality "
+                            f"over a field of such a class or of an unknown type -- while "
+                            f"the model lowers the collection as an opaque value and never "
+                            f"calls it (route #402). Give `__eq__` the contract "
+                            f"`#@ no_exception \\all` (and no `requires`), or key by a field.",
+                            stage="ir-semantic", code="PYCSL-R402-UNVERIFIED-EQ")
                     _hc349 = {_c if _c != "#UB" else "a list / dict / set"
                               for _c in _hc349 & _u365}
                     if _hc349:
@@ -7459,12 +7602,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"explicit `__hash__ = None`, a `@dataclass` with `eq` and without "
                             f"`frozen` / `unsafe_hash`, an `__eq__` without `__hash__`, or "
                             f"an unhashable field of a NamedTuple / frozen record), or a FILE "
-                            f"SUBCLASS of it has (or defines a `__hash__` not verified "
-                            f"`no_exception`, route #395), so "
-                            f"CPython raises here, while the model lowers the "
+                            f"SUBCLASS of it has; or the class or a file subclass defines a "
+                            f"`__hash__` that is not a verified method (`#@ no_exception "
+                            f"\\all`, no `requires`, `-> int`; routes #395 / #402), so "
+                            f"CPython may raise here, while the model lowers the "
                             f"collection as an opaque value (route #349). Make the class "
-                            f"hashable (`@dataclass(frozen=True)`, or define `__hash__`) "
-                            f"or key by a field.",
+                            f"hashable (`@dataclass(frozen=True)`, or define a verified "
+                            f"`__hash__`) or key by a field.",
                             stage="ir-semantic", code="PYCSL-R349-UNHASHABLE-RECORD")
         # ROUTE #361 — `InitVar` / `KW_ONLY` PSEUDO-FIELDS WERE MODELLED AS STORED FIELDS.
         # `k: InitVar[int]` and `_: KW_ONLY` joined the record and #347's synthesized

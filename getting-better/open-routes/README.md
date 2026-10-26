@@ -10,6 +10,27 @@
 ## run #3 (2026-10-26): #402 (a user `__hash__` on the static class itself is never called in the model: a raising `__hash__`
 ##   proves `{d}` under no_exception) OPENED (e1 residual of #395, driver-reproduced rc=0, CPython ValueError).
 
+## gen #37 / run #3 (2026-10-26): #402 REPAIRED, candidate (e3 executor off 526d534de; code + corpus + census + docs, annotations 7.57 /
+##   translational T.6.68, route REPAIR section; inline in `_run_pipeline`, no new def, no emission change, ledger unchanged). Option (b)
+
+##   allow-list landed, option (a) faithful `__hash__` / `__eq__` call lowering measured and not taken (an emitter + mirror change for the
+
+##   same 4 movers). A `__hash__` / `__eq__` counts only when ONE top-level `def` verified `no_exception \all`, no `requires`, `-> int` /
+
+##   `-> bool`; an MRO-deciding unverified `def __hash__` makes the class unhashable (PYCSL-R349, message extended); EQ-RISKY classes (an
+
+##   unverified `__eq__`, or dataclass / NamedTuple equality over a non-eq-safe field, closed over file subclasses) are refused at every
+
+##   hashing site that may compare (all but `hash(x)` and one-element set / dict displays; new PYCSL-R402-UNVERIFIED-EQ). PASS controls
+
+##   4694 / 4940 / 5043 given an honest `#@ no_exception \all` on their total `__hash__` (emission byte-identical, re-proved base +
+
+##   candidate). Witnesses 5780-5789 PROVED at base -> REFUSED; controls 5800-5801 PROVED both. Root 2438 -> 2440 0/0/0, pyref 2192
+
+##   0/0/0, mirror 53/53 0/0/0, lib screen identical (104). Residuals: cyclic values under field-wise `__eq__`; `__eq__` reached
+
+##   through a stdlib container element; R252 already refuses `a in s` over an annotated `Set[D]` with a user `__eq__`.
+
 ## run #3 (2026-10-26): #401 (a `\trusted` stub's `assigns \nothing` over a body that mutates its PARAMETER in place:
 ##   pure_ast NodeTransformer.generic_visit; check-trusted-frame-honesty only sees self writes) OPENED (e2 side note, driver-confirmed).
 
