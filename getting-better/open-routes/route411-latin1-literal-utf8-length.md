@@ -1,5 +1,5 @@
 # OPEN ROUTE #411 — A NON-ASCII LATIN-1 STRING LITERAL IS EMITTED AS ITS UTF-8 BYTES: "é" HAS LENGTH 2 IN THE MODEL
-**Status: OPEN (repair attempted, held: root cause wider, user decision), Severity 1.** Red-team round 32 (2026-10-26, probes around the allow-list repairs #392-#402 + R5-str); driver-reproduced on 085ee3dcc (rc=0 "Verification SUCCESS"; CPython violates; see `scratchpad/rt32/driver-repro.txt`).
+**Status: REPAIRED, candidate (u411, driver run #3, 2026-10-27; see REPAIR below; whole-file proofs of the big moved mirrors OWED), Severity 1.** Red-team round 32 (2026-10-26, probes around the allow-list repairs #392-#402 + R5-str); driver-reproduced on 085ee3dcc (rc=0 "Verification SUCCESS"; CPython violates; see `scratchpad/rt32/driver-repro.txt`).
 Witnesses `witnesses-r411/`: `g03_utf8_index_exc.py`, `j22_utf8_contract_index.py`, `g04_utf8_index_eq.py`, `j26_utf8_contains_byte.py`, `h07_utf8_neq.py`.
 
 ```
@@ -54,3 +54,39 @@ DESIGN OPTIONS (each moves the population above; none is a new axiom, but each i
 Owed to the user: the choice, and the mirror re-proof budget it implies. The narrow encoder change is kept as a
 patch in the executor's report (`r411-narrow-encoder.patch`), not committed: alone it moves 1 mirror and closes
 nothing under Z3.
+
+## REPAIR (executor u411, driver run #3, 2026-10-27, off 77b33f239; annotations §7.90, translational §T.6.101)
+Option (a), FAITHFUL, chosen after the spike (`getting-better/systematic-soundness-r3/u411-r411/SPIKE.md`). Option (c) is
+not available: Why3 1.8.2's `smtv2.ml` `escape` is hard-coded (no driver keyword reaches it) and Z3 4.13.3 reads
+`"\x0A"` as 4 characters under `encoding=unicode|ascii|bmp` alike (`probes/z.smt2`).
+- `whyml_string_literal`: a code point 128..255 is ONE `\xHH` (g2's narrow patch). Above 255: UTF-8 bytes (LATIN1-STR).
+- `_run_pipeline` (mirror twin `\trusted`), last step: every WhyML string literal of the emitted text (comments and
+  `[@..]`/`[#..]` skipped) is decoded by Why3's lexer rules; one made only of printable ASCII other than `"` / `\` is
+  untouched, any other becomes `pystr_cat` of its printable runs and `(pystr_chr N)` per other byte. Module
+  `PyCSL_StrLit` (head of file, `use`d by each module that reads it): `val function pystr_chr` with
+  `0 <= n < 256 -> length = 1 /\ pystr_code result = n` and, for a non-printable / `"` / `\` code, a GROUND
+  disequality from each of the 93 printable one-character literals; `val function pystr_cat = concat`. Every clause is
+  true of the one-character string of code point n (satisfiable spec, no `axiom`, no `assume`; assumed-facts 88 -> 88).
+  One pass covers body literals, contract literals (route #417's decode) and the generic folds' own literals.
+- Encodings MEASURED and rejected on the way: `(Char.chr n).Char.contents` (g2's (a)) proves lengths but cannot show
+  `"\n" != "-"` (`string.Char` relates no Char to the solver's characters) and its axioms broke the mirror
+  `canonical.term__size_pos` lemma; `String.lt` order clauses pull Why3's `lt_*` axioms and `String.contains` pulls
+  `concat_substring` into string search: Z3 out of memory on goals needing the fact. A `let function .. = any ..`
+  definition does not discharge its existence VC (`pystr_cat'vc` OOM).
+- MIRROR FALSE PROOF EXPOSED: `audit_proof._strip_lean_comments` proved at base ONLY because `"\n"` was 4 characters
+  (the skip-to-EOL loop then provably ran to the end of the text). Its inner loop invariant `i >= 0` cannot show
+  progress; strengthened to `#@ label SKIP_EOL` / `#@ loop invariant i >= \at(i, SKIP_EOL)` (annotation only, body
+  verbatim, fidelity green). Whole file proves at the candidate.
+
+MEASUREMENTS (logs in `getting-better/systematic-soundness-r3/u411-r411/`):
+- byte-diff vs base: root 2497/2497 + 10 new (6200-6209): 10 MOVED (0742, 0958, 0959, 1956, 1957, 1958, 1959, 5700,
+  6106, 6107), 0 GONE, 0 APPEARED; pyref 2186/2186: 4 MOVED (0020, 0023, 0028, 0030); mirror 53/53: 18 MOVED. Each set
+  is EXACTLY the files an independent census (`litcensus.py`) finds holding a non-printable literal at base; 0 at the
+  candidate. `m1check.py`: every corpus/pyref diff is exactly the literal re-encoding + the module/`use` lines; the 18
+  mirror diffs likewise except audit_proof (U+00B7 one char; the invariant above). g2's 122 / 4 / 30 was a raw grep.
+- Movers re-proved base AND candidate: 14/14 verdicts kept (10 PROVED; 1957, 1959, 6106, 6107 FAIL as expected; prover
+  Unknown, not type errors). All 18 moved mirrors type-check.
+- Witnesses 6200-6207 + g03 g04 h07 j22 j26 + p411: PROVED at base, FAIL at candidate. Controls 6208, 6209 (lengths of
+  `"é"`, `"\n"`, `"a\"b"`, `"a\\b"`, concat length, `"\n" != "\r"`): FAIL at base, PROVED at candidate.
+- fidelity rc=0 (932 verbatim, 53/53 in sync); planes 61/61; doc-coherency rc=0; `\trusted` 442 -> 442.
+- Mirror whole-file proofs: see the open-routes README entry for the done / OWED list.

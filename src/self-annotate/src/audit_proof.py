@@ -266,7 +266,8 @@ def _strip_lean_comments(text: str) -> str:
         # Line comment
         elif i + 1 < n and text[i] == "-" and text[i + 1] == "-":
             # Skip to EOL
-            #@ loop invariant i >= 0
+            #@ label SKIP_EOL
+            #@ loop invariant i >= \at(i, SKIP_EOL)
             #@ loop variant n - i
             while i < n and text[i] != "\n":
                 i += 1

@@ -113,6 +113,17 @@
 
 ##   true-division overflow, #414 size limits, #415 `%` formatting, #416 dict mutation while iterating a view.
 
+## run #3 (2026-10-27): #411 REPAIRED, candidate (u411 off 77b33f239; annotations 7.90 / translational T.6.101; corpus
+##   6200-6209; route REPAIR section). WIDER than filed: Why3 1.8.2 prints every literal character outside printable ASCII,
+##   and `"` / `\`, as `\xHH`, which Z3 4.13 reads as 4 characters, so `"\n"`, `"\t"`, `"a\"b"` had the wrong length too
+##   (`requires s == "\n"; ensures len(s) == 4` PROVED). Final-text literal pass in `_run_pipeline` (twin `\trusted`):
+##   such literals become `pystr_cat` / `pystr_chr N` (module PyCSL_StrLit: length 1, injective code, ground
+##   disequality from the 93 printable one-char literals; no axiom, assumed-facts 88 -> 88); code points 128..255 are one
+##   character. Root 10 / pyref 4 / mirror 18 MOVED (exactly the census of non-printable literals; diffs = re-encoding
+##   only), 14/14 corpus verdicts kept, witnesses flip, controls prove; fidelity, planes 61/61, `\trusted` 442 -> 442.
+##   Exposed a mirror proof that rested on the bug (audit_proof `_strip_lean_comments`; invariant strengthened, proves).
+##   Whole-file mirror proofs: see the route doc / final report (big mirrors OWED if not listed done).
+
 ## run #3 (2026-10-27): #417 REPAIRED, candidate (r417 executor, completed and gated by r417b off 930d68ed5; code + corpus
 ##   6100-6125 + census + advice audit + docs, annotations 7.80-7.83 / translational T.6.91-T.6.94, route REPAIR section; no new
 

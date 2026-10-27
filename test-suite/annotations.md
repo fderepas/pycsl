@@ -3400,6 +3400,21 @@ directly or through further same-file calls, is refused
 (`PYCSL-R430-CALLEE-UNDERIVABLE-HASH`). A named claim cannot carry TypeError (it is not a known
 exception), so only `\all` is concerned. Witnesses `6460`-`6462`; controls `6463` (the callee
 hashes a `str`), `6464` (an un-claimed caller).
+### 7.90 A string literal's characters reach the solver as the characters they are (route #411, run #3)
+
+
+A Python `str` is a Why3 `string`, and Z3 decides it with its native string theory. Why3 1.8.2's
+SMT-LIB printer writes every literal character outside printable ASCII -- and `"` and `\` -- as
+`\xHH`, which SMT-LIB 2.6 (Z3 4.13) reads as FOUR characters; and a Latin-1 code point (`"é"`,
+U+00E9) was emitted as its two UTF-8 bytes. So `len("é")`, `len("\n")`, `len("a\"b")` were 2 / 4 / 6
+in the model: `"é"[1]` and `"\t"[1]` PROVED `no_exception \all`, `requires s == "\n"; ensures
+\result == 4` over `len(s)` PROVED (CPython: IndexError, 1). RULE: a code point 0..255 is ONE
+character of the model (a code point above 255 keeps its UTF-8 bytes: declared assumption
+LATIN1-STR), and a literal holding any character other than printable ASCII without `"` / `\` is
+emitted as the concatenation of its printable runs and one `pystr_chr N` per other character, a
+one-character string of code `N` distinct from every printable one-character string. The same holds
+for a literal in a contract (§7.81) and for every literal the emitter writes itself. A literal of
+printable characters is unchanged. No refusal. Witnesses `6200`-`6207`; controls `6208`-`6209`.
 
 ### 7.133 An attribute of a receiver that may be `None` or of several classes is refused under an AttributeError claim (route #432, run #3)
 

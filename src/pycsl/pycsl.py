@@ -19408,6 +19408,156 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"with an explicit `requires`.",
             filename=args.file, stage="ir-semantic",
             code="PYCSL-R325-OPAQUE-INT-FALLBACK")
+    # (#49) ROUTE #411 -- A STRING LITERAL'S CHARACTERS MUST REACH THE SOLVER AS THE
+    # CHARACTERS THEY ARE. Why3 1.8.2's SMT-LIB printer (`src/printer/smtv2.ml`, `escape`,
+    # hard-coded: no driver option exists) writes every string-literal byte outside printable
+    # ASCII -- and `"` and `\` -- as `\xHH`, but SMT-LIB 2.6 (Z3 >= 4.8.10) has only
+    # `\u{..}` / `\uXXXX` escapes, so Z3 reads `\xE9` as the FOUR characters `\`,`x`,`E`,`9`.
+    # MEASURED (Why3 1.8.2 + Z3 4.13.3): `String.length "\xe9" = 4` and
+    # `String.length "\n" = 4` are Valid, `= 1` is Unknown -- so `"é"[1]` under
+    # `no_exception \all`, `len(s) > 1` for `s == "é"`, and every analogue over a `"\n"`,
+    # `"\t"`, `"\""` or `"\\"` literal PROVED (CPython: IndexError / False).
+    # REPAIR, at the ONE point every literal passes through whatever emitter produced it
+    # (`whyml_string_literal`, the contract-literal decode of route #417, the hand-written
+    # literals of the generic folds): every WhyML string literal is LEXED (Why3's own rules,
+    # `src/util/lexlib.mll`: comments skipped, attributes `[@..]` / `[#..]` skipped) and
+    # DECODED; a literal whose characters are all printable ASCII other than `"` / `\` is
+    # left byte-identical (Why3 prints it verbatim, Z3 reads it verbatim). Any other literal
+    # becomes the concatenation of its safe runs and one `(pystr_chr N)` per other
+    # character (`pystr_cat` is `concat`). `pystr_chr N` (0 <= N < 256) is specified by
+    # three facts, each TRUE of the one-character string of code point N, so the spec is
+    # satisfiable (witness: the solver's own character N) and adds no false fact:
+    #   * its length is 1;
+    #   * `pystr_code (pystr_chr N) = N` (an uninterpreted logic function: two different
+    #     codes give two different strings -- `"\n" != "\r"`);
+    #   * for a non-safe N it differs from each of the 93 safe one-character literals
+    #     (`"\n" != "-"`; a GROUND disequality list, deliberately not `String.lt` /
+    #     `String.contains`: MEASURED, those pull Why3's quantified `lt_*` /
+    #     `concat_substring` axioms into string-theory search and Z3 runs out of memory on
+    #     goals that need the fact).
+    # It is deliberately NOT `(Char.chr N).Char.contents`: `string.Char` does not relate a
+    # Char to the solver's characters (so `"\n" != "-"` is unprovable through it) and its
+    # axioms perturbed unrelated goals in the same module (measured: the mirror
+    # `canonical.term__size_pos` lemma). Both are `val function`s (program AND logic
+    # symbols: a literal stands in both positions). The guards (`0 <= N < 256`) keep the
+    # spec satisfiable: unguarded, injectivity over all integers would demand infinitely
+    # many one-character strings. They live in a module `PyCSL_StrLit` emitted at the
+    # head of the file and `use`d by every module whose text reads them. A file with no
+    # such literal is byte-identical.
+    _o411: List[str] = []
+    _i411, _n411, _dep411, _hit411 = 0, len(_mlw), 0, False
+    while _i411 < _n411:
+        if _dep411:
+            if _mlw.startswith("(*)", _i411):
+                _o411.append("(*)"); _i411 += 3
+            elif _mlw.startswith("*)", _i411):
+                _o411.append("*)"); _i411 += 2; _dep411 -= 1
+            elif _mlw.startswith("(*", _i411):
+                _o411.append("(*"); _i411 += 2; _dep411 += 1
+            else:
+                _o411.append(_mlw[_i411]); _i411 += 1
+            continue
+        if _mlw.startswith("(*)", _i411):
+            _o411.append("("); _i411 += 1
+            continue
+        if _mlw.startswith("(*", _i411):
+            _o411.append("(*"); _i411 += 2; _dep411 = 1
+            continue
+        if _mlw.startswith(("[@", "[#"), _i411):
+            _j411 = _mlw.find("]", _i411)
+            _j411 = _n411 - 1 if _j411 < 0 else _j411
+            _o411.append(_mlw[_i411:_j411 + 1]); _i411 = _j411 + 1
+            continue
+        if _mlw[_i411] != '"':
+            _o411.append(_mlw[_i411]); _i411 += 1
+            continue
+        # a string literal: decode it the way `lexlib.mll` rule `string` does
+        _j411, _by411, _bad411 = _i411 + 1, [], False
+        while _j411 < _n411 and _mlw[_j411] != '"':
+            _ch411 = _mlw[_j411]
+            if _ch411 != "\\":
+                _by411.append(ord(_ch411)); _j411 += 1
+                continue
+            _nx411 = _mlw[_j411 + 1:_j411 + 2]
+            if _nx411 == "\n":
+                _j411 += 2
+                while _j411 < _n411 and _mlw[_j411] in " \t":
+                    _j411 += 1
+            elif (_mlw[_j411 + 1:_j411 + 4].isdigit() and len(_mlw[_j411 + 1:_j411 + 4]) == 3
+                    and int(_mlw[_j411 + 1:_j411 + 4]) <= 255):
+                _by411.append(int(_mlw[_j411 + 1:_j411 + 4])); _j411 += 4
+            elif (_nx411 == "x" and len(_mlw[_j411 + 2:_j411 + 4]) == 2
+                    and all(_h in "0123456789abcdefABCDEF" for _h in _mlw[_j411 + 2:_j411 + 4])):
+                _by411.append(int(_mlw[_j411 + 2:_j411 + 4], 16)); _j411 += 4
+            elif (_nx411 == "o" and len(_mlw[_j411 + 2:_j411 + 5]) == 3
+                    and _mlw[_j411 + 2] in "0123"
+                    and all(_h in "01234567" for _h in _mlw[_j411 + 2:_j411 + 5])):
+                _by411.append(int(_mlw[_j411 + 2:_j411 + 5], 8)); _j411 += 5
+            elif _nx411 in ("\\", "n", "r", "t", "b", "'", '"'):
+                _by411.append(ord({"n": "\n", "r": "\r", "t": "\t",
+                                   "b": "\b"}.get(_nx411, _nx411)))
+                _j411 += 2
+            else:
+                _bad411 = True; _j411 += 2
+        _tok411 = _mlw[_i411:_j411 + 1]
+        _i411 = _j411 + 1
+        if _bad411 or all(32 <= _b411 <= 126 and _b411 not in (34, 92) for _b411 in _by411):
+            # printable (or not a literal Why3 accepts: its own error stays its verdict)
+            _o411.append(_tok411)
+            continue
+        _parts411: List[str] = []
+        _run411 = ""
+        for _b411 in _by411:
+            if 32 <= _b411 <= 126 and _b411 not in (34, 92):
+                _run411 += chr(_b411)
+            else:
+                if _run411:
+                    _parts411.append(f'"{_run411}"'); _run411 = ""
+                _parts411.append(f"(pystr_chr {_b411})")
+        if _run411:
+            _parts411.append(f'"{_run411}"')
+        _acc411 = _parts411[-1]
+        for _p411 in reversed(_parts411[:-1]):
+            _acc411 = f"(pystr_cat {_p411} {_acc411})"
+        _o411.append(_acc411)
+        _hit411 = True
+    if _hit411:
+        _ln411 = "".join(_o411).split("\n")
+        _res411: List[str] = []
+        _first411 = True
+        _k411 = 0
+        while _k411 < len(_ln411):
+            _l411 = _ln411[_k411]
+            if _l411.startswith(("module ", "theory ")):
+                _e411 = _k411 + 1
+                while _e411 < len(_ln411) and _ln411[_e411] != "end":
+                    _e411 += 1
+                _blk411 = "\n".join(_ln411[_k411:_e411 + 1])
+                if _first411:
+                    _res411 += ["module PyCSL_StrLit",
+                                "  use int.Int",
+                                "  use string.String",
+                                "  function pystr_code (s: string) : int",
+                                "  val function pystr_chr (n: int) : string",
+                                "    ensures { 0 <= n < 256 -> String.length result = 1 "
+                                "/\\ pystr_code result = n }",
+                                "    ensures { (0 <= n < 32 \\/ n = 34 \\/ n = 92 \\/ 126 < n < 256) -> ("
+                                + " /\\ ".join('result <> "%s"' % chr(_c411)
+                                               for _c411 in range(32, 127)
+                                               if _c411 not in (34, 92))
+                                + ") }",
+                                "  val function pystr_cat (a b: string) : string",
+                                "    ensures { result = String.concat a b }",
+                                "end", ""]
+                    _first411 = False
+                _res411.append(_l411)
+                if "(pystr_chr " in _blk411 or "(pystr_cat " in _blk411:
+                    _res411.append("  use PyCSL_StrLit")
+                _k411 += 1
+                continue
+            _res411.append(_l411)
+            _k411 += 1
+        _mlw = "\n".join(_res411)
     return _mlw
 
 

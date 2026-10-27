@@ -220,6 +220,15 @@ def whyml_string_literal(value: str) -> str:
             out.append(esc)
         elif 32 <= ord(ch) <= 126:
             out.append(ch)
+        elif ord(ch) < 256:
+            # (#49) ROUTE #411 -- ONE CODE POINT IS ONE `string.Char`. A Python `str` is
+            # modelled as the Why3 `string` of `string.Char`s, whose codes are 0..255 (the
+            # declared assumption LATIN1-STR). A code point in that range is therefore ONE
+            # Char: `\xHH` of the code point itself. It used to fall to the UTF-8 arm below,
+            # so `"é"` (U+00E9) emitted as the TWO Chars `\xc3\xa9`. (The `\xHH` escape is
+            # then re-encoded for the solver by `_run_pipeline`'s route-#411 literal pass:
+            # Why3's SMT-LIB printer would hand Z3 four characters for it.)
+            out.append(f"\\x{ord(ch):02x}")
         else:
             # Encode the codepoint's UTF-8 bytes as `\xHH` pairs. Why3's
             # `string.Char` models Latin-1 (0..255); for codepoints > 255

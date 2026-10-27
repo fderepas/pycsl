@@ -5205,6 +5205,33 @@ gains `TypeError` in its raw summary, and the summary is closed over same-file c
 call in the claimed body to a $g$ whose closed summary meets only `TypeError` is refused with
 `PYCSL-R430-CALLEE-UNDERIVABLE-HASH` (KeyError / IndexError / ValueError keep route #178's
 message).
+### §T.6.101  String literals: one model character per code point, solver-faithful encoding (route #411, run #3)
+
+_Corresponds to `annotations.md` §7.90._
+
+(1) `whyml_string_literal`: a code point $0x80 \le c \le 0xFF$ is written `\x`$hh(c)$ (one `string`
+character), no longer its UTF-8 bytes. (2) Final pass, inline at the end of `_run_pipeline` (mirror
+twin `\trusted`): every WhyML string literal of the emitted text (outside `(* .. *)` and `[@..]` /
+`[#..]`) is decoded by Why3's lexer rules (`lexlib.mll`) to bytes $b_1 \dots b_k$. Let
+$P = \{32..126\} \setminus \{34, 92\}$. If every $b_i \in P$ the literal is unchanged. Otherwise it
+becomes $\mathit{fold}_\texttt{pystr\_cat}$ over maximal $P$-runs (as plain literals) and
+`(pystr_chr` $b_i$`)` for each $b_i \notin P$. When any literal was rewritten, the module
+```
+module PyCSL_StrLit
+  use int.Int  use string.String
+  function pystr_code (s: string) : int
+  val function pystr_chr (n: int) : string
+    ensures { 0 <= n < 256 -> String.length result = 1 /\ pystr_code result = n }
+    ensures { (0 <= n < 32 \/ n = 34 \/ n = 92 \/ 126 < n < 256) -> result <> " " /\ ... /\ result <> "~" }
+  val function pystr_cat (a b: string) : string  ensures { result = String.concat a b }
+end
+```
+(the second clause lists the 93 one-character literals of $P$) precedes the first module, and every
+`module` whose text names `pystr_chr` / `pystr_cat` gets `use PyCSL_StrLit`. Each clause holds of the
+one-character string of code point $n$ (with `pystr_code` its code), so the specification is
+satisfiable and asserts nothing false of the denoted Python value; the guard $0 \le n < 256$ keeps
+injectivity finite. `string.Char` is deliberately not used: it relates no `Char` to the solver's
+characters, and its axioms perturbed unrelated goals (measured).
 
 ### §T.6.144  Attribute receivers that may be `None` or of several classes (route #432, run #3)
 
