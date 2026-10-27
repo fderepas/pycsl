@@ -21610,6 +21610,38 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                                          "hash", "sum"))
                            or (_k284 == "BinOp" and _v284.get("op") in (
                                "-", "//", "div", "<<", ">>", "&", "|", "^")))
+                # (#49) gen #37, ROUTE #426 (red team 33; MEASURED PROVED at ac28806be, CPython
+                # OverflowError / ValueError) -- the sample test below decides the spec's
+                # VALUE-INDEPENDENT validity; an int SHOWN to be an int has three
+                # value-dependent presentation families, each now owing its bound: decimal
+                # (none / `d` / `n`: route #281's 4300 digits, above), a FLOAT type (`e E f F
+                # g G %`: the int is converted to a float, OverflowError past DBL_MAX, the
+                # bound route #417 puts on `float(n)`, under `\all` only), and `c` (`chr`:
+                # ValueError outside range(0x110000), OverflowError past a C long -- the
+                # range covers both; under `\all`, else the `chr` ValueError row). `b o x X`
+                # raise nothing for any int. Any other operand keeps the sample test (an
+                # operand not shown to be an int is also tried as a str, where these specs
+                # are invalid: the `format_spec` row).
+                if _r231_t == "i" and _r231_c == "n" and _int284 and not self._in_spec:
+                    _al426 = getattr(self, "_current_no_exception_all", False)
+                    _q426 = ""
+                    if _r281_ty in ("e", "E", "f", "F", "g", "G", "%") and _al426:
+                        _m426 = str((2 ** 53 - 1) * 2 ** 971)
+                        _tg426 = "r417_%08x" % (stable_hash(repr(_r231)) & 0xffffffff)
+                        if hasattr(self, "r417_obls"):
+                            self.r417_obls.append(_tg426)
+                        _q426 = (f"assert {{ [@expl:no_exception: OverflowError reachable] "
+                                 f"[@{_tg426}] - {_m426} <= {_r231_w} <= {_m426} }};")
+                    elif _r281_ty == "c" and _al426:
+                        _tg426 = "r417_%08x" % (stable_hash(repr(_r231)) & 0xffffffff)
+                        if hasattr(self, "r417_obls"):
+                            self.r417_obls.append(_tg426)
+                        _q426 = (f"assert {{ [@expl:no_exception: OverflowError reachable] "
+                                 f"[@{_tg426}] 0 <= {_r231_w} < 1114112 }};")
+                    elif _r281_ty == "c":
+                        _q426 = self._maybe_emit_no_exception_assert(("call", "chr"),
+                                                                     [_r231_w])
+                    _p284 = (_p284 + " " + _q426).strip() if _q426 else _p284
                 if _r231_c != "n" or _r231_t == "s":
                     _smp284: List[Any] = [""]
                 elif _int284:

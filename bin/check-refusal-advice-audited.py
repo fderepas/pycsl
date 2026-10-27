@@ -711,6 +711,14 @@ AUDITED = {
         "Route #417. 'Annotate the argument `int` or `float`, or drop `\\all` from the context': witness 6113's `float(g(n))` rewritten `y: int = g(n); x = float(y)` under `requires -1000 <= n <= 1000` is ADMITTED and VERIFIES (a1, rc=0); with `\\all` dropped from `f` it VERIFIES (a2, rc=0); control 6123 is the int-typed shape."),
     ('src/pycsl/pycsl.py', "_PyCSLSemErr417('an OverflowError obligation of `list(range(..))` / `sorted(range(..))` / `float(<int>)` under `no_exception \\\\all` was ERAS"): (FOLLOWABLE,
         "Route #417. 'Bind the call to a local first (`xs = list(range(n))`), or drop `\\all`': witness 6115's `set(sorted(range(n)))` rewritten `xs = list(range(n)); s = set(xs)` under `requires 0 <= n <= 1000` VERIFIES (b2, rc=0); with `\\all` dropped it VERIFIES (b3, rc=0). (Binding `xs = sorted(range(n))` instead fails Why3 typing at base and candidate alike, b1: the advice names `list`.)"),
+    # (#49) gen #37 -- routes #423-#425 (g3, run #3), audited the day they landed. Probes in
+    # getting-better/systematic-soundness-r3/g3-r421-429/advice/.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""line {getattr(_z423, \'lineno\', 0)}: `{_sh423}` uses {_rs423[id(_z423)]}, a CLASS-CREATING value (`type`, a metaclass), o'): (FOLLOWABLE,
+        "Route #423. 'Write the class as a `class` statement at module level': witness 6285 (a20) rewritten with `class D(B): pass` at module level (a423_class_stmt) VERIFIES; with `__hash__ = None` added it is checked by the closed world and REFUSED by PYCSL-R349 at `{b}` (the bug the dynamic class hid), as route #405's audit."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_z424, \'lineno\', 0)}: `{_ast341.unparse(_z424)}` subscripts (or aliases) the class \'{_k424}\', whose `__class'): (FOLLOWABLE,
+        "Route #424. 'Call a static method instead (`K.of(1)`), or drop `__class_getitem__`': witness 6297's class with `@staticmethod def of(item: int) -> int` and `{K.of(1)}` VERIFIES (a424_static); a module function `of` instead VERIFIES (a424_plainfn). (A `@classmethod` is refused by the unmodelled-decorator rule, a424_classmethod: the advice names a static method.)"),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_z425, \'lineno\', 0)}: `{_ast341.unparse(_z425)}` names an object\'s `__init__` outside constructor chaining. '): (FOLLOWABLE,
+        "Route #425. 'Build a new object (`a = A(-4)`) or write a verified method that sets the fields': witness 6300 (d22) with `b = A(4); return b.where()` VERIFIES (a425_new_object); with a `#@ requires n >= 0 / #@ assigns self.n` method `reset` called as `a.reset(4)` it VERIFIES (a425_method). Control 6334 is the admitted `super().__init__` chaining."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -989,6 +997,10 @@ AUDITED_HASH = {
     # (#49) gen #37 -- route #417
     ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`float(x)` under `no_exception \\\\all` is admitted only when `x` is positively read as an int (a literal, an `int`-typed "): 'b55911603317',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr417('an OverflowError obligation of `list(range(..))` / `sorted(range(..))` / `float(<int>)` under `no_exception \\\\all` was ERAS"): 'e540d38dd138',
+    # (#49) gen #37 -- routes #423-#425
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""line {getattr(_z423, \'lineno\', 0)}: `{_sh423}` uses {_rs423[id(_z423)]}, a CLASS-CREATING value (`type`, a metaclass), o'): '71a84b30a574',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_z424, \'lineno\', 0)}: `{_ast341.unparse(_z424)}` subscripts (or aliases) the class \'{_k424}\', whose `__class'): 'b770a4fc8abc',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_z425, \'lineno\', 0)}: `{_ast341.unparse(_z425)}` names an object\'s `__init__` outside constructor chaining. '): 'ba1718d38d1f',
 }
 
 

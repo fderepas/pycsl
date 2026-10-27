@@ -1206,17 +1206,38 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if not isinstance(_s416, dict):
                 continue
             _it416 = _s416.get("iter") if _s416.get("stmt") == "For" else None
-            _fn416 = (_it416.get("func", "") if isinstance(_it416, dict)
-                      and _it416.get("type") == "Call" else "")
-            if (isinstance(_fn416, str) and "." in _fn416
-                    and _fn416.rsplit(".", 1)[1] in ("keys", "values", "items")
-                    and not _s416.get("allow_iteration_mutation")):
+            # (#49) gen #37, ROUTE #427 (red team 33; MEASURED PROVED at ac28806be, CPython
+            # RuntimeError) -- a GENERATOR EXPRESSION is lazy: `for k in (x for x in d)`
+            # iterates `d` while the body runs, as does each further generator of it and a
+            # generator expression nested as its iterable (`(x for x in (y for y in d))`),
+            # yet only the bare name / the view spelling was matched. The iterated
+            # collections are now read through every generator of a `GenExp` (a list / set /
+            # dict comprehension is evaluated in full before the loop starts: a snapshot);
+            # a bare name at the top is `find_iteration_mutations`'s own case.
+            _rc416 = []
+            _wl416 = [(_it416, False)]
+            while _wl416:
+                _e416, _lz416 = _wl416.pop()
+                if not isinstance(_e416, dict):
+                    continue
+                _fn416 = _e416.get("func", "") if _e416.get("type") == "Call" else ""
+                if _e416.get("type") == "GenExp":
+                    _wl416 += [(_g416.get("iter"), True)
+                               for _g416 in (_e416.get("generators") or [])
+                               if isinstance(_g416, dict)]
+                elif (isinstance(_fn416, str) and "." in _fn416
+                      and _fn416.rsplit(".", 1)[1] in ("keys", "values", "items")):
+                    _rc416.append(_fn416.rsplit(".", 1)[0])
+                elif _lz416 and _e416.get("type") == "Var" and _e416.get("name"):
+                    _rc416.append(_e416.get("name"))
+            for _r416 in _rc416:
+                if _viols or _s416.get("allow_iteration_mutation"):
+                    break
                 _m416: List[Dict[str, Any]] = []
-                _IRScanner._collect_mutations(_s416.get("body", []) or [],
-                                              _fn416.rsplit(".", 1)[0], _m416)
+                _IRScanner._collect_mutations(_s416.get("body", []) or [], _r416, _m416)
                 if _m416:
                     _viols = [{"loop_target": _s416.get("target", ""),
-                               "iterable_name": _fn416.rsplit(".", 1)[0],
+                               "iterable_name": _r416,
                                "mutating_stmt": _m416[0],
                                "loop_line": _s416.get("lineno", 0)}]
             for _k416 in ("body", "orelse", "finalbody"):
@@ -3578,6 +3599,128 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"that closed world (route #405: `type(\"D\", (B,), {{\"__hash__\": None}})` "
                 f"then `{{b}}` PROVED under `no_exception`, CPython TypeError). Write the "
                 f"subclass as a `class` statement at module level.",
+                stage="ir-semantic", code="PYCSL-R405-DYNAMIC-SUBCLASS")
+        # (#49) gen #37, ROUTE #423 (red team 33; MEASURED PROVED at ac28806be, CPython
+        # TypeError / a wrong result) -- the rule above recognised the spellings `type(..)`
+        # / `type.__new__(..)`, so every OTHER callee that creates a class escaped it: an
+        # alias `T = type; T("D", (B,), ..)`, `type.__call__(type, ..)`, `tn = type.__new__`,
+        # `abc.ABCMeta(..)` / `from abc import ABCMeta`, `abc.ABCMeta.__new__(..)`, a file
+        # metaclass `M(type)` called as `M(..)` / `M.__new__(M, ..)` / `MM = M; MM(..)`.
+        # POLARITY: a CLASS-CREATING value -- `type`, a standard-library metaclass (a class
+        # deriving from `type`: `abc.ABCMeta`, `enum.EnumMeta` ...), a file class deriving
+        # from one -- may be referenced (anywhere in the file, the driver included; type
+        # annotations aside) ONLY as: a base or the `metaclass=` of a `class` statement; an
+        # argument of `isinstance` / `issubclass` (or of a tuple there); an operand of a
+        # comparison; the receiver of `__name__` / `__qualname__` / `__module__` / `__doc__`;
+        # or the callee of a call whose second argument is the literal `()` (a class
+        # deriving from `object` only) or, for `type` itself, of the one-argument `type(x)`.
+        # Any other reference (an alias, an attribute such as `__new__` / `__call__`, an
+        # argument, a call with other bases) is REFUSED.
+        import importlib as _il423
+        _sx423 = set(getattr(sys, "stdlib_module_names", ())) - {
+            "this", "antigravity", "__hello__", "__phello__", "idlelib", "turtle",
+            "turtledemo", "tkinter"}
+        _an423 = set()
+        _pp423 = {}
+        for _z423 in _ast341.walk(_t341):
+            for _y423 in _ast341.iter_child_nodes(_z423):
+                _pp423[id(_y423)] = _z423
+            for _a423 in ([_z423.annotation] if isinstance(_z423, (_ast341.arg,
+                                                                    _ast341.AnnAssign))
+                          else [_z423.returns] if isinstance(_z423, (
+                              _ast341.FunctionDef, _ast341.AsyncFunctionDef)) else []):
+                if _a423 is not None:
+                    _an423 |= {id(_w423) for _w423 in _ast341.walk(_a423)}
+        _ob423 = {}
+        _mc423 = set()
+        _rs423 = {}
+        for _ps423 in range(2):
+            for _z423 in _ast341.walk(_t341):
+                if not (isinstance(_z423, (_ast341.Name, _ast341.Attribute))
+                        and isinstance(_z423.ctx, _ast341.Load)):
+                    continue
+                _fp423 = []
+                _fh423 = _z423
+                while isinstance(_fh423, _ast341.Attribute):
+                    _fp423.insert(0, _fh423.attr)
+                    _fh423 = _fh423.value
+                if not isinstance(_fh423, _ast341.Name):
+                    continue
+                if _fh423.id in _mc423 and not _fp423:
+                    _rs423[id(_z423)] = "the file metaclass `" + _fh423.id + "`"
+                    continue
+                _dq423 = (".".join([_im405[_fh423.id]] + _fp423) if _fh423.id in _im405
+                          else ".".join(["builtins", "type"] + _fp423)
+                          if _fh423.id == "type" else "")
+                if not _dq423 or _dq423.split(".")[0] not in _sx423:
+                    continue
+                if _dq423 not in _ob423:
+                    _ob423[_dq423] = None
+                    _pt423 = _dq423.split(".")
+                    for _i423 in range(len(_pt423), 0, -1):
+                        try:
+                            _o423 = _il423.import_module(".".join(_pt423[:_i423]))
+                        except Exception:
+                            continue
+                        try:
+                            for _q423 in _pt423[_i423:]:
+                                _o423 = getattr(_o423, _q423)
+                            _ob423[_dq423] = _o423
+                        except Exception:
+                            pass
+                        break
+                _o423 = _ob423[_dq423]
+                if isinstance(_o423, type) and issubclass(_o423, type):
+                    _rs423[id(_z423)] = "`" + _dq423 + "`"
+            # the file metaclasses: a class with a base that is a class-creating value
+            for _z423 in _ast341.walk(_t341):
+                if isinstance(_z423, _ast341.ClassDef) and any(
+                        id(_b423) in _rs423 for _b423 in _z423.bases):
+                    _mc423.add(_z423.name)
+        for _z423 in _ast341.walk(_t341):
+            if id(_z423) not in _rs423 or id(_z423) in _an423:
+                continue
+            _y423 = _pp423.get(id(_z423))
+            _g423 = _pp423.get(id(_y423)) if _y423 is not None else None
+            if isinstance(_y423, _ast341.Tuple) and isinstance(_g423, _ast341.Call):
+                _y423, _g423 = _g423, _pp423.get(id(_g423))
+            _ok423 = (
+                (isinstance(_y423, _ast341.ClassDef) and any(_b is _z423 for _b in _y423.bases))
+                or (isinstance(_y423, _ast341.keyword) and _y423.arg == "metaclass"
+                    and isinstance(_g423, _ast341.ClassDef))
+                or isinstance(_y423, _ast341.Compare)
+                or (isinstance(_y423, _ast341.Attribute) and _y423.value is _z423
+                    and _y423.attr in ("__name__", "__qualname__", "__module__", "__doc__",
+                                       "__instancecheck__", "__subclasscheck__", "__mro__",
+                                       "__bases__"))
+                or (isinstance(_y423, _ast341.Call) and _y423.func is not _z423
+                    and isinstance(_y423.func, _ast341.Name)
+                    and _y423.func.id in ("isinstance", "issubclass")
+                    and _y423.func.id not in _im405)
+                or (isinstance(_y423, _ast341.Call) and _y423.func is _z423
+                    and not any(isinstance(_x, _ast341.Starred) for _x in _y423.args)
+                    and not any(_k.arg is None for _k in _y423.keywords)
+                    and ((len(_y423.args) == 1 and not _y423.keywords
+                          and _rs423[id(_z423)] == "`builtins.type`")
+                         or (len(_y423.args) >= 2 and isinstance(_y423.args[1], _ast341.Tuple)
+                             and not _y423.args[1].elts))))
+            if _ok423:
+                continue
+            _sh423 = _ast341.unparse(_y423 if isinstance(_y423, (
+                _ast341.Call, _ast341.Attribute, _ast341.Assign)) else _z423)
+            raise _PyCSLSemErr341(
+                f"line {getattr(_z423, 'lineno', 0)}: `{_sh423}` uses "
+                f"{_rs423[id(_z423)]}, a CLASS-CREATING value (`type`, a metaclass), other "
+                f"than as a class base / `metaclass=`, an `isinstance` / `issubclass` "
+                f"argument, a comparison operand, a `__name__` read, the one-argument "
+                f"`type(x)`, or a call with the literal bases `()`. Calling it -- through an "
+                f"alias, `__new__` / `__call__`, or with other bases -- creates a class at run "
+                f"time, outside the closed world of the file's `class` statements the "
+                f"verifier reads (a value typed with a class may be an instance of any file "
+                f"class deriving from it: route #405; route #423: `T = type; T(\"D\", (B,), "
+                f"{{\"__hash__\": None}})`, `abc.ABCMeta(..)`, `type.__call__(type, ..)` "
+                f"then `{{b}}` PROVED under `no_exception`, CPython TypeError). Write the "
+                f"class as a `class` statement at module level.",
                 stage="ir-semantic", code="PYCSL-R405-DYNAMIC-SUBCLASS")
         # (#49) gen #37, ROUTE #400 — S1 admits `ast.NodeVisitor` / `ast.NodeTransformer` as
         # bases, but their `visit` / `generic_visit` have no model: a call lowers to an
@@ -6096,6 +6239,99 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         elif isinstance(_z346, (_ast341.Import, _ast341.ImportFrom)):
                             _cb383.setdefault(_cn346, set()).update(
                                 (_a.asname or _a.name).split(".")[0] for _a in _z346.names)
+        # (#49) gen #37, ROUTE #424 (red team 33; MEASURED PROVED at ac28806be, CPython
+        # TypeError) -- a subscript of a CLASS value `K[i]` calls `K.__class_getitem__(i)`:
+        # `{K[1]}` with `def __class_getitem__(cls, item) -> list` PROVED (and `G = K[1]`
+        # at module level). RULE: a file class whose file MRO binds `__class_getitem__`
+        # may not be subscripted (nor aliased, `A = K`) outside type annotations: the
+        # call's result class, exceptions and contract are not modelled. (A subscript of
+        # any other class value is UNKNOWN when hashed: `_ty383`'s "#H" row below.)
+        _cg424 = {_c for _c in _cls341 if any("__class_getitem__" in _cb383.get(_a, ())
+                                             for _a in _clo346.get(_c, []))}
+        if _cg424:
+            _an424 = set()
+            for _z424 in _ast341.walk(_t341):
+                for _a424 in ([_z424.annotation] if isinstance(_z424, (_ast341.arg,
+                                                                        _ast341.AnnAssign))
+                              else [_z424.returns] if isinstance(_z424, (
+                                  _ast341.FunctionDef, _ast341.AsyncFunctionDef)) else []):
+                    if _a424 is not None:
+                        _an424 |= {id(_w424) for _w424 in _ast341.walk(_a424)}
+            for _z424 in _ast341.walk(_t341):
+                _k424 = None
+                if (isinstance(_z424, _ast341.Subscript) and id(_z424) not in _an424
+                        and isinstance(_z424.value, _ast341.Name)
+                        and _z424.value.id in _cg424):
+                    _k424 = _z424.value.id
+                elif (isinstance(_z424, (_ast341.Assign, _ast341.AnnAssign, _ast341.NamedExpr))
+                      and isinstance(_z424.value, _ast341.Name)
+                      and _z424.value.id in _cg424):
+                    _k424 = _z424.value.id
+                if _k424 is None:
+                    continue
+                raise _PyCSLSemErr341(
+                    f"line {getattr(_z424, 'lineno', 0)}: `{_ast341.unparse(_z424)}` "
+                    f"subscripts (or aliases) the class '{_k424}', whose `__class_getitem__` "
+                    f"runs on `{_k424}[..]`: its result, exceptions and contract are not "
+                    f"modelled (route #424: `{{K[1]}}` with a `__class_getitem__` returning a "
+                    f"list PROVED under `no_exception`, CPython TypeError). Call a static method "
+                    f"instead (`K.of(1)`), or drop `__class_getitem__`.",
+                    stage="ir-semantic", code="PYCSL-R424-CLASS-GETITEM")
+        # (#49) gen #37, ROUTE #425 (red team 33; MEASURED PROVED at ac28806be, CPython -4) --
+        # an EXPLICIT `a.__init__(..)` lowered to a frame-less `val`: no `requires`, no
+        # `writes`, so the class invariant held before the call was still assumed after it
+        # (`a.__init__(-4)` under `invariant self.n >= 0`). RULE (outside the `__main__`
+        # driver): `__init__` may be read as an attribute only as the callee of a call in
+        # the body of an `__init__` -- `super().__init__(..)` / `super(C, self).__init__(..)`
+        # or `Base.__init__(self, ..)` with that `__init__`'s own first parameter -- the
+        # constructor chaining the verifier models; and never by `getattr(.., "__init__")`.
+        _wk425 = [(_x, None) for _x in _t341.body
+                  if not (isinstance(_x, _ast341.If) and isinstance(_x.test, _ast341.Compare)
+                          and isinstance(_x.test.left, _ast341.Name)
+                          and _x.test.left.id == "__name__")]
+        while _wk425:
+            _z425, _f425 = _wk425.pop()
+            if isinstance(_z425, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                _f425 = _z425
+            elif isinstance(_z425, _ast341.Lambda):
+                _f425 = None
+            _wk425 += [(_y, _f425) for _y in _ast341.iter_child_nodes(_z425)]
+            _bd425 = False
+            if (isinstance(_z425, _ast341.Attribute) and _z425.attr == "__init__"
+                    and isinstance(_z425.ctx, _ast341.Load)):
+                _bd425 = True
+                _p425 = ((_f425.args.posonlyargs + _f425.args.args)[:1]
+                         if _f425 is not None else [])
+                for _c425 in ([_z for _z in _ast341.walk(_f425)
+                               if isinstance(_z, _ast341.Call) and _z.func is _z425]
+                              if _f425 is not None and _f425.name == "__init__" else []):
+                    _v425 = _z425.value
+                    if ((isinstance(_v425, _ast341.Call) and isinstance(_v425.func, _ast341.Name)
+                         and _v425.func.id == "super")
+                            or (isinstance(_v425, (_ast341.Name, _ast341.Attribute))
+                                and _p425 and _c425.args
+                                and isinstance(_c425.args[0], _ast341.Name)
+                                and _c425.args[0].id == _p425[0].arg
+                                and not (isinstance(_v425, _ast341.Name)
+                                         and _v425.id == _p425[0].arg))):
+                        _bd425 = False
+            elif (isinstance(_z425, _ast341.Call) and isinstance(_z425.func, _ast341.Name)
+                  and _z425.func.id in ("getattr", "methodcaller", "attrgetter")
+                  and any(isinstance(_x, _ast341.Constant) and _x.value == "__init__"
+                          for _x in _z425.args)):
+                _bd425 = True
+            if _bd425:
+                raise _PyCSLSemErr341(
+                    f"line {getattr(_z425, 'lineno', 0)}: `{_ast341.unparse(_z425)}` "
+                    f"names an object's `__init__` outside constructor chaining. An explicit "
+                    f"call re-runs the constructor on an EXISTING object, and the verifier "
+                    f"lowers it as an opaque call that checks no `requires`, frames no field "
+                    f"and re-establishes no class invariant (route #425: `a.__init__(-4)` "
+                    f"under `invariant self.n >= 0` PROVED, CPython -4). Build a new object "
+                    f"(`a = A(-4)`) or write a verified method that sets the fields; only "
+                    f"`super().__init__(..)` / `Base.__init__(self, ..)` inside `__init__` "
+                    f"is admitted.",
+                    stage="ir-semantic", code="PYCSL-R425-EXPLICIT-INIT")
         _xa383 = set()
         # (#49) gen #37, ROUTE #406 (red team 32; MEASURED PROVED at 085ee3dcc, CPython 5 /
         # TypeError) -- a CALL that hands an object to code the model does not read may set
@@ -6138,6 +6374,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                   "copy.replace", "functools.update_wrapper", "functools.wraps",
                   "functools.partial", "functools.partialmethod", "functools.singledispatch",
                   "functools.singledispatchmethod", "functools.cached_property"}
+        # (#428) standard-library CLASSES whose construction keeps no reference to an
+        # argument and sets no attribute on it (values / containers built from it)
+        _ck428 = {"collections.OrderedDict", "collections.Counter", "collections.deque",
+                  "collections.defaultdict", "collections.ChainMap", "decimal.Decimal",
+                  "fractions.Fraction", "datetime.datetime", "datetime.date",
+                  "datetime.time", "datetime.timedelta", "pathlib.Path", "pathlib.PurePath",
+                  "pathlib.PosixPath", "pathlib.PurePosixPath", "io.StringIO", "io.BytesIO",
+                  "array.array", "struct.Struct", "uuid.UUID", "typing.NamedTuple"}
         _km406 = {"append", "extend", "insert", "add", "update", "pop", "popitem", "get",
                   "setdefault", "index", "count", "remove", "discard", "join", "format",
                   "startswith", "endswith", "split", "rsplit", "splitlines", "strip",
@@ -6216,6 +6460,34 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 # a standard-library callee: only a module of `_sm406` (not `_xm406`)
                 _ok406 = (_q406.split(".")[0] in _sm406 and _q406 not in _xm406
                           and "()" not in _q406)
+                # (#49) gen #37, ROUTE #428 (red team 33; MEASURED PROVED at ac28806be,
+                # CPython 0 / TypeError) -- `_sm406` vouches for its modules' FUNCTIONS
+                # only: `logging.Logger.__init__(self, "n")`, `collections.UserList.
+                # __init__(self, [1])`, `json.JSONEncoder.__init__(self)` ... store
+                # attributes on `self`. The callee must RESOLVE (by import) to a function of
+                # the module itself -- reached through modules only, never through a class
+                # (a method, a constructor) -- unless the class is in `_ck428` (constructors
+                # that keep no reference to, and set nothing on, an argument).
+                if _ok406:
+                    _ps428 = _q406.split(".")
+                    _o428 = None
+                    _cl428 = False
+                    for _i428 in range(len(_ps428) - 1, 0, -1):
+                        try:
+                            _o428 = _il381.import_module(".".join(_ps428[:_i428]))
+                        except Exception:
+                            _o428 = None
+                            continue
+                        try:
+                            for _p428 in _ps428[_i428:]:
+                                _cl428 = _cl428 or isinstance(_o428, type)
+                                _o428 = getattr(_o428, _p428)
+                        except Exception:
+                            _o428 = None
+                        break
+                    _ok406 = (_o428 is not None and not _cl428 and (
+                        not isinstance(_o428, type) or _q406 in _ck428)
+                              and callable(_o428))
                 if "()" in _q406 and isinstance(_z406.func, _ast341.Attribute):
                     _ok406 = _z406.func.attr in _km406
             elif (isinstance(_z406.func, _ast341.Attribute)
@@ -6582,193 +6854,274 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _v394 if _z346 is _t394 else None)
             for _k394, _v394 in _cb394.items():
                 _wk394.append((_cn346, _k394, _v394))
+        # (#417 / #421) `_hr417`: the standard-library FUNCTIONS whose result is always of one
+        # hashable class -- read by BOTH value-class derivations (a module-global / class-body
+        # initializer below, a function-body expression in `_ty383`); any other standard-
+        # library function result is UNKNOWN.
+        _hr417 = {
+            "os.getcwd": "str", "os.fspath": "str", "os.getpid": "int",
+            "os.path.join": "str", "os.path.basename": "str",
+            "os.path.dirname": "str", "os.path.abspath": "str",
+            "os.path.normpath": "str", "os.path.realpath": "str",
+            "os.path.expanduser": "str", "os.path.expandvars": "str",
+            "os.path.relpath": "str", "os.path.normcase": "str",
+            "os.path.exists": "bool", "os.path.isfile": "bool",
+            "os.path.isdir": "bool", "os.path.isabs": "bool",
+            "os.path.islink": "bool", "shlex.quote": "str",
+            "shlex.join": "str", "re.escape": "str", "json.dumps": "str",
+            "textwrap.dedent": "str", "textwrap.indent": "str",
+            "textwrap.fill": "str", "textwrap.shorten": "str",
+            "string.capwords": "str", "keyword.iskeyword": "bool",
+            "fnmatch.fnmatch": "bool", "fnmatch.fnmatchcase": "bool",
+            "math.sqrt": "float", "math.exp": "float", "math.log": "float",
+            "math.log2": "float", "math.log10": "float", "math.sin": "float",
+            "math.cos": "float", "math.tan": "float", "math.atan2": "float",
+            "math.hypot": "float", "math.fabs": "float", "math.pow": "float",
+            "math.fsum": "float", "math.isqrt": "int", "math.gcd": "int",
+            "math.lcm": "int", "math.factorial": "int", "math.comb": "int",
+            "math.perm": "int", "math.isclose": "bool",
+            "math.isfinite": "bool", "math.isinf": "bool",
+            "math.isnan": "bool", "time.time": "float",
+            "time.monotonic": "float", "time.perf_counter": "float",
+            "time.time_ns": "int", "time.monotonic_ns": "int",
+            "random.random": "float", "random.randint": "int",
+            "random.randrange": "int", "random.uniform": "float",
+            "unicodedata.name": "str", "unicodedata.normalize": "str",
+            "unicodedata.category": "str", "sys.getsizeof": "int",
+            "sys.getrecursionlimit": "int", "sys.intern": "str"}
+        _ev422 = {}
         for _cn394, _k394, _b394 in _wk394 + _wk394:
-            _r394 = [_U383]
-            _v394 = _b394[0] if len(_b394) == 1 else None
+            # (#49) gen #37, ROUTE #421 (red team 33; MEASURED PROVED at ac28806be, CPython
+            # TypeError) -- this derivation answered "#UND" (no class: ADMITTED when hashed) for
+            # every initializer form it did not list (`K = json.loads(..)`, `K = deque()`,
+            # `K = A = [1]`, `K, A = [1], 2`, a walrus, an `if` / `try` rebinding ...), while
+            # the same initializer bound to a LOCAL is refused. POLARITY: a module-global /
+            # class-body name is UNKNOWN ("#UNK": refused in a hashing position) unless EVERY
+            # one of its bindings is a single-target assignment (or a def / class) whose
+            # initializer a row below derives; several such bindings are the UNION of theirs.
+            # A name declared `global` or also imported is UNKNOWN. Within an initializer, an
+            # expression no row derives is UNKNOWN too (never "#UND").
+            _r394 = []
+            _vs394 = list(_b394)
             if _cn394 is None and (_k394 in _gl394 or _k394 in _im369):
-                _v394 = None
-            if _v394 in ("def", "class", "#H"):
-                _r394 = [_H394]
-            elif isinstance(_v394, tuple):
-                _r394 = [_v394[1] if _v394[1] is not None else _U383]
-            elif (_cn394 in _en394 and isinstance(_v394, _ast341.AST)
-                  and not (_k394.startswith("_") and _k394.endswith("_"))):
-                _r394 = [_ast341.Name(id=_cn394, ctx=_ast341.Load())]
-            elif isinstance(_v394, _ast341.AST):
-                _dz394 = {}
-                for _z394 in list(_ast341.walk(_v394))[::-1]:
-                    _y394 = [_U383]
-                    if isinstance(_z394, _ast341.Constant):
-                        _y394 = [_ast341.Name(id="None" if _z394.value is None else
-                                              type(_z394.value).__name__,
-                                              ctx=_ast341.Load())]
-                    elif isinstance(_z394, _ast341.JoinedStr):
-                        _y394 = [_ast341.Name(id="str", ctx=_ast341.Load())]
-                    elif isinstance(_z394, _ast341.Lambda):
-                        _y394 = [_H394]
-                    elif isinstance(_z394, _ast341.Tuple):
-                        _y394 = [_ast341.Subscript(
-                            value=_ast341.Name(id="#tuple", ctx=_ast341.Load()),
-                            slice=_ast341.Tuple(elts=[_ast341.Subscript(
-                                value=_ast341.Name(id="Union", ctx=_ast341.Load()),
-                                slice=_ast341.Tuple(elts=list(_dz394.get(id(_e), [_U383])),
-                                                    ctx=_ast341.Load()), ctx=_ast341.Load())
-                                for _e in _z394.elts] or [_ast341.Constant(value=Ellipsis)],
-                                ctx=_ast341.Load()), ctx=_ast341.Load())]
-                    elif isinstance(_z394, (_ast341.List, _ast341.ListComp, _ast341.Set,
-                                            _ast341.SetComp, _ast341.Dict, _ast341.DictComp)):
-                        _ro394 = (_z394 is _v394 and isinstance(_z394, (
-                            _ast341.List, _ast341.Set, _ast341.Dict))
-                                  and (_k394 if _cn394 is None else "." + _k394) not in _rx394
-                                  and not (isinstance(_z394, _ast341.Dict)
-                                           and None in _z394.keys))
-                        _es394 = [(_ast341.Subscript(value=_ast341.Name(
-                            id="Union", ctx=_ast341.Load()), slice=_ast341.Tuple(elts=[
-                                _t for _e in _el for _t in _dz394.get(id(_e), [_U383])]
-                                or [_K394], ctx=_ast341.Load()), ctx=_ast341.Load())
-                                   if _ro394 else _K394)
-                                  for _el in ((_z394.keys, _z394.values)
-                                              if isinstance(_z394, (_ast341.Dict,
-                                                                    _ast341.DictComp))
-                                              and _ro394 else [getattr(_z394, "elts", [])])]
-                        _y394 = [_ast341.Subscript(value=_ast341.Name(
-                            id="#list" if isinstance(_z394, (_ast341.List, _ast341.ListComp))
-                            else "#set" if isinstance(_z394, (_ast341.Set, _ast341.SetComp))
-                            else "#dict", ctx=_ast341.Load()), slice=(
-                                _ast341.Tuple(elts=[_es394[0], _es394[-1]], ctx=_ast341.Load())
-                                if isinstance(_z394, (_ast341.Dict, _ast341.DictComp))
-                                else _es394[0]), ctx=_ast341.Load())]
-                    elif (isinstance(_z394, _ast341.Call)
-                          and isinstance(_z394.func, _ast341.Name)):
-                        _f394 = _z394.func.id
-                        if (_md369.get(_f394) == ["class"] and _f394 in _cls341
-                                or _f394 in _imm348 and _f394 not in _im369):
-                            _y394 = [_ast341.Name(id=_f394, ctx=_ast341.Load())]
-                        elif _f394 in _md369 or _f394 in _im369 or _f394 in _gl394:
-                            pass
-                        elif _f394 in ("frozenset", "str", "int", "float", "bool", "bytes",
-                                       "complex", "range"):
-                            _y394 = [_ast341.Name(id=_f394, ctx=_ast341.Load())]
-                        elif _f394 in ("list", "sorted", "set", "dict"):
-                            _y394 = [_ast341.Subscript(value=_ast341.Name(
-                                id="#list" if _f394 in ("list", "sorted") else "#" + _f394,
-                                ctx=_ast341.Load()), slice=_U383, ctx=_ast341.Load())]
-                    elif isinstance(_z394, _ast341.Name) and isinstance(_z394.ctx,
-                                                                         _ast341.Load):
-                        if _cn394 is not None and _z394.id in _ca394.get(_cn394, {}):
-                            # (#407) a class-body name read in the same class body
-                            _y394 = list(_ca394[_cn394][_z394.id])
-                        elif _z394.id in _gv394:
-                            _y394 = list(_gv394[_z394.id])
-                        elif _md369.get(_z394.id) in (["class"], ["def"]):
+                _vs394 = [None]
+            for _v394 in _vs394:
+                if _v394 is None:
+                    _r394.append(_K394)
+                    continue
+                _em421 = (_cn394 in _en394 and isinstance(_v394, _ast341.AST)
+                          and not (_k394.startswith("_") and _k394.endswith("_")))
+                if _v394 in ("def", "class", "#H"):
+                    _r394.append(_H394)
+                elif isinstance(_v394, tuple):
+                    _r394.append(_v394[1] if _v394[1] is not None else _U383)
+                elif isinstance(_v394, _ast341.AST):
+                    _dz394 = {}
+                    for _z394 in list(_ast341.walk(_v394))[::-1]:
+                        _y394 = [_U383]
+                        if isinstance(_z394, _ast341.Constant):
+                            _y394 = [_ast341.Name(id="None" if _z394.value is None else
+                                                  type(_z394.value).__name__,
+                                                  ctx=_ast341.Load())]
+                        elif isinstance(_z394, _ast341.JoinedStr):
+                            _y394 = [_ast341.Name(id="str", ctx=_ast341.Load())]
+                        elif isinstance(_z394, _ast341.Lambda):
                             _y394 = [_H394]
-                        elif id(_z394) in _iv394 and _z394.id not in _md369:
-                            # (#409) a standard-library import by its real object
-                            _y394 = list(_iv394[id(_z394)])
-                    elif isinstance(_z394, (_ast341.BinOp, _ast341.UnaryOp, _ast341.BoolOp,
-                                            _ast341.Compare)):
-                        _ch394 = [_t for _c in _ast341.iter_child_nodes(_z394)
-                                  if id(_c) in _dz394 for _t in _dz394[id(_c)]]
-                        if _ch394 and all(isinstance(_t, _ast341.Name) and _t.id in (
-                                "int", "float", "str", "bool", "bytes", "complex")
-                                          for _t in _ch394):
-                            _y394 = ([_ast341.Name(id="bool", ctx=_ast341.Load())]
-                                     if isinstance(_z394, _ast341.Compare) else _ch394)
-                        elif isinstance(_z394, _ast341.BoolOp):
-                            # (#407) `A or 1` is one of its operands
-                            _y394 = [_t for _c in _z394.values
+                        elif isinstance(_z394, _ast341.Tuple):
+                            _y394 = [_ast341.Subscript(
+                                value=_ast341.Name(id="#tuple", ctx=_ast341.Load()),
+                                slice=_ast341.Tuple(elts=[_ast341.Subscript(
+                                    value=_ast341.Name(id="Union", ctx=_ast341.Load()),
+                                    slice=_ast341.Tuple(elts=list(_dz394.get(id(_e), [_U383])),
+                                                        ctx=_ast341.Load()), ctx=_ast341.Load())
+                                    for _e in _z394.elts] or [_ast341.Constant(value=Ellipsis)],
+                                    ctx=_ast341.Load()), ctx=_ast341.Load())]
+                        elif isinstance(_z394, (_ast341.List, _ast341.ListComp, _ast341.Set,
+                                                _ast341.SetComp, _ast341.Dict, _ast341.DictComp)):
+                            _ro394 = (_z394 is _v394 and isinstance(_z394, (
+                                _ast341.List, _ast341.Set, _ast341.Dict))
+                                      and (_k394 if _cn394 is None else "." + _k394) not in _rx394
+                                      and not (isinstance(_z394, _ast341.Dict)
+                                               and None in _z394.keys))
+                            _es394 = [(_ast341.Subscript(value=_ast341.Name(
+                                id="Union", ctx=_ast341.Load()), slice=_ast341.Tuple(elts=[
+                                    _t for _e in _el for _t in _dz394.get(id(_e), [_U383])]
+                                    or [_K394], ctx=_ast341.Load()), ctx=_ast341.Load())
+                                       if _ro394 else _K394)
+                                      for _el in ((_z394.keys, _z394.values)
+                                                  if isinstance(_z394, (_ast341.Dict,
+                                                                        _ast341.DictComp))
+                                                  and _ro394 else [getattr(_z394, "elts", [])])]
+                            _y394 = [_ast341.Subscript(value=_ast341.Name(
+                                id="#list" if isinstance(_z394, (_ast341.List, _ast341.ListComp))
+                                else "#set" if isinstance(_z394, (_ast341.Set, _ast341.SetComp))
+                                else "#dict", ctx=_ast341.Load()), slice=(
+                                    _ast341.Tuple(elts=[_es394[0], _es394[-1]], ctx=_ast341.Load())
+                                    if isinstance(_z394, (_ast341.Dict, _ast341.DictComp))
+                                    else _es394[0]), ctx=_ast341.Load())]
+                        elif (isinstance(_z394, _ast341.Call)
+                              and _nd409.get(id(_z394.func), "")
+                              and not _nd409[id(_z394.func)].startswith("builtins.")
+                              and callable(_rf417.get(_nd409[id(_z394.func)]))
+                              and not isinstance(_rf417.get(_nd409[id(_z394.func)]), type)
+                              and _nd409[id(_z394.func)] not in (
+                                  "copy.copy", "copy.deepcopy", "dataclasses.replace",
+                                  "copy.replace")):
+                            # (#421) a standard-library FUNCTION's result, as for a local
+                            # (`_ty383`, route #417): its `_hr417` class, else UNKNOWN
+                            _q421 = _nd409[id(_z394.func)]
+                            if _q421.startswith("posixpath."):
+                                _q421 = "os.path." + _q421[len("posixpath."):]
+                            _y394 = ([_ast341.Name(id=_hr417[_q421], ctx=_ast341.Load())]
+                                     if _q421 in _hr417 else [_K394])
+                        elif (isinstance(_z394, _ast341.Call)
+                              and isinstance(_z394.func, _ast341.Name)):
+                            _f394 = _z394.func.id
+                            if (_md369.get(_f394) == ["class"] and _f394 in _cls341
+                                    or _f394 in _imm348 and _f394 not in _im369):
+                                _y394 = [_ast341.Name(id=_f394, ctx=_ast341.Load())]
+                            elif (_md369.get(_f394) == ["def"] and _f394 in _mf383
+                                  and _f394 not in _im369 and _f394 not in _gl394):
+                                # (#421) a module function's `-> T`, as for a local
+                                # (un-annotated: UNKNOWN below)
+                                _y394 = [_mf383[_f394]]
+                            elif _f394 in _md369 or _f394 in _im369 or _f394 in _gl394:
+                                pass
+                            elif _f394 in ("frozenset", "str", "int", "float", "bool", "bytes",
+                                           "complex", "range"):
+                                _y394 = [_ast341.Name(id=_f394, ctx=_ast341.Load())]
+                            elif _f394 in ("list", "sorted", "set", "dict"):
+                                _y394 = [_ast341.Subscript(value=_ast341.Name(
+                                    id="#list" if _f394 in ("list", "sorted") else "#" + _f394,
+                                    ctx=_ast341.Load()), slice=_K394, ctx=_ast341.Load())]
+                        elif isinstance(_z394, _ast341.Name) and isinstance(_z394.ctx,
+                                                                             _ast341.Load):
+                            if _cn394 is not None and _z394.id in _ca394.get(_cn394, {}):
+                                # (#407) a class-body name read in the same class body
+                                _y394 = list(_ca394[_cn394][_z394.id])
+                            elif _z394.id in _gv394:
+                                _y394 = list(_gv394[_z394.id])
+                            elif _md369.get(_z394.id) in (["class"], ["def"]):
+                                _y394 = [_H394]
+                            elif id(_z394) in _iv394 and _z394.id not in _md369:
+                                # (#409) a standard-library import by its real object
+                                _y394 = list(_iv394[id(_z394)])
+                        elif isinstance(_z394, (_ast341.BinOp, _ast341.UnaryOp, _ast341.BoolOp,
+                                                _ast341.Compare)):
+                            # (#421) the OPERANDS only (an operator node is not a value)
+                            _ch394 = [_t for _c in _ast341.iter_child_nodes(_z394)
+                                      if isinstance(_c, _ast341.expr) and id(_c) in _dz394
+                                      for _t in _dz394[id(_c)]]
+                            if _ch394 and all(isinstance(_t, _ast341.Name) and _t.id in (
+                                    "int", "float", "str", "bool", "bytes", "complex")
+                                              for _t in _ch394):
+                                _y394 = ([_ast341.Name(id="bool", ctx=_ast341.Load())]
+                                         if isinstance(_z394, _ast341.Compare) else _ch394)
+                            elif isinstance(_z394, _ast341.BoolOp):
+                                # (#407) `A or 1` is one of its operands
+                                _y394 = [_t for _c in _z394.values
+                                         for _t in _dz394.get(id(_c), [_U383])]
+                            elif (isinstance(_z394, _ast341.UnaryOp)
+                                  and isinstance(_z394.op, _ast341.Not)):
+                                _y394 = [_ast341.Name(id="bool", ctx=_ast341.Load())]
+                            elif not isinstance(_z394, _ast341.Compare) and any(
+                                    isinstance(_t, _ast341.Subscript)
+                                    and isinstance(_t.value, _ast341.Name)
+                                    and _t.value.id in ("#list", "#set", "#dict", "#tuple")
+                                    or (isinstance(_t, _ast341.Name) and _t.id == "#UNK")
+                                    for _t in _ch394):
+                                # (#407) arithmetic over a container (`A * 2`, `A + B`, `A |
+                                # {..}`, `A - {2}`, `(1,) + B`) is a container of its kind
+                                # whose elements are UNKNOWN (never the operands' element
+                                # classes, never underivable)
+                                _y394 = [(_ast341.Subscript(value=_ast341.Name(
+                                    id=_t.value.id, ctx=_ast341.Load()), slice=(
+                                        _ast341.Tuple(elts=[_K394, _K394], ctx=_ast341.Load())
+                                        if _t.value.id == "#dict" else _ast341.Tuple(
+                                            elts=[_K394], ctx=_ast341.Load())
+                                        if _t.value.id == "#tuple" else _K394),
+                                    ctx=_ast341.Load())
+                                          if isinstance(_t, _ast341.Subscript) else _K394)
+                                         for _t in _ch394
+                                         if (isinstance(_t, _ast341.Subscript)
+                                             and isinstance(_t.value, _ast341.Name)
+                                             and _t.value.id in ("#list", "#set", "#dict",
+                                                                 "#tuple"))
+                                         or (isinstance(_t, _ast341.Name) and _t.id == "#UNK")]
+                        elif isinstance(_z394, _ast341.IfExp):
+                            # (#407) either branch
+                            _y394 = [_t for _c in (_z394.body, _z394.orelse)
                                      for _t in _dz394.get(id(_c), [_U383])]
-                        elif (isinstance(_z394, _ast341.UnaryOp)
-                              and isinstance(_z394.op, _ast341.Not)):
-                            _y394 = [_ast341.Name(id="bool", ctx=_ast341.Load())]
-                        elif not isinstance(_z394, _ast341.Compare) and any(
-                                isinstance(_t, _ast341.Subscript)
-                                and isinstance(_t.value, _ast341.Name)
-                                and _t.value.id in ("#list", "#set", "#dict", "#tuple")
-                                or (isinstance(_t, _ast341.Name) and _t.id == "#UNK")
-                                for _t in _ch394):
-                            # (#407) arithmetic over a container (`A * 2`, `A + B`, `A |
-                            # {..}`, `A - {2}`, `(1,) + B`) is a container of its kind
-                            # whose elements are UNKNOWN (never the operands' element
-                            # classes, never underivable)
-                            _y394 = [(_ast341.Subscript(value=_ast341.Name(
-                                id=_t.value.id, ctx=_ast341.Load()), slice=(
-                                    _ast341.Tuple(elts=[_K394, _K394], ctx=_ast341.Load())
-                                    if _t.value.id == "#dict" else _ast341.Tuple(
-                                        elts=[_K394], ctx=_ast341.Load())
-                                    if _t.value.id == "#tuple" else _K394),
-                                ctx=_ast341.Load())
-                                      if isinstance(_t, _ast341.Subscript) else _K394)
-                                     for _t in _ch394
-                                     if (isinstance(_t, _ast341.Subscript)
-                                         and isinstance(_t.value, _ast341.Name)
-                                         and _t.value.id in ("#list", "#set", "#dict",
-                                                             "#tuple"))
-                                     or (isinstance(_t, _ast341.Name) and _t.id == "#UNK")]
-                    elif isinstance(_z394, _ast341.IfExp):
-                        # (#407) either branch
-                        _y394 = [_t for _c in (_z394.body, _z394.orelse)
-                                 for _t in _dz394.get(id(_c), [_U383])]
-                    elif (isinstance(_z394, _ast341.Attribute)
-                          and isinstance(_z394.value, _ast341.Name)
-                          and _z394.value.id in _ca394
-                          and _z394.attr in _ca394[_z394.value.id]):
-                        _y394 = list(_ca394[_z394.value.id][_z394.attr])
-                    elif (isinstance(_z394, (_ast341.Name, _ast341.Attribute))
-                          and id(_z394) in _iv394
-                          and not (isinstance(_z394, _ast341.Name)
-                                   and (_z394.id in _md369 or _z394.id in _gv394))):
-                        # (#409) a standard-library object by its real class
-                        _y394 = list(_iv394[id(_z394)])
-                    elif (isinstance(_z394, _ast341.Call)
-                          and isinstance(_z394.func, _ast341.Attribute)
-                          and _nd409.get(id(_z394.func.value)) in _ob409):
-                        # (#409) a method of a standard-library object (`os.environ.copy()`)
-                        _y394 = [_K394]
-                    if (_y394 == [_U383] and isinstance(_z394, (
-                            _ast341.Subscript, _ast341.Attribute, _ast341.Starred,
-                            _ast341.Call, _ast341.UnaryOp))
-                            and not (isinstance(_z394, _ast341.Call)
-                                     and not isinstance(_z394.func, _ast341.Attribute))):
-                        # (#407) a slice / subscript / attribute / method of a container
-                        # (`A[:]`, `A[0]`, `A.copy()`) is not the container's ELEMENT
-                        # class: a slice is the container, an element is UNKNOWN unless
-                        # the display is read-only (then its elements' classes)
-                        _sv394 = (_z394.func.value if isinstance(_z394, _ast341.Call)
-                                  else _z394.value if isinstance(_z394, (
-                                      _ast341.Subscript, _ast341.Attribute, _ast341.Starred))
-                                  else _z394.operand)
-                        _st394 = _dz394.get(id(_sv394), [_U383])
-                        if any(isinstance(_t, _ast341.Subscript)
-                               and isinstance(_t.value, _ast341.Name)
-                               and _t.value.id in ("#list", "#set", "#dict", "#tuple")
-                               or (isinstance(_t, _ast341.Name) and _t.id == "#UNK")
-                               for _t in _st394):
-                            _y394 = []
-                            for _t in _st394:
-                                _hn407 = (_t.value.id if isinstance(_t, _ast341.Subscript)
-                                          and isinstance(_t.value, _ast341.Name) else "")
-                                if (isinstance(_z394, _ast341.Subscript)
-                                        and isinstance(_z394.slice, _ast341.Slice)
-                                        and _hn407 in ("#list", "#tuple")):
-                                    _y394.append(_ast341.Subscript(value=_ast341.Name(
-                                        id=_hn407, ctx=_ast341.Load()), slice=(
-                                            _ast341.Tuple(elts=[_K394], ctx=_ast341.Load())
-                                            if _hn407 == "#tuple" else _K394),
-                                        ctx=_ast341.Load()))
-                                elif (isinstance(_z394, _ast341.Subscript)
-                                      and not isinstance(_z394.slice, _ast341.Slice)
-                                      and _hn407 in ("#list", "#dict", "#tuple")):
-                                    _el407 = (list(_t.slice.elts) if isinstance(
-                                        _t.slice, _ast341.Tuple) else [_t.slice])
-                                    _y394 += (_el407[-1:] if _hn407 == "#dict" else [
-                                        _e for _e in _el407 if not (isinstance(
-                                            _e, _ast341.Constant) and _e.value is Ellipsis)]
-                                              ) or [_K394]
-                                else:
-                                    _y394.append(_K394)
-                    _dz394[id(_z394)] = _y394
-                _r394 = _dz394.get(id(_v394), [_U383])
+                        elif (isinstance(_z394, _ast341.Attribute)
+                              and isinstance(_z394.value, _ast341.Name)
+                              and _z394.value.id in _ca394
+                              and _z394.attr in _ca394[_z394.value.id]):
+                            _y394 = list(_ca394[_z394.value.id][_z394.attr])
+                        elif (isinstance(_z394, (_ast341.Name, _ast341.Attribute))
+                              and id(_z394) in _iv394
+                              and not (isinstance(_z394, _ast341.Name)
+                                       and (_z394.id in _md369 or _z394.id in _gv394))):
+                            # (#409) a standard-library object by its real class
+                            _y394 = list(_iv394[id(_z394)])
+                        elif (isinstance(_z394, _ast341.Call)
+                              and isinstance(_z394.func, _ast341.Attribute)
+                              and _nd409.get(id(_z394.func.value)) in _ob409):
+                            # (#409) a method of a standard-library object (`os.environ.copy()`)
+                            _y394 = [_K394]
+                        if (_y394 == [_U383] and isinstance(_z394, (
+                                _ast341.Subscript, _ast341.Attribute, _ast341.Starred,
+                                _ast341.Call, _ast341.UnaryOp))
+                                and not (isinstance(_z394, _ast341.Call)
+                                         and not isinstance(_z394.func, _ast341.Attribute))):
+                            # (#407) a slice / subscript / attribute / method of a container
+                            # (`A[:]`, `A[0]`, `A.copy()`) is not the container's ELEMENT
+                            # class: a slice is the container, an element is UNKNOWN unless
+                            # the display is read-only (then its elements' classes)
+                            _sv394 = (_z394.func.value if isinstance(_z394, _ast341.Call)
+                                      else _z394.value if isinstance(_z394, (
+                                          _ast341.Subscript, _ast341.Attribute, _ast341.Starred))
+                                      else _z394.operand)
+                            _st394 = _dz394.get(id(_sv394), [_U383])
+                            if any(isinstance(_t, _ast341.Subscript)
+                                   and isinstance(_t.value, _ast341.Name)
+                                   and _t.value.id in ("#list", "#set", "#dict", "#tuple")
+                                   or (isinstance(_t, _ast341.Name) and _t.id == "#UNK")
+                                   for _t in _st394):
+                                _y394 = []
+                                for _t in _st394:
+                                    _hn407 = (_t.value.id if isinstance(_t, _ast341.Subscript)
+                                              and isinstance(_t.value, _ast341.Name) else "")
+                                    if (isinstance(_z394, _ast341.Subscript)
+                                            and isinstance(_z394.slice, _ast341.Slice)
+                                            and _hn407 in ("#list", "#tuple")):
+                                        _y394.append(_ast341.Subscript(value=_ast341.Name(
+                                            id=_hn407, ctx=_ast341.Load()), slice=(
+                                                _ast341.Tuple(elts=[_K394], ctx=_ast341.Load())
+                                                if _hn407 == "#tuple" else _K394),
+                                            ctx=_ast341.Load()))
+                                    elif (isinstance(_z394, _ast341.Subscript)
+                                          and not isinstance(_z394.slice, _ast341.Slice)
+                                          and _hn407 in ("#list", "#dict", "#tuple")):
+                                        _el407 = (list(_t.slice.elts) if isinstance(
+                                            _t.slice, _ast341.Tuple) else [_t.slice])
+                                        _y394 += (_el407[-1:] if _hn407 == "#dict" else [
+                                            _e for _e in _el407 if not (isinstance(
+                                                _e, _ast341.Constant) and _e.value is Ellipsis)]
+                                                  ) or [_K394]
+                                    else:
+                                        _y394.append(_K394)
+                        if _y394 == [_U383] and isinstance(_z394, _ast341.expr):
+                            # (#421) not derived by any row above: UNKNOWN
+                            _y394 = [_K394]
+                        _dz394[id(_z394)] = _y394
+                    _rv421 = _dz394.get(id(_v394), [_K394])
+                    if _em421:
+                        # (#422) an `Enum` member is an instance of its class; its `.value` is
+                        # read from the member initializers (`_ev422[C]`)
+                        _ev422.setdefault(_cn394, {})[_k394] = list(_rv421)
+                        _rv421 = [_ast341.Name(id=_cn394, ctx=_ast341.Load())]
+                    _r394 += _rv421
+            _r394 = _r394 or [_K394]
             if _cn394 is None:
                 _gv394[_k394] = _r394
             else:
@@ -7146,6 +7499,35 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _tn383 = {}
             _tk383 = {}
             _po383 = [_z for _z in _ast341.walk(_f346) if id(_z) not in _anx365][::-1]
+            # (#49) gen #37, ROUTE #422 (red team 33; MEASURED PROVED at ac28806be, CPython
+            # TypeError) -- `_nd422[g]`: a NESTED `def g(..) -> T` (undecorated, a statement
+            # of this function's own scope, the ONLY binding of `g` anywhere in it) answers
+            # its `-> T` for a call `g(..)`, as a module function's does (`_mf383`)
+            _nd422 = {}
+            _nb422 = {}
+            _wq422 = [(_c, True) for _c in _ast341.iter_child_nodes(_f346)]
+            while _wq422:
+                _c422, _ow422 = _wq422.pop()
+                if isinstance(_c422, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                      _ast341.ClassDef)):
+                    _nb422[_c422.name] = _nb422.get(_c422.name, 0) + 1
+                    if (_ow422 and isinstance(_c422, _ast341.FunctionDef)
+                            and not _c422.decorator_list and _c422.returns is not None):
+                        _nd422[_c422.name] = _c422.returns
+                elif isinstance(_c422, _ast341.arg) or (
+                        isinstance(_c422, _ast341.Name)
+                        and not isinstance(_c422.ctx, _ast341.Load)):
+                    _x422 = _c422.arg if isinstance(_c422, _ast341.arg) else _c422.id
+                    _nb422[_x422] = _nb422.get(_x422, 0) + 1
+                elif isinstance(_c422, (_ast341.Import, _ast341.ImportFrom)):
+                    for _a422 in _c422.names:
+                        _x422 = (_a422.asname or _a422.name).split(".")[0]
+                        _nb422[_x422] = _nb422.get(_x422, 0) + 1
+                _wq422 += [(_y422, _ow422 and not isinstance(_c422, (
+                    _ast341.FunctionDef, _ast341.AsyncFunctionDef, _ast341.ClassDef,
+                    _ast341.Lambda))) for _y422 in _ast341.iter_child_nodes(_c422)]
+            _nd422 = {_k: _v for _k, _v in _nd422.items() if _nb422.get(_k) == 1
+                      and _k not in _eb394.get(id(_f346), set())}
             # a local read before any of its bindings is typed reads as BOTTOM ("#BOT",
             # dropped at bindings), not "#UNK": `i = 0 .. i = i + 1` is `int` (a least
             # fixpoint); passes run until no local's types change (else every local "#UNK")
@@ -7312,11 +7694,34 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             elif _hn383 in _cls341:
                                 _rw383.append(_me383.get(_hn383, {}).get("__getitem__",
                                                                          _U383))
+                            elif _hn383 == "#H":
+                                # (#424) a subscript of a class / function object calls
+                                # `__class_getitem__` (or a metaclass `__getitem__`):
+                                # UNKNOWN
+                                _rw383.append(_K394)
                             else:
                                 _rw383.append(_U383)
                     elif (isinstance(_n383, _ast341.Attribute)
                           and isinstance(_n383.ctx, _ast341.Load)):
                         for _x383 in (_ty383.get(id(_n383.value)) or []):
+                            if (isinstance(_x383, _ast341.Name) and _x383.id in _en394
+                                    and _n383.attr in ("value", "_value_")):
+                                # (#422) an `Enum` member's value: the classes of the member
+                                # initializers (`_ev422`) when every class of its MRO is a
+                                # file / standard-library enum class (no data-type mixin) and
+                                # no file class there binds `__new__` / `__init__` / `value`
+                                # / `_value_` / `_generate_next_value_`; else UNKNOWN
+                                _rw383 = _rw383 or []
+                                _ok422 = bool(_ev422.get(_x383.id)) and all(
+                                    (_a in _cls341 and not ({"__new__", "__init__", "value",
+                                                             "_value_",
+                                                             "_generate_next_value_"}
+                                                            & _cb383.get(_a, set())))
+                                    or _bq394.get(_a, "").startswith("enum.")
+                                    or _a == "object" for _a in _clo346.get(_x383.id, []))
+                                _rw383 += ([_t for _m in _ev422[_x383.id].values()
+                                            for _t in _m] if _ok422 else [_K394])
+                                continue
                             if isinstance(_x383, _ast341.Name) and _x383.id in _cls341:
                                 _rw383 = _rw383 or []
                                 if _dy406 or _n383.attr in _sa417:
@@ -7418,37 +7823,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         # hashable class -- and is UNKNOWN otherwise.
                         _q417 = _nd409.get(id(_fu383), "")
                         _o417 = _rf417.get(_q417)
-                        _hr417 = {
-                            "os.getcwd": "str", "os.fspath": "str", "os.getpid": "int",
-                            "os.path.join": "str", "os.path.basename": "str",
-                            "os.path.dirname": "str", "os.path.abspath": "str",
-                            "os.path.normpath": "str", "os.path.realpath": "str",
-                            "os.path.expanduser": "str", "os.path.expandvars": "str",
-                            "os.path.relpath": "str", "os.path.normcase": "str",
-                            "os.path.exists": "bool", "os.path.isfile": "bool",
-                            "os.path.isdir": "bool", "os.path.isabs": "bool",
-                            "os.path.islink": "bool", "shlex.quote": "str",
-                            "shlex.join": "str", "re.escape": "str", "json.dumps": "str",
-                            "textwrap.dedent": "str", "textwrap.indent": "str",
-                            "textwrap.fill": "str", "textwrap.shorten": "str",
-                            "string.capwords": "str", "keyword.iskeyword": "bool",
-                            "fnmatch.fnmatch": "bool", "fnmatch.fnmatchcase": "bool",
-                            "math.sqrt": "float", "math.exp": "float", "math.log": "float",
-                            "math.log2": "float", "math.log10": "float", "math.sin": "float",
-                            "math.cos": "float", "math.tan": "float", "math.atan2": "float",
-                            "math.hypot": "float", "math.fabs": "float", "math.pow": "float",
-                            "math.fsum": "float", "math.isqrt": "int", "math.gcd": "int",
-                            "math.lcm": "int", "math.factorial": "int", "math.comb": "int",
-                            "math.perm": "int", "math.isclose": "bool",
-                            "math.isfinite": "bool", "math.isinf": "bool",
-                            "math.isnan": "bool", "time.time": "float",
-                            "time.monotonic": "float", "time.perf_counter": "float",
-                            "time.time_ns": "int", "time.monotonic_ns": "int",
-                            "random.random": "float", "random.randint": "int",
-                            "random.randrange": "int", "random.uniform": "float",
-                            "unicodedata.name": "str", "unicodedata.normalize": "str",
-                            "unicodedata.category": "str", "sys.getsizeof": "int",
-                            "sys.getrecursionlimit": "int", "sys.intern": "str"}
                         for _p417 in ("posixpath.",):
                             if _q417.startswith(_p417):
                                 _q417 = "os.path." + _q417[len(_p417):]
@@ -7479,7 +7853,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                           for _t in (_ty383.get(id(_a0383)) or [_U383])]
                             elif _fn383 in _cls341 or _fn383 in _imm348:
                                 _rw383 = [_ast341.Name(id=_fn383, ctx=_ast341.Load())]
-                            elif _fn383 in _mf383:
+                            elif _fn383 in _nd422:
+                                # (#422) a nested def's `-> T`
+                                _rw383 = [_nd422[_fn383]]
+                            elif _fn383 in _mf383 and _fn383 not in _ln394:
                                 _rw383 = [_mf383[_fn383]]
                             elif (_fn383 in _bound341 | _imp341
                                   or not hasattr(_bi369, _fn383)):
@@ -7583,6 +7960,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _rw383 = []
                             _md383 = _fu383.attr
                             _rt383 = _ty383.get(id(_fu383.value))
+                            if (_nd409.get(id(_fu383.value)) in ("builtins.str", "builtins.bytes")
+                                    and _fu383.attr not in ("maketrans", "fromhex")):
+                                # (#422) an UNBOUND `str.<m>(x, ..)` / `bytes.<m>(x, ..)` is
+                                # the method of its first argument: the same row
+                                _rt383 = [_ast341.Name(id=_nd409[id(_fu383.value)][9:],
+                                                       ctx=_ast341.Load())]
                             if (_rt383 is None and isinstance(_fu383.value, _ast341.Constant)):
                                 _rt383 = [_ast341.Name(id=type(_fu383.value.value).__name__,
                                                        ctx=_ast341.Load())]
@@ -7672,9 +8055,26 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         _rw383.append(_ast341.Name(
                                             id="bytes" if _md383 == "encode" else "str",
                                             ctx=_ast341.Load()))
-                                    else:
+                                    elif _md383 in (
+                                            "capitalize", "casefold", "center", "expandtabs",
+                                            "format", "format_map", "join", "ljust", "lower",
+                                            "lstrip", "removeprefix", "removesuffix", "replace",
+                                            "rjust", "rstrip", "strip", "swapcase", "title",
+                                            "translate", "upper", "zfill", "__str__", "__add__",
+                                            "__mul__", "__rmul__", "__getitem__"):
                                         _rw383.append(_ast341.Name(id=_hn383,
                                                                    ctx=_ast341.Load()))
+                                    elif _md383 in ("__repr__", "__format__") or (
+                                            _hn383 == "bytes" and _md383 == "hex"):
+                                        _rw383.append(_ast341.Name(id="str", ctx=_ast341.Load()))
+                                    elif not hasattr(str if _hn383 == "str" else bytes,
+                                                     _md383):
+                                        # no such method: AttributeError before any use
+                                        _rw383.append(_B383)
+                                    else:
+                                        # (#422) a method the rows above do not list
+                                        # (`str.maketrans` is a dict): UNKNOWN
+                                        _rw383.append(_K394)
                                 else:
                                     _rw383.append(_U383)
                         else:
@@ -11541,8 +11941,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     while _wk417:
         _x417 = _wk417.pop()
         if isinstance(_x417, dict):
-            if (_x417.get("type") == "Call"
-                    and _x417.get("func") in ("list", "sorted", "float")):
+            if ((_x417.get("type") == "Call"
+                 and _x417.get("func") in ("list", "sorted", "float"))
+                    or _x417.get("type") == "FormattedValue"):
                 try:
                     _k417 = "r417_%08x" % (_sh417(repr(_efd417(_x417).to_dict()))
                                            & 0xffffffff)
@@ -11552,6 +11953,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _wk417.extend(_x417.values())
         elif isinstance(_x417, list):
             _wk417.extend(_x417)
+    # (#426) the registry also holds route #426's f-string format-spec bounds (their
+    # `FormattedValue` nodes are counted above); the message names the #417 sites only
     _er417 = sorted(_t for _t in set(getattr(transpiler, "r417_obls", None) or ())
                     if (_mlw or "").count("[@" + _t + "]") < max(1, _sc417.get(_t, 0)))
     if _er417:

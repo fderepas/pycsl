@@ -1,0 +1,7 @@
+sync rc=0
+mirror-check rc=0
+root byte-diff 2497->2512 0 MOVED/0 GONE/0 APPEARED (15 new sources)
+pyref 2186/2186 0/0/0
+mirror 53/53 0/0/0 (after fixing 2 first-candidate GONE: pure_ast type.__instancecheck__, statements str-row .get)
+pycsl_lib screen identical (104, rc0=87)
+planes 61 run: 59 green + refusal-witness-coverage / refusal-advice-audited RED before census rows / audit entries; both rc=0 after (rwc.log, advice.log)
