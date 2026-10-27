@@ -34534,6 +34534,26 @@ def compute_term_adt_spec(functions: List[Dict[str, Any]],
         if _d is not None and isinstance(f.get("name"), str):
             _lb[f["name"]] = list(_d["order"]) + [_d["listp"]]
     spec["list_build"] = _lb
+    # cv3 L-T3: the `flatten_arrow_chain` spine walkers of this file, and whether any
+    # transform arm recurses on their RESULT (then the file switches to the size-measure
+    # mode: the flatten group carries proved size postconditions, the transform group a
+    # `term__size` variant). Detection runs the transform recognizer with
+    # `size_mode = None` ("detecting"); a later call with `size_mode = False` refuses
+    # such an arm (fail closed), so the two can never disagree.
+    _fl: Dict[str, Any] = {}
+    for f in functions:
+        _d = recognize_term_flatten_arrow(f, spec)
+        if _d is not None and isinstance(f.get("name"), str):
+            _fl[f["name"]] = _d
+    spec["flatten"] = _fl
+    spec["size_mode"] = None
+    _sm = False
+    if _fl:
+        for f in functions:
+            _d = recognize_term_isinstance_transform(f, spec, {})
+            if _d is not None and _d.get("size_mode"):
+                _sm = True
+    spec["size_mode"] = _sm
     return spec
 
 
@@ -34850,6 +34870,7 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
     guards: Dict[str, Any] = {}
     default_id = False
     lcs: List[Any] = []
+    bguards: Dict[str, Any] = {}
     for _si, st in enumerate(body):
         if isinstance(st, dict) and st.get("stmt") == "Raise":
             continue                    # trailing unreachable raise (total match)
@@ -34873,6 +34894,12 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
         # the existing VC-free `val pystr_eq` guard (the condmap precedent), so neither
         # branch is assumed. `self(t.L[i])` is read off the element-wise `n__list` map
         # (see the emitter for why). No new value shape, no axiom.
+        _bg = _parse_block_guard(st, subj, name, spec, ctor_set, lcs)
+        if _bg is not None:
+            if _bg["ctor"] in arms or _bg["ctor"] in guards or _bg["ctor"] in bguards:
+                raise _PVWBail()        # guard AFTER the general arm (dead) / twice
+            bguards[_bg["ctor"]] = _bg
+            continue
         _g = _parse_transform_guard(st, subj, name, spec, ctor_set)
         if _g is not None:
             if _g["ctor"] in arms or _g["ctor"] in guards:
@@ -34918,15 +34945,78 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
             if any(b[0] == "maprec" for b in _gd["fields"]):
                 uses_list = True
         uses_streq = True
+    if bguards:
+        if guards or spec.get("size_mode") is False:
+            raise _PVWBail()            # size mode off for this file / mixed guard kinds
+        for _gc, _gd in bguards.items():
+            if _gc not in arms or arms[_gc].get("kind") not in ("rebuild", "id"):
+                raise _PVWBail()
+            arms[_gc] = dict(arms[_gc], bguard=_gd)
+        uses_list = True
     _d = {"param": subj, "arms": arms,
           "uses_list": uses_list, "uses_streq": uses_streq}
     if lcs:
         _d["lcs"] = lcs
+    if bguards:
+        _d["size_mode"] = True
     return _d
 
 
+def _parse_block_guard(st: Dict[str, Any], subj: str, name: str, spec: Dict[str, Any],
+                       ctor_set: set, lcs: List[Any]) -> Optional[Dict[str, Any]]:
+    """cv3 L-T3 (`_sort_arrow_hypotheses` shape):
+
+        if isinstance(t, C) and t.F == "<lit>":
+            h, c = <flatten>(t)              # this file's `flatten_arrow_chain`
+            hn = [self(x) for x in h]
+            cn = self(c)
+            return <list builder>(hn, cn)
+
+    where (C, F, "<lit>") is EXACTLY the spine test of that flatten function. The block
+    recurses on flatten's RESULT, not on a pattern-bound subterm, so it is accepted only
+    in the file's size-measure mode (see `emit_term_flatten_arrow_group`): termination is
+    then PROVED from flatten's proved size lemmas, never assumed. None when `st` is not
+    this shape; a malformed body bails."""
+    flat = spec.get("flatten") or {}
+    if not flat:
+        return None
+    test = st.get("test")
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    inst, heq = test.get("left"), test.get("right")
+    cls = _isinstance_target_classes(inst, subj)
+    if not (len(cls) == 1 and cls[0] in ctor_set):
+        return None
+    if not (isinstance(heq, dict) and heq.get("type") == "BinOp" and heq.get("op") == "=="
+            and _is_term_field_read(heq.get("left"), subj)
+            and _is_string(heq.get("right")) is not None):
+        return None
+    c = cls[0]
+    sfield = _term_field_of(heq["left"])
+    slit = _is_string(heq["right"])
+    ibody = st.get("body", [])
+    if not (isinstance(ibody, list) and ibody and isinstance(ibody[0], dict)
+            and ibody[0].get("stmt") == "TupleUnpack"):
+        return None
+    v = ibody[0].get("value")
+    if not (isinstance(v, dict) and v.get("type") == "Call" and v.get("func") in flat):
+        return None
+    fd = flat[v["func"]]
+    if not (fd["binop_cls"] == c and fd["op_field"] == sfield and fd["arrow_lit"] == slit
+            and set(fd["fields"]) == {fd["op_field"], fd["f1"], fd["f2"]}
+            and len(fd["fields"]) == 3):
+        raise _PVWBail()
+    _mlw_str_lit(slit)
+    arm = _parse_block_arm(ibody, subj, name, spec, c, lcs, flatten_ok=True)
+    if not arm.get("flatten"):
+        raise _PVWBail()
+    return {"ctor": c, "sfield": sfield, "slit": slit, "node": arm["node"],
+            "used": arm["used"], "flatten": v["func"], "fdesc": fd}
+
+
 def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
-                     cls: str, lcs: List[Any]) -> Dict[str, Any]:
+                     cls: str, lcs: List[Any], flatten_ok: bool = False) -> Dict[str, Any]:
     """cv3 L-T2 (`_expand_nat_to_int` shape): one isinstance arm (class `cls`) whose
     body is a straight-line block
 
@@ -34952,7 +35042,10 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
     an over-approximation, never an assumption). Anything else bails (fail closed)."""
     ftypes = dict(spec["ctors"][cls])
     used: set = set()
-    flags = {"list": False, "streq": False}
+    flags = {"list": False, "streq": False, "flatten": None}
+    # cv3 L-T3: names bound by `h, c = <flatten>(t)` -- the ONLY non-subterm values a
+    # block may recurse on (their sizes are bounded by flatten's proved lemmas).
+    flat_locals: Dict[str, str] = {}
     str_sets = spec.get("str_sets") or {}
     list_build = spec.get("list_build") or {}
 
@@ -34986,6 +35079,22 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
             if not (isinstance(v, int) and not isinstance(v, bool) and v >= 0):
                 raise _PVWBail()
             return ("int", v), "int"
+        if (t == "ListComp" and comp is None and flatten_ok
+                and len(e.get("generators") or []) == 1
+                and _is_var((e.get("generators") or [{}])[0].get("iter"))):
+            # `[self(x) for x in h]` over the flatten hyps local -> the `__list` map
+            g0 = e["generators"][0]
+            hv = g0["iter"].get("name")
+            el = e.get("elt")
+            if not (flat_locals.get(hv) == "list term" and not g0.get("ifs")
+                    and isinstance(g0.get("target"), str)
+                    and isinstance(el, dict) and el.get("type") == "Call"
+                    and el.get("func") == name and not el.get("keywords")
+                    and len(el.get("args") or []) == 1
+                    and _is_var(el["args"][0], g0["target"])):
+                raise _PVWBail()
+            flags["list"] = True
+            return ("maplocal", hv), "list term"
         if t == "ListComp":
             if comp is not None:
                 raise _PVWBail()
@@ -35035,6 +35144,9 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
             return ("ctor", fn, sub), "term"
         if comp is not None or kws:
             raise _PVWBail()
+        if (fn == name and flatten_ok and len(args) == 1 and _is_var(args[0])
+                and flat_locals.get(args[0].get("name")) == "term"):
+            return ("reclocal", args[0]["name"]), "term"
         if fn == name:
             if not (len(args) == 1 and _is_term_field_read(args[0], subj)
                     and ftypes.get(_term_field_of(args[0])) == "term"):
@@ -35114,13 +35226,33 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
         if st.get("stmt") == "If" and not st.get("orelse") and rest:
             te = strtest(st.get("test"))
             return ("if", te, block(st.get("body"), env), block(rest, env))
+        if (flatten_ok and st.get("stmt") == "TupleUnpack" and rest
+                and flags["flatten"] is None):
+            tg = st.get("targets") or []
+            v = st.get("value")
+            flat = spec.get("flatten") or {}
+            if not (len(tg) == 2 and all(isinstance(x, str) for x in tg)
+                    and tg[0] != tg[1]
+                    and not any(x in env or x in (subj, name, "_") for x in tg)
+                    and isinstance(v, dict) and v.get("type") == "Call"
+                    and v.get("func") in flat and not v.get("keywords")
+                    and len(v.get("args") or []) == 1 and _is_var(v["args"][0], subj)):
+                raise _PVWBail()
+            flags["flatten"] = v["func"]
+            flat_locals[tg[0]] = "list term"
+            flat_locals[tg[1]] = "term"
+            env2 = dict(env)
+            env2[tg[0]] = "list term"
+            env2[tg[1]] = "term"
+            return ("unpack", v["func"], tg[0], tg[1], block(rest, env2))
         raise _PVWBail()
 
     node = block(ibody, {})
     if node[0] == "ret":
         raise _PVWBail()                # a single return: the older arm forms own it
     return {"kind": "block", "node": node, "used": sorted(used),
-            "uses_list": flags["list"], "uses_streq": flags["streq"]}
+            "uses_list": flags["list"], "uses_streq": flags["streq"],
+            "flatten": flags["flatten"]}
 
 
 def _emit_block_expr(e: Any, n: str, list_names: Dict[str, str]) -> str:
@@ -35149,6 +35281,10 @@ def _emit_block_expr(e: Any, n: str, list_names: Dict[str, str]) -> str:
     if tag == "lbuild":
         return "(" + list_names[e[1]] + " " + " ".join(
             _emit_block_expr(a, n, list_names) for a in e[2]) + ")"
+    if tag == "maplocal":
+        return f"({n}__list l_{e[1]})"
+    if tag == "reclocal":
+        return f"({n} l_{e[1]})"
     raise _PVWBail()
 
 
@@ -35164,6 +35300,17 @@ def _emit_block_node(b: Any, n: str, list_names: Dict[str, str]) -> str:
         cond = " || ".join(f"pystr_eq v_{_t[1]} {_mlw_str_lit(x)}" for x in _t[2])
         return (f"(if {cond} then {_emit_block_node(b[2], n, list_names)}"
                 f" else {_emit_block_node(b[3], n, list_names)})")
+    if tag == "unpack":
+        # The size facts of flatten's result are PROVED lemmas (ghost calls), which is
+        # what discharges the `term__size` variant on the two recursive uses below.
+        fn = list_names.get(b[1]) or b[1]
+        fd = list_names.get("__fdesc__" + b[1])
+        if fd is None:
+            raise _PVWBail()
+        _t = fd['subj_here']
+        return (f"(let (l_{b[2]}, l_{b[3]}) = {fn} v_{_t} in "
+                f"assert {{ {fn}__is v_{_t} }}; {fn}__size v_{_t} Nil; {fn}__grow v_{_t} Nil; "
+                f"term__size_pos l_{b[3]}; {_emit_block_node(b[4], n, list_names)})")
     raise _PVWBail()
 
 
@@ -35524,14 +35671,33 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
         out.append("    variant  { l }")
         out.append(f"  = match l with Nil -> Nil | Cons c_{_cv} r -> Cons "
                    f"{_emit_block_expr(_ce, n, _lnames)} ({n}__lc{_li} r) end")
+    _size = bool(desc.get("size_mode"))
+    if _size:
+        if not spec.get("size_mode"):
+            raise _PVWBail()
+        for _c, _a in arms.items():
+            _bg = _a.get("bguard")
+            if _bg:
+                _fn = _bg["flatten"]
+                _lnames[_fn] = whyml_ident(_fn)
+                _lnames["__fdesc__" + _fn] = dict(_bg["fdesc"], subj_here=subj)
     out.append(f"  let rec {n} (v_{subj}: term) : term")
     out.append("    ensures  { true }")
-    out.append(f"    variant  {{ v_{subj} }}")
+    if _size:
+        out.append(f"    variant  {{ term__size v_{subj} }}")
+    else:
+        out.append(f"    variant  {{ v_{subj} }}")
     out.append(f"  = match v_{subj} with")
     for c in spec["order"]:
         fields = ctors[c]
         arm = arms[c]
         used = _transform_used_fields(arm)
+        if _size:
+            # every structural child is named: its positivity lemma is called below
+            used = used | {fn for fn, wt in fields if wt in ("term", "list term")}
+            _bg = arm.get("bguard")
+            if _bg:
+                used = used | set(_bg["fdesc"]["fields"]) | {_bg["sfield"]}
         binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
         pat = c + ((" " + binders) if binders else "")
         if arm.get("kind") == "block":
@@ -35571,14 +35737,30 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
                    f" then (match v_{_lf} with {_kpat(None)} ->"
                    f" (match ({n}__list v_{_lf}) with {_kpat('v__r')} -> {_gb}"
                    f" | _ -> {rhs} end) | _ -> {rhs} end) else {rhs}")
+        if _size:
+            _bg = arm.get("bguard")
+            if _bg:
+                rhs = (f"if term_streq v_{_bg['sfield']} {_mlw_str_lit(_bg['slit'])}"
+                       f" then {_emit_block_node(_bg['node'], n, _lnames)} else {rhs}")
+            _pos = [f"term__size_pos v_{fn}" for fn, wt in fields if wt == "term"]
+            _pos += [f"term__list_size_nonneg v_{fn}" for fn, wt in fields
+                     if wt == "list term"]
+            if _pos:
+                rhs = "(" + "; ".join(_pos) + "; " + rhs + ")"
         out.append(f"    | {pat} -> {rhs}")
     out.append("    end")
     if desc.get("uses_list"):
         out.append(f"  with {n}__list (l: list term) : list term")
         out.append("    ensures  { true }")
-        out.append("    variant  { l }")
-        out.append(f"  = match l with Nil -> Nil"
-                   f" | Cons h t -> Cons ({n} h) ({n}__list t) end")
+        if _size:
+            out.append("    variant  { term__list_size l }")
+            out.append(f"  = match l with Nil -> Nil"
+                       f" | Cons h t -> term__size_pos h; term__list_size_nonneg t;"
+                       f" Cons ({n} h) ({n}__list t) end")
+        else:
+            out.append("    variant  { l }")
+            out.append(f"  = match l with Nil -> Nil"
+                       f" | Cons h t -> Cons ({n} h) ({n}__list t) end")
     return out
 
 
@@ -35944,6 +36126,8 @@ def emit_term_flatten_arrow_group(func: Dict[str, Any], desc: Dict[str, Any],
     pat = binop_cls + ((" " + binders) if binders else "")
     lit = _mlw_str_lit(desc["arrow_lit"])
     out: List[str] = []
+    if spec.get("size_mode"):
+        return _emit_flatten_size_mode(n, desc, spec)
     out.append(f"  let rec function {n}__app (a b: list term) : list term")
     out.append("    variant { a }")
     out.append("  = match a with Nil -> b | Cons h t -> Cons h (%s__app t b) end" % n)
@@ -35962,6 +36146,143 @@ def emit_term_flatten_arrow_group(func: Dict[str, Any], desc: Dict[str, Any],
     out.append("    requires { true } ensures { true }")
     out.append(f"  = {n}__go v_{subj} Nil")
     return out
+
+
+def _emit_flatten_size_mode(n: str, desc: Dict[str, Any], spec: Dict[str, Any]) -> List[str]:
+    """cv3 L-T3: `flatten_arrow_chain` in a file where a transform recurses on its
+    RESULT. The program walk `{n}__go` is the SAME recursion as the default emission,
+    with two differences, both strengthening only: (1) the spine guard is
+    `val function term_streq` (an uninterpreted but DETERMINISTIC string equality --
+    Python `str ==` is a function of its arguments -- shared with the transform's guard,
+    so the two tests cannot disagree), and (2) `{n}__go` carries PROVED postconditions
+    tying its result to two logic twins `{n}__goh`/`{n}__goc` (the same recursion, as
+    pure functions), about which `{n}__size`/`{n}__grow`/`{n}__grow_strict` are PROVED
+    lemmas over the defined measure `term__size`. Every fact is a proof obligation; no
+    axiom, no assumed contract. The `assert`s are proof hints (each is itself a goal)."""
+    subj = desc["subj"]
+    bc = desc["binop_cls"]
+    fields = desc["fields"]
+    of, f1, f2 = desc["op_field"], desc["f1"], desc["f2"]
+    lit = _mlw_str_lit(desc["arrow_lit"])
+    ctors = spec["ctors"]
+    o: List[str] = []
+
+    def _pat(c: str, names: Dict[str, str]) -> str:
+        bs = " ".join(names.get(fn, "_") for fn, _ in ctors[c])
+        return c + ((" " + bs) if bs else "")
+
+    def _sz(c: str, pre: str) -> str:
+        parts = ["1"]
+        for fn, wt in ctors[c]:
+            if wt == "term":
+                parts.append(f"term__size {pre}{fn}")
+            elif wt == "list term":
+                parts.append(f"term__list_size {pre}{fn}")
+        return " + ".join(parts)
+    o.append("  val function term_streq (a b: string) : bool")
+    o.append("  let rec function term__size (t: term) : int")
+    o.append("    variant { t }")
+    o.append("  = match t with")
+    for c in spec["order"]:
+        names = {fn: f"s_{fn}" for fn, wt in ctors[c] if wt in ("term", "list term")}
+        o.append(f"    | {_pat(c, names)} -> {_sz(c, 's_')}")
+    o.append("    end")
+    o.append("  with function term__list_size (l: list term) : int")
+    o.append("    variant { l }")
+    o.append("  = match l with Nil -> 0 | Cons h r -> 1 + term__size h + term__list_size r end")
+    o.append("  let rec lemma term__size_pos (t: term)")
+    o.append("    ensures { term__size t >= 1 }")
+    o.append("    variant { t }")
+    o.append("  = match t with")
+    for c in spec["order"]:
+        names = {fn: f"s_{fn}" for fn, wt in ctors[c] if wt in ("term", "list term")}
+        calls = [(f"term__size_pos s_{fn}" if wt == "term" else f"term__list_size_nonneg s_{fn}")
+                 for fn, wt in ctors[c] if wt in ("term", "list term")]
+        calls.append(f"assert {{ term__size t = {_sz(c, 's_')} }}")
+        o.append(f"    | {_pat(c, names)} -> " + "; ".join(calls))
+    o.append("    end")
+    o.append("  with lemma term__list_size_nonneg (l: list term)")
+    o.append("    ensures { term__list_size l >= 0 }")
+    o.append("    variant { l }")
+    o.append("  = match l with Nil -> () | Cons h r -> term__size_pos h; term__list_size_nonneg r;"
+             " assert { term__list_size l = 1 + term__size h + term__list_size r } end")
+    o.append(f"  let rec function {n}__app (a b: list term) : list term")
+    o.append("    variant { a }")
+    o.append("  = match a with Nil -> b | Cons h t -> Cons h (%s__app t b) end" % n)
+    o.append(f"  let rec lemma {n}__app_size (a b: list term)")
+    o.append(f"    ensures {{ term__list_size ({n}__app a b) = term__list_size a + term__list_size b }}")
+    o.append("    variant { a }")
+    o.append(f"  = match a with Nil -> () | Cons _ t -> {n}__app_size t b end")
+    # The spine test and the two projections, as total `let function`s: the program
+    # walk and its logic twins test `{n}__is` exactly as Python's `while isinstance(cur,
+    # C) and cur.F == "<lit>"` does, and read `cur.<lhs>`/`cur.<rhs>` through them.
+    # Written with `if` rather than `match` so every postcondition below splits per
+    # branch (both provers time out on the merged `match` form -- measured).
+    pis = _pat(bc, {of: "s_" + of})
+    o.append(f"  let function {n}__is (t: term) : bool = match t with {pis} ->"
+             f" term_streq s_{of} {lit} | _ -> false end")
+    o.append(f"  let function {n}__l (t: term) : term = match t with {_pat(bc, {f1: 's_x'})}"
+             f" -> s_x | _ -> t end")
+    o.append(f"  let function {n}__r (t: term) : term = match t with {_pat(bc, {f2: 's_x'})}"
+             f" -> s_x | _ -> t end")
+    o.append(f"  let function {n}__op (t: term) : string = match t with {_pat(bc, {of: 's_x'})}"
+             f" -> s_x | _ -> \"\" end")
+    _eta = bc + " " + " ".join({of: f"({n}__op t)", f1: f"({n}__l t)", f2: f"({n}__r t)"}[fn]
+                               for fn in fields)
+    o.append(f"  let lemma {n}__eta (t: term)")
+    o.append(f"    requires {{ {n}__is t }}")
+    o.append(f"    ensures {{ t = {_eta} }}")
+    _ena = {of: "s_a", f1: "s_b", f2: "s_c"}
+    o.append(f"  = match t with {_pat(bc, _ena)} -> assert {{ {n}__op t = s_a }};"
+             f" assert {{ {n}__l t = s_b }}; assert {{ {n}__r t = s_c }}"
+             f" | _ -> assert {{ {n}__is t = false }}; absurd end")
+    o.append(f"  let lemma {n}__shape (t: term)")
+    o.append(f"    requires {{ {n}__is t }}")
+    o.append(f"    ensures {{ term__size t = 1 + term__size ({n}__l t) + term__size ({n}__r t) }}")
+    o.append(f"    ensures {{ term__size ({n}__l t) >= 1 }}")
+    o.append(f"    ensures {{ term__size ({n}__r t) >= 1 }}")
+    o.append(f"  = {n}__eta t; term__size_pos ({n}__l t); term__size_pos ({n}__r t);"
+             f" assert {{ term__size ({_eta}) = 1 + term__size ({n}__l t) + term__size ({n}__r t) }}")
+    one = f"(Cons ({n}__l t) Nil)"
+    o.append(f"  let rec function {n}__goh (t: term) (acc: list term) : list term")
+    o.append("    variant { term__size t }")
+    o.append(f"  = if {n}__is t then ({n}__shape t; {n}__goh ({n}__r t) ({n}__app acc {one}))"
+             f" else acc")
+    o.append(f"  let rec function {n}__goc (t: term) : term")
+    o.append("    variant { term__size t }")
+    o.append(f"  = if {n}__is t then ({n}__shape t; {n}__goc ({n}__r t)) else t")
+    o.append(f"  let rec lemma {n}__size (t: term) (acc: list term)")
+    o.append(f"    ensures {{ term__list_size ({n}__goh t acc) + term__size ({n}__goc t)"
+             f" = term__list_size acc + term__size t }}")
+    o.append("    variant { term__size t }")
+    o.append(f"  = if {n}__is t then begin")
+    o.append(f"      {n}__shape t;")
+    o.append(f"      let acc2 = {n}__app acc {one} in")
+    o.append(f"      {n}__app_size acc {one}; {n}__size ({n}__r t) acc2;")
+    o.append(f"      assert {{ term__list_size {one} = 1 + term__size ({n}__l t) }}")
+    o.append("    end")
+    o.append(f"  let rec lemma {n}__grow (t: term) (acc: list term)")
+    o.append(f"    ensures {{ term__list_size ({n}__goh t acc) >= term__list_size acc }}")
+    o.append(f"    ensures {{ {n}__is t -> term__list_size ({n}__goh t acc) > term__list_size acc }}")
+    o.append("    variant { term__size t }")
+    o.append(f"  = if {n}__is t then begin")
+    o.append(f"      {n}__shape t;")
+    o.append(f"      let acc2 = {n}__app acc {one} in")
+    o.append(f"      {n}__app_size acc {one}; {n}__grow ({n}__r t) acc2;")
+    o.append(f"      assert {{ term__list_size {one} = 1 + term__size ({n}__l t) }}")
+    o.append("    end")
+    o.append(f"  let rec {n}__go (v_{subj}: term) ({n}__acc: list term)"
+             " : (h: list term, c: term)")
+    o.append(f"    ensures {{ h = {n}__goh v_{subj} {n}__acc }}")
+    o.append(f"    ensures {{ c = {n}__goc v_{subj} }}")
+    o.append(f"    variant {{ term__size v_{subj} }}")
+    o.append(f"  = if {n}__is v_{subj} then ({n}__shape v_{subj};"
+             f" {n}__go ({n}__r v_{subj}) ({n}__app {n}__acc (Cons ({n}__l v_{subj}) Nil)))")
+    o.append(f"    else ({n}__acc, v_{subj})")
+    o.append(f"  let {n} (v_{subj}: term) : (list term, term)")
+    o.append(f"    requires {{ true }} ensures {{ result = ({n}__goh v_{subj} Nil, {n}__goc v_{subj}) }}")
+    o.append(f"  = {n}__go v_{subj} Nil")
+    return o
 
 
 def recognize_term_free_vars(func: Dict[str, Any],

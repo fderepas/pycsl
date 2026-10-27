@@ -375,6 +375,12 @@ class FunctionEmissionMixin:
             _st303 = func.get("symbol_table") or {}
             _sc303 = ("int", "float", "bool", "str", "string", "bytes", "complex", "None",
                       "NoneType")
+            # cv3 L-T3: a `Term`-annotated name in a file that carries the certified `term`
+            # inductive is an IMMUTABLE value (frozen dataclasses whose fields the spec
+            # types as str/int/bool/tuple; lowered to the `term` variant): nothing can
+            # mutate it in place, so it can neither be the mutated alias nor a partner.
+            if getattr(self, "_term_adt_spec", None):
+                _sc303 = _sc303 + ("Term",)
             _edges303 = []
             _seeds303 = set()
             _tus303 = []
