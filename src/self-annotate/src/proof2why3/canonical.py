@@ -85,12 +85,31 @@ def _flip_comparisons(t: Term) -> Term:
         return kind(binders=t.binders, ty=t.ty, body=_flip_comparisons(t.body))
     raise TypeError(f"_flip_comparisons: unknown {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _dedup_arrow_chain(t: Term) -> Term:
-    return None
+    if isinstance(t, BinOp) and t.op == "->":
+        hyps, conclusion = flatten_arrow_chain(t)
+        seen: List[Term] = []
+        for h in hyps:
+            recursed = _dedup_arrow_chain(h)
+            if recursed not in seen:
+                seen.append(recursed)
+        return mk_arrow_chain(seen, _dedup_arrow_chain(conclusion))
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_dedup_arrow_chain(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _dedup_arrow_chain(t.lhs), _dedup_arrow_chain(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _dedup_arrow_chain(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty, body=_dedup_arrow_chain(t.body))
+    raise TypeError(f"_dedup_arrow_chain: unknown {type(t)}")
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
