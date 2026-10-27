@@ -99,12 +99,36 @@ def _dedup_arrow_chain(t: Term) -> Term:
 def _ac_normalize(t: Term) -> Term:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _sort_arrow_hypotheses(t: Term) -> Term:
-    return None
+    if isinstance(t, BinOp) and t.op == "->":
+        hyps, conclusion = flatten_arrow_chain(t)
+        hyps_normalized = [_sort_arrow_hypotheses(h) for h in hyps]
+        conclusion_normalized = _sort_arrow_hypotheses(conclusion)
+        # NOTE: we DON'T sort here because sorting changes the meaning
+        # of dependent hypotheses (e.g., `b > 0 -> mod a b = 0` —
+        # the order matters if `mod a b` requires `b != 0`).
+        # For first-order Hoare contracts the order is usually
+        # independent, but we'd need a dependency analysis to confirm.
+        # Keep source order for v1.
+        return mk_arrow_chain(hyps_normalized, conclusion_normalized)
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_sort_arrow_hypotheses(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _sort_arrow_hypotheses(t.lhs),
+                     _sort_arrow_hypotheses(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _sort_arrow_hypotheses(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty,
+                    body=_sort_arrow_hypotheses(t.body))
+    raise TypeError(f"_sort_arrow_hypotheses: unknown {type(t)}")
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
