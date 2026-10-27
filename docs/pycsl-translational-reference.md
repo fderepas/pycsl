@@ -5035,6 +5035,57 @@ Refusal only, inline in `_run_pipeline` after `IRScanner.find_iteration_mutation
 arms, not opted out by `allow_iteration_mutation`) whose `iter` is
 `Call(func = "`$r$`.keys" | "`$r$`.values" | "`$r$`.items")` has iterated collection $r$, exactly
 as a `For` over `Var(`$r$`)`: it is refused when `_collect_mutations` finds a mutation of $r$ in its body.
+### §T.6.91  Sequence repetition (route #417, run #3)
+
+_Corresponds to `annotations.md` §7.80._
+
+Refusal only, at the head of `_handle_binop`: for $e_1 * e_2$, the translation is undefined
+(`PYCSL-R417-SEQUENCE-REPEAT`) when $e_1$ is an `ArrayLit` / `ListLit` with $k \ne 1$ elements, or
+$e_1$ or $e_2$ is a `Tuple`. The admitted `[`$x$`] * `$n$ keeps its translation `Array.make` $n$
+$\mathcal{T}(x)$ (with §T.6.83's bound under `no_exception_all`). An `ArrayLit` with a `Starred`
+element (not erased, §T.6 route #375) translates to `(any (array int))`, a fresh unconstrained array
+(it no longer translates as a one-element `Array.make 1` of the operand); `any` is not a logic term,
+so in a specification context (unreachable: the contract grammar has no `*x`) it fails Why3 typing.
+
+### §T.6.92  Contract string literals (route #417, run #3)
+
+_Corresponds to `annotations.md` §7.81._
+
+`_ContractParser._parse_atom_primary`: a `STRING` token $t$ becomes `StringLiteral(literal_eval(`$t$`))`
+(Python's decoding of the double-quoted literal), so $\mathcal{T}$ of a contract literal equals
+$\mathcal{T}$ of the same literal in a body (`whyml_string_literal` of the decoded value).
+
+### §T.6.93  Range materialization and int-to-float bounds (route #417, run #3)
+
+_Corresponds to `annotations.md` §7.82._
+
+In `_handle_call_expr`, under `no_exception_all` in a body, after the arguments are translated: for
+`list(range(`$\bar e$`))` / `sorted(range(`$\bar e$`))` (one positional argument, no keywords), the
+argument is wrapped `begin assert { `$B(\bar e)$` }; `$\mathcal{T}(\texttt{range}(\bar e))$` end` with
+§T.6.83's operand bound $B$; for `float(`$e$`)` with $e$ int-read, $\mathcal{T}(e)$ is replaced by
+`let _fl417 = `$\mathcal{T}(e)$` in begin assert { -DBL_MAX <= _fl417 <= DBL_MAX }; _fl417 end`, with
+DBL_MAX $= (2^{53}-1) \cdot 2^{971}$ as a literal; with $e$ str-, float- or bool-read nothing is added;
+otherwise the translation is undefined (`PYCSL-R417-UNCHECKED-FLOAT-CONVERSION`). In
+`_classify_iterable`'s opaque fallback, when the int coercion of the iterable drops a term that carries
+`[@expl:no_exception: OverflowError reachable]` assertions, those assertions are materialized in a `let`
+before the loop. Each obligation carries the attribute `[@r417_`$h$`]`, $h$ a stable hash of the call
+node's IR, appended to the driver-owned list `transpiler.r417_obls` (created by `_run_pipeline` before
+`transpile()`). After `transpile()`, `_run_pipeline` counts, for each recorded tag $t$, the calls of the
+IR (`list` / `sorted` / `float` `Call` dicts, through `expr_from_dict(..).to_dict()`) whose tag is $t$,
+$n_{src}(t)$, and refuses (`PYCSL-R417-ERASED-OBLIGATION`) when `[@`$t$`]` occurs in the module fewer than
+$\max(1, n_{src}(t))$ times.
+
+### §T.6.94  Hashing sources: constant-name dynamic stores, stdlib function results (route #417, run #3)
+
+_Corresponds to `annotations.md` §7.83._
+
+Refusal only, inline in `_run_pipeline` (mirror twin `\trusted`; no emission change). In the
+hashed-value class derivation: a field read `o.`$a$ (receiver of a file class) and a class
+attribute `C.`$a$ add `#UNK` when $a \in$ `_sa417`, the attribute names of constant-name
+`setattr` / `__setattr__` / `__dict__[..]` / `vars(..)[..]` stores anywhere in the file; a `Call`
+whose callee resolves (`_nd409`) to a standard-library object that is callable, not a `type` and not
+`builtins.*` (and not a copy function, §T.6.75) has class `_hr417[`$q$`]` when listed, else `#UNK`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

@@ -3161,6 +3161,78 @@ same `#@ allow_iteration_mutation` opt-out apply (inline in `_run_pipeline`, who
 `\trusted`; `ir_scanner.find_iteration_mutations` and its recognised mirror model are unchanged).
 Witnesses `6073`-`6075`; control `6076`.
 
+### 7.80 Sequence repetition is modelled only for `[x] * n` (route #417, run #3)
+
+The `[default] * size` lowering kept the FIRST element of the list display and dropped the rest:
+`[1, 2] * 3` became `Array.make 3 1` (length 3; CPython 6) and `[] * 3` `Array.make 3 0` (CPython
+length 0), so `len(xs) == 3` and `xs[1] == 1` PROVED. A tuple display operand fell to Why3 INT
+multiplication: `(0,) * 3` became `(0) * 3`, a falsy `0`, so `if t: return 1` was decided False
+(CPython `(0, 0, 0)` is truthy), and `(1,) * n` was returned as `n`. RULE (polarity: only the
+modelled shape is admitted): `*` with a list display on the left is admitted only when the display
+has exactly one element; any other list display on the left, and a tuple display on either side,
+is REFUSED (`PYCSL-R417-SEQUENCE-REPEAT`), in bodies and contracts. Likewise a STARRED element of a
+list display lowered to its operand as ONE element (`len([*range(n)]) == 1` PROVED, CPython n): in a
+body such a display is now an UNCONSTRAINED list, fresh per evaluation (list-ness kept, length and
+contents unknown; route #299's answer for the hval carrier), and an erased operand keeps route #375's
+failing assertion. A contract cannot spell one (the contract grammar rejects `*x`, measured on
+`ensures` / `assert` / `loop_invariant`). Measured, not changed: `3 * [1, 2]`, `ys * 3` (a list
+variable), `[1] * 2 * 3` and `n * [1]` are refused at base and candidate alike (no false proof);
+`t * 2` of a typed tuple variable fails its proof at both. Witnesses `6100`-`6105`, `6114`; control
+`6120`.
+
+### 7.81 A contract string literal has Python's escape semantics (route #417, run #3)
+
+The contract lexer kept a string token's RAW text, so `"a\nb"` in a `#@` clause reached the model
+as backslash + `n` (four characters) while the same literal in the body is three: `#@ ensures
+\result == "a\nb"` PROVED of `return "a\\nb"` (CPython False). RULE: a contract string literal is
+decoded exactly as Python decodes the double-quoted literal (`ast.literal_eval` of the token):
+`\n`, `\t`, `\\`, `\"`, `\xNN`, `\uNNNN`, `\N{..}`; an undecodable escape is a contract syntax
+error. Witnesses `6106`-`6107`; control `6121`.
+
+### 7.82 `list(range(..))`, `sorted(range(..))` and `float(int)` owe their OverflowError bounds under `no_exception \all` (route #417, run #3)
+
+Route #414's Py_ssize_t rule (§7.72) covered `len(range(..))` but not the other range
+materializations that take its length: `list(range(10**20))` and `sorted(range(10**20))` raise
+OverflowError ("Python int too large to convert to C ssize_t") and PROVED `no_exception \all`
+(`for x in sorted(range(n))` erased the iterable to `(any int)` altogether). `float(n)` of an int
+raises OverflowError ("int too large to convert to float") for `|n|` past the largest double and
+had no obligation. RULE, under `\all` only (route #332's rule, as §7.71 / §7.72): `list(range(..))`
+and `sorted(range(..))` (one positional argument, no keyword; `sorted(range(n), reverse=True)` is
+refused at base and candidate alike) owe §7.72's bound on the range operands (`stop <= 2**63 - 1`, `stop - start
+<= 2**63 - 1`, `|stop - start| <= 2**63 - 1`); when a `for` iterable's coercion erases the term,
+the obligation is asserted where Python evaluates the iterable, before the loop. `float(x)` owes
+`-DBL_MAX <= x <= DBL_MAX` (DBL_MAX = `(2**53 - 1) * 2**971`, §7.71's literal) when `x` is read as an
+int (an int literal, an `int`-typed name, `len` / `int` / `abs` / `ord` / `hash` / `sum`); it owes
+nothing for a str / float / bool argument; any other argument is REFUSED
+(`PYCSL-R417-UNCHECKED-FLOAT-CONVERSION`). NOT MODELLED: `tuple(range(10**20))` (and a
+comprehension over a huge range) raises MemoryError, a resource limit (§7.72). Each obligation
+carries a tag stable per call node (a hash of the call's IR). After emission the driver requires
+every registered tag to occur in the module at least once AND at least as often as its call occurs
+in the IR: textually identical calls share a tag, so a kept twin must not hide an erased occurrence
+(measured: a bounded `for x in sorted(range(n))` beside an unbounded `set(sorted(range(n)))`, and a
+guarded `float(n)` beside `isinstance(float(n), float)`, PROVED with a presence-only check). Fewer
+occurrences is an obligation a later coercion ERASED with the term (measured: `set(sorted(range(n)))`
+-> `set_1 (any int)`), REFUSED (`PYCSL-R417-ERASED-OBLIGATION`). Witnesses `6108`-`6110`, `6113`,
+`6115`-`6117`; controls `6118`, `6122`-`6123`.
+
+### 7.83 Constant-name dynamic stores and standard-library function results in hashing positions (route #417, run #3)
+
+Two residuals of §7.63 / §7.64. (1) `setattr(self, "x", [1])` stores a value in field `x` that
+the field sources of a hashed value never saw: `{r.x}` PROVED `no_exception \all` (CPython
+TypeError). RULE: an attribute name written by a CONSTANT-name dynamic store anywhere in the file
+(`setattr(o, "x", v)`, `o.__setattr__("x", v)`, `object.__setattr__(o, "x", v)`, `o.__dict__["x"] =
+v`, `vars(o)["x"] = v`) is UNKNOWN when a field of that name is read in a hashing position
+(`PYCSL-R349-UNHASHABLE-RECORD`). A non-constant name keeps §7.43's GD-only effect: OPEN RESIDUAL,
+`setattr(self, nm, [1])` then `{r.x}` still PROVES `no_exception \all` (CPython TypeError; probe
+`q09_setattr_dyn`, run #3 r417b); folding it in GONEs the `frontend/pure_ast.py` mirror, whose
+`setattr(self, name, value)` is route #406's measured cost. (2) The result of
+a standard-library FUNCTION was underivable and admitted: `{shlex.split("a b")}` PROVED (CPython
+TypeError, a list). RULE: a call whose callee resolves to a standard-library function (not a class,
+not a builtin name) has a class only when the function is on a fixed list of functions that always
+return a hashable `str` / `int` / `float` / `bool` (`os.getcwd`, `os.path.join` / `basename` /
+`dirname` / `abspath` / ..., `shlex.quote` / `join`, `re.escape`, `json.dumps`, `math.sqrt` / ...,
+`time.time`, ...); any other is UNKNOWN when hashed. Witnesses `6111`-`6112`; controls `6124`-`6125`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

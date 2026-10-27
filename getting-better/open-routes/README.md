@@ -11,6 +11,27 @@
 
 ##   true-division overflow, #414 size limits, #415 `%` formatting, #416 dict mutation while iterating a view.
 
+## run #3 (2026-10-27): #417 REPAIRED, candidate (r417 executor, completed and gated by r417b off 930d68ed5; code + corpus
+##   6100-6125 + census + advice audit + docs, annotations 7.80-7.83 / translational T.6.91-T.6.94, route REPAIR section; no new
+
+##   def in a mirrored file, no new axiom, ledger unchanged). Eight false proofs CONFIRMED at base (PROVED, CPython violates):
+
+##   `[1, 2] * 3` as a length-3 list and `(0,) * 3` as the int 0 (REFUSED, PYCSL-R417-SEQUENCE-REPEAT); `[*range(n)]` as one
+
+##   element (now an unconstrained list); contract `"\n"` kept raw (decoded as Python does); `list` / `sorted(range(10**20))`
+
+##   and `float(10**400)` with no OverflowError obligation (obligations under `\all`; an obligation erased by a coercion is
+
+##   REFUSED, counted per source occurrence; `float` of a non-int-read argument REFUSED); `setattr(o, "x", [1])` and
+
+##   `shlex.split(..)` results hashed (UNKNOWN unless allow-listed). Root 2484 -> 2497, 3 MOVED (3570/3571/3575: one unused val
+
+##   decl; verdicts kept), 0 GONE; pyref 0/0/0; mirrors 2 MOVED (Module3_Weaver 288/0 proved; Module5_IREmitter whole-file proof
+
+##   OWED); planes 61/61; pycsl_lib identical. Residuals: a NON-constant `setattr(self, nm, [1])` still proves `{r.x}`; (h) the
+
+##   `__eq__` isinstance narrowing not addressed.
+
 ## run #3 (2026-10-26): #226 POLARITY FLIP REPAIRED, candidate (c226 executor off main 8f4221371; code + corpus + docs on this
 ##   branch, annotations 7.58 / T.6.69, route #226 REPAIR section). A `#@ class invariant` of a class of the verified file is
 
