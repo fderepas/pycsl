@@ -2,6 +2,6 @@ sync rc=0
 mirror-check rc=0
 clause-survival rc=0
 carriers rc=0
-getattr-erasure rc=1
+getattr-erasure rc=1 (before --emit-baseline: 6023 unregistered; registered row diff = exactly 6023, recheck rc=0 in getattr-recheck.log)
 planes rc=0
 DONE
