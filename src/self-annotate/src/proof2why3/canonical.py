@@ -16,12 +16,32 @@ def substitute(t: Term, mapping: int) -> Term:
     return None
 
 _NAT_TYPES = {'nat', 'Nat'}
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _expand_nat_to_int(t: Term) -> Term:
-    return None
+    if isinstance(t, Forall):
+        new_body = _expand_nat_to_int(t.body)
+        if t.ty in _NAT_TYPES:
+            side: List[Term] = [
+                BinOp(">=", Var(b), IntLit(0)) for b in t.binders
+            ]
+            conclusion_with_side = mk_arrow_chain(side, new_body)
+            return Forall(binders=t.binders, ty="int",
+                          body=conclusion_with_side)
+        return Forall(binders=t.binders, ty=t.ty, body=new_body)
+    if isinstance(t, Exists):
+        new_body = _expand_nat_to_int(t.body)
+        if t.ty in _NAT_TYPES:
+            return Exists(binders=t.binders, ty="int", body=new_body)
+        return Exists(binders=t.binders, ty=t.ty, body=new_body)
+    if isinstance(t, App):
+        return App(head=t.head, args=tuple(_expand_nat_to_int(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _expand_nat_to_int(t.lhs), _expand_nat_to_int(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _expand_nat_to_int(t.arg))
+    return t
 
 #@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
