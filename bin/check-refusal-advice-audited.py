@@ -705,6 +705,12 @@ AUDITED = {
     # (#49) gen #37 -- route #415 (g2, run #3), audited the day it landed.
     ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`%` string formatting under `no_exception` is admitted only when it is positively checked: the formatted value is an opa"): (FOLLOWABLE,
         "Route #415. 'Rewrite the format in that shape': witness 6069's `\"%d\" % s` (s: str) rewritten `\"%s\" % s` is ADMITTED and VERIFIES under `no_exception \\all` (probe p415_follow, rc=0); control 6072 is the multi-operand shape."),
+    # (#49) gen #37 -- route #417 (r417b, run #3), audited the day it landed. Probes in
+    # getting-better/systematic-soundness-r3/r417b/advice/.
+    ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`float(x)` under `no_exception \\\\all` is admitted only when `x` is positively read as an int (a literal, an `int`-typed "): (FOLLOWABLE,
+        "Route #417. 'Annotate the argument `int` or `float`, or drop `\\all` from the context': witness 6113's `float(g(n))` rewritten `y: int = g(n); x = float(y)` under `requires -1000 <= n <= 1000` is ADMITTED and VERIFIES (a1, rc=0); with `\\all` dropped from `f` it VERIFIES (a2, rc=0); control 6123 is the int-typed shape."),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr417('an OverflowError obligation of `list(range(..))` / `sorted(range(..))` / `float(<int>)` under `no_exception \\\\all` was ERAS"): (FOLLOWABLE,
+        "Route #417. 'Bind the call to a local first (`xs = list(range(n))`), or drop `\\all`': witness 6115's `set(sorted(range(n)))` rewritten `xs = list(range(n)); s = set(xs)` under `requires 0 <= n <= 1000` VERIFIES (b2, rc=0); with `\\all` dropped it VERIFIES (b3, rc=0). (Binding `xs = sorted(range(n))` instead fails Why3 typing at base and candidate alike, b1: the advice names `list`.)"),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -980,6 +986,9 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""line {_z405.lineno}: `{_ast341.unparse(_z405)}` creates a class at run time from the bases `{_ast341.unparse(_ba405)}`. '): '22407dfcb3da',
     # (#49) gen #37 -- route #415
     ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`%` string formatting under `no_exception` is admitted only when it is positively checked: the formatted value is an opa"): '6f35eab5f648',
+    # (#49) gen #37 -- route #417
+    ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`float(x)` under `no_exception \\\\all` is admitted only when `x` is positively read as an int (a literal, an `int`-typed "): 'b55911603317',
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr417('an OverflowError obligation of `list(range(..))` / `sorted(range(..))` / `float(<int>)` under `no_exception \\\\all` was ERAS"): 'e540d38dd138',
 }
 
 

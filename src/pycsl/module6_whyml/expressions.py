@@ -10499,8 +10499,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # The `[@r417 ..]` tag (stable per call node) lets `_run_pipeline` check that
                 # no later coercion ERASED the obligation with the term (`set(sorted(range(n)))`
                 # coerced the argument to `(any int)`, measured): an erased one is refused.
+                # The tag goes into the DRIVER's registry `r417_obls` (a list `_run_pipeline`
+                # creates before `transpile()`, as it hands over `class_binds_r376`). Two
+                # textually identical calls share a tag: the driver counts the source
+                # occurrences, so one erased occurrence is not hidden by a kept twin.
                 _tg417 = "r417_%08x" % (stable_hash(repr(expr)) & 0xffffffff)
-                self._r417_obls = getattr(self, "_r417_obls", set()) | {_tg417}
+                if hasattr(self, "r417_obls"):
+                    self.r417_obls.append(_tg417)
                 args[0] = (f"(begin assert {{ [@expl:no_exception: OverflowError reachable] "
                            f"[@{_tg417}] {_b417} }}; {args[0]} end)")
             elif func_name == "float" and isinstance(_a417, dict):
@@ -10508,25 +10513,28 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _st417 = getattr(self, "_current_symbol_table", {}) or {}
                 _t417 = (str(_st417.get(_a417.get("name")) or "").split("[")[0].strip().lower()
                          if _k417 == "Var" else "")
-                def _ir417(_e):
-                    # int-read: an int literal, an `int`-typed name, an int builtin, and
-                    # `+ - * // %` / unary `-` over int-read operands
-                    if not isinstance(_e, dict):
-                        return False
-                    _ke = _e.get("type")
-                    if _ke == "Number":
-                        return type(_e.get("value")) is int
-                    if _ke == "Var":
-                        return (str(_st417.get(_e.get("name")) or "").split("[")[0]
-                                .strip().lower() == "int")
-                    if _ke == "Call":
-                        return _e.get("func") in ("len", "int", "abs", "ord", "hash", "sum")
-                    if _ke == "BinOp" and _e.get("op") in ("+", "-", "*", "//", "div", "%"):
-                        return _ir417(_e.get("left")) and _ir417(_e.get("right"))
-                    if _ke == "UnaryOp" and _e.get("op") in ("-", "+"):
-                        return _ir417(_e.get("operand"))
-                    return False
-                _int417 = _ir417(_a417)
+                # int-read: an int literal, an `int`-typed name, an int builtin, and
+                # `+ - * // %` / unary `-` over int-read operands (a worklist, inline)
+                _int417 = True
+                _wk417 = [_a417]
+                while _int417 and _wk417:
+                    _e417 = _wk417.pop()
+                    _ke417 = _e417.get("type") if isinstance(_e417, dict) else None
+                    if _ke417 == "Number":
+                        _int417 = type(_e417.get("value")) is int
+                    elif _ke417 == "Var":
+                        _int417 = (str(_st417.get(_e417.get("name")) or "").split("[")[0]
+                                   .strip().lower() == "int")
+                    elif _ke417 == "Call":
+                        _int417 = _e417.get("func") in ("len", "int", "abs", "ord", "hash",
+                                                        "sum")
+                    elif (_ke417 == "BinOp"
+                          and _e417.get("op") in ("+", "-", "*", "//", "div", "%")):
+                        _wk417.extend([_e417.get("left"), _e417.get("right")])
+                    elif _ke417 == "UnaryOp" and _e417.get("op") in ("-", "+"):
+                        _wk417.append(_e417.get("operand"))
+                    else:
+                        _int417 = False
                 _safe417 = ((_k417 == "Number" and type(_a417.get("value")) is float)
                             or (_k417 == "Bool")
                             or (_k417 == "Var" and _t417 in ("float", "bool", "str"))
@@ -10534,7 +10542,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 if _int417 and not _safe417:
                     _m417 = str((2 ** 53 - 1) * 2 ** 971)
                     _tg417 = "r417_%08x" % (stable_hash(repr(expr)) & 0xffffffff)
-                    self._r417_obls = getattr(self, "_r417_obls", set()) | {_tg417}
+                    if hasattr(self, "r417_obls"):
+                        self.r417_obls.append(_tg417)
                     args[0] = (f"(let _fl417 = {args[0]} in begin assert {{ "
                                f"[@expl:no_exception: OverflowError reachable] [@{_tg417}] "
                                f"- {_m417} <= _fl417 <= {_m417} }}; _fl417 end)")
@@ -22299,18 +22308,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # (py_range_1 n)` and `len([*range(n)]) == 1` PROVED (CPython n). The splice is
             # not modelled, so (route #299's answer for the hval carrier) the display is an
             # UNCONSTRAINED array, fresh per evaluation: list-ness kept, length and contents
-            # unknown. In a specification (no `any`) it is REFUSED. Route #375's re-entry
+            # unknown. A specification cannot hold one (the contract grammar rejects `*x`:
+            # measured on `ensures` / `assert` / `loop_invariant`), and `any` is not a logic
+            # term, so a stray one fails Why3 typing, never proves. Route #375's re-entry
             # (an erased operand, already preceded by a failing assertion) is unchanged.
             if not _nr358 and any(isinstance(_e417, dict) and _e417.get("type") == "Starred"
                                   for _e417 in elts):
-                if self._in_spec or invariant_ctx:
-                    from errors import PyCSLSemanticError
-                    raise PyCSLSemanticError(
-                        "a starred element `*x` in a list display is not modelled in a "
-                        "specification: the program lowers it to an unconstrained list "
-                        "(its length and contents are unknown). State the property over "
-                        "`x` itself instead.",
-                        stage="whyml", code="PYCSL-R417-STARRED-LIST-ELEMENT")
                 return "(any (array int))"
             # (#49) ROUTE #184 — A `None` ELEMENT OF A LIST LITERAL IS NOT THE INTEGER 0.
             # `xs: List[Optional[int]] = [None]` lowered to `Array.make 1 0`, so `xs[0] == 0`

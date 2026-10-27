@@ -11521,15 +11521,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _nx226 = _bk226[0]
                 _c226 = _nx226
         transpiler.ctor_state_c226 = _cs226
+    # (#417) the registry the emitter appends a tag to for every OverflowError obligation
+    # it attaches (checked below)
+    transpiler.r417_obls = []
     _mlw = transpiler.transpile()
     # (#49) ROUTE #417 -- every OverflowError obligation the emitter attached to a
     # `list(range(..))` / `sorted(range(..))` / `float(int)` argument carries a tag stable
     # per call node; a later int coercion that drops the argument term drops the obligation
     # with it (measured: `set(sorted(range(n)))` -> `set_1 (any int)` PROVED `no_exception
-    # \all` for n = 10**20, CPython OverflowError). A tag absent from the final module is
-    # an obligation the lowering ERASED: refused.
-    _er417 = sorted(_t for _t in (getattr(transpiler, "_r417_obls", None) or ())
-                    if "[@" + _t + "]" not in (_mlw or ""))
+    # \all` for n = 10**20, CPython OverflowError). A registered tag must occur in the
+    # final module at least once, and at least as often as its call occurs in the IR
+    # (textually identical calls share a tag, so a kept twin must not hide an erased
+    # occurrence; measured: `xs = list(range(n))` under `n < 100` beside an erased
+    # `set(list(range(n)))`). Fewer is an obligation the lowering ERASED: refused.
+    from ir_schema import expr_from_dict as _efd417
+    from module6_whyml.identifiers import stable_hash as _sh417
+    _sc417 = {}
+    _wk417 = [getattr(transpiler, "ir", None)]
+    while _wk417:
+        _x417 = _wk417.pop()
+        if isinstance(_x417, dict):
+            if (_x417.get("type") == "Call"
+                    and _x417.get("func") in ("list", "sorted", "float")):
+                try:
+                    _k417 = "r417_%08x" % (_sh417(repr(_efd417(_x417).to_dict()))
+                                           & 0xffffffff)
+                    _sc417[_k417] = _sc417.get(_k417, 0) + 1
+                except Exception:
+                    pass
+            _wk417.extend(_x417.values())
+        elif isinstance(_x417, list):
+            _wk417.extend(_x417)
+    _er417 = sorted(_t for _t in set(getattr(transpiler, "r417_obls", None) or ())
+                    if (_mlw or "").count("[@" + _t + "]") < max(1, _sc417.get(_t, 0)))
     if _er417:
         from errors import PyCSLSemanticError as _PyCSLSemErr417
         raise _PyCSLSemErr417(

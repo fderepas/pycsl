@@ -1,0 +1,6 @@
+a1_float_annotated_local.py	0	PROVED	-
+a2_float_drop_all.py	0	PROVED	-
+b1_sorted_bound_local.py	1	REFUSED	-
+b2_list_bound_local.py	0	PROVED	-
+b3_drop_all.py	0	PROVED	-
+b4_float_isinstance_local.py	0	PROVED	-
