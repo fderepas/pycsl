@@ -1,5 +1,16 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-27): #421-#428 REPAIRED, #429 NOT REPAIRED (executor g3 off ac28806be; code + corpus 6250-6322 / 6330-6337
+##   + census 73 rows + advice audits R405(#423) / R424 / R425 + docs annotations 7.110-7.117 / translational T.6.121-T.6.128,
+##   REPAIR sections; no new def in a mirrored file, no axiom, ledger unchanged). Method: each rule now enumerates what it ADMITS.
+##   #421 global / class-body names UNKNOWN unless every binding is derived (union); #422 unbound str methods, str-row allow-list,
+##   Enum .value, nested def -> T; #423 class-creating values (type, stdlib / file metaclasses, Enum functional calls) confined
+##   to admitted positions; #424 `K[i]` with __class_getitem__ refused; #425 explicit __init__ outside chaining refused;
+##   #426 f-string float / `c` specs owe DBL_MAX / range bounds; #427 UB-7.1 through generator expressions; #428 safe modules
+##   vouch for resolved FUNCTIONS only. All 114 red-team probes of #421-#428 REFUSED / FAIL on the final candidate (73 kept as
+##   witnesses, PROVED at base); 8 controls PROVED both. Root 2497 -> 2512 0/0/0, pyref 2186 0/0/0, mirrors 53/53 0/0/0,
+##   pycsl_lib identical, planes 61/61. #429 lies inside the declared LATIN1-STR assumption (FAILS under --strict-latin1).
+
 ## run #3 (2026-10-27): #421-#429 OPENED (red team 33, convergence measurement: 653 screened / 385 fully proved / 116 confirmed;
 ##   9/9 sample driver-reproduced rc=0 on main 06ad8aa32): #421 global/class-body initializer derived narrower than a local (55),
 ##   #422 local derivation gaps (3), #423 metaclass calls other than type(..) create dynamic subclasses (12), #424 K[i] via

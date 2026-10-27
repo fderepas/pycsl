@@ -3233,6 +3233,115 @@ return a hashable `str` / `int` / `float` / `bool` (`os.getcwd`, `os.path.join` 
 `dirname` / `abspath` / ..., `shlex.quote` / `join`, `re.escape`, `json.dumps`, `math.sqrt` / ...,
 `time.time`, ...); any other is UNKNOWN when hashed. Witnesses `6111`-`6112`; controls `6124`-`6125`.
 
+
+### 7.110 A module-global / class-body name is UNKNOWN unless every binding is derived (route #421, run #3)
+
+§7.64's global / class-body derivation answered "underivable" (no class: ADMITTED when hashed) for
+every initializer form it did not list, while the same initializer bound to a local is refused:
+`K = json.loads("[1]")`, `K = collections.deque()`, `K = bytearray(2)`, `K = A = [1]`, `K, A = [1], 2`,
+`(K := [1])`, `K = 1; del K; K = [1]`, a binding under `if` / `try`, a class-body `K = bytearray(1)`
+read as `C.K` or `self.K` -- then `{K}` PROVED `no_exception \all` (red team 33, 55 probes; CPython
+TypeError). POLARITY: a module-global or class-body name has a class only when EVERY one of its
+bindings is a single-target assignment (or a `def` / `class`) whose initializer a row of the
+derivation recognises -- a literal, an f-string, a tuple / list / set / dict display, arithmetic over
+operands with a class (unary minus included), a file-class construction, a builtin
+`frozenset` / `str` / `int` / `float` / `bool` / `bytes` / `complex` / `range` / `list` / `sorted` /
+`set` / `dict` call, an ANNOTATED module function's `-> T` (§7.46), a standard-library function of
+§7.83's list (any other standard-library function result is UNKNOWN), another derived global, a
+class / function, a standard-library name by its real object (§7.64 (3)); several such bindings are
+the UNION of their classes. Any other form -- and a name declared `global` in a function, or both
+imported and assigned -- is UNKNOWN (`#UNK`), refused in a hashing position
+(`PYCSL-R349-UNHASHABLE-RECORD`), as is an element of a container whose elements no row derives.
+A name only IMPORTED keeps §7.64 (3) (a user-module import stays the documented §7.46 residual).
+Witnesses `6250`-`6281`; control `6330`.
+
+### 7.111 Three local value-class rows (route #422, run #3)
+
+The local derivation (§7.46) left three forms with a known class underivable: `k = str.split("a b")`,
+`k = E.A.value` (an Enum member initialised to `[1]`) and the result of a nested `def g() -> list`,
+each then hashed under `no_exception \all` PROVED (CPython TypeError). RULES: an unbound
+`str.<m>(x, ..)` / `bytes.<m>(x, ..)` is read as the method row of its first argument; the `str` /
+`bytes` method rows are now an allow-list (a method not listed, e.g. `str.maketrans`, which returns a
+dict, is UNKNOWN; a name `str` / `bytes` does not have raises AttributeError and contributes no class); `<member>.value` / `._value_` of a file `Enum` is the union of the classes of its
+members' initializers when every class of its MRO is a file or standard-library enum class (no
+data-type mixin) and no file class there binds `__new__` / `__init__` / `value` / `_value_` /
+`_generate_next_value_` (else UNKNOWN); a call of a nested `def g(..) -> T` (undecorated, a statement
+of the function's own scope and the only binding of `g` in it) answers `T`. Witnesses `6282`-`6284`;
+control `6331`.
+
+### 7.112 Every class-creating value is confined (route #423, run #3)
+
+§7.62 recognised the spellings `type(name, bases, ns)` / `type.__new__(..)`, so every other callee
+that creates a class escaped the closed world: `T = type; T("D", (B,), ns)`, `type.__call__(type,
+..)`, `tn = type.__new__; tn(type, ..)`, `abc.ABCMeta(..)` (also `from abc import ABCMeta`, and
+`abc.ABCMeta.__new__(abc.ABCMeta, ..)`), a file metaclass `M(type)` called as `M(..)` / `M.__new__(M,
+..)` / `MM = M; MM(..)` -- then `{b}` for `b: B` PROVED (CPython TypeError), and a getattr default
+PROVED wrong. RULE (anywhere in the file, the driver included; type annotations aside): a
+CLASS-CREATING value -- `type`, a standard-library class deriving from `type` (`abc.ABCMeta`,
+`enum.EnumMeta`, ...) resolved through the file's imports, a file class deriving from one -- may be
+referenced only as a `class` base or `metaclass=`, an argument of `isinstance` / `issubclass` (or of
+a tuple there), a comparison operand, the receiver of `__name__` / `__qualname__` / `__module__` / `__instancecheck__` /
+`__subclasscheck__` / `__mro__` / `__bases__` / `__doc__`, the callee of a call whose second argument is the literal `()`, or (for `type` itself)
+the callee of the one-argument `type(x)`. Any other reference is REFUSED
+(`PYCSL-R405-DYNAMIC-SUBCLASS`); so is a call with two or more arguments (or a keyword) of a standard-library
+class whose METACLASS overrides `__call__` (`enum.Enum("D", "A", type=B)`, the functional API, creates a
+subclass of `B`). Witnesses `6285`-`6296`; control `6332`.
+
+### 7.113 `K[i]` of a class with `__class_getitem__` is refused (route #424, run #3)
+
+A subscript of a class value calls `__class_getitem__`: `{K[1]}` (and `G = K[1]; {G}`) with
+`def __class_getitem__(cls, item) -> list` PROVED (CPython TypeError). RULE: a file class whose file
+MRO binds `__class_getitem__` may not be subscripted or aliased (`A = K`) outside type annotations
+(`PYCSL-R424-CLASS-GETITEM`); the subscript of any other class / function value is UNKNOWN in the
+value-class derivation (refused when hashed). Witnesses `6297`-`6298`; control `6333`.
+
+### 7.114 An explicit `__init__` call is refused outside constructor chaining (route #425, run #3)
+
+`a.__init__(-4)` lowered to a frame-less opaque call -- no `requires`, no `writes`, the class
+invariant kept -- so `a.where() >= 0` PROVED under `invariant self.n >= 0` (CPython -4); likewise
+`a.__class__.__init__(a, -4)`, `a.__init__(n=-4)`. RULE (outside the `__main__` driver): the
+attribute `__init__` may be read only as the callee of `super().__init__(..)` / `super(C,
+self).__init__(..)` or `Base.__init__(self, ..)` (with the enclosing method's own first parameter)
+in the body of an `__init__`; `getattr(.., "__init__")` (also `methodcaller` / `attrgetter`) is
+refused too (`PYCSL-R425-EXPLICIT-INIT`). Witnesses `6299`-`6302`; control `6334`.
+
+### 7.115 f-string format specs owe their value-dependent bounds (route #426, run #3)
+
+§7.71 checks a literal spec's VALUE-INDEPENDENT validity (it is tried on a sample of the operand's
+type). For an operand SHOWN to be an int, three presentation families depend on the value: decimal
+(none / `d` / `n`: §7.36's 4300 digits), a FLOAT type (`e E f F g G %`: the int is converted to a
+float, OverflowError past DBL_MAX -- `f"{n:f}"` with `n = 10**400` PROVED `no_exception \all`) and
+`c` (`chr`: ValueError outside `range(0x110000)`, OverflowError past a C long -- `f"{n:c}"` with
+`n = -1` PROVED). RULE: a float presentation type owes `-DBL_MAX <= n <= DBL_MAX` (§7.82's bound for
+`float(n)`) under `no_exception \all`; `c` owes `0 <= n < 0x110000` under `\all`, else the `chr`
+ValueError row when ValueError is covered. `b o x X` owe nothing. Each obligation is registered with
+§7.82's erased-obligation check (`PYCSL-R417-ERASED-OBLIGATION`). An operand not shown to be an int
+keeps §7.71's sample test (these specs are invalid on a str: the `format_spec` row). Witnesses
+`6303`-`6309`; control `6335`.
+
+### 7.116 UB-7.1 sees through generator expressions (route #427, run #3)
+
+`for k in (x for x in d): d[k + 100] = 0` PROVED `no_exception \all` (CPython RuntimeError); also
+over `d.keys()`, with a filter, nested `(x for x in (y for y in d))`, and a set with `add` /
+`discard`. RULE: the collections a `for` loop iterates are read through every generator of a
+generator expression (recursively) and through a view (`.keys()` / `.values()` / `.items()`, §7.74);
+a loop body mutating any of them is UB-7.1. A list / set / dict comprehension or `list(..)` is a
+snapshot (evaluated before the loop). Witnesses `6310`-`6315`; control `6336`.
+
+### 7.117 §7.63's safe modules vouch for their FUNCTIONS only (route #428, run #3)
+
+`logging.Logger.__init__(self, "n")`, `collections.UserList.__init__(self, [1])`,
+`json.JSONEncoder.__init__(self)`, `string.Template.__init__(self, ..)` ... store attributes on
+`self`, yet the callee's module was on §7.63's list: `getattr(r, "level", 7) == 7` and `{r.data}`
+PROVED (CPython 0 / TypeError). RULE: a standard-library callee taking an object-valued argument is
+known to set no attribute on it only when it RESOLVES (by import) to a callable reached through
+modules only -- never through a class (a method, `Cls.__init__`) -- and is not a class, unless the
+class is one of a fixed list of constructors that keep no reference to and set nothing on an argument
+(`collections.OrderedDict` / `Counter` / `deque` / `defaultdict` / `ChainMap`, `decimal.Decimal`,
+`fractions.Fraction`, `datetime.*`, `pathlib` paths, `io.StringIO` / `BytesIO`, `array.array`,
+`struct.Struct`, `uuid.UUID`); any other makes the file DYNAMIC (§7.63). Witnesses `6316`-`6322`;
+control `6337`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

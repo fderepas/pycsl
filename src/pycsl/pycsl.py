@@ -3634,6 +3634,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _ob423 = {}
         _mc423 = set()
         _rs423 = {}
+        _ec423 = set()
         for _ps423 in range(2):
             for _z423 in _ast341.walk(_t341):
                 if not (isinstance(_z423, (_ast341.Name, _ast341.Attribute))
@@ -3672,12 +3673,24 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _o423 = _ob423[_dq423]
                 if isinstance(_o423, type) and issubclass(_o423, type):
                     _rs423[id(_z423)] = "`" + _dq423 + "`"
+                elif (isinstance(_o423, type) and type(_o423).__call__ is not type.__call__
+                      and not _fp423[-1:] == ["__call__"]):
+                    # a class whose METACLASS `__call__` may create a class (`enum.Enum(
+                    # "D", "A", type=B)`, the functional API): its calls are confined
+                    _ec423.add(id(_z423))
             # the file metaclasses: a class with a base that is a class-creating value
             for _z423 in _ast341.walk(_t341):
                 if isinstance(_z423, _ast341.ClassDef) and any(
                         id(_b423) in _rs423 for _b423 in _z423.bases):
                     _mc423.add(_z423.name)
         for _z423 in _ast341.walk(_t341):
+            if id(_z423) in _ec423 and id(_z423) not in _an423:
+                _y423 = _pp423.get(id(_z423))
+                if (isinstance(_y423, _ast341.Call) and _y423.func is _z423
+                        and (len(_y423.args) >= 2 or _y423.keywords
+                             or any(isinstance(_x, _ast341.Starred) for _x in _y423.args))):
+                    _rs423[id(_z423)] = ("`" + _ast341.unparse(_z423) + "` (its metaclass "
+                                         "`__call__` creates a class from these arguments)")
             if id(_z423) not in _rs423 or id(_z423) in _an423:
                 continue
             _y423 = _pp423.get(id(_z423))
@@ -7960,10 +7973,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _rw383 = []
                             _md383 = _fu383.attr
                             _rt383 = _ty383.get(id(_fu383.value))
-                            if (_nd409.get(id(_fu383.value)) in ("builtins.str", "builtins.bytes")
-                                    and _fu383.attr not in ("maketrans", "fromhex")):
+                            if _nd409.get(id(_fu383.value)) in ("builtins.str", "builtins.bytes"):
                                 # (#422) an UNBOUND `str.<m>(x, ..)` / `bytes.<m>(x, ..)` is
-                                # the method of its first argument: the same row
+                                # the method of its first argument: the same row (a static
+                                # `str.maketrans` / `bytes.fromhex` is not listed: UNKNOWN)
                                 _rt383 = [_ast341.Name(id=_nd409[id(_fu383.value)][9:],
                                                        ctx=_ast341.Load())]
                             if (_rt383 is None and isinstance(_fu383.value, _ast341.Constant)):

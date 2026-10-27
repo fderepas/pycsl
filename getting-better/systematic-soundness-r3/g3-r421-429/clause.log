@@ -1,0 +1,12 @@
+[*] clause-survival: 1472 corpus file(s) compared; 10 carry a DEFICIT (an emitted clause count below the source count).
+    EXPLAINED  0661.py                                            def `__init__` absent from the emission — route #15 residue: param-dependent list field, no let inode__init
+    EXPLAINED  0662.py                                            def `__init__` absent from the emission — route #15 residue: param-dependent list field, no let inode__init
+    EXPLAINED  2220_gen36_ch15_len_record_param_array_field.py    def `__init__` absent from the emission — route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only
+    EXPLAINED  4574_gen37_r342_ctl_param_store_type_self.py       def `__init__` absent from the emission — route #15 residue: computed non-int field, no let b__init; construction site still checked
+    EXPLAINED  5110_gen37_r226_ctl_length_inv_requires_establishes.py def `__init__` absent from the emission — route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only
+    EXPLAINED  5111_gen37_r226_ctl_length_inv_backslash_length_requires.py def `__init__` absent from the emission — route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only
+    EXPLAINED  5114_gen37_r226_ctl_length_inv_two_list_params.py  def `__init__` absent from the emission — route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only
+    EXPLAINED  5275_gen37_r385_ctl_param_len_read_after_store.py  def `__init__` absent from the emission — route #15 residue: List[<record>] ctor param, requires is a premise of _check_class_inv only
+    EXPLAINED  5892_r3_c226_ctl_leading_super_kwonly_requires.py  def `__init__` absent from the emission — route #15 residue: no let e__init; requires is a premise of _check_class_inv; construction site still checked
+    EXPLAINED  5894_r3_c226_ctl_type_self_after_store.py          def `__init__` absent from the emission — route #15 residue: computed non-int field, no let b__init; construction site still checked
+[+] clause-survival: OK — measured 10 deficit file(s) of 1472 compared (10 ledgered, 0 unexplained).

@@ -1,5 +1,5 @@
 # OPEN ROUTE #429 — str.upper() OF A LATIN-1 STRING CAN LEAVE LATIN-1; THE MODEL KEEPS EVERY CODE POINT < 256 
-**Status: OPEN, Severity 2 (arguable).** Red-team round 33 (2026-10-27, convergence measurement after the run #3 allow-list repairs; 653 screened / 385 fully proved / 116 confirmed); driver-reproduced on main (see `scratchpad/rt33/driver-repro.txt`).
+**Status: NOT REPAIRED (declared assumption), Severity 2 (arguable).** Red-team round 33 (2026-10-27, convergence measurement after the run #3 allow-list repairs; 653 screened / 385 fully proved / 116 confirmed); driver-reproduced on main (see `scratchpad/rt33/driver-repro.txt`).
 Witnesses `witnesses-r429/` (2): `p03_upper_ydiaeresis.py`, `p04_upper_micro.py`.
 
 ```
@@ -59,3 +59,13 @@ NOTES
   (uninformative Unknown); re-run with `-> int` (the counted results). Timeouts are not counted (g01, j20, j21, j26, m16, p14-p16).
   Every pycsl run went through heavy.sh (<= 2 concurrent slots); no job of this team is left running.
 ```
+
+## REPAIR (executor g3, driver run #3, 2026-10-27, off ac28806be)
+
+Measured on the candidate: p03 / p04 PROVE by default and FAIL under `--strict-latin1`, so the false proof lies inside the DECLARED LATIN1-STR assumption (every str value has code points < 256; `'\u00ff'.upper()` is a str value outside it). Modelling upper()'s escape needs the opt-in model; refusing upper / title / capitalize / swapcase / casefold on symbolic strings was not measured (time box spent on #421-#428). Amending the assumption's report text touches `_build_soundness_report`, a VERBATIM mirrored driver function (fidelity + proof owed), so it was left for a dedicated change.
+
+Executor g3, driver run #3, 2026-10-27, off ac28806be. Gates (final candidate): root byte-diff 2497 -> 2512 0 MOVED / 0 GONE / 0 APPEARED (15 new sources); pyref 2186 / 2186 0/0/0; mirrors 53/53 0/0/0 (a first candidate GONE 2 mirrors -- frontend/pure_ast `type.__instancecheck__`, module6_whyml/statements a str-row `.get` -- both fixed before landing, so NO mirror refusal); pycsl_lib --no-proof screen identical (104 files, rc0 87); fidelity rc=0; soundness planes 61/61 green; getattr-erasure (control 6337 registered) / clause-survival / assumed-facts --emit-dir / open-route-carriers / refusal-witness-coverage / refusal-advice-audited rc=0. Logs: getting-better/systematic-soundness-r3/g3-r421-429/.
+
+## RESIDUALS (honest)
+
+OPEN: the LATIN1-STR statement should name str case-mapping results explicitly.

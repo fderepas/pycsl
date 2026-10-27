@@ -5086,6 +5086,88 @@ attribute `C.`$a$ add `#UNK` when $a \in$ `_sa417`, the attribute names of const
 whose callee resolves (`_nd409`) to a standard-library object that is callable, not a `type` and not
 `builtins.*` (and not a copy function, §T.6.75) has class `_hr417[`$q$`]` when listed, else `#UNK`.
 
+
+### §T.6.121  Module-global / class-body value classes: polarity (route #421, run #3)
+
+_Corresponds to `annotations.md` §7.110._
+
+Refusal only, inline in `_run_pipeline` (mirror twin `\trusted`; no emission change). For a module
+name $g$ (or a class-body name of $C$) with bindings $b_1..b_n$ (`_md408` / the class body), the
+class set is $\bigcup_i \mathcal{C}(b_i)$ where $\mathcal{C}(b) = \{\texttt{\#UNK}\}$ for a binding
+that is not a single-target assignment / `def` / `class` (and for every binding when $g$ is declared
+`global` or also imported), and otherwise the initializer's derivation `_dz394`, in which every
+expression node no row recognises answers `#UNK` (formerly `#UND`); the operator child of a
+`BinOp` / `UnaryOp` / `BoolOp` / `Compare` is no longer read as an operand; a `Call` whose callee
+resolves to a standard-library function answers `_hr417` (hoisted, shared with `_ty383`) or `#UNK`;
+a call of an annotated module `def` answers its `-> T`. `#UNK` in a hashing position is refused
+(`PYCSL-R349-UNHASHABLE-RECORD`).
+
+### §T.6.122  Local rows: unbound str methods, Enum values, nested defs (route #422, run #3)
+
+_Corresponds to `annotations.md` §7.111._
+
+In `_ty383`: a call `str.m(x, ..)` / `bytes.m(x, ..)` (callee receiver resolving to `builtins.str` /
+`bytes`) takes the receiver class `str` / `bytes`; the str / bytes method rows return the receiver
+class for a fixed list, `str` for `__repr__` / `__format__` / `bytes.hex`, no class for a name the type does not have, and `#UNK` otherwise;
+`e.value` with $e$ of a file Enum class $E$ answers $\bigcup$ `_ev422[E]` (member initializer
+classes recorded by §T.6.121's derivation) under the MRO condition of §7.111, else `#UNK`; `g(..)`
+with $g \in$ `_nd422` (nested undecorated `def g(..) -> T`, sole binding) answers $T$; a module
+function name shadowed locally no longer reads `_mf383`.
+
+### §T.6.123  Class-creating references (route #423, run #3)
+
+_Corresponds to `annotations.md` §7.112._
+
+Refusal only (`_run_pipeline`, after §T.6.73's rule). `_rs423` marks every `Name` / `Attribute` load
+whose dotted name (through `_im405`, or `builtins.type`) resolves to a `type` subclass, or names a
+file class with such a base (`_mc423`, two passes). A marked node outside annotations is admitted
+only in the positions of §7.112; otherwise `PYCSL-R405-DYNAMIC-SUBCLASS`. A load resolving to a stdlib class whose metaclass overrides `__call__` (`_ec423`) is refused as the callee of a call with two or more arguments or a keyword.
+
+### §T.6.124  `__class_getitem__` (route #424, run #3)
+
+_Corresponds to `annotations.md` §7.113._
+
+Refusal `PYCSL-R424-CLASS-GETITEM` for a `Subscript` (outside annotations) or an alias assignment
+whose value is a `Name` of `_cg424` (file classes whose file MRO binds `__class_getitem__`). In
+`_ty383`, a `Subscript` whose receiver class is `#H` answers `#UNK`.
+
+### §T.6.125  Explicit `__init__` (route #425, run #3)
+
+_Corresponds to `annotations.md` §7.114._
+
+Refusal `PYCSL-R425-EXPLICIT-INIT` (outside the `__main__` driver) for an `Attribute` load
+`.__init__` that is not the callee of a call in a `def __init__` whose receiver is a `super(..)` call,
+or a class reference with the method's first parameter as first argument; and for `getattr` /
+`methodcaller` / `attrgetter` with a constant `"__init__"` argument.
+
+### §T.6.126  Format-spec bounds (route #426, run #3)
+
+_Corresponds to `annotations.md` §7.115._
+
+In the literal-spec arm of the `FormattedValue` lowering, for conversion none and an operand shown to
+be an int (`_int284`), with presentation type $t$: $t \in \{e,E,f,F,g,G,\%\}$ under `\all` wraps the
+operand in `assert { [@expl:no_exception: OverflowError reachable] [@r417_h] -DBL_MAX <= x <= DBL_MAX }`;
+$t = c$ under `\all` asserts `0 <= x < 1114112` (same label), else the `("call", "chr")` row. The tag
+$h$ = `stable_hash(repr(node))` is registered in `r417_obls`; the driver now also counts
+`FormattedValue` nodes in §T.6.93's erased-obligation census.
+
+### §T.6.127  Generator expressions in UB-7.1 (route #427, run #3)
+
+_Corresponds to `annotations.md` §7.116._
+
+In `_run_pipeline`'s UB-7.1 pass, the iterated receivers of a `For` are collected by a worklist over
+its `iter`: a `GenExp` contributes each generator's `iter` (marked lazy), a `Call` `r.keys` /
+`r.values` / `r.items` contributes $r$, a lazy `Var` contributes its name; each receiver is checked
+with `IRScanner._collect_mutations`.
+
+### §T.6.128  Safe-module callees resolve to functions (route #428, run #3)
+
+_Corresponds to `annotations.md` §7.117._
+
+In §T.6.73's `_dy406` census, a standard-library callee $q$ of a `_sm406` module is safe only when
+importing its longest module prefix and walking the remaining attributes reaches a callable without
+crossing a class, and the callable is not a class unless $q \in$ `_ck428`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
