@@ -35012,7 +35012,8 @@ def _parse_block_guard(st: Dict[str, Any], subj: str, name: str, spec: Dict[str,
     if not arm.get("flatten"):
         raise _PVWBail()
     return {"ctor": c, "sfield": sfield, "slit": slit, "node": arm["node"],
-            "used": arm["used"], "flatten": v["func"], "fdesc": fd}
+            "used": arm["used"], "flatten": v["func"], "fdesc": fd,
+            "dedups": arm.get("dedups", 0)}
 
 
 def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
@@ -35213,7 +35214,9 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
             if et != "term":
                 raise _PVWBail()
             return ("ret", en)
-        if st.get("stmt") == "Assign" and isinstance(st.get("target"), str):
+        if (st.get("stmt") == "Assign" and isinstance(st.get("target"), str)
+                and not (flatten_ok and isinstance(st.get("value"), dict)
+                         and st["value"].get("type") == "ArrayLit")):
             tg = st["target"]
             if tg in env or tg == subj or tg == name or not rest:
                 raise _PVWBail()        # bound once, and something must follow
@@ -35226,6 +35229,59 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
         if st.get("stmt") == "If" and not st.get("orelse") and rest:
             te = strtest(st.get("test"))
             return ("if", te, block(st.get("body"), env), block(rest, env))
+        if (flatten_ok and st.get("stmt") == "Assign" and isinstance(st.get("target"), str)
+                and isinstance(st.get("value"), dict)
+                and st["value"].get("type") == "ArrayLit" and not st["value"].get("elts")
+                and len(rest) >= 2 and isinstance(rest[0], dict)
+                and rest[0].get("stmt") == "For"):
+            # cv3 L-T3b (`_dedup_arrow_chain` shape): an order-preserving de-dup of the
+            # recursed flatten hyps,
+            #     seen = []
+            #     for x in h:
+            #         r = self(x)
+            #         if r not in seen:
+            #             seen.append(r)
+            # lowered to a structural accumulator walk over `h` (`{n}__dedup<k>`); the
+            # membership test is the deterministic but UNINTERPRETED
+            # `val function {n}__mem` (either branch possible: over-approximation).
+            sv = st["target"]
+            fo = rest[0]
+            hv = fo.get("iter").get("name") if _is_var(fo.get("iter")) else None
+            xv = fo.get("target")
+            fb = fo.get("body") or []
+            if not (sv not in env and sv not in (subj, name) and hv
+                    and flat_locals.get(hv) == "list term" and isinstance(xv, str)
+                    and xv not in env and xv != sv and not fo.get("orelse")
+                    and not fo.get("invariants") and not fo.get("variants")
+                    and len(fb) == 2 and isinstance(fb[0], dict) and isinstance(fb[1], dict)
+                    and fb[0].get("stmt") == "Assign" and isinstance(fb[0].get("target"), str)):
+                raise _PVWBail()
+            rv = fb[0]["target"]
+            rc = fb[0].get("value")
+            if not (rv not in env and rv not in (sv, xv, subj, name)
+                    and isinstance(rc, dict) and rc.get("type") == "Call"
+                    and rc.get("func") == name and not rc.get("keywords")
+                    and len(rc.get("args") or []) == 1 and _is_var(rc["args"][0], xv)):
+                raise _PVWBail()
+            ift = fb[1]
+            tst = ift.get("test")
+            ib = ift.get("body") or []
+            if not (ift.get("stmt") == "If" and not ift.get("orelse")
+                    and isinstance(tst, dict) and tst.get("type") == "BinOp"
+                    and tst.get("op") == "not in" and _is_var(tst.get("left"), rv)
+                    and _is_var(tst.get("right"), sv)
+                    and len(ib) == 1 and isinstance(ib[0], dict) and ib[0].get("stmt") == "Expr"
+                    and isinstance(ib[0].get("value"), dict)
+                    and ib[0]["value"].get("type") == "Call"
+                    and ib[0]["value"].get("func") == f"{sv}.append"
+                    and len(ib[0]["value"].get("args") or []) == 1
+                    and _is_var(ib[0]["value"]["args"][0], rv)):
+                raise _PVWBail()
+            flags["list"] = True
+            flags["dedup"] = flags.get("dedup", 0) + 1
+            env2 = dict(env)
+            env2[sv] = "list term"
+            return ("dedup", flags["dedup"] - 1, hv, sv, block(rest[1:], env2))
         if (flatten_ok and st.get("stmt") == "TupleUnpack" and rest
                 and flags["flatten"] is None):
             tg = st.get("targets") or []
@@ -35252,7 +35308,7 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
         raise _PVWBail()                # a single return: the older arm forms own it
     return {"kind": "block", "node": node, "used": sorted(used),
             "uses_list": flags["list"], "uses_streq": flags["streq"],
-            "flatten": flags["flatten"]}
+            "flatten": flags["flatten"], "dedups": flags.get("dedup", 0)}
 
 
 def _emit_block_expr(e: Any, n: str, list_names: Dict[str, str]) -> str:
@@ -35300,6 +35356,9 @@ def _emit_block_node(b: Any, n: str, list_names: Dict[str, str]) -> str:
         cond = " || ".join(f"pystr_eq v_{_t[1]} {_mlw_str_lit(x)}" for x in _t[2])
         return (f"(if {cond} then {_emit_block_node(b[2], n, list_names)}"
                 f" else {_emit_block_node(b[3], n, list_names)})")
+    if tag == "dedup":
+        return (f"(let l_{b[3]} = {n}__dedup{b[1]} l_{b[2]} Nil in "
+                f"{_emit_block_node(b[4], n, list_names)})")
     if tag == "unpack":
         # The size facts of flatten's result are PROVED lemmas (ghost calls), which is
         # what discharges the `term__size` variant on the two recursive uses below.
@@ -35681,6 +35740,8 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
                 _fn = _bg["flatten"]
                 _lnames[_fn] = whyml_ident(_fn)
                 _lnames["__fdesc__" + _fn] = dict(_bg["fdesc"], subj_here=subj)
+    if _size and any((_a.get("bguard") or {}).get("dedups") for _a in arms.values()):
+        out.append(f"  val function {n}__mem (x: term) (l: list term) : bool")
     out.append(f"  let rec {n} (v_{subj}: term) : term")
     out.append("    ensures  { true }")
     if _size:
@@ -35757,6 +35818,18 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
             out.append(f"  = match l with Nil -> Nil"
                        f" | Cons h t -> term__size_pos h; term__list_size_nonneg t;"
                        f" Cons ({n} h) ({n}__list t) end")
+            for _c, _a in arms.items():
+                _bg = _a.get("bguard")
+                for _k in range(_bg.get("dedups", 0) if _bg else 0):
+                    _app = whyml_ident(_bg["flatten"]) + "__app"
+                    out.append(f"  with {n}__dedup{_k} (l: list term) (acc: list term) : list term")
+                    out.append("    ensures  { true }")
+                    out.append("    variant  { term__list_size l }")
+                    out.append(f"  = match l with Nil -> acc"
+                               f" | Cons h t -> term__size_pos h; term__list_size_nonneg t;"
+                               f" let r = {n} h in if {n}__mem r acc"
+                               f" then {n}__dedup{_k} t acc"
+                               f" else {n}__dedup{_k} t ({_app} acc (Cons r Nil)) end")
         else:
             out.append("    variant  { l }")
             out.append(f"  = match l with Nil -> Nil"
