@@ -1190,6 +1190,42 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     from errors import PyCSLSemanticError as _PyCSLSemanticError
     for _func in ir_data.get("functions", []):
         _viols = _IRScanner.find_iteration_mutations(_func.get("body", []))
+        # (#49) gen #37, ROUTE #416 — A DICT VIEW IS THE DICT. `for k in d.keys()` /
+        # `.values()` / `.items()` iterates `d` itself, so a body that grows or shrinks `d`
+        # raises RuntimeError ("dictionary changed size during iteration") exactly as
+        # `for k in d` does -- which the detector above refuses -- while the view spelling
+        # was not matched and PROVED `no_exception \all`. Inline here (the mirror twin of
+        # `_run_pipeline` is `\trusted`) rather than in `find_iteration_mutations`, whose
+        # mirror model is a recognised fixed-shape lowering of the `Var` case only: the
+        # same walk (nested blocks, `match` arms, the `allow_iteration_mutation` opt-out
+        # skips the check but not the descent) with the view's receiver as the iterated
+        # collection, and the same `_collect_mutations` census.
+        _st416 = list(_func.get("body", []) or [])
+        while _st416 and not _viols:
+            _s416 = _st416.pop(0)
+            if not isinstance(_s416, dict):
+                continue
+            _it416 = _s416.get("iter") if _s416.get("stmt") == "For" else None
+            _fn416 = (_it416.get("func", "") if isinstance(_it416, dict)
+                      and _it416.get("type") == "Call" else "")
+            if (isinstance(_fn416, str) and "." in _fn416
+                    and _fn416.rsplit(".", 1)[1] in ("keys", "values", "items")
+                    and not _s416.get("allow_iteration_mutation")):
+                _m416: List[Dict[str, Any]] = []
+                _IRScanner._collect_mutations(_s416.get("body", []) or [],
+                                              _fn416.rsplit(".", 1)[0], _m416)
+                if _m416:
+                    _viols = [{"loop_target": _s416.get("target", ""),
+                               "iterable_name": _fn416.rsplit(".", 1)[0],
+                               "mutating_stmt": _m416[0],
+                               "loop_line": _s416.get("lineno", 0)}]
+            for _k416 in ("body", "orelse", "finalbody"):
+                if isinstance(_s416.get(_k416), list):
+                    _st416.extend(_s416[_k416])
+            if _s416.get("stmt") == "Match":
+                for _c416 in _s416.get("cases", []) or []:
+                    if isinstance(_c416, dict):
+                        _st416.extend(_c416.get("body", []) or [])
         if _viols:
             v = _viols[0]
             raise _PyCSLSemanticError(

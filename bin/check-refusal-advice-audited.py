@@ -702,6 +702,9 @@ AUDITED = {
     # (#49) gen #37 -- route #405 (g1, run #3), audited the day it landed.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""line {_z405.lineno}: `{_ast341.unparse(_z405)}` creates a class at run time from the bases `{_ast341.unparse(_ba405)}`. '): (FOLLOWABLE,
         "Route #405. 'Write the subclass as a `class` statement at module level': witness 5982 (a18) with `class D(B): __hash__ = None` at module level is checked by the closed world and REFUSED by PYCSL-R349-UNHASHABLE-RECORD at `{b}` (the bug the dynamic class hid)."),
+    # (#49) gen #37 -- route #415 (g2, run #3), audited the day it landed.
+    ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`%` string formatting under `no_exception` is admitted only when it is positively checked: the formatted value is an opa"): (FOLLOWABLE,
+        "Route #415. 'Rewrite the format in that shape': witness 6069's `\"%d\" % s` (s: str) rewritten `\"%s\" % s` is ADMITTED and VERIFIES under `no_exception \\all` (probe p415_follow, rc=0); control 6072 is the multi-operand shape."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -975,6 +978,8 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_h349)}` (an instance of {sorted(_qc402)}) is COMPARE'): '8f53bc0aabce',
     # (#49) gen #37 -- route #405
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""line {_z405.lineno}: `{_ast341.unparse(_z405)}` creates a class at run time from the bases `{_ast341.unparse(_ba405)}`. '): '22407dfcb3da',
+    # (#49) gen #37 -- route #415
+    ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`%` string formatting under `no_exception` is admitted only when it is positively checked: the formatted value is an opa"): '6f35eab5f648',
 }
 
 

@@ -4968,6 +4968,58 @@ $A \in \mathit{clo}(D)$, whose closure binds `__copy__` / `__deepcopy__` / `__re
 `__reduce__` / `__reduce_ex__` (all file classes when such a name is stored through a non-`self`
 receiver or $\mathit{dy}_{383}$ holds); `copy.copy` / `copy.deepcopy` / `copy.replace` /
 `dataclasses.replace` map a class of $\mathit{CP}$ to `#UNK`.
+### §T.6.81  True division: zero divisor obligation (route #412, gen #37)
+
+_Corresponds to `annotations.md` §7.70._
+
+In a body whose `no_exception` set (or `\all`) covers ZeroDivisionError, i.e. when the
+`("binop", "/")` trigger row applies: float $x / y$ lowers to
+`(float_div_op` $\mathcal{T}(x)$ `(begin assert { ` $\mathcal{T}(y)$ ` <> 0.0 }; ` $\mathcal{T}(y)$ ` end))`
+and int $a / b$ to `(float_truediv_op` $\mathcal{T}(a)$ `(begin assert { no_div_zero (` $\mathcal{T}(b)$ `) }; ` $\ldots$ $\mathcal{T}(b)$ ` end))`.
+Spec context and functions without `no_exception` are unchanged.
+
+### §T.6.82  Int true division: overflow obligation (route #413, gen #37)
+
+_Corresponds to `annotations.md` §7.71._
+
+Under `no_exception_all`, in a body, the right-operand block of int $a / b$ (§T.6.81) also holds
+`assert { (- M * b <= a <= M * b) \/ (M * b <= a <= - M * b) }` with $M = (2^{53}-1) \cdot 2^{971}$
+(DBL_MAX) written as a decimal literal: $|a| \le M |b|$, so $|a / b| \le M$ and the correctly
+rounded quotient is finite.
+
+### §T.6.83  Py_ssize_t limits (route #414, gen #37)
+
+_Corresponds to `annotations.md` §7.72._
+
+Under `no_exception_all`, in a body, with $S = 2^{63} - 1$, each obligation wrapping the size
+operand in a `begin assert { .. }; .. end` block: `len(range(`$e_1$`))` owes $\mathcal{T}(e_1) \le S$,
+`len(range(`$e_1, e_2$`))` owes $\mathcal{T}(e_2) - \mathcal{T}(e_1) \le S$, `len(range(`$e_1, e_2, e_3$`))` owes
+$-S \le \mathcal{T}(e_2) - \mathcal{T}(e_1) \le S$; str $s * n$ (`str_repeat_op`) owes $-(S+1) \le n \le S \wedge (n \le 0 \vee
+\texttt{String.length}\ s \cdot n \le S)$; `[x] * n` (`Array.make`) owes $n \le S$; $x \ll n$ owes
+$x = 0 \vee n \le S$. MemoryError is not modelled.
+
+### §T.6.84  `%` formatting allow-list (route #415, gen #37)
+
+_Corresponds to `annotations.md` §7.73._
+
+Refusal only, at the `str_mod_op` site of `_handle_binop` (no emission change for an admitted
+site). Under `no_exception_all`, or a named set holding `KeyError` when the format is not a
+literal or contains `%(`, the translation of $f \mathbin{\%} r$ is undefined
+(`PYCSL-R415-UNCHECKED-PERCENT-FORMAT`) unless $f$ is a `String` literal whose `%`-directives are `%%` or a conversion in
+$\{$`s`, `d`, `i`, `r`$\}$ preceded only by flags and a literal width / precision, the non-`%%` directives $d_1..d_k$ match the operands $o_1..o_k$ of a
+`Tuple` $r$ (or $k = 1$ and $r$ is not a `Tuple`), and each $o_i$ is int-read (an `int` / `bool`
+`Number`, a `Var` typed `int` / `bool`, a `Call` of `len` / `int` / `abs` / `ord` / `hash` /
+`sum`) or, when $d_i \ne$ `%d`, str- or float-read.
+
+### §T.6.85  UB-7.1 over dict views (route #416, gen #37)
+
+_Corresponds to `annotations.md` §7.74._
+
+Refusal only, inline in `_run_pipeline` after `IRScanner.find_iteration_mutations` (mirror twin
+`\trusted`; no emission change): a `For` (at any depth of `body` / `orelse` / `finalbody` / `match`
+arms, not opted out by `allow_iteration_mutation`) whose `iter` is
+`Call(func = "`$r$`.keys" | "`$r$`.values" | "`$r$`.items")` has iterated collection $r$, exactly
+as a `For` over `Var(`$r$`)`: it is refused when `_collect_mutations` finds a mutation of $r$ in its body.
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 

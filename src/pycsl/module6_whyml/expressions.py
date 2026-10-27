@@ -5680,6 +5680,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             elts = expr["left"].get("elts", [])
             default_val = self._expr_to_whyml(elts[0], local_refs, invariant_ctx, subst) if elts else "0"
             size = self._expr_to_whyml(expr["right"], local_refs, invariant_ctx, subst)
+            # (#49) ROUTE #414 — `[x] * n` converts `n` to a Py_ssize_t: OverflowError for
+            # n > sys.maxsize (2**63 - 1). (`Array.make` already owes `n >= 0`.) Under
+            # `\all` only, route #332's rule; MemoryError below the bound is not modelled.
+            if (not self._in_spec
+                    and getattr(self, "_current_no_exception_all", False)):
+                return (f"(Array.make (begin assert {{ [@expl:no_exception: OverflowError "
+                        f"reachable] {size} <= 9223372036854775807 }}; {size} end) {default_val})")
             return f"(Array.make {size} {default_val})"
         # item34.md CF5: `[a] + [comp]` name-list concat (`[base] + [tag for … in body_raised
         # …]`) → `seq string`. Each arm is seq-ified via `_seq_operand` (an ArrayLit singleton
@@ -6465,6 +6472,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # direction only, and it is recorded in the route file.
                 self._add_abstract_op(
                     f"val function float_{nm}_op (a b: real) : real")
+                # (#49) ROUTE #412 — `x / y` over floats raises ZeroDivisionError when `y` is
+                # zero (`1.0 / 0.0`, `1.0 / (x - x)`); the uninterpreted `float_div_op`
+                # carried no obligation, so `no_exception \all` PROVED it. In a BODY under a
+                # `no_exception` covering ZeroDivisionError the divisor now owes `<> 0.0`,
+                # exactly as the int `//` / `%` / `/` rows owe `no_div_zero` (the same
+                # `("binop", "/")` trigger decides whether it applies; its int template is
+                # re-spelled over the reals). `-0.0` is the real `0.0`, also refused by
+                # CPython. Spec context and functions without `no_exception` are unchanged.
+                # The obligation wraps the right OPERAND, so the term keeps its head.
+                if raw_op == "/":
+                    _p412 = self._maybe_emit_no_exception_assert(("binop", "/"), [left, right])
+                    if _p412:
+                        return (f"(float_{nm}_op {left} (begin assert {{ [@expl:no_exception: "
+                                f"ZeroDivisionError reachable] {right} <> 0.0 }}; {right} end))")
                 return f"(float_{nm}_op {left} {right})"
             # comparison/equality: either operand float (the other is `\result` or a real)
             _FCMP = {"<": "<.", "<=": "<=.", ">": ">.", ">=": ">=."}
@@ -6552,6 +6573,17 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "val str_repeat_op (s: string) (n: int) : string\n"
                 "    ensures { n >= 0 -> String.length result = n * String.length s }\n"
                 "    ensures { n < 0 -> String.length result = 0 }")
+            # (#49) ROUTE #414 — `s * n` converts `n` to a Py_ssize_t (OverflowError "cannot
+            # fit 'int' into an index-sized integer" outside [-2**63, 2**63 - 1]) and then
+            # refuses a result longer than sys.maxsize (OverflowError "repeated string is too
+            # long"). Obligations under `\all` only (OverflowError is not a Phase 1
+            # exception; route #332's rule). MemoryError below the bound is not modelled.
+            if (not self._in_spec
+                    and getattr(self, "_current_no_exception_all", False)):
+                return (f"(str_repeat_op {sstr} (begin assert {{ [@expl:no_exception: "
+                        f"OverflowError reachable] - 9223372036854775808 <= {nstr} <= "
+                        f"9223372036854775807 /\\ ({nstr} <= 0 \\/ String.length {sstr} * "
+                        f"{nstr} <= 9223372036854775807) }}; {nstr} end))")
             return f"(str_repeat_op {sstr} {nstr})"
         # G2 strings: `%`-formatting `s % x` produces SOME string — its content is NOT
         # modeled (faithful boundary). An honest abstract `val` pins only `length >= 0` (a
@@ -6616,6 +6648,96 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             if not _ok284:
                 _q284 = self._maybe_emit_no_exception_assert(("call", "format_spec"), [])
                 _p281 = (_p281 + " " + _q284).strip() if _q284 else _p281
+            # (#49) ROUTE #415 — `%` FORMATTING IS ADMITTED ONLY WHEN IT IS POSITIVELY
+            # CHECKED. `str_mod_op` is an opaque string, and #281 / #284 only discharge the
+            # ValueError rows, so `"%d" % s` (s: str; TypeError) and `"%(k)s" % {"j": a}`
+            # (KeyError) PROVED `no_exception \all`. ALLOW-LIST: a LITERAL format whose
+            # conversions are only `%s` / `%d` / `%i` / `%r` (and `%%`), with optional flags
+            # and a literal width / precision (their size is #284's row) but no mapping key
+            # and no `*`; the right side is a tuple DISPLAY with exactly one operand per
+            # directive, or (one directive) a single operand; `%d` takes an int / bool
+            # operand, `%s` / `%r` an int / bool / str / float one (by the same static
+            # readings #281 uses). Anything else is REFUSED under `\all` (TypeError is not a
+            # Phase 1 exception, route #332's rule) and, when the format has a mapping key,
+            # under a named set holding KeyError.
+            if not self._in_spec and (
+                    getattr(self, "_current_no_exception_all", False)
+                    or ("KeyError" in set(getattr(self, "_current_no_exception", set()) or set())
+                        and isinstance(_f284, str) and "%(" in _f284)
+                    or (not isinstance(_f284, str)
+                        and "KeyError" in set(getattr(self, "_current_no_exception", set())
+                                              or set()))):
+                _ok415 = isinstance(_f284, str)
+                _dirs415: List[str] = []
+                if _ok415:
+                    _i415 = 0
+                    while _i415 < len(_f284):
+                        if _f284[_i415] != "%":
+                            _i415 += 1
+                            continue
+                        _j415 = _i415 + 1
+                        if _f284[_j415:_j415 + 1] == "%":
+                            _i415 += 2
+                            continue
+                        # flags, a literal width and a literal precision (their size is
+                        # route #284's business); never `*` or a `(key)`
+                        while _f284[_j415:_j415 + 1] in ("-", "+", " ", "#", "0") \
+                                and _j415 < len(_f284):
+                            _j415 += 1
+                        while _f284[_j415:_j415 + 1].isdigit():
+                            _j415 += 1
+                        if _f284[_j415:_j415 + 1] == ".":
+                            _j415 += 1
+                            while _f284[_j415:_j415 + 1].isdigit():
+                                _j415 += 1
+                        _c415 = _f284[_j415:_j415 + 1]
+                        if _c415 not in ("s", "d", "i", "r"):
+                            _ok415 = False
+                            break
+                        _dirs415.append("d" if _c415 == "i" else _c415)
+                        _i415 = _j415 + 1
+                _tup415 = isinstance(_r281, dict) and _r281.get("type") == "Tuple"
+                if _ok415 and (len(_ops281) != len(_dirs415)
+                               or (not _tup415 and len(_dirs415) != 1)):
+                    _ok415 = False
+                if _ok415:
+                    _st415 = getattr(self, "_current_symbol_table", {}) or {}
+                    for _d415, _o415 in zip(_dirs415, _ops281):
+                        if not isinstance(_o415, dict):
+                            _ok415 = False
+                            break
+                        _k415 = _o415.get("type")
+                        _t415 = str(_st415.get(_o415.get("name")) or "").split("[")[0] \
+                            .strip().lower()
+                        _int415 = ((_k415 == "Number" and type(_o415.get("value")) in (int, bool))
+                                   or (_k415 == "Var" and _t415 in ("int", "bool"))
+                                   or (_k415 == "Call" and _o415.get("func") in (
+                                       "len", "int", "abs", "ord", "hash", "sum")))
+                        _oth415 = (_k415 == "Number" and type(_o415.get("value")) is float) \
+                            or self._is_string_expr(_o415) or self._is_float_expr(_o415) \
+                            or (_k415 == "Var" and _t415 in ("str", "float"))
+                        if not (_int415 or (_d415 != "d" and _oth415)):
+                            _ok415 = False
+                            break
+                if not _ok415:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        "`%` string formatting under `no_exception` is admitted only when "
+                        "it is positively checked: the formatted value is an opaque string "
+                        "and the operation can raise TypeError (an operand of the wrong type, "
+                        "too many or too few operands) or KeyError (a `%(key)` missing from "
+                        "the mapping). Measured, `\"%d\" % s` with `s: str` PROVED "
+                        "`no_exception \\all` where Python raises TypeError. Admitted: a "
+                        "literal format whose conversions are only %s / %d / %i / %r "
+                        "(and %%; flags and a literal width / precision allowed, no "
+                        "mapping key, no `*`), with a tuple display of exactly one operand per "
+                        "directive (or one operand for one directive), %d over an int / bool "
+                        "and %s / %r over an int / bool / str / float. Rewrite the format in "
+                        "that shape or build the string with an f-string or `+`. Format: "
+                        + (repr(_f284) if isinstance(_f284, str) else "not a literal") + ".",
+                        stage="whyml",
+                        code="PYCSL-R415-UNCHECKED-PERCENT-FORMAT",
+                    )
             # The obligations wrap the right OPERAND, so the term keeps its head.
             if _p281:
                 return f"(str_mod_op {left} (begin {_p281} {right} end))"
@@ -6893,6 +7015,27 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # closes by congruence (witness 1124).
                 self._add_abstract_op(
                     "val function float_truediv_op (a b: int) : real")
+                # (#49) ROUTE #412 — int TRUE division by zero raises ZeroDivisionError like
+                # `//` and `%` do, and this bridge was the one int division path NOT wrapped:
+                # `a / b` PROVED `no_exception \all` with no `b != 0`. Same trigger row.
+                # (#49) ROUTE #413 — and it raises OverflowError ("integer division result
+                # too large for a float") when the quotient exceeds the largest double
+                # DBL_MAX = (2**53 - 1) * 2**971: `(10**400) / 1`. OverflowError is not in
+                # the Phase 1 set, so like AssertionError (route #332) it is an obligation
+                # under `\all` only: `|a| <= DBL_MAX * |b|`, i.e. |a / b| <= DBL_MAX, which
+                # CPython's correctly rounded quotient never overflows. Linear in `a` and
+                # `b` (DBL_MAX is a literal); FLOAT-FINITE is a claim about float VALUES and
+                # does not cover a raised OverflowError.
+                # Both obligations wrap the right OPERAND, so the term keeps its head.
+                _p413 = self._maybe_emit_no_exception_assert(("binop", raw_op), [left, right])
+                if (not self._in_spec
+                        and getattr(self, "_current_no_exception_all", False)):
+                    _m413 = str((2 ** 53 - 1) * 2 ** 971)
+                    _p413 = (f"{_p413} assert {{ [@expl:no_exception: OverflowError reachable] "
+                             f"(- {_m413} * {right} <= {left} <= {_m413} * {right}) \\/ "
+                             f"({_m413} * {right} <= {left} <= - {_m413} * {right}) }};").strip()
+                if _p413:
+                    return f"(float_truediv_op {left} (begin {_p413} {right} end))"
                 return f"(float_truediv_op {left} {right})"
             if self._in_spec:
                 # WL-01: Python `//` is FLOORED division. Emit the sign-of-divisor
@@ -7217,9 +7360,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # a scan that approves a whole KIND from one dynamic `("binop", raw_op)` call site
             # reported the shift rows as live. Wrapping here makes that true rather than
             # assumed. `&`/`|`/`^` have no row, so the wrap is a no-op for them.
+            _inner414 = self._emit_bitwise_or_power(raw_op, expr, left, right)
+            # (#49) ROUTE #414 — `x << n` raises OverflowError ("too many digits in
+            # integer") once the shift count does not fit a Py_ssize_t (n > sys.maxsize =
+            # 2**63 - 1 on the 64-bit platform), unless `x` is 0. Not a Phase 1 exception, so
+            # like AssertionError (route #332) and the true-division overflow (#413) it is an
+            # obligation under `\all` only. A count below the bound may still exhaust
+            # memory (MemoryError): not modelled, see the route file.
+            if (raw_op == "<<" and not self._in_spec
+                    and getattr(self, "_current_no_exception_all", False)):
+                _inner414 = (f"begin assert {{ [@expl:no_exception: OverflowError reachable] "
+                             f"{left} = 0 \\/ {right} <= 9223372036854775807 }}; {_inner414} end")
             return self._wrap_with_no_exception_assert(
-                ("binop", raw_op), [left, right],
-                self._emit_bitwise_or_power(raw_op, expr, left, right))
+                ("binop", raw_op), [left, right], _inner414)
         if raw_op == "?":
             self._add_abstract_op("val unknown_op (x: int) (y: int) : int")
             return f"(unknown_op {left} {right})"
@@ -11672,6 +11825,32 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         if get_low is not None:
             return get_low
         if func_name == "len" and len(args) == 1:
+            # (#49) ROUTE #414 — `len(range(..))` raises OverflowError ("Python int too
+            # large to convert to C ssize_t") when the range is longer than sys.maxsize =
+            # 2**63 - 1: `len(range(10**20))`. The length is opaque here (`iter_length`), so
+            # the obligation bounds the operands: `stop <= maxsize` for `range(stop)`,
+            # `stop - start <= maxsize` for `range(start, stop)`, and `|stop - start| <=
+            # maxsize` for a step (|step| >= 1, so the length is at most |stop - start|).
+            # Under `\all` only (route #332's rule for a non-Phase-1 exception).
+            _a414 = (expr.get("args") or [{}])[0]
+            if (not self._in_spec
+                    and getattr(self, "_current_no_exception_all", False)
+                    and isinstance(_a414, dict) and _a414.get("type") == "Call"
+                    and _a414.get("func") == "range"
+                    and 1 <= len(_a414.get("args") or []) <= 3):
+                _ra414 = [self._expr_to_whyml(_x414, local_refs or set(), invariant_ctx, subst)
+                          for _x414 in _a414["args"]]
+                if len(_ra414) == 1:
+                    _b414 = f"{_ra414[0]} <= 9223372036854775807"
+                elif len(_ra414) == 2:
+                    _b414 = f"{_ra414[1]} - {_ra414[0]} <= 9223372036854775807"
+                else:
+                    _b414 = (f"- 9223372036854775807 <= {_ra414[1]} - {_ra414[0]} "
+                             f"<= 9223372036854775807")
+                # The obligation wraps the range OPERAND, so the length term keeps its head.
+                return self._handle_len_call(expr, [
+                    f"(begin assert {{ [@expl:no_exception: OverflowError reachable] "
+                    f"{_b414} }}; {args[0]} end)"])
             return self._handle_len_call(expr, args)
         if func_name in ("min", "max") and len(args) == 2:
             fn = "MinMax.min" if func_name == "min" else "MinMax.max"

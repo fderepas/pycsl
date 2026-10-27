@@ -3078,6 +3078,68 @@ x's static class may be (its MRO and every file subclass's) binds `__copy__` / `
 otherwise UNKNOWN. Every UNKNOWN is refused in a hashing position
 (`PYCSL-R349-UNHASHABLE-RECORD`). Witnesses `5996`-`6014` and the NEW latent
 `6016` (`K = A.copy()`, PROVED at base); controls `6024`-`6027`. Census (both corpora, 53 mirrors, `pycsl_lib`; the whole landing): root 2441 -> 2449 (+8 controls), 0 MOVED / 0 GONE / 0 APPEARED; pyref 2186 -> 2186 0 / 0 / 0; mirrors 53 / 53 0 / 0 / 0; `pycsl_lib` --no-proof screen identical (104 files).
+### 7.70 True division by zero is an obligation for float and int operands (route #412, gen #37)
+
+`x / y` over floats lowered to the uninterpreted `float_div_op` with no obligation, and int
+`a / b` (true division, `float_truediv_op`) was the one int division path not wrapped by the
+`("binop", "/")` trigger row: `x / 0.0`, `1.0 / (x - x)` and `a / b` without `b != 0` PROVED
+`no_exception \all` (CPython ZeroDivisionError). RULE: in a body under a `no_exception` covering
+ZeroDivisionError, the divisor of a float `/` owes `y <> 0.0` and of an int `/` owes
+`no_div_zero (b)`, exactly as `//` and `%` do. The obligation wraps the right operand, so the
+term keeps its head. Witnesses `6056`-`6059`; control `6060`.
+
+### 7.71 Int true division owes `|a / b| <= DBL_MAX` under `no_exception \all` (route #413, gen #37)
+
+CPython raises OverflowError ("integer division result too large for a float") when an int
+quotient exceeds the largest double: `(10**400) / 1`. It PROVED under `no_exception \all`
+with `requires b != 0`. FLOAT-FINITE (route #250) is a claim about float VALUES (finite,
+non-NaN), not about a raised exception, so it does not cover this. RULE: under `\all`
+(OverflowError is not a Phase 1 exception; §7.19's rule for AssertionError, route #332), int `a / b`
+owes `-DBL_MAX * b <= a <= DBL_MAX * b \/ DBL_MAX * b <= a <= -DBL_MAX * b` with DBL_MAX =
+`(2**53 - 1) * 2**971` written as a literal, i.e. `|a| <= DBL_MAX * |b|`, after which
+CPython's correctly rounded quotient never overflows. Linear in `a` and `b`. Witness `6061`;
+control `6062`.
+
+### 7.72 Py_ssize_t limits are obligations under `no_exception \all` (route #414, gen #37)
+
+A size that does not fit a Py_ssize_t (sys.maxsize = 2**63 - 1 on the 64-bit platform) raises
+OverflowError: `len(range(10**20))`, `"a" * 10**20`, `[0] * 10**20`, `1 << 2**64`. These were
+not obligations, while the 4300-digit `str(int)` limit already is (route #281). RULE, under `\all`
+(route #332's rule, as §7.71): `len(range(stop))` owes `stop <= 2**63 - 1`, `len(range(start,
+stop))` owes `stop - start <= 2**63 - 1`, `len(range(start, stop, step))` owes `|stop - start| <=
+2**63 - 1`; `s * n` (str) owes `-2**63 <= n <= 2**63 - 1` and `n <= 0 \/ len(s) * n <= 2**63 - 1`
+("repeated string is too long"); `[x] * n` owes `n <= 2**63 - 1` (`Array.make` already owes
+`n >= 0`); `x << n` owes `x = 0 \/ n <= 2**63 - 1`. Each obligation wraps the size operand, so
+the term keeps its head. NOT MODELLED: MemoryError below these bounds (`"a" * 2**40`, `1 << 2**40`
+raise MemoryError on a real machine). Like RecursionError (route #269, §2.1.13) it is a resource
+limit outside the Phase 1 set; no memory-cap assumption is declared (a decision recorded in the
+route file). Witnesses `6063`-`6067`; control `6068`.
+
+### 7.73 `%` string formatting is admitted under `no_exception` only when positively checked (route #415, gen #37)
+
+`s % x` with a str left operand lowers to the opaque `str_mod_op`, and routes #281 / #284 only
+discharge its ValueError rows, so `"%d" % s` with `s: str` (TypeError) and `"%(k)s" % {"j": a}`
+(KeyError) PROVED `no_exception \all`. RULE (allow-list): under `\all`, and under a named set
+holding KeyError when the format has a mapping key or is not a literal, a `%` is REFUSED
+(`PYCSL-R415-UNCHECKED-PERCENT-FORMAT`) unless the format is a string LITERAL whose conversions
+are only `%s` / `%d` / `%i` / `%r` (and `%%`), with optional flags and a literal width / precision
+(their size stays route #284's obligation) but no mapping key and no `*`, the right
+side is a tuple display with exactly one operand per directive (or, for one directive, a single
+operand), and every `%d` / `%i` operand is an int / bool and every `%s` / `%r` operand an int / bool /
+str / float by the static readings route #281 uses (a literal, a typed parameter / local, `len` /
+`int` / `abs` / `ord` / `hash` / `sum`, a str or float expression). Witnesses `6069`-`6070`;
+control `6072`.
+
+### 7.74 A dict view is the dict for UB-7.1 (route #416, gen #37)
+
+UB-7.1 (§2.2.3, `ir_scanner.find_iteration_mutations`) refuses a `for` loop whose body mutates the
+iterated collection, but it matched only a bare name: `for k in d.keys(): d[k + 100] = 0` (and
+`.values()` / `.items()`) PROVED `no_exception \all` while CPython raises RuntimeError
+("dictionary changed size during iteration"). RULE: the iterable `<recv>.keys()` /
+`<recv>.values()` / `<recv>.items()` counts as iterating `<recv>`; the same mutation rules and the
+same `#@ allow_iteration_mutation` opt-out apply (inline in `_run_pipeline`, whose mirror twin is
+`\trusted`; `ir_scanner.find_iteration_mutations` and its recognised mirror model are unchanged).
+Witnesses `6073`-`6075`; control `6076`.
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
