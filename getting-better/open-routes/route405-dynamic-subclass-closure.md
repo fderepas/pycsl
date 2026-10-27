@@ -16,3 +16,29 @@ Witnesses `witnesses-r405/`: `a18_type_subclass_main.py`, `f15_make_dataclass_ha
   literal tuple of modelled classes makes every file class named in it OPEN: unhashable at hashing sites,
   UNKNOWN for GD, and its method calls unverifiable (or simply refuse the 3-argument `type` call).
 ```
+
+## REPAIR (g1, driver run #3, 2026-10-26/27) -- candidate, REFUSAL polarity tightened
+
+RULE (annotations §7.62, translational §T.6.73): anywhere in the file, the `__main__` driver included, a call of the builtin `type` with
+two or more arguments (or `type.__new__`), `types.new_class(..)` and `dataclasses.make_dataclass(.., bases=..)` is REFUSED unless the
+bases argument is the literal `()` (new `PYCSL-R405-DYNAMIC-SUBCLASS`; advice audited FOLLOWABLE).
+Witnesses 5982-5986 (a18, f13, f15, f16, f17): PROVED rc=0 at base -> REFUSED rc=1. Control 6022 (`type(x)`, `type("T", (), {})`,
+`make_dataclass` without bases in the driver) PROVED at base and candidate.
+
+Measurements (g1 executor, driver run #3; base worktree at 4431ef86f; logs in `getting-better/systematic-soundness-r3/g1-r403-410/`).
+One landing for routes #403-#410 (annotations §7.60-§7.64, translational §T.6.71-§T.6.75; inline in `_run_pipeline`, mirror twin
+`\trusted`, refusals only, no emission change, ledger unchanged):
+- final candidate: root 2441 -> 2449 (+8 controls 6020-6027), 0 MOVED / 0 GONE / 0 APPEARED; pyref 2186 -> 2186 0/0/0; mirrors
+  53/53 0/0/0; `pycsl_lib` --no-proof screen identical (104 files, 87 rc 0 / 17 rc 1).
+- over-refusal measured and NOT landed (first candidate, `cmp-*-firstcandidate.log`): #406 counting the `__main__` driver GONEs
+  root control 5464; #406 counting every unread callee (user-module functions, local callables, unknown methods) and `setattr` for
+  hashed values GONEs 6 mirrors (audit_proof, frontend/pure_ast, module6_whyml/expressions, statements, stmt_control_flow,
+  proof2why3/parser). The landed rules move nothing.
+- census (`bin/refusal-witness-census.tsv`, via `_census_row`): 48 new rows (5970-6014 red-team witnesses, latents 6015 / 6016 /
+  6018, #380 coverage 6017); 6 re-measured rows changed (5156 -> S1, 5785-5789 R402 message text); every other REFUSAL row's
+  --no-proof message byte-identical base vs candidate (`refmsg-*.tsv`, 1518 rows). Coverage 320 demonstrated / 5 undemonstrated
+  (ceiling 5); advice audit: R402 re-audited (hash updated), R405 audited FOLLOWABLE.
+- witnesses: 45 red-team witnesses PROVED rc=0 at base (`base-wit-verdicts.tsv`) -> all REFUSED rc=1 on the candidate
+  (`cand-verdicts.tsv`); controls PROVED at base and candidate.
+
+Residual: `exec` / a class built by a user-module function are outside the census (exec is refused elsewhere, n03).

@@ -698,7 +698,10 @@ AUDITED = {
         "Route #393. 'Give the class a plain `def __init__`': control 5680's `F(ValueError)` with `def __init__(self, code: int)` constructed `F(code=3)` under `no_exception` - VERIFIES (witness 5651 has a `__new__` instead)."),
     # (#49) gen #37 -- route #402 (e3, run #3), audited the day it landed.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_h349)}` (an instance of {sorted(_qc402)}) is COMPARE'): (FOLLOWABLE,
-        "Route #402. 'Give `__eq__` the contract `#@ no_exception \\all` (and no `requires`)': witness 5785 with the contract added is now ADMITTED and its own proof catches the raising body (`no_exception: own raise ValueError reachable` of `d____eq__`); with a total body (`return True`) it VERIFIES, as control 5800's verified `__eq__` in `{a, b, e}` does."),
+        "Route #402, re-audited for route #403 (g1, run #3). 'Give `__eq__` the signature `(self, o: object) -> bool` and the contract `#@ no_exception \\all` (and no `requires`)': witness 5970 (a04) with `other: \"A\"` changed to `other: object` is now ADMITTED and its own proof catches the body's `other.x` (PyCSL-R358 attribute load of an erased value, as the message says); with a total body (`return False`) it VERIFIES, as control 6020 does at `{a, 1}` / `{a, b, False}` / `{(a, 1), (0, 1)}`."),
+    # (#49) gen #37 -- route #405 (g1, run #3), audited the day it landed.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""line {_z405.lineno}: `{_ast341.unparse(_z405)}` creates a class at run time from the bases `{_ast341.unparse(_ba405)}`. '): (FOLLOWABLE,
+        "Route #405. 'Write the subclass as a `class` statement at module level': witness 5982 (a18) with `class D(B): __hash__ = None` at module level is checked by the closed world and REFUSED by PYCSL-R349-UNHASHABLE-RECORD at `{b}` (the bug the dynamic class hid)."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -969,7 +972,9 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"class \'{_k341.name}\' at line {_k341.lineno}: its base `{_ast341.unparse(_b341)}` {_why341}. The verifier reads a class\'s b'): '7b0eff44fa4d',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_n341, \'lineno\', 0)}: `{_cl341}` stores an object\'s `__class__`, which changes the class of an EXISTING inst'): '8d985b794c44',
     # (#49) gen #37 -- route #402
-    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_h349)}` (an instance of {sorted(_qc402)}) is COMPARE'): '75801c49722c',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_h349)}` (an instance of {sorted(_qc402)}) is COMPARE'): '8f53bc0aabce',
+    # (#49) gen #37 -- route #405
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""line {_z405.lineno}: `{_ast341.unparse(_z405)}` creates a class at run time from the bases `{_ast341.unparse(_ba405)}`. '): '22407dfcb3da',
 }
 
 

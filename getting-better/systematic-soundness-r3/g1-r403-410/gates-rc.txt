@@ -1,0 +1,7 @@
+sync rc=0
+mirror-check rc=0
+clause-survival rc=0
+carriers rc=0
+getattr-erasure rc=1
+planes rc=0
+DONE

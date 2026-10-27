@@ -1,0 +1,6 @@
+5156_gen37_r380_metaclass_call_value.py
+5785_gen37_r402_eq_collision_raises.py
+5786_gen37_r402_tuple_eq_collision_raises.py
+5787_gen37_r402_dataclass_eq_field_raises.py
+5788_gen37_r402_subclass_eq_raises.py
+5789_gen37_r402_starred_eq_collision_raises.py

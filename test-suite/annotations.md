@@ -2968,6 +2968,117 @@ python-reference / mirror / `pycsl_lib` files refused). NOT COVERED (refused, no
 an unverified caller that keeps an alias of a list it passed (§7.40). Witnesses `5870`-`5880`,
 `5883`-`5885`; controls `5890`-`5896`.
 
+### 7.60 A verified `__eq__` is verified for ANY `other` (route #403, gen #37)
+
+§7.57 counted a `def __eq__` carrying `#@ no_exception \all` as verified whatever its `other`
+parameter's annotation, and a body is verified under that annotation: `def __eq__(self, other:
+"A") -> bool: return self.x == other.x` was proved for `other` of class `A` only, while a set
+or dict compares a value with ANY element of equal hash. Measured (red team 32, PROVED at
+`085ee3dcc`, CPython AttributeError): `{a, 1}`, `{a, b}` with `b` of another file class whose
+verified `__hash__` collides, `{a, False}`, `{(a, 1), (0, 1)}` (a tuple compares its
+components). RULE: a `def __eq__` counts as verified only with the signature exactly `(self,
+o: object)` (two positional parameters, the second annotated by the builtin `object`; no
+other parameter, no `*` / `**`), so its body is proved for any `o`; any other `__eq__`
+leaves the class EQ-RISKY and every site that may compare is refused
+(`PYCSL-R402-UNVERIFIED-EQ`, message extended). Witnesses `5970`-`5973`; control `6020`.
+Over-refusal: a body that reads an attribute of `o` is not verifiable today, even under
+`isinstance(o, A)` (the parameter is erased; `PyCSL-R358` fails the load), so a useful
+field-wise `__eq__` in a comparing hashing position is refused until `isinstance` narrowing
+of an `object` parameter is modelled.
+
+### 7.61 `type` is a modelled base only for a metaclass that defines nothing (route #404, gen #37)
+
+S1 (§7.42) admitted `type` as a base, so a FILE metaclass was modelled as nothing: a class is a
+value of its metaclass, and the metaclass's `__eq__` / `__hash__` / `__bool__` / `__init__` and
+class-body names were ignored. Measured (red team 32, PROVED at `085ee3dcc`, CPython TypeError /
+ValueError): `class M(type)` with `__eq__` only, then `{K}` for `class K(metaclass=M)`; a
+raising `M.__hash__`; `{C.K}` with a nested `K`; `{type(k)}`; `{(C, 1)}`; `if C:` with a raising
+`M.__bool__`; `{C.K}` where only `M` binds `K = [1]`, or `M.__init__` stores `cls.K = [1]`.
+RULE (S1, `PYCSL-S1-UNMODELLED-BASE`): (1) a base `type` is admitted only when the class body
+holds nothing but a docstring / `pass` / `...` and no code stores an attribute on the class
+(`M.k = ..`, `setattr(M, ..)`); (2) a `metaclass=` keyword must name `type`, `abc.ABCMeta`,
+`enum.EnumMeta` / `EnumType` or a class of the file (checked by (1) through its own bases) --
+a function or any other value is refused (NEW latent: `class K(metaclass=mk)` with `mk`
+returning `[1]` hashed `{K}`, CPython TypeError; ill-typed in WhyML at base). Witnesses `5974`-`5981`,
+`6015`, `6018`; control `6021` (a metaclass with only a docstring, `metaclass=abc.ABCMeta`) and the
+existing `5171`; NEW latent `6018` (`M2(M)` with `M(type)` empty and `M2` binding `__eq__`: a class deriving from `type` through file classes must define nothing too), and the metaclass of a checked class is checked wherever it is named (the `__main__` driver included). Route #380's `__call__` refusal is now reached only through an admitted stdlib metaclass (`6017`, `metaclass=enum.EnumMeta`; its old witness `5156` refuses at S1). Census (both corpora, 53 mirrors, `pycsl_lib`; the whole landing): root 2441 -> 2449 (+8 controls), 0 MOVED / 0 GONE / 0 APPEARED; pyref 2186 -> 2186 0 / 0 / 0; mirrors 53 / 53 0 / 0 / 0; `pycsl_lib` --no-proof screen identical (104 files); refusal rows moved: `5156` only.
+
+### 7.62 A class created by a call is outside the closed world: refused (route #405, gen #37)
+
+Routes #277 / #395 / #396 read a value of static class B as an instance of B or of any file
+class deriving from B, the subclasses being the file's `class` statements. A class created by a
+CALL escaped that closure. Measured (red team 32, PROVED at `085ee3dcc`): `D = type("D", (B,),
+{"__hash__": None})` in the `__main__` driver then `{b}` for `b: B` (CPython TypeError),
+`dataclasses.make_dataclass("D", [], bases=(B,))`, a `type(..)` subclass whose `__eq__`
+raises, `getattr(r, "k", 0) == 0` with `type("S", (R,), {"k": 5})` (CPython 5), and an
+override `{"g": lambda s: 2}` of a contracted method (`\result == 1`, CPython 2). RULE: anywhere
+in the file, the `__main__` driver included, a call of the builtin `type` with two or more
+arguments (or `type.__new__(..)`), `types.new_class(..)` and `dataclasses.make_dataclass(..,
+bases=..)` is REFUSED unless its bases argument is the literal `()`
+(`PYCSL-R405-DYNAMIC-SUBCLASS`). Witnesses `5982`-`5986`; control `6022` (`type(x)`, `type("T",
+(), {})`, `make_dataclass` without bases). Census (both corpora, 53 mirrors, `pycsl_lib`; the whole landing): root 2441 -> 2449 (+8 controls), 0 MOVED / 0 GONE / 0 APPEARED; pyref 2186 -> 2186 0 / 0 / 0; mirrors 53 / 53 0 / 0 / 0; `pycsl_lib` --no-proof screen identical (104 files).
+
+### 7.63 A call the model does not read may store attributes on its arguments (route #406, gen #37)
+
+GD (§7.43 / §7.53) and the field / class-attribute sources of a hashed value (§7.49 (2)) saw
+attribute stores written as stores, `setattr` / `delattr` / `vars` / `__dict__`, and `exec` /
+`eval`; a standard-library CALL that sets attributes on an argument was invisible. Measured
+(red team 32, PROVED at `085ee3dcc`, CPython 5 / TypeError): `argparse.Namespace.__init__(self,
+k=5)` in `__init__` or in a module function, `functools.update_wrapper(self, S(), ..)`,
+`p.parse_args([], namespace=self)`, `optparse.Values.__init__(self, {..})`,
+`mock.patch.object(self, "k", 5, create=True).start()`, `object.__getattribute__(self,
+"__dict__")["k"] = 5`, then `getattr(r, "k", 0) == 0`; and the same calls rebinding a field
+`x = [1]` (`{r.x}`) or shadowing a class attribute (`{c.K}`). RULE (allow-list of callees
+whose effect on an argument is known): the file is DYNAMIC when, outside the `__main__` driver
+(§7.43's convention: the driver is not verified code; counting it refuses control `5464`, whose
+driver calls `setattr`, measured), a call passes an object-valued argument (a name, attribute,
+subscript, starred or walrus value) to a STANDARD-LIBRARY callee (resolved through the file's
+imports) of a module outside a fixed list of modules whose functions never store attributes on
+an argument (`math`, `json`, `re`, `os`, `sys`, `itertools`, `collections`, `copy`, `ast`,
+`functools`, `logging`, `subprocess`, ...; minus `ast.copy_location` / `fix_missing_locations`
+/ `increment_lineno`, `functools.update_wrapper` / `wraps` / `partial`, `types.SimpleNamespace`,
+`importlib.import_module`, ...; `argparse`, `optparse`, `unittest` are not in it); to a method
+of an object such a call returned (`argparse.ArgumentParser().parse_args(.., namespace=self)`,
+directly or through a name bound to it) other than a container / `str` method; to a dunder of
+a builtin class other than a read-only one (`object.__getattribute__`); or when a string
+constant names `__dict__` / `__setattr__` / `__delattr__` / `__class__`. Then every class
+answers UNKNOWN for GD (`PYCSL-R376-GETATTR-CLASS-BINDING`) and a field or class attribute read
+is UNKNOWN as a hashed value (`PYCSL-R349-UNHASHABLE-RECORD`). Witnesses `5987`-`5995`; control
+`6023` (`math.floor(self.x)` and a file function called on `self`). Residuals: a callee of a
+USER module and a local callable are read only by their own module's census (§7.43's residual);
+`setattr` / `vars` / `__dict__` keep their GD-only effect -- `setattr(self, "x", [1])` then
+`{r.x}` still PROVES (counting them for hashed values refuses the `frontend/pure_ast.py`
+mirror, measured); the `__main__` driver's own calls are not counted. Census (both corpora, 53 mirrors, `pycsl_lib`; the whole landing): root 2441 -> 2449 (+8 controls), 0 MOVED / 0 GONE / 0 APPEARED; pyref 2186 -> 2186 0 / 0 / 0; mirrors 53 / 53 0 / 0 / 0; `pycsl_lib` --no-proof screen identical (104 files); with the driver counted, control `5464` GONE; with every unread callee counted, 6 mirrors GONE (measured, not landed).
+
+### 7.64 The hashed value's sources, tightened: container expressions, driver stores, stdlib objects, copies (routes #407-#410, gen #37)
+
+Four §7.49 sources admitted a value they do not model (red team 32, all PROVED at `085ee3dcc`,
+CPython TypeError). (1) ROUTE #407: a module / class-body name bound to an expression over a
+container -- `K = A * 2`, `A + B`, `A or 1`, `A | {..}`, `A - {2}`, `A[:]`, `A if A else (1,)`,
+`[1] * 2`, `.. if False else B + [3]`, the same in a class body -- was UNDERIVABLE (admitted).
+Now arithmetic / a unary operator with a container operand is a container of its kind with
+UNKNOWN elements; a BoolOp / IfExp is the union of its operands' classes; a slice of a list /
+tuple is that container, an index of a list / tuple / dict display its elements' classes
+(when read-only, §7.49 (1)); an attribute, method call or unary operation over a container is
+UNKNOWN; a class-body name read in the same body is that binding. (2) ROUTE #408: a subscript
+store `XS[0] = [5]` in the `__main__` driver was recorded as a second BINDING of `XS`, so `XS`
+had no initializer (underivable): a global's bindings are now its store-context names only, and
+the store makes it not read-only (its elements UNKNOWN). (3) ROUTE #409: a standard-library
+object was hashable when `hash(..)` of the live object succeeded and UNDERIVABLE otherwise:
+`{os.environ}`, `from os import environ`, `E = os.environ`, `{sys.argv}`,
+`{logging.root.handlers}`, `{os.environ.copy()}`. Now an object whose class has `__hash__ =
+None`, is a mutable container (`MutableMapping` / `MutableSequence` / `MutableSet`, `list` /
+`dict` / `set` / `bytearray`), or whose hash raises is UNKNOWN; a name reached through an
+attribute of a non-module, non-class object (`logging.root.handlers`) is UNKNOWN; the result of
+a method called on a standard-library object is UNKNOWN; a module global bound to a
+standard-library name has its class. (4) ROUTE #410: `copy.copy(x)` / `copy.deepcopy(x)` /
+`dataclasses.replace(x, ..)` / `copy.replace(x)` has x's class only when no class a value of
+x's static class may be (its MRO and every file subclass's) binds `__copy__` / `__deepcopy__` /
+`__replace__` / `__reduce__` / `__reduce_ex__` (and no such name is stored dynamically);
+otherwise UNKNOWN. Every UNKNOWN is refused in a hashing position
+(`PYCSL-R349-UNHASHABLE-RECORD`). Witnesses `5996`-`6014` and the NEW latent
+`6016` (`K = A.copy()`, PROVED at base); controls `6024`-`6027`. Census (both corpora, 53 mirrors, `pycsl_lib`; the whole landing): root 2441 -> 2449 (+8 controls), 0 MOVED / 0 GONE / 0 APPEARED; pyref 2186 -> 2186 0 / 0 / 0; mirrors 53 / 53 0 / 0 / 0; `pycsl_lib` --no-proof screen identical (104 files).
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

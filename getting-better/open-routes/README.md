@@ -36,6 +36,33 @@
 
 ##   0661/0662 source-repaired (`\valid(initial, 18)` is `>= 18`, invariant `== 18`). Residual: #385 unverified caller alias.
 
+## gen #37 / run #3 (2026-10-27): #403 + #404 + #405 + #406 + #407 + #408 + #409 + #410 REPAIRED, candidate (g1 executor off 4431ef86f;
+##   code + corpus + census + docs, annotations 7.60-7.64 / translational T.6.71-T.6.75, route REPAIR sections; inline in
+
+##   `_run_pipeline`, refusals only, no emission change, ledger unchanged). Positive predicates tightened: a verified `__eq__` must be
+
+##   `(self, o: object)` (#403); `type` is a base only for a metaclass that defines nothing, `metaclass=` only type / ABCMeta /
+
+##   EnumMeta / a file class, closed over file subclasses of `type` (#404); `type(n, b, ns)` / `types.new_class` /
+
+##   `make_dataclass(bases=)` refused anywhere, driver included (#405, new PYCSL-R405-DYNAMIC-SUBCLASS); a stdlib call outside an
+
+##   attribute-safe module list (argparse, optparse, functools.update_wrapper, mock, object dunders, `"__dict__"`) makes GD and
+
+##   field / class-attribute hash sources UNKNOWN (#406); container arithmetic / BoolOp / IfExp / slices stay containers (#407);
+
+##   subscript stores are not bindings (#408); stdlib objects by real class, mutable / unhashable / method results UNKNOWN (#409);
+
+##   copies UNKNOWN under `__copy__` / `__replace__` / `__deepcopy__` / `__reduce(_ex)__` (#410). Witnesses 5970-6014 (45, PROVED at
+
+##   base -> REFUSED) + latents 6015 / 6016 / 6018 + #380 coverage 6017; controls 6020-6027 PROVED both. Root 2441 -> 2449 0/0/0,
+
+##   pyref 2186 0/0/0, mirror 53/53 0/0/0, lib screen identical (104). Measured, not landed: #406 over the driver (GONE 5464) and over
+
+##   every unread callee (6 mirrors GONE). Residuals: `isinstance` does not narrow an `object` `__eq__` parameter (field-wise eq
+
+##   refused); #406 driver calls, user-module callees, `setattr` for hash sources; stdlib function results underivable.
+
 ## run #3 (2026-10-26): #402 (a user `__hash__` on the static class itself is never called in the model: a raising `__hash__`
 ##   proves `{d}` under no_exception) OPENED (e1 residual of #395, driver-reproduced rc=0, CPython ValueError).
 

@@ -4888,6 +4888,87 @@ identifiers are bound parameters, quantifier / `let` binders, Why3 builtins or o
 labels. No goal when a parameter binder is the label of a field it does not bind or occurs in
 $\overline{I}$, when $\overline{I}$ names `_k226`, or when a field of $L$ has another type.
 
+### §T.6.71  A verified `__eq__` takes any `other` (route #403, gen #37)
+
+_Corresponds to `annotations.md` §7.60._
+
+Refusal only, in §T.6.68's EQ-RISKY fixpoint (mirror twin `\trusted`; no emission change). A
+class body's `__eq__` binding counts as the one verified `def` only when, besides §T.6.68's
+conditions, its `args` are exactly two positional parameters (no positional-only, keyword-only,
+`*` or `**` parameter) and the second one's annotation is the `Name` `object` (no file class
+named `object`). Otherwise $q'(C)$ holds for the deciding class and the hashing sites of §T.6.68
+are undefined (`PYCSL-R402-UNVERIFIED-EQ`).
+
+### §T.6.72  Metaclasses (route #404, gen #37)
+
+_Corresponds to `annotations.md` §7.61._
+
+Refusal only, in S1 (§T.6.53; no emission change). The BASE-MODEL table no longer holds
+`builtins.type`; a base resolving to it is admitted iff the class body is a sequence of
+`Pass` / `Expr(Constant(str | Ellipsis))` and no `Attribute` store / delete on the class name
+nor `setattr` / `delattr` of it occurs in the module. A `metaclass=` keyword whose value
+resolves (through the imports of the module, or as the unbound builtin `type`, or as the name
+of a `ClassDef` of the module) to anything other than `builtins.type`, `abc.ABCMeta`,
+`enum.EnumMeta`, `enum.EnumType` or a file class makes the translation undefined
+(`PYCSL-S1-UNMODELLED-BASE`); a file class deriving from `type` through file classes (a least
+fixpoint over `Name` bases the scope resolver reads as "class") must satisfy the same body
+condition. The checks apply to the classes S1 checks (named outside the `__main__` driver in
+the main file, closed under the `metaclass=` names of checked classes; every class of a
+dependency module).
+
+### §T.6.73  Classes created by calls (route #405, gen #37)
+
+_Corresponds to `annotations.md` §7.62._
+
+Refusal only, over the whole module tree (the `__main__` block included; no emission change). A
+`Call` whose callee resolves, through every import of the module, to `builtins.type` (with at
+least two arguments, or a starred one), `builtins.type.__new__` (at least three),
+`types.new_class` or `dataclasses.make_dataclass` (with a `bases=` or `**` keyword) makes the
+translation undefined (`PYCSL-R405-DYNAMIC-SUBCLASS`) unless its bases argument is the empty
+`Tuple` literal.
+
+### §T.6.74  The call census of attribute stores (route #406, gen #37)
+
+_Corresponds to `annotations.md` §7.63._
+
+Refusal only (no emission change). Over the module tree without its top-level `if __name__
+...` blocks, $\mathit{dyn}_{406}$ holds when a string `Constant` is `__dict__` / `__setattr__` /
+`__delattr__` / `__class__`, or a `Call` with an argument or keyword value of kind `Name` /
+`Attribute` / `Subscript` / `Starred` / `NamedExpr` has a callee that is (a) a name or dotted
+name rooted at a standard-library import (not rebound in the module) whose target's first
+component is not in $S_{406}$ or that is in $X_{406}$; (b) an attribute of a `Call` of kind (a),
+or of a name assigned from one, whose attribute is not in $K_{406}$ (container / `str` / `re`
+/ logging methods); (c) a dunder attribute of an unbound builtin class, other than the
+read-only dunders (`__instancecheck__`, `__eq__`, `__repr__`, ...). Under
+$\mathit{dyn}_{406}$: §T.6.64's map gives every class `*` (a `getattr` default is refused,
+`PYCSL-R376-GETATTR-CLASS-BINDING`); §T.6.60's attribute load over a file-class receiver and
+`C.k` add `#UNK` (refused when hashed, `PYCSL-R349-UNHASHABLE-RECORD`); §T.6.60's dynamic flag
+($\mathit{dy}_{383}$) is set.
+
+### §T.6.75  Hashed-value sources: container expressions, store-only bindings, stdlib objects, copies (routes #407-#410, gen #37)
+
+_Corresponds to `annotations.md` §7.64._
+
+Refusal only, in §T.6.60's derivation (no emission change). (#407) In a module / class-body
+initializer: `BoolOp` is the union of its operands; `IfExp` of its two branches; `UnaryOp(Not)`
+is `bool`; a `BinOp` / `UnaryOp` with an operand of class `#list` / `#set` / `#dict` / `#tuple`
+/ `#UNK` is that container with `#UNK` elements (`#UNK` for a `#UNK` operand); a
+`Subscript` / `Attribute` / `Starred` / `UnaryOp` / method `Call` whose receiver is such a
+container is, for a `Slice` of `#list` / `#tuple`, that container with `#UNK` elements, for an
+index of `#list` / `#tuple` / `#dict`, the element (value) classes, else `#UNK`; a `Name` bound in
+the same class body reads that binding. (#408) A module name's bindings are the store-context
+`Name`s of module-level targets (a `Name` under a `Subscript` / `Attribute` target is a load).
+(#409) The stdlib object classification runs before the derivation and also serves module
+initializers; an object whose type has `__hash__ = None`, is an instance of `list` / `dict` /
+`set` / `bytearray` / `MutableMapping` / `MutableSequence` / `MutableSet`, or whose `hash`
+raises, or that is reached through an attribute of an object that is neither a module nor a
+class, is `#UNK`; a method `Call` on a dotted stdlib name whose object is neither a module nor a
+class is `#UNK`. (#410) $\mathit{CP}$ is the set of file classes $A$ with some file class $D$,
+$A \in \mathit{clo}(D)$, whose closure binds `__copy__` / `__deepcopy__` / `__replace__` /
+`__reduce__` / `__reduce_ex__` (all file classes when such a name is stored through a non-`self`
+receiver or $\mathit{dy}_{383}$ holds); `copy.copy` / `copy.deepcopy` / `copy.replace` /
+`dataclasses.replace` map a class of $\mathit{CP}$ to `#UNK`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._
