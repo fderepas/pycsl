@@ -36233,9 +36233,11 @@ def _emit_flatten_size_mode(n: str, desc: Dict[str, Any], spec: Dict[str, Any]) 
     o.append(f"    requires {{ {n}__is t }}")
     o.append(f"    ensures {{ t = {_eta} }}")
     _ena = {of: "s_a", f1: "s_b", f2: "s_c"}
-    o.append(f"  = match t with {_pat(bc, _ena)} -> assert {{ {n}__op t = s_a }};"
-             f" assert {{ {n}__l t = s_b }}; assert {{ {n}__r t = s_c }}"
-             f" | _ -> assert {{ {n}__is t = false }}; absurd end")
+    _ecomp = bc + " " + " ".join(_ena[fn] for fn in fields)
+    _eoth = " | ".join(_pat(c, {}) for c in spec["order"] if c != bc)
+    o.append(f"  = match t with {_pat(bc, _ena)} -> assert {{ {n}__op t = s_a /\\ {n}__l t = s_b"
+             f" /\\ {n}__r t = s_c }}; assert {{ t = {_ecomp} }}; assert {{ t = {_eta} }}"
+             f" | {_eoth} -> assert {{ {n}__is t = false }}; absurd end")
     o.append(f"  let lemma {n}__shape (t: term)")
     o.append(f"    requires {{ {n}__is t }}")
     o.append(f"    ensures {{ term__size t = 1 + term__size ({n}__l t) + term__size ({n}__r t) }}")
