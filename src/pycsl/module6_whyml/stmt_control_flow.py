@@ -935,6 +935,20 @@ class ControlFlowStmtMixin:
                 and self._expr_to_whyml({"type": "Tuple", "elts": [iter_ir, iter_ir]},
                                         local_refs).startswith("(let _pycsl_seq")):
             self._for_iter_materialize = (f"_pycsl_it310{idx}", _raw310)
+        elif (iter_expr != _raw310
+              and "[@expl:no_exception: OverflowError reachable]" in _raw310):
+            # (#49) ROUTE #417 — the coercion also erased an OBLIGATION the iterable
+            # carries (`for x in sorted(range(n))`: route #417's Py_ssize_t bound sat inside
+            # the dropped term, and `no_exception \all` PROVED for n = 10**20). Python
+            # evaluates the iterable once, before the loop: the obligations are asserted
+            # there (the erased term itself need not type: `sorted_1 (py_range_1 n)` does
+            # not); only its value stays erased.
+            self._abstract_ops = _ab310
+            _ob417 = re.findall(r"assert \{ \[@expl:no_exception: OverflowError reachable\] "
+                                r"[^{}]* \};", _raw310)
+            self._for_iter_materialize = (f"_pycsl_it310{idx}",
+                                          "(begin " + " ".join(_ob417) + " 0 end)"
+                                          if _ob417 else _raw310)
         else:
             self._abstract_ops = _ab310
         self._add_abstract_op("val iter_length (x: int) : int")

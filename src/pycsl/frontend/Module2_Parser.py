@@ -2017,7 +2017,23 @@ class _ContractParser:
         if t.type == "NUMBER":
             self.advance(); return Number(int(t.string))
         if t.type == "STRING":
-            self.advance(); return StringLiteral(t.string[1:-1])
+            # (#49) ROUTE #417 — a contract string literal has PYTHON's escape semantics,
+            # as the same literal in the body does: `"a\nb"` is three characters. The raw
+            # token text was kept, so the model saw backslash + `n` and `#@ ensures
+            # \result == "a\nb"` PROVED of `return "a\\nb"` (CPython False). Decoded with
+            # `ast.literal_eval` (the token is a valid double-quoted Python literal); an
+            # undecodable escape (`\N{nonsense}`) is a syntax error, never the raw text.
+            import ast as _ast417
+            import warnings as _w417
+            try:
+                with _w417.catch_warnings():
+                    _w417.simplefilter("ignore")
+                    _v417 = _ast417.literal_eval(t.string)
+            except (SyntaxError, ValueError):
+                self._err("undecodable escape in a contract string literal")
+            if not isinstance(_v417, str):
+                self._err("a contract string literal must be a str")
+            self.advance(); return StringLiteral(_v417)
         if t.type == "BSNAME":
             return self._parse_atom_bs()
         if t.type == "NAME":

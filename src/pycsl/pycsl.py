@@ -6248,6 +6248,41 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                       and _z346.attr in ("__dict__", "__setattr__"))):
                 _dy383 = True
         _dy383 = _dy383 or _dy406
+        # (#49) ROUTE #417 (residual of #406) -- `setattr(o, "x", [1])` stores a value in
+        # field `x` that the field / class-attribute sources of a hashed value (§7.49 (2))
+        # never saw: `{r.x}` PROVED `no_exception \all` (CPython TypeError, unhashable
+        # list). `_sa417`: every attribute name a CONSTANT-name dynamic store writes
+        # anywhere in the file (`setattr(o, "x", v)`, `o.__setattr__("x", v)`,
+        # `object.__setattr__(o, "x", v)`, `o.__dict__["x"] = v`, `vars(o)["x"] = v`);
+        # a read of such a field (any receiver class) is UNKNOWN when hashed. A
+        # NON-constant name stays §7.43's GD-only effect (residual: folding it in GONEs
+        # the `frontend/pure_ast.py` mirror, route #406's measurement (c)).
+        _sa417 = set()
+        for _z417 in _ast341.walk(_t341):
+            if isinstance(_z417, _ast341.Call):
+                _f417 = _z417.func
+                _nm417 = None
+                if (isinstance(_f417, _ast341.Name) and _f417.id == "setattr"
+                        and len(_z417.args) >= 2):
+                    _nm417 = _z417.args[1]
+                elif isinstance(_f417, _ast341.Attribute) and _f417.attr == "__setattr__":
+                    _nm417 = (_z417.args[1] if len(_z417.args) >= 2
+                              and isinstance(_f417.value, _ast341.Name)
+                              and _f417.value.id in ("object", "type")
+                              else _z417.args[0] if _z417.args else None)
+                if (isinstance(_nm417, _ast341.Constant)
+                        and isinstance(_nm417.value, str)):
+                    _sa417.add(_nm417.value)
+            elif (isinstance(_z417, _ast341.Subscript)
+                  and not isinstance(_z417.ctx, _ast341.Load)
+                  and isinstance(_z417.slice, _ast341.Constant)
+                  and isinstance(_z417.slice.value, str)
+                  and ((isinstance(_z417.value, _ast341.Attribute)
+                        and _z417.value.attr == "__dict__")
+                       or (isinstance(_z417.value, _ast341.Call)
+                           and isinstance(_z417.value.func, _ast341.Name)
+                           and _z417.value.func.id == "vars"))):
+                _sa417.add(_z417.slice.value)
         # (#49) gen #37, ROUTE #410 (red team 32; MEASURED PROVED at 085ee3dcc, CPython
         # TypeError) -- `copy.copy(x)` / `copy.replace(x)` "has x's class" (§7.49 (4)) holds
         # only when the copy protocol is the default one: a `__copy__` / `__deepcopy__` /
@@ -6379,6 +6414,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # class (a method called on it returns state the class does not decide)
         _ob409 = set()
         _nd409 = {}
+        # (#417) `_rf417[dq]`: the real object of a resolved dotted stdlib name
+        _rf417 = {}
         import collections.abc as _cab409
         import types as _tyx409
         for _z394 in _ast341.walk(_t341):
@@ -6454,6 +6491,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if not (isinstance(_ob394, (type, _tyx409.ModuleType))):
                         _ob409.add(_dq394)
                 _io394[_dq394] = _r394
+                if _fd394:
+                    _rf417[_dq394] = _ob394
             _iv394[id(_z394)] = _io394[_dq394]
             _nd409[id(_z394)] = _dq394
         _gv394 = {}
@@ -7280,8 +7319,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         for _x383 in (_ty383.get(id(_n383.value)) or []):
                             if isinstance(_x383, _ast341.Name) and _x383.id in _cls341:
                                 _rw383 = _rw383 or []
-                                if _dy406:
-                                    # (#406) an unread callee may have stored any value
+                                if _dy406 or _n383.attr in _sa417:
+                                    # (#406) an unread callee may have stored any value;
+                                    # (#417) so may a constant-name `setattr`
                                     _rw383.append(_K394)
                                 _fd383 = False
                                 for _a372 in _clo346.get(_x383.id, []):
@@ -7349,7 +7389,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 and _md369.get(_n383.value.id) == ["class"]
                                 and _n383.value.id in _cls341):
                             # (#394) `C.k` of a file class: the first binder along C's MRO
-                            _rw383 = [_U383] if not _dy406 else [_K394]
+                            _rw383 = ([_U383] if not (_dy406 or _n383.attr in _sa417)
+                                      else [_K394])
                             if not _dy383 and _n383.attr not in _xa383:
                                 for _a372 in (_mro363.get(_n383.value.id) or ["?"]):
                                     if _a372 not in _cls341:
@@ -7367,7 +7408,61 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     elif isinstance(_n383, _ast341.Call):
                         _fu383 = _n383.func
                         _a0383 = _n383.args[0] if _n383.args else None
-                        if isinstance(_fu383, _ast341.Name):
+                        # (#49) ROUTE #417 (residual of #409) -- the RESULT of a standard-
+                        # library FUNCTION was underivable ("#UND", admitted): `{shlex.
+                        # split("a b")}` PROVED `no_exception \all` (CPython TypeError, a
+                        # list). Polarity: a call whose callee resolves (`_nd409`) to a
+                        # standard-library function or builtin-function object (not a class,
+                        # not a `builtins` name: those keep their rows below) has the class
+                        # of `_hr417` when listed there -- functions that always return that
+                        # hashable class -- and is UNKNOWN otherwise.
+                        _q417 = _nd409.get(id(_fu383), "")
+                        _o417 = _rf417.get(_q417)
+                        _hr417 = {
+                            "os.getcwd": "str", "os.fspath": "str", "os.getpid": "int",
+                            "os.path.join": "str", "os.path.basename": "str",
+                            "os.path.dirname": "str", "os.path.abspath": "str",
+                            "os.path.normpath": "str", "os.path.realpath": "str",
+                            "os.path.expanduser": "str", "os.path.expandvars": "str",
+                            "os.path.relpath": "str", "os.path.normcase": "str",
+                            "os.path.exists": "bool", "os.path.isfile": "bool",
+                            "os.path.isdir": "bool", "os.path.isabs": "bool",
+                            "os.path.islink": "bool", "shlex.quote": "str",
+                            "shlex.join": "str", "re.escape": "str", "json.dumps": "str",
+                            "textwrap.dedent": "str", "textwrap.indent": "str",
+                            "textwrap.fill": "str", "textwrap.shorten": "str",
+                            "string.capwords": "str", "keyword.iskeyword": "bool",
+                            "fnmatch.fnmatch": "bool", "fnmatch.fnmatchcase": "bool",
+                            "math.sqrt": "float", "math.exp": "float", "math.log": "float",
+                            "math.log2": "float", "math.log10": "float", "math.sin": "float",
+                            "math.cos": "float", "math.tan": "float", "math.atan2": "float",
+                            "math.hypot": "float", "math.fabs": "float", "math.pow": "float",
+                            "math.fsum": "float", "math.isqrt": "int", "math.gcd": "int",
+                            "math.lcm": "int", "math.factorial": "int", "math.comb": "int",
+                            "math.perm": "int", "math.isclose": "bool",
+                            "math.isfinite": "bool", "math.isinf": "bool",
+                            "math.isnan": "bool", "time.time": "float",
+                            "time.monotonic": "float", "time.perf_counter": "float",
+                            "time.time_ns": "int", "time.monotonic_ns": "int",
+                            "random.random": "float", "random.randint": "int",
+                            "random.randrange": "int", "random.uniform": "float",
+                            "unicodedata.name": "str", "unicodedata.normalize": "str",
+                            "unicodedata.category": "str", "sys.getsizeof": "int",
+                            "sys.getrecursionlimit": "int", "sys.intern": "str"}
+                        for _p417 in ("posixpath.",):
+                            if _q417.startswith(_p417):
+                                _q417 = "os.path." + _q417[len(_p417):]
+                        if (_q417 and not _q417.startswith("builtins.")
+                                and _o417 is not None and callable(_o417)
+                                and not isinstance(_o417, type)
+                                and _q417 not in ("copy.copy", "copy.deepcopy",
+                                                  "dataclasses.replace", "copy.replace")
+                                and not any(isinstance(_z, _ast341.Name)
+                                            and (_z.id in _ln394 or _z.id in _lb383)
+                                            for _z in _ast341.walk(_fu383))):
+                            _rw383 = ([_ast341.Name(id=_hr417[_q417], ctx=_ast341.Load())]
+                                      if _q417 in _hr417 else [_K394])
+                        elif isinstance(_fu383, _ast341.Name):
                             _fn383 = _fu383.id
                             if (_fn383 in _al383 and isinstance(_al383[_fn383], _ast341.Name)
                                     and _al383[_fn383].id in _cls341):
@@ -11427,6 +11522,23 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _c226 = _nx226
         transpiler.ctor_state_c226 = _cs226
     _mlw = transpiler.transpile()
+    # (#49) ROUTE #417 -- every OverflowError obligation the emitter attached to a
+    # `list(range(..))` / `sorted(range(..))` / `float(int)` argument carries a tag stable
+    # per call node; a later int coercion that drops the argument term drops the obligation
+    # with it (measured: `set(sorted(range(n)))` -> `set_1 (any int)` PROVED `no_exception
+    # \all` for n = 10**20, CPython OverflowError). A tag absent from the final module is
+    # an obligation the lowering ERASED: refused.
+    _er417 = sorted(_t for _t in (getattr(transpiler, "_r417_obls", None) or ())
+                    if "[@" + _t + "]" not in (_mlw or ""))
+    if _er417:
+        from errors import PyCSLSemanticError as _PyCSLSemErr417
+        raise _PyCSLSemErr417(
+            "an OverflowError obligation of `list(range(..))` / `sorted(range(..))` / "
+            "`float(<int>)` under `no_exception \\all` was ERASED by the surrounding "
+            "lowering (the argument was coerced to an opaque value, measured on "
+            "`set(sorted(range(n)))`), so the claim would be proved without it. Bind the "
+            "call to a local first (`xs = list(range(n))`), or drop `\\all` from the "
+            "context.", stage="whyml", code="PYCSL-R417-ERASED-OBLIGATION")
     # (#49) gen #37, ROUTE #384 — A `\length` CLASS INVARIANT WHOSE CONSTRUCTOR GOAL CANNOT BE
     # STATED IS REFUSED, NOT ASSUMED. Module 6 states route #226's `_check_class_inv_<c>` goal
     # from the constructor's end state of each list field (`ctor_len_r384` above); when that

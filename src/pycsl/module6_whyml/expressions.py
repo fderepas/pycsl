@@ -5205,6 +5205,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # to_dict() is faithful for its purposes.
         expr = node.to_dict()
         raw_op = expr["op"]
+        # (#49) ROUTE #417 — SEQUENCE REPETITION IS MODELLED ONLY FOR `[x] * n`. The
+        #   `[default] * size` arm below kept the FIRST element and dropped the rest, so
+        #   `[1, 2] * 3` lowered to `Array.make 3 1` (length 3, CPython 6) and `[] * 3` to
+        #   `Array.make 3 0` (CPython 0): `len(..) == 3` and `xs[1] == 1` PROVED. A TUPLE
+        #   operand fell to Why3 INT multiplication (`(0,) * 3` -> `(0) * 3`, a falsy `0`,
+        #   so `if t:` was decided False where CPython's `(0, 0, 0)` is truthy; `(1,) * n`
+        #   returned as `n`). Polarity: only the one-element list display on the LEFT is
+        #   modelled; any other list display on the left, and a tuple display on either
+        #   side, is REFUSED.
+        if raw_op == "*":
+            _l417 = expr.get("left") if isinstance(expr.get("left"), dict) else {}
+            _r417 = expr.get("right") if isinstance(expr.get("right"), dict) else {}
+            if ((_l417.get("type") in ("ArrayLit", "ListLit")
+                 and len(_l417.get("elts") or []) != 1)
+                    or _l417.get("type") == "Tuple" or _r417.get("type") == "Tuple"):
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "sequence repetition is modelled only for a ONE-element list display "
+                    "on the left, `[x] * n` (an n-element list of x). A list display of "
+                    "another length, or a tuple display on either side of `*`, has no "
+                    "model here: measured, `[1, 2] * 3` lowered to a list of length 3 "
+                    "(CPython 6) and `(0,) * 3` to the int 0 (CPython `(0, 0, 0)`, "
+                    "truthy), and both PROVED false claims. Build the sequence with a "
+                    "loop, or as `[x] * n` per element.",
+                    stage="whyml",
+                    code="PYCSL-R417-SEQUENCE-REPEAT",
+                )
         # (#49) ROUTE #251 — ARITHMETIC AND ORDERING ON AN ARBITRARY PYTHON OBJECT HAVE NO
         #   LAW. An erased value (route #249's population, below) has an `int` term, and
         #   `+ - * // %` and `< <= > >=` on it lowered to Why3 integer arithmetic, so every
@@ -10439,6 +10466,91 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 args.append(self._expr_to_whyml(_airr, local_refs, invariant_ctx, subst))
             finally:
                 self._todict_arg_wants_pymap = _saved_wp
+        # (#49) ROUTE #417 — two OverflowError sites with no obligation, under `\all`
+        #   only (route #332's rule for a non-Phase-1 exception, as routes #413 / #414):
+        #   (1) `list(range(..))` / `sorted(range(..))` take the range's LENGTH as a
+        #   Py_ssize_t ("Python int too large to convert to C ssize_t" for
+        #   `list(range(10**20))`), exactly as `len(range(..))` does (route #414): the
+        #   same operand bound wraps the range argument. (`tuple(range(10**20))` raises
+        #   MemoryError, not OverflowError: not modelled, as route #414.) (2) `float(n)` of an
+        #   int raises "int too large to convert to float" when |n| exceeds DBL_MAX =
+        #   (2**53 - 1) * 2**971 (route #413's literal): it owes `|n| <= DBL_MAX`. Only an
+        #   argument positively read as an int carries the obligation; a str / float / bool
+        #   argument raises no OverflowError; any other argument (an object whose
+        #   `__float__` / `__index__` is not modelled) is REFUSED under `\all`. Each
+        #   obligation wraps the argument, so the call keeps its head.
+        if (not self._in_spec and getattr(self, "_current_no_exception_all", False)
+                and isinstance(func_name, str) and len(args) == 1
+                and len(expr.get("args") or []) == 1 and not expr.get("keywords")):
+            _a417 = expr["args"][0]
+            if (func_name in ("list", "sorted") and isinstance(_a417, dict)
+                    and _a417.get("type") == "Call" and _a417.get("func") == "range"
+                    and 1 <= len(_a417.get("args") or []) <= 3
+                    and not _a417.get("keywords")):
+                _ra417 = [self._expr_to_whyml(_x417, local_refs or set(), invariant_ctx, subst)
+                          for _x417 in _a417["args"]]
+                if len(_ra417) == 1:
+                    _b417 = f"{_ra417[0]} <= 9223372036854775807"
+                elif len(_ra417) == 2:
+                    _b417 = f"{_ra417[1]} - {_ra417[0]} <= 9223372036854775807"
+                else:
+                    _b417 = (f"- 9223372036854775807 <= {_ra417[1]} - {_ra417[0]} "
+                             f"<= 9223372036854775807")
+                # The `[@r417 ..]` tag (stable per call node) lets `_run_pipeline` check that
+                # no later coercion ERASED the obligation with the term (`set(sorted(range(n)))`
+                # coerced the argument to `(any int)`, measured): an erased one is refused.
+                _tg417 = "r417_%08x" % (stable_hash(repr(expr)) & 0xffffffff)
+                self._r417_obls = getattr(self, "_r417_obls", set()) | {_tg417}
+                args[0] = (f"(begin assert {{ [@expl:no_exception: OverflowError reachable] "
+                           f"[@{_tg417}] {_b417} }}; {args[0]} end)")
+            elif func_name == "float" and isinstance(_a417, dict):
+                _k417 = _a417.get("type")
+                _st417 = getattr(self, "_current_symbol_table", {}) or {}
+                _t417 = (str(_st417.get(_a417.get("name")) or "").split("[")[0].strip().lower()
+                         if _k417 == "Var" else "")
+                def _ir417(_e):
+                    # int-read: an int literal, an `int`-typed name, an int builtin, and
+                    # `+ - * // %` / unary `-` over int-read operands
+                    if not isinstance(_e, dict):
+                        return False
+                    _ke = _e.get("type")
+                    if _ke == "Number":
+                        return type(_e.get("value")) is int
+                    if _ke == "Var":
+                        return (str(_st417.get(_e.get("name")) or "").split("[")[0]
+                                .strip().lower() == "int")
+                    if _ke == "Call":
+                        return _e.get("func") in ("len", "int", "abs", "ord", "hash", "sum")
+                    if _ke == "BinOp" and _e.get("op") in ("+", "-", "*", "//", "div", "%"):
+                        return _ir417(_e.get("left")) and _ir417(_e.get("right"))
+                    if _ke == "UnaryOp" and _e.get("op") in ("-", "+"):
+                        return _ir417(_e.get("operand"))
+                    return False
+                _int417 = _ir417(_a417)
+                _safe417 = ((_k417 == "Number" and type(_a417.get("value")) is float)
+                            or (_k417 == "Bool")
+                            or (_k417 == "Var" and _t417 in ("float", "bool", "str"))
+                            or self._is_string_expr(_a417) or self._is_float_expr(_a417))
+                if _int417 and not _safe417:
+                    _m417 = str((2 ** 53 - 1) * 2 ** 971)
+                    _tg417 = "r417_%08x" % (stable_hash(repr(expr)) & 0xffffffff)
+                    self._r417_obls = getattr(self, "_r417_obls", set()) | {_tg417}
+                    args[0] = (f"(let _fl417 = {args[0]} in begin assert {{ "
+                               f"[@expl:no_exception: OverflowError reachable] [@{_tg417}] "
+                               f"- {_m417} <= _fl417 <= {_m417} }}; _fl417 end)")
+                elif not _safe417:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        "`float(x)` under `no_exception \\all` is admitted only when `x` is "
+                        "positively read as an int (a literal, an `int`-typed name, or "
+                        "`len` / `int` / `abs` / `ord` / `hash` / `sum`; it then owes "
+                        "|x| <= DBL_MAX, since `float(10**400)` raises OverflowError) or as "
+                        "a str / float / bool. Any other argument may be an int of any size or "
+                        "an object whose `__float__` is not modelled. Annotate the argument "
+                        "`int` or `float`, or drop `\\all` from the context.",
+                        stage="whyml",
+                        code="PYCSL-R417-UNCHECKED-FLOAT-CONVERSION",
+                    )
 
         # faithful-string-op.md §3.1–3.3: `.replace`/`.lower`/`.upper`/`.strip` on a
         # string receiver → a faithful `string`-typed op, BEFORE the generic dotted-call
@@ -22182,6 +22294,24 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return "pycsl_none"
         if isinstance(node, ArrayLitExpr):
             elts = expr.get("elts", [])
+            # (#49) ROUTE #417 — a STARRED element of a list display is not one element:
+            # `Starred` lowers to its operand, so `[*range(n)]` became `Array.make 1
+            # (py_range_1 n)` and `len([*range(n)]) == 1` PROVED (CPython n). The splice is
+            # not modelled, so (route #299's answer for the hval carrier) the display is an
+            # UNCONSTRAINED array, fresh per evaluation: list-ness kept, length and contents
+            # unknown. In a specification (no `any`) it is REFUSED. Route #375's re-entry
+            # (an erased operand, already preceded by a failing assertion) is unchanged.
+            if not _nr358 and any(isinstance(_e417, dict) and _e417.get("type") == "Starred"
+                                  for _e417 in elts):
+                if self._in_spec or invariant_ctx:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        "a starred element `*x` in a list display is not modelled in a "
+                        "specification: the program lowers it to an unconstrained list "
+                        "(its length and contents are unknown). State the property over "
+                        "`x` itself instead.",
+                        stage="whyml", code="PYCSL-R417-STARRED-LIST-ELEMENT")
+                return "(any (array int))"
             # (#49) ROUTE #184 — A `None` ELEMENT OF A LIST LITERAL IS NOT THE INTEGER 0.
             # `xs: List[Optional[int]] = [None]` lowered to `Array.make 1 0`, so `xs[0] == 0`
             # PROVED True (CPython False) and `xs[0] + 1` PROVED `== 1` (CPython TypeError).
