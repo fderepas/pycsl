@@ -58,8 +58,6 @@ _PREC_ATOM = 8
 _OPPREC = {"->": 1, "\\/": 2}
 
 
-#@ requires True
-#@ ensures True
 #@ assigns \nothing
 def has_var(t: T) -> bool:
     if isinstance(t, Var):
@@ -75,7 +73,6 @@ def has_var(t: T) -> bool:
     raise TypeError("unknown")
 
 
-#@ requires True
 #@ ensures False
 #@ assigns \nothing
 def pp(t: T, parent_prec: int) -> str:

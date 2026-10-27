@@ -63,20 +63,39 @@
 
 ##   refused); #406 driver calls, user-module callees, `setattr` for hash sources; stdlib function results underivable.
 
+## run #3 (2026-10-26): #420 (THE BESPOKE LOWERINGS DROP THE DECLARED CONTRACT: a recognized shape is replaced by a group with
+##   `requires/ensures { true }`; `#@ ensures False` and a `no_exception` over a raising body PROVED, 15/15 probes + mirror `--fun`)
+
+##   REPAIRED, candidate (rc1 off 42bc9c879): one predicate `generic_fold.bespoke_contract_ok` gating every `recognize_*`
+
+##   (decorator; list recognizers re-run on conforming functions) and the 24 FunctionEmissionMixin-local branches. Witnesses
+
+##   5920-5934 (5926: a dropped callee `requires`); mirror 53/53 0 MOVED; see route420-recognizer-drops-contract.md.
+
 ## run #3 (2026-10-26): #402 (a user `__hash__` on the static class itself is never called in the model: a raising `__hash__`
 ##   proves `{d}` under no_exception) OPENED (e1 residual of #395, driver-reproduced rc=0, CPython ValueError).
 
 ## gen #37 / run #3 (2026-10-26): #412 / #413 / #414 / #415 / #416 REPAIRED, candidate; #411 NOT REPAIRED (g2 executor off 4431ef86f;
 ##   code + corpus 6056-6076 + census + docs, annotations 7.70-7.74 / translational T.6.81-T.6.85, route REPAIR sections; no new
+
 ##   def, no new axiom, ledger unchanged). #412 float `/` and int TRUE `/` owe a zero-divisor obligation (int `a / b` was the one
+
 ##   int division path never wrapped). #413 int `a / b` owes |a| <= DBL_MAX * |b| under `\all` (FLOAT-FINITE judged NOT to
+
 ##   cover a raised OverflowError). #414 Py_ssize_t bounds (len(range), str / list repetition, `<<`) under `\all`; MemoryError
+
 ##   left unmodelled (a memory-cap assumption is a USER decision). #415 `%` formatting refused under `no_exception` unless
+
 ##   allow-listed (literal %s/%d/%i/%r, flags / width, matching operand count and static types; PYCSL-R415). #416 UB-7.1 matches
+
 ##   `d.keys()` / `.values()` / `.items()` (inline in `_run_pipeline`; the ir_scanner version left the recognised mirror model
+
 ##   stale, measured and moved). Root 2441 -> 2455, MOVED 1163 / 1164, GONE 3269 (expected FAIL); pyref 1 MOVED (0110, FAIL
+
 ##   both); mirrors 53/53 inert; pycsl_lib screen identical. #411: the encoder fix is necessary but NOT sufficient -- Why3
+
 ##   1.8.2 prints every non-printable / `"` / `\` string-literal character as `\xHH`, which Z3 4.13 (SMT-LIB 2.6) reads as
+
 ##   FOUR characters; a faithful repair moves 122 root / 4 pyref / 30 mirror emissions -- design decision for the user.
 
 ## gen #37 / run #3 (2026-10-26): #402 REPAIRED, candidate (e3 executor off 526d534de; code + corpus + census + docs, annotations 7.57 /

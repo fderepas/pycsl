@@ -19,8 +19,6 @@ from typing import Tuple
 @dataclass(frozen=True)
 class Var:
     name: str
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
         return self.name
@@ -29,8 +27,6 @@ class Var:
 @dataclass(frozen=True)
 class Num:
     value: int
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
         return str(self.value)
@@ -39,8 +35,6 @@ class Num:
 @dataclass(frozen=True)
 class Flag:
     value: bool
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
         return "true" if self.value else "false"
@@ -50,7 +44,6 @@ class Flag:
 class App:
     head: str
     args: Tuple['T', ...]
-    #@ requires True
     #@ ensures False
     #@ assigns \nothing
     def pp(self) -> str:
@@ -64,8 +57,6 @@ class Bin:
     op: str
     lhs: 'T'
     rhs: 'T'
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
         return f"({self.lhs.pp()} {self.op} {self.rhs.pp()})"
@@ -76,8 +67,6 @@ class Quant:
     binders: Tuple[str, ...]
     ty: str
     body: 'T'
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def pp(self) -> str:
         binders = " ".join(self.binders)
@@ -87,8 +76,6 @@ class Quant:
 T = "Var | Num | Flag | App | Bin | Quant"
 
 
-#@ requires True
-#@ ensures True
 #@ assigns \nothing
 def has_var(t: T) -> bool:
     if isinstance(t, Var):

@@ -37,8 +37,6 @@ class Bin:
 Term = "Unsupported | Var | Bin"
 
 
-#@ requires True
-#@ ensures True
 #@ assigns \nothing
 def has_unsup(t: Term) -> bool:
     if isinstance(t, Unsupported):
@@ -57,7 +55,6 @@ class IRCrossCheckResult:
     lean_canon: Optional[Term] = None
     registry_canon: Optional[Term] = None
 
-    #@ requires True
     #@ ensures False
     #@ assigns \nothing
     def any_unsupported(self) -> bool:
@@ -66,8 +63,6 @@ class IRCrossCheckResult:
                              self.registry_canon)
                    if c is not None)
 
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def all_present_unsupported(self) -> bool:
         canons = [c for c in (self.rocq_canon, self.lean_canon,
@@ -76,16 +71,12 @@ class IRCrossCheckResult:
             return False
         return all(isinstance(c, Unsupported) for c in canons)
 
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def provers_agree(self) -> bool:
         if self.rocq_canon is None or self.lean_canon is None:
             return True
         return self.rocq_canon == self.lean_canon
 
-    #@ requires True
-    #@ ensures True
     #@ assigns \nothing
     def all_agree(self) -> bool:
         canons = [c for c in

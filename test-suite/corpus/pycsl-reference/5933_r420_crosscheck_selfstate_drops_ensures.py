@@ -29,7 +29,6 @@ class IRCrossCheckResult:
     lean_canon: Optional[Term] = None
     registry_canon: Optional[Term] = None
 
-    #@ requires True
     #@ ensures False
     #@ assigns \nothing
     def registry_skipped(self) -> bool:

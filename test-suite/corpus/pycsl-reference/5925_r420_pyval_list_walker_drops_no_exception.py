@@ -14,8 +14,6 @@ same shape under `ensures True`) still PROVES, byte-identical.
 from typing import Any, List
 
 
-#@ requires True
-#@ ensures True
 #@ assigns \nothing
 #@ no_exception IndexError
 def collect_leaf(node: Any) -> List[str]:
@@ -32,8 +30,6 @@ def collect_leaf(node: Any) -> List[str]:
     return out
 
 
-#@ requires True
-#@ ensures True
 #@ assigns \nothing
 def find(payload: Any) -> List[str]:
     # Search the tree for the first Leaf subtree and return its collected names.

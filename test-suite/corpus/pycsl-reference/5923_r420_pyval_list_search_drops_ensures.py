@@ -14,8 +14,6 @@ same shape under `ensures True`) still PROVES, byte-identical.
 from typing import Any, List
 
 
-#@ requires True
-#@ ensures True
 #@ assigns \nothing
 def collect_leaf(node: Any) -> List[str]:
     # The per-node reader: a (Leaf (Id NAME) ...) accumulator walker (the callee
@@ -31,7 +29,6 @@ def collect_leaf(node: Any) -> List[str]:
     return out
 
 
-#@ requires True
 #@ ensures False
 #@ assigns \nothing
 def find(payload: Any) -> List[str]:

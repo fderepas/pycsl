@@ -41,7 +41,6 @@ class Pair:
 Expr = "Leaf | Bad | Neg | Pair"
 
 
-#@ requires True
 #@ ensures False
 #@ assigns \nothing
 def has_bad(e: Expr) -> bool:

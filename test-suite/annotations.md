@@ -2984,7 +2984,8 @@ comprehension/compare handlers), every `raises` is unconditioned, and no `no_exc
 declared. `\trusted` / `\abstract` functions are exempt (their contract is assumed). Otherwise
 the function is lowered by the generic path, which checks the contract or refuses the file.
 Nothing new is refused by name: a declining shape that the generic lowering cannot model is
-refused or fails to type-check there. Witnesses `5920`-`5925`, `5927`-`5934`; controls are the
+refused or fails to type-check there. Witnesses `5920`-`5934` (`5926`: a dropped callee
+`requires` left a call site unchecked); controls are the
 shape files they derive from (`0883`, `0942`, `0943`, `0945`, `0948`, `0950`-`0964`), still
 proved and byte-identical.
 ### 7.60 A verified `__eq__` is verified for ANY `other` (route #403, gen #37)

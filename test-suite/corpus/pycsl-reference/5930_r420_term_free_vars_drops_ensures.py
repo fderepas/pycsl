@@ -43,7 +43,6 @@ class Quant:
 Expr = "Leaf | App | Bin | Quant"
 
 
-#@ requires True
 #@ ensures False
 #@ assigns \nothing
 def fvs(e: Expr) -> set:

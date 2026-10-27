@@ -14,7 +14,6 @@ same shape under `ensures True`) still PROVES, byte-identical.
 from typing import Any, Set
 
 
-#@ requires True
 #@ ensures False
 #@ assigns written
 def collect_written(node: Any, written: Set[str]) -> None:

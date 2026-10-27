@@ -14,7 +14,6 @@ same shape under `ensures True`) still PROVES, byte-identical.
 from typing import Any, List
 
 
-#@ requires True
 #@ ensures False
 #@ assigns \nothing
 def flatten(node: Any) -> List[Any]:

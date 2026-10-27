@@ -31,8 +31,6 @@ class Bin:
 Expr = "Leaf | Bin"
 
 
-#@ requires True
-#@ ensures True
 #@ assigns \nothing
 def norm(e: Expr) -> Expr:
     if isinstance(e, Leaf):
@@ -42,7 +40,6 @@ def norm(e: Expr) -> Expr:
     raise TypeError("unknown")
 
 
-#@ requires True
 #@ ensures False
 #@ assigns \nothing
 def split_chain(t: Expr) -> Tuple[List[Expr], Expr]:

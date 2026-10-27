@@ -14,7 +14,6 @@ same shape under `ensures True`) still PROVES, byte-identical.
 from typing import Any, Optional
 
 
-#@ requires True
 #@ ensures False
 #@ assigns \nothing
 def first_binder_name(node: Any) -> Optional[str]:
