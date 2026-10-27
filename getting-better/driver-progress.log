@@ -13002,3 +13002,4 @@ measurement instead of re-running two hours of it.
 2026-10-22T19:08Z route #303 REPAIRED
 2026-10-26T11:07:50Z conv pure_ast._const_value_getter/_setter BROKEN-cheap — 448->446 (cv2)
 2026-10-26T17:34:08Z wall int-erasure-seam BROKEN(narrow) — 446->445 (R5-str, ies1)
+2026-10-27T15:23:24Z batch int3 landed — routes #401-#410 #412-#416 #420 + conv canonical._iff_app_to_binop (445 after +1 trusted errors.py)
