@@ -3016,6 +3016,11 @@ class PreambleEmissionMixin:
         self._ccs_emitted = False
         self._term_adt_spec = compute_term_adt_spec(
             functions, self.ir.get("type_decls", []))
+        # cv3 L-T2: a transform arm's `t.F in SET` guard reads the module constant
+        # string sets (`_NAT_TYPES = {"nat", "Nat"}`) off the spec.
+        if self._term_adt_spec:
+            self._term_adt_spec["str_sets"] = dict(
+                self.ir.get("module_const_str_sets") or {})
         # class-variant-impl.md T-transform: the Term->Term (constructor-rebuild)
         # transforms need the str->str module constants (op-swap maps) + the
         # abstract `val pystr_eq` string guard. Stash both; a transform sets

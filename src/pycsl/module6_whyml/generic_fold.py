@@ -34523,7 +34523,18 @@ def compute_term_adt_spec(functions: List[Dict[str, Any]],
                 return None                       # un-typeable -> carrier off
             spec_fields.append((fn, wt))
         ctors[c] = spec_fields
-    return {"ctors": ctors, "order": sorted(ctor_names)}
+    spec = {"ctors": ctors, "order": sorted(ctor_names)}
+    # cv3 L-T2: the (`list term`, `term`) -> `term` list builders of this file
+    # (`mk_arrow_chain`), so a transform arm may CALL one. Only a function the
+    # list-build recognizer accepts is listed: it is emitted as a `let` (a real body,
+    # `requires { true }`), never an assumed `val`.
+    _lb: Dict[str, Any] = {}
+    for f in functions:
+        _d = recognize_term_list_build(f, spec)
+        if _d is not None and isinstance(f.get("name"), str):
+            _lb[f["name"]] = list(_d["order"]) + [_d["listp"]]
+    spec["list_build"] = _lb
+    return spec
 
 
 def _isinstance_target_classes(test: Any, subj: str) -> List[str]:
@@ -34837,9 +34848,17 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
     ctor_set = set(spec["ctors"].keys())
     arms: Dict[str, Any] = {}
     guards: Dict[str, Any] = {}
-    for st in body:
+    default_id = False
+    lcs: List[Any] = []
+    for _si, st in enumerate(body):
         if isinstance(st, dict) and st.get("stmt") == "Raise":
             continue                    # trailing unreachable raise (total match)
+        # cv3 L-T2 DEFAULT ARM: a final `return t` (the last statement of the body)
+        # answers every constructor no earlier arm matched with the subject itself --
+        # Python reaches it exactly for those, so it lowers to the identity arm.
+        if (_si == len(body) - 1 and _is_return(st) and _is_var(st.get("value"), subj)):
+            default_id = True
+            continue
         if not (isinstance(st, dict) and st.get("stmt") == "If" and not st.get("orelse")):
             raise _PVWBail()
         # GUARDED ARM (levers-r3 L-T1, `_iff_app_to_binop` shape):
@@ -34863,16 +34882,34 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
         classes = _isinstance_target_classes(st.get("test"), subj)
         if not classes or any(c not in ctor_set for c in classes):
             raise _PVWBail()
-        arm_map = _parse_transform_arm(st.get("body", []), subj, name, spec,
-                                       const_dicts, classes)
+        try:
+            arm_map = _parse_transform_arm(st.get("body", []), subj, name, spec,
+                                           const_dicts, classes)
+        except _PVWBail:
+            # cv3 L-T2 BLOCK ARM: a single-class arm whose body is a straight-line
+            # sequence of local bindings, string-guarded early returns and a final
+            # return, over a closed term-builder expression language (see
+            # `_parse_block_arm`). Tried only where every older arm form declines.
+            if len(classes) != 1:
+                raise
+            arm_map = {classes[0]: _parse_block_arm(
+                st.get("body", []), subj, name, spec, classes[0], lcs)}
         for c, d in arm_map.items():
             if c in arms:
                 raise _PVWBail()        # a ctor matched twice
             arms[c] = d
+    if default_id:
+        if set(arms.keys()) == ctor_set:
+            raise _PVWBail()            # the default return would be dead: not this shape
+        for c in ctor_set - set(arms.keys()):
+            arms[c] = {"kind": "id"}
     if set(arms.keys()) != ctor_set:
         raise _PVWBail()                # totality over the ADT
     uses_list = _transform_uses_list(arms)
     uses_streq = any(a.get("kind") == "condmap" for a in arms.values())
+    if any(a.get("kind") == "block" for a in arms.values()):
+        uses_list = uses_list or any(a.get("uses_list") for a in arms.values())
+        uses_streq = uses_streq or any(a.get("uses_streq") for a in arms.values())
     if guards:
         for _gc, _gd in guards.items():
             if arms[_gc].get("kind") == "condmap":
@@ -34881,8 +34918,253 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
             if any(b[0] == "maprec" for b in _gd["fields"]):
                 uses_list = True
         uses_streq = True
-    return {"param": subj, "arms": arms,
-            "uses_list": uses_list, "uses_streq": uses_streq}
+    _d = {"param": subj, "arms": arms,
+          "uses_list": uses_list, "uses_streq": uses_streq}
+    if lcs:
+        _d["lcs"] = lcs
+    return _d
+
+
+def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
+                     cls: str, lcs: List[Any]) -> Dict[str, Any]:
+    """cv3 L-T2 (`_expand_nat_to_int` shape): one isinstance arm (class `cls`) whose
+    body is a straight-line block
+
+        x = E                      a fresh local, bound once (never re-assigned)
+        if <strtest>: <block>      an early-returning string guard, no `else`
+        return E                   the block's end (every path returns)
+
+    over a CLOSED, typed term-builder expression language E:
+        t.F                        a field of `cls`, at its spec type
+        x                          a local bound above, at its type
+        "s" / k                    a string literal / a non-negative int literal
+        self(t.F)                  recursion on a `term` field of `cls` ONLY (a direct
+                                   structural subterm: the `variant { v_t }` holds)
+        tuple(self(x) for x in t.F)  the element-wise map over a `list term` field
+        C(...)                     a term constructor, every field at its spec type
+        [C'(...) for x in t.F]     a comprehension over a `list string` field whose
+                                   element reads only `x` and literals (no self call,
+                                   no local, no `if`): a closed structural list map
+        B(L, T)                    a call of a (`list term`, `term`) -> `term` list
+                                   builder of this file (`spec["list_build"]`)
+    <strtest> is `t.F == "lit"` or `t.F in SET` for a module constant string set,
+    both lowered through the VC-free `val pystr_eq` guard (either branch possible,
+    an over-approximation, never an assumption). Anything else bails (fail closed)."""
+    ftypes = dict(spec["ctors"][cls])
+    used: set = set()
+    flags = {"list": False, "streq": False}
+    str_sets = spec.get("str_sets") or {}
+    list_build = spec.get("list_build") or {}
+
+    def expr(e: Any, env: Dict[str, str], comp: Optional[Tuple[str, str]]) -> Tuple[Any, str]:
+        if not isinstance(e, dict):
+            raise _PVWBail()
+        t = e.get("type")
+        if comp is not None:
+            # inside a comprehension element: only the comprehension variable,
+            # literals and constructors (closed)
+            if t == "Var" and e.get("name") == comp[0]:
+                return ("comp", comp[0]), comp[1]
+            if t not in ("String", "Number", "Call"):
+                raise _PVWBail()
+        if _is_term_field_read(e, subj):
+            fn = _term_field_of(e)
+            if fn not in ftypes:
+                raise _PVWBail()
+            used.add(fn)
+            return ("field", fn), ftypes[fn]
+        if t == "Var":
+            nm = e.get("name")
+            if comp is None and nm in env:
+                return ("local", nm), env[nm]
+            raise _PVWBail()
+        if t == "String":
+            _mlw_str_lit(e.get("value"))
+            return ("str", e.get("value")), "string"
+        if t == "Number":
+            v = e.get("value")
+            if not (isinstance(v, int) and not isinstance(v, bool) and v >= 0):
+                raise _PVWBail()
+            return ("int", v), "int"
+        if t == "ListComp":
+            if comp is not None:
+                raise _PVWBail()
+            gens = e.get("generators") or []
+            if not (len(gens) == 1 and not gens[0].get("ifs")
+                    and isinstance(gens[0].get("target"), str)
+                    and _is_term_field_read(gens[0].get("iter"), subj)):
+                raise _PVWBail()
+            itf = _term_field_of(gens[0]["iter"])
+            if ftypes.get(itf) != "list string":
+                raise _PVWBail()
+            cv = gens[0]["target"]
+            if cv in env or cv == subj:
+                raise _PVWBail()
+            en, et = expr(e.get("elt"), env, (cv, "string"))
+            if et != "term" or en[0] != "ctor":
+                raise _PVWBail()
+            used.add(itf)
+            lcs.append((cv, en))
+            return ("lc", len(lcs) - 1, itf), "list term"
+        if t != "Call" or (e.get("keywords") and e.get("args")):
+            raise _PVWBail()
+        fn = e.get("func")
+        args = e.get("args") or []
+        kws = e.get("keywords") or []
+        if fn in spec["ctors"]:
+            fields = spec["ctors"][fn]
+            if kws:
+                prov: Dict[str, Any] = {}
+                for kw in kws:
+                    if not (isinstance(kw, dict) and isinstance(kw.get("arg"), str)):
+                        raise _PVWBail()
+                    prov[kw["arg"]] = kw.get("value")
+                if set(prov) != {f for f, _ in fields} or len(prov) != len(kws):
+                    raise _PVWBail()
+                avs = [prov[f] for f, _ in fields]
+            else:
+                if len(args) != len(fields):
+                    raise _PVWBail()
+                avs = list(args)
+            sub = []
+            for (ffn, fwt), av in zip(fields, avs):
+                an, at = expr(av, env, comp)
+                if at != fwt:
+                    raise _PVWBail()
+                sub.append(an)
+            return ("ctor", fn, sub), "term"
+        if comp is not None or kws:
+            raise _PVWBail()
+        if fn == name:
+            if not (len(args) == 1 and _is_term_field_read(args[0], subj)
+                    and ftypes.get(_term_field_of(args[0])) == "term"):
+                raise _PVWBail()
+            used.add(_term_field_of(args[0]))
+            return ("rec", _term_field_of(args[0])), "term"
+        if fn == "tuple":
+            b = _parse_field_builder(e, subj, name)
+            if b[0] != "maprec" or ftypes.get(b[1]) != "list term":
+                raise _PVWBail()
+            used.add(b[1])
+            flags["list"] = True
+            return ("maprec", b[1]), "list term"
+        if fn in list_build:
+            lb = list_build[fn]
+            order, listp = lb[:2], lb[2]
+            if len(args) != 2:
+                raise _PVWBail()
+            sub = []
+            for p, av in zip(order, args):
+                an, at = expr(av, env, None)
+                if at != ("list term" if p == listp else "term"):
+                    raise _PVWBail()
+                sub.append(an)
+            return ("lbuild", fn, sub), "term"
+        raise _PVWBail()
+
+    def strtest(e: Any) -> Any:
+        if not (isinstance(e, dict) and e.get("type") == "BinOp"
+                and e.get("op") in ("==", "in")
+                and _is_term_field_read(e.get("left"), subj)
+                and ftypes.get(_term_field_of(e["left"])) == "string"):
+            raise _PVWBail()
+        fn = _term_field_of(e["left"])
+        r = e.get("right")
+        if e["op"] == "==":
+            lit = _is_string(r)
+            if lit is None:
+                raise _PVWBail()
+            lits = [lit]
+        else:
+            if not (_is_var(r) and isinstance(str_sets.get(r.get("name")), list)):
+                raise _PVWBail()
+            lits = list(str_sets[r["name"]])
+            if not lits or not all(isinstance(x, str) for x in lits):
+                raise _PVWBail()
+        for x in lits:
+            _mlw_str_lit(x)
+        used.add(fn)
+        flags["streq"] = True
+        return ("strtest", fn, lits)
+
+    def block(stmts: Any, env: Dict[str, str]) -> Any:
+        if not (isinstance(stmts, list) and stmts):
+            raise _PVWBail()
+        st = stmts[0]
+        rest = stmts[1:]
+        if not isinstance(st, dict):
+            raise _PVWBail()
+        if _is_return(st):
+            if rest:
+                raise _PVWBail()        # dead code after a return: not this shape
+            en, et = expr(st.get("value"), env, None)
+            if et != "term":
+                raise _PVWBail()
+            return ("ret", en)
+        if st.get("stmt") == "Assign" and isinstance(st.get("target"), str):
+            tg = st["target"]
+            if tg in env or tg == subj or tg == name or not rest:
+                raise _PVWBail()        # bound once, and something must follow
+            en, et = expr(st.get("value"), env, None)
+            if et not in ("term", "list term"):
+                raise _PVWBail()
+            env2 = dict(env)
+            env2[tg] = et
+            return ("let", tg, en, block(rest, env2))
+        if st.get("stmt") == "If" and not st.get("orelse") and rest:
+            te = strtest(st.get("test"))
+            return ("if", te, block(st.get("body"), env), block(rest, env))
+        raise _PVWBail()
+
+    node = block(ibody, {})
+    if node[0] == "ret":
+        raise _PVWBail()                # a single return: the older arm forms own it
+    return {"kind": "block", "node": node, "used": sorted(used),
+            "uses_list": flags["list"], "uses_streq": flags["streq"]}
+
+
+def _emit_block_expr(e: Any, n: str, list_names: Dict[str, str]) -> str:
+    tag = e[0]
+    if tag == "field":
+        return f"v_{e[1]}"
+    if tag == "local":
+        return f"l_{e[1]}"
+    if tag == "comp":
+        return f"c_{e[1]}"
+    if tag == "str":
+        return _mlw_str_lit(e[1])
+    if tag == "int":
+        return str(e[1])
+    if tag == "rec":
+        return f"({n} v_{e[1]})"
+    if tag == "maprec":
+        return f"({n}__list v_{e[1]})"
+    if tag == "ctor":
+        if not e[2]:
+            return e[1]
+        return "(" + e[1] + " " + " ".join(
+            _emit_block_expr(a, n, list_names) for a in e[2]) + ")"
+    if tag == "lc":
+        return f"({n}__lc{e[1]} v_{e[2]})"
+    if tag == "lbuild":
+        return "(" + list_names[e[1]] + " " + " ".join(
+            _emit_block_expr(a, n, list_names) for a in e[2]) + ")"
+    raise _PVWBail()
+
+
+def _emit_block_node(b: Any, n: str, list_names: Dict[str, str]) -> str:
+    tag = b[0]
+    if tag == "ret":
+        return _emit_block_expr(b[1], n, list_names)
+    if tag == "let":
+        return (f"(let l_{b[1]} = {_emit_block_expr(b[2], n, list_names)} in "
+                f"{_emit_block_node(b[3], n, list_names)})")
+    if tag == "if":
+        _t = b[1]
+        cond = " || ".join(f"pystr_eq v_{_t[1]} {_mlw_str_lit(x)}" for x in _t[2])
+        return (f"(if {cond} then {_emit_block_node(b[2], n, list_names)}"
+                f" else {_emit_block_node(b[3], n, list_names)})")
+    raise _PVWBail()
 
 
 def _parse_transform_guard(st: Dict[str, Any], subj: str, name: str,
@@ -35204,6 +35486,8 @@ def _transform_used_fields(arm: Dict[str, Any]) -> set:
                 out.add(b[1])
     if arm.get("kind") == "id":
         return out
+    if arm.get("kind") == "block":
+        return out | set(arm.get("used") or ())
     lists = []
     if arm.get("kind") == "rebuild":
         lists = [arm.get("fields", [])]
@@ -35232,6 +35516,14 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
     arms = desc["arms"]
     ctors = spec["ctors"]
     out: List[str] = []
+    _lnames = {k: whyml_ident(k) for k in (spec.get("list_build") or {})}
+    for _li, (_cv, _ce) in enumerate(desc.get("lcs") or []):
+        # cv3 L-T2: a closed comprehension over a `list string` field, as a structural
+        # list map (the element reads only the comprehension variable and literals).
+        out.append(f"  let rec {n}__lc{_li} (l: list string) : list term")
+        out.append("    variant  { l }")
+        out.append(f"  = match l with Nil -> Nil | Cons c_{_cv} r -> Cons "
+                   f"{_emit_block_expr(_ce, n, _lnames)} ({n}__lc{_li} r) end")
     out.append(f"  let rec {n} (v_{subj}: term) : term")
     out.append("    ensures  { true }")
     out.append(f"    variant  {{ v_{subj} }}")
@@ -35242,7 +35534,10 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
         used = _transform_used_fields(arm)
         binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
         pat = c + ((" " + binders) if binders else "")
-        rhs = _emit_transform_arm(arm, subj, n)
+        if arm.get("kind") == "block":
+            rhs = _emit_block_node(arm["node"], n, _lnames)
+        else:
+            rhs = _emit_transform_arm(arm, subj, n)
         _gd = arm.get("guard")
         if _gd:
             # The K elements are recursed THROUGH the `{n}__list` map helper (one
