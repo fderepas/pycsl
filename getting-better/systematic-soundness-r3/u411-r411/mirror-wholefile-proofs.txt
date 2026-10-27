@@ -1,0 +1,10 @@
+proof2why3__normalize mode=prove rc=0 valid_lines=1 nonvalid_lines=0 secs=32
+proof2why3__emit_why3 mode=prove rc=0 valid_lines=53 nonvalid_lines=0 secs=135
+proof2why3__crosscheck_ir mode=prove rc=0 valid_lines=42 nonvalid_lines=0 secs=45
+frontend__ConcurrencyChecker mode=prove rc=0 valid_lines=73 nonvalid_lines=0 secs=64
+frontend__Module1_Ingestor mode=prove rc=0 valid_lines=88 nonvalid_lines=0 secs=89
+exception_model mode=prove rc=0 valid_lines=41 nonvalid_lines=0 secs=135
+proof2why3__parser mode=prove rc=0 valid_lines=362 nonvalid_lines=0 secs=347
+module6_whyml__preamble mode=prove rc=0 valid_lines=222 nonvalid_lines=0 secs=1074
+audit_proof mode=prove rc=0 valid_lines=88 nonvalid_lines=0 secs=147
+proof2why3__canonical mode=prove rc=0 valid_lines=179 nonvalid_lines=0 secs=227
