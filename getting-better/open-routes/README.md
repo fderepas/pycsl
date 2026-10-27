@@ -1,5 +1,13 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-27): #421-#429 OPENED (red team 33, convergence measurement: 653 screened / 385 fully proved / 116 confirmed;
+##   9/9 sample driver-reproduced rc=0 on main 06ad8aa32): #421 global/class-body initializer derived narrower than a local (55),
+##   #422 local derivation gaps (3), #423 metaclass calls other than type(..) create dynamic subclasses (12), #424 K[i] via
+##   __class_getitem__ hashed (2), #425 explicit x.__init__(..) frame-less (4), #426 f-string format specs owe no OverflowError (13),
+##   #427 mutation while iterating via a generator expression (6), #428 "safe module" list admits its classes' methods (19), #429
+##   str.upper() leaves Latin-1 (2, arguable). Diagnosis: the repairs held head-on (58/65 of rt32's proofs now refused/fail); what
+##   leaks is each allow-list's COMPLEMENT (neighbouring spellings).
+
 ## run #3 (2026-10-26): #403-#416 OPENED (red team 32 on 085ee3dcc: 63 confirmed / 345 screened / 157 fully proved; 11/11 sample
 ##   driver-reproduced rc=0): #403 verified __eq__ only for own-class `other`, #404 `type` base = metaclass unmodelled, #405 dynamic
 
