@@ -54,7 +54,7 @@ at base by #435 and pins the table's unbound arm. All 33 REFUSED at the candidat
 (witnesses-r440/ 43, witnesses-r441/ 107) are refused by R440 / R441 at the candidate (--no-proof screen). CONTROLS
 (expected PASS, PROVED at base and candidate): 6690 str rows, 6691 builtin rows, 6692 container / int rows, 6693 a file
 method on its own class's receiver, 6694 isinstance-narrowed Union receiver and a method result on a narrowed Optional,
-6695 an unclaimed function (the table is not consulted).
+6695 an unclaimed function calling `path.rindex("")` (the table is not consulted; the argument never raises, so check-corpus-contract-truth-args and check-vacuous-drivers stay green -- a first `rindex(".")` / `ensures \result == 1` shape turned both RED and was reshaped).
 
 COST (measured, --no-proof screens and the byte-diff sweeps vs v10/ca + v10/ma = c53b5e381 emission): of the 366 corpus
 files that carry a `no_exception` claim AND emit at base, 0 expected-PASS files are refused; 4 expected-FAIL files that
