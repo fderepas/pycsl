@@ -3644,6 +3644,7 @@ Witnesses `6650`-`6682`; controls `6690`-`6695`. Measured cost: 0 of the 366 cla
 files that emit at base became refused but four expected-FAIL witnesses that already failed to
 verify (`4614`, `4622`, `4826`, `6576`) are now refused earlier; the mirror, `python-reference`
 and `pycsl_lib` carry no `no_exception` claim.
+
 ### 7.150 isinstance narrows only by RESOLVED classes; an UNDERIVABLE receiver is refused under an AttributeError claim (routes #442 / #443, run #3)
 
 Two gaps in §7.133 (red team 35, PROVED `#@ no_exception \all`, CPython AttributeError).
@@ -3687,6 +3688,7 @@ is a concrete source type or dropping the claim. Witnesses `6750`-`6755` (#442),
 (#443; `6775` / `6777` / `6778` / `6779` -- an alias-of-`Any` parameter, a `for` target over
 `List[Any]`, a direct `Any` / `object` parameter -- were not proved at base either: rule
 witnesses); controls `6780`-`6782` (#442), `6783`, `6785`, `6786` (#443).
+
 ### 7.160 A term transform may thread a read-only `Dict[str, str]` (lv2, run #3)
 
 A Term->Term transform over a frozen-dataclass union (the `isinstance`-dispatch shape of

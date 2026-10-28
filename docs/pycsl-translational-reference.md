@@ -5410,6 +5410,7 @@ $\mathcal{T}_{ty}$ changes in two rows: `BinOp(Mult)` of a sequence-typed operan
 `List` / `list` / `#tuple` / `Tuple` / `tuple` subscript, `str`, `bytes`) by an `int` / `bool`
 operand is the sequence's type list; the receiver type list of a method-call row has its
 `Optional` / `Union` / `|` members expanded and `None` dropped. No emission changes.
+
 ### §T.6.160  Resolved isinstance narrowing; underivable attribute receivers (routes #442 / #443, run #3)
 
 _Corresponds to `annotations.md` §7.150._
@@ -5430,6 +5431,7 @@ with metaclass `type`, not `object`) -- unless $R$ is a `Name` bound only by `Im
 access and the function (Module 6 emits the `PyCSL-DVW-R5` map assertion there). In $\mathcal{T}_{ty}$, a method call $b.m(..)$ on a type atom `None` (a name
 or the constant) with `not hasattr(None, m)` yields bottom (`#BOT`) instead of `#UND`. No
 emission changes.
+
 ### §T.6.170  Term transform with a read-only `Dict[str, str]` parameter (lv2, run #3)
 
 _Corresponds to `annotations.md` §7.160._
