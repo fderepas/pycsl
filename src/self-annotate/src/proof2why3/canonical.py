@@ -8,12 +8,30 @@ the source. The mirror-check gate enforces signature parity.
 from __future__ import annotations
 from typing import Dict, List, Tuple
 from proof2why3.ir import App, BinOp, BoolLit, Exists, Forall, IntLit, Term, UnaryOp, Unsupported, Var, flatten_arrow_chain, mk_arrow_chain
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def substitute(t: Term, mapping: int) -> Term:
-    return None
+def substitute(t: Term, mapping: Dict[str, str]) -> Term:
+    if isinstance(t, Var):
+        return Var(mapping.get(t.name, t.name))
+    if isinstance(t, (IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(
+            head=mapping.get(t.head, t.head),
+            args=tuple(substitute(a, mapping) for a in t.args),
+        )
+    if isinstance(t, BinOp):
+        return BinOp(t.op, substitute(t.lhs, mapping), substitute(t.rhs, mapping))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, substitute(t.arg, mapping))
+    if isinstance(t, (Forall, Exists)):
+        # Restrict mapping: bound binders shadow it.
+        inner_map = {k: v for k, v in mapping.items() if k not in t.binders}
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty,
+                    body=substitute(t.body, inner_map))
+    raise TypeError(f"substitute: unknown {type(t)}")
 
 _NAT_TYPES = {'nat', 'Nat'}
 #@ requires True
