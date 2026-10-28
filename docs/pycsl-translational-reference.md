@@ -5410,6 +5410,26 @@ $\mathcal{T}_{ty}$ changes in two rows: `BinOp(Mult)` of a sequence-typed operan
 `List` / `list` / `#tuple` / `Tuple` / `tuple` subscript, `str`, `bytes`) by an `int` / `bool`
 operand is the sequence's type list; the receiver type list of a method-call row has its
 `Optional` / `Union` / `|` members expanded and `None` dropped. No emission changes.
+### §T.6.160  Resolved isinstance narrowing; underivable attribute receivers (routes #442 / #443, run #3)
+
+_Corresponds to `annotations.md` §7.150._
+
+(#442) In §T.6.144's leaves, `isinstance(R, E)` contributes classes only when `isinstance`
+$\notin$ `_bound341` $\cup$ `_imp341` $\cup$ `_cls341` $\cup$ `_lb383` $\cup$ `_ln394`, no star import, and
+each element $e$ of $E$ ($E$ a name or a literal tuple) is resolved: $e$ a `Name` outside
+`_bound341` $\cup$ `_imp341` $\cup$ `_cls341` $\cup$ `_lb383` $\cup$ `_ln394` with `builtins.`$e$ a class $c$,
+`type(c) is type` and not `issubclass(type(None), c)`. Otherwise the leaf contributes nothing. (#443) Let $S$ be the narrowed set $N(R)$ (or $C(R)$).
+The site is refused (`PYCSL-R443-UNDERIVABLE-RECEIVER-ATTRIBUTE`) when $S = \emptyset$, or $S \cap
+\{$`#UND`, `#UNK`, `#UNKT`, `#UB`, `Any`, `object`$\} \ne \emptyset$, or some $c \in K(S)$ is not
+known ($c \in$ `_NT432`, or a file class outside `_bound341` $\cup$ `_imp341`, or bound once by a
+level-0 `from M import c` with $M$ in the ten-module list of §7.150 and `getattr(M, c)` a class
+with metaclass `type`, not `object`) -- unless $R$ is a `Name` bound only by `Import` statements
+(outside `_bound341` $\cup$ `_cls341` $\cup$ `_lb383` $\cup$ `_ln394`, no `ImportFrom` of it, no star import), or $R.a$ is the callee of a 2-positional-argument
+`.get` call whose receiver, after stripping `or {}` / `or []`, is `N.get(..)` with
+`dict_value_types[N] == "hval"` in the function's IR and no `FunctionDef` / `Lambda` between the
+access and the function (Module 6 emits the `PyCSL-DVW-R5` map assertion there). In $\mathcal{T}_{ty}$, a method call $b.m(..)$ on a type atom `None` (a name
+or the constant) with `not hasattr(None, m)` yields bottom (`#BOT`) instead of `#UND`. No
+emission changes.
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 

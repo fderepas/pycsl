@@ -1,0 +1,3 @@
+[*] stdlib-modules-verify: 104 module(s); 83 VERIFY, 21 do not (FAILS 3, REFUSED 17, TIMEOUT 1).
+[*] stdlib-modules-verify: of the 83 that VERIFY, 1 have FUNCTION BODIES and no `#@ ensures` (they compute something and promise nothing) and 6 have no VALUE-RETURNING function at all (a constant list, a re-export shim, empty class stubs, or only `__init__` — nothing to claim, and innocent). 6 carry no `#@` annotation whatever. The honest headline is 76 module(s) with a postcondition to discharge, not 83.
+[+] stdlib-modules-verify: OK — the non-verifying set is the known one (21 module(s)); 1 module(s) with BODIES verify with no postcondition (ceiling 1), plus 6 with no VALUE-RETURNING function at all.

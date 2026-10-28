@@ -742,6 +742,10 @@ AUDITED = {
         "Route #440. 'Declare the receiver with a class that has the method in the table (or a file class that defines it), use a method that has a row (`rfind` for `rindex`, `find` for `index`), or drop the claim': witness 6651 with `n: str` (a440_declare) VERIFIES under `no_exception \\all`; witness 6650 with `path.rfind(\".\")` (a440_rfind) VERIFIES; 6650 with the claim dropped (a440_drop_claim, = control 6695's shape) VERIFIES."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n440, \'lineno\', 0)}: the call `{_ast341.unparse(_n440)}` does not match the signature row of'): (FOLLOWABLE,
         "Route #441. 'Pass arguments declared with the accepted class, or drop the claim': witness 6661 `len(n)` with `n: str` (a441_declare) VERIFIES under `no_exception \\all`; 6661 with the claim dropped (a441_drop_claim) VERIFIES (the TypeError is then ambient)."),
+    # (#49) driver run #3 -- route #443 (h442), audited the day it landed. Probes in
+    # getting-better/systematic-soundness-r3/h442-r442-443/advice/.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: the receiver `{_ast341.unparse(_r432)}` of the attribute `.{_a432.attr}'): (FOLLOWABLE,
+        "Route #443. 'Give the value a concrete type at its source (a container annotated `List[str]` / `Dict[str, str]` rather than `List[Any]` ...), or drop the claim': witness 6774 with `row: List[str]` (a443_typed_source) VERIFIES under `no_exception \\all`; with the claim dropped (a443_drop_claim) it VERIFIES. (Narrowing an Any element by `isinstance` is ADMITTED by #443 but the erased value's own route #343 obligation then stays Unknown -- 6784 -- so the message does not advise it.)"),
     # (#49) driver run #3 -- routes #434-#436 (g5), audited the day they landed. Probes in
     # getting-better/systematic-soundness-r3/g5-r434-436/advice/.
     ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`ord(x)` raises TypeError unless `x` is a str (or bytes) of length 1, and this function claims `no_exception \\\\all`. Onl"): (FOLLOWABLE,
@@ -1043,6 +1047,8 @@ AUDITED_HASH = {
     # (#49) driver run #3 -- route #430 / route R-gate (h430)
     ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set ele"): '38d2b19ee594',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_rg430)}` is HASHED by `{_ast341.unparse(_n346)}` ('): '654460119406',  # re-audited g6 (#438 / #439 message edit)
+    # (#49) driver run #3 -- route #443 (h442)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: the receiver `{_ast341.unparse(_r432)}` of the attribute `.{_a432.attr}'): 'a143a13c30ab',
     # (#49) driver run #3 -- routes #432 / #433 / #437 (g4)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: the attribute `{_ast341.unparse(_a432)}` is read on `{_ast341.unparse(_'): '948c2aa9d312',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` joins elements that may be {_bd432}, not a'): '60bebc3b18fa',

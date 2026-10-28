@@ -60,7 +60,8 @@ lambda key's arithmetic over numbers is a number) before landing. \trusted count
 ## RESIDUALS (honest)
 
 Not judged by this rule (admitted as before): a receiver whose classes are underivable (`#UND` / `#UNK`), `Any` or `object`
-(the R-gate analogue for attributes is not built); the attribute's EXISTENCE on a single user class (pre-existing checks);
+(the R-gate analogue for attributes is not built -- BUILT since by route #443, executor h442: an underivable
+receiver is now refused under an AttributeError claim; and #442 restricts `isinstance` narrowing to resolved builtin classes); the attribute's EXISTENCE on a single user class (pre-existing checks);
 `isinstance(R, Sequence)`-style narrowing to an abstract class. Over-refusal (sound direction, measured cost 0 in the
 corpus): narrowing by `type(R) is C`, `R == "lit"`, `hasattr`, TypeGuard functions, `match` patterns, a `try` /
 `except AttributeError` around the access, a guard on an attribute path followed by any call (`self.l.size() +

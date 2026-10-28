@@ -1,0 +1,2 @@
+[*] dropped-mutation: 47301 statement(s) scanned — 47087 HANDLED, 105 NORMALIZED, 53 REFUSED, 0 DROPPED, 51 CTXBIND, 5 TRYFINAL, 0 DANGLING.
+[+] dropped-mutation: OK — measured 0 dropped / 51 ctxbind / 5 tryfinal / 0 dangling (ratchets 0 / 51 / 5 / 0).

@@ -8,6 +8,22 @@
 ##   (`math.factorial` beside a file `factorial`) found and closed. Cost: 0 PASS files; 4 VERIFY-FAIL witnesses refused
 ##   earlier. Residual: underivable receivers with a builtin method name (#443), `super()` / module calls (#161 by name).
 
+## run #3 (2026-10-28): #442 / #443 REPAIRED (executor h442 off fa7cbb1aa; code inline in `_run_pipeline`'s route #432
+##   judgement and narrowing leaves + one row of the `_ty383` type propagation; corpus 6750-6786, census +31 rows / 7
+##   re-measured, advice audit R443, docs annotations 7.150 / translational T.6.160, REPAIR sections; no new def in a
+##   mirrored file, no axiom, no emission change). #442: `isinstance(R, E)` narrows only when every class of E is a name
+##   never bound in the file naming a real builtin class (metaclass `type`) that NoneType does not subclass; aliases,
+##   attributes, imports (`Hashable`), tuple variables, PEP 604 unions and file classes do not narrow. #443 (ROOT: #432
+##   admitted an EMPTY known-class set, so every underivable receiver passed): an attribute on a receiver whose classes are
+##   empty / `#UND` / `#UNK` / `#UNKT` / `#UB` / `Any` / `object` / an unknown class name is REFUSED under an AttributeError
+##   claim (PYCSL-R443-UNDERIVABLE-RECEIVER-ATTRIBUTE); module objects and the DVW-R5-obligated `(N.get(k) or {}).get(k2, D)`
+##   (own code) are not judged; a method on the `None` arm now derives bottom, not `#UND`. 25 red-team probes + h442's 6776 (a
+##   `List[T]` element) PROVED at base -> REFUSED; 4 rule witnesses (not proved at base) REFUSED; 6 controls PROVED both; 6784 (narrowed Any element) admitted, FAIL on route #343.
+##   Gates: fidelity rc=0; root 2563 -> 2566 0 MOVED / 4 GONE (3289 4812 4813 4825, expected FAIL: VERIFY-FAIL -> REFUSED) /
+##   0 APPEARED; pyref 2186 0/0/0; mirrors 53/53 0/0/0 (no OWED proof); planes 61/61; rwc 342 / advice 169 / dropped-mutation /
+##   getattr / clause / assumed / carriers / frame-honesty / raises-honesty / trusted-reasons / doc rc=0. Over-refusal cost:
+##   0 PASS files (1054-file claim-bearing screen incl. the 13 claimed mirrors: only 8 expected-FAIL files change).
+
 ## run #3 (2026-10-28): #440-#443 OPENED (red team 35, SYSTEMATIC builtin-precondition census on daaf6ea78: 860 probes /
 ##   452 fully proved / 175 confirmed; rt34's 63 all closed): #440 route #161 admits a method by NAME, not (receiver class,
 ##   method) (43); #441 builtin call signatures unchecked -- arity and argument classes (107); #442 #432's isinstance narrowing

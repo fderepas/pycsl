@@ -3433,7 +3433,7 @@ and a parameter defaulted to `None` holds `None`), refined by FLOW NARROWING -- 
 one class and not `None`, or (ii) only builtin classes (`NoneType` included) each of which has `a`
 (`hasattr` on the real type, so `x.__class__` on an Optional and `x.real` on `Union[int, float]`
 stay admitted); otherwise it is refused (`PYCSL-R432-OPTIONAL-RECEIVER-ATTRIBUTE`). Underivable
-receivers (`#UND` / `#UNK`, `Any`, `object`) are not judged by this rule.
+receivers (`#UND` / `#UNK`, `Any`, `object`) are refused by §7.150 (route #443).
 
 NARROWING applies to a receiver that is a name or an attribute path `n.f.g`. A guard holds at
 the access when it is the test of an enclosing `if` (body: true; `else`: false), `while` (body:
@@ -3441,7 +3441,8 @@ true), `x if T else y`, an earlier operand of `and` (true) / `or` (false), a com
 `if` (true), an earlier `assert T`, or an earlier `if T:` whose block ends in `return` / `raise`
 / `continue` / `break` (false). A guard decomposes through `not`, `and` (true) and `or` (false)
 into leaves: `R is not None` / `R != None` and a bare `R` (not None), `R is None` / `R == None`
-(when false: not None), `isinstance(R, C)` / `isinstance(R, (C, D))` (exactly those classes).
+(when false: not None), `isinstance(R, C)` / `isinstance(R, (C, D))` (exactly those classes, when each
+is RESOLVED as §7.150 states -- route #442).
 The search stops -- guards farther out no longer hold -- at a nested `def` / lambda / generator
 expression (each runs later) and at code
 that may rebind `R` between the guard and the access: a store / `del` of `R`'s root name, and,
@@ -3643,6 +3644,49 @@ Witnesses `6650`-`6682`; controls `6690`-`6695`. Measured cost: 0 of the 366 cla
 files that emit at base became refused but four expected-FAIL witnesses that already failed to
 verify (`4614`, `4622`, `4826`, `6576`) are now refused earlier; the mirror, `python-reference`
 and `pycsl_lib` carry no `no_exception` claim.
+### 7.150 isinstance narrows only by RESOLVED classes; an UNDERIVABLE receiver is refused under an AttributeError claim (routes #442 / #443, run #3)
+
+Two gaps in §7.133 (red team 35, PROVED `#@ no_exception \all`, CPython AttributeError).
+(#442) The narrowing leaf `isinstance(R, E)` trusted ANY `E` whose spelling was not literally
+`object` / `Any`: `isinstance(x, Hashable)` (None is hashable), `typing.Hashable`, the aliases
+`T = object` / `O = object`, a tuple variable `T = (str, object)` and a class attribute `H.t =
+object` all narrowed `x: Optional[str]` to a class without `None`. RULE (allow-list): the leaf
+narrows only when `isinstance` itself is never bound in the file (no def / store / import / class
+of that name, no star import) and every class of `E` (a name, or a literal tuple of names) is
+RESOLVED: a name never bound in the file (no store, def, argument, class, import, star import)
+that names a real builtin class whose metaclass is `type` and that `NoneType` does not subclass
+(`issubclass(type(None), C)` on the real class: `object` is excluded). An attribute
+(`typing.Hashable`, `H.t`, `builtins.str`), an alias, an imported name, a tuple variable, a PEP
+604 union or a FILE class (an `Optional` / `Union` of file classes does not type-check after
+narrowing at base, so no proved program relies on it) does not narrow (the receiver keeps its derived classes).
+(#443) §7.133 did not judge a receiver whose class is UNDERIVABLE: `xs[0].strip()` on `xs:
+List[Any]`, `d["a"].upper()` on `Dict[str, Any]`, an element of `List[object]`, of a bare `list` /
+`dict` / `tuple`, of `List[List[Any]]`, `d.get("a", "").upper()`, a `for` target over
+`d.values()` all PROVED (the element lowers as an opaque int-erased value and the method as an
+input-blind `val`); a direct `x: Any` receiver was not proved only by accident of its lowering
+(Unknown). RULE: in a function covered by §7.133's claim test, an attribute load `R.a` is
+REFUSED (`PYCSL-R443-UNDERIVABLE-RECEIVER-ATTRIBUTE`) when the classes `R` may have at that point
+(after §7.133's flow narrowing) are empty, contain an underivable mark (`#UND` / `#UNK` / `#UNKT`
+/ `#UB`), `Any` or `object`, or a class name that is not KNOWN: a builtin of §7.133's table, a
+class of the file (never otherwise bound), or a name imported by `from M import C` from one of
+`pathlib` / `decimal` / `fractions` / `collections` / `datetime` / `io` / `re` / `array` /
+`ipaddress` / `uuid` that is a real class with metaclass `type` (a module alias `PyVal = Any`, a
+TypeVar, a `typing` / `collections.abc` name is not). Derived container marks (`#list`,
+`#dict`, `#keys` ...) and `#H` (a class / module / function object) stay known, and a receiver
+that is a name bound only by `import m` / `import m as x` (a module object) is not judged. ONE
+shape is owed instead of judged: the receiver-form `(N.get(k) or {}).get(k2, D)` / `N.get(k).get(k2, D)`
+for `N` a `Dict[str, PyVal]` name of the IR's `dict_value_types` (`hval`), which Module 6 lowers
+with the `PyCSL-DVW-R5` assertion that the receiver IS a map (in the function's own code, not
+a nested def / lambda; control `3282`). The type
+propagation (§7.131, `_ty383`) now gives a method call on the `None` arm of a receiver whose
+`NoneType` lacks the method no class (AttributeError before any use, as for `str`), not `#UND`,
+so `w = v.strip()` after `if v is None: return` stays `str` (control `6522`). An element bound
+to a local and narrowed by `isinstance(v, str)` is admitted by this rule, and the erased value's
+own obligations (route #343 / #358) then FAIL (`6784`, expected FAIL), so the refusal's advice
+is a concrete source type or dropping the claim. Witnesses `6750`-`6755` (#442), `6756`-`6779`
+(#443; `6775` / `6777` / `6778` / `6779` -- an alias-of-`Any` parameter, a `for` target over
+`List[Any]`, a direct `Any` / `object` parameter -- were not proved at base either: rule
+witnesses); controls `6780`-`6782` (#442), `6783`, `6785`, `6786` (#443).
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 

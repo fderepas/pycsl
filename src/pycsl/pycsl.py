@@ -8216,6 +8216,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         # (#422) a method the rows above do not list
                                         # (`str.maketrans` is a dict): UNKNOWN
                                         _rw383.append(_K394)
+                                elif ((_hn383 in ("None", "NoneType") and not _ar383
+                                       or isinstance(_x383, _ast341.Constant)
+                                       and _x383.value is None)
+                                      and not hasattr(None, _md383)):
+                                    # (#443) the `None` arm of a receiver has no such method:
+                                    # AttributeError before any use (as `str` above), so it
+                                    # contributes no class (it was "#UND", which #443 refuses
+                                    # as a receiver: `w = v.strip()` after `if v is None:
+                                    # return`)
+                                    _rw383.append(_B383)
                                 else:
                                     _rw383.append(_U383)
                         else:
@@ -8949,8 +8959,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             #     defaulted to `None`), refined by FLOW NARROWING -- name (i) at most one class and
             #     not `None`, or (ii) only builtin classes (`NoneType` included) each of which has
             #     `a` (`hasattr` on the real type: `x.__class__` on an Optional, `.real` on
-            #     `Union[int, float]`). Underivable marks ("#UND" / "#UNK"), `Any` and `object` are
-            #     not judged (residual). NARROWING, for R a name or an attribute path `n.f.g`
+            #     `Union[int, float]`). (#443, red team 35) An UNDERIVABLE receiver -- no class,
+            #     "#UND" / "#UNK" / "#UNKT" / "#UB", `Any`, `object`, or an unknown class name --
+            #     is REFUSED unless narrowed (PYCSL-R443-UNDERIVABLE-RECEIVER-ATTRIBUTE). NARROWING, for R a name or an attribute path `n.f.g`
             #     (anything else is never narrowed): climbing from the access to the function
             #     entry, a guard holds at the access when it is the test of an enclosing `if`
             #     (body: true, `else`: false) / `while` (body: true) / `x if T else y` / the
@@ -8959,7 +8970,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             #     `return` / `raise` / `continue` / `break` (false); a guard narrows through `not`,
             #     `and` (true) and `or` (false) to the leaves `R is not None` / `R != None` (not
             #     None), `R is None` / `R == None` (false: not None), `isinstance(R, C | (C, ..))`
-            #     (true: exactly those classes) and a bare `R` (true: not None). The climb STOPS
+            #     (true: exactly those classes; #442: only RESOLVED builtin classes) and a bare `R` (true: not None). The climb STOPS
             #     (guards farther out no longer hold) at a nested def / lambda / generator
             #     expression (each runs later), and at code that may rebind R in between: a store
             #     / `del` of R's root name, and -- for an attribute path or a `global` / `nonlocal`
@@ -9005,6 +9016,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _al432 = list(_ast341.walk(_f346)) if (_ae432 or _te432) else []
             _nr440 = {}
             if _ae432:
+                import importlib as _il443
                 _NT432 = {"int": int, "bool": bool, "float": float, "complex": complex,
                           "str": str, "bytes": bytes, "bytearray": bytearray, "list": list,
                           "List": list, "dict": dict, "Dict": dict, "set": set, "Set": set,
@@ -9077,18 +9089,131 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if isinstance(_r432, _ast341.Name) and _r432.id in _pd432:
                         _cs432.add("None")
                     _fs432 = set(_cs432)
+                    # (#443) an UNDERIVABLE receiver -- no derived class, an underivable mark
+                    # ("#UND" / "#UNK" / "#UNKT" / "#UB"), `Any`, `object`, or a class name
+                    # that resolves to no known class (an alias `PyVal = Any`, a TypeVar, an
+                    # import that is not a concrete stdlib class) -- may be of ANY class, so
+                    # it is admitted only when flow narrowing gives it known classes. One
+                    # shape is owed instead of judged: the receiver-form `(E or {}).get(k, D)`
+                    # / `E.get(k, D)` read over an `hval` value (E = `N.get(..)`, N a
+                    # `Dict[str, PyVal]` name of the IR's `dict_value_types`), which Module 6
+                    # lowers with the `PyCSL-DVW-R5` assertion that the receiver IS a map.
+                    _dv443 = False
+                    _pc443 = _pm432.get(id(_a432))
+                    _rv443 = _r432
+                    if (isinstance(_rv443, _ast341.BoolOp) and isinstance(_rv443.op, _ast341.Or)
+                            and len(_rv443.values) == 2
+                            and isinstance(_rv443.values[1], (_ast341.Dict, _ast341.List))
+                            and not (_rv443.values[1].keys if isinstance(
+                                _rv443.values[1], _ast341.Dict) else _rv443.values[1].elts)):
+                        _rv443 = _rv443.values[0]
+                    if (_a432.attr == "get" and isinstance(_pc443, _ast341.Call)
+                            and _pc443.func is _a432 and len(_pc443.args) == 2
+                            and not _pc443.keywords
+                            and not any(isinstance(_c, _ast341.Starred) for _c in _pc443.args)
+                            and isinstance(_rv443, _ast341.Call)
+                            and isinstance(_rv443.func, _ast341.Attribute)
+                            and _rv443.func.attr == "get"
+                            and isinstance(_rv443.func.value, _ast341.Name)
+                            and (_ir432.get("dict_value_types") or {}).get(
+                                _rv443.func.value.id) == "hval"):
+                        # (only in the function's OWN code: a nested def / lambda is lowered
+                        # under its own claim, which may not emit the assertion)
+                        _dv443 = True
+                        _y443 = _pm432.get(id(_a432))
+                        while _y443 is not None and _y443 is not _f346:
+                            if isinstance(_y443, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                                  _ast341.Lambda)):
+                                _dv443 = False
+                            _y443 = _pm432.get(id(_y443))
+                    # a MODULE object (`import m` / `import m as x`; the name never otherwise
+                    # bound): its attributes are the import resolution's concern, not a
+                    # value class's
+                    _mi443 = [(isinstance(_w443, _ast341.Import), _a443)
+                              for _w443 in _ast341.walk(_t341)
+                              if isinstance(_w443, (_ast341.Import, _ast341.ImportFrom))
+                              for _a443 in _w443.names]
+                    if (isinstance(_r432, _ast341.Name) and _r432.id not in _bound341
+                            and _r432.id not in _cls341 and _r432.id not in _lb383
+                            and _r432.id not in _ln394
+                            and any(_im443 and (_a443.asname or _a443.name.split(".")[0])
+                                    == _r432.id for _im443, _a443 in _mi443)
+                            and not any(not _im443 and (_a443.asname or _a443.name)
+                                        in (_r432.id, "*") for _im443, _a443 in _mi443)):
+                        _dv443 = True
                     for _ph432 in (0, 1):
                         _cn432 = {_c for _c in _fs432 if _c[:1] != "#"
                                   and _c not in ("Any", "object")}
-                        if ((len(_cn432) <= 1 and not (_cn432 & {"None", "NoneType"}))
-                                or (_cn432 and all(_c in _NT432 and hasattr(_NT432[_c],
-                                                                           _a432.attr)
-                                                   for _c in _cn432))):
+                        _ud443 = False
+                        if not _dv443:
+                            _ud443 = not _fs432 or bool(_fs432 & {"#UND", "#UNK", "#UNKT",
+                                                                  "#UB", "Any", "object"})
+                            for _c443 in _cn432:
+                                if _ud443:
+                                    break
+                                if _c443 in _NT432 or (_c443 in _cls341
+                                                       and _c443 not in _bound341
+                                                       and _c443 not in _imp341):
+                                    continue
+                                _ud443 = True
+                                for _z443 in _t341.body:
+                                    if (isinstance(_z443, _ast341.ImportFrom)
+                                            and not _z443.level and _z443.module
+                                            and _z443.module in (
+                                                "pathlib", "decimal", "fractions",
+                                                "collections", "datetime", "io", "re",
+                                                "array", "ipaddress", "uuid")
+                                            and _c443 not in _bound341
+                                            and _c443 not in _cls341
+                                            and sum(1 for _w443 in _ast341.walk(_t341)
+                                                    if isinstance(_w443, (
+                                                        _ast341.Import, _ast341.ImportFrom))
+                                                    for _a443 in _w443.names
+                                                    if (_a443.asname or _a443.name)
+                                                    == _c443) == 1):
+                                        for _a443 in _z443.names:
+                                            if (_a443.asname or _a443.name) != _c443:
+                                                continue
+                                            try:
+                                                _ob443 = getattr(_il443.import_module(
+                                                    _z443.module), _a443.name)
+                                            except Exception:
+                                                _ob443 = None
+                                            if (isinstance(_ob443, type)
+                                                    and type(_ob443) is type
+                                                    and _ob443 is not object):
+                                                _ud443 = False
+                        if not _ud443 and ((len(_cn432) <= 1
+                                            and not (_cn432 & {"None", "NoneType"}))
+                                           or (_cn432 and all(
+                                               _c in _NT432 and hasattr(_NT432[_c],
+                                                                        _a432.attr)
+                                               for _c in _cn432))):
                             # (#440) the classes admitted here, and whether an
                             # `isinstance` guard decided them (read by #440 / #441)
                             _nr440[id(_a432)] = (set(_fs432), _ph432 == 1
                                                  and _ic432 is not None)
                             break
+                        if _ph432 == 1 and _ud443:
+                            raise _PyCSLSemErr341(
+                                f"'{_f346.name}' line {getattr(_a432, 'lineno', 0)}: the "
+                                f"receiver `{_ast341.unparse(_r432)}` of the attribute "
+                                f"`.{_a432.attr}` has an UNDERIVABLE class here "
+                                f"(derived: {sorted(_fs432) or 'nothing'} -- an element / "
+                                f"value of an `Any` / `object` / un-parameterised container, "
+                                f"an `Any` / `object` / alias / TypeVar annotation, or an "
+                                f"unknown callee's result), so it may be an instance of a "
+                                f"class without `{_a432.attr}` and CPython may raise "
+                                f"AttributeError, while this function claims "
+                                f"`#@ no_exception` covering AttributeError and the model "
+                                f"lowers the access as an opaque value (route #443; "
+                                f"measured: `row: List[Any]; len(row[0].strip())` under "
+                                f"`#@ no_exception \\all` proved). Give the value a concrete "
+                                f"type at its source (a container annotated `List[str]` / "
+                                f"`Dict[str, str]` rather than `List[Any]` / `Dict[str, Any]` "
+                                f"/ a bare `list`), or drop the claim.",
+                                stage="ir-semantic",
+                                code="PYCSL-R443-UNDERIVABLE-RECEIVER-ATTRIBUTE")
                         if _ph432 == 1:
                             raise _PyCSLSemErr341(
                                 f"'{_f346.name}' line {getattr(_a432, 'lineno', 0)}: the "
@@ -9354,15 +9479,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                   and _e432.func.id == "isinstance"
                                   and "isinstance" not in _lb383
                                   and "isinstance" not in _ln394
+                                  and "isinstance" not in _bound341
+                                  and "isinstance" not in _imp341
+                                  and "isinstance" not in _cls341
+                                  and "*" not in _imp341
                                   and len(_e432.args) == 2 and not _e432.keywords
                                   and _ast341.dump(_e432.args[0]) == _kd432):
+                                # (#442) only a class expression RESOLVED to concrete classes
+                                # narrows: each element of a name or a literal tuple of names
+                                # must be a name never bound in the file (no store / def /
+                                # argument / class / import, no star import) that names a real
+                                # builtin class with metaclass `type` which NoneType does not
+                                # subclass (`issubclass(type(None), C)` on the real class). An
+                                # attribute (`typing.Hashable`, `H.t`), an alias (`T = object`),
+                                # an import, a tuple variable, a PEP 604 union or a file class
+                                # does not narrow.
+                                import builtins as _bi442
                                 _ty432 = (_e432.args[1].elts if isinstance(
                                     _e432.args[1], _ast341.Tuple) else [_e432.args[1]])
-                                if all(isinstance(_t, (_ast341.Name, _ast341.Attribute))
-                                       and (_t.id if isinstance(_t, _ast341.Name) else _t.attr)
-                                       not in ("object", "Any") for _t in _ty432):
-                                    _cy432 = {(_t.id if isinstance(_t, _ast341.Name)
-                                               else _t.attr) for _t in _ty432}
+                                _cy432 = set()
+                                for _t442 in _ty432:
+                                    _bc442 = (getattr(_bi442, _t442.id, None)
+                                              if isinstance(_t442, _ast341.Name)
+                                              and _t442.id not in _bound341
+                                              and _t442.id not in _imp341
+                                              and _t442.id not in _cls341
+                                              and _t442.id not in _lb383
+                                              and _t442.id not in _ln394 else None)
+                                    if not (isinstance(_bc442, type) and type(_bc442) is type
+                                            and not issubclass(type(None), _bc442)):
+                                        _cy432 = None
+                                        break
+                                    _cy432.add(_t442.id)
+                                if _cy432:
                                     _ic432 = _cy432 if _ic432 is None else (_ic432 & _cy432)
                             elif _p432 and _ast341.dump(_e432) == _kd432:
                                 _nn432 = True
