@@ -1591,7 +1591,79 @@ class FunctionEmissionMixin:
             # KNOWN_EXCEPTIONS, so only `\all` claims it; the hashing pass hands this
             # summary the functions holding such a site (`und_hash_r430`, kept off the IR).
             _und430 = set(getattr(self, "und_hash_r430", None) or ())
-            if _r65_all and _und430:
+            # (#49) ROUTES #434 / #435 / #436 -- the same ambient channel for the three call
+            # forms `_handle_call_expr` checks under `\all` only: an un-claimed callee's
+            # `ord(x)` (TypeError unless len(x) == 1), unbound `T.m(x, ..)` (TypeError) or C
+            # ssize_t / int method parameter (`s.split(" ", n)`: OverflowError) carries no
+            # check. MEASURED PROVED at 78b519f63 (CPython TypeError / OverflowError): `#@
+            # no_exception \all` `f(s): return h(s)` with an un-claimed `h(s): return
+            # ord(s)`, and the `s.split(" ", n)` twin. `_cs434`: the functions holding such a
+            # site (the driver's census predicate, `_run_pipeline`); the token is TypeError
+            # (only `\all` claims either exception).
+            _cs434: Set[str] = set()
+            if _r65_all:
+                for _f434 in (self.ir.get("functions", []) or []):
+                    _w434: List[Any] = [_f434.get("body", [])]
+                    while _w434:
+                        _x434 = _w434.pop()
+                        if isinstance(_x434, list):
+                            _w434.extend(_x434)
+                            continue
+                        if not isinstance(_x434, dict):
+                            continue
+                        _w434.extend(v for v in _x434.values() if isinstance(v, (dict, list)))
+                        _fn434 = _x434.get("func")
+                        if _x434.get("type") != "Call" or not isinstance(_fn434, str):
+                            continue
+                        _tl434 = _fn434.rsplit(".", 1)[-1]
+                        _hd434 = _fn434.split(".")[0] if _fn434.count(".") == 1 else ""
+                        _rv434 = _x434.get("receiver") is not None or "." in _fn434
+                        _a434 = (_x434.get("args") or [None])[0]
+                        _st434 = (_fn434 == "ord" and _x434.get("receiver") is None
+                                  and not (isinstance(_a434, dict)
+                                           and _a434.get("type") == "String"
+                                           and isinstance(_a434.get("value"), str)
+                                           and len(_a434["value"]) == 1
+                                           and len(_x434.get("args") or []) == 1
+                                           and not _x434.get("keywords")))
+                        if (_x434.get("receiver") is None and _hd434 in (
+                                "str", "bytes", "bytearray", "int", "float", "complex", "bool",
+                                "list", "dict", "set", "frozenset", "tuple", "type", "object")
+                                and _tl434 not in ("maketrans", "fromhex", "from_bytes",
+                                                   "fromkeys", "from_number")):
+                            _st434 = True
+                        _rw434 = {"split": (1, "maxsplit"), "rsplit": (1, "maxsplit"),
+                                  "replace": (2, "count"), "insert": (0, ""),
+                                  "center": (0, ""), "ljust": (0, ""), "rjust": (0, ""),
+                                  "zfill": (0, ""), "to_bytes": (0, "length"),
+                                  "expandtabs": (0, "tabsize"),
+                                  "hex": (1, "bytes_per_sep")}.get(_tl434) if _rv434 else None
+                        if _rw434 is not None:
+                            _p434 = None
+                            _ix434 = _rw434[0] + (1 if _x434.get("receiver") is None
+                                                   and _hd434 in (
+                                                       "str", "bytes", "bytearray", "int", "float", "complex", "bool", "list",
+                                                       "dict", "set", "frozenset", "tuple", "type", "object") else 0)
+                            if len(_x434.get("args") or []) > _ix434:
+                                _p434 = _x434["args"][_ix434]
+                            else:
+                                for _kw434 in (_x434.get("keywords") or []):
+                                    if (isinstance(_kw434, dict)
+                                            and _kw434.get("arg") == _rw434[1]):
+                                        _p434 = _kw434.get("value")
+                            if isinstance(_p434, dict) and not (
+                                    (_p434.get("type") == "Number"
+                                     and isinstance(_p434.get("value"), int))
+                                    or (_p434.get("type") == "UnaryOp"
+                                        and _p434.get("op") == "-"
+                                        and isinstance(_p434.get("expr"), dict)
+                                        and _p434["expr"].get("type") == "Number"
+                                        and isinstance(_p434["expr"].get("value"), int))):
+                                _st434 = True
+                        if _st434:
+                            _cs434.add(str(_f434.get("name", "")))
+                            break
+            if _r65_all and (_und430 or _cs434):
                 _act178.add("TypeError")
             if _act178:
                 _raw178: Dict[str, Set[str]] = {}
@@ -1630,7 +1702,8 @@ class FunctionEmissionMixin:
                             _w178.extend(v for v in _x178.values() if isinstance(v, (dict, list)))
                         elif isinstance(_x178, list):
                             _w178.extend(_x178)
-                    if _fn178 in _und430 and not _cc178.get("no_exception_all"):
+                    if ((_fn178 in _und430 or _fn178 in _cs434)
+                            and not _cc178.get("no_exception_all")):
                         _r178.add("TypeError")
                     _raw178[_fn178] = _r178 - _decl178[_fn178]
                     _cl178[_fn178] = _c178
@@ -1661,6 +1734,21 @@ class FunctionEmissionMixin:
                                             and _gn178.endswith("__" + _t178))):
                                     continue
                                 _hit178 = sorted(_gr178 & _act178 - {"TypeError"})
+                                if (not _hit178 and "TypeError" in (_gr178 & _act178)
+                                        and _cs434 and _gn178 not in _und430):
+                                    raise PyCSLIRError(
+                                        "`" + _x178["func"] + "(...)` calls code that holds "
+                                        "`ord(x)` (TypeError unless len(x) == 1), an unbound "
+                                        "`T.m(x, ..)` (TypeError unless x is a T) or a C "
+                                        "ssize_t / int method parameter (`s.split(\" \", n)`: "
+                                        "OverflowError) in a function that does not claim "
+                                        "`#@ no_exception \\all`, where that check is not made; "
+                                        "this function claims `#@ no_exception \\all` (routes "
+                                        "#434-#436; measured: a helper `return ord(s)` called "
+                                        "under `#@ no_exception \\all` proved, CPython raises "
+                                        "TypeError). Claim `#@ no_exception \\all` on the "
+                                        "callee, or drop `\\all` from this function's claim.",
+                                        code="PYCSL-R434-CALLEE-UNCHECKED-SITE")
                                 if not _hit178 and "TypeError" in (_gr178 & _act178):
                                     raise PyCSLIRError(
                                         "`" + _x178["func"] + "(...)` calls code that may "

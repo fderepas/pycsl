@@ -3470,6 +3470,64 @@ without `__lt__`), a dict / set, `Any`, an un-parameterised tuple / list, a mix 
 underivable value are refused (`PYCSL-R437-UNORDERED-ELEMENTS`). Witnesses `6536`-`6545`;
 controls `6546`, `6547`.
 
+### 7.136 `ord(x)` owes `len(x) == 1` under `no_exception \all` (route #434, run #3)
+
+`ord` raises TypeError unless its argument is a str (or bytes) of length 1, and the model's
+`ord_op` / `pycsl_vord_op` read `Char.get c 0` of ANY string: `ord(s)` for `f("ab")`, `ord("")`,
+`ord("ab")`, `ord(s[0:2])`, `ord(s.upper())` (`"ß"` -> `"SS"`), `ord(s.strip())` and
+`ord("".join([s, s]))` all PROVED `no_exception \all`. RULE, under `\all` only (TypeError is not a
+Phase 1 exception; §7.19's rule): `ord(s[i])` of a str owes nothing more than its IndexError row (a
+character has length 1); a str literal is decided at emission (one character: nothing; otherwise
+REFUSED, `PYCSL-R434-ORD-LENGTH`); any other str-read argument owes `len(x) == 1`; a non-str
+argument (`ord(b[0])` of a bytes is an int: TypeError) is REFUSED (`PYCSL-R434-ORD-LENGTH`). The
+three rows of §7.136-§7.138 are FAIL-CLOSED: the driver recounts every site of every verified
+`\all` body from the IR (comprehension and lambda bodies included) and refuses
+(`PYCSL-R434-UNCHECKED-SITE`) a site whose obligation is not in the module and that the emitter
+did not record as checked -- `[ord(w) for w in ws]` is refused (the comprehension is lowered
+opaque), as is `for w in s.split(",", n)` (the `for` iterable path; `k += len(s.split(",", n))`
+verifies). An un-claimed same-file callee holding such a site makes a `\all` caller refused
+(`PYCSL-R434-CALLEE-UNCHECKED-SITE`, route #178's summary with §7.132's TypeError token).
+Witnesses `6550`-`6556`, `6570`-`6572`; controls `6580`, `6583`.
+
+### 7.137 An unbound builtin method `T.m(x, ..)` needs `x` of class exactly `T` (route #435, run #3)
+
+`str.upper(x)` with `x: bytes`, `bytes.lower(s)` with `s: str`, `str.upper(xs)` with a list, ...
+lowered to an opaque `str_upper_1 x` and PROVED `no_exception \all`; CPython raises TypeError
+("descriptor 'upper' for 'str' objects doesn't apply to a 'bytes' object"). RULE (allow-list),
+under `\all`: a call `T.m(x, ..)` with `T` one of `str bytes bytearray int float complex bool list
+dict set frozenset tuple type object` (the class-level `maketrans` / `fromhex` / `from_bytes` /
+`fromkeys` / `from_number` excepted: they take no receiver) is admitted only when `x`'s class is
+EXACTLY `T` by its form: a name annotated `T` (`str bytes bytearray int list dict set tuple
+frozenset`; NOT `float` / `complex`, which admit an int under PEP 484), a str / int / bool literal
+of `T`, an f-string for `str`, or a call of a builtin returning `T` (`str(..)`, `len(..)`,
+`bytes(..)`, ...). `object` admits every `x`. Anything else -- an un-annotated local, a display
+(`b".."` and `[..]` share one IR form), an attribute, `float.m(x)` of a `float` name -- is REFUSED
+(`PYCSL-R435-UNBOUND-DESCRIPTOR`). Only the method names route #161 admits under `no_exception`
+(or a file class's method names) reach this rule at all. Witnesses `6557`-`6564`, `6574`; control
+`6581`.
+
+### 7.138 C `ssize_t` / `int` method parameters owe their range (route #436, run #3)
+
+CPython converts some method arguments to a C `Py_ssize_t` or `int` and raises OverflowError
+("Python int too large to convert to C ssize_t") outside its range: `s.split(" ", n)` with `n =
+10**20` PROVED `no_exception \all` (also `maxsplit=`, a negative `n`, in a `for` iterable).
+ENUMERATED under CPython 3.14 (measured): `split` / `rsplit` maxsplit, `replace` count, `insert`
+index (list / bytearray), `center` / `ljust` / `rjust` / `zfill` width and `int.to_bytes` length
+are `ssize_t`; `expandtabs` tabsize and `bytes.hex` bytes_per_sep are C `int`. `find` / `rfind` /
+`index` / `count` / `startswith` / `endswith` start / end and `list.index` CLAMP (no error);
+`splitlines` keepends is a truth value; `pop(i)` past `ssize_t` is out of range (its IndexError
+row). Reachable under `no_exception` today (route #161): `split`, `replace` (whose 3-argument form
+does not type-check: it fails), `insert` (refused as an unmodelled mutation); the others only
+through a same-named method of a file class (route #161 admits the NAME). RULE, under `\all`, by
+method NAME whatever the receiver (route #72's convention: a file class's own `split` owes the
+bound too): an int literal is decided at emission (out of range: REFUSED,
+`PYCSL-R436-SSIZE-ARGUMENT`); a str / float / bool argument owes nothing; an argument of a PURE int
+form (a name, an int literal, `+ - *` / unary `-` of those, `len(name)`) owes `-2**63 <= n <
+2**63` (C int: `-2**31 <= n < 2**31`), asserted before the call; any other argument is REFUSED
+(`PYCSL-R436-SSIZE-ARGUMENT`: bind it to a local first). §7.136's fail-closed census and callee
+summary cover these sites too. Witnesses `6565`-`6569`, `6575`-`6578`; controls `6582`, `6584`,
+`6585`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

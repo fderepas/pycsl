@@ -1,0 +1,29 @@
+== 2026-10-28T11:44:36Z corpus sweep
+sweep rc=0
+emitted 2536 of 4204 source file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/g5/gate-c1/ca (6 jobs)
+emitted 2186 of 2217 python-reference file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/g5/gate-c1/ca/pyref (6 jobs)
+root compare rc=0
+[*] byte-diff-compare: 2518 baseline / 2535 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED, 17 new source file(s) ignored.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+pyref compare rc=0
+[*] byte-diff-compare: 2186 baseline / 2186 candidate .mlw; 0 MOVED (0 unexpected), 0 GONE (0 unexpected), 0 APPEARED.
+[+] byte-diff-compare: OK — byte-inert in all three directions.
+== 2026-10-28T12:03:15Z mirror sweep
+mirror sweep rc=0
+[*] mirror-emit-sweep: emitted 53 of 53 mirror file(s) into /tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/g5/gate-c1/ma
+    Compare with: bin/byte-diff-compare.py <baseline> /tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/g5/gate-c1/ma --min-files 45
+no mirror baseline yet
+== 2026-10-28T12:04:50Z planes
+planes rc=1
+[!] soundness-planes: 1 of 61 RED — check-refusal-witness-coverage.py(rc=1)
+    (fast set only; 23 slow plane(s) NOT CHECKED — re-run with --slow)
+== 2026-10-28T12:21:38Z checks
+getattr-erasure rc=0
+[+] getattr-erasure: OK — DECLARED 0 (pinned); 29 file(s) with sites, every one at or below its row; totals ABSENT 15, UNKNOWN 43 (reported, not gated).
+clause-survival rc=0
+[+] clause-survival: OK — measured 10 deficit file(s) of 1485 compared (10 ledgered, 0 unexplained).
+assumed-facts rc=0
+[+] assumed-facts: OK — every assumed fact is in a reviewed family; 2 fresh-globals fact(s), each proof-backed.
+open-route-carriers rc=0
+[+] open-route-carriers: OK — every open route's carrier still reproduces exactly as its ledger row says.
+Terminated                 systemd-run --user --scope -q --slice=pycsl-heavy.slice -p MemoryMax=6G -p OOMPolicy=continue -- "$@"

@@ -5255,6 +5255,62 @@ $i$, a `Tuple[T, ...]` contributing $T$ to every position), or all parameterised
 their elements); any other arm, an empty group or a mix refuses the site
 (`PYCSL-R437-UNORDERED-ELEMENTS`).
 
+### §T.6.147  `ord` length obligation (route #434, run #3)
+
+_Corresponds to `annotations.md` §7.136._
+
+In `_handle_call_expr`'s `ord` arm, in a body under `no_exception_all` (and when the driver list
+`r434_ok` exists), for the call node $c$ with argument $a$ and tag $h$ = `r434_` + `stable_hash(repr(c))`:
+$a$ a one-character `String` literal, or a `Subscript` (index, not slice) of a str expression,
+appends $h$ to `r434_ok` and lowers unchanged; another str expression $a$ lowers as
+`(let _o434 = ⟦a⟧ in begin assert { [@expl:no_exception: TypeError reachable] [@h] String.length
+_o434 = 1 }; _o434 end)` in the argument position of `ord_op` / `pycsl_vord_op`; anything else is
+undefined (refused, `PYCSL-R434-ORD-LENGTH`).
+
+FAIL-CLOSED CENSUS. After `transpile()`, `_run_pipeline` walks the `body` of every IR function that
+is neither `trusted` nor `abstract` and has `contracts.no_exception_all`, and counts $n_h$, the
+sites with tag $h$: `ord(a)` with $a$ not a one-character `String` literal; `T.m(..)`
+(§T.6.148); a method call whose §T.6.149 parameter is present and not an int literal. If
+$\#\{[@h]\text{ in the module}\} + \#\{h \in \texttt{r434\_ok}\} < n_h$ for some $h$, the translation is
+undefined (`PYCSL-R434-UNCHECKED-SITE`). CALLEE SUMMARY: in `_reset_function_state`'s route #178
+summary, under `no_exception_all` the active set gains `TypeError` when some function holds such a
+site (`_cs434`, the same predicate over every IR function), each such function without
+`no_exception_all` gains `TypeError` in its raw summary, and a call to a $g$ whose closed summary
+meets only `TypeError` is refused with `PYCSL-R434-CALLEE-UNCHECKED-SITE` (§T.6.143's message when
+$g \in$ `und_hash_r430`).
+
+### §T.6.148  Unbound builtin descriptors (route #435, run #3)
+
+_Corresponds to `annotations.md` §7.137._
+
+At the head of `_handle_call_expr`, under the same conditions as §T.6.147, a `Call` with no
+`receiver` and `func` = `T.m` (one dot), $T \in$ {str, bytes, bytearray, int, float, complex, bool,
+list, dict, set, frozenset, tuple, type, object}, $m \notin$ {maketrans, fromhex, from_bytes,
+fromkeys, from_number}: let $K$(args[0]) be `str` for a `String` / `FString`, the Python class of a
+`Number` value, `bool` for `Bool`, the symbol-table type head of a `Var` (`List`/`Dict`/`Set`/
+`Tuple`/`FrozenSet` normalised; `float` / `complex` mapped to none), the result class of a
+receiver-less call of a builtin of a fixed table (`str repr chr format ascii hex oct bin` -> str,
+`len ord hash int` -> int, ...), and none otherwise. If $T$ = object or $K$ = $T$, $h$ is appended to
+`r434_ok` and the lowering continues; otherwise the translation is undefined
+(`PYCSL-R435-UNBOUND-DESCRIPTOR`).
+
+### §T.6.149  C `ssize_t` / `int` method parameters (route #436, run #3)
+
+_Corresponds to `annotations.md` §7.138._
+
+At the head of `_handle_call_expr`, under the same conditions, a method call (a `receiver`, or a
+dotted `func`) whose tail $m$ has a row $(i, k, b)$ -- split / rsplit $(1,$ maxsplit$, 63)$,
+replace $(2,$ count$, 63)$, insert / center / ljust / rjust / zfill $(0, -, 63)$, to_bytes $(0,$
+length$, 63)$, expandtabs $(0,$ tabsize$, 31)$, hex $(1,$ bytes_per_sep$, 31)$ -- takes $a$ =
+args[$i$], else the keyword $k$. An int literal $v$ (or `-` of one) with $v \notin [-2^b, 2^b)$ is
+undefined (`PYCSL-R436-SSIZE-ARGUMENT`); in range it owes nothing. A `String` / `FString` / `Bool`,
+a str / float / bool name or a str / float expression appends $h$ to `r434_ok`. A pure int form $a$
+(`Var`, int `Number`, `BinOp` `+ - *` and `UnaryOp` `- +` of pure forms, `len(Var)`) lowers the call
+as `(begin assert { [@expl:no_exception: OverflowError reachable] [@h] - 2^b <= ⟦a⟧ < 2^b }; ⟦c⟧
+end)`, where ⟦c⟧ is the rest of `_handle_call_expr` on the same node (guarded against re-entry by
+the entry `("#g436", id(node))` in `r434_ok`); any other $a$ is undefined
+(`PYCSL-R436-SSIZE-ARGUMENT`).
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

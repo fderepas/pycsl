@@ -10104,6 +10104,183 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           invariant_ctx: bool = False, subst: Optional[Dict[str, str]] = None) -> str:
         expr = node.to_dict()   # Phase-B-expr: typed signature; deep body stays dict-based
         func_name = expr["func"]
+        # (#49) ROUTES #435 / #436 -- two call sites whose CPython TypeError / OverflowError had
+        # no obligation, under `\all` only (TypeError and OverflowError are not Phase 1;
+        # route #332's rule, as #417 / #426). MEASURED PROVED at 78b519f63 (red team 34):
+        #   #435 an UNBOUND method descriptor `T.m(x, ..)` (`str.upper(x)` with `x: bytes`,
+        #        `bytes.lower(s)` with `s: str`, `str.upper(list)`) lowered to an opaque
+        #        `str_upper_1 x`; CPython raises TypeError ("descriptor 'upper' for 'str'
+        #        objects doesn't apply to a 'bytes' object"). RULE (allow-list): `T.m(x, ..)`
+        #        for a builtin type `T` (`str bytes bytearray int float complex bool list dict
+        #        set frozenset tuple type`; not the class-level `maketrans` / `fromhex` /
+        #        `from_bytes` / `fromkeys` / `from_number`) is admitted only when `x`'s class
+        #        is EXACTLY `T` by its form: a `T`-annotated name (`str bytes bytearray int
+        #        list dict set tuple frozenset`; a `float` / `complex` annotation admits an
+        #        int, PEP 484), a literal of `T` (`b".."` and `[..]` share an IR form: neither
+        #        admitted), or a call of the builtin `T` / of a builtin returning `T`; `object`
+        #        admits every `x`. Anything else is REFUSED.
+        #   #436 a method parameter CPython converts to a C `Py_ssize_t` / `int` raises
+        #        OverflowError outside its range ("Python int too large to convert to C
+        #        ssize_t"): `s.split(" ", 10**20)`. ENUMERATED (CPython 3.14, measured): `split`
+        #        / `rsplit` maxsplit, `replace` count, `insert` index (list / bytearray),
+        #        `center` / `ljust` / `rjust` / `zfill` width, `to_bytes` length: ssize_t;
+        #        `expandtabs` tabsize, `hex` bytes_per_sep: C int. (`find` / `rfind` / `index`
+        #        / `count` / `startswith` / `endswith` start-end and `list.index` CLAMP (no
+        #        error); `pop(i)` past ssize_t is out of range (its IndexError row); `splitlines`
+        #        keepends is a truth value.) The method NAME selects the row whatever the
+        #        receiver (route #72's convention: a file class's own `split` owes the bound
+        #        too -- an over-approximation, never a hole). RULE: an int literal argument is
+        #        decided here; a str / float / bool argument owes nothing (not an int); an
+        #        argument of a PURE int form (a name, an int literal, `+ - *` / unary `-` of
+        #        those, `len(..)` of a name) owes `-2**63 <= n < 2**63` (C int: `-2**31 <= n <
+        #        2**31`) asserted BEFORE the call; any other argument is REFUSED (bind it to a
+        #        local first).
+        # Both rows are FAIL-CLOSED by the driver: `_run_pipeline` recomputes every such site
+        # of every `no_exception \all` body from the IR (comprehension / lambda bodies
+        # included) and REFUSES (`PYCSL-R434-UNCHECKED-SITE`) a site whose tag
+        # (`r434_<h>`, h = hash of the call's IR) neither reaches the module as an obligation
+        # nor is recorded as checked in the driver-owned list `r434_ok`: a lowering that
+        # never reaches this point (an opaque comprehension, a fold) is refused, not trusted.
+        _ok434 = getattr(self, "r434_ok", None)
+        if (isinstance(_ok434, list) and not self._in_spec
+                and getattr(self, "_current_no_exception_all", False)
+                and isinstance(func_name, str)
+                and ("#g436", id(node)) not in _ok434):
+            _tg434 = "r434_%08x" % (stable_hash(repr(expr)) & 0xffffffff)
+            _st434 = getattr(self, "_current_symbol_table", {}) or {}
+            _rv434 = expr.get("receiver") is not None or "." in func_name
+            _tl434 = func_name.rsplit(".", 1)[-1]
+            _hd434 = func_name.split(".")[0] if func_name.count(".") == 1 else ""
+            if (expr.get("receiver") is None and _hd434 in (
+                    "str", "bytes", "bytearray", "int", "float", "complex", "bool", "list",
+                    "dict", "set", "frozenset", "tuple", "type", "object")
+                    and _tl434 not in ("maketrans", "fromhex", "from_bytes", "fromkeys",
+                                       "from_number")):
+                # (#435) the class of the first argument, by its form only
+                _a435 = (expr.get("args") or [None])[0]
+                _k435 = _a435.get("type") if isinstance(_a435, dict) else None
+                _c435 = None
+                if _k435 in ("String", "FString"):
+                    _c435 = "str"
+                elif _k435 == "Number":
+                    _c435 = type(_a435.get("value")).__name__
+                elif _k435 == "Bool":
+                    _c435 = "bool"
+                elif _k435 == "Var":
+                    _c435 = str(_st434.get(_a435.get("name")) or "").split("[")[0].strip()
+                    _c435 = {"List": "list", "Dict": "dict", "Set": "set", "Tuple": "tuple",
+                             "FrozenSet": "frozenset"}.get(_c435, _c435)
+                    if _c435 in ("float", "complex"):
+                        _c435 = None
+                elif _k435 == "Call" and _a435.get("receiver") is None:
+                    _c435 = {"str": "str", "repr": "str", "chr": "str", "format": "str",
+                             "ascii": "str", "hex": "str", "oct": "str", "bin": "str",
+                             "bytes": "bytes", "bytearray": "bytearray", "int": "int",
+                             "len": "int", "ord": "int", "hash": "int", "float": "float",
+                             "list": "list", "sorted": "list", "dict": "dict", "set": "set",
+                             "frozenset": "frozenset", "tuple": "tuple"}.get(
+                                 str(_a435.get("func")))
+                if _a435 is not None and (_hd434 == "object" or _c435 == _hd434):
+                    _ok434.append(_tg434)
+                else:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"`{func_name}(x, ..)` calls the UNBOUND method `{_tl434}` of "
+                        f"`{_hd434}`, which raises TypeError when `x` is not a `{_hd434}` "
+                        f"(\"descriptor '{_tl434}' for '{_hd434}' objects doesn't apply to "
+                        f"a ..\"), and this function claims `no_exception \\all`. `x`'s class "
+                        f"is not EXACTLY `{_hd434}` by its form (route #435; measured: "
+                        f"`str.upper(x)` with `x: bytes` proved `no_exception \\all`, CPython "
+                        f"TypeError). Annotate the parameter `x` as `{_hd434}` (an "
+                        f"un-annotated local is not enough: the class is read from the "
+                        f"argument's form), or drop `\\all` from the context.",
+                        stage="whyml", code="PYCSL-R435-UNBOUND-DESCRIPTOR")
+            _rw436 = {"split": (1, "maxsplit", 63), "rsplit": (1, "maxsplit", 63),
+                      "replace": (2, "count", 63), "insert": (0, "", 63),
+                      "center": (0, "", 63), "ljust": (0, "", 63), "rjust": (0, "", 63),
+                      "zfill": (0, "", 63), "to_bytes": (0, "length", 63),
+                      "expandtabs": (0, "tabsize", 31),
+                      "hex": (1, "bytes_per_sep", 31)}.get(_tl434) if _rv434 else None
+            _a436 = None
+            if _rw436 is not None:
+                # an UNBOUND `str.split(s, " ", n)` passes the receiver first
+                _ix436 = _rw436[0] + (1 if expr.get("receiver") is None
+                                                and _hd434 in (
+                                                   "str", "bytes", "bytearray", "int", "float", "complex", "bool", "list",
+                                                   "dict", "set", "frozenset", "tuple", "type", "object") else 0)
+                if len(expr.get("args") or []) > _ix436:
+                    _a436 = expr["args"][_ix436]
+                else:
+                    for _kw436 in (expr.get("keywords") or []):
+                        if isinstance(_kw436, dict) and _kw436.get("arg") == _rw436[1]:
+                            _a436 = _kw436.get("value")
+            _lt436 = None
+            if isinstance(_a436, dict) and _a436.get("type") == "Number":
+                _lt436 = _a436.get("value")
+            elif (isinstance(_a436, dict) and _a436.get("type") == "UnaryOp"
+                  and _a436.get("op") == "-" and isinstance(_a436.get("expr"), dict)
+                  and _a436["expr"].get("type") == "Number"):
+                _lt436 = _a436["expr"].get("value")
+                _lt436 = -_lt436 if isinstance(_lt436, int) else None
+            if isinstance(_a436, dict) and not isinstance(_lt436, int):
+                _k436 = _a436.get("type")
+                _ty436 = (str(_st434.get(_a436.get("name")) or "").split("[")[0].strip()
+                          if _k436 == "Var" else "")
+                if (_k436 in ("String", "FString", "Bool") or _ty436 in ("str", "float", "bool")
+                        or self._is_string_expr(_a436) or self._is_float_expr(_a436)):
+                    _ok434.append(_tg434)
+                else:
+                    _pu436 = True
+                    _wk436 = [_a436]
+                    while _pu436 and _wk436:
+                        _e436 = _wk436.pop()
+                        _ke436 = _e436.get("type") if isinstance(_e436, dict) else None
+                        if _ke436 == "Var" or (_ke436 == "Number"
+                                               and type(_e436.get("value")) is int):
+                            pass
+                        elif _ke436 == "BinOp" and _e436.get("op") in ("+", "-", "*"):
+                            _wk436.extend([_e436.get("left"), _e436.get("right")])
+                        elif _ke436 == "UnaryOp" and _e436.get("op") in ("-", "+"):
+                            _wk436.append(_e436.get("expr"))
+                        elif (_ke436 == "Call" and _e436.get("func") == "len"
+                              and _e436.get("receiver") is None
+                              and len(_e436.get("args") or []) == 1
+                              and isinstance(_e436["args"][0], dict)
+                              and _e436["args"][0].get("type") == "Var"):
+                            pass
+                        else:
+                            _pu436 = False
+                    if not _pu436:
+                        from errors import PyCSLSemanticError
+                        raise PyCSLSemanticError(
+                            f"the `{_rw436[1] or 'index'}` argument of `.{_tl434}(..)` is "
+                            f"converted by CPython to a C "
+                            f"{'ssize_t' if _rw436[2] == 63 else 'int'} and raises "
+                            f"OverflowError outside [-2**{_rw436[2]}, 2**{_rw436[2]}), and "
+                            f"this function claims `no_exception \\all`. Only an argument of "
+                            f"a pure int form (a name, a literal, `+ - *` of those, "
+                            f"`len(name)`) carries that bound as an obligation (route #436; "
+                            f"measured: `s.split(\" \", n)` for n = 10**20 proved "
+                            f"`no_exception \\all`, CPython OverflowError). Bind the argument "
+                            f"to a local first, or drop `\\all` from the context.",
+                            stage="whyml", code="PYCSL-R436-SSIZE-ARGUMENT")
+                    _w436 = self._expr_to_whyml(_a436, local_refs or set(), invariant_ctx,
+                                                subst)
+                    _ok434.append(("#g436", id(node)))
+                    try:
+                        _r436 = self._handle_call_expr(node, local_refs, invariant_ctx, subst)
+                    finally:
+                        _ok434.remove(("#g436", id(node)))
+                    _m436 = 2 ** _rw436[2]
+                    return (f"(begin assert {{ [@expl:no_exception: OverflowError reachable] "
+                            f"[@{_tg434}] - {_m436} <= {_w436} < {_m436} }}; {_r436} end)")
+            elif isinstance(_lt436, int) and not -2 ** _rw436[2] <= _lt436 < 2 ** _rw436[2]:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    f"`.{_tl434}(..)` with the literal {_lt436} raises OverflowError (CPython "
+                    f"converts it to a C {'ssize_t' if _rw436[2] == 63 else 'int'}), and this "
+                    f"function claims `no_exception \\all` (route #436).",
+                    stage="whyml", code="PYCSL-R436-SSIZE-ARGUMENT")
         # PYTHON-AST NODE CTOR FAMILY (increment 10): a 0-FIELD ASDL SINGLETON
         # construction (`_N("Load")()`, `_N("Not")()`) lowers to its CLASS-NAME STRING.
         # A 0-field class carries no information beyond its own identity, so the name IS
@@ -12548,6 +12725,48 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # `pycsl_chr`). COST (measured, route #276): every proof that feeds `ord(..)` into a
         # cited lemma stated over `Char.code` (the codec/os round trips) stops proving, which
         # is why it is opt-in.
+        # (#49) ROUTE #434 -- `ord(s)` raises TypeError unless `s` has length 1 ("ord()
+        # expected a character, but string of length 2 found"); `ord_op` / `pycsl_vord_op`
+        # read `Char.get c 0` of ANY string. MEASURED PROVED at 78b519f63 (red team 34), CPython
+        # TypeError: `ord(s)` for f("ab"), `ord("")`, `ord("ab")`, `ord(s[0:2])`,
+        # `ord(s.upper())` ("ß" -> "SS"), `ord(s.strip())`, `ord("".join([s, s]))`. RULE,
+        # under `\all` only (TypeError is not Phase 1, route #332): an `s[i]` of a str owes
+        # nothing more (its IndexError row; a char has length 1); a str literal is decided
+        # here; any other str-read argument owes `String.length s = 1`, let-bound once and
+        # tagged `r434_<h>` (`_run_pipeline` refuses the site when the tag is ERASED, see
+        # `_handle_call_expr`'s head); a non-str argument (`ord(b[i])` of a bytes is an int:
+        # TypeError) is REFUSED.
+        if (func_name == "ord" and not self._in_spec
+                and isinstance(getattr(self, "r434_ok", None), list)
+                and getattr(self, "_current_no_exception_all", False)):
+            _a434 = (expr.get("args") or [None])[0]
+            _tg434 = "r434_%08x" % (stable_hash(repr(expr)) & 0xffffffff)
+            if (isinstance(_a434, dict) and _a434.get("type") == "String"
+                    and isinstance(_a434.get("value"), str) and len(_a434["value"]) == 1
+                    and len(args) == 1 and not expr.get("keywords")):
+                self.r434_ok.append(_tg434)
+            elif (isinstance(_a434, dict) and _a434.get("type") == "Subscript"
+                    and len(args) == 1 and not expr.get("keywords")
+                    and isinstance(_a434.get("index"), dict)
+                    and _a434["index"].get("type") != "Slice"
+                    and self._is_string_expr(_a434.get("value", {}))):
+                self.r434_ok.append(_tg434)
+            elif (isinstance(_a434, dict) and _a434.get("type") != "String"
+                    and len(args) == 1 and not expr.get("keywords")
+                    and self._is_string_expr(_a434)):
+                args[0] = (f"(let _o434 = {args[0]} in begin assert {{ "
+                           f"[@expl:no_exception: TypeError reachable] [@{_tg434}] "
+                           f"String.length _o434 = 1 }}; _o434 end)")
+            else:
+                from errors import PyCSLSemanticError
+                raise PyCSLSemanticError(
+                    "`ord(x)` raises TypeError unless `x` is a str (or bytes) of length 1, and "
+                    "this function claims `no_exception \\all`. Only a str argument carries "
+                    "that length as an obligation (`len(x) == 1`; a str literal is decided "
+                    "here, `s[i]` is a character) (route #434; measured: `ord(s)` for "
+                    "f(\"ab\") and `ord(\"\")` proved `no_exception \\all`, CPython "
+                    "TypeError). Pass a one-character str (`s[i]`), or drop `\\all` from the "
+                    "context.", stage="whyml", code="PYCSL-R434-ORD-LENGTH")
         if (getattr(self, "strict_latin1", False) and func_name in ("ord", "chr")
                 and len(args) == 1):
             arg_ir = expr.get("args", [{}])[0] if expr.get("args") else {}

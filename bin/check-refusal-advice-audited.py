@@ -736,6 +736,18 @@ AUDITED = {
         "Route #433. 'Join elements DERIVED str / bytes (... a display `[a, b]` of such parameters), or drop the claim': witness 6530's join rewritten over a display of two `str` parameters (a433_typed_source) VERIFIES under `no_exception \\all`; with the claim dropped (a433_drop_claim, = control 6535) it VERIFIES. (A `List[str]` PARAMETER joined by `str.join` does not type-check at base or candidate -- Why3 `array string` vs `array int` -- so the advice names a display.)"),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` compares values that may be {_bd432}: `{_kn4'): (FOLLOWABLE,
         "Route #437. 'Sort values declared with such a type (e.g. `List[int]`), or drop the claim': witness 6537 with `xs: List[int]` (a437_typed_source) VERIFIES under `no_exception \\all`; with the claim dropped (a437_drop_claim) it VERIFIES. (`key=len` / a builtin key is refused by the pre-existing unmodelled-keyword rule, so the advice does not name a key.)"),
+    # (#49) driver run #3 -- routes #434-#436 (g5), audited the day they landed. Probes in
+    # getting-better/systematic-soundness-r3/g5-r434-436/advice/.
+    ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`ord(x)` raises TypeError unless `x` is a str (or bytes) of length 1, and this function claims `no_exception \\\\all`. Onl"): (FOLLOWABLE,
+        'Route #434. \'Pass a one-character str (`s[i]`), or drop `\\all` from the context\': witness 6552\'s `ord("ab")` rewritten `ord("ab"[0])` (a434_one_char) VERIFIES under `no_exception \\all`; with `\\all` replaced by `no_exception IndexError` (a434_drop_all) VERIFIES.'),
+    ('src/pycsl/module6_whyml/expressions.py', 'PyCSLSemanticError(f"""`{func_name}(x, ..)` calls the UNBOUND method `{_tl434}` of `{_hd434}`, which raises TypeError when `x` is not a `{_h'): (FOLLOWABLE,
+        "Route #435. 'Annotate the parameter `x` as `str` (...), or drop `\\all` from the context': witness 6557 (c0) with `x: str` (g5 advice a435_annotate) VERIFIES; control 6581 is the same shape. (The tempting `x.upper()` on a `bytes` does not type-check today -- probe a435_method_on_value, L3-tc `unbound type symbol 'array'` -- so the message does not advise it.)"),
+    ('src/pycsl/module6_whyml/expressions.py', 'PyCSLSemanticError(f"""the `{_rw436[1] or \'index\'}` argument of `.{_tl434}(..)` is converted by CPython to a C {(\'ssize_t\' if _rw436[2] == 6'): (FOLLOWABLE,
+        'Route #436. \'Bind the argument to a local first, or drop `\\all` from the context\': witness 6577\'s `s.split(" ", g(n))` rewritten `m = g(n); s.split(" ", m)` under `0 <= n <= 100` VERIFIES (control 6585); with `\\all` replaced by `no_exception IndexError` (a436_drop_all) VERIFIES.'),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr434('a call checked under `no_exception \\\\all` -- `ord(x)` (TypeError unless len(x) == 1, route #434), an unbound `T.m(x, ..)` ("): (FOLLOWABLE,
+        'Routes #434-#436. \'Move the operation into a plain statement of the body, where its own check applies (`k = len(s.split(",", n))`; a loop that appends `ord(w)`), or drop `\\all` from the context\': witness 6569\'s `for w in s.split(",", n): k += 1` rewritten `k += len(s.split(",", n))` under `0 <= n <= 100` VERIFIES (control 6584; binding `parts = s.split(",", n)` and looping over `parts` does NOT verify -- a `for` over the opaque split value fails termination and `len(parts)` mis-types, at base too -- so the message names the `len` form); witness 6570 with `\\all` replaced by `no_exception IndexError` (a434_unchecked_drop_all) VERIFIES.'),
+    ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that holds `ord(x)` (TypeError unless len(x) == 1), an unbound `T.m(x, ..)` (TypeError"): (FOLLOWABLE,
+        "Routes #434-#436. 'Claim `#@ no_exception \\all` on the callee, or drop `\\all` from this function's claim': witness 6572's callee given `requires len(s) == 1` + `no_exception \\all` VERIFIES (control 6583); with the caller's `\\all` replaced by `no_exception IndexError` (a434_callee_drop_all) VERIFIES."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1027,6 +1039,12 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: the attribute `{_ast341.unparse(_a432)}` is read on `{_ast341.unparse(_'): '948c2aa9d312',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` joins elements that may be {_bd432}, not a'): '60bebc3b18fa',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` compares values that may be {_bd432}: `{_kn4'): '395daa559d4d',
+    # (#49) driver run #3 -- routes #434-#436 (g5)
+    ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`ord(x)` raises TypeError unless `x` is a str (or bytes) of length 1, and this function claims `no_exception \\\\all`. Onl"): 'fa4dbd16ae27',
+    ('src/pycsl/module6_whyml/expressions.py', 'PyCSLSemanticError(f"""`{func_name}(x, ..)` calls the UNBOUND method `{_tl434}` of `{_hd434}`, which raises TypeError when `x` is not a `{_h'): '1e6f35955ad5',
+    ('src/pycsl/module6_whyml/expressions.py', 'PyCSLSemanticError(f"""the `{_rw436[1] or \'index\'}` argument of `.{_tl434}(..)` is converted by CPython to a C {(\'ssize_t\' if _rw436[2] == 6'): 'bfb8910a04f9',
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr434('a call checked under `no_exception \\\\all` -- `ord(x)` (TypeError unless len(x) == 1, route #434), an unbound `T.m(x, ..)` ("): '74d2e5dc14db',
+    ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that holds `ord(x)` (TypeError unless len(x) == 1), an unbound `T.m(x, ..)` (TypeError"): 'b9d4801ec771',
 }
 
 

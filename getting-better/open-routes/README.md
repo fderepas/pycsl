@@ -16,6 +16,22 @@
 ##   carriers / doc rc=0; census +37 rows, 4621 / 4810 re-measured. Over-refusal cost: 0 PASS files (claimed-corpus screen: only
 ##   4621 / 4810 change). Residuals: underivable / Any receivers and elements not judged; see each route's RESIDUALS.
 
+## run #3 (2026-10-28): #434, #435, #436 REPAIRED (executor g5 off 1c083dcbe; ONE shared fail-closed mechanism, code inline in
+##   `_handle_call_expr` / `_reset_function_state`'s route #178 summary / `_run_pipeline` (mirror twins `\trusted`), corpus
+##   6550-6578 / 6580-6585, census rows, advice audit (5 entries), docs annotations 7.136-7.138 / translational T.6.147-T.6.149;
+##   no new def in a mirrored file, no axiom). Under `no_exception \all`: #434 `ord(x)` owes `String.length x = 1` (s[i] / a
+##   one-char literal owe nothing; a non-str argument is REFUSED, PYCSL-R434-ORD-LENGTH); #435 an unbound `T.m(x, ..)` of a
+##   builtin type is admitted only when x's class is exactly T by its form (allow-list; PYCSL-R435-UNBOUND-DESCRIPTOR);
+##   #436 the ENUMERATED C ssize_t / int method parameters (split / rsplit maxsplit, replace count, insert index, center /
+##   ljust / rjust / zfill width, to_bytes length; expandtabs tabsize / hex bytes_per_sep: C int) owe their range, a non-pure
+##   argument is REFUSED (PYCSL-R436-SSIZE-ARGUMENT). FAIL-CLOSED: the driver recounts every such site of every `\all` body
+##   from the IR and REFUSES one whose check never reached the module (PYCSL-R434-UNCHECKED-SITE: comprehension / lambda /
+##   `for` iterable); an un-claimed callee holding one makes a `\all` caller refused (PYCSL-R434-CALLEE-UNCHECKED-SITE).
+##   Witnesses: all 20 red-team probes + 8 more, PROVED at base 78b519f63 (6574: FAILED at base by a type error) -> FAIL
+##   on the new goal or REFUSED; controls 6580-6585 PROVED both. Root 2518 -> 2535 0 MOVED / 0
+##   GONE / 0 APPEARED (17 new emitting sources), pyref 2186 0/0/0, mirrors 53/53 0/0/0 (vs v8/mb; none OWED); planes 61/61; census + advice audit
+##   rc=0. OVER-REFUSAL COST 0 (no corpus / mirror / pycsl_lib file claims `\all` around such a site).
+
 ## run #3 (2026-10-28): #432-#439 OPENED (red team 34 on 78b519f63, convergence measurement: 497 written / 474 fully proved /
 ##   63 confirmed; FINDINGS salvaged by the driver; rt33's 115/117 proofs now refused): #432 an optional / union receiver of an attribute or method access owes no attributeerror (8); #433 str.join / bytes.join over elements not derivably str / bytes owes no typeerror (9); #434 ord() of a string not of length 1 owes no typeerror (7); #435 an unbound str / bytes method descriptor applied to a wrong-type first argument owes no typeerror (8); #436 str.split / rsplit with maxsplit outside c ssize_t owes no overflowerror (5); #437 sorted() over elements not totally ordered owes no typeerror (10); #438 hashing a bare / unparameterised tuple (elements unknown) owes no typeerror (11); #439 a hashed value whose class comes through a protocol, a foreign user module, or setattr owes no typeerror (5).
 ##   Diagnosis: every family is a builtin whose TYPE-DEPENDENT precondition (receiver / element class, length, range,

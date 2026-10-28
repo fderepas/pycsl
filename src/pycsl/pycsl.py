@@ -12749,6 +12749,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # (#417) the registry the emitter appends a tag to for every OverflowError obligation
     # it attaches (checked below)
     transpiler.r417_obls = []
+    # (#434 / #435 / #436) the list the emitter records every CHECKED site in (checked below)
+    transpiler.r434_ok = []
     _mlw = transpiler.transpile()
     # (#49) ROUTE #417 -- every OverflowError obligation the emitter attached to a
     # `list(range(..))` / `sorted(range(..))` / `float(int)` argument carries a tag stable
@@ -12791,6 +12793,100 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             "`set(sorted(range(n)))`), so the claim would be proved without it. Bind the "
             "call to a local first (`xs = list(range(n))`), or drop `\\all` from the "
             "context.", stage="whyml", code="PYCSL-R417-ERASED-OBLIGATION")
+    # (#49) ROUTES #434 / #435 / #436 -- FAIL-CLOSED SITE CENSUS. Under `no_exception \all`
+    # the emitter checks three call forms (`_handle_call_expr`): `ord(x)` owes `len(x) == 1`
+    # (TypeError), an unbound `T.m(x, ..)` needs `x` of class exactly `T` (TypeError), and a
+    # C ssize_t / int method parameter owes its range (OverflowError: `split` / `rsplit`
+    # maxsplit, `replace` count, `insert` index, `center` / `ljust` / `rjust` / `zfill` width,
+    # `to_bytes` length, `expandtabs` tabsize, `hex` bytes_per_sep). A lowering that never
+    # reaches that code (an opaque comprehension or lambda body, a whole-function fold, a
+    # statement-level special form) would DROP the check. So every such site of every
+    # verified `\all` body is recounted HERE from the IR, and its tag `r434_<h>` must occur
+    # in the module (an obligation) or in `r434_ok` (checked, nothing owed) at least as often
+    # as the site occurs; else REFUSED. Literal-decided sites (a one-character str literal
+    # for `ord`; an int literal parameter, which the emitter decides) owe nothing.
+    _sc434 = {}
+    for _f434 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
+        if (not isinstance(_f434, dict) or _f434.get("trusted") or _f434.get("abstract")
+                or not (_f434.get("contracts") or {}).get("no_exception_all")):
+            continue
+        _wk434 = [_f434.get("body")]
+        while _wk434:
+            _x434 = _wk434.pop()
+            if isinstance(_x434, list):
+                _wk434.extend(_x434)
+                continue
+            if not isinstance(_x434, dict):
+                continue
+            _wk434.extend(_x434.values())
+            _fn434 = _x434.get("func")
+            if _x434.get("type") != "Call" or not isinstance(_fn434, str):
+                continue
+            _tl434 = _fn434.rsplit(".", 1)[-1]
+            _hd434 = _fn434.split(".")[0] if _fn434.count(".") == 1 else ""
+            _rv434 = _x434.get("receiver") is not None or "." in _fn434
+            _site434 = False
+            if _fn434 == "ord" and _x434.get("receiver") is None:
+                _a434 = (_x434.get("args") or [None])[0]
+                _site434 = not (isinstance(_a434, dict) and _a434.get("type") == "String"
+                                and isinstance(_a434.get("value"), str)
+                                and len(_a434["value"]) == 1
+                                and len(_x434.get("args") or []) == 1
+                                and not _x434.get("keywords"))
+            if (_x434.get("receiver") is None and _hd434 in (
+                    "str", "bytes", "bytearray", "int", "float", "complex", "bool", "list",
+                    "dict", "set", "frozenset", "tuple", "type", "object")
+                    and _tl434 not in ("maketrans", "fromhex", "from_bytes", "fromkeys",
+                                       "from_number")):
+                _site434 = True
+            _rw434 = {"split": (1, "maxsplit"), "rsplit": (1, "maxsplit"),
+                      "replace": (2, "count"), "insert": (0, ""), "center": (0, ""),
+                      "ljust": (0, ""), "rjust": (0, ""), "zfill": (0, ""),
+                      "to_bytes": (0, "length"), "expandtabs": (0, "tabsize"),
+                      "hex": (1, "bytes_per_sep")}.get(_tl434) if _rv434 else None
+            if _rw434 is not None:
+                _p434 = None
+                _ix434 = _rw434[0] + (1 if _x434.get("receiver") is None
+                                       and _hd434 in (
+                                           "str", "bytes", "bytearray", "int", "float", "complex", "bool", "list",
+                                           "dict", "set", "frozenset", "tuple", "type", "object") else 0)
+                if len(_x434.get("args") or []) > _ix434:
+                    _p434 = _x434["args"][_ix434]
+                else:
+                    for _kw434 in (_x434.get("keywords") or []):
+                        if isinstance(_kw434, dict) and _kw434.get("arg") == _rw434[1]:
+                            _p434 = _kw434.get("value")
+                _lit434 = (isinstance(_p434, dict) and (
+                    (_p434.get("type") == "Number" and isinstance(_p434.get("value"), int))
+                    or (_p434.get("type") == "UnaryOp" and _p434.get("op") == "-"
+                        and isinstance(_p434.get("expr"), dict)
+                        and _p434["expr"].get("type") == "Number"
+                        and isinstance(_p434["expr"].get("value"), int))))
+                if isinstance(_p434, dict) and not _lit434:
+                    _site434 = True
+            if _site434:
+                try:
+                    _k434 = "r434_%08x" % (_sh417(repr(_efd417(_x434).to_dict())) & 0xffffffff)
+                except Exception:
+                    _k434 = "r434_?"
+                _sc434[_k434] = _sc434.get(_k434, 0) + 1
+    _ok434 = list(getattr(transpiler, "r434_ok", None) or [])
+    _er434 = sorted(_t for _t, _n in _sc434.items()
+                    if (_mlw or "").count("[@" + _t + "]") + _ok434.count(_t) < _n)
+    if _er434:
+        from errors import PyCSLSemanticError as _PyCSLSemErr434
+        raise _PyCSLSemErr434(
+            "a call checked under `no_exception \\all` -- `ord(x)` (TypeError unless len(x) "
+            "== 1, route #434), an unbound `T.m(x, ..)` (TypeError unless x is a T, route "
+            "#435), or a C ssize_t / int method parameter (`split` maxsplit, `replace` count, "
+            "`insert` index, ..: OverflowError, route #436) -- is lowered by a path that "
+            "carries no check (a comprehension or lambda body, a recognised fold, a "
+            "statement-level special form), so the claim would be proved without it "
+            "(measured: `[ord(w) for w in ws]` and `for w in s.split(\",\", n)` proved). Move "
+            "the operation into a plain statement of the body, where its own check applies "
+            "(`k = len(s.split(\",\", n))`; a loop that appends `ord(w)`), or drop `\\all` "
+            "from the context.",
+            stage="whyml", code="PYCSL-R434-UNCHECKED-SITE")
     # (#49) gen #37, ROUTE #384 — A `\length` CLASS INVARIANT WHOSE CONSTRUCTOR GOAL CANNOT BE
     # STATED IS REFUSED, NOT ASSUMED. Module 6 states route #226's `_check_class_inv_<c>` goal
     # from the constructor's end state of each list field (`ctor_len_r384` above); when that
