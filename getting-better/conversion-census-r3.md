@@ -618,3 +618,49 @@ In 58 of the 179 the MIRROR stub's signature differs from the live one (e.g. `->
 | 418 | audit_proof_reverify.py | `ReverifyReport.summary` | unclassified | tc:type-mismatch | tc:real->int | This expression has type real, but is expected to have type int VERDICT=L3-TC |
 | 419 | frontend/pure_ast.py | `increment_lineno` | cost-scale:int-erasure-seam | tc:type-mismatch | tc:ref->int | This expression has type ref int @rho, but is expected to have type int VERDICT=L3-TC |
 | 420 | pycsl.py | `_parse_goal_blocks` | cost-scale:int-erasure-seam | tc:type-mismatch | tc:seq.Seq.seq->int | This expression has type seq.Seq.seq 'mu, but is expected to have type int VERDICT=L3-TC |
+
+## cv5 re-census on f1c249c4e — 414 strict markers (after route #411 and routes #432-#439)
+
+Executor cv5, driver run #3, 2026-10-28T19:16Z..20:00Z. Base `f1c249c4e` (main: route #411 faithful string literals c53b5e381, routes #432-#439 c8b0aa205). cv4's per-stub table is NOT on this branch (commit `cf38e06f9`, section "Re-census (cv4)"); the comparison below is against cv4's full per-stub results (its scratch `new.json` + logs, the same data as that table), not against cv1's phase-A table.
+
+**Method** (identical to cv4, so the two are directly comparable): `git archive HEAD src bin json` into a scratch tree + a pristine copy; for each of the 414 rows of `getting-better/trusted-reasons.tsv` in order, `bin/port-one-mirror-body.py <tree> <file> <qualname> --convert` (retried with `--replace` on "not a facade"), then `pycsl.py src/self-annotate/src/<file> --import-path <tree>/src/pycsl --no-proof`, then the file is restored from pristine. All 414 stubs ran in ONE job launched as `heavy.sh census.sh --no-proof` (QUICK class). At the end the scratch tree was diffed against pristine: identical (`__pycache__` only). Verdicts and first-blocker keys come from cv4's own classifier (`classify_lib.py`, unchanged). Scripts and the per-stub TSV: `getting-better/systematic-soundness-r3/cv5/` (`cv5-verdicts.tsv`, `census.sh`, `classify_lib.py`, `compare.py`, `litscan.py`).
+
+### Verdict totals
+
+| verdict | cv4 (414, `3e834fa79`) | cv5 (414, `f1c249c4e`) |
+|---|---|---|
+| TC-OK | 20 | 20 |
+| REFUSED | 276 | 276 |
+| L3-TC | 94 | 94 |
+| ABORT | 24 | 24 |
+
+Same 414 rows (0 only-cv4, 0 only-cv5). Transitions: TC-OK->TC-OK 20, REFUSED->REFUSED 276, L3-TC->L3-TC 94, ABORT->ABORT 24.
+
+### Flips
+
+**0 verdict flips in either direction** (0 newly TC-OK, 0 newly REFUSED, 0 newly L3-TC). **0 first-blocker key changes.** Two first messages differ only by a line number (`_handle_call_expr` route #264 at line 1392 vs 1215; `_reset_function_state` UB-7.1 for-loop near line 1457 vs 1371) because their live bodies grew. An order-insensitive diff of all 414 full logs against cv4's (import-list order, line numbers and paths masked) shows exactly 4 differences, all in the `PORT` line's body length, i.e. the live body grew with the #432-#439 / #411 emitter code: `_handle_call_expr` 1387 -> 1564 lines, `_call_named_builtins` 957 -> 1003, `_reset_function_state` 3978 -> 4096, `pycsl.py::_run_pipeline` 17059 -> 18472. Each reaches the same first blocker as before.
+
+- **Route #432-#439 (new no_exception refusals): 0 newly REFUSED stubs.** No row's first blocker is one of the new codes. This matches the v9 driver measurement (mirror 53/53, 0 MOVED, over-refusal cost 0): the new rules fire only under a `no_exception` claim, and the ported bodies hit an older blocker first.
+- **Route #411 (faithful literals): 0 flips.** 130 of the 414 live bodies contain a non-docstring `str` literal with an escape (`\n`, `\t`, `\"`, `\\`, `\r`) or a code point above 127 (`litscan.py`, column `live_lit`): 101 REFUSED, 25 L3-TC, 4 TC-OK. None changed verdict or first blocker.
+
+### Phase B and conversions
+
+Newly TC-OK = 0, so phase B (the four oracles) has no new candidate, and there are **0 conversions**. The 20 TC-OK stubs are cv4's 20, all with a known blocker (cv2 phase B, cv1/cv2 phase C, cv4 phase B):
+
+- oracle1-RED, un-trusted closure inside a `\trusted` parent: `_sig_val_from_let._hdr_name`, `_transpile_modular._emit_funcs`, `_returns_literal_none.walk`, `_dispatch_provers._finalize`, `_run_proofs._gate_vacuity_then_succeed`, `_run_vacuity_gate._probe_one._is_false_goal`.
+- vacuity-RED (input erased): `_ContractParser._err`, `_Parser.error`, `_Parser.unsupported`, `stable_hash`.
+- yield-RED (no generator-sequence model): `iter_fields`, `iter_child_nodes`, `sertop._sexp_tokens`.
+- shadowed-RED: `NodeVisitor.generic_visit`.
+- 4-green but fails the emit-diff gate: `_cache_root` (DO-NOT-CONVERT, mkdir under `assigns \nothing`), `_stub_set` (input-blind `set_comp 0`), `_parse_args` (input-blind argparse `*_0 ()` facades).
+- 4-green, refused at proof on termination: `proof2why3/parser.py::lex`, `proof2why3/from_sexp.py::_find_construct_idx`.
+- 4-green in cv4's screen, deliberately trusted: `errors.py::PyCSLError.__init__`. Its marker is route #226's establishment of `#@ class invariant self.line >= 0`. Converting it needs `requires line >= 0`, which is a contract change and out of scope.
+
+None of these blockers involves a string literal. `lex` and `_find_construct_idx` have no escaped or non-ASCII literal in their live bodies, so #411 cannot change their termination failures, and they were not re-proved. The four TC-OK stubs in the #411 population (`_sexp_tokens`, `_parse_args`, `_finalize`, `_gate_vacuity_then_succeed`) are blocked by yield erasure, input-blind facades and closure-in-trusted-parent, all structural.
+
+### Near-misses (task 4: was the FIRST blocker a string-length / escaped-literal issue that #411 removed?)
+
+**None measured.** Of cv4's 414 first-blocker messages, none is about string length, escapes, non-ASCII or literal encoding: a regex scan for escape/ASCII/latin/code point/chr/ord/string literal, with the R325 boilerplate excluded, finds only route #349/#175/#275/nested-lift messages that mention a literal in passing. And 0 first blockers changed in the 130-stub #411 population. One limit applies: phase A (`--no-proof`) sees only refusals and Why3 type errors, and #411 changes what the solver can PROVE about literals, not what type-checks. A stub whose only remaining obstacle is a literal-length proof fact would have to be TC-OK first, and every TC-OK stub's blocker is listed above and is not literal-related. A later, non-first blocker inside a REFUSED or L3-TC stub cannot be seen by this method.
+
+### Counts
+
+`#@ \trusted` lines in `src/self-annotate/src`: **442** (unchanged); trusted-reasons.tsv markers: 414 (unchanged). No `src/`, `bin/` or `test-suite/` change, so no gate battery is owed.
