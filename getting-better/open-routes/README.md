@@ -1,5 +1,11 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-28): #440-#443 OPENED (red team 35, SYSTEMATIC builtin-precondition census on daaf6ea78: 860 probes /
+##   452 fully proved / 175 confirmed; rt34's 63 all closed): #440 route #161 admits a method by NAME, not (receiver class,
+##   method) (43); #441 builtin call signatures unchecked -- arity and argument classes (107); #442 #432's isinstance narrowing
+##   trusts superclasses of NoneType (Hashable, object aliases) (6); #443 Any-container element as method receiver (19,
+##   inside #432's documented residual). Diagnosis: the central admission point (#161) has no (class, method, signature) table.
+
 ## run #3 (2026-10-28): #432 / #433 / #437 REPAIRED (executor g4 off 1c083dcbe; code inline in `_run_pipeline` after the
 ##   #349-#383 hashing pass, over its class derivation; corpus 6500-6549, census rows, advice audits R432 / R433 / R437, docs
 ##   annotations 7.133-7.135 / translational T.6.144-T.6.146, REPAIR sections; no new def in a mirrored file, no axiom, no
