@@ -1,5 +1,13 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-28): #440 / #441 REPAIRED (executor h440 off fa7cbb1aa; ONE signature table inline in `_run_pipeline`
+##   after #432/#433/#437: `_FT440` 36 builtin rows + `_MT440` 100 (receiver class, method) rows, allow-list, refuse by
+##   default; codes PYCSL-R440-METHOD-NOT-ADMITTED / PYCSL-R441-BUILTIN-SIGNATURE; corpus 6650-6682 witnesses + 6690-6695
+##   controls, census rows, advice audits, annotations 7.141 / translational T.6.152, REPAIR sections; no new def in a
+##   mirrored file, no axiom, no emission change). All 150 route witnesses refused; a new A1 form through a MODULE receiver
+##   (`math.factorial` beside a file `factorial`) found and closed. Cost: 0 PASS files; 4 VERIFY-FAIL witnesses refused
+##   earlier. Residual: underivable receivers with a builtin method name (#443), `super()` / module calls (#161 by name).
+
 ## run #3 (2026-10-28): #440-#443 OPENED (red team 35, SYSTEMATIC builtin-precondition census on daaf6ea78: 860 probes /
 ##   452 fully proved / 175 confirmed; rt34's 63 all closed): #440 route #161 admits a method by NAME, not (receiver class,
 ##   method) (43); #441 builtin call signatures unchecked -- arity and argument classes (107); #442 #432's isinstance narrowing

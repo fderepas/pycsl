@@ -5376,6 +5376,41 @@ function without `#@ no_exception \all` in the `#@` block above its `def` whose 
 `.update(..)` on `x.__dict__` / `vars(x)` with a computed key; then $\mathcal{T}_{ty}$ of an
 instance-field read of a file class, and of `C.k` of a file class, includes `#UND`.
 
+### §T.6.152  The builtin signature table (routes #440 / #441, run #3)
+
+_Corresponds to `annotations.md` §7.141._
+
+In `_run_pipeline`, after §T.6.144-§T.6.146 for function $f$ (not trusted / abstract) with claim
+set $X \neq \emptyset$ (`_cx432`), for each `Call` $c$ in post-order (`_po383`), outside
+annotations and `assert` messages: let the callee be a builtin name $g \in$ dom(`_FT440`) not
+bound by the module or $f$ (row $\rho = $ `_FT440`$[g]$), or an attribute $R.m$. For $R.m$:
+(a) $R$ rooted at an import: if $m \in F$ (the module's function names $\cup$ every file class's
+methods) and neither `unparse(R.m)` nor its `__` spelling names an IR function, the site is
+refused ($\top$), else skipped; (b) $R$ = `super()`: skipped; (c) $R$ an unshadowed builtin
+type $T$: $K = \{T\}$ and the first argument must have class set exactly $\{T\}$; (d) $R$ a file
+class name: admitted iff $m$ is bound in a class body along its MRO, else refused (AE, or $\top$
+with a non-file base); (e) otherwise $K$ = the class keys of `_ty383`$(R)$ (Optional / Union /
+`|` / Annotated / Final / ClassVar / aliases / string annotations expanded; heads mapped by
+`_CN440`: `List` / `#list` $\to$ list, `Dict` / `TypedDict` $\to$ dict, `#iter` / `Iterable`
+$\to$ iter, ..., a file class $C \to$ C:$C$, anything else ?), replaced by the `isinstance`
+classes when §T.6.144's narrowing decided $R$ (`_nr440`), minus None. For each $k \in K$:
+? / callable: skipped if $m \in$ dom$_m$(`_MT440`), refused ($\top$) if $m \in F$; C:$C$:
+admitted iff $m \in$ `_me383`$[C]$ or bound / a field along $C$'s file MRO, else
+$\rho = $ `_MT440`$[(b, m)]$ for its first non-file base $b$ with a row, else refused (AE, or $\top$
+with a non-file base); a builtin $k$: $\rho = $ `_MT440`$[(k, m)]$, else refused ($\top$ if
+`hasattr`$(k, m)$, else AE). With $\rho = (lo, hi, kw, codes, \_)$: a `*` argument is admitted
+only when $hi = \infty$ and every code is `*`; else refused (TE) unless $lo \le n \le hi$ for the
+$n$ positional arguments, every keyword is in $kw$ (or $kw$ has `*`), and each argument's class
+keys (`_ty383`, or `_rs440` -- the result class recorded for an admitted call whose row decides
+it -- when `_ty383` is `#UND` / `#UNK`), its element keys (`_ei383`) and tuple component keys
+satisfy its code (`int(x, base)`: $x$ bytes-like or `str`). A refusal is raised iff $X$ covers it:
+AE $\Leftarrow X \cap \{\backslash all, AttributeError, Exception, BaseException\}$, TE likewise
+with TypeError, $\top$ always (`PYCSL-R440-METHOD-NOT-ADMITTED`, `PYCSL-R441-BUILTIN-SIGNATURE`).
+$\mathcal{T}_{ty}$ changes in two rows: `BinOp(Mult)` of a sequence-typed operand (a `#list` /
+`List` / `list` / `#tuple` / `Tuple` / `tuple` subscript, `str`, `bytes`) by an `int` / `bool`
+operand is the sequence's type list; the receiver type list of a method-call row has its
+`Optional` / `Union` / `|` members expanded and `None` dropped. No emission changes.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

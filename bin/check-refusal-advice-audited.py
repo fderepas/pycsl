@@ -736,6 +736,12 @@ AUDITED = {
         "Route #433. 'Join elements DERIVED str / bytes (... a display `[a, b]` of such parameters), or drop the claim': witness 6530's join rewritten over a display of two `str` parameters (a433_typed_source) VERIFIES under `no_exception \\all`; with the claim dropped (a433_drop_claim, = control 6535) it VERIFIES. (A `List[str]` PARAMETER joined by `str.join` does not type-check at base or candidate -- Why3 `array string` vs `array int` -- so the advice names a display.)"),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` compares values that may be {_bd432}: `{_kn4'): (FOLLOWABLE,
         "Route #437. 'Sort values declared with such a type (e.g. `List[int]`), or drop the claim': witness 6537 with `xs: List[int]` (a437_typed_source) VERIFIES under `no_exception \\all`; with the claim dropped (a437_drop_claim) it VERIFIES. (`key=len` / a builtin key is refused by the pre-existing unmodelled-keyword rule, so the advice does not name a key.)"),
+    # (#49) driver run #3 -- routes #440 / #441 (h440), audited the day they landed. Probes in
+    # getting-better/systematic-soundness-r3/h440-r440-441/advice/.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n440, \'lineno\', 0)}: the method call `{_ast341.unparse(_n440)}` is not admitted: {_tx440}. "'): (FOLLOWABLE,
+        "Route #440. 'Declare the receiver with a class that has the method in the table (or a file class that defines it), use a method that has a row (`rfind` for `rindex`, `find` for `index`), or drop the claim': witness 6651 with `n: str` (a440_declare) VERIFIES under `no_exception \\all`; witness 6650 with `path.rfind(\".\")` (a440_rfind) VERIFIES; 6650 with the claim dropped (a440_drop_claim, = control 6695's shape) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n440, \'lineno\', 0)}: the call `{_ast341.unparse(_n440)}` does not match the signature row of'): (FOLLOWABLE,
+        "Route #441. 'Pass arguments declared with the accepted class, or drop the claim': witness 6661 `len(n)` with `n: str` (a441_declare) VERIFIES under `no_exception \\all`; 6661 with the claim dropped (a441_drop_claim) VERIFIES (the TypeError is then ambient)."),
     # (#49) driver run #3 -- routes #434-#436 (g5), audited the day they landed. Probes in
     # getting-better/systematic-soundness-r3/g5-r434-436/advice/.
     ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`ord(x)` raises TypeError unless `x` is a str (or bytes) of length 1, and this function claims `no_exception \\\\all`. Onl"): (FOLLOWABLE,
@@ -1041,6 +1047,9 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: the attribute `{_ast341.unparse(_a432)}` is read on `{_ast341.unparse(_'): '948c2aa9d312',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` joins elements that may be {_bd432}, not a'): '60bebc3b18fa',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` compares values that may be {_bd432}: `{_kn4'): '395daa559d4d',
+    # (#49) driver run #3 -- routes #440 / #441 (h440)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n440, \'lineno\', 0)}: the method call `{_ast341.unparse(_n440)}` is not admitted: {_tx440}. "'): 'c87556676c90',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n440, \'lineno\', 0)}: the call `{_ast341.unparse(_n440)}` does not match the signature row of'): '9df58646bf78',
     # (#49) driver run #3 -- routes #434-#436 (g5)
     ('src/pycsl/module6_whyml/expressions.py', "PyCSLSemanticError('`ord(x)` raises TypeError unless `x` is a str (or bytes) of length 1, and this function claims `no_exception \\\\all`. Onl"): 'fa4dbd16ae27',
     ('src/pycsl/module6_whyml/expressions.py', 'PyCSLSemanticError(f"""`{func_name}(x, ..)` calls the UNBOUND method `{_tl434}` of `{_hd434}`, which raises TypeError when `x` is not a `{_h'): '1e6f35955ad5',

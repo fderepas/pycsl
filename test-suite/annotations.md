@@ -3593,6 +3593,57 @@ counting these stores as UNKNOWN for hashed values GONEs the `frontend/pure_ast.
 `multi_file_lib/r439_hashlib.py`, `r439_hashmid.py`); controls `6641`-`6643` (helper
 `multi_file_lib/r439_okhash.py`).
 
+### 7.141 A builtin or method call is admitted only by its row in ONE signature table (routes #440 / #441, run #3)
+
+Route #161 (`module6_whyml/functions.py`) admits a call under a `no_exception` claim when its callee is a
+function of the program or on a short whitelist, and its METHOD arm looked at the NAME only:
+`R.m(..)` passed when `m` was whitelisted or when ANY function / method of the file had the tail
+name `m`, whatever `R`'s class; a builtin passed whatever its arity and argument classes. The call
+lowers to an opaque `val` with no `raises`, so nothing was owed. Red team 35 (860 probes) measured
+150 such false proofs under `#@ no_exception \all`: a file `def rindex` admitted
+`path.rindex(".")` (ValueError), `n: int; n.upper()` (AttributeError), `len(n)`, `len(s, s)`,
+`len()`, `sorted()`, `int(n, 10)`, `s.strip(t)` with `t: Union[str, int]`, `s.find(b)` with
+`b: bytes` (TypeError). RULE (allow-list, refuse by default): in a function that is not
+`\trusted` / `\abstract` and claims `no_exception`, every call is checked against ONE table:
+`_FT440` keyed by the 36 builtin names of #161's list, `_MT440` keyed by (receiver class, method)
+for #161's 39 method names on the builtin classes that have them (100 rows; 136 with `_FT440`) (`str` / `bytes` / `bytearray`
+strip / lower / upper / is* / startswith / endswith / find / rfind / count / replace / join /
+split; `int` / `bool` bit_length; `list` / `deque` append / extend / count / copy / clear /
+reverse, `list` insert / sort; `tuple` count; `dict` / `Mapping` get / keys / values / items,
+`dict` copy / clear / setdefault / update; `set` / `frozenset` union / intersection /
+difference / issubset / issuperset / copy, `set` add / discard / clear / update). A row gives the
+positional arity range, the accepted keywords, an accepted-class code per position (a number, an
+int, a `str`, `str` or `None`, a `str` or tuple of `str`, bytes-like, an iterable / sized /
+reversible value, a mapping or iterable of pairs, an iterable of numbers, a class or tuple of
+classes, a callable, anything) and the obligation rows that still speak for its value-dependent
+exceptions (#66 / #163 `int(<str>)`, #72 / #436 `split`, #160 / #259 `range` / `pow` / empty
+`min` / `max`, #281 big-int `str`, #349 / #438 / #439 hashing, #433 join elements, #434 `ord`,
+#437 orderability). A call is ADMITTED iff: a builtin `f(..)` (not shadowed) matches its row with
+every constrained argument's classes DERIVED (the hashing pass's `_ty383` / `_ei383`; a call the
+table admitted contributes its row's result class) and accepted; a method call `R.m(..)` has,
+for EVERY class `R` may have here (`_ty383`, refined by §7.133's guards when they decided it;
+`None` is §7.133's), either a file class whose file MRO defines `m` (method, class-body binding
+or field) -- or whose non-file base is a builtin with a row for `m` that the call matches -- or
+a builtin class with a row `(class, m)` that the call matches; an unbound `str.m(s, ..)` is
+`str`'s row with `s` derived exactly `str`. A file name collision never admits a builtin
+method: an UNDERIVABLE receiver (`Any`, `object`, `#UND`) is refused for a name only the file
+defines (`x.rindex(..)` beside a file `rindex`), and a module function `m.f(..)` beside a file
+`f` is refused unless the program itself defines `m.f`. Refusals: `PYCSL-R440-METHOD-NOT-ADMITTED`
+under a claim covering AttributeError (the class has no such method), or under ANY claim (a
+builtin method without a row -- `rindex`, `index`, `partition`, `rsplit`, `format`, `to_bytes`,
+`fromhex`, `maketrans` ...: its exceptions are not modelled, as #161 refuses an unlisted callee);
+`PYCSL-R441-BUILTIN-SIGNATURE` under a claim covering TypeError (arity, keyword, `*` / `**`
+argument, or an argument class outside the row). Two precision rules of the derivation serve it:
+`seq * n` (a list / tuple / str / bytes by an int) is the sequence, not the int; a method
+call's result is that of the receiver's non-`None` classes (a call on `None` raises, it returns
+nothing). An `assert`'s message is not checked (it is evaluated only when the assertion fails,
+route #332). Residual (not judged): a builtin method name on an underivable receiver (§7.133's
+`Any` residual, route #443); `super().m(..)` and module functions (#161's by full name).
+Witnesses `6650`-`6682`; controls `6690`-`6695`. Measured cost: 0 of the 366 claimed corpus
+files that emit at base became refused but four expected-FAIL witnesses that already failed to
+verify (`4614`, `4622`, `4826`, `6576`) are now refused earlier; the mirror, `python-reference`
+and `pycsl_lib` carry no `no_exception` claim.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->
