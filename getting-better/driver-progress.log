@@ -13007,3 +13007,4 @@ measurement instead of re-running two hours of it.
 2026-10-28T03:13:57Z wall dict-value-model: conversions CERTIFIED-BOUNDARY (cost: 2 caps/1 stub); hashing -> R-gate (rg executor)
 2026-10-28T04:04:13Z wall dict-value-model CLOSED: conversions BOUNDARY; R-gate REFUTED (premise) -> routes #430 #431 opened
 2026-10-28T08:25:49Z routes #430 #431 REPAIRED + R-gate BUILT: hashing #UND residual closed under claims, 0 mirror cost
+2026-10-28T14:22:57Z u411 integration candidate pycsl-int 5e94f3f2a+6afbe3b49-pick: v8 GREEN (root 10 / pyref 4 / mirror 18 movers = declared, byte-identical to u411's proved emissions; planes 61; ledgers OK; witnesses 8/8 FAIL, controls 2/2 PASS); landing HELD for owed mirror proofs expressions (running) + pure_ast
