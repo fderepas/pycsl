@@ -202,6 +202,141 @@ open route. R-gate is **not** widened to cover it.
 
 *(Filled in after the spike; see §R below.)*
 
+---
+
+## §R. Spike results (Gate S), 2026-10-28T03:20-04:00Z: S0 REFUTES, so the verdict is CERTIFIED-BOUNDARY
+
+The evidence is in `getting-better/systematic-soundness-r3/rg-dict-r3/`:
+- `probes/` holds the S0 sources and full outputs;
+- `s2/` holds the S2 sources and base outputs;
+- `spike/` holds the log-mode instrument (`patch.py`, `scan.sh`), the per-tree logs and rc files, and the
+  `finally` census.
+
+Every pycsl run went through `scratchpad/heavy/heavy.sh`. S0 and S2 are full proofs at base. S1 is
+`--no-proof --no-typecheck` on a `git archive` copy of 289fe6029 with the log patch.
+
+### S0: LINK-3 premise (P1): REFUTED
+
+**What the documents say.**
+- `docs/pycsl-static-semantics-reference.md` §2.1.13 gives `no_exception` its meaning.
+  - **The obligation universe.** It is `active(f) = no_exception_set(f) ∪ (no_exception_all(f) ?
+    KNOWN_EXCEPTIONS : ∅)`, and `KNOWN_EXCEPTIONS = {ZeroDivisionError, IndexError, KeyError,
+    ValueError, StopIteration}`. **TypeError is outside it.** A named `no_exception TypeError` is
+    rejected (probe `l3e`: "no_exception names unknown exception 'TypeError'"), so a claim covering
+    TypeError can only be `\all`.
+  - **What `\all` covers in practice.** The refusal routes (#174, #304, #347, #349) read `\all` as
+    "any class".
+- The trigger model (`config/skills/pycsl-exception-model/SKILL.md`, "Inter-procedural rules") makes
+  every implicit exception outside a claim **ambient**. A WhyML `ensures` is a normal-termination
+  postcondition. So an un-claimed function's `ensures` is claimed only for a normal return. That is
+  sound only if no ambient exception can turn into a normal return.
+
+**What the probes measured** (all full proofs at base 289fe6029; CPython results from the `__main__`
+drivers):
+
+| probe | channel | base result | CPython |
+|---|---|---|---|
+| `l3a` | `except TypeError` in the hashing function | REFUSED (route #174) | 2 |
+| `l3b` / `l3f` | caller `except TypeError` / `except Exception` | REFUSED (route #174) | 2 |
+| `l3i` | bare `except:` | REFUSED (route #174) | 2 |
+| `l3c` | caller `except KeyError` (KeyError control) | REFUSED (route #178) | 2 |
+| `l3h` | `with contextlib.suppress(TypeError)` | REFUSED (route #257) | 2 |
+| `l3g` / `l3j` / `l3k` | `return r` in `finally` of an `-> int` function | FAIL (Why3 type error, fail-closed) | 2 |
+| `l3q` | `break` in `finally` inside a loop | FAIL | 2 |
+| **`l3o`** | `return` in `finally` of an `-> None` function, around `hash(m.get("a"))` | **rc=0 PROVED** `ensures out[0] == 1` | `out[0] == 2` |
+| **`l3p`** | un-claimed callee hashes `#UND`; un-claimed caller `out[0] = 2; try: out[0] = h(m) finally: return` | **rc=0 PROVED** `ensures out[0] == 1` | `out[0] == 2` |
+| **`l3n`** | the `l3o` shape with a KeyError `d["a"]` | **rc=0 PROVED** | `out[0] == 2` |
+| **`l3d`** | `no_exception \all` caller returns `h(m)`; un-claimed `h` hashes `{m.get("a")}` | **rc=0 PROVED** | TypeError |
+
+**LINK-3 finding.** In an un-claimed function, an ambient exception does **not** only end the function
+abnormally.
+- **The channel.** A `return` inside `finally:` discards the in-flight exception and makes the
+  function return normally. The model lowers the `finally` return as the normal path, `()`.
+- **The consequence.** The proved `ensures` of that function, or of a caller (`l3p`), is false of a
+  normal return.
+- **Already closed.** Handlers (#174, #178) and suppressing context managers (#257).
+- **Still open.** A jump in the finalbody is not refused: route #21 handles a `finally` with
+  handlers, and route #156 handles a jump in the try *body*.
+
+So a hash TypeError in an un-claimed function **can** invalidate an `ensures` that its callers rely on.
+R-gate would leave `l3o` and `l3p` admitted (no claim anywhere), while the full flip would refuse both.
+By the task's decision rule, R-gate is **unsound as a closure of the `#UND` family** and is **not
+built**.
+
+The hole is not specific to hashing (`l3n` is a KeyError). It is recorded as **open route #431**
+(`open-routes/route431-finally-jump-swallows-ambient-exception.md`), with measured repair cost **0**:
+- an AST census finds no `return` / `break` / `continue` inside any `finally:` among 4,149 root, 2,217
+  pyref, 53 mirror and 104 `pycsl_lib` files (`spike/finally_census.tsv`, `spike/finally_census.py`);
+- PEP 765 makes the shape a SyntaxWarning in CPython 3.14.
+
+`l3d` is the review's `p_claim_calls_unclaimed`. It is recorded separately as **open route #430**. It is
+not widened into R-gate.
+
+### S1: gated log-mode flip (P2): narrowed to 1 root PASS file
+
+The instrument is calibrated against e1's full flip (`systematic-soundness-r3/e1-r392-395/`):
+- **Positive control.** Every S2 witness logs `claimed=1`, and every un-claimed control logs
+  `claimed=0` (`spike/s2.log`).
+- **Ungated mirror population.**
+  - UND: 568 distinct `#UND` sites in 24 mirrors, plus 37 hashed-iterable (`UND-IT`) rows.
+  - NONE: 76 no-source leaves in 26 mirrors. Most are slice bounds such as `x[1:]`: the base pass
+    treats every subscript slice as hashed, which is noise for this measurement.
+
+  Together: 33 mirrors, against e1's 679 sites / 27 mirrors at `3b2d2e763`.
+- **Ungated corpus population.** It covers e1's seven PASS files: 0882, 0883 and 3600 (UND), 1318
+  (NONE), pyref 0091 and 0212 (NONE), and `counter_proves` (UND-IT).
+- **Verdict agreement.** The rc=0 counts reproduce the known populations: root 2,513 (the byte-diff
+  baseline is 2,512 `.mlw`), pyref 2,186, and lib with the same 17 non-zero rc as e1's `lib-base.tsv`.
+
+**Gated cost** (rows with `claimed=1`, unguarded):
+
+| tree | files scanned | rc=0 | claimed rows | claimed files | in a PASS file |
+|---|---|---|---|---|---|
+| mirror | 53 | 53 | **0** | 0 | 0 |
+| `pycsl_lib` | 104 | 87 | **0** | 0 | 0 |
+| pyref | 2,217 | 2,186 | **0** | 0 | 0 |
+| root | 4,149 | 2,513 | 8 | 7 | **1**: `6336_r427_ctl_snapshot_iteration.py` (expected PASS, rc=0); the other 6 are expected FAIL: 3341, 3342, 5069, 5368, 5501, 5992 |
+
+The one PASS cost is a route-#427 control. `d[k + 100]` / `d[k + 300]` (`d: Dict[int, int]`) are under
+`no_exception \all`, with `k` from `list(d.keys())` and from a generator over another dict. The int key
+plus an int literal is derived as `#UND`. That is a derivation-precision gap, not a TypeError: CPython is
+fine. The review's static prediction (O13 / O14: 0 mirrors, flip-scan claims only in expected-FAIL
+files) is **confirmed for mirrors, lib and pyref**. It is **refined for root**: 1 PASS file, which the
+review's grep over the 16 first-scan files could not see because 6336 postdates that scan.
+
+### S2: witnesses at base (P3): confirmed
+
+Full proofs at base (`s2/*.base.out`):
+- `w01_get_hash`, the coordinator's `get_hash.py`: `{m.get("a")}` and `seen.add(f2.get("name"))` under
+  `\all`;
+- `w02_q4`;
+- `w03_q6` (`seen.add(f.get("name"))` over `List[Dict[str, Any]]`);
+- `w05_values_loop` (`v in seen` over `m.values()`);
+- `w06_dict_key_get` (`{m.get("a"): 1}`).
+
+Each is **rc=0 PROVED**, while CPython raises TypeError. The un-claimed twins `c_01` … `c_06` are also
+rc=0 PROVED, except `c_04`. `w04` / `c_04` (`{mk()}` with an un-annotated `mk`) is FAIL at base, a
+Why3 type clash and fail-closed, so it is not a witness. These are the witnesses R-gate would have
+refused. Together with `l3o` / `l3p` (un-claimed), they are the live false proofs of the `#UND` family at
+289fe6029.
+
+### Verdict
+
+- **Conversions:** CERTIFIED-BOUNDARY (§1; reason and reopening test from the review §4).
+- **Hashing `#UND` residual, route R-gate:** CERTIFIED-BOUNDARY. Gate S refuted P1 (S0: `l3o`, `l3p`).
+  Nothing was built.
+  - **Reopening test.** Repair open route #431 (refuse a jump in `finally:`; measured cost 0). Then
+    re-run S0: every channel must be REFUSED or FAIL.
+  - **Then build R-gate per §4**, with these measured inputs:
+    - cost 1 root PASS file (6336), to narrow by deriving `int + int-literal` / dict-key elements
+      precisely, or justify;
+    - 0 mirrors, 0 lib, 0 pyref;
+    - witnesses `s2/w01-w03, w05, w06` (corpus IDs 6400-6449 remain unused).
+  - **Route #430** stays a separate repair (route #178's callee summary extended with a
+    "hashes `#UND`" bit) and must be costed on its own.
+- **`\trusted` count:** unchanged (442 lines at 289fe6029; the brief's 448 is an older figure). Ledger: 3. No `src/`, `bin/`, corpus or census file was
+  touched, so the Gate B/C battery has nothing to gate. It was not run, by design.
+
 *Order of work, stated honestly.* The S0 probes `l3a` to `l3p` and the S1 positive control ran while this
 plan was being drafted (03:20-03:55Z): the task asked for the LINK-3 answer before planning. No `src/`,
 `bin/` or corpus file had been edited when this plan was committed.

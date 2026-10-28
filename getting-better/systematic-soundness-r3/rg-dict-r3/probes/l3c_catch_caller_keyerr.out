@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/rg/probes/l3c_catch_caller_keyerr.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+`h(...)` calls code that can raise `KeyError` implicitly (a dict or list subscript, an unpack, `int()`/`float()`) without declaring `#@ no_exception` for it, where that raise is not modelled; this function claims (or, through an exception handler, relies on) freedom from it (route #178; measured: a helper returning `d["b"]` under the caller's `#@ no_exception KeyError`). Add `#@ no_exception` to the callee, or drop the exception from this context.

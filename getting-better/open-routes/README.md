@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-28): #430 and #431 OPENED; route R-gate (claim-gated #UND hashing refusal) CERTIFIED-BOUNDARY (executor rg off
+##   289fe6029, wall cycle #2 dict-value-model-r3, impl doc getting-better/dict-value-model-r3-impl.md; no src/bin/corpus change).
+##   #431: a `return` in a `finally:` swallows an AMBIENT exception (un-claimed hash TypeError l3o / l3p, un-claimed KeyError l3n),
+##   so an un-claimed function's proved `ensures` is false on a NORMAL return (rc=0 PROVED, CPython violates). That refutes R-gate's
+##   premise that "ambient" means abnormal termination only; cost of the proposed refusal measured 0 (no jump in any finally in
+##   root / pyref / mirror / pycsl_lib). #430: a `no_exception \all` caller of an un-claimed callee that hashes #UND PROVED
+##   (route #178's TypeError-from-hashing gap). R-gate's gated cost measured: 0 mirrors, 0 pycsl_lib, 0 pyref, 1 root PASS
+##   file (6336, 2 sites); it is reopened once #431 is repaired.
+
 ## run #3 (2026-10-27): #421-#428 REPAIRED, #429 NOT REPAIRED (executor g3 off ac28806be; code + corpus 6250-6322 / 6330-6337
 ##   + census 73 rows + advice audits R405(#423) / R424 / R425 + docs annotations 7.110-7.117 / translational T.6.121-T.6.128,
 ##   REPAIR sections; no new def in a mirrored file, no axiom, ledger unchanged). Method: each rule now enumerates what it ADMITS.

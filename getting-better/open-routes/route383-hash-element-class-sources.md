@@ -103,3 +103,18 @@ mirror functions verbatim, 53 mirrors in sync); byte-diff root rc=0 (2421/2421 0
 rc=0 (2186/2186 0/0/0); mirror-emit-sweep 53/53 0/0/0 (no OWED proof); `pycsl_lib` screen identical; `run-soundness-planes.sh`
 fast 61/61 rc=0; `check-refusal-witness-coverage.py` rc=0 (312 demonstrated); `check-refusal-advice-audited.py` rc=0 (message
 unchanged); `doc-coherency.py --check` rc=0; `\trusted` lines 448 (unchanged); no axiom, ledger unchanged.
+
+## #UND RESIDUAL: route R-gate CERTIFIED-BOUNDARY (2026-10-28, executor rg off 289fe6029, wall cycle #2 `dict-value-model-r3`)
+The review `getting-better/dict-value-model-r3-response.md` §5 proposed R-gate: refuse a `#UND` / no-source hashed value only in a
+function claiming `no_exception \all`, and leave it ambient elsewhere. It was **not built**. Spike S0
+(`getting-better/dict-value-model-r3-impl.md` §R) refuted its premise that an ambient exception ends a function only abnormally:
+- a `return` in `finally:` swallows the hash TypeError, and an un-claimed `ensures` is PROVED false on a normal return (open route
+  #431, witnesses l3o / l3p);
+- a claimed caller of an un-claimed `#UND`-hashing callee PROVES (open route #430, l3d).
+
+Measured gated cost, for when the route is reopened:
+- 0 claimed `#UND` sites in the 53 mirrors (ungated: 568 UND sites in 24 mirrors);
+- 0 in `pycsl_lib` and 0 in pyref;
+- 1 root PASS file, `6336_r427_ctl_snapshot_iteration.py` (`d[k + 100]`, `d[k + 300]`: an int key derived as `#UND`).
+
+The residual stays as documented above. It reopens when #431 is repaired: re-run spike S0, then build R-gate per the impl doc §4.

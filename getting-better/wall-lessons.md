@@ -8936,3 +8936,31 @@ Evidence: ch28 (22:00-22:55 no activity), rsurv (23:46-00:41), r283 (01:19-02:12
 reported Bash calls auto-moved to the background past the default 120 s tool timeout. Rule (carved into
 the driver skill §A.4): brief `timeout: 600000` + chunking + commit-per-gated-increment + 15-min liveness;
 driver declares death at >45 min silence and recovers the worktree inline (r2b recovered: fb60a780).
+
+## run #3 wall cycle #2 (2026-10-28): `dict-value-model-r3`, CERTIFIED-BOUNDARY on both questions (executor rg off 289fe6029)
+
+- **Conversions.** A `Dict[str, Any]` value model is not the object. It is the first link for only 19 of
+  370 stubs, and the route-(a) spike reached 0 of 4. The best leaf needs two emitter capabilities for one
+  stub. Reopening test: `getting-better/dict-value-model-r3-impl.md` §1.
+- **Hashing.** Route R-gate (refuse a `#UND` hashed value only under a `no_exception \all` claim) was
+  refuted by spike S0 before any build. The impl doc §R gives the details; open routes #430 and #431
+  carry what was found.
+
+**Lesson (defer-to-oracle, validity-tested).** Do not gate a refusal on a claim because "un-claimed
+exceptions are ambient" until each SWALLOW channel has been probed. Ambient is sound only if the
+exception cannot become a NORMAL return. Probe every such channel with a full proof and a CPython driver,
+in the same function and in a caller:
+- `except E` / `except Exception` / bare `except`;
+- a suppressing context manager;
+- a `return` / `break` in `finally:`.
+
+Validity test: the oracle tells the cases apart.
+- `l3o` (`return` in `finally` around the hash) PROVED a false `ensures`.
+- `l3l` (a `finally` with no jump) PROVED, and that proof is sound: the exception propagates, so the
+  function never returns normally.
+- `l3a` / `l3b` / `l3h` were REFUSED (routes #174 / #257).
+
+L-input that revealed the divergence: `l3o` / `l3p` / `l3n` were rc=0 PROVED while CPython returned
+normally with `out[0] == 2`. The review's ambient premise
+(`dict-value-model-r3-response.md` §5.4) rested on the skill's inter-procedural rules and had not been
+probed against any swallow channel.

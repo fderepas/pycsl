@@ -1173,3 +1173,15 @@ date	gen	generator	candidate	verdict	route	order	note
 2026-10-11	35	carrier-rerun	r230-append-none	LIVE	230	2	xs.append(None); v=xs[0]; v-v+3 PROVED
 2026-10-11	35	carrier-rerun	r230-direct-subscript-operands	LIVE	230	2	d[k]=None; return d[k]-d[k]+3 PROVED (no local)
 2026-10-11	35	carrier-rerun	r230-ctl-tuple-none	FAIL-CLOSED	-	-	t=(None,1); v=t[0]; v-v+3 REFUSED/FAILS (tuple slot fenced)
+2026-10-28	37	hand	r3rg-l3a-except-typeerror-local	FAIL-CLOSED	-	-	un-claimed `try: {m.get('a')} except TypeError: return 2` REFUSED (route #174); CPython 2. LOGGED AFTER THE RESULT (rg spike S0)
+2026-10-28	37	hand	r3rg-l3b-l3f-caller-except-typeerror-exception	FAIL-CLOSED	-	-	un-claimed callee hashes #UND, caller except TypeError / except Exception: REFUSED (route #174); CPython 2
+2026-10-28	37	hand	r3rg-l3c-caller-except-keyerror-callee	FAIL-CLOSED	-	-	caller except KeyError around an un-claimed d['a'] callee: REFUSED (route #178)
+2026-10-28	37	hand	r3rg-l3d-claimed-caller-unclaimed-hash-callee	LIVE	430	1	`no_exception \all` caller returns h(m), un-claimed h hashes {m.get('a')}: rc=0 PROVED; CPython TypeError
+2026-10-28	37	hand	r3rg-l3e-named-no-exception-typeerror	FAIL-CLOSED	-	-	`#@ no_exception TypeError` rejected: unknown exception (KNOWN_EXCEPTIONS has no TypeError)
+2026-10-28	37	hand	r3rg-l3g-l3j-l3k-finally-return-int	FAIL-CLOSED	-	-	`return r` in finally of an -> int function: Why3 type error (fail-closed); CPython 2
+2026-10-28	37	hand	r3rg-l3h-contextlib-suppress	FAIL-CLOSED	-	-	`with suppress(TypeError)` around a #UND hash: REFUSED (route #257)
+2026-10-28	37	hand	r3rg-l3i-bare-except	FAIL-CLOSED	-	-	bare `except:` around a #UND hash: REFUSED (route #174)
+2026-10-28	37	hand	r3rg-l3n-finally-return-swallows-keyerror	LIVE	431	1	-> None, out[0]=2; try: d['a']; out[0]=1 finally: return; ensures out[0]==1 rc=0 PROVED; CPython out[0]==2
+2026-10-28	37	hand	r3rg-l3o-finally-return-swallows-hash	LIVE	431	1	same shape with hash(m.get('a')) (m: Dict[str, Any], no claim): rc=0 PROVED; CPython out[0]==2
+2026-10-28	37	hand	r3rg-l3p-caller-finally-swallows-callee-hash	LIVE	431	1	un-claimed h hashes #UND; caller out[0]=2; try: out[0]=h(m) finally: return: rc=0 PROVED; CPython out[0]==2
+2026-10-28	37	hand	r3rg-l3q-finally-break-hash	FAIL-CLOSED	-	-	break in finally inside a loop around a #UND hash: FAILED
