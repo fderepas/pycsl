@@ -119,3 +119,11 @@ clause-survival / assumed-facts / open-route-carriers rc=0; `\trusted` 442. Over
 - The `PYCSL-R417-ERASED-OBLIGATION` mechanism (#417 / #426) is unchanged: its registry still counts only the
   `list` / `sorted` / `float` / FormattedValue sites it registered; the #434 census is the fail-closed form
   (sites recounted from the IR) and was not retro-fitted to #417's rows.
+
+## DRIVER INTEGRATION NOTE (run #3, 2026-10-28)
+
+The combined g4+g5+g6 candidate broke the trusted param-frame ratchet (10 > 9). The cause was this repair's `args[0] = ...`
+in `ExpressionEmissionMixin._call_named_builtins`, whose `\trusted` mirror frame omits `args` (route #401). The driver
+fixed it (c8b0aa205) by rebinding a fresh local list. The emission is byte-identical to the v9 candidate (root 2553 /
+pyref 2186 / mirror 53, all 0/0/0); frame-honesty rc=0 (9, all ledgered); the ord witnesses still FAIL and the
+controls PASS. g5's own planes did not include `check-trusted-frame-honesty.py`.
