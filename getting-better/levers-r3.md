@@ -86,6 +86,75 @@ coverage and the mirror sweep cannot move by construction; measured 0 MOVED anyw
 | `check-trusted-reasons.py` | 0 | 416 markers <-> 416 rows |
 | count | — | `#@ \trusted` lines 445 -> **444** |
 
+## L-T2 status + lv2 build record (`substitute`, driver run #3)
+
+**L-T2 was already built** before lv2 started: cv3 L-T2 `400ff13df` (block arm + default
+identity arm) and the conversion `db8d0dc67` (`_expand_nat_to_int`, 445 -> 444), then L-T3 /
+L-T3b (`_sort_arrow_hypotheses`, `_dedup_arrow_chain`, 444 -> 442). This ledger's rank-4 row
+was stale. lv2 therefore spiked the SIX remaining `canonical.py` stubs (verbatim port,
+`--no-proof`, first blocker, at `778aa6e22`):
+
+| stub | first blocker (measured) |
+|---|---|
+| `_normalize_type_string` | R325: `_re.split` has no model (re library) |
+| `_normalize_names` | transform recognizer declines (dict comprehension over `zip`, `substitute(..) if mapping else ..`, calls of `_camel_to_snake` / `_normalize_type_string`) -> generic lowering -> R325 `tuple_1` |
+| `substitute` | 2-parameter transform (a `Dict[str, str]`) -> recognizer declines -> R325 `tuple_1` |
+| `_alpha_rename` | a WRITING self-call (`counter[0] += 1`) inside an opaquely lowered generator |
+| `_flatten_foralls` | in-place `binders.extend(..)` (no certified mutator lowering) |
+| `_ac_normalize` | nested closure `collect` captures `operands`, `t` (unfaithful lift) |
+
+`substitute` was picked: one new value shape, no certificate. **B1** (`generic_fold.py`,
+`preamble._emit_term_theory` - neither mirrored): `_recognize_term_transform_strmap`, a
+separate fail-closed path of the transform recognizer for exactly two params `(t: U, m:
+Dict[str, str])` (IR `dict` + key/value types `string`). The dict is the abstract type
+`term__strdict`; `m.get(t.F, t.F)` -> uninterpreted `val function f__get`, the filtering
+`{k: v for k, v in m.items() if k not in t.B}` -> uninterpreted `val function f__restrict m
+v_B`. Both are deterministic in their inputs (the body never mutates `m`), so they are an
+over-approximation, never an assumption (no axiom). The IR keeps a tuple comprehension
+target only as `_comp_var`; that is immaterial here because `restrict` claims nothing about
+which entries survive. Kept from L-T1: `_term_contract_trivial` gates it (it sits inside the
+recognizer after the gate); recursion on the `list term` child goes through the
+element-wise `f__list` map (structural `variant { l }`); no fallback arm was needed.
+Fragment-by-fragment (scratch tree): 2-param path -> TC FAIL `unbound re_sub_op` (the
+abstract-op block is spliced after the LAST `type` line, and the first prototype emitted
+`type f__dict` inside the function group) -> `type term__strdict` moved to the term theory
+-> TC-OK -> four oracles of `screen-conversion-candidate.sh` green (untrusted-emitted 903
+definitions / 0 re-abstracted; yield-erasure OK; shadowed-selfcalls 14 = ratchet;
+emitted-vacuity no new erasure) -> `--fun substitute` SUCCESS -> whole file SUCCESS.
+Hardening before the build: comprehension / generator variables may not shadow `t` / `m`,
+and every builder's value type must equal its constructor slot type (fail closed).
+**B2**: conversion `proof2why3/canonical.py::substitute` (mirror signature `mapping: int` ->
+`Dict[str, str]`, the live one; verbatim body), trusted-reasons row removed; 442 -> **441**.
+
+Gate battery (one run on the B2 tree, uncommitted at the time, base `778aa6e22`; bases
+v10/ca + v10/ma = emission of `c53b5e381`, main docs-only since; logs under the lv2
+scratchpad). B1 alone is mirror-inert by construction (`substitute` still `\trusted`, so no
+mirror function reaches the new path) and has the same `src/pycsl` as B2.
+
+| gate | rc | result |
+|---|---|---|
+| fidelity `check-self-annotate-sync.sh` / `self-annotate-mirror-check.sh` | 0 / 0 | 933 verbatim / 53 mirrors in sync |
+| whole file `pycsl.py src/self-annotate/src/proof2why3/canonical.py` | 0 | 189 Valid / 0 non-Valid, SUCCESS (base 179) |
+| `--fun substitute` | 0 | SUCCESS, 0 non-Valid |
+| emit-diff (canonical.mlw vs v10/ma) | — | `type term__strdict` in the term theory; `val substitute (t: term) (mapping: int) : term` -> `get`/`restrict` `val function`s + `let rec substitute` over all 9 ctors + `substitute__list`; nothing else moves; 0 `axiom`; reads name/head/args/op/lhs/rhs/arg/binders/ty/body + mapping (non-vacuous) |
+| corpus root `byte-diff-compare.py v10/ca cand --new-source 6800 6801` | 0 | 2563 / 2564, 0 MOVED / 0 GONE / 0 APPEARED (6801 refused -> no .mlw) |
+| corpus pyref `--min-files 2000` | 0 | 2186 / 2186, 0 MOVED |
+| mirror sweep vs v10/ma `--expect-moved proof2why3__canonical` | 0 | 53 / 53, exactly 1 MOVED = canonical.mlw, byte-equal to the proved emission |
+| `run-soundness-planes.sh` | 1 -> 0 | first run 1 RED `check-assigns-underdeclaration` (TRAP 4 > 3): the first B1 stashed a NEW self field in the `\trusted` mirror method `_scan_preamble_needs`, whose declared frame omits it. Fixed by computing the need inside the non-mirrored `_emit_term_theory`; re-run 61/61 green |
+| trusted-reasons | 0 | 413 markers <-> 413 rows |
+| doc-coherency / assumed-facts `--emit-dir` | 0 / 0 | in sync / every fact reviewed (ledger unchanged, no axiom) |
+| refusal-witness-coverage / advice-audited / dropped-mutation / getattr-erasure / open-route-carriers | 0 each | 341 demonstrated / 168 of 231 / 0 dropped / DECLARED 0 / carriers reproduce |
+| trusted-frame-honesty / trusted-raises-honesty / clause-survival `--emit-dir` | 0 / 0 / 0 | 0/1, 0/93 / 19 declared, 52 silent (was 53: `substitute`'s `raise` left the trusted set) / 10 ledgered deficits of 1506 |
+| witnesses | — | 6800 base REFUSED (R325 `tuple_1`) -> cand PROVES; 6801 (expected FAIL) cand REFUSED (contract gate declines -> R325), base REFUSED |
+| count | — | `#@ \trusted` lines 442 -> **441** |
+
+Residuals: (a) `get`/`restrict` are uninterpreted, so `substitute` proves type-safety,
+termination and frame only (the fixed `ensures True` shape), not that renaming is correct;
+(b) the IR drops a comprehension's tuple target (`_comp_var`) - harmless here (see above),
+but the older DictComp recognizers that READ `k`/`v` by name (generic_fold.py ~2887, ~3320,
+~11203) rely on the unpacking order the IR does not record: UN-PROBED, a candidate red-team
+probe (`{v: k for k, v in d.items()}` vs `{k: v ...}`).
+
 ## Residuals (honest)
 
 1. **Contract-dropping beyond the term family is UN-PROBED.** `generic_fold.py` has 399
@@ -93,9 +162,8 @@ coverage and the mirror sweep cannot move by construction; measured 0 MOVED anyw
    other recognizer that fires on a function with a non-trivial user contract would drop it
    the same way. Next step: one probe per recognizer family (a program of the recognized
    shape with `#@ ensures False`), then the same fail-closed gate.
-2. L-T2 (`_expand_nat_to_int`, 5 fragments) and the remaining 8 canonical.py stubs: each needs
-   its own shape extension (mapping param + dict comprehension, `re`, counter mutation,
-   tuple-unpacking aliasing route #303, in-place `extend`).
+2. L-T2 (`_expand_nat_to_int`) is BUILT (cv3) and `substitute` converted (lv2); the 5
+   remaining canonical.py stubs each need their own shape (see the lv2 table above).
 3. L-R5x stays un-built (0 yield); its chains stop at `re` (R5-lib) and a string-tuple list.
 4. `pycsl.py --help` crashes (`ValueError: unsupported format character ' '` in an argparse
    help string) — noticed in passing, not fixed.
