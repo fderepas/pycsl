@@ -10234,9 +10234,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"a method of a file class on a receiver DERIVED as that class, or a builtin "
                     f"method with a row in the signature table (`str.strip` / `find` / `split` "
                     f"..., `list.append` ..., `dict.get` ..., `set.add` ..., `int.bit_length`) "
-                    f"on a receiver derived as that builtin. Declare the receiver's class, give "
-                    f"the operation a contract (a file function with `#@ raises`), or drop the "
-                    f"claim.",
+                    f"on a receiver derived as that builtin. Declare the receiver with a class "
+                    f"that has the method in the table (or a file class that defines it), use a "
+                    f"method that has a row (`rfind` for `rindex`, `find` for `index`), or drop "
+                    f"the claim.",
                     stage="ir-semantic", code="PYCSL-R440-METHOD-NOT-ADMITTED")
         # ROUTE #361 — `InitVar` / `KW_ONLY` PSEUDO-FIELDS WERE MODELLED AS STORED FIELDS.
         # `k: InitVar[int]` and `_: KW_ONLY` joined the record and #347's synthesized
