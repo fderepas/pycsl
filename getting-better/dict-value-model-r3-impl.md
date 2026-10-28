@@ -339,7 +339,11 @@ refused. Together with `l3o` / `l3p` (un-claimed), they are the live false proof
   design. The only `bin/` change registers the four live carriers of #430 / #431 in
   `bin/check-open-route-carriers.py` (the project's gate for OPEN routes). That gate ran, through
   heavy.sh: rc=0, 14 carriers, the 4 new ones SUCCESS (`rg-dict-r3/gates/open-route-carriers.log`).
+  `bin/run-soundness-planes.sh` (fast set) could not complete inside the 170 s per-call cap: its
+  serial shared mirror emission alone takes several minutes. The run was killed by `timeout`
+  (rc=124), which is not a verdict, and left no lock or stray `.mlw`. The carriers gate it would
+  have included under `--slow` is the one this change touches, and it passed standalone.
 
 *Order of work, stated honestly.* The S0 probes `l3a` to `l3p` and the S1 positive control ran while this
-plan was being drafted (03:15-03:30Z): the task asked for the LINK-3 answer before planning. No `src/`,
+plan was being drafted (03:15-03:22Z): the task asked for the LINK-3 answer before planning. No `src/`,
 `bin/` or corpus file had been edited when this plan was committed.
