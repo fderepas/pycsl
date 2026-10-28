@@ -13005,3 +13005,4 @@ measurement instead of re-running two hours of it.
 2026-10-27T15:23:24Z batch int3 landed — routes #401-#410 #412-#416 #420 + conv canonical._iff_app_to_binop (445 after +1 trusted errors.py)
 2026-10-27T20:03:21Z conv canonical._expand_nat_to_int/_sort_arrow_hypotheses/_dedup_arrow_chain — 445->442 (cv3)
 2026-10-28T03:13:57Z wall dict-value-model: conversions CERTIFIED-BOUNDARY (cost: 2 caps/1 stub); hashing -> R-gate (rg executor)
+2026-10-28T04:04:13Z wall dict-value-model CLOSED: conversions BOUNDARY; R-gate REFUTED (premise) -> routes #430 #431 opened
