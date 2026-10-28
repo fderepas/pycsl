@@ -1,5 +1,5 @@
 # OPEN ROUTE #411 — A NON-ASCII LATIN-1 STRING LITERAL IS EMITTED AS ITS UTF-8 BYTES: "é" HAS LENGTH 2 IN THE MODEL
-**Status: REPAIRED, candidate (u411, driver run #3, 2026-10-27; see REPAIR below; whole-file proofs of the big moved mirrors OWED), Severity 1.** Red-team round 32 (2026-10-26, probes around the allow-list repairs #392-#402 + R5-str); driver-reproduced on 085ee3dcc (rc=0 "Verification SUCCESS"; CPython violates; see `scratchpad/rt32/driver-repro.txt`).
+**Status: REPAIRED, candidate (u411, driver run #3, 2026-10-27; see REPAIR below; all 18 moved mirrors proved whole-file), Severity 1.** Red-team round 32 (2026-10-26, probes around the allow-list repairs #392-#402 + R5-str); driver-reproduced on 085ee3dcc (rc=0 "Verification SUCCESS"; CPython violates; see `scratchpad/rt32/driver-repro.txt`).
 Witnesses `witnesses-r411/`: `g03_utf8_index_exc.py`, `j22_utf8_contract_index.py`, `g04_utf8_index_eq.py`, `j26_utf8_contains_byte.py`, `h07_utf8_neq.py`.
 
 ```
@@ -89,4 +89,4 @@ MEASUREMENTS (logs in `getting-better/systematic-soundness-r3/u411-r411/`):
 - Witnesses 6200-6207 + g03 g04 h07 j22 j26 + p411: PROVED at base, FAIL at candidate. Controls 6208, 6209 (lengths of
   `"é"`, `"\n"`, `"a\"b"`, `"a\\b"`, concat length, `"\n" != "\r"`): FAIL at base, PROVED at candidate.
 - fidelity rc=0 (932 verbatim, 53/53 in sync); planes 61/61; doc-coherency rc=0; `\trusted` 442 -> 442.
-- Mirror whole-file proofs: see the open-routes README entry for the done / OWED list.
+- Mirror whole-file proofs at the candidate: ALL 18 moved mirrors rc=0 (`mirror-wholefile-proofs.txt`; longest: expressions 20090 s, statements 18334 s, stmt_control_flow 12205 s). None OWED.

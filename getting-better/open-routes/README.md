@@ -122,7 +122,8 @@
 ##   character. Root 10 / pyref 4 / mirror 18 MOVED (exactly the census of non-printable literals; diffs = re-encoding
 ##   only), 14/14 corpus verdicts kept, witnesses flip, controls prove; fidelity, planes 61/61, `\trusted` 442 -> 442.
 ##   Exposed a mirror proof that rested on the bug (audit_proof `_strip_lean_comments`; invariant strengthened, proves).
-##   Whole-file mirror proofs: see the route doc / final report (big mirrors OWED if not listed done).
+##   Whole-file mirror proofs: all 18 moved mirrors rc=0 at the candidate (incl. expressions, statements, stmt_control_flow,
+##   functions); none OWED.
 
 ## run #3 (2026-10-27): #417 REPAIRED, candidate (r417 executor, completed and gated by r417b off 930d68ed5; code + corpus
 ##   6100-6125 + census + advice audit + docs, annotations 7.80-7.83 / translational T.6.91-T.6.94, route REPAIR section; no new
