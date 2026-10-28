@@ -5,10 +5,10 @@
 hashing refusal) was certified as a boundary instead of built. It refutes the premise that an exception
 PyCSL treats as *ambient* (un-modelled, outside every claim) only ends a function **abnormally**.
 
-Witnesses `witnesses-r431/` (3):
-- `l3n_finally_return_none_keyerr.py`;
-- `l3o_finally_return_none_hash.py`;
-- `l3p_caller_finally_swallows_callee_hash.py`.
+Carriers (3), gated by `bin/check-open-route-carriers.py` as SUCCESS today:
+- `route431-carrier-finally-return-swallows-keyerror.py` (l3n);
+- `route431-carrier-finally-return-swallows-hash.py` (l3o);
+- `route431-carrier-caller-finally-swallows-callee-hash.py` (l3p).
 
 ```
 #431 `return` IN A `finally:` TURNS AN AMBIENT EXCEPTION INTO A NORMAL RETURN                (3)

@@ -202,6 +202,30 @@ CARRIERS = {
         "SUCCESS", "#385",
         "`c = Cur(DEF); DEF.clear()` in `__main__`: the goal is right at construction, the "
         "unverified caller breaks the invariant through its alias; CPython IndexError"),
+    # (#49) driver run #3, wall cycle #2 (executor rg, 2026-10-28,
+    # getting-better/dict-value-model-r3-impl.md §R). Route R-gate (claim-gated `#UND` hashing
+    # refusal) was CERTIFIED-BOUNDARY because these carriers PROVE: an AMBIENT exception is not
+    # always an abnormal exit. #431: a `return` in `finally:` swallows it (the model lowers the
+    # finally return as the normal path), so an un-claimed `ensures` is false on a NORMAL return;
+    # measured repair cost 0 (no jump in any `finally:` in root / pyref / mirror / pycsl_lib).
+    # #430: a `no_exception \all` caller of an un-claimed callee hashing `#UND` (route #178 has
+    # no TypeError-by-hashing bit). When #431 closes, re-run R-gate's spike S0 (impl doc §R).
+    "getting-better/open-routes/route430-carrier-claimed-caller-unclaimed-hash-callee.py": (
+        "SUCCESS", "#430",
+        "a `no_exception \\all` caller returns `h(m)` where the un-claimed `h` hashes "
+        "`m.get(\"a\")`; CPython raises TypeError"),
+    "getting-better/open-routes/route431-carrier-finally-return-swallows-hash.py": (
+        "SUCCESS", "#431",
+        "`out[0] = 2; try: hash(m.get(\"a\")); out[0] = 1 finally: return` proves "
+        "`ensures out[0] == 1`; CPython swallows the TypeError and leaves out[0] == 2"),
+    "getting-better/open-routes/route431-carrier-caller-finally-swallows-callee-hash.py": (
+        "SUCCESS", "#431",
+        "the caller's `finally: return` swallows the un-claimed callee's hash TypeError; "
+        "`ensures out[0] == 1` proves, CPython leaves out[0] == 2"),
+    "getting-better/open-routes/route431-carrier-finally-return-swallows-keyerror.py": (
+        "SUCCESS", "#431",
+        "the same swallow over an ambient KeyError `d[\"a\"]` (the hole is not specific to "
+        "hashing); CPython leaves out[0] == 2"),
 }
 FLAGS = ["--memory-model", "hoare"]
 

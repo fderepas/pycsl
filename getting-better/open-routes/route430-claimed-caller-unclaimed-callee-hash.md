@@ -5,7 +5,7 @@
 (`dict-value-model-r3-response.md` O7), now proved end to end. It is recorded separately on purpose: route
 R-gate (intra-procedural) does not close it and was not widened to do so.
 
-Witness: `witnesses-r430/l3d_claim_calls_unclaimed.py`.
+Carrier: `route430-carrier-claimed-caller-unclaimed-hash-callee.py` (probe l3d). It is gated by `bin/check-open-route-carriers.py` as SUCCESS today.
 
 ```
 #430 CLAIMED CALLER, UN-CLAIMED CALLEE, AMBIENT HASH TypeError                              (1)

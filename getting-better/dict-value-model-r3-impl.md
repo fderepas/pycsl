@@ -204,7 +204,7 @@ open route. R-gate is **not** widened to cover it.
 
 ---
 
-## §R. Spike results (Gate S), 2026-10-28T03:20-04:00Z: S0 REFUTES, so the verdict is CERTIFIED-BOUNDARY
+## §R. Spike results (Gate S), 2026-10-28T03:15-03:55Z: S0 REFUTES, so the verdict is CERTIFIED-BOUNDARY
 
 The evidence is in `getting-better/systematic-soundness-r3/rg-dict-r3/`:
 - `probes/` holds the S0 sources and full outputs;
@@ -334,9 +334,12 @@ refused. Together with `l3o` / `l3p` (un-claimed), they are the live false proof
     - witnesses `s2/w01-w03, w05, w06` (corpus IDs 6400-6449 remain unused).
   - **Route #430** stays a separate repair (route #178's callee summary extended with a
     "hashes `#UND`" bit) and must be costed on its own.
-- **`\trusted` count:** unchanged (442 lines at 289fe6029; the brief's 448 is an older figure). Ledger: 3. No `src/`, `bin/`, corpus or census file was
-  touched, so the Gate B/C battery has nothing to gate. It was not run, by design.
+- **`\trusted` count:** unchanged (442 lines at 289fe6029; the brief's 448 is an older figure). Ledger: 3. No `src/`, corpus or census file was touched, so the
+  emitter battery (byte-diff, mirror sweep, fidelity, census) has nothing to gate and was not run, by
+  design. The only `bin/` change registers the four live carriers of #430 / #431 in
+  `bin/check-open-route-carriers.py` (the project's gate for OPEN routes). That gate ran, through
+  heavy.sh: rc=0, 14 carriers, the 4 new ones SUCCESS (`rg-dict-r3/gates/open-route-carriers.log`).
 
 *Order of work, stated honestly.* The S0 probes `l3a` to `l3p` and the S1 positive control ran while this
-plan was being drafted (03:20-03:55Z): the task asked for the LINK-3 answer before planning. No `src/`,
+plan was being drafted (03:15-03:30Z): the task asked for the LINK-3 answer before planning. No `src/`,
 `bin/` or corpus file had been edited when this plan was committed.
