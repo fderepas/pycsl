@@ -5453,6 +5453,27 @@ $B$ alike. `f__list` is the element-wise map (`variant { l }`). Any other statem
 expression declines (the function stays on the generic path). Gated by
 `_term_contract_trivial` like every term recognizer.
 
+### §T.6.180  `re.split` loop iterable and the no-arg `str.split()` list (lv3, run #3)
+
+_Corresponds to `annotations.md` §7.170._
+
+$\mathcal{T}$(`for x in re.split(P, s): B`), with $P$ a string literal such that
+`re.compile(P)` succeeds and has 0 groups, or 1 group with $P$ = `(` $Q$ `)` and
+`re.compile(Q)` 0 groups, $s$ string-typed, no keywords, in the hoare / concurrent models
+(`_classify_iterable`): the abstract op `val re_split_op (pat s: string) : array string
+ensures { Array.length result >= 0 }`, materialised once as `let _split<i> = (re_split_op
+`$\mathcal{T}(P)$ $\mathcal{T}(s)$`) in`, bound `Array.length _split<i>`, element
+`_split<i>[!i]`, `variant { Array.length _split<i> - !i }`; $x$ is typed `str` in $B$
+(`_handle_for_stmt`, `_collect_str_call_result_locals`), so a `seq string` accumulator of
+the pieces joins via `str_join_seq`. Otherwise the generic (refused) lowering is kept.
+
+$\mathcal{T}$(`s.split()`), no arguments, $s$ string-typed, outside `@mutable_state`
+(`_handle_call_expr`, R5-str arm) = `(str_split_ws_op `$\mathcal{T}(s)$`)` with `val
+str_split_ws_op (s: string) : array string ensures { Array.length result >= 0 }`, and
+the truth test (`_to_bool`) of that call = `(Array.length (str_split_ws_op ..) <> 0)`.
+Both ops are plain `val`s (each call a fresh array): an over-approximation, no axiom. The
+element read `s.split()[i]` keeps its §3.4 lowering (`str_split_elem_op`).
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

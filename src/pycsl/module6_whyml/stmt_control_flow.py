@@ -712,6 +712,42 @@ class ControlFlowStmtMixin:
                 self._for_iter_materialize = (_sv, f"(str_splitlines_op {_slw})")
                 self._pyast_loop_variant_len = f"(Array.length {_sv})"
                 return (f"Array.length {_sv}", f"{_sv}[!{idx}]", False)
+        # lv3 (`proof2why3/canonical.py::_normalize_type_string`): `for tok in
+        # re.split(<pattern literal>, <string>)` iterates the receiver-passing `array
+        # string` `re_split_op` (content unmodelled, a plain `val`: each call a fresh
+        # array -- an over-approximation that assumes nothing), materialised once like the
+        # `.split` arm. FAIL-CLOSED on the two ways the element could fail to be a `str`
+        # or the call could raise: the pattern must be a STRING LITERAL that COMPILES here
+        # (so `re.error` cannot be raised), with NO capture group or exactly ONE group
+        # spanning the WHOLE pattern (`(\W+)`: it participates in every match, so no
+        # `None` piece is ever returned); no keywords (`maxsplit`/`flags`). Anything else
+        # keeps the opaque fallback below. Gated like the `.split` arm -> corpus-inert.
+        if (self._value_semantic and isinstance(iter_ir, dict)
+                and iter_ir.get("type") == "Call" and iter_ir.get("receiver") is None
+                and iter_ir.get("func") in ("re.split", "_re.split")
+                and not iter_ir.get("keywords") and len(iter_ir.get("args") or []) == 2
+                and isinstance(iter_ir["args"][0], dict)
+                and iter_ir["args"][0].get("type") == "String"
+                and isinstance(iter_ir["args"][0].get("value"), str)
+                and self._is_string_expr(iter_ir["args"][1])):
+            _rsp = iter_ir["args"][0]["value"]
+            try:
+                _rsg = re.compile(_rsp).groups
+                _rs_ok = (_rsg == 0 or (_rsg == 1 and _rsp.startswith("(")
+                                        and _rsp.endswith(")")
+                                        and re.compile(_rsp[1:-1]).groups == 0))
+            except re.error:
+                _rs_ok = False
+            if _rs_ok:
+                _rspw = self._expr_to_whyml(iter_ir["args"][0], local_refs)
+                _rssw = self._expr_to_whyml(iter_ir["args"][1], local_refs)
+                self._add_abstract_op(
+                    "val re_split_op (pat s: string) : array string\n"
+                    "    ensures { Array.length result >= 0 }")
+                _sv = f"_split{idx}"
+                self._for_iter_materialize = (_sv, f"(re_split_op {_rspw} {_rssw})")
+                self._pyast_loop_variant_len = f"(Array.length {_sv})"
+                return (f"Array.length {_sv}", f"{_sv}[!{idx}]", False)
         # faithful for-over-literal (self-tcb-reduction): `for k in ("body", "orelse")` /
         # `for prefix in array_prefixes` — a for-loop over an ALL-string tuple/list literal
         # (the emitter's OWN unmodeled Python literal), either DIRECT or via a Var bound to
@@ -1179,6 +1215,26 @@ class ControlFlowStmtMixin:
             _slr2, _slt2 = self._str_method_recv_and_tail(iter_ir)
             _is_splitbody = (_slt2 == "splitlines" and _slr2 is not None
                              and self._is_string_expr(_slr2))
+        if (not _is_splitbody and self._value_semantic and not tuple_targets
+                and isinstance(iter_ir, dict) and iter_ir.get("type") == "Call"
+                and iter_ir.get("receiver") is None
+                and iter_ir.get("func") in ("re.split", "_re.split")
+                and not iter_ir.get("keywords") and len(iter_ir.get("args") or []) == 2
+                and isinstance(iter_ir["args"][0], dict)
+                and iter_ir["args"][0].get("type") == "String"
+                and isinstance(iter_ir["args"][0].get("value"), str)
+                and self._is_string_expr(iter_ir["args"][1])):
+            # lv3: the `re.split` twin of the loop-target typing above -- under EXACTLY the
+            # `_classify_iterable` re.split arm's gate (same pattern test), so the target is
+            # typed `str` only when the loop iterates `re_split_op`'s `array string`.
+            _rsp2 = iter_ir["args"][0]["value"]
+            try:
+                _rsg2 = re.compile(_rsp2).groups
+                _is_splitbody = (_rsg2 == 0 or (_rsg2 == 1 and _rsp2.startswith("(")
+                                                and _rsp2.endswith(")")
+                                                and re.compile(_rsp2[1:-1]).groups == 0))
+            except re.error:
+                _is_splitbody = False
         # route #296: the bare `for x in <pyval local>` dict-KEY typing (`x` registered
         # symbol-type "str") is gone with its `_classify_iterable` arm -- a bare pyval local
         # now binds `x` to a real `hval` element via the R2b judgement below.

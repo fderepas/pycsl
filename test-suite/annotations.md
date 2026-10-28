@@ -3703,6 +3703,24 @@ recognizer, it fires only when the function claims nothing (no `requires` / `ens
 than `True`, no raises / `no_exception`); a claim declines to the generic lowering. Witness
 `6800` (PROVES); `6801` (the same function with `#@ ensures False`, must NOT prove).
 
+### 7.170 `for x in re.split(<literal>, s)` and the no-arg `s.split()` as a list (lv3, run #3)
+
+A loop `for x in re.split(P, s)` (also `_re.split`, from `import re as _re`) over a `str`
+`s`, with no keyword argument, is modelled when `P` is a STRING LITERAL that compiles and
+has either no capture group or exactly one group spanning the whole pattern (`r"(\W+)"`).
+Those are the patterns for which every piece Python returns is a `str` (a group that need
+not take part in a match, as in `r"(a)|b"`, yields `None` pieces) and the call cannot
+raise `re.error`. The pieces are an unmodelled list of strings: the loop terminates, `x`
+is a `str` in the body, and an accumulator of the pieces can be `"".join`ed, but nothing
+is claimed about how many pieces there are or what they contain. Any other `re.split`
+keeps the old behaviour (no model; refused under route #325).
+
+The no-arg `s.split()` (split on runs of whitespace) used as a whole list is likewise an
+unmodelled list of strings of its own (it is not `s.split(" ")`), and its truth test
+`if s.split():` is list non-emptiness, which the model leaves undecided. Witnesses `6820`
+(PROVES), `6821` (false claim, must NOT prove), `6822` (`(a)|b`, declined), `6823`
+(PROVES), `6824` (false claim, must NOT prove).
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

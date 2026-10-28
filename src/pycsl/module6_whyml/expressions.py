@@ -568,6 +568,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     % self._to_bool(whyml_str, dict(ir_expr, _pycsl_r358n=True)))
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
+        # lv3: the truth test of a whole-list no-arg `<string>.split()` (the receiver-
+        # passing `array string` `str_split_ws_op`, `_handle_call_expr`) is Python's list
+        # NON-EMPTINESS, `Array.length <a> <> 0` -- exact, not the int `<> 0` coercion
+        # (which would not type-check). Text-gated on that op -> inert elsewhere.
+        if (isinstance(whyml_str, str) and whyml_str.startswith("(str_split_ws_op ")
+                and t == "Call"):
+            return f"(Array.length {whyml_str} <> 0)"
         # (#44) ROUTES #25/#26/#27 — REFUSE THE TRUTHINESS OF AN ERASED LOCAL. Placed
         # FIRST so no later recognizer can quietly coerce it. A local bound to a generator
         # expression, a non-empty set literal or a non-empty tuple literal is emitted as
@@ -10458,6 +10465,18 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 not in getattr(self, "_mutable_state_classes", set())
                 and not expr.get("keywords")):
             _r5r, _r5t = self._str_method_recv_and_tail(expr)
+            # lv3 (`proof2why3/canonical.py::_normalize_type_string`): the NO-ARG
+            # whole-list `<string>.split()` (whitespace runs, no empty pieces) is its own
+            # receiver-passing `array string` op -- NOT `str_split_op s " "`, whose Python
+            # semantics differ -- instead of the input-blind `<recv>_split_0 ()` facade.
+            # Content unmodelled, a plain `val` (fresh array): assumes nothing.
+            if (_r5r is not None and self._is_string_expr(_r5r) and _r5t == "split"
+                    and not expr.get("args")):
+                _r5w = self._expr_to_whyml(_r5r, local_refs or set(), invariant_ctx, subst)
+                self._add_abstract_op(
+                    "val str_split_ws_op (s: string) : array string\n"
+                    "    ensures { Array.length result >= 0 }")
+                return f"(str_split_ws_op {_r5w})"
             if (_r5r is not None and self._is_string_expr(_r5r)
                     and ((_r5t == "split" and len(expr.get("args", [])) == 1)
                          or (_r5t == "splitlines" and not expr.get("args")))):

@@ -6024,6 +6024,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if st is not None and st.get(_ftg) in (None, "Any"):
                         st[_ftg] = "str"
                     changed = True
+                # lv3: the `re.split(<pattern literal>, <string>)` twin (the
+                # `_classify_iterable` re.split arm; its pattern test is re-checked there,
+                # and a declined pattern leaves an opaque int element -> a type error, i.e.
+                # this typing can only fail closed).
+                elif (isinstance(_fit, dict) and _fit.get("type") == "Call"
+                        and _fit.get("receiver") is None
+                        and _fit.get("func") in ("re.split", "_re.split")
+                        and not _fit.get("keywords") and len(_fit.get("args") or []) == 2
+                        and isinstance(_fit["args"][0], dict)
+                        and _fit["args"][0].get("type") == "String"
+                        and self._is_string_expr(_fit["args"][1])):
+                    out.add(_ftg)
+                    seen.add(_ftg)
+                    if st is not None and st.get(_ftg) in (None, "Any"):
+                        st[_ftg] = "str"
+                    changed = True
         for _tg in tuple_str:
             out.add(_tg)
             if st is not None and st.get(_tg) in (None, "Any"):
