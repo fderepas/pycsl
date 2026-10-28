@@ -7658,6 +7658,27 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if any(id(_c) in _ty383 for _c in _ch383):
                             _rw383 = [_t for _c in _ch383 for _t in (_ty383.get(id(_c))
                                                                       or [_U383])]
+                            # (#441) `seq * n` / `n * seq` is the sequence: a repetition
+                            # of a list / tuple / str / bytes by an int (or bool) operand
+                            # does not have the int's class
+                            if (isinstance(_n383, _ast341.BinOp)
+                                    and isinstance(_n383.op, _ast341.Mult)):
+                                for _sq441, _ni441 in ((_n383.left, _n383.right),
+                                                       (_n383.right, _n383.left)):
+                                    _ts441 = _ty383.get(id(_sq441)) or [_U383]
+                                    _tn441 = _ty383.get(id(_ni441)) or [_U383]
+                                    if (all(isinstance(_t, _ast341.Name)
+                                            and _t.id in ("int", "bool") for _t in _tn441)
+                                            and all((isinstance(_t, _ast341.Subscript)
+                                                     and isinstance(_t.value, _ast341.Name)
+                                                     and _t.value.id in ("#list", "List",
+                                                                         "list", "#tuple",
+                                                                         "Tuple", "tuple"))
+                                                    or (isinstance(_t, _ast341.Name)
+                                                        and _t.id in ("str", "bytes"))
+                                                    for _t in _ts441)):
+                                        _rw383 = list(_ts441)
+                                        break
                         if (isinstance(_n383, _ast341.NamedExpr)
                                 and isinstance(_n383.target, _ast341.Name)):
                             _bd383.append((_n383.target, list(_rw383 or [_U383])))
@@ -8064,6 +8085,31 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             if (_rt383 is None and isinstance(_fu383.value, _ast341.Constant)):
                                 _rt383 = [_ast341.Name(id=type(_fu383.value.value).__name__,
                                                        ctx=_ast341.Load())]
+                            # (#441) a call `R.m(..)` RETURNS only when R is not `None` (a
+                            # `None` receiver raises AttributeError, route #432): the
+                            # result is that of R's other classes, so an Optional / Union
+                            # receiver is read through its members
+                            _ru441 = list(_rt383 or [])
+                            _rx441 = []
+                            _g441 = 0
+                            while _ru441 and _g441 < 256:
+                                _g441 += 1
+                                _y441 = _ru441.pop(0)
+                                if (isinstance(_y441, _ast341.Subscript)
+                                        and isinstance(_y441.value, _ast341.Name)
+                                        and _y441.value.id in ("Optional", "Union")):
+                                    _ru441 = (list(_y441.slice.elts) if isinstance(
+                                        _y441.slice, _ast341.Tuple) else [_y441.slice]) + _ru441
+                                elif (isinstance(_y441, _ast341.BinOp)
+                                      and isinstance(_y441.op, _ast341.BitOr)):
+                                    _ru441 = [_y441.left, _y441.right] + _ru441
+                                elif not ((isinstance(_y441, _ast341.Constant)
+                                           and _y441.value is None)
+                                          or (isinstance(_y441, _ast341.Name)
+                                              and _y441.id in ("None", "NoneType"))):
+                                    _rx441.append(_y441)
+                            if _rt383 is not None and _rx441 and not _ru441:
+                                _rt383 = _rx441
                             for _x383 in (_rt383 or [_U383]):
                                 if _x383 is _B383:
                                     _rw383.append(_B383)
@@ -8957,6 +9003,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _te432 = _ok432 and bool(_cx432 & {"\\all", "TypeError", "Exception",
                                                "BaseException"})
             _al432 = list(_ast341.walk(_f346)) if (_ae432 or _te432) else []
+            _nr440 = {}
             if _ae432:
                 _NT432 = {"int": int, "bool": bool, "float": float, "complex": complex,
                           "str": str, "bytes": bytes, "bytearray": bytearray, "list": list,
@@ -9037,6 +9084,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 or (_cn432 and all(_c in _NT432 and hasattr(_NT432[_c],
                                                                            _a432.attr)
                                                    for _c in _cn432))):
+                            # (#440) the classes admitted here, and whether an
+                            # `isinstance` guard decided them (read by #440 / #441)
+                            _nr440[id(_a432)] = (set(_fs432), _ph432 == 1
+                                                 and _ic432 is not None)
                             break
                         if _ph432 == 1:
                             raise _PyCSLSemErr341(
@@ -9568,6 +9619,625 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"result is derived so). Sort values declared with such a type (e.g. "
                         f"`List[int]`), or drop the claim.",
                         stage="ir-semantic", code="PYCSL-R437-UNORDERED-ELEMENTS")
+            # (#49) gen #38, ROUTES #440 / #441 (red team 35; MEASURED PROVED on f1c249c4e under
+            # `#@ no_exception \all`, CPython AttributeError / TypeError / ValueError). Route
+            # #161 (functions.py) admits a method call `R.m(..)` by the NAME m -- its whitelist,
+            # or ANY function / method of the file with that tail name -- whatever R's class,
+            # and a builtin call by its name whatever its arity and argument classes; the call
+            # then lowers to an opaque `val` with no `raises`, so nothing is owed. Measured:
+            # `class Buffer: def rindex(..)` admitted `path.rindex(".")` (ValueError), `n: int;
+            # n.upper()` (AttributeError), `len(n)`, `len(s, s)`, `int(n, 10)`, `s.strip(t)` with
+            # `t: Union[str, int]` (TypeError). RULE (allow-list, refuse by default), in a
+            # function that is neither `\trusted` nor `\abstract` and claims `no_exception`:
+            # ONE SIGNATURE TABLE, keyed by builtin function name (`_FT440`, the 36 of #161's
+            # list) and by (receiver class, method) (`_MT440`, #161's 39 method names on the
+            # builtin classes that have them). A row = (min positional, max positional or
+            # None, keyword -> class code ("*": any keyword), class code per position (the last
+            # one repeats), the obligation rows that still speak for its value-dependent
+            # exceptions). A call is ADMITTED iff
+            #   `f(..)` (an unshadowed builtin): it matches f's row, every constrained
+            #     argument's classes DERIVED (`_ty383` / `_ei383`) and accepted by its code;
+            #   `R.m(..)`: every class R may have here (`_ty383`, refined by #432's guards when
+            #     they decided it) is (i) a file class whose file MRO DEFINES m (a method, a
+            #     class-body binding or a field), or whose non-file builtin base has a row for
+            #     m that the call matches, or (ii) a builtin class with a row (class, m) that the
+            #     call matches; `str.m(s, ..)` (an unbound builtin method) is the row of `str`
+            #     with `s` derived `str`. A file name collision never admits a builtin method.
+            #     `None` is #432's; a receiver rooted at an import or `super()` is #161's (by
+            #     full name); an underivable / `Any` / `object` receiver is NOT judged for a
+            #     method name with a builtin row (#443's residual) and is REFUSED for a name
+            #     only the file defines (a file method admits only on its own class).
+            # A refusal needs the claim to cover what CPython raises: AttributeError (no such
+            # method), TypeError (arity, keyword or argument class), and ANY claim for a
+            # builtin method without a row (`rindex`, `partition`, `format`, `to_bytes`,
+            # `fromhex` ...: its exceptions are unmodelled, as #161 refuses an unlisted callee).
+            _xc440 = set(_cx432) if _ok432 else set()
+            _ae440 = bool(_xc440 & {"\\all", "AttributeError", "Exception", "BaseException"})
+            _te440 = bool(_xc440 & {"\\all", "TypeError", "Exception", "BaseException"})
+            _NU440 = {"int", "bool", "float"}
+            _IN440 = {"int", "bool"}
+            _BY440 = {"bytes", "bytearray"}
+            _IR440 = {"str", "bytes", "bytearray", "list", "Sequence", "tuple", "dict",
+                      "Mapping", "set", "frozenset", "deque", "keys", "values", "items", "iter",
+                      "Collection", "range"}
+            _KS440 = {"N": _NU440, "NC": _NU440 | {"complex"}, "I": _IN440,
+                      "IN": _IN440 | {"None"}, "S": {"str"}, "SN": {"str", "None"},
+                      "B": _BY440, "BN": _BY440 | {"None"}, "BI": _BY440 | _IN440,
+                      "SB": _BY440 | {"str"}, "NS": _NU440 | {"str"},
+                      "NSB": _NU440 | _BY440 | {"str"}, "IT": _IR440,
+                      "SZ": _IR440 - {"iter"},
+                      "SQ": {"str", "bytes", "bytearray", "list", "Sequence", "tuple", "range",
+                             "deque", "dict", "keys", "values", "items"}}
+            # class heads of `_ty383` type expressions -> receiver / argument class keys
+            _CN440 = {"str": "str", "bytes": "bytes", "bytearray": "bytearray", "int": "int",
+                      "bool": "bool", "float": "float", "complex": "complex", "List": "list",
+                      "list": "list", "#list": "list", "Sequence": "Sequence",
+                      "Tuple": "tuple", "tuple": "tuple", "#tuple": "tuple", "Dict": "dict",
+                      "dict": "dict", "#dict": "dict", "DefaultDict": "dict",
+                      "defaultdict": "dict", "OrderedDict": "dict", "Counter": "dict",
+                      "Mapping": "Mapping", "MutableMapping": "Mapping", "Set": "set",
+                      "set": "set", "#set": "set", "MutableSet": "set", "FrozenSet": "frozenset",
+                      "frozenset": "frozenset", "AbstractSet": "frozenset", "Deque": "deque",
+                      "deque": "deque", "#keys": "keys", "KeysView": "keys", "#values": "values",
+                      "ValuesView": "values", "#items": "items", "ItemsView": "items",
+                      "#iter": "iter", "Iterator": "iter", "Iterable": "iter",
+                      "Generator": "iter", "Collection": "Collection", "range": "range",
+                      "None": "None", "NoneType": "None", "Callable": "callable",
+                      "TypedDict": "dict", "NamedTuple": "tuple",
+                      "#H": "callable"}
+            _FT440 = {
+                "len": (1, 1, {}, ("SZ",), ""),
+                "abs": (1, 1, {}, ("NC",), ""),
+                "bool": (0, 1, {}, ("*",), ""),
+                "str": (0, 1, {}, ("*",), "#281 (a 4300-digit int)"),
+                "repr": (1, 1, {}, ("*",), "#281"),
+                "sorted": (1, 1, {"key": "FNN", "reverse": "*"}, ("IT",), "#437 (orderability)"),
+                "reversed": (1, 1, {}, ("SQ",), ""),
+                "list": (0, 1, {}, ("IT",), ""),
+                "tuple": (0, 1, {}, ("IT",), ""),
+                "set": (0, 1, {}, ("IT",), "#349 / #438 (element hashing)"),
+                "frozenset": (0, 1, {}, ("IT",), "#349 / #438 (element hashing)"),
+                "dict": (0, 1, {"*": "*"}, ("MP",), "#349 (key hashing)"),
+                "enumerate": (1, 2, {"start": "I"}, ("IT", "I"), ""),
+                "zip": (0, None, {"strict": "*"}, ("IT",), "zip(strict=) (refused)"),
+                "range": (1, 3, {}, ("I", "I", "I"), "#160 (zero step), #436 (length)"),
+                "min": (1, None, {"key": "FNN", "default": "*"}, ("M",),
+                        "#160 (empty), #437 (orderability)"),
+                "max": (1, None, {"key": "FNN", "default": "*"}, ("M",),
+                        "#160 (empty), #437 (orderability)"),
+                "sum": (1, 2, {"start": "N"}, ("NI", "N"), ""),
+                "any": (1, 1, {}, ("IT",), ""),
+                "all": (1, 1, {}, ("IT",), ""),
+                "isinstance": (2, 2, {}, ("*", "CL"), "#432 / #442 (narrowing)"),
+                "chr": (1, 1, {}, ("I",), "chr range (wired)"),
+                "ord": (1, 1, {}, ("SB",), "#434 (length)"),
+                "int": (0, 2, {"base": "I"}, ("NSB", "I"), "#66 / #163 (non-numeric str)"),
+                "float": (0, 1, {}, ("NS",), "#66 / #68 (non-numeric str)"),
+                "print": (0, None, {"sep": "SN", "end": "SN", "file": "*", "flush": "*"},
+                          ("*",), "#281"),
+                "hash": (1, 1, {}, ("*",), "#349 / #438 / #439 (hashing)"),
+                "id": (1, 1, {}, ("*",), ""),
+                "type": (1, 1, {}, ("*",), ""),
+                "iter": (1, 1, {}, ("IT",), ""),
+                "map": (2, None, {}, ("FN", "IT"), "#434 (map(ord, ..))"),
+                "filter": (2, 2, {}, ("FNN", "IT"), ""),
+                "round": (1, 2, {"ndigits": "IN"}, ("N", "IN"), ""),
+                "bytearray": (0, 1, {}, ("II",), "bytes(n) (negative / huge refused)"),
+                "bytes": (0, 1, {}, ("II",), "bytes(n) (negative / huge refused)"),
+                "pow": (2, 3, {}, ("N", "N", "I"), "#160 / #259 (exponent, modulus)")}
+            _MT440 = {}
+            for _k440 in ("str", "bytes", "bytearray"):
+                _sb440 = "S" if _k440 == "str" else "B"
+                for _m440 in ("strip", "lstrip", "rstrip"):
+                    _MT440[(_k440, _m440)] = (0, 1, {}, (_sb440 + "N",), "")
+                for _m440 in ("lower", "upper", "isdigit", "isalpha", "isalnum", "isspace"):
+                    _MT440[(_k440, _m440)] = (0, 0, {}, (), "")
+                for _m440 in ("startswith", "endswith"):
+                    _MT440[(_k440, _m440)] = (1, 3, {}, (_sb440 + "T", "IN", "IN"), "")
+                for _m440 in ("find", "rfind", "count"):
+                    _MT440[(_k440, _m440)] = (1, 3, {}, ("S" if _k440 == "str" else "BI", "IN",
+                                                         "IN"), "")
+                _MT440[(_k440, "replace")] = (2, 3, {"count": "I"}, (_sb440, _sb440, "I"), "")
+                _MT440[(_k440, "join")] = (1, 1, {}, ("IT",), "#433 (element class)")
+                _MT440[(_k440, "split")] = (0, 2, {"sep": _sb440 + "N", "maxsplit": "I"},
+                                            (_sb440 + "N", "I"), "#72 (empty separator), "
+                                            "#436 (maxsplit)")
+            for _m440 in ("copy", "clear", "reverse"):
+                _MT440[("bytearray", _m440)] = (0, 0, {}, (), "")
+            for _k440 in ("int", "bool"):
+                _MT440[(_k440, "bit_length")] = (0, 0, {}, (), "")
+            for _k440 in ("list", "deque"):
+                _MT440[(_k440, "append")] = (1, 1, {}, ("*",), "")
+                _MT440[(_k440, "extend")] = (1, 1, {}, ("IT",), "")
+                _MT440[(_k440, "count")] = (1, 1, {}, ("*",), "")
+                for _m440 in ("copy", "clear", "reverse"):
+                    _MT440[(_k440, _m440)] = (0, 0, {}, (), "")
+            _MT440[("list", "insert")] = (2, 2, {}, ("I", "*"), "")
+            _MT440[("list", "sort")] = (0, 0, {"key": "FNN", "reverse": "*"}, (),
+                                        "#437 (orderability)")
+            _MT440[("tuple", "count")] = (1, 1, {}, ("*",), "")
+            _MT440[("Sequence", "count")] = (1, 1, {}, ("*",), "")
+            for _k440 in ("dict", "Mapping"):
+                _MT440[(_k440, "get")] = (1, 2, {}, ("*", "*"), "#349 (key hashing)")
+                for _m440 in ("keys", "values", "items"):
+                    _MT440[(_k440, _m440)] = (0, 0, {}, (), "")
+            for _m440 in ("copy", "clear"):
+                _MT440[("dict", _m440)] = (0, 0, {}, (), "")
+            _MT440[("dict", "setdefault")] = (1, 2, {}, ("*", "*"), "#349 (key hashing)")
+            _MT440[("dict", "update")] = (0, 1, {"*": "*"}, ("MP",), "#349 (key hashing)")
+            for _k440 in ("set", "frozenset"):
+                for _m440 in ("union", "intersection", "difference"):
+                    _MT440[(_k440, _m440)] = (0, None, {}, ("IT",), "#349 (element hashing)")
+                for _m440 in ("issubset", "issuperset"):
+                    _MT440[(_k440, _m440)] = (1, 1, {}, ("IT",), "#349 (element hashing)")
+                _MT440[(_k440, "copy")] = (0, 0, {}, (), "")
+            for _m440 in ("add", "discard"):
+                _MT440[("set", _m440)] = (1, 1, {}, ("*",), "#349 (element hashing)")
+            _MT440[("set", "clear")] = (0, 0, {}, (), "")
+            _MT440[("set", "update")] = (0, None, {}, ("IT",), "#349 (element hashing)")
+            _BM440 = {_m for (_k, _m) in _MT440}
+            _PY440 = {"str": str, "bytes": bytes, "bytearray": bytearray, "int": int,
+                      "bool": bool, "float": float, "complex": complex, "list": list,
+                      "tuple": tuple, "dict": dict, "set": set, "frozenset": frozenset,
+                      "range": range, "None": type(None), "keys": type({}.keys()),
+                      "values": type({}.values()), "items": type({}.items())}
+            # every name a file class or the module binds as a function (the A1 collisions)
+            _fm440 = set(_mf383) | {_m for _v in _me383.values() for _m in _v}
+            # the result class of an admitted call whose row decides it ("=": the receiver's)
+            _RF440 = {"len": "int", "hash": "int", "id": "int", "ord": "int", "int": "int",
+                      "str": "str", "repr": "str", "chr": "str", "bool": "bool",
+                      "isinstance": "bool", "any": "bool", "all": "bool", "sorted": "list",
+                      "list": "list", "tuple": "tuple", "set": "set", "frozenset": "frozenset",
+                      "dict": "dict", "reversed": "iter", "enumerate": "iter", "zip": "iter",
+                      "iter": "iter", "map": "iter", "filter": "iter", "range": "range",
+                      "float": "float", "bytes": "bytes", "bytearray": "bytearray",
+                      "print": "None"}
+            _RM440 = {"strip": "=", "lstrip": "=", "rstrip": "=", "lower": "=", "upper": "=",
+                      "replace": "=", "join": "=", "copy": "=", "union": "=",
+                      "intersection": "=", "difference": "=", "isdigit": "bool",
+                      "isalpha": "bool", "isalnum": "bool", "isspace": "bool",
+                      "startswith": "bool", "endswith": "bool", "issubset": "bool",
+                      "issuperset": "bool", "find": "int", "rfind": "int", "count": "int",
+                      "bit_length": "int", "split": "list", "keys": "keys",
+                      "values": "values", "items": "items"}
+            _rs440 = {}
+            # an `assert`'s message is evaluated only when the assertion fails (route #332)
+            _am440 = {id(_z) for _y in _ast341.walk(_f346)
+                      if isinstance(_y, _ast341.Assert) and _y.msg is not None
+                      for _z in _ast341.walk(_y.msg)}
+            for _n440 in (_po383 if _xc440 else ()):
+                if (not isinstance(_n440, _ast341.Call) or id(_n440) in _anx365
+                        or id(_n440) in _am440):
+                    continue
+                _fu440 = _n440.func
+                _rk440 = None
+                _ow440 = _ast341.unparse(_fu440)
+                _ag440 = list(_n440.args)
+                _ub440 = None
+                if isinstance(_fu440, _ast341.Name):
+                    if (_fu440.id not in _FT440 or _fu440.id in _lb383
+                            or _fu440.id in _ln394 or _fu440.id in _gv394
+                            or _fu440.id in _mf383 or _fu440.id in _cls341
+                            or _fu440.id in (_bound341 | _imp341)):
+                        continue
+                    _rk440 = [("#f", [])]
+                elif isinstance(_fu440, _ast341.Attribute):
+                    _rv440 = _fu440.value
+                    _rt440 = _rv440
+                    while isinstance(_rt440, _ast341.Attribute):
+                        _rt440 = _rt440.value
+                    if (isinstance(_rt440, _ast341.Name) and _rt440.id in _imp341
+                            and _rt440.id not in _ln394 and _rt440.id not in _lb383
+                            and _rt440.id not in _cls341):
+                        # a module function `m.f(..)` is #161's by its FULL name; a file
+                        # function / method named `f` does not speak for it (A1 through a
+                        # module receiver: `math.factorial(n)` beside a file `factorial`)
+                        _dq440 = _ast341.unparse(_fu440)
+                        if (_fu440.attr in _fm440 and _dq440 not in _ct430
+                                and _dq440.replace(".", "__") not in _ct430):
+                            _rk440 = [("#M", [])]
+                        else:
+                            continue
+                    if (isinstance(_rv440, _ast341.Call) and isinstance(_rv440.func,
+                                                                        _ast341.Name)
+                            and _rv440.func.id == "super"):
+                        continue
+                    if _rk440 is not None:
+                        pass
+                    elif (isinstance(_rv440, _ast341.Name) and _rv440.id in _PY440
+                            and isinstance(getattr(_bi369, _rv440.id, None), type)
+                            and _rv440.id not in _lb383 and _rv440.id not in _ln394
+                            and _rv440.id not in _gv394 and _rv440.id not in _cls341
+                            and _rv440.id not in (_bound341 | _imp341)):
+                        # an unbound builtin method `str.m(s, ..)`: the row of `str`, `s` the
+                        # receiver (it must be derived as exactly that class)
+                        _ub440 = _rv440.id
+                        _rk440 = [(_rv440.id, [])]
+                    elif (isinstance(_rv440, _ast341.Name) and _rv440.id in _cls341
+                          and _rv440.id not in _lb383 and _rv440.id not in _ln394):
+                        # a file CLASS object: `C.m(..)` must name a binding of C's file MRO
+                        _df440 = False
+                        _xb440 = False
+                        for _a440 in (_mro363.get(_rv440.id) or _clo346.get(_rv440.id, [])):
+                            if _a440 in _cls341:
+                                _df440 = _df440 or _fu440.attr in _cb383.get(_a440, set())
+                            elif _a440 not in ("object", "Generic", "Protocol", "ABC"):
+                                _xb440 = True
+                        if _df440:
+                            continue
+                        _rk440 = [("#X" if _xb440 else "#A", [])]
+                    else:
+                        _rk440 = None
+                else:
+                    continue
+                # the classes of the receiver / arguments / their elements / tuple components
+                _sl440 = []
+                if _rk440 is None:
+                    _sl440.append(("r", _fu440.value, _ty383))
+                for _i440, _c440 in enumerate(_ag440):
+                    if isinstance(_c440, _ast341.Starred):
+                        continue
+                    _sl440.append((_i440, _c440, _ty383))
+                    _sl440.append((("e", _i440), _c440, _ei383))
+                for _kw440 in _n440.keywords:
+                    if _kw440.arg is not None:
+                        _sl440.append((("k", _kw440.arg), _kw440.value, _ty383))
+                        _sl440.append((("ke", _kw440.arg), _kw440.value, _ei383))
+                _cz440 = {}
+                _wq440 = []
+                for _s440, _x440, _tb440 in _sl440:
+                    _cz440.setdefault(_s440, [])
+                    _tl440 = _tb440.get(id(_x440)) or [_U383]
+                    if (_tb440 is _ty383 and id(_x440) in _rs440 and any(
+                            _t is _U383 or _t is _K394 for _t in _tl440)):
+                        # an admitted builtin call whose row gives its result class
+                        _cz440[_s440] += [(_k, []) for _k in _rs440[id(_x440)]]
+                    else:
+                        _wq440 += [(_s440, _t) for _t in _tl440]
+                _g440 = 0
+                while _wq440 and _g440 < 4096:
+                    _g440 += 1
+                    _s440, _x440 = _wq440.pop()
+                    if _x440 is _B383:
+                        continue
+                    if isinstance(_x440, _ast341.Constant) and isinstance(_x440.value, str):
+                        try:
+                            _wq440.append((_s440, _ast341.parse(_x440.value, mode="eval").body))
+                        except (SyntaxError, ValueError):
+                            _cz440.setdefault(_s440, []).append(("?", []))
+                    elif isinstance(_x440, _ast341.Constant) and _x440.value is None:
+                        _cz440.setdefault(_s440, []).append(("None", []))
+                    elif isinstance(_x440, _ast341.Name) and _x440.id in _al383:
+                        _wq440.append((_s440, _al383[_x440.id]))
+                    elif isinstance(_x440, (_ast341.Name, _ast341.Attribute)):
+                        _h440 = _x440.id if isinstance(_x440, _ast341.Name) else _x440.attr
+                        _cz440.setdefault(_s440, []).append((
+                            "C:" + _h440 if _h440 in _cls341 else _CN440.get(_h440, "?"), []))
+                    elif isinstance(_x440, _ast341.BinOp) and isinstance(_x440.op,
+                                                                          _ast341.BitOr):
+                        _wq440 += [(_s440, _x440.left), (_s440, _x440.right)]
+                    elif isinstance(_x440, _ast341.Subscript):
+                        _hv440 = _x440.value
+                        _h440 = (_hv440.id if isinstance(_hv440, _ast341.Name) else
+                                 _hv440.attr if isinstance(_hv440, _ast341.Attribute) else "")
+                        _ar440 = (list(_x440.slice.elts) if isinstance(_x440.slice,
+                                                                         _ast341.Tuple)
+                                  else [_x440.slice])
+                        if _h440 in ("Optional", "Union"):
+                            _wq440 += [(_s440, _e) for _e in _ar440] + (
+                                [(_s440, _ast341.Constant(value=None))]
+                                if _h440 == "Optional" else [])
+                        elif _h440 in ("Annotated", "Final", "ClassVar"):
+                            _wq440 += [(_s440, _e) for _e in _ar440[:1]]
+                        else:
+                            _kk440 = ("C:" + _h440 if _h440 in _cls341
+                                      else _CN440.get(_h440, "?"))
+                            _cz440.setdefault(_s440, []).append((_kk440, _ar440))
+                            if _kk440 == "tuple" and not (isinstance(_s440, tuple)
+                                                          and _s440[0] == "c"):
+                                _cz440.setdefault(("c", _s440), [])
+                                _wq440 += [(("c", _s440), _e) for _e in _ar440
+                                           if not (isinstance(_e, _ast341.Constant)
+                                                   and _e.value is Ellipsis)]
+                    else:
+                        _cz440.setdefault(_s440, []).append(("?", []))
+                if _wq440:
+                    for _s440, _x440 in _wq440:
+                        _cz440.setdefault(_s440, []).append(("?", []))
+                # the receiver's classes, refined by #432's guards when they decided them
+                _rc440 = []
+                _nw440 = None
+                if _rk440 is None:
+                    _rc440 = [_k for _k, _a in _cz440.get("r", [])]
+                    _nw440 = _nr440.get(id(_fu440))
+                    if _nw440 is not None and _nw440[1]:
+                        _rc440 = ["C:" + _c if _c in _cls341 else _CN440.get(_c, "?")
+                                  for _c in _nw440[0]]
+                    _rc440 = [_k for _k in _rc440 if _k != "None"]
+                    if not _rc440:
+                        continue
+                else:
+                    _rc440 = [_k for _k, _a in _rk440]
+                _md440 = _fu440.attr if isinstance(_fu440, _ast341.Attribute) else None
+                _why440 = None
+                for _rr440 in sorted(set(_rc440)):
+                    if _why440 is not None:
+                        break
+                    _row440 = None
+                    _sh440 = 0
+                    if _rr440 == "#f":
+                        _row440 = _FT440[_fu440.id]
+                    elif _rr440 == "#M":
+                        _why440 = ("ANY", f"`{_ow440}` is a function of an imported module, "
+                                   f"not of this file: the file's own `{_md440}` does not "
+                                   f"speak for it")
+                        break
+                    elif _rr440 in ("#X", "#A"):
+                        _why440 = ("AE" if _rr440 == "#A" else "ANY",
+                                   f"`{_ast341.unparse(_fu440.value)}` is a class of this file "
+                                   f"whose file MRO binds no `{_md440}`")
+                        break
+                    elif _rr440 == "?" or _rr440 == "callable":
+                        if _md440 in _BM440:
+                            # (#443 residual) an underivable receiver of a builtin row's name
+                            continue
+                        if _md440 in _fm440:
+                            _why440 = ("ANY", f"the receiver `{_ast341.unparse(_fu440.value)}` "
+                                       f"has an underivable class, and `{_md440}` is admitted "
+                                       f"only on the receivers of the file class that defines "
+                                       f"it")
+                        break
+                    elif _rr440.startswith("C:"):
+                        _cn440 = _rr440[2:]
+                        _df440 = False
+                        _xb440 = []
+                        for _a440 in (_mro363.get(_cn440) or _clo346.get(_cn440, [])):
+                            if _a440 in _cls341:
+                                _df440 = (_df440 or _md440 in _cb383.get(_a440, set())
+                                          or _md440 in _fa372.get(_a440, {})
+                                          or _md440 in _ff372.get(_a440, {}))
+                            elif _a440 not in ("object", "Generic", "Protocol", "ABC"):
+                                _xb440.append(_CN440.get(_a440, "?"))
+                        if _df440 or _md440 in _me383.get(_cn440, {}):
+                            continue
+                        _row440 = None
+                        for _b440 in _xb440:
+                            _row440 = _MT440.get((_b440, _md440))
+                            if _row440 is not None:
+                                break
+                        if _row440 is None:
+                            _why440 = ("ANY" if _xb440 else "AE",
+                                       f"`{_ast341.unparse(_fu440.value)}` may be an instance "
+                                       f"of the file class `{_cn440}`, whose file MRO defines "
+                                       f"no `{_md440}`"
+                                       + (f" (its non-file bases {sorted(set(_xb440))} have no "
+                                          f"row for it)" if _xb440 else ""))
+                            break
+                    else:
+                        _row440 = _MT440.get((_rr440, _md440))
+                        if _row440 is None:
+                            _py440 = _PY440.get(_rr440)
+                            _hs440 = _py440 is not None and hasattr(_py440, _md440)
+                            _why440 = ("ANY" if _hs440 or _py440 is None else "AE",
+                                       f"`{_ast341.unparse(_fu440.value)}` may be of class "
+                                       f"`{_rr440}`, "
+                                       + (f"whose `{_md440}` has no row in the signature table "
+                                          f"(its exceptions are not modelled)" if _hs440 else
+                                          f"which has no row for `{_md440}`" if _py440 is None
+                                          else f"which has no attribute `{_md440}`"))
+                            break
+                        if _ub440 is not None:
+                            _sh440 = 1
+                            _u0440 = [_k for _k, _a in _cz440.get(0, [("?", [])])]
+                            if not _ag440 or isinstance(_ag440[0], _ast341.Starred) or set(
+                                    _u0440) != {_ub440}:
+                                _why440 = ("TE", f"the unbound `{_ow440}` needs a first "
+                                           f"argument derived of class exactly `{_ub440}`")
+                                break
+                    # the row: arity, keywords, argument classes
+                    _mn440, _mx440, _kd440, _cd440, _ob440 = _row440
+                    _ps440 = _ag440[_sh440:]
+                    if any(isinstance(_c, _ast341.Starred) for _c in _ps440):
+                        if _mx440 is None and set(_cd440) <= {"*"} and not any(
+                                _k.arg is None for _k in _n440.keywords):
+                            continue
+                        _why440 = ("TE", "a `*` argument has no static arity")
+                        break
+                    if len(_ps440) < _mn440 or (_mx440 is not None and len(_ps440) > _mx440):
+                        _why440 = ("TE", f"it takes {_mn440}"
+                                   + ("" if _mx440 == _mn440 else
+                                      " or more" if _mx440 is None else f" to {_mx440}")
+                                   + f" positional argument(s), not {len(_ps440)}")
+                        break
+                    _ck440 = []
+                    for _i440 in range(len(_ps440)):
+                        _ck440.append((_i440 + _sh440, _cd440[min(_i440, len(_cd440) - 1)],
+                                       _ps440[_i440], f"argument {_i440 + 1}"))
+                    for _kw440 in _n440.keywords:
+                        if _kw440.arg is None:
+                            _why440 = ("TE", "a `**` argument has unknown keywords")
+                            break
+                        if _kw440.arg in _kd440:
+                            _ck440.append((("k", _kw440.arg), _kd440[_kw440.arg], _kw440.value,
+                                           f"keyword `{_kw440.arg}`"))
+                        elif "*" not in _kd440:
+                            _why440 = ("TE", f"it takes no keyword `{_kw440.arg}`")
+                            break
+                    if _why440 is not None:
+                        break
+                    if _rr440 == "#f" and _fu440.id == "int" and (
+                            len(_ps440) == 2 or any(_k.arg == "base" for _k in _n440.keywords)):
+                        _ck440 = [(_s, ("SB" if _s == 0 else _c), _v, _d)
+                                  for _s, _c, _v, _d in _ck440]
+                    for _s440, _c440, _v440, _d440 in _ck440:
+                        _ks440 = [_k for _k, _a in _cz440.get(_s440, [("?", [])])] or ["?"]
+                        _es440 = [_k for _k, _a in _cz440.get(
+                            ("e", _s440) if not isinstance(_s440, tuple)
+                            else ("ke", _s440[1]), [("?", [])])] or ["?"]
+                        if _c440 == "M":
+                            _c440 = "IT" if len(_ps440) == 1 else "*"
+                        if _c440 == "*":
+                            continue
+                        _bd440 = None
+                        if _c440 == "CL":
+                            _q440 = [_v440]
+                            while _q440 and _bd440 is None:
+                                _y440 = _q440.pop()
+                                if isinstance(_y440, _ast341.Tuple):
+                                    _q440 += list(_y440.elts)
+                                elif isinstance(_y440, _ast341.BinOp) and isinstance(
+                                        _y440.op, _ast341.BitOr):
+                                    _q440 += [_y440.left, _y440.right]
+                                elif isinstance(_y440, _ast341.Constant) and _y440.value is None:
+                                    pass
+                                elif isinstance(_y440, _ast341.Name) and (
+                                        _y440.id not in _lb383 and _y440.id not in _ln394) and (
+                                        _y440.id in _cls341 or _y440.id in _imp341
+                                        or (isinstance(getattr(_bi369, _y440.id, None), type)
+                                            and _y440.id not in _bound341)):
+                                    pass
+                                elif isinstance(_y440, _ast341.Attribute):
+                                    _z440 = _y440
+                                    while isinstance(_z440, _ast341.Attribute):
+                                        _z440 = _z440.value
+                                    if not (isinstance(_z440, _ast341.Name)
+                                            and _z440.id in _imp341
+                                            and _z440.id not in _lb383
+                                            and _z440.id not in _ln394):
+                                        _bd440 = "a value that is not a class or a tuple of classes"
+                                else:
+                                    _bd440 = "a value that is not a class or a tuple of classes"
+                        elif _c440 in ("FN", "FNN"):
+                            _y440 = _v440
+                            if isinstance(_y440, _ast341.Lambda):
+                                pass
+                            elif (isinstance(_y440, _ast341.Constant) and _y440.value is None
+                                  and _c440 == "FNN"):
+                                pass
+                            elif isinstance(_y440, _ast341.Name) and (
+                                    _y440.id not in _lb383 and _y440.id not in _ln394) and (
+                                    _y440.id in _mf383 or _y440.id in _cls341
+                                    or _y440.id in _imp341
+                                    or (callable(getattr(_bi369, _y440.id, None))
+                                        and _y440.id not in _bound341)):
+                                pass
+                            elif isinstance(_y440, _ast341.Attribute):
+                                pass
+                            elif set(_ks440) <= {"callable"}:
+                                pass
+                            else:
+                                _bd440 = "a value not derived callable"
+                        elif _c440 in ("ST", "BT"):
+                            _ok440 = {"str"} if _c440 == "ST" else _BY440
+                            for _k440 in _ks440:
+                                if _k440 in _ok440:
+                                    continue
+                                _cp440 = [_k for _k, _a in _cz440.get(("c", _s440), [])]
+                                if not (_k440 == "tuple" and _cp440
+                                        and set(_cp440) <= _ok440):
+                                    _bd440 = ("an underivable value" if _k440 == "?" else
+                                              "of class `%s`" % _k440 + (
+                                                  " with a component not derived %s"
+                                                  % " / ".join(sorted(_ok440))
+                                                  if _k440 == "tuple" else ""))
+                                    break
+                        else:
+                            _ok440 = _KS440.get(_c440, set())
+                            for _k440 in _ks440:
+                                _fl440 = (_me383.get(_k440[2:], {})
+                                          if _k440.startswith("C:") else None)
+                                if _k440 in _ok440:
+                                    pass
+                                elif _fl440 is not None and _c440 == "IT" and (
+                                        "__iter__" in _fl440 or "__getitem__" in _fl440):
+                                    pass
+                                elif _fl440 is not None and _c440 == "SZ" and "__len__" in _fl440:
+                                    pass
+                                elif _fl440 is not None and _c440 == "SQ" and (
+                                        "__reversed__" in _fl440 or "__len__" in _fl440
+                                        and "__getitem__" in _fl440):
+                                    pass
+                                elif _c440 in ("MP", "NI", "II") and (
+                                        _k440 in _IR440 or _fl440 is not None and (
+                                            "__iter__" in _fl440 or "__getitem__" in _fl440)):
+                                    if _c440 == "MP" and _k440 in ("dict", "Mapping"):
+                                        continue
+                                    if _c440 == "II" and _k440 in _BY440:
+                                        continue
+                                    if _c440 == "MP":
+                                        _ep440 = [(_k, _a) for _k, _a in _cz440.get(
+                                            ("e", _s440) if not isinstance(_s440, tuple)
+                                            else ("ke", _s440[1]), [("?", [])])]
+                                        if not _ep440 or not all(
+                                                _k == "tuple" and len(_a) == 2 and not any(
+                                                    isinstance(_e, _ast341.Constant)
+                                                    and _e.value is Ellipsis for _e in _a)
+                                                for _k, _a in _ep440):
+                                            _bd440 = "an iterable not derived of pairs"
+                                            break
+                                    elif not set(_es440) <= (_NU440 if _c440 == "NI"
+                                                            else _IN440):
+                                        _bd440 = ("an iterable whose elements are not "
+                                                  "derived " + ("numbers" if _c440 == "NI"
+                                                                else "`int`"))
+                                        break
+                                elif _c440 == "II" and _k440 in _IN440:
+                                    pass
+                                else:
+                                    _bd440 = ("an underivable value" if _k440 == "?"
+                                              else "of class `%s`" % (
+                                                  _k440[2:] if _k440.startswith("C:")
+                                                  else _k440))
+                                    break
+                        if _bd440 is not None:
+                            _why440 = ("TE", f"its {_d440} `{_ast341.unparse(_v440)}` may be "
+                                       f"{_bd440}, outside the row's `{_c440}` class(es)")
+                            break
+                    if _why440 is not None:
+                        break
+                if _why440 is None:
+                    _rz440 = set()
+                    for _rr440 in set(_rc440):
+                        _rq440 = (_RF440.get(_fu440.id) if _rr440 == "#f"
+                                  else _RM440.get(_md440) if _rr440 in _KS440["IT"] | {
+                                      "int", "bool"} else None)
+                        _rz440.add(_rr440 if _rq440 == "=" else _rq440)
+                    if None not in _rz440 and _rz440:
+                        _rs440[id(_n440)] = sorted(_rz440)
+                    continue
+                _ex440, _tx440 = _why440
+                if ((_ex440 == "AE" and not _ae440) or (_ex440 == "TE" and not _te440)):
+                    continue
+                if _ex440 == "TE":
+                    raise _PyCSLSemErr341(
+                        f"'{_f346.name}' line {getattr(_n440, 'lineno', 0)}: the call "
+                        f"`{_ast341.unparse(_n440)}` does not match the signature row of "
+                        f"`{_ow440}`: {_tx440}. CPython raises TypeError there, while this "
+                        f"function claims `#@ no_exception` covering TypeError and the call "
+                        f"lowers to an opaque value with no `raises` (route #441; measured: "
+                        f"`n: int; len(n)`, `len(s, s)` and `int(n, 10)` under "
+                        f"`#@ no_exception \\all` proved). Admitted: a builtin call whose "
+                        f"arity, keywords and argument classes match its row in the signature "
+                        f"table, each constrained argument DERIVED (a parameter, field or "
+                        f"element annotated with that class, a literal, an operator result). "
+                        f"Pass arguments declared with the accepted class, or drop the claim.",
+                        stage="ir-semantic", code="PYCSL-R441-BUILTIN-SIGNATURE")
+                raise _PyCSLSemErr341(
+                    f"'{_f346.name}' line {getattr(_n440, 'lineno', 0)}: the method call "
+                    f"`{_ast341.unparse(_n440)}` is not admitted: {_tx440}. "
+                    + ("CPython raises AttributeError there" if _ex440 == "AE" else
+                       "Its exceptions are not modelled")
+                    + f", while this function claims `#@ no_exception` and the call lowers to "
+                    f"an opaque value with no `raises` (route #440; measured: a file class's "
+                    f"`def rindex` admitted `path.rindex(\".\")` -- ValueError -- and `n: int; "
+                    f"n.upper()` -- AttributeError -- under `#@ no_exception \\all`). Admitted: "
+                    f"a method of a file class on a receiver DERIVED as that class, or a builtin "
+                    f"method with a row in the signature table (`str.strip` / `find` / `split` "
+                    f"..., `list.append` ..., `dict.get` ..., `set.add` ..., `int.bit_length`) "
+                    f"on a receiver derived as that builtin. Declare the receiver's class, give "
+                    f"the operation a contract (a file function with `#@ raises`), or drop the "
+                    f"claim.",
+                    stage="ir-semantic", code="PYCSL-R440-METHOD-NOT-ADMITTED")
         # ROUTE #361 — `InitVar` / `KW_ONLY` PSEUDO-FIELDS WERE MODELLED AS STORED FIELDS.
         # `k: InitVar[int]` and `_: KW_ONLY` joined the record and #347's synthesized
         # field set (ClassVar was excluded), so `d.k` / `d._` read under `no_exception`
