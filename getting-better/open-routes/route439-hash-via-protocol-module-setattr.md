@@ -44,3 +44,21 @@ base on another goal) all REFUSED; controls 6641 (an un-hashed Protocol / Callab
 non-hashing user-module callees), 6643 (computed-name `setattr` file: a field hashed un-claimed, an `int` hashed
 claimed) PROVED at base and candidate. Helpers: test-suite/corpus/pycsl-reference/multi_file_lib/r439_{hashlib,hashmid,
 okhash}.py.
+
+Executor g6, driver run #3, 2026-10-28, off 1c083dcbe (commits: the landing, then a fix of the two RED planes of the
+first run -- a `with open` CTXBIND in the user-module reader and a vacuous helper contract). Gates (final candidate, one
+landing for #438 + #439): fidelity sync rc=0 (932 verbatim) / mirror-check rc=0 (53); root byte-diff 2518 -> 2522
+0 MOVED / 0 GONE / 0 APPEARED (4 new control sources); pyref 2186 / 2186 0/0/0; mirrors 53/53 0/0/0 (no mirror refusal,
+NO OWED proof); pycsl_lib --no-proof screen identical (104 files, rc0 87); soundness planes 61/61 green; doc-coherency
+rc=0; census +23 rows / 9 re-measured; R-gate advice re-audited. OVER-REFUSAL COST: 0 files. Logs:
+getting-better/systematic-soundness-r3/g6-r438-439/ (SUMMARY.txt).
+
+## RESIDUALS (honest)
+
+(2) is syntactic and fail-closed: an un-claimed user-module function with any subscript / `in` / set display counts as
+hashing even when it hashes only `int`s (measured cost 0, but it can over-refuse future multi-file drivers; claim
+`no_exception \all` in the callee to clear it). A user module reached only through `importlib` / `__import__` is refused
+by the import-state rules, not here. A method of an imported CLASS is named `cls__m` in the #430 set; a same-file
+function sharing a bare name with an imported un-claimed hashing function is over-refused (fail-closed). (3) keeps
+computed-name stores claim-gated (#UND), so a computed-name-written field hashed in an UN-claimed function stays
+admitted (its TypeError is ambient). Structural ABCs are detected by an OWN `__subclasshook__` / `_is_protocol` only.

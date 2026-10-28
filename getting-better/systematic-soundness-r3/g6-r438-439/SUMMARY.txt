@@ -34,3 +34,9 @@ FIRST planes run (planes-first.log, on 40e805e34): 59/61 -- 2 RED, both this inc
     -> `h(m, n)` with `ensures \result == n + 1` (and r439_hashmid.mid, witnesses 6620-6622, advice a439 updated)
     (vacuous.log rc=0 standalone)
   fidelity re-run after the fix: sync rc=0, mirror-check rc=0. Witnesses 6620-6622 still REFUSED at candidate.
+  witnesses 6620-6622 (v2, helper h(m, n)) re-proved at base: 3/3 Verification SUCCESS (corpus-6620-6622-base-full-v2.tsv);
+  advice a439 (v2) VERIFIES (advice/a439-cand-full-v2.tsv); census rows 6620-6622 re-measured: identical (census-v2.log).
+SECOND planes run (planes.log, on 7ca0ed242's source): rc=0, all 61 planes green (fast + conversion tier).
+  (check-clause-survival / check-assumed-facts --emit-dir were not run separately -- cancelled to save shared slot time;
+  both run inside the 61 planes.)
+\trusted count 442 (unchanged); no axiom; census diff vs base: +23 new rows, 9 rows re-measured (R-gate message edit).

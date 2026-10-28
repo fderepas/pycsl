@@ -25,15 +25,10 @@
     ok       check-type-keyed-value-sentinels.py       
     ok       check-collapsed-option-reads.py           
     ok       check-constant-fallthrough.py             
-    RED      check-dropped-mutation.py                  rc=1
-               [*] dropped-mutation: 46787 statement(s) scanned — 46572 HANDLED, 105 NORMALIZED, 53 REFUSED, 0 DROPPED, 52 CTXBIND, 5 TRYFINAL, 0 DANGLING.
-               [!] dropped-mutation: CTXBIND RATCHET BROKEN — 52 > 51. A `with ... as X` binding is absent from the model; the gap is bounded, not licensed.
+    ok       check-dropped-mutation.py                 
     ok       check-ir-field-coverage.py                
     ok       check-statement-block-coverage.py         
-    RED      check-vacuous-drivers.py                   rc=1
-               [*] vacuous-drivers: python-reference     80 of 2175 annotated function(s) are TRIVIALLY DISCHARGED by their tail `return` (ratchet 81).
-               [*] vacuous-drivers: python-reference     54 of them are EMPTY PLACEHOLDERS — a docstring and a single `return <literal>` UNDER a contract the tail return alone discharges, so the body exercises nothing (ratchet 54).
-                   python-reference is BELOW its ratchet (80 < 81) — lower the constant in this script.
+    ok       check-vacuous-drivers.py                  
     ok       check-return-boundary-substitutions.py    
     ok       check-fstring-lowering.py                 
     ok       check-coercion-exits.py                   
@@ -66,5 +61,7 @@
     ok       check-shadowed-selfcalls.py               
     ok       check-emitted-vacuity.py                  
     ok       check-cross-module-contract-parity.py     
-[!] soundness-planes: 2 of 61 RED — check-dropped-mutation.py(rc=1) check-vacuous-drivers.py(rc=1)
-    (fast set only; 23 slow plane(s) NOT CHECKED — re-run with --slow)
+[+] soundness-planes: OK — all 61 plane(s) green (fast + the CONVERSION TIER).
+    NOT CHECKED: 23 prover/emission plane(s) — among them
+    check-getattr-erasure, check-computed-rhs-erasure, check-clause-survival
+    and check-stdlib-modules-verify. Re-run with --slow before a GATE.

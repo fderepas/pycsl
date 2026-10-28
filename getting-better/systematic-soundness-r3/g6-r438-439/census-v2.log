@@ -1,0 +1,6 @@
+OLD 6620_r439_usermod_callee_module_import.py	REFUSAL	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element
+NEW 6620_r439_usermod_callee_module_import.py	REFUSAL	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element
+OLD 6621_r439_usermod_callee_from_import.py	REFUSAL	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, 
+NEW 6621_r439_usermod_callee_from_import.py	REFUSAL	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, 
+OLD 6622_r439_usermod_callee_transitive.py	REFUSAL	`mid(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element,
+NEW 6622_r439_usermod_callee_transitive.py	REFUSAL	`mid(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element,
