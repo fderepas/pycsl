@@ -10,3 +10,4 @@ audit_proof mode=prove rc=0 valid_lines=88 nonvalid_lines=0 secs=147
 proof2why3__canonical mode=prove rc=0 valid_lines=179 nonvalid_lines=0 secs=227
 frontend__Module2_Parser mode=prove rc=0 valid_lines=868 nonvalid_lines=0 secs=801
 module6_whyml__stmt_control_flow mode=prove rc=0 valid_lines=14817 nonvalid_lines=0 secs=12205
+module6_whyml__functions mode=prove rc=0 valid_lines=1204 nonvalid_lines=0 secs=3167
