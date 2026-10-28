@@ -4027,6 +4027,24 @@ class PreambleEmissionMixin:
             lines.append("  (* T-transform const-map string guard (result VC-free; ledger 3) *)")
             lines.append("  val pystr_eq (a b: string) : bool")
             lines.append("")
+        # lv2 (`substitute` shape): the read-only `Dict[str, str]` a term transform
+        # threads is an ABSTRACT type; its `get`/`restrict` are uninterpreted `val
+        # function`s emitted with the transform (no axiom, ledger 3).
+        # Recomputed here (this method is not mirrored) rather than stashed on `self` by
+        # the `\trusted` `_scan_preamble_needs`, whose declared frame would not cover it.
+        _sd_spec = getattr(self, "_term_adt_spec", None)
+        _sd_need = False
+        if _sd_spec:
+            from module6_whyml.generic_fold import recognize_term_isinstance_transform as _rtt
+            for _sd_f in self.ir.get("functions", []):
+                _sd_d = _rtt(_sd_f, _sd_spec, getattr(self, "_term_const_dicts", {}))
+                if _sd_d is not None and _sd_d.get("strmap"):
+                    _sd_need = True
+                    break
+        if _sd_need:
+            lines.append("  (* term transform: abstract read-only Dict[str, str] carrier *)")
+            lines.append("  type term__strdict")
+            lines.append("")
         # class-variant-impl.md §F4: the DEFINED structural equality over the
         # certified `term` inductive — `a == b` on Term (crosscheck_ir
         # `provers_agree`/`all_agree`) lowers to `term_eq`. TOTAL, mutually

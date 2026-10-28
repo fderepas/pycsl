@@ -3687,6 +3687,19 @@ is a concrete source type or dropping the claim. Witnesses `6750`-`6755` (#442),
 (#443; `6775` / `6777` / `6778` / `6779` -- an alias-of-`Any` parameter, a `for` target over
 `List[Any]`, a direct `Any` / `object` parameter -- were not proved at base either: rule
 witnesses); controls `6780`-`6782` (#442), `6783`, `6785`, `6786` (#443).
+### 7.160 A term transform may thread a read-only `Dict[str, str]` (lv2, run #3)
+
+A Term->Term transform over a frozen-dataclass union (the `isinstance`-dispatch shape of
+§T.6.170, e.g. the mirror's `proof2why3/canonical.py::substitute`) may take a SECOND
+parameter `m: Dict[str, str]` that it only reads: `m.get(t.F, t.F)` on a `str` field,
+recursion `f(t.G, m)` on a sub-term, `tuple(f(a, m) for a in t.L)` on a `tuple` of terms, and a
+local `x = {k: v for k, v in m.items() if k not in t.B}` (a `tuple` of strings `B`) passed to
+a recursive call. The dict is an ABSTRACT value: `get` and the filtering comprehension are
+uninterpreted DETERMINISTIC functions of their inputs, so nothing about WHICH entries a lookup
+or a restriction returns is claimed (an over-approximation, no axiom). As for every term
+recognizer, it fires only when the function claims nothing (no `requires` / `ensures` other
+than `True`, no raises / `no_exception`); a claim declines to the generic lowering. Witness
+`6800` (PROVES); `6801` (the same function with `#@ ensures False`, must NOT prove).
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 

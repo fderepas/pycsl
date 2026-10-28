@@ -34851,6 +34851,10 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
                                          const_dicts: Dict[str, Any]
                                          ) -> Optional[Dict[str, Any]]:
     params = func.get("formal_params", [])
+    if len(params) == 2:
+        # lv2 (`substitute` shape): a transform threading a read-only `Dict[str, str]`
+        # second parameter. Separate fail-closed path (see its docstring).
+        return _recognize_term_transform_strmap(func, spec)
     if len(params) != 1:
         return None
     subj = params[0]
@@ -34960,6 +34964,301 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
     if bguards:
         _d["size_mode"] = True
     return _d
+
+
+def _recognize_term_transform_strmap(func: Dict[str, Any],
+                                     spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """lv2 (`canonical.substitute` shape): a Term->Term transform over the `term`
+    variant that THREADS a second, read-only `Dict[str, str]` parameter `m`:
+
+        if isinstance(t, C...):  [x = {k: v for k, v in m.items() if k not in t.L}]
+                                 [kind = A if isinstance(t, A) else B]
+                                 return Ctor(...) | return kind(...) | return t
+        ...
+        raise ...                (trailing, unreachable: totality over the ctor set)
+
+    Field builders: `t.F` (copy), `self(t.F, m|x)` on a `term` field, `tuple(self(e, m)
+    for e in t.F)` on a `list term` field, `m.get(t.F, t.F)` on a `string` field.
+
+    The dict is an ABSTRACT WhyML type `{n}__dict` with two UNINTERPRETED pure functions
+    (`val function`, no axiom): `{n}__get m k d` for `m.get(k, d)` and `{n}__restrict m L`
+    for the filtering comprehension. Both are deterministic functions of their inputs
+    (the body never mutates `m`), so every interpretation of the Python dict is a model:
+    an over-approximation, never an assumption. In particular the IR records the
+    comprehension's `k, v` unpacking target only as `_comp_var`; the restrict symbol
+    claims nothing about WHICH entries survive, so the binding order is immaterial to
+    soundness (the faithful content is: the result depends only on `m` and `t.L`). The
+    value is never compared, counted or used as an int (R325 does not arise). None when
+    the function is not exactly this shape (fail closed)."""
+    params = func.get("formal_params", [])
+    if len(params) != 2:
+        return None
+    subj, mp = params
+    ann = func.get("param_annotations") or {}
+    ra = func.get("return_annotation")
+    if not (ra and ra == ann.get(subj) and ann.get(mp) == "dict"):
+        return None
+    if not ((func.get("dict_key_types") or {}).get(mp) == "string"
+            and (func.get("dict_value_types") or {}).get(mp) == "string"):
+        return None
+    if func.get("param_defaults"):
+        return None
+    body = func.get("body", [])
+    if not (isinstance(body, list) and body):
+        return None
+    name = func.get("name")
+    ctor_set = set(spec["ctors"].keys())
+    arms: Dict[str, Any] = {}
+
+    def _mcall_ok(a: Any, allowed: set) -> Optional[str]:
+        return a.get("name") if (_is_var(a) and a.get("name") in allowed) else None
+
+    def _builder(e: Any, c: str, allowed: set) -> Any:
+        ftypes = dict(spec["ctors"][c])
+        if not isinstance(e, dict):
+            raise _PVWBail()
+        if _is_term_field_read(e, subj):
+            f = _term_field_of(e)
+            if f not in ftypes:
+                raise _PVWBail()
+            return ("copy", f)
+        if e.get("type") != "Call":
+            raise _PVWBail()
+        fn = e.get("func")
+        a = e.get("args") or []
+        if e.get("keywords"):
+            raise _PVWBail()
+        if fn == name:
+            if not (len(a) == 2 and _is_term_field_read(a[0], subj)):
+                raise _PVWBail()
+            f = _term_field_of(a[0])
+            mv = _mcall_ok(a[1], allowed)
+            if ftypes.get(f) != "term" or mv is None:
+                raise _PVWBail()
+            return ("rec", f, mv)
+        if fn == f"{mp}.get":
+            if not (len(a) == 2 and _is_term_field_read(a[0], subj)
+                    and _is_term_field_read(a[1], subj)
+                    and _term_field_of(a[0]) == _term_field_of(a[1])):
+                raise _PVWBail()
+            f = _term_field_of(a[0])
+            if ftypes.get(f) != "string":
+                raise _PVWBail()
+            return ("get", f)
+        if fn == "tuple" and len(a) == 1 and isinstance(a[0], dict) \
+                and a[0].get("type") == "GenExp":
+            gens = a[0].get("generators", [])
+            elt = a[0].get("elt")
+            if not (len(gens) == 1 and not gens[0].get("ifs")
+                    and isinstance(elt, dict) and elt.get("type") == "Call"
+                    and elt.get("func") == name and not elt.get("keywords")):
+                raise _PVWBail()
+            ea = elt.get("args") or []
+            tv = gens[0].get("target")
+            it = gens[0].get("iter")
+            if not (len(ea) == 2 and isinstance(tv, str) and tv != "_comp_var"
+                    and tv not in (subj, mp, name)
+                    and _is_var(ea[0], tv) and _is_var(ea[1], mp)
+                    and _is_term_field_read(it, subj)
+                    and ftypes.get(_term_field_of(it)) == "list term"):
+                raise _PVWBail()
+            return ("maprec", _term_field_of(it))
+        raise _PVWBail()
+
+    def _fields(call: Any, c: str, allowed: set) -> List[Any]:
+        fname_order = [fn for fn, _ in spec["ctors"][c]]
+        provided: Dict[str, Any] = {}
+        kws = call.get("keywords") or []
+        args = call.get("args") or []
+        if kws and args:
+            raise _PVWBail()
+        if kws:
+            for kw in kws:
+                if not (isinstance(kw, dict) and isinstance(kw.get("arg"), str)):
+                    raise _PVWBail()
+                if kw["arg"] in provided:
+                    raise _PVWBail()
+                provided[kw["arg"]] = kw.get("value")
+            if set(provided) != set(fname_order):
+                raise _PVWBail()
+        else:
+            if len(args) != len(fname_order):
+                raise _PVWBail()
+            provided = dict(zip(fname_order, args))
+        ftypes = dict(spec["ctors"][c])
+        out_b = []
+        for fn in fname_order:
+            b = _builder(provided[fn], c, allowed)
+            # the builder's value type must be the slot's field type (fail closed,
+            # never left to Why3)
+            bt = {"rec": "term", "maprec": "list term", "get": "string"}.get(
+                b[0], ftypes.get(b[1]))
+            if bt != ftypes.get(fn):
+                raise _PVWBail()
+            out_b.append(b)
+        return out_b
+
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                    # trailing unreachable raise (totality below)
+        if not (isinstance(st, dict) and st.get("stmt") == "If" and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        ib = list(st.get("body") or [])
+        if not ib:
+            raise _PVWBail()
+        # identity arm
+        if len(ib) == 1 and _is_return(ib[0]) and _is_var(ib[0].get("value"), subj):
+            for c in classes:
+                if c in arms:
+                    raise _PVWBail()
+                arms[c] = {"kind": "id"}
+            continue
+        local = None
+        allowed = {mp}
+        # optional restricted-map local: x = {k: v for k, v in m.items() if k not in t.L}
+        if (isinstance(ib[0], dict) and ib[0].get("stmt") == "Assign"
+                and isinstance(ib[0].get("value"), dict)
+                and ib[0]["value"].get("type") == "DictComp"):
+            x = ib[0].get("target")
+            dc = ib[0]["value"]
+            gens = dc.get("generators", [])
+            if not (isinstance(x, str) and x not in (subj, mp, name)
+                    and len(gens) == 1 and _is_var(dc.get("key")) and _is_var(dc.get("value"))):
+                raise _PVWBail()
+            kn, vn = dc["key"]["name"], dc["value"]["name"]
+            if {kn, vn} & {subj, mp, name, x}:
+                raise _PVWBail()        # a comprehension variable shadowing t / m
+            it = gens[0].get("iter")
+            ifs = gens[0].get("ifs") or []
+            if not (kn != vn and gens[0].get("target") == "_comp_var"
+                    and isinstance(it, dict) and it.get("type") == "Call"
+                    and it.get("func") == f"{mp}.items" and not (it.get("args") or [])
+                    and len(ifs) == 1 and isinstance(ifs[0], dict)
+                    and ifs[0].get("type") == "BinOp" and ifs[0].get("op") == "not in"
+                    and _is_var(ifs[0].get("left"), kn)
+                    and _is_term_field_read(ifs[0].get("right"), subj)):
+                raise _PVWBail()
+            lf = _term_field_of(ifs[0]["right"])
+            for c in classes:
+                if dict(spec["ctors"][c]).get(lf) != "list string":
+                    raise _PVWBail()
+            local = (x, lf)
+            allowed = {mp, x}
+            ib = ib[1:]
+        if len(ib) == 2 and isinstance(ib[0], dict) and ib[0].get("stmt") == "Assign" \
+                and _is_return(ib[1]):
+            # same-kind rebuild of two ctors with identical field layouts
+            if len(classes) != 2:
+                raise _PVWBail()
+            kvar = ib[0].get("target")
+            ie = ib[0].get("value")
+            if not (isinstance(kvar, str) and kvar not in allowed and kvar != subj
+                    and isinstance(ie, dict) and ie.get("type") == "IfExpr"):
+                raise _PVWBail()
+            tgt = _isinstance_target_classes(ie.get("test"), subj)
+            bv, ov = ie.get("body"), ie.get("orelse")
+            if not (len(tgt) == 1 and _is_var(bv, tgt[0]) and _is_var(ov)
+                    and {tgt[0], ov.get("name")} == set(classes)):
+                raise _PVWBail()
+            call = ib[1].get("value")
+            if not (isinstance(call, dict) and call.get("type") == "Call"
+                    and call.get("func") == kvar):
+                raise _PVWBail()
+            a, b = classes
+            if [fn for fn, _ in spec["ctors"][a]] != [fn for fn, _ in spec["ctors"][b]] \
+                    or dict(spec["ctors"][a]) != dict(spec["ctors"][b]):
+                raise _PVWBail()
+            for c in classes:
+                if c in arms:
+                    raise _PVWBail()
+                arms[c] = {"kind": "sm", "ctor": c, "local": local,
+                           "fields": _fields(call, c, allowed)}
+            continue
+        if len(ib) == 1 and _is_return(ib[0]):
+            if len(classes) != 1:
+                raise _PVWBail()
+            c = classes[0]
+            call = ib[0].get("value")
+            _require_ctor_call(call, c)
+            if c in arms:
+                raise _PVWBail()
+            arms[c] = {"kind": "sm", "ctor": c, "local": local,
+                       "fields": _fields(call, c, allowed)}
+            continue
+        raise _PVWBail()
+    if set(arms) != ctor_set:
+        raise _PVWBail()                # totality over the ADT
+    for c, a in arms.items():
+        if a["kind"] != "sm":
+            continue
+        lname = a["local"][0] if a["local"] else None
+        for b in a["fields"]:
+            if b[0] == "rec" and b[2] != mp and b[2] != lname:
+                raise _PVWBail()
+    uses_list = any(b[0] == "maprec" for a in arms.values() if a["kind"] == "sm"
+                    for b in a["fields"])
+    uses_restrict = any(a.get("local") for a in arms.values())
+    return {"param": subj, "strmap": mp, "arms": arms, "uses_list": uses_list,
+            "uses_streq": False, "uses_restrict": uses_restrict}
+
+
+def _emit_term_transform_strmap(func: Dict[str, Any], desc: Dict[str, Any],
+                                spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emission of `_recognize_term_transform_strmap` (see there): a structural
+    `let rec` over the certified `term` inductive, the dict as an abstract type with
+    uninterpreted pure `get`/`restrict` (no axiom, ledger unchanged)."""
+    n = whyml_ident(func["name"])
+    subj, mp = desc["param"], desc["strmap"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    dt = "term__strdict"                 # declared by the term theory (preamble)
+    out: List[str] = [f"  val function {n}__get (m: {dt}) (k: string) (d: string) : string"]
+    if desc.get("uses_restrict"):
+        out.append(f"  val function {n}__restrict (m: {dt}) (ks: list string) : {dt}")
+    out.append(f"  let rec {n} (v_{subj}: term) (v_{mp}: {dt}) : term")
+    out.append("    ensures  { true }")
+    out.append(f"    variant  {{ v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        arm = arms[c]
+        if arm["kind"] == "id":
+            out.append(f"    | {c}" + (" " + " ".join("_" for _ in fields) if fields else "")
+                       + f" -> v_{subj}")
+            continue
+        used = {b[1] for b in arm["fields"]}
+        if arm.get("local"):
+            used.add(arm["local"][1])
+        binders = " ".join(f"v_{fn}" if fn in used else "_" for fn, _ in fields)
+        pat = c + ((" " + binders) if binders else "")
+        parts = []
+        for b in arm["fields"]:
+            if b[0] == "copy":
+                parts.append(f"v_{b[1]}")
+            elif b[0] == "rec":
+                mv = f"v_{mp}" if b[2] == mp else "v__lm"
+                parts.append(f"({n} v_{b[1]} {mv})")
+            elif b[0] == "maprec":
+                parts.append(f"({n}__list v_{b[1]} v_{mp})")
+            elif b[0] == "get":
+                parts.append(f"({n}__get v_{mp} v_{b[1]} v_{b[1]})")
+            else:
+                raise _PVWBail()
+        rhs = c + ((" " + " ".join(parts)) if parts else "")
+        if arm.get("local"):
+            rhs = f"let v__lm = {n}__restrict v_{mp} v_{arm['local'][1]} in {rhs}"
+        out.append(f"    | {pat} -> {rhs}")
+    out.append("    end")
+    if desc.get("uses_list"):
+        out.append(f"  with {n}__list (l: list term) (v_{mp}: {dt}) : list term")
+        out.append("    ensures  { true }")
+        out.append("    variant  { l }")
+        out.append(f"  = match l with Nil -> Nil"
+                   f" | Cons h t -> Cons ({n} h v_{mp}) ({n}__list t v_{mp}) end")
+    return out
 
 
 def _parse_block_guard(st: Dict[str, Any], subj: str, name: str, spec: Dict[str, Any],
@@ -35717,6 +36016,8 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
     map helper for `list term` children). PROGRAM `let rec` (calls `val pystr_eq`
     for the const-map guard); structural `variant` — termination Why3-intrinsic
     over the certified inductive; NO new axiom (ledger 3)."""
+    if desc.get("strmap"):
+        return _emit_term_transform_strmap(func, desc, spec, whyml_ident)
     n = whyml_ident(func["name"])
     subj = desc["param"]
     arms = desc["arms"]

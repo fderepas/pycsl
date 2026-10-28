@@ -5430,6 +5430,26 @@ with metaclass `type`, not `object`) -- unless $R$ is a `Name` bound only by `Im
 access and the function (Module 6 emits the `PyCSL-DVW-R5` map assertion there). In $\mathcal{T}_{ty}$, a method call $b.m(..)$ on a type atom `None` (a name
 or the constant) with `not hasattr(None, m)` yields bottom (`#BOT`) instead of `#UND`. No
 emission changes.
+### §T.6.170  Term transform with a read-only `Dict[str, str]` parameter (lv2, run #3)
+
+_Corresponds to `annotations.md` §7.160._
+
+$\mathcal{T}$ of a function $f(t: U, m: \texttt{Dict[str, str]}) \to U$ ($U$ the term union,
+`dict_key_types`/`dict_value_types` of $m$ = `string`, no default) accepted by
+`_recognize_term_transform_strmap` is the group: `val function f__get (m: term__strdict) (k
+d: string) : string`, `val function f__restrict (m: term__strdict) (ks: list string) :
+term__strdict` (and `type term__strdict` in the term theory), then `let rec f (v_t: term)
+(v_m: term__strdict) : term ensures { true } variant { v_t }` with one `match` arm per
+constructor $C$: `return t` $\mapsto$ `v_t`; `return C(e_1..e_k)` $\mapsto$ `C b_1..b_k` with
+$t.F \mapsto$ `v_F`, $f(t.G, m) \mapsto$ `(f v_G v_m)` ($G$ a `term` field),
+`tuple(f(a, m) for a in t.L)` $\mapsto$ `(f__list v_L v_m)` ($L$ a `list term` field),
+`m.get(t.F, t.F)` $\mapsto$ `(f__get v_m v_F v_F)` ($F$ a `string` field); a leading
+`x = {k: v for k, v in m.items() if k not in t.B}` ($B$ a `list string` field) $\mapsto$
+`let v__lm = f__restrict v_m v_B in ..` with $f(t.G, x) \mapsto$ `(f v_G v__lm)`; the
+two-constructor `kind = A if isinstance(t, A) else B; return kind(..)` arm maps each of $A$,
+$B$ alike. `f__list` is the element-wise map (`variant { l }`). Any other statement or
+expression declines (the function stays on the generic path). Gated by
+`_term_contract_trivial` like every term recognizer.
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
