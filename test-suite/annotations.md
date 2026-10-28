@@ -3487,7 +3487,13 @@ did not record as checked -- `[ord(w) for w in ws]` is refused (the comprehensio
 opaque), as is `for w in s.split(",", n)` (the `for` iterable path; `k += len(s.split(",", n))`
 verifies). An un-claimed same-file callee holding such a site makes a `\all` caller refused
 (`PYCSL-R434-CALLEE-UNCHECKED-SITE`, route #178's summary with §7.132's TypeError token).
-Witnesses `6550`-`6556`, `6570`-`6572`; controls `6580`, `6583`.
+PATH VALUES: the front end erases a `pathlib.Path` annotation to `str` (a Path is a Why3 `string`),
+so `ord(p)` of a `p: Path` under `requires len(str(p)) == 1` PROVED (CPython TypeError whatever the length),
+as did `ord(p[0])` and `q = p.parent; ord(q)`. The driver reads the SOURCE: in a function claiming `\all`,
+`ord` of a Path value (a name annotated `*Path*` or bound from a Path value, `x.parent`, a `/` join, a
+`Path(..)` / Path-only method call, a subscript / conditional / walrus of one) is REFUSED
+(`PYCSL-R434-ORD-PATH`); `ord(str(p)[0])` verifies.
+Witnesses `6550`-`6556`, `6570`-`6573`, `6579`, `6586`; controls `6580`, `6583`, `6587`.
 
 ### 7.137 An unbound builtin method `T.m(x, ..)` needs `x` of class exactly `T` (route #435, run #3)
 
@@ -3500,7 +3506,8 @@ dict set frozenset tuple type object` (the class-level `maketrans` / `fromhex` /
 EXACTLY `T` by its form: a name annotated `T` (`str bytes bytearray int list dict set tuple
 frozenset`; NOT `float` / `complex`, which admit an int under PEP 484), a str / int / bool literal
 of `T`, an f-string for `str`, or a call of a builtin returning `T` (`str(..)`, `len(..)`,
-`bytes(..)`, ...). `object` admits every `x`. Anything else -- an un-annotated local, a display
+`bytes(..)`, ...). `object` admits every `x`; a `Path` (erased to `str` by the front end) is refused by §7.136's
+source pass (`str.upper(p)`, witness `6588`). Anything else -- an un-annotated local, a display
 (`b".."` and `[..]` share one IR form), an attribute, `float.m(x)` of a `float` name -- is REFUSED
 (`PYCSL-R435-UNBOUND-DESCRIPTOR`). Only the method names route #161 admits under `no_exception`
 (or a file class's method names) reach this rule at all. Witnesses `6557`-`6564`, `6574`; control

@@ -748,6 +748,8 @@ AUDITED = {
         'Routes #434-#436. \'Move the operation into a plain statement of the body, where its own check applies (`k = len(s.split(",", n))`; a loop that appends `ord(w)`), or drop `\\all` from the context\': witness 6569\'s `for w in s.split(",", n): k += 1` rewritten `k += len(s.split(",", n))` under `0 <= n <= 100` VERIFIES (control 6584; binding `parts = s.split(",", n)` and looping over `parts` does NOT verify -- a `for` over the opaque split value fails termination and `len(parts)` mis-types, at base too -- so the message names the `len` form); witness 6570 with `\\all` replaced by `no_exception IndexError` (a434_unchecked_drop_all) VERIFIES.'),
     ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that holds `ord(x)` (TypeError unless len(x) == 1), an unbound `T.m(x, ..)` (TypeError"): (FOLLOWABLE,
         "Routes #434-#436. 'Claim `#@ no_exception \\all` on the callee, or drop `\\all` from this function's claim': witness 6572's callee given `requires len(s) == 1` + `no_exception \\all` VERIFIES (control 6583); with the caller's `\\all` replaced by `no_exception IndexError` (a434_callee_drop_all) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr434p(f"line {getattr(_n434, \'lineno\', 0)}: `{_ast434.unparse(_n434)}` applies `ord` (or an unbound `str` method) to a `pathlib.P'): (FOLLOWABLE,
+        "Routes #434 / #435 (Path values). 'Convert it first (`ord(str(p)[0])`), or drop `\\all` from the context': witness 6579's `ord(p)` rewritten `ord(str(p)[0])` under `requires len(str(p)) >= 1` VERIFIES (control 6587); with `\\all` replaced by `no_exception IndexError` (a434_path_drop_all) VERIFIES."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1045,6 +1047,7 @@ AUDITED_HASH = {
     ('src/pycsl/module6_whyml/expressions.py', 'PyCSLSemanticError(f"""the `{_rw436[1] or \'index\'}` argument of `.{_tl434}(..)` is converted by CPython to a C {(\'ssize_t\' if _rw436[2] == 6'): 'bfb8910a04f9',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr434('a call checked under `no_exception \\\\all` -- `ord(x)` (TypeError unless len(x) == 1, route #434), an unbound `T.m(x, ..)` ("): '74d2e5dc14db',
     ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that holds `ord(x)` (TypeError unless len(x) == 1), an unbound `T.m(x, ..)` (TypeError"): 'b9d4801ec771',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr434p(f"line {getattr(_n434, \'lineno\', 0)}: `{_ast434.unparse(_n434)}` applies `ord` (or an unbound `str` method) to a `pathlib.P'): '38c10bda4efa',
 }
 
 

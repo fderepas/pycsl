@@ -41,6 +41,30 @@ UNCHECKED-SITE), 6571 `ord(b[0])` (REFUSED, ORD-LENGTH), 6572 un-claimed callee 
 Controls (expected PASS, PROVED at base and candidate): 6580 (`len(s) == 1`, `ord(t[1])`, `ord("a")`),
 6583 (a callee claiming `\all` itself).
 
+## REPAIR, increment 2 (executor g5, 2026-10-28, off 86f9efa51): PATH VALUES
+
+Found while writing the residuals of increment 1: the front end ERASES a `pathlib.Path` annotation to `str`
+(route #31's path model: a Path is a Why3 `string`; the IR symbol table and `param_annotations` say `str`),
+so Module 6's rule stated `String.length p = 1` for `ord(p)` of a `p: Path`. MEASURED at 86f9efa51 (and at base
+78b519f63), CPython TypeError whatever the length: `#@ requires len(str(p)) == 1`, `return ord(p)` PROVED, as did
+`ord(p[0])` (a Path is not subscriptable) and an alias `q = p.parent; ord(q)`. Only the SOURCE keeps the
+annotation, so `_run_pipeline` (twin `\trusted`) reads the AST: in a `def` named like an IR function claiming
+`no_exception_all`, a Path value (a name annotated `*Path*` or bound from a Path value, to a fixpoint;
+`x.parent`; a `/` join with a Path operand; `Path(..)` / `PurePath(..)` / a Path-only method call; a
+subscript / conditional / walrus of one) under `ord`, or as the first argument of an unbound `str.m(..)`
+(route #435's `str` row passed the erased annotation: `str.upper(p)`), is REFUSED `PYCSL-R434-ORD-PATH`.
+Witnesses 6579 (`ord(p)`), 6573 (alias), 6586 (`ord(p[0])`), 6588 (`str.upper(p)`, filed under #435); control
+6587 (`ord(str(p)[0])`, the message's advice).
+
+Increment-2 gates (candidate = the increment-2 commit; logs `battery-c2.txt`,
+`increment2-witness-base-inc1-cand.txt`): witnesses 6573 / 6579 / 6586 / 6588 PROVED rc=0 at base 78b519f63 AND
+at 86f9efa51, REFUSED (`PYCSL-R434-ORD-PATH`) at the candidate; control 6587 and advice probe a434_path_drop_all
+PROVE at all three / the candidate. Root 2518 -> 2536 0 MOVED / 0 GONE / 0 APPEARED vs `v8/cb` (and 2535 -> 2536
+0/0/0 vs increment 1's sweep), pyref 2186 0/0/0, mirrors 53/53 0/0/0 vs `v8/mb`; sync / mirror-check rc=0;
+planes 61/61; refusal-witness-coverage rc=0 (338 demonstrated, 4 more census rows), refusal-advice-audited rc=0
+(165 audited; the new message followed both ways), doc-coherency / trusted-reasons / getattr-erasure /
+clause-survival / assumed-facts / open-route-carriers rc=0; `\trusted` 442. Over-refusal cost 0.
+
 ## GATES (executor g5, candidate = this commit; base = 78b519f63, emission-identical to 1c083dcbe; logs in
 `getting-better/systematic-soundness-r3/g5-r434-436/`)
 
@@ -85,10 +109,11 @@ Controls (expected PASS, PROVED at base and candidate): 6580 (`len(s) == 1`, `or
 - ANNOTATIONS ARE TRUSTED: a parameter annotated `bytes` is read as exactly `bytes` (a caller passing a
   `bytearray` under a type checker's bytes promotion would make `bytes.upper(x)` raise); the same holds for `str`
   / `int` / `list` annotations everywhere in PyCSL.
-- PATH VALUES: a `pathlib.Path` is modelled as a Why3 `string`, so `ord(p)` of a `p: Path` parameter gets the
-  length obligation instead of a refusal (CPython: TypeError whatever the length). `Path(..)` itself is refused
-  under `no_exception` (route #161); an obligation `String.length p = 1` needs a contract fact about the path's
-  length to discharge. Measured: emitted with the obligation (probe z02).
+- PATH VALUES: closed for `ord` and #435's `str.m(p, ..)` by increment 2 (the AST pass). The same erasure
+  makes every OTHER str operation on a Path a str operation (`len(p)`, `p.upper()`, `p + "x"`): a
+  cross-cutting #31 path-model residual, NOT addressed here.
+  The Path-value pass follows names, not containers or `for` targets (`for q in p.iterdir(): ord(q)` is not
+  caught; `iterdir` is refused under `no_exception` by route #161 today).
 - CALLEES: the TypeError / OverflowError token reaches route #178's summary for SAME-FILE callees only (as
   #430); an imported module's un-claimed function holding such a site is not summarised.
 - The `PYCSL-R417-ERASED-OBLIGATION` mechanism (#417 / #426) is unchanged: its registry still counts only the

@@ -12887,6 +12887,127 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             "(`k = len(s.split(\",\", n))`; a loop that appends `ord(w)`), or drop `\\all` "
             "from the context.",
             stage="whyml", code="PYCSL-R434-UNCHECKED-SITE")
+    # (#49) ROUTE #434, PATH VALUES -- `ord(p)` of a `pathlib.Path` raises TypeError whatever the
+    # path's length, but the front end ERASES a `Path` annotation to `str` (#31's path model: a
+    # Path is a Why3 `string`), so Module 6 sees a str and states only `String.length p = 1`.
+    # MEASURED (g5, at 86f9efa51, CPython TypeError): `#@ requires len(str(p)) == 1`, `return
+    # ord(p)` with `p: Path` PROVED `no_exception \all`; `ord(p[0])` (a Path is not subscriptable)
+    # and an alias `q = p.parent; ord(q)` likewise. Only the SOURCE still knows the annotation, so
+    # this pass reads the AST: in a function some IR function of whose name claims
+    # `no_exception_all`, a value IS a Path when it is a name annotated `*Path*` (parameter or
+    # local) or bound from a Path value (to a fixpoint), `x.parent`, a `/` join with a Path
+    # operand, a call of `Path` / `PurePath` / ... or of a Path-only method (`resolve`,
+    # `with_suffix`, ...), a subscript / conditional / walrus of one. `ord` of such a value is
+    # REFUSED (fail-closed: nested defs and lambdas count for the enclosing function).
+    import ast as _ast434
+    import re as _re434
+    _all434 = set()
+    for _f434 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
+        if (isinstance(_f434, dict) and (_f434.get("contracts") or {}).get("no_exception_all")
+                and not _f434.get("trusted") and not _f434.get("abstract")):
+            _all434.add(str(_f434.get("name", "")).rsplit("__", 1)[-1])
+    if _all434:
+        try:
+            _tree434 = _ast434.parse(source_code)
+        except SyntaxError:
+            _tree434 = None
+        _pt434 = _re434.compile(r"Path")
+        _pc434 = {"Path", "PurePath", "PosixPath", "WindowsPath", "PurePosixPath",
+                  "PureWindowsPath"}
+        _pm434 = {"resolve", "absolute", "with_suffix", "with_name", "with_stem", "joinpath",
+                  "relative_to", "expanduser", "home", "cwd", "readlink"}
+        for _fd434 in ([_z for _z in _ast434.walk(_tree434)
+                        if isinstance(_z, (_ast434.FunctionDef, _ast434.AsyncFunctionDef))
+                        and _z.name in _all434] if _tree434 is not None else []):
+            _pn434 = {_a.arg for _a in (_fd434.args.posonlyargs + _fd434.args.args
+                                        + _fd434.args.kwonlyargs)
+                      if _a.annotation is not None
+                      and _pt434.search(_ast434.unparse(_a.annotation))}
+            _ch434 = True
+            while _ch434:
+                _ch434 = False
+                for _n434 in _ast434.walk(_fd434):
+                    _tg434, _vl434 = [], None
+                    if isinstance(_n434, _ast434.Assign):
+                        _tg434, _vl434 = _n434.targets, _n434.value
+                    elif isinstance(_n434, _ast434.AnnAssign):
+                        _tg434, _vl434 = [_n434.target], _n434.value
+                        if (isinstance(_n434.target, _ast434.Name)
+                                and _n434.target.id not in _pn434
+                                and _pt434.search(_ast434.unparse(_n434.annotation))):
+                            _pn434.add(_n434.target.id)
+                            _ch434 = True
+                    elif isinstance(_n434, _ast434.NamedExpr):
+                        _tg434, _vl434 = [_n434.target], _n434.value
+                    if _vl434 is None:
+                        continue
+                    _wk434 = [_vl434]
+                    _ip434 = False
+                    while _wk434 and not _ip434:
+                        _e434 = _wk434.pop()
+                        if isinstance(_e434, _ast434.Name):
+                            _ip434 = _e434.id in _pn434
+                        elif isinstance(_e434, _ast434.Attribute):
+                            _ip434 = _e434.attr == "parent"
+                        elif isinstance(_e434, _ast434.BinOp) and isinstance(_e434.op, _ast434.Div):
+                            _wk434 += [_e434.left, _e434.right]
+                        elif isinstance(_e434, _ast434.Call):
+                            _cf434 = _e434.func
+                            _ip434 = ((isinstance(_cf434, _ast434.Name) and _cf434.id in _pc434)
+                                      or (isinstance(_cf434, _ast434.Attribute)
+                                          and (_cf434.attr in _pm434 or _cf434.attr in _pc434)))
+                        elif isinstance(_e434, _ast434.IfExp):
+                            _wk434 += [_e434.body, _e434.orelse]
+                        elif isinstance(_e434, _ast434.NamedExpr):
+                            _wk434.append(_e434.value)
+                    if _ip434:
+                        for _t434 in _tg434:
+                            if isinstance(_t434, _ast434.Name) and _t434.id not in _pn434:
+                                _pn434.add(_t434.id)
+                                _ch434 = True
+            for _n434 in _ast434.walk(_fd434):
+                # `ord(a)`, and route #435's unbound `str.m(a, ..)`, whose `str` row the erased
+                # annotation would also pass (`str.upper(p)` of a Path: CPython TypeError)
+                if not (isinstance(_n434, _ast434.Call) and len(_n434.args) >= 1
+                        and ((isinstance(_n434.func, _ast434.Name) and _n434.func.id == "ord"
+                              and len(_n434.args) == 1)
+                             or (isinstance(_n434.func, _ast434.Attribute)
+                                 and isinstance(_n434.func.value, _ast434.Name)
+                                 and _n434.func.value.id == "str"))):
+                    continue
+                _wk434 = [_n434.args[0]]
+                _ip434 = False
+                while _wk434 and not _ip434:
+                    _e434 = _wk434.pop()
+                    if isinstance(_e434, _ast434.Name):
+                        _ip434 = _e434.id in _pn434
+                    elif isinstance(_e434, _ast434.Attribute):
+                        _ip434 = _e434.attr == "parent"
+                    elif isinstance(_e434, _ast434.BinOp) and isinstance(_e434.op, _ast434.Div):
+                        _wk434 += [_e434.left, _e434.right]
+                    elif isinstance(_e434, _ast434.Call):
+                        _cf434 = _e434.func
+                        _ip434 = ((isinstance(_cf434, _ast434.Name) and _cf434.id in _pc434)
+                                  or (isinstance(_cf434, _ast434.Attribute)
+                                      and (_cf434.attr in _pm434 or _cf434.attr in _pc434)))
+                    elif isinstance(_e434, (_ast434.Subscript, _ast434.Starred)):
+                        _wk434.append(_e434.value)
+                    elif isinstance(_e434, _ast434.IfExp):
+                        _wk434 += [_e434.body, _e434.orelse]
+                    elif isinstance(_e434, _ast434.NamedExpr):
+                        _wk434.append(_e434.value)
+                if _ip434:
+                    from errors import PyCSLSemanticError as _PyCSLSemErr434p
+                    raise _PyCSLSemErr434p(
+                        f"line {getattr(_n434, 'lineno', 0)}: `{_ast434.unparse(_n434)}` applies "
+                        f"`ord` (or an unbound `str` method) to a `pathlib.Path` value, which "
+                        f"raises TypeError whatever the path, and '{_fd434.name}' claims "
+                        f"`no_exception \\all`. The "
+                        f"model represents a Path as a string, so only a length obligation "
+                        f"would be stated (route #434; measured: `ord(p)` with `p: Path` under "
+                        f"`requires len(str(p)) == 1` proved, CPython TypeError). Convert it "
+                        f"first (`ord(str(p)[0])`), or drop `\\all` from the context.",
+                        stage="whyml", code="PYCSL-R434-ORD-PATH")
     # (#49) gen #37, ROUTE #384 — A `\length` CLASS INVARIANT WHOSE CONSTRUCTOR GOAL CANNOT BE
     # STATED IS REFUSED, NOT ASSUMED. Module 6 states route #226's `_check_class_inv_<c>` goal
     # from the constructor's end state of each list field (`ctor_len_r384` above); when that

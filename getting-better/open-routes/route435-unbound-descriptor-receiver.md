@@ -35,6 +35,21 @@ TypeError; all REFUSED), 6574 `int.bit_length(x)` with `x: float` (FAILED at bas
 error; REFUSED). Control (expected PASS, PROVED at base and candidate): 6581 (`str.upper(s)` s: str,
 `bytes.upper(b)` b: bytes, `str.lower("AB")`, `int.bit_length(n)` n: int).
 
+## REPAIR, increment 2 (executor g5, off 86f9efa51): a `Path` reaches the `str` row
+
+The front end erases a `pathlib.Path` annotation to `str`, so the allow-list above admitted `str.upper(p)`
+with `p: Path` (PROVED at 86f9efa51 and at base, CPython TypeError). Route #434's increment-2 AST pass also
+refuses an unbound `str.m(a, ..)` whose first argument is a Path value (`PYCSL-R434-ORD-PATH`). Witness 6588.
+
+Increment-2 gates (candidate = the increment-2 commit; logs `battery-c2.txt`,
+`increment2-witness-base-inc1-cand.txt`): witnesses 6573 / 6579 / 6586 / 6588 PROVED rc=0 at base 78b519f63 AND
+at 86f9efa51, REFUSED (`PYCSL-R434-ORD-PATH`) at the candidate; control 6587 and advice probe a434_path_drop_all
+PROVE at all three / the candidate. Root 2518 -> 2536 0 MOVED / 0 GONE / 0 APPEARED vs `v8/cb` (and 2535 -> 2536
+0/0/0 vs increment 1's sweep), pyref 2186 0/0/0, mirrors 53/53 0/0/0 vs `v8/mb`; sync / mirror-check rc=0;
+planes 61/61; refusal-witness-coverage rc=0 (338 demonstrated, 4 more census rows), refusal-advice-audited rc=0
+(165 audited; the new message followed both ways), doc-coherency / trusted-reasons / getattr-erasure /
+clause-survival / assumed-facts / open-route-carriers rc=0; `\trusted` 442. Over-refusal cost 0.
+
 ## GATES (executor g5, candidate = this commit; base = 78b519f63, emission-identical to 1c083dcbe; logs in
 `getting-better/systematic-soundness-r3/g5-r434-436/`)
 
@@ -79,10 +94,10 @@ error; REFUSED). Control (expected PASS, PROVED at base and candidate): 6581 (`s
 - ANNOTATIONS ARE TRUSTED: a parameter annotated `bytes` is read as exactly `bytes` (a caller passing a
   `bytearray` under a type checker's bytes promotion would make `bytes.upper(x)` raise); the same holds for `str`
   / `int` / `list` annotations everywhere in PyCSL.
-- PATH VALUES: a `pathlib.Path` is modelled as a Why3 `string`, so `ord(p)` of a `p: Path` parameter gets the
-  length obligation instead of a refusal (CPython: TypeError whatever the length). `Path(..)` itself is refused
-  under `no_exception` (route #161); an obligation `String.length p = 1` needs a contract fact about the path's
-  length to discharge. Measured: emitted with the obligation (probe z02).
+- PATH VALUES: `ord(p)` and `str.m(p, ..)` of a Path closed by increment 2 (route #434's AST pass,
+  `PYCSL-R434-ORD-PATH`). The front end's erasure of `Path` to `str` makes every OTHER str operation on a Path
+  a str operation (`len(p)`, `p.upper()`, `p + "x"`): a cross-cutting #31 path-model residual, NOT addressed
+  here.
 - CALLEES: the TypeError / OverflowError token reaches route #178's summary for SAME-FILE callees only (as
   #430); an imported module's un-claimed function holding such a site is not summarised.
 - The `PYCSL-R417-ERASED-OBLIGATION` mechanism (#417 / #426) is unchanged: its registry still counts only the

@@ -31,6 +31,12 @@
 ##   on the new goal or REFUSED; controls 6580-6585 PROVED both. Root 2518 -> 2535 0 MOVED / 0
 ##   GONE / 0 APPEARED (17 new emitting sources), pyref 2186 0/0/0, mirrors 53/53 0/0/0 (vs v8/mb; none OWED); planes 61/61; census + advice audit
 ##   rc=0. OVER-REFUSAL COST 0 (no corpus / mirror / pycsl_lib file claims `\all` around such a site).
+##   INCREMENT 2 (off 86f9efa51): the front end erases a `Path` annotation to `str`, so `ord(p)` / `ord(p[0])` / an alias
+##   `q = p.parent; ord(q)` / `str.upper(p)` of a `p: Path` PROVED (base and 86f9efa51; CPython TypeError): a source (AST)
+##   pass in `_run_pipeline` REFUSES them (PYCSL-R434-ORD-PATH); witnesses 6573 / 6579 / 6586 / 6588, control 6587.
+##   Increment-2 gates: root 2518 -> 2536 0/0/0 (18 new emitting), 0/0/0 vs increment 1's sweep too; pyref 2186
+##   0/0/0; mirrors 53/53 0/0/0 vs v8/mb; planes 61/61; coverage (338 demonstrated) / advice (165 audited) / doc /
+##   trusted-reasons / getattr / clause / assumed / carriers rc=0; sync + mirror-check rc=0.
 
 ## run #3 (2026-10-28): #432-#439 OPENED (red team 34 on 78b519f63, convergence measurement: 497 written / 474 fully proved /
 ##   63 confirmed; FINDINGS salvaged by the driver; rt33's 115/117 proofs now refused): #432 an optional / union receiver of an attribute or method access owes no attributeerror (8); #433 str.join / bytes.join over elements not derivably str / bytes owes no typeerror (9); #434 ord() of a string not of length 1 owes no typeerror (7); #435 an unbound str / bytes method descriptor applied to a wrong-type first argument owes no typeerror (8); #436 str.split / rsplit with maxsplit outside c ssize_t owes no overflowerror (5); #437 sorted() over elements not totally ordered owes no typeerror (10); #438 hashing a bare / unparameterised tuple (elements unknown) owes no typeerror (11); #439 a hashed value whose class comes through a protocol, a foreign user module, or setattr owes no typeerror (5).

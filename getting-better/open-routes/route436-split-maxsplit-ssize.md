@@ -92,10 +92,10 @@ and candidate): 6582 (`n`, `n + 1` with `0 <= n <= 100`, literals 1 / -1), 6584 
 - ANNOTATIONS ARE TRUSTED: a parameter annotated `bytes` is read as exactly `bytes` (a caller passing a
   `bytearray` under a type checker's bytes promotion would make `bytes.upper(x)` raise); the same holds for `str`
   / `int` / `list` annotations everywhere in PyCSL.
-- PATH VALUES: a `pathlib.Path` is modelled as a Why3 `string`, so `ord(p)` of a `p: Path` parameter gets the
-  length obligation instead of a refusal (CPython: TypeError whatever the length). `Path(..)` itself is refused
-  under `no_exception` (route #161); an obligation `String.length p = 1` needs a contract fact about the path's
-  length to discharge. Measured: emitted with the obligation (probe z02).
+- PATH VALUES: `ord(p)` and `str.m(p, ..)` of a Path closed by increment 2 (route #434's AST pass,
+  `PYCSL-R434-ORD-PATH`). The front end's erasure of `Path` to `str` makes every OTHER str operation on a Path
+  a str operation (`len(p)`, `p.upper()`, `p + "x"`): a cross-cutting #31 path-model residual, NOT addressed
+  here.
 - CALLEES: the TypeError / OverflowError token reaches route #178's summary for SAME-FILE callees only (as
   #430); an imported module's un-claimed function holding such a site is not summarised.
 - The `PYCSL-R417-ERASED-OBLIGATION` mechanism (#417 / #426) is unchanged: its registry still counts only the

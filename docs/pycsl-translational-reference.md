@@ -5279,6 +5279,14 @@ site (`_cs434`, the same predicate over every IR function), each such function w
 meets only `TypeError` is refused with `PYCSL-R434-CALLEE-UNCHECKED-SITE` (§T.6.143's message when
 $g \in$ `und_hash_r430`).
 
+PATH VALUES. Module 5 erases a `Path` annotation to `str`, so the source decides: after the census,
+`_run_pipeline` parses the source and, for each `def` whose name is the (method-stripped) name of an IR
+function with `no_exception_all`, computes the Path names $P$ (parameters / `AnnAssign` targets annotated
+`*Path*`, closed under `Assign` / `AnnAssign` / walrus bindings from a Path value) and refuses
+(`PYCSL-R434-ORD-PATH`) a call `ord(a)` where $a$ is a Path value: a name in $P$, `x.parent`, a `/` with a
+Path operand, a call of `Path` / `PurePath` / ... or of `resolve` / `with_suffix` / ..., a subscript,
+conditional or walrus of one.
+
 ### §T.6.148  Unbound builtin descriptors (route #435, run #3)
 
 _Corresponds to `annotations.md` §7.137._
