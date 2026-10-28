@@ -5319,6 +5319,36 @@ end)`, where ⟦c⟧ is the rest of `_handle_call_expr` on the same node (guarde
 the entry `("#g436", id(node))` in `r434_ok`); any other $a$ is undefined
 (`PYCSL-R436-SSIZE-ARGUMENT`).
 
+### §T.6.150  Un-parameterised tuples are underivable when hashed (route #438, run #3)
+
+_Corresponds to `annotations.md` §7.139._
+
+In §T.6.142's leaf test, the condition $\#UND \in C(e) \lor C(e) = \emptyset$ becomes
+$\#UND \in C(e) \lor \#UNKT \in C(e) \lor C(e) = \emptyset$, and a hashed iterable ($n$'s
+`_xe394` site) counts when its element classes `_hc349` hold `#UND` or `#UNKT`. `#UNKT` is the
+marker $\mathcal{T}_{ty}$ adds for a `tuple` / `Tuple` name that is not a file class, at any depth
+of an annotation (a component included). Both consequences of §T.6.142 follow: $f$ joins
+`_und430` (§T.6.143), and a claimed, non-trusted $f$ is refused. The deny-list handling of
+`#UNKT` (§7.47) is unchanged.
+
+### §T.6.151  Structural types, user-module callees, computed-name stores (route #439, run #3)
+
+_Corresponds to `annotations.md` §7.140._
+
+(1) The value verdict `_kv381` of an outside class object $o$ that is neither unhashable nor
+admits a builtin container is `?` (unknown) when $o$`._is_protocol` is `True` or
+`__subclasshook__` $\in$ `vars(o)`; `_pr439` is the set of file classes with a base `Protocol` /
+`Protocol[..]` resolving (by `_im369`) to `typing.Protocol`, and a class name of `_pr439` in a
+hashed leaf's class set adds `#UNK`. (2) Before `transpiler.und_hash_r430` is set,
+`_run_pipeline` closes the file's imports over `_resolve_module_path` (skipping a
+`sys.stdlib_module_names` top-level module and anything under `src/pycsl/Lib/`), parses each
+user module, and adds to `_und430` the IR name ($g$, or `cls.lower()__g` for a method) of every
+function without `#@ no_exception \all` in the `#@` block above its `def` whose body may hash
+(the syntactic set of §7.140 (2)), closed over same-module calls. (3) `_sd439` is set by a
+`setattr` / `__setattr__` whose name argument is not a string constant, or a subscript store /
+`.update(..)` on `x.__dict__` / `vars(x)` with a computed key; then $\mathcal{T}_{ty}$ of an
+instance-field read of a file class, and of `C.k` of a file class, includes `#UND`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

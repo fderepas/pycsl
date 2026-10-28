@@ -4647,6 +4647,20 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _v369 = ("typing" if _v369 == "typing_extensions" else _v369
                              if _v369.split(".")[0] in _STD369 else "?")
                     _im369[_k369] = _v369 if _im369.get(_k369, _v369) == _v369 else "?"
+        # (#439) `_pr439`: the file classes that list `Protocol` / `Protocol[..]` (typing /
+        # typing_extensions, by import) among their bases -- STRUCTURAL types, which a list
+        # or any other class with the members satisfies; read by the hashing pass below
+        _pr439 = set()
+        for _n439 in _ast341.walk(_t341):
+            if isinstance(_n439, _ast341.ClassDef):
+                for _b439 in _n439.bases:
+                    _b439 = _b439.value if isinstance(_b439, _ast341.Subscript) else _b439
+                    if ((isinstance(_b439, _ast341.Name)
+                         and _im369.get(_b439.id) == "typing.Protocol")
+                            or (isinstance(_b439, _ast341.Attribute) and _b439.attr == "Protocol"
+                                and isinstance(_b439.value, _ast341.Name)
+                                and _im369.get(_b439.value.id) == "typing")):
+                        _pr439.add(_n439.name)
         # module-level bindings (through `if` / `try` / `with` / loop bodies): a value,
         # "def", "class", or None (a binding whose value is not a plain alias)
         _md369 = {}
@@ -5340,7 +5354,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 slice, memoryview, _tyx381.MappingProxyType, _wr381.ref))
                         except Exception:
                             _hn381, _ad381 = True, True
-                        _vd381 = ("U" if _hn381 else "S", "U" if _hn381 or _ad381 else "S")
+                        # (#439) a STRUCTURAL class (a `typing` Protocol, or an ABC with its
+                        # own `__subclasshook__`: `Callable`, `Hashable`, `Iterator`,
+                        # `Awaitable`, `os.PathLike` ...) admits ANY class with the method(s)
+                        # -- a list, or a file class with `__hash__ = None` -- so a value
+                        # declared by it is of an UNKNOWN class ("?"), as `Any` is
+                        try:
+                            _st439 = (getattr(_ob381, "_is_protocol", False) is True
+                                      or "__subclasshook__" in vars(_ob381))
+                        except Exception:
+                            _st439 = True
+                        _vd381 = ("U" if _hn381 else "S", "U" if _hn381 or _ad381 else
+                                  "?" if _st439 else "S")
                 elif _vd381 is None:
                     _vd381 = ("U", "?")
                 _vq381[_q381] = _vd381
@@ -6545,6 +6570,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # a read of such a field (any receiver class) is UNKNOWN when hashed. A
         # NON-constant name stays §7.43's GD-only effect (residual: folding it in GONEs
         # the `frontend/pure_ast.py` mirror, route #406's measurement (c)).
+        # (#439) `_sd439`: a dynamic store with a NON-constant name (`setattr(o, nm, v)`,
+        # `o.__setattr__(nm, v)`, `o.__dict__[nm] = v`, `vars(o)[nm] = v`, `.update(..)` of
+        # either) may write ANY field of any receiver: every field / class-attribute read
+        # gains an UNDERIVABLE class ("#UND"), refused when hashed under a TypeError claim
+        # (route R-gate) and recorded for #430's callers. ("#UNK" -- refused everywhere --
+        # GONEs the `frontend/pure_ast.py` mirror, route #406's measurement (c).)
+        _sd439 = False
         _sa417 = set()
         for _z417 in _ast341.walk(_t341):
             if isinstance(_z417, _ast341.Call):
@@ -6561,6 +6593,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if (isinstance(_nm417, _ast341.Constant)
                         and isinstance(_nm417.value, str)):
                     _sa417.add(_nm417.value)
+                elif _nm417 is not None:
+                    _sd439 = True
             elif (isinstance(_z417, _ast341.Subscript)
                   and not isinstance(_z417.ctx, _ast341.Load)
                   and isinstance(_z417.slice, _ast341.Constant)
@@ -6571,6 +6605,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                            and isinstance(_z417.value.func, _ast341.Name)
                            and _z417.value.func.id == "vars"))):
                 _sa417.add(_z417.slice.value)
+            elif (isinstance(_z417, _ast341.Subscript)
+                  and not isinstance(_z417.ctx, _ast341.Load)
+                  and ((isinstance(_z417.value, _ast341.Attribute)
+                        and _z417.value.attr == "__dict__")
+                       or (isinstance(_z417.value, _ast341.Call)
+                           and isinstance(_z417.value.func, _ast341.Name)
+                           and _z417.value.func.id == "vars"))):
+                _sd439 = True
+            elif (isinstance(_z417, _ast341.Attribute) and _z417.attr == "update"
+                  and ((isinstance(_z417.value, _ast341.Attribute)
+                        and _z417.value.attr == "__dict__")
+                       or (isinstance(_z417.value, _ast341.Call)
+                           and isinstance(_z417.value.func, _ast341.Name)
+                           and _z417.value.func.id == "vars"))):
+                _sd439 = True
         # (#49) gen #37, ROUTE #410 (red team 32; MEASURED PROVED at 085ee3dcc, CPython
         # TypeError) -- `copy.copy(x)` / `copy.replace(x)` "has x's class" (§7.49 (4)) holds
         # only when the copy protocol is the default one: a `__copy__` / `__deepcopy__` /
@@ -7749,6 +7798,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     # (#406) an unread callee may have stored any value;
                                     # (#417) so may a constant-name `setattr`
                                     _rw383.append(_K394)
+                                elif _sd439:
+                                    # (#439) a non-constant-name dynamic store may have
+                                    # written this field: underivable
+                                    _rw383.append(_U383)
                                 _fd383 = False
                                 for _a372 in _clo346.get(_x383.id, []):
                                     if _n383.attr in _fa372.get(_a372, {}):
@@ -7825,6 +7878,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         _rw383 = list(_ca394.get(_a372, {}).get(
                                             _n383.attr, [_U383]))
                                         break
+                            if _sd439:
+                                # (#439) a non-constant-name dynamic store (above)
+                                _rw383.append(_U383)
                         elif (_rw383 is None and id(_n383) in _iv394
                               and not any(isinstance(_z, _ast341.Name)
                                           and (_z.id in _ln394 or _z.id in _lb383)
@@ -8700,9 +8756,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                    _ast341.Dict, _ast341.DictComp,
                                                    _ast341.Set, _ast341.SetComp)):
                                 _uc430.add("#UB")
-                            if "#UND" in _uc430 or not _uc430:
+                            # (#438) an UN-PARAMETERISED `tuple` / `Tuple` ("#UNKT": its
+                            # components are unknown, so `([1],)` is one) is underivable too
+                            if "#UND" in _uc430 or "#UNKT" in _uc430 or not _uc430:
                                 _ul430.append(_uy430)
-                    if id(_h349) in _xe394 and "#UND" in _hc349:
+                    if id(_h349) in _xe394 and ("#UND" in _hc349 or "#UNKT" in _hc349):
                         _ul430.append(_h349)
                     if _ul430 and id(_n346) not in _gr383g:
                         _irn430 = ((_ec346.lower() + "__" + _f346.name) if _ec346
@@ -8733,6 +8791,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     for _c382 in list(_hc349):
                         if _c382 in ("#list", "#set", "#dict", "#keys", "#items"):
                             _hc349.add("#UB")
+                        elif _c382 in _pr439:
+                            # (#439) a FILE Protocol class: structural, so a value declared
+                            # by it may be any class (a list): UNKNOWN, as `Any` is
+                            _hc349.add("#UNK")
                         elif (_c382[:1] != "#" and _c382 not in _cls341
                               and _c382 not in _imm348):
                             if _kv381.get(_c382, "?") == "U":
@@ -8810,7 +8872,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"`{_ast341.unparse(_n346)}` (a set element, a dict key, a "
                             f"membership test or subscript of a set / dict, or "
                             f"`hash(...)`), and its class cannot be derived (an unknown "
-                            f"callee or receiver, `Any`, an un-annotated value: e.g. "
+                            f"callee or receiver, `Any`, an un-annotated value, an "
+                            f"un-parameterised `tuple` (route #438), a field a "
+                            f"`setattr` with a computed name may write (route #439): e.g. "
                             f"`m.get(k)` on a `Dict[str, Any]`), so it may be a list / "
                             f"dict / set at run time and CPython may raise TypeError, "
                             f"while this function claims `#@ no_exception` covering "
@@ -8819,7 +8883,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"`{{m.get(\"a\")}}` under `#@ no_exception \\all` proved). "
                             f"Derive the value from a source declared with a hashable "
                             f"type (a parameter, field or container element annotated "
-                            f"`str` / `int` / a frozen record), or drop the claim.",
+                            f"`str` / `int` / `Tuple[int, str]` / a frozen record), or drop "
+                            f"the claim.",
                             stage="ir-semantic", code="PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM")
             # (#49) gen #38, ROUTES #432 / #433 / #437 (red team 34; MEASURED PROVED at 78b519f63
             # under `#@ no_exception \all`, CPython AttributeError / TypeError). Three builtins whose
@@ -11939,6 +12004,114 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     transpiler.class_bases_r304 = _r304_class_bases
     # ROUTE #430 — the functions that may raise TypeError by hashing an underivable value
     # (read by route #178's callee summary in `_reset_function_state`).
+    # (#49) ROUTE #439 (red team 34; MEASURED PROVED at 78b519f63, CPython TypeError) — A
+    # CALLEE OF AN IMPORTED USER MODULE. The #430 bit above comes from the hashing pass,
+    # which reads THIS file only, so `import m` / `from m import h` with an un-claimed
+    # `h(m): s = {m.get("a")}` in `m` PROVED a `#@ no_exception \all` caller `return h(m)`.
+    # RULE (fail-closed, syntactic): every module this file imports that resolves to a
+    # USER source file (not a standard-library module, not a `Lib/` stub; transitively
+    # through the user modules it imports) is read, and each of its functions (methods
+    # too) that does NOT carry `#@ no_exception \all` and whose body may HASH (a set /
+    # dict display or comprehension, `hash(..)`, an `in` / `not in` test, a subscript, a
+    # call of `add` / `discard` / `remove` / `get` / `setdefault` / `pop` / `update` /
+    # `__contains__` / `__getitem__` / `set` / `frozenset` / `dict` / `Counter` /
+    # `fromkeys`, a call of a name the module imports from a user module or of another
+    # such function of the module) joins the #430 set under its name, so route #178's
+    # summary refuses a `\all` caller of it (`PYCSL-R430-CALLEE-UNDERIVABLE-HASH`).
+    import ast as _ast439
+    from frontend.ir_resolve import _resolve_module_path as _rmp439
+    _lib439 = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Lib")
+    _std439 = set(getattr(sys, "stdlib_module_names", ())) | {"typing_extensions"}
+    _HM439 = {"add", "discard", "remove", "get", "setdefault", "pop", "update",
+              "__contains__", "__getitem__", "set", "frozenset", "dict", "Counter",
+              "fromkeys", "hash"}
+    _fq439 = [(source_code, os.path.abspath(args.file))]
+    _sn439 = {os.path.abspath(args.file)}
+    while _fq439:
+        _src439, _pa439 = _fq439.pop()
+        try:
+            _tr439 = _ast439.parse(_src439)
+        except (SyntaxError, ValueError):
+            continue
+        _us439 = set()
+        for _n439 in _ast439.walk(_tr439):
+            _ms439 = []
+            if isinstance(_n439, _ast439.Import):
+                _ms439 = [(_a.name, 0, _a.asname or _a.name.split(".")[0])
+                          for _a in _n439.names]
+            elif isinstance(_n439, _ast439.ImportFrom) and (_n439.module or _n439.level):
+                _ms439 = [(_n439.module or "", _n439.level or 0, None)]
+            for _mn439, _lv439, _bd439 in _ms439:
+                if not _lv439 and _mn439.split(".")[0] in _std439:
+                    continue
+                try:
+                    _rp439 = _rmp439(_mn439, _lv439, _pa439) if _mn439 else None
+                except Exception:
+                    _rp439 = None
+                if not _rp439 or os.path.abspath(_rp439).startswith(_lib439 + os.sep):
+                    continue
+                _rp439 = os.path.abspath(_rp439)
+                if _bd439:
+                    _us439.add(_bd439)
+                else:
+                    _us439 |= {_a.asname or _a.name for _a in _n439.names}
+                if _rp439 not in _sn439:
+                    _sn439.add(_rp439)
+                    try:
+                        with open(_rp439) as _fh439:
+                            _fq439.append((_fh439.read(), _rp439))
+                    except OSError:
+                        pass
+        if _pa439 == os.path.abspath(args.file):
+            continue
+        _sl439 = _src439.splitlines()
+        _fn439 = []
+        for _c439 in [_tr439] + [_k for _k in _ast439.walk(_tr439)
+                                 if isinstance(_k, _ast439.ClassDef)]:
+            for _d439 in _c439.body:
+                if isinstance(_d439, (_ast439.FunctionDef, _ast439.AsyncFunctionDef)):
+                    _fn439.append((_c439.name if _c439 is not _tr439 else "", _d439))
+        _mh439 = {}
+        for _cn439, _d439 in _fn439:
+            _li439 = min([_x.lineno for _x in _d439.decorator_list] + [_d439.lineno]) - 2
+            _cl439 = False
+            while _li439 >= 0 and _li439 < len(_sl439) and _sl439[_li439].lstrip().startswith("#@"):
+                if (_sl439[_li439].strip().startswith("#@ no_exception")
+                        and "\\all" in _sl439[_li439]):
+                    _cl439 = True
+                _li439 -= 1
+            _hs439 = False
+            _cs439 = set()
+            for _y439 in _ast439.walk(_d439):
+                if isinstance(_y439, (_ast439.Set, _ast439.SetComp, _ast439.DictComp,
+                                      _ast439.Subscript)):
+                    _hs439 = True
+                elif isinstance(_y439, _ast439.Dict) and _y439.keys:
+                    _hs439 = True
+                elif isinstance(_y439, _ast439.Compare) and any(
+                        isinstance(_o, (_ast439.In, _ast439.NotIn)) for _o in _y439.ops):
+                    _hs439 = True
+                elif isinstance(_y439, _ast439.Call):
+                    _cn = (_y439.func.id if isinstance(_y439.func, _ast439.Name) else
+                           _y439.func.attr if isinstance(_y439.func, _ast439.Attribute)
+                           else "")
+                    _rt = (_y439.func.value.id if isinstance(_y439.func, _ast439.Attribute)
+                           and isinstance(_y439.func.value, _ast439.Name) else "")
+                    if _cn in _HM439 or _cn in _us439 or _rt in _us439:
+                        _hs439 = True
+                    _cs439.add(_cn)
+            _mh439[(_cn439, _d439.name)] = [_cl439, _hs439, _cs439]
+        _ch439 = True
+        while _ch439:
+            _ch439 = False
+            for _k439, _v439 in _mh439.items():
+                if not _v439[1] and any(_w[1] and not _w[0] for _j, _w in _mh439.items()
+                                        if _j[1] in _v439[2]):
+                    _v439[1] = True
+                    _ch439 = True
+        for (_cn439, _dn439), _v439 in _mh439.items():
+            if _v439[1] and not _v439[0]:
+                _und430.add(_dn439 if not _cn439 else _cn439.lower() + "__" + _dn439)
     transpiler.und_hash_r430 = set(_und430)
     # ROUTE #376 — the names a class makes available to `getattr` beyond its instance
     # fields (read by `_lower_getattr`'s ABSENT classification). `getattr(o, "k", d)` on a

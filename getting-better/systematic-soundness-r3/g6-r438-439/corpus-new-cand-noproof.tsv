@@ -1,0 +1,31 @@
+6600_r438_hash_bare_tuple_param.py	1	[ir-semantic]: 'f' line 6: `t` is HASHED by `hash(t)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(.
+6601_r438_set_bare_tuple_param.py	1	[ir-semantic]: 'f' line 6: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`
+6602_r438_set_typing_Tuple_param.py	1	[ir-semantic]: 'f' line 8: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`
+6603_r438_ret_bare_tuple_set.py	1	[ir-semantic]: 'f' line 13: `k` is HASHED by `{k}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)
+6604_r438_ifexp_bare_tuple.py	1	[ir-semantic]: 'f' line 6: `t` is HASHED by `{t if c else ()}` (a set element, a dict key, a membership test or subscript of a set / dict, o
+6605_r438_tuple_in_tuple.py	1	[ir-semantic]: 'f' line 6: `t` is HASHED by `{(1, t)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(
+6606_r438_walrus_bare_tuple.py	1	[ir-semantic]: 'f' line 6: `t` is HASHED by `{(u := t)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `has
+6607_r438_typing_Tuple_ret.py	1	[ir-semantic]: 'f' line 12: `g3(t)` is HASHED by `{g3(t)}` (a set element, a dict key, a membership test or subscript of a set / dict, or `h
+6608_r438_method_bare_tuple.py	1	[ir-semantic]: 'm' line 7: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`
+6609_r438_ret_bare_tuple_hash.py	1	[ir-semantic]: 'f' line 13: `k` is HASHED by `hash(k)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(
+6610_r438_field_bare_tuple.py	1	[ir-semantic]: 'f' line 11: `r.t` is HASHED by `{r.t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(
+6611_r438_nested_bare_tuple_component.py	1	[ir-semantic]: 'f' line 8: `t` is HASHED by `{t}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(...)`
+6612_r438_set_of_bare_tuple_elements.py	1	[ir-semantic]: 'f' line 8: `xs` is HASHED by `set(xs)` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(
+6613_r438_claimed_caller_bare_tuple_callee.py	1	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership tes
+6615_r439_protocol_value_hashed.py	1	[ir-semantic]: 'f' line 13: `c` (an instance of ['a list / dict / set']) is HASHED by `{c}` (a set element, a dict key, a membership test or
+6616_r439_callable_value_hashed.py	1	[ir-semantic]: 'f' line 15: `c` (an instance of ['Cc', 'a list / dict / set']) is HASHED by `{c}` (a set element, a dict key, a membership t
+6617_r439_hashable_abc_value_hashed.py	1	[ir-semantic]: 'f' line 8: `c` (an instance of ['a list / dict / set']) is HASHED by `hash(c)` (a set element, a dict key, a membership test
+6618_r439_typing_dot_protocol_value.py	1	[ir-semantic]: 'f' line 13: `c` (an instance of ['a list / dict / set']) is HASHED by `{c}` (a set element, a dict key, a membership test or
+6619_r439_supports_int_value_hashed.py	1	[ir-semantic]: 'f' line 15: `c` (an instance of ['I', 'a list / dict / set']) is HASHED by `{c}` (a set element, a dict key, a membership te
+6620_r439_usermod_callee_module_import.py	1	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership tes
+6621_r439_usermod_callee_from_import.py	1	`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership tes
+6622_r439_usermod_callee_transitive.py	1	`mid(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership t
+6624_r439_setattr_computed_name_field.py	1	[ir-semantic]: 'f' line 12: `r.x` is HASHED by `{r.x}` (a set element, a dict key, a membership test or subscript of a set / dict, or `hash(
+6625_r439_dict_store_computed_name_field.py	1	a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 7). Every call is resolved agains
+6626_r439_vars_update_field.py	1	a function, method or class NAME is rebound after its definition (a write through a namespace dict at line 9). Every call is resolved agains
+6627_r439_setattr_computed_name_class_attr.py	1	a function, method or class NAME is rebound after its definition (`setattr`/`delattr` of a function name at line 9). Every call is resolved 
+6640_r438_control_typed_tuples.py	1	
+6641_r439_control_protocol_not_hashed.py	0	Verification SUCCESS
+6642_r439_control_usermod_claimed_callee.py	0	Verification SUCCESS
+6643_r439_control_setattr_unclaimed.py	0	Verification SUCCESS
+DONE

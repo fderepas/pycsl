@@ -3535,6 +3535,49 @@ form (a name, an int literal, `+ - *` / unary `-` of those, `len(name)`) owes `-
 summary cover these sites too. Witnesses `6565`-`6569`, `6575`-`6578`; controls `6582`, `6584`,
 `6585`.
 
+### 7.139 An un-parameterised `tuple` is underivable when hashed (route #438, run #3)
+
+§7.47 kept an UN-PARAMETERISED `tuple` / `typing.Tuple` on the deny-list check only (its
+components checked against the FILE's unhashable classes), so `t: tuple` holding a list was
+hashed as if hashable: `hash(t)`, `{t}`, `{(1, t)}`, `{t if c else ()}`, `{(u := t)}`, a
+callee `-> tuple` / `-> Tuple` bound to a local or hashed directly, a method parameter, a field
+annotated `tuple`, a `Tuple[int, tuple]` component, all PROVED `#@ no_exception \all` (red team
+34; CPython TypeError for `([1],)`). RULE: such a value's components are UNKNOWN, so its class
+set (the `#UNKT` marker) counts as UNDERIVABLE for §7.131 and §7.132: refused in a hashing
+position of a function claiming TypeError (`PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM`), as is a
+hashed iterable of such elements (`set(xs)`, `xs: List[tuple]`), and a function holding such a
+site makes a `\all` caller refused (`PYCSL-R430-CALLEE-UNDERIVABLE-HASH`). Admitted: a
+PARAMETERISED tuple whose every component class is admitted (`Tuple[int, str]`, a display of
+typed values), and any tuple hashed in an UN-claimed function (its TypeError is ambient, §7.131).
+Not `#UNK` (refused everywhere): the self-annotation mirror `pycsl.py` keys
+`_merge_records_best_of_n` by `_record_key(..) -> Tuple` in an un-claimed function (§7.47's
+residual), which the claim-gated rule leaves proved. Witnesses `6600`-`6613`; control `6640`.
+
+### 7.140 Structural types, imported user-module callees and computed-name stores in hashing (route #439, run #3)
+
+Three sources of a hashed value's class were read as known (red team 34, PROVED
+`#@ no_exception \all`, CPython TypeError). (1) A value declared by a STRUCTURAL type: a file
+class listing `Protocol` (`typing` / `typing_extensions`, by name or `typing.Protocol`) among
+its bases, a `typing` Protocol (`SupportsInt` ...), or a standard-library ABC with its own
+`__subclasshook__` (`Callable`, `Hashable`, `Iterator`, `Awaitable`, `os.PathLike` ...): a list,
+or a class with `__hash__ = None`, satisfies it. Such a value is now of an UNKNOWN class
+(`#UNK`, as `Any`, §7.47): refused in every hashing position (`PYCSL-R349-UNHASHABLE-RECORD`).
+(2) A call into an IMPORTED USER MODULE (`import m` / `from m import h`, resolved to a source
+file that is not a standard-library module or a `Lib/` stub; transitively through the user
+modules that module imports): the #430 summary came from this file's hashing pass only. Each
+function (method) of such a module that does not carry `#@ no_exception \all` and MAY HASH
+(syntactically: a set / dict display or comprehension, a subscript, an `in` test, `hash(..)`, a
+call of `add` / `discard` / `remove` / `get` / `setdefault` / `pop` / `update` / `__contains__` /
+`__getitem__` / `set` / `frozenset` / `dict` / `Counter` / `fromkeys`, a call of a name the module
+imports from a user module, or of such a function of the module) now carries §7.132's bit, so a
+`\all` caller of it is refused (`PYCSL-R430-CALLEE-UNDERIVABLE-HASH`). (3) A dynamic store with a
+COMPUTED name (`setattr(o, nm, v)`, `o.__setattr__(nm, v)`; §7.63's GD-only residual): every
+field / class-attribute read of a file class gains an UNDERIVABLE class, refused when hashed
+under a TypeError claim (§7.131); not `#UNK` (refused un-claimed too): §7.63 measured that
+counting these stores as UNKNOWN for hashed values GONEs the `frontend/pure_ast.py` mirror. Witnesses `6615`-`6624` (helpers
+`multi_file_lib/r439_hashlib.py`, `r439_hashmid.py`); controls `6641`-`6643` (helper
+`multi_file_lib/r439_okhash.py`).
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

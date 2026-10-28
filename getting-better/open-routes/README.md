@@ -38,6 +38,20 @@
 ##   0/0/0; mirrors 53/53 0/0/0 vs v8/mb; planes 61/61; coverage (338 demonstrated) / advice (165 audited) / doc /
 ##   trusted-reasons / getattr / clause / assumed / carriers rc=0; sync + mirror-check rc=0.
 
+## run #3 (2026-10-28): #438 and #439 REPAIRED (executor g6 off 1c083dcbe; code inline in the #349-#383 hashing pass of
+##   _run_pipeline (src/pycsl/pycsl.py, `\trusted` in the mirror), corpus 6600-6624 / 6640-6643 + multi_file_lib/r439_*.py,
+##   census rows (+ the 9 R-gate rows re-measured: message edit), advice re-audit, docs annotations 7.139-7.140 /
+##   translational T.6.150-T.6.151, REPAIR sections; no new def in a mirrored file, no axiom, no new refusal code).
+##   #438: an un-parameterised `tuple` / `Tuple` (#UNKT) is UNDERIVABLE for route R-gate and #430 (refused hashed under a
+##   TypeError claim; a `\all` caller of an un-claimed holder refused); not #UNK, which §7.47 measured refuses the
+##   un-claimed mirror `pycsl.py` `_record_key -> Tuple` keys. #439: (1) a value declared by a structural type (file
+##   `Protocol` class, typing Protocol, ABC with its own `__subclasshook__`: Callable / Hashable / Iterator ...) is #UNK;
+##   (2) an un-claimed function of an imported USER module that may hash joins the #430 set; (3) a computed-name
+##   `setattr` makes field / class-attribute reads #UND. All 16 red-team witnesses (+ 4 latents, 3 probes) REFUSED;
+##   controls 6640-6643 PROVED both. Over-refusal cost MEASURED 0: root 2518 -> 2522 0 MOVED / 0 GONE / 0 APPEARED (4 new
+##   controls emit), pyref 2186 0/0/0, mirrors 53/53 0/0/0 (no mirror refusal, no OWED proof), pycsl_lib --no-proof
+##   screen identical (104 files, rc0 87).
+
 ## run #3 (2026-10-28): #432-#439 OPENED (red team 34 on 78b519f63, convergence measurement: 497 written / 474 fully proved /
 ##   63 confirmed; FINDINGS salvaged by the driver; rt33's 115/117 proofs now refused): #432 an optional / union receiver of an attribute or method access owes no attributeerror (8); #433 str.join / bytes.join over elements not derivably str / bytes owes no typeerror (9); #434 ord() of a string not of length 1 owes no typeerror (7); #435 an unbound str / bytes method descriptor applied to a wrong-type first argument owes no typeerror (8); #436 str.split / rsplit with maxsplit outside c ssize_t owes no overflowerror (5); #437 sorted() over elements not totally ordered owes no typeerror (10); #438 hashing a bare / unparameterised tuple (elements unknown) owes no typeerror (11); #439 a hashed value whose class comes through a protocol, a foreign user module, or setattr owes no typeerror (5).
 ##   Diagnosis: every family is a builtin whose TYPE-DEPENDENT precondition (receiver / element class, length, range,

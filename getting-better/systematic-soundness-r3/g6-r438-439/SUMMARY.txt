@@ -1,0 +1,28 @@
+ROUTES #438 + #439 increment (executor g6, driver run #3, base 1c083dcbe = 78b519f63 emission), candidate = this commit.
+code: src/pycsl/pycsl.py only (_run_pipeline, `\trusted` in the mirror; no new def, no new refusal code, no axiom)
+  #438  #UNKT counts as underivable in the R-gate leaf / hashed-iterable tests (=> R-gate refusal under a TypeError claim,
+        and the #430 bit for \all callers). R-gate message names the new sources; advice adds `Tuple[int, str]`.
+  #439  (1) _kv381 value verdict "?" for a stdlib class with _is_protocol or its own __subclasshook__; _pr439 file
+        Protocol classes -> #UNK in a hashed leaf. (2) imported user modules (resolved, non-stdlib, non-Lib/, transitive):
+        un-\all functions that may hash join _und430 (route #178/#430 summary). (3) _sd439: computed-name setattr /
+        __setattr__ / __dict__ / vars store -> field and C.k reads gain #UND.
+witnesses: red-team witnesses-r438 (11) + witnesses-r439 (5): all 16 PROVED at 78b519f63 (driver repro) -> REFUSED at
+  candidate (redteam-witnesses-cand*.tsv). Corpus 6600-6613, 6615-6622, 6624 (23, expected FAIL): base full proof
+  corpus-new-base-full.tsv = 20 Verification SUCCESS (false proofs) + 3 FAIL (6612, 6617, 6619: other goals), candidate all
+  REFUSED (corpus-new-cand-noproof.tsv). Controls 6640-6643 PROVED at base and candidate (controls-cand-full.tsv).
+fidelity: check-self-annotate-sync rc=0 (932 verbatim); self-annotate-mirror-check rc=0 (53)   (sync.log, mcheck.log)
+root byte-diff rc=0: 2518 baseline (driver v8/cb, v-s1base@78b519f63) / 2522 candidate .mlw, 0 MOVED / 0 GONE / 0 APPEARED,
+  4 new sources (the 4 controls) ignored  (cmp-root.log)
+pyref byte-diff rc=0: 2186 / 2186, 0 / 0 / 0  (cmp-pyref.log)
+mirror sweep rc=0: 53 / 53, 0 / 0 / 0 (base = git-archive copy of 1c083dcbe minus test-suite/getting-better/scratchpad/
+  attic/legacy/logs, .venv symlinked; a first base copy without the top-level json/ package MOVED pycsl.mlw /
+  audit_proof_reverify.mlw spuriously -- an environment artefact, re-run on the full copy)  (cmp-mirror.log)
+  => no mirror refusal, no OWED mirror proof.
+pycsl_lib --no-proof screen: identical to h430's g430/lib-cand.tsv (src identical fc965756a..1c083dcbe): 104 files, rc0 87
+over-refusal cost: 0 files in root / pyref / mirrors / pycsl_lib.
+census: 23 NEW REFUSAL rows (6600-6624) + 9 re-measured (R-gate message edit: 3341, 3342, 5069, 6470-6475) via
+  census_rows.py (named witnesses only; the whole-corpus --append-new was killed before writing: driver warning)
+advice: R-gate entry re-audited (advice/a438_typed_tuple, a438_drop_claim VERIFY), hash ff83a393ab80 -> 654460119406;
+  R430 via an imported module: a439_usermod_drop_claim VERIFIES (advice-cand-full.tsv)
+doc-coherency rc=0
+\trusted count unchanged (no mirror edit).
