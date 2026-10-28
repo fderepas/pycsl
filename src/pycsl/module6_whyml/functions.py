@@ -1582,6 +1582,17 @@ class FunctionEmissionMixin:
             # ZeroDivisionError: return 9` PROVED `\result == 0` (CPython raises / 9).
             _act178 = (set(_r65_named) | (set(_ph178()) if _r65_all else set())) & {
                 "KeyError", "IndexError", "ValueError", "ZeroDivisionError"}
+            # (#49) ROUTE #430 — TypeError BY HASHING AN UNDERIVABLE VALUE. A callee that
+            # hashes a value whose class the #349-#383 pass cannot derive (`#UND` / no
+            # source: `{m.get("a")}` on `m: Dict[str, Any]`) may raise TypeError, and an
+            # un-claimed callee's TypeError is ambient. MEASURED at 289fe6029 (probe l3d,
+            # PROVED, CPython TypeError): `#@ no_exception \all` `caller(m): return h(m)`
+            # with an un-claimed `h(m): s = {m.get("a")}; return 1`. TypeError is outside
+            # KNOWN_EXCEPTIONS, so only `\all` claims it; the hashing pass hands this
+            # summary the functions holding such a site (`und_hash_r430`, kept off the IR).
+            _und430 = set(getattr(self, "und_hash_r430", None) or ())
+            if _r65_all and _und430:
+                _act178.add("TypeError")
             if _act178:
                 _raw178: Dict[str, Set[str]] = {}
                 _cl178: Dict[str, Set[str]] = {}
@@ -1619,6 +1630,8 @@ class FunctionEmissionMixin:
                             _w178.extend(v for v in _x178.values() if isinstance(v, (dict, list)))
                         elif isinstance(_x178, list):
                             _w178.extend(_x178)
+                    if _fn178 in _und430 and not _cc178.get("no_exception_all"):
+                        _r178.add("TypeError")
                     _raw178[_fn178] = _r178 - _decl178[_fn178]
                     _cl178[_fn178] = _c178
                 _ch178 = True
@@ -1647,7 +1660,24 @@ class FunctionEmissionMixin:
                                         or (_x178.get("receiver") is not None
                                             and _gn178.endswith("__" + _t178))):
                                     continue
-                                _hit178 = sorted(_gr178 & _act178)
+                                _hit178 = sorted(_gr178 & _act178 - {"TypeError"})
+                                if not _hit178 and "TypeError" in (_gr178 & _act178):
+                                    raise PyCSLIRError(
+                                        "`" + _x178["func"] + "(...)` calls code that may "
+                                        "raise `TypeError` by hashing a value whose class "
+                                        "cannot be derived (a set element, a dict key, a "
+                                        "membership test or `hash(...)` of e.g. `m.get(k)` on "
+                                        "a `Dict[str, Any]`, which may be a list) in a "
+                                        "function that does not claim `#@ no_exception "
+                                        "\\all`, where that raise is not modelled; this "
+                                        "function claims `#@ no_exception \\all` (route #430; "
+                                        "measured: a helper `s = {m.get(\"a\")}` called "
+                                        "under `#@ no_exception \\all` proved, CPython raises "
+                                        "TypeError). Declare the hashed value's source "
+                                        "with a hashable type in the callee (e.g. `Dict[str, "
+                                        "str]` rather than `Dict[str, Any]`), or drop `\\all` "
+                                        "from this function's claim.",
+                                        code="PYCSL-R430-CALLEE-UNDERIVABLE-HASH")
                                 if _hit178:
                                     raise PyCSLIRError(
                                         "`" + _x178["func"] + "(...)` calls code that can raise `"

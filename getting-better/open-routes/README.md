@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-28): #430 REPAIRED and route R-gate BUILT (executor h430 off 725a1c7e5 + #431; code inline in the
+##   #349-#383 hashing pass of _run_pipeline and in route #178's callee summary; corpus 6460-6464 / 6470-6475 / 6480-6481,
+##   census rows (+ 5069 re-measured), docs annotations 7.131-7.132 / translational T.6.142-T.6.143; no new def in a mirrored
+##   file, no axiom). R-gate: an underivable (#UND / no-source) hashed value in a function claiming TypeError is REFUSED
+##   (PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM); `list(x)` / `set(x)` now derive x's elements (6336's cost). #430: route
+##   #178's summary carries "may raise TypeError by hashing #UND" (PYCSL-R430-CALLEE-UNDERIVABLE-HASH). Witnesses 6460-6462
+##   and 6470-6475 PROVED at base -> REFUSED; controls 6463 / 6464 / 6480 / 6481 / 6336 PROVED both. Root 0 MOVED / 1 GONE
+##   (5069, expected FAIL, now REFUSED) / 0 APPEARED; pyref 2186 0/0/0; mirrors 53/53 0/0/0 (no mirror refusal, no OWED).
+
 ## run #3 (2026-10-28): #431 REPAIRED (executor h430 off 725a1c7e5; code src/pycsl/pycsl.py next to route #156, corpus 6450-6457,
 ##   census rows, docs annotations 7.130 / translational T.6.141, route431 REPAIR; no new def in a mirrored file, no axiom).
 ##   A `return` anywhere in a `finally:` block, or a `break` / `continue` in it outside a loop nested in the block, is REFUSED

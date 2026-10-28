@@ -347,3 +347,53 @@ refused. Together with `l3o` / `l3p` (un-claimed), they are the live false proof
 *Order of work, stated honestly.* The S0 probes `l3a` to `l3p` and the S1 positive control ran while this
 plan was being drafted (03:15-03:22Z): the task asked for the LINK-3 answer before planning. No `src/`,
 `bin/` or corpus file had been edited when this plan was committed.
+
+---
+
+## §R2. Reopened and built (executor h430, driver run #3, 2026-10-28, off 725a1c7e5)
+
+The reopening test of §R's verdict was met in order, each step gated and committed on its own.
+
+1. **Route #431 repaired** (6038e1352). A `return` / `break` / `continue` inside a `finally:` block is refused
+   (annotations §7.130). Re-measured cost: 0 in root, pyref, mirrors and `pycsl_lib`. Other channels were probed
+   (`h430-r430-431/probes/c01`-`c10`): a user `__exit__` returning True, `except BaseException`, `except*`,
+   nested-def handlers, and generators. Each is refused by #38 / #39, #174, the desugar refusal or #271.
+2. **S0 re-run** on the candidate (`h430-r430-431/s0-rerun/`):
+   - every finally-swallow probe (l3g, l3j, l3k, l3m-l3q) is REFUSED (#431);
+   - the handler probes are refused as before (#174 / #178 / #257);
+   - l3l PROVES correctly (no jump; the TypeError propagates).
+   **P1 now holds:** no measured channel turns an un-claimed function's ambient exception into a normal return.
+3. **Route R-gate built per §4** (annotations §7.131, `PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM`).
+   - **The S1 cost (6336) was not the arithmetic.** `k` iterates `list(d.keys())`, and `list(x)` derived as a
+     bare `list` with no element. `list(x)` / `set(x)` now hold `x`'s elements, as `sorted(x)` did; `int +
+     int-literal` was already `int` (`v5`: `d[k + 300]` with `k: int` admitted).
+   - **Deriving `#UND + int-literal` as `int` was rejected as unsound.** An operand of unknown class may define
+     `__add__` returning a list (e.g. a numpy array).
+   - **A slice of a value derived as a sequence / tuple / `str`** is not a hashed leaf.
+   - **The refusal is raised after the deny-list checks**, so a value known or suspected unhashable keeps its
+     #349 / #383 message (5501 and 5992 keep theirs).
+4. **Route #430 repaired** (annotations §7.132, `PYCSL-R430-CALLEE-UNDERIVABLE-HASH`). The same walk records the
+   `#UND`-hashing functions, and route #178's summary carries the TypeError bit transitively.
+
+**Measured gated cost** (byte-diff vs 725a1c7e5):
+- root: 0 MOVED / 1 GONE / 0 APPEARED. The GONE is 5069 (`{*self}` under `\all`), an expected-FAIL witness
+  that FAILED at base and is now REFUSED.
+- pyref 2186 / 2186: 0 / 0 / 0.
+- mirrors 53 / 53: 0 / 0 / 0 (no mirror refusal, no OWED proof).
+- `pycsl_lib`: screen identical.
+
+The census rows of 3341 / 3342 (#287 lambda witnesses, now refused first by R-gate: the lambda's `v` is
+underivable) and of 5069 were re-measured with the tool; #287 stays demonstrated by 3340 / 3343 / 3344.
+
+**Witnesses**, PROVED at base and REFUSED on the candidate:
+- R-gate: S2 w01 `f` / `g`, q4 `h`, q6, the values loop and the dict key (6470-6475);
+- #430: 6460-6462.
+
+**Controls**, PROVED at both:
+- 6480: un-claimed `#UND` hashing, which is sound now that #431 is closed;
+- 6481: claimed, derivable values;
+- 6463 / 6464: #430;
+- 6336.
+
+Evidence: `getting-better/systematic-soundness-r3/h430-r430-431/`.
+

@@ -214,10 +214,14 @@ CARRIERS = {
     # `continue` inside a `finally:` block is REFUSED (PYCSL-R431-FINALLY-JUMP-SWALLOWS-EXCEPTION,
     # corpus witnesses 6450-6454 / 6457). The three #431 rows now ASSERT the refusal: a regression
     # that lets a finally-jump prove again turns this plane red. S0 re-run: every channel REFUSED.
+    # (#49) driver run #3 (executor h430, 2026-10-28): #430 is CLOSED — route #178's callee
+    # summary carries "may raise TypeError by hashing an underivable value", so the claimed caller
+    # is REFUSED (PYCSL-R430-CALLEE-UNDERIVABLE-HASH, corpus witnesses 6460-6462). The row now
+    # ASSERTS the refusal.
     "getting-better/open-routes/route430-carrier-claimed-caller-unclaimed-hash-callee.py": (
-        "SUCCESS", "#430",
+        "REFUSED", "#430",
         "a `no_exception \\all` caller returns `h(m)` where the un-claimed `h` hashes "
-        "`m.get(\"a\")`; CPython raises TypeError"),
+        "`m.get(\"a\")` (PROVED before #430's repair); CPython raises TypeError; now REFUSED"),
     "getting-better/open-routes/route431-carrier-finally-return-swallows-hash.py": (
         "REFUSED", "#431",
         "`out[0] = 2; try: hash(m.get(\"a\")); out[0] = 1 finally: return` proved "

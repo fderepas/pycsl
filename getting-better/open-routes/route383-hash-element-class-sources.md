@@ -118,3 +118,26 @@ Measured gated cost, for when the route is reopened:
 - 1 root PASS file, `6336_r427_ctl_snapshot_iteration.py` (`d[k + 100]`, `d[k + 300]`: an int key derived as `#UND`).
 
 The residual stays as documented above. It reopens when #431 is repaired: re-run spike S0, then build R-gate per the impl doc §4.
+
+## #UND RESIDUAL under a TypeError claim: route R-gate BUILT (executor h430, driver run #3, 2026-10-28)
+The reopening test of the CERTIFIED-BOUNDARY note above is met: route #431 is repaired (a `return` / `break`
+/ `continue` in `finally:` is refused, 6038e1352), and spike S0, re-run on the candidate, finds no channel
+that turns an un-claimed function's ambient exception into a normal return (l3g / l3j / l3k / l3m-l3q
+REFUSED by #431; l3a / l3b / l3f / l3i by #174; l3c by #178; l3h by #257; l3l PROVED correctly, no jump).
+R-gate was then built per the impl doc §4 (annotations §7.131, translational §T.6.142):
+- **The rule.** In a non-trusted function claiming TypeError (`\all`, or `TypeError` / `Exception` /
+  `BaseException` named), an unguarded hashed leaf whose class set contains `#UND` or is empty, or a hashed
+  iterable whose elements may be `#UND`, is REFUSED (`PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM`).
+- **The narrowing.** The cost the spike measured, root 6336's `d[k + 100]`, was not the arithmetic: `k`
+  iterates `list(d.keys())`, and `list(x)` derived as a bare `list` with no element. `list(x)` / `set(x)`
+  now hold `x`'s elements, as `sorted(x)` already did. A slice of a value derived as a sequence / tuple /
+  `str` is not counted as a hashed leaf.
+- **Witnesses** (rg's S2 set), PROVED at base -> REFUSED: 6470-6475. **Controls**: 6480 (un-claimed
+  `#UND` hashing), 6481 (claimed, derivable), 6336.
+- **Gated cost:** root 0 MOVED / 1 GONE, which is 5069, an expected-FAIL witness (`{*self}`) now refused
+  rather than failing; pyref 0 / 0 / 0; mirrors 0 / 0 / 0; `pycsl_lib` identical.
+- **Route #430** (a claimed caller of an un-claimed `#UND`-hashing callee) is repaired alongside it, from the
+  same walk.
+
+The UN-claimed `#UND` residual stays as documented, and it is now sound to leave it: the TypeError ends the
+function abnormally, which no `ensures` describes.

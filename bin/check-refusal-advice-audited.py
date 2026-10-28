@@ -723,6 +723,11 @@ AUDITED = {
     # getting-better/systematic-soundness-r3/h430-r430-431/advice/.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr431(f"""a `{_hit431[1]}` inside a `finally:` block of {_hit431[0]!r} (ROUTE #431): when the try body raises, CPython runs the `f'): (FOLLOWABLE,
         "Route #431. 'Move the `return` after the `try` statement': witness 6450 with `finally: return` rewritten `finally: pass` and `return` after the `try` (a431_follow) VERIFIES -- the ambient TypeError now propagates (CPython: abnormal exit, no normal return). Controls 6455 / 6456 are the same shape."),
+    # (#49) driver run #3 -- route #430 and route R-gate (h430), audited the day they landed.
+    ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set ele"): (FOLLOWABLE,
+        "Route #430. 'Declare the hashed value's source with a hashable type in the callee (e.g. `Dict[str, str]` rather than `Dict[str, Any]`), or drop `\\all` from this function's claim': witness 6460 with both `m: Dict[str, str]` (a430_typed_source) VERIFIES; with `\\all` dropped from `caller` (a430_drop_claim, = control 6464) it VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_rg430)}` is HASHED by `{_ast341.unparse(_n346)}` ('): (FOLLOWABLE,
+        "Route R-gate. 'Derive the value from a source declared with a hashable type (a parameter, field or container element annotated `str` / `int` / a frozen record), or drop the claim': witnesses 6470 / 6473 with `Dict[str, str]` / `List[Dict[str, int]]` sources (argate_typed_source) VERIFY under `no_exception \\all`; 6470 with the claim dropped (argate_drop_claim, = control 6480) VERIFIES."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1007,6 +1012,9 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_z425, \'lineno\', 0)}: `{_ast341.unparse(_z425)}` names an object\'s `__init__` outside constructor chaining. '): 'ba1718d38d1f',
     # (#49) driver run #3 -- route #431 (h430)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr431(f"""a `{_hit431[1]}` inside a `finally:` block of {_hit431[0]!r} (ROUTE #431): when the try body raises, CPython runs the `f'): '89e9fd3b9a3b',
+    # (#49) driver run #3 -- route #430 / route R-gate (h430)
+    ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set ele"): '38d2b19ee594',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_rg430)}` is HASHED by `{_ast341.unparse(_n346)}` ('): 'ff83a393ab80',
 }
 
 

@@ -2697,7 +2697,7 @@ mirror's `func.get("return_value_type") in self._record_types` then
 Witnesses `5500`-`5506`; controls `5510`-`5511` (int / str / `Tuple[str, str]` / `Optional[str]`
 values and a frozen file dataclass PROVE). Residuals: an UNDERIVABLE value (an unknown callee
 or receiver, an un-annotated return, `.get(..)` of a `Dict[str, Any]`, an `Any` element of a
-declared container) is still unchecked; an UN-PARAMETERISED `tuple` / `Tuple` keeps the §7.46
+declared container) is still unchecked (under a TypeError claim it is refused since §7.131, run #3); an UN-PARAMETERISED `tuple` / `Tuple` keeps the §7.46
 check only (`t: tuple` holding a list PROVES — the self-annotation mirror `pycsl.py` keys
 `_merge_records_best_of_n` by `_record_key(..) -> Tuple` whose components are why3 JSON values,
 genuinely `Any`; refusing it would lose that proved mirror); a HASHABLE class imported from a
@@ -3363,6 +3363,43 @@ ValueError implicitly (route #178); `contextlib.suppress` (route #257) and a fil
 `__exit__` returns True (routes #38 / #39); `except*` (the desugar refusal); a generator's own
 handler or `finally` (route #271: a generator call is not modelled). Witnesses `6450`-`6454`,
 `6457`; controls `6455`, `6456`.
+
+### 7.131 An underivable hashed value under a TypeError claim is refused (route R-gate, run #3)
+
+§7.47's residual: a hashed value whose class cannot be DERIVED (`#UND`: an unknown callee or
+receiver, an un-annotated return, `.get(..)` of a `Dict[str, Any]`, an `Any` element of a declared
+container; or a value with no source at all) may be a list / dict / set at run time, and was
+admitted. `{m.get("a")}`, `seen.add(f2.get("name"))` (`seen: Set[Any]`), `v = m.get("a"); {v}`,
+`seen.add(f.get("name"))` over `List[Dict[str, Any]]`, `v in seen` over `m.values()` and
+`{m.get("a"): 1}` all PROVED `no_exception \all` (CPython TypeError). TypeError is outside
+`KNOWN_EXCEPTIONS`, so outside a claim it is AMBIENT: it ends the function abnormally, and since
+§7.130 (route #431) nothing turns it into a normal return, so an un-claimed function's `ensures`
+stays true of every normal return. RULE: in a function that is not `\trusted` / `\abstract` and
+claims TypeError (`#@ no_exception \all`, or a list naming `TypeError` / `Exception` /
+`BaseException`), a hashed leaf (§7.47's positions, tuple components, both arms of `x if c else
+y`, a walrus's value, the elements of a hashed iterable) whose derived classes contain `#UND`, or
+are empty, is refused (`PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM`), unless §7.47's `if A in B:`
+guard has already hashed it. A slice of a value derived as a sequence / tuple / `str` hashes
+nothing and is not counted. A hashed site inside a nested `def` / lambda also counts for the
+enclosing function (fail-closed). The derivation now reads `list(x)` / `set(x)` as holding the
+elements of `x` (a mapping's keys), as it did `sorted(x)`, so `for k in list(d.keys()):
+d[k + 100] = 0` over `d: Dict[int, int]` is `int` (control `6336`). Witnesses `6470`-`6475`;
+controls `6480` (the same bodies un-claimed), `6481` (claimed, derivable: `Dict[str, int]`
+values, `str`, `int` arithmetic over `list(d.keys())`, typed tuples), `6336`.
+
+### 7.132 A claimed caller of a callee that may hash an underivable value is refused (route #430, run #3)
+
+Route #178 refuses a `no_exception` caller of a same-file callee that may raise KeyError /
+IndexError / ValueError implicitly without declaring it; a callee's hash TypeError (§7.131's
+`#UND` leaf in an un-claimed function) was not in its summary, so `#@ no_exception \all`
+`caller(m): return h(m)` with an un-claimed `h(m): s = {m.get("a")}; return 1` PROVED (CPython
+TypeError). RULE: the §7.131 pass records every function holding such a site (claimed or not,
+`\trusted` included); route #178's transitive callee summary gives each of them, unless it
+claims `\all` itself, the bit "may raise TypeError", and a `no_exception \all` caller of one,
+directly or through further same-file calls, is refused
+(`PYCSL-R430-CALLEE-UNDERIVABLE-HASH`). A named claim cannot carry TypeError (it is not a known
+exception), so only `\all` is concerned. Witnesses `6460`-`6462`; controls `6463` (the callee
+hashes a `str`), `6464` (an un-claimed caller).
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 

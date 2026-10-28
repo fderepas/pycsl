@@ -2897,6 +2897,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         sys.exit(0)
 
     json_ir = _json.dumps(ir_data)
+    # (#49) ROUTE #430 — the functions holding an underivable hashed site, filled by the
+    # #349-#383 hashing pass and read by route #178's callee summary in Module 6.
+    _und430 = set()
 
     # Non-vacuity gate exempt-set — stashed on `args` (the object shared with
     # `_run_proofs`, where the gate runs but `ir_data` is out of scope). A declared
@@ -7155,6 +7158,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                            _ast341.AsyncFunctionDef,
                                                            _ast341.Lambda)):
                         _eb394.setdefault(id(_w), set()).update(_lo394)
+        # (#49) ROUTES R-gate / #430: the IR record of each function by its IR name (claim
+        # and `\trusted` flags), and the source lines (a nested `def`'s own `#@` block)
+        _ct430 = {str(_f.get("name", "")): _f for _f in (_ir342.get("functions") or [])
+                  if isinstance(_f, dict)}
+        _sl430 = source_code.splitlines()
         for _f346, _ec346 in _fn346:
             _pa346 = (_f346.args.posonlyargs + _f346.args.args + _f346.args.kwonlyargs
                       + [_x for _x in (_f346.args.vararg, _f346.args.kwarg) if _x])
@@ -7882,6 +7890,24 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             elif _fn383 in ("bool", "isinstance", "issubclass", "callable",
                                             "hasattr", "all", "any"):
                                 _rw383 = [_ast341.Name(id="bool", ctx=_ast341.Load())]
+                            elif (_fn383 in ("list", "set") and len(_n383.args) == 1
+                                  and not _n383.keywords
+                                  and not isinstance(_a0383, _ast341.Starred)):
+                                # (#49) R-gate (dict-value-model-r3 §4): `list(x)` / `set(x)`
+                                # holds the elements of `x` (a mapping's keys), as `sorted`
+                                # does below; the bare `list` / `set` left a loop over
+                                # `list(d.keys())` underivable (`#UND`), so control 6336's
+                                # `d[k + 100]` under `no_exception \all` read as an
+                                # underivable hashed key. The class itself is unchanged.
+                                _rw383 = [_ast341.Subscript(
+                                    value=_ast341.Name(id="#" + _fn383, ctx=_ast341.Load()),
+                                    slice=_ast341.Subscript(
+                                        value=_ast341.Name(id="Union", ctx=_ast341.Load()),
+                                        slice=_ast341.Tuple(
+                                            elts=list(_ei383.get(id(_a0383)) or [_U383]),
+                                            ctx=_ast341.Load()),
+                                        ctx=_ast341.Load()),
+                                    ctx=_ast341.Load())]
                             elif _fn383 in ("float", "bytes", "complex", "frozenset", "range",
                                             "type", "list", "dict", "set", "bytearray",
                                             "object"):
@@ -8618,6 +8644,83 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     _ast341.List, _ast341.ListComp, _ast341.Dict,
                                     _ast341.DictComp, _ast341.Set, _ast341.SetComp)):
                                 _hc349.add("#UB")
+                    # (#49) ROUTE R-gate (impl doc dict-value-model-r3 §4) and ROUTE #430 — AN
+                    # UNDERIVABLE HASHED VALUE. A hashed leaf whose class set holds "#UND" (an
+                    # unknown callee / receiver: `m.get("a")` on `m: Dict[str, Any]`) or is
+                    # EMPTY (no source), or a hashed iterable whose elements may be "#UND", may
+                    # be a list at run time: CPython raises TypeError where the model lowers an
+                    # opaque value. That TypeError is outside KNOWN_EXCEPTIONS, so it is AMBIENT
+                    # unless the function claims `#@ no_exception \all` (or names TypeError /
+                    # Exception / BaseException); an ambient exception only ends a function
+                    # abnormally since route #431 refuses the `finally:` jump that swallowed it.
+                    # MEASURED at 289fe6029 (rg-dict-r3 s2, PROVED while CPython raises
+                    # TypeError): `{m.get("a")}`, `seen.add(f.get("name"))`, `v in seen` over
+                    # `m.values()`, `{m.get("a"): 1}`, each under `no_exception \all`. RULE:
+                    # such a site (not already hashed on the path, #383g) is REFUSED in a
+                    # non-trusted function claiming TypeError (R-gate), and the function is
+                    # recorded for route #178's callee summary (#430: a claimed caller of an
+                    # un-claimed one is refused in Module 6). A hashed site in a nested `def`
+                    # / lambda counts for the enclosing function too (fail-closed).
+                    _ul430 = []
+                    _rg430 = None
+                    _uq430 = [_h349] if id(_h349) not in _xe394 else []
+                    while _uq430:
+                        _uy430 = _uq430.pop()
+                        if isinstance(_uy430, _ast341.Tuple):
+                            _uq430.extend(_uy430.elts)
+                        elif isinstance(_uy430, _ast341.NamedExpr):
+                            _uq430.append(_uy430.value)
+                        elif isinstance(_uy430, _ast341.IfExp):
+                            _uq430.extend([_uy430.body, _uy430.orelse])
+                        elif (isinstance(_uy430, _ast341.Slice)
+                              and isinstance(_n346, _ast341.Subscript)
+                              and _ty383.get(id(_n346.value))
+                              and all((_t.value if isinstance(_t, _ast341.Subscript)
+                                       else _t).id in _SQ383 + _TP383 + (
+                                           "str", "bytes", "bytearray")
+                                      if isinstance(_t.value if isinstance(
+                                          _t, _ast341.Subscript) else _t, _ast341.Name)
+                                      else False
+                                      for _t in _ty383[id(_n346.value)])):
+                            # a slice of a value derived as a sequence / tuple / str hashes
+                            # nothing (a slice of a mapping keeps its leaf below)
+                            pass
+                        else:
+                            _uc430 = (set(_ex346.get(id(_uy430), set()))
+                                      | set(_eh372.get(id(_uy430), set())))
+                            if isinstance(_uy430, _ast341.Name):
+                                _uc430 |= _dt365.get(_uy430.id, set())
+                            if isinstance(_uy430, (_ast341.List, _ast341.ListComp,
+                                                   _ast341.Dict, _ast341.DictComp,
+                                                   _ast341.Set, _ast341.SetComp)):
+                                _uc430.add("#UB")
+                            if "#UND" in _uc430 or not _uc430:
+                                _ul430.append(_uy430)
+                    if id(_h349) in _xe394 and "#UND" in _hc349:
+                        _ul430.append(_h349)
+                    if _ul430 and id(_n346) not in _gr383g:
+                        _irn430 = ((_ec346.lower() + "__" + _f346.name) if _ec346
+                                   else _f346.name)
+                        _und430.add(_irn430)
+                        _ir430 = _ct430.get(_irn430) or {}
+                        _cc430 = _ir430.get("contracts") or {}
+                        _cl430 = bool(_cc430.get("no_exception_all")) or bool(
+                            set(_cc430.get("no_exception") or [])
+                            & {"TypeError", "Exception", "BaseException"})
+                        _li430 = min([_d.lineno for _d in _f346.decorator_list]
+                                     + [_f346.lineno]) - 2
+                        while not _cl430 and _li430 >= 0 and _li430 < len(_sl430) and (
+                                _sl430[_li430].lstrip().startswith("#@")):
+                            _lt430 = _sl430[_li430].strip()
+                            if _lt430.startswith("#@ no_exception") and (
+                                    "\\all" in _lt430 or "TypeError" in _lt430
+                                    or "Exception" in _lt430.replace("no_exception", "")):
+                                _cl430 = True
+                            _li430 -= 1
+                        if _cl430 and not (_ir430.get("trusted") or _ir430.get("abstract")):
+                            # raised AFTER the deny-list checks below, so a value known
+                            # (or suspected) unhashable keeps their message
+                            _rg430 = _ul430[0]
                     # (#381 / #382 / #383) each outside class name by its real class: a
                     # container / `__hash__ = None` ("U") is unhashable, an unknown one
                     # (`Any`, `object`, a TypeVar, an unknown import: "?") may be any class
@@ -8694,6 +8797,24 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"hashable (`@dataclass(frozen=True)`, or define a verified "
                             f"`__hash__`) or key by a field.",
                             stage="ir-semantic", code="PYCSL-R349-UNHASHABLE-RECORD")
+                    if _rg430 is not None:
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n346, 'lineno', 0)}: "
+                            f"`{_ast341.unparse(_rg430)}` is HASHED by "
+                            f"`{_ast341.unparse(_n346)}` (a set element, a dict key, a "
+                            f"membership test or subscript of a set / dict, or "
+                            f"`hash(...)`), and its class cannot be derived (an unknown "
+                            f"callee or receiver, `Any`, an un-annotated value: e.g. "
+                            f"`m.get(k)` on a `Dict[str, Any]`), so it may be a list / "
+                            f"dict / set at run time and CPython may raise TypeError, "
+                            f"while this function claims `#@ no_exception` covering "
+                            f"TypeError and the model lowers the collection as an "
+                            f"opaque value (route R-gate, dict-value-model-r3; measured: "
+                            f"`{{m.get(\"a\")}}` under `#@ no_exception \\all` proved). "
+                            f"Derive the value from a source declared with a hashable "
+                            f"type (a parameter, field or container element annotated "
+                            f"`str` / `int` / a frozen record), or drop the claim.",
+                            stage="ir-semantic", code="PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM")
         # ROUTE #361 — `InitVar` / `KW_ONLY` PSEUDO-FIELDS WERE MODELLED AS STORED FIELDS.
         # `k: InitVar[int]` and `_: KW_ONLY` joined the record and #347's synthesized
         # field set (ClassVar was excluded), so `d.k` / `d._` read under `no_exception`
@@ -11128,6 +11249,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # ROUTE #304 — the pre-resolution class bases (read by `_emit_function_block`'s
     # own-raise coverage test; a class absent from it is covered, fail-closed).
     transpiler.class_bases_r304 = _r304_class_bases
+    # ROUTE #430 — the functions that may raise TypeError by hashing an underivable value
+    # (read by route #178's callee summary in `_reset_function_state`).
+    transpiler.und_hash_r430 = set(_und430)
     # ROUTE #376 — the names a class makes available to `getattr` beyond its instance
     # fields (read by `_lower_getattr`'s ABSENT classification). `getattr(o, "k", d)` on a
     # known record whose fields do not include `k` folded to `d`, but a CLASS-BODY binding

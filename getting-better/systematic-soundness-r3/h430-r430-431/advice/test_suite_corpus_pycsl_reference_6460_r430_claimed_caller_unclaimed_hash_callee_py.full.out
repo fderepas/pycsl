@@ -1,0 +1,5 @@
+[*] Parsing and Semantic Analysis for '/home/fabrice/git/pycsl-h430/test-suite/corpus/pycsl-reference/6460_r430_claimed_caller_unclaimed_hash_callee.py'...
+[*] Memory model: hoare
+
+[!] PIPELINE ERROR:
+`h(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set element, a dict key, a membership test or `hash(...)` of e.g. `m.get(k)` on a `Dict[str, Any]`, which may be a list) in a function that does not claim `#@ no_exception \all`, where that raise is not modelled; this function claims `#@ no_exception \all` (route #430; measured: a helper `s = {m.get("a")}` called under `#@ no_exception \all` proved, CPython raises TypeError). Declare the hashed value's source with a hashable type in the callee (e.g. `Dict[str, str]` rather than `Dict[str, Any]`), or drop `\all` from this function's claim.

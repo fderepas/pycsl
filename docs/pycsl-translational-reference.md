@@ -5179,6 +5179,33 @@ IR) the translation is undefined, and the run refused, for a non-trusted functio
 `Try` / `TryStar` with a `finalbody` containing a `Return`, or a `Break` / `Continue` not under a
 `For` / `While` of that `finalbody`.
 
+### §T.6.142  Underivable hashed values under a TypeError claim (route R-gate, run #3)
+
+_Corresponds to `annotations.md` §7.131._
+
+In `_run_pipeline`'s #349-#383 hashing pass, for each hashed leaf $e$ of a site $n$ of function
+$f$ (the `_wq365` walk: tuple components, `IfExp` arms, a `NamedExpr`'s value; a hashed iterable's
+element classes `_hc349` for `_xe394` sites), let $C(e) = $ `_ex346`$(e) \cup$ `_eh372`$(e)$ $\cup$
+`_dt365`$(e)$ (for a name) $\cup \{\#UB\}$ (for a display). When $\#UND \in C(e)$ or $C(e) = \emptyset$
+(a `Slice` under a subscript whose base derives only as a sequence / tuple / `str` excepted) and
+$n \notin$ `_gr383g`, $f$ joins `_und430`; if $f$ is not trusted / abstract and claims TypeError
+(IR `no_exception_all`, or `no_exception` $\cap$ {TypeError, Exception, BaseException}, or the same
+in the `#@` block above the `def`), the translation is undefined and the run refused. The
+derivation $\mathcal{T}_{ty}$ of `list(x)` / `set(x)` (one positional argument, no keyword) is
+`#list[Union[el(x)]]` / `#set[Union[el(x)]]`.
+
+### §T.6.143  Callee TypeError by hashing (route #430, run #3)
+
+_Corresponds to `annotations.md` §7.132._
+
+`_run_pipeline` sets `transpiler.und_hash_r430 = _und430` (kept off the IR, like
+`class_bases_r304`). In `_reset_function_state`'s route #178 summary, under `no_exception_all`
+the active set gains `TypeError`, a function $g \in$ `und_hash_r430` without `no_exception_all`
+gains `TypeError` in its raw summary, and the summary is closed over same-file calls as before; a
+call in the claimed body to a $g$ whose closed summary meets only `TypeError` is refused with
+`PYCSL-R430-CALLEE-UNDERIVABLE-HASH` (KeyError / IndexError / ValueError keep route #178's
+message).
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

@@ -1,0 +1,22 @@
+ROUTE #430 + ROUTE R-gate increment (executor h430, base 725a1c7e5 + #431 6038e1352), candidate = this commit.
+fidelity: check-self-annotate-sync rc=0 (932 functions verbatim); self-annotate-mirror-check rc=0 (53 mirrors)
+root byte-diff  rc=0 (--expect-gone 5069): 2512 baseline / 2517 candidate .mlw, 0 MOVED / 1 GONE (5069, expected FAIL:
+  FAIL at base -> REFUSED by R-gate, `{*self}` under \all) / 0 APPEARED, 6 new control sources
+pyref byte-diff rc=0: 2186 / 2186, 0 / 0 / 0
+mirror sweep    rc=0: 53 / 53, 0 / 0 / 0 (no mirror refusal; no OWED proof)
+  (sweep c430b run on the final src; controls 6462-6464/6480/6481 were rewritten afterwards for the vacuity ratchets:
+   new sources only, and src unchanged since the sweep)
+pycsl_lib --no-proof screen: identical (104 files, rc0 87)
+planes (fast 61): first run 59/61 -- check-vacuous-drivers (pycsl-reference 9 -> above ratchet: trivial `ensures
+  \result == 1 / return 1` controls) and check-claim-vacuity (1792 > 1791: `ensures True` in 6462) red (planes-first.log);
+  controls/6462 rewritten with `\result == n + 1` contracts, both ratchets rc=0 standalone; final run: planes.log
+refusal-witness-coverage rc=0 (331 demonstrated, 5 undemonstrated); refusal-advice-audited rc=0 (159 audited: +R430, +R-gate,
+  both FOLLOWABLE, probes advice/a430_*, advice/argate_*)
+getattr-erasure rc=0; clause-survival --emit-dir rc=0 (10/1478 ledgered); assumed-facts --emit-dir rc=0; open-route-carriers
+  rc=0 (14; #430 row asserts REFUSED); doc-coherency rc=0
+census: 9 new REFUSAL rows (6460-6462, 6470-6475); re-measured with the tool: 5069 (VERIFY-FAIL -> REFUSAL R-gate),
+  3341 / 3342 (#287 lambda message -> R-gate message; #287 still demonstrated by 3340/3343/3344), 6462 (rewritten)
+refusal-message diff over the 731 claimed expected-FAIL witnesses (base vs candidate, --no-proof): exactly 3341, 3342,
+  5069 differ (refusal-message-diff.tsv); the R-gate raise sits after the deny-list raises so 5501/5992 keep theirs
+\trusted count 442 (unchanged); no axiom; no new def in a mirrored file (both edited functions are \trusted in the mirror)
+witnesses / controls: final-verdicts-with-route.tsv (final candidate), g430/verdicts-*-raw.tsv (base / candidate)
