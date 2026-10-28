@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-28): #432-#439 OPENED (red team 34 on 78b519f63, convergence measurement: 497 written / 474 fully proved /
+##   63 confirmed; FINDINGS salvaged by the driver; rt33's 115/117 proofs now refused): #432 an optional / union receiver of an attribute or method access owes no attributeerror (8); #433 str.join / bytes.join over elements not derivably str / bytes owes no typeerror (9); #434 ord() of a string not of length 1 owes no typeerror (7); #435 an unbound str / bytes method descriptor applied to a wrong-type first argument owes no typeerror (8); #436 str.split / rsplit with maxsplit outside c ssize_t owes no overflowerror (5); #437 sorted() over elements not totally ordered owes no typeerror (10); #438 hashing a bare / unparameterised tuple (elements unknown) owes no typeerror (11); #439 a hashed value whose class comes through a protocol, a foreign user module, or setattr owes no typeerror (5).
+##   Diagnosis: every family is a builtin whose TYPE-DEPENDENT precondition (receiver / element class, length, range,
+##   orderability) has no admission rule under `no_exception \all` -- the operator forms (un00-un17) are all refused.
+
 ## run #3 (2026-10-28): #430 REPAIRED and route R-gate BUILT (executor h430 off 725a1c7e5 + #431; code inline in the
 ##   #349-#383 hashing pass of _run_pipeline and in route #178's callee summary; corpus 6460-6464 / 6470-6475 / 6480-6481,
 ##   census rows (+ 5069 re-measured), docs annotations 7.131-7.132 / translational T.6.142-T.6.143; no new def in a mirrored
