@@ -26,3 +26,11 @@ advice: R-gate entry re-audited (advice/a438_typed_tuple, a438_drop_claim VERIFY
   R430 via an imported module: a439_usermod_drop_claim VERIFIES (advice-cand-full.tsv)
 doc-coherency rc=0
 \trusted count unchanged (no mirror edit).
+
+FIRST planes run (planes-first.log, on 40e805e34): 59/61 -- 2 RED, both this increment's, both FIXED in the follow-up:
+  check-dropped-mutation CTXBIND 52 > 51: the user-module reader used `with open(..) as _fh439` -> plain `open(..).read()`
+    (dropped.log: 51 ctxbind, rc=0 standalone)
+  check-vacuous-drivers pycsl-reference 10 > 9: helper multi_file_lib/r439_hashlib.h `ensures \result == 1; return 1`
+    -> `h(m, n)` with `ensures \result == n + 1` (and r439_hashmid.mid, witnesses 6620-6622, advice a439 updated)
+    (vacuous.log rc=0 standalone)
+  fidelity re-run after the fix: sync rc=0, mirror-check rc=0. Witnesses 6620-6622 still REFUSED at candidate.

@@ -2,7 +2,7 @@
 from typing import Any, Dict
 
 
-#@ ensures \result == 1
-def h(m: Dict[str, Any]) -> int:
+#@ ensures \result == n + 1
+def h(m: Dict[str, Any], n: int) -> int:
     s = {m.get("a")}
-    return 1
+    return n + 1

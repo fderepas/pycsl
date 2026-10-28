@@ -12057,10 +12057,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _us439 |= {_a.asname or _a.name for _a in _n439.names}
                 if _rp439 not in _sn439:
                     _sn439.add(_rp439)
+                    # read WITHOUT a `with ... as` binding (a CTXBIND row of
+                    # `check-dropped-mutation`, ratchet 51; route #143's note)
                     try:
-                        with open(_rp439) as _fh439:
-                            _fq439.append((_fh439.read(), _rp439))
-                    except OSError:
+                        _fq439.append((open(_rp439).read(), _rp439))
+                    except (OSError, UnicodeDecodeError):
                         pass
         if _pa439 == os.path.abspath(args.file):
             continue

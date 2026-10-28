@@ -5,14 +5,14 @@ from typing import Any, Dict
 import multi_file_lib.r439_hashlib as hl
 
 #@ no_exception \all
-#@ ensures \result == 1
-def f(m: Dict[str, Any]) -> int:
-    return hl.h(m)
+#@ ensures \result == n + 1
+def f(m: Dict[str, Any], n: int) -> int:
+    return hl.h(m, n)
 
 
 if __name__ == "__main__":
     try:
-        r = f({"a": [1]})
+        r = f({"a": [1]}, 1)
         print("result", r)
     except Exception as e:
         print("VIOLATION", type(e).__name__, e)
