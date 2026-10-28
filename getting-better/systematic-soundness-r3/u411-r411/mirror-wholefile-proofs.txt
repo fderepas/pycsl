@@ -14,3 +14,4 @@ module6_whyml__functions mode=prove rc=0 valid_lines=1204 nonvalid_lines=0 secs=
 core_ir_semantic mode=prove rc=0 valid_lines=1513 nonvalid_lines=0 secs=3259
 module6_whyml__statements mode=prove rc=0 valid_lines=24605 nonvalid_lines=0 secs=18334
 frontend__Module5_IREmitter mode=prove rc=0 valid_lines=2636 nonvalid_lines=0 secs=6116
+module6_whyml__expressions mode=prove rc=0 valid_lines=23424 nonvalid_lines=0 secs=20090
