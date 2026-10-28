@@ -12754,9 +12754,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             elif (isinstance(_a434, dict) and _a434.get("type") != "String"
                     and len(args) == 1 and not expr.get("keywords")
                     and self._is_string_expr(_a434)):
-                args[0] = (f"(let _o434 = {args[0]} in begin assert {{ "
-                           f"[@expl:no_exception: TypeError reachable] [@{_tg434}] "
-                           f"String.length _o434 = 1 }}; _o434 end)")
+                # A fresh local list, never a store into the caller's `args`: this
+                # method's mirror frame omits `args` (route #401 param-frame honesty);
+                # every `ord` lowering below returns from this method, so the emission
+                # is the same.
+                args = [(f"(let _o434 = {args[0]} in begin assert {{ "
+                         f"[@expl:no_exception: TypeError reachable] [@{_tg434}] "
+                         f"String.length _o434 = 1 }}; _o434 end)")]
             else:
                 from errors import PyCSLSemanticError
                 raise PyCSLSemanticError(
