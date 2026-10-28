@@ -12,3 +12,4 @@ frontend__Module2_Parser mode=prove rc=0 valid_lines=868 nonvalid_lines=0 secs=8
 module6_whyml__stmt_control_flow mode=prove rc=0 valid_lines=14817 nonvalid_lines=0 secs=12205
 module6_whyml__functions mode=prove rc=0 valid_lines=1204 nonvalid_lines=0 secs=3167
 core_ir_semantic mode=prove rc=0 valid_lines=1513 nonvalid_lines=0 secs=3259
+module6_whyml__statements mode=prove rc=0 valid_lines=24605 nonvalid_lines=0 secs=18334
