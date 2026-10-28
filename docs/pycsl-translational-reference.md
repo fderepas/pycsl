@@ -5206,6 +5206,55 @@ call in the claimed body to a $g$ whose closed summary meets only `TypeError` is
 `PYCSL-R430-CALLEE-UNDERIVABLE-HASH` (KeyError / IndexError / ValueError keep route #178's
 message).
 
+### §T.6.144  Attribute receivers that may be `None` or of several classes (route #432, run #3)
+
+_Corresponds to `annotations.md` §7.133._
+
+In `_run_pipeline`, after the #349-#383 hashing pass of function $f$ (not trusted / abstract,
+claiming AttributeError: IR `no_exception_all`, or `no_exception` $\cap$ {AttributeError, Exception,
+BaseException}, or the same in the `#@` block above the `def`), for each `Attribute` load
+$R.a$ outside annotations let $C(R) = $ `_ex346`$(R) \cup$ `_eh372`$(R)$ ($\cup \{None\}$ for a
+parameter defaulted to `None`). The type-atom derivation $\mathcal{T}_{ty}$ expands
+`Optional[T]` to the atoms of $T$ and `None` (route #432; before, `None` only for `Union[T, None]`
+/ `T | None`). Let $K(S)$ be $S$ minus the `#`-marks, `Any` and `object`. The site is admitted
+when $|K(S)| \le 1 \wedge None \notin K(S)$, or every $c \in K(S)$ is a builtin class with
+`hasattr(c, a)`, for $S = C(R)$, or else for $S = N(R)$, the narrowed set: the climb from $R.a$
+to the function entry collects guards $(T, p)$ until a kill (a node whose own tokens --
+stores / `del` of a name, attribute stores, calls -- meet $\{N(root)\}$, plus $\{C\} \cup
+\{A(f) \mid f \in path\}$ for an attribute path or a `global` / `nonlocal` root; a crossed loop, a
+`while` whose test holds the access, or a comprehension kills when ANY of its nodes does; a nested def /
+lambda / generator expression stops the climb); leaves of $T$ under
+$p$ give not-None / `isinstance` classes; $N(R) = (B \cap_{isinstance} \ldots) \setminus \{None\}$
+with $B$ the base set ($C(R)$, or the classes of `v` for a stopping `R = v`, or
+$(C(R) \setminus \{None\}) \cup cls(v)$ for `if R is None: ...; R = v`). Otherwise the
+translation is undefined and the run refused (`PYCSL-R432-OPTIONAL-RECEIVER-ATTRIBUTE`). No
+emission changes.
+
+### §T.6.145  `join` element classes (route #433, run #3)
+
+_Corresponds to `annotations.md` §7.134._
+
+In the same position, for $f$ claiming TypeError, a `Call` `S.join(it)` (one positional
+argument, no keyword) with $K(C(S)) = \{str\}$ (resp. $\subseteq \{bytes, bytearray\}$) is
+admitted iff the arms of `_ei383`$(it)$ (through `Optional` (+ `None`) / `Union` / `|` /
+`Annotated` / `Final`, aliases and string annotations) are non-empty and all `str` (resp.
+`bytes` / `bytearray`); otherwise refused (`PYCSL-R433-JOIN-ELEMENT-CLASS`).
+
+### §T.6.146  Orderability of compared values (route #437, run #3)
+
+_Corresponds to `annotations.md` §7.135._
+
+For $f$ claiming TypeError, the compared type list $G$ of `sorted(it)` / `min(it)` / `max(it)`
+(`_ei383`$(it)$; for a mapping's `.items()`, each `#tuple`'s first component), `min` / `max`
+with $\ge 2$ positional arguments (their `_ty383`), `L.sort()` with every `_ty383`$(L)$ a
+`List` / `list` / `#list` subscript (`_ei383`$(L)$), replaced by `int` / `float` / `str` for a
+builtin `key=` and by `_ty383`(body) for a lambda `key=`, is admitted iff the worklist
+$\{G\}$ empties: a group's arms all in {int, bool, float}, or all `str`, or all in {bytes,
+bytearray}, or all parameterised tuples (push the group of position-$i$ components for each
+$i$, a `Tuple[T, ...]` contributing $T$ to every position), or all parameterised lists (push
+their elements); any other arm, an empty group or a mix refuses the site
+(`PYCSL-R437-UNORDERED-ELEMENTS`).
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

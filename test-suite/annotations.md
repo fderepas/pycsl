@@ -3401,6 +3401,75 @@ directly or through further same-file calls, is refused
 exception), so only `\all` is concerned. Witnesses `6460`-`6462`; controls `6463` (the callee
 hashes a `str`), `6464` (an un-claimed caller).
 
+### 7.133 An attribute of a receiver that may be `None` or of several classes is refused under an AttributeError claim (route #432, run #3)
+
+An OPERATOR on an `Optional` / `Union` value (`x + 1`, `x < "a"`, `x[0]`, `abs(x)`, ...) was
+already refused: §12.4 lowers the annotation to a union variant and Why3 rejects it where an
+`int` / `string` is expected. An attribute load had no such check: `x.strip()` on
+`x: Optional[str]` lowers to the input-blind opaque `x_strip_0 ()`, so `len(x.strip())`,
+`c.m()` on `Optional[C]`, `d.get("a", 0)` on `Optional[Dict[str, int]]`, `n.bit_length()` on
+`Optional[int]`, `x.upper()` on `Union[int, str]` and on `str | None` all PROVED
+`no_exception \all` (CPython AttributeError). RULE: in a function that is not `\trusted` /
+`\abstract` and claims AttributeError (`\all`, or a list naming `AttributeError` / `Exception` /
+`BaseException`), an attribute load `R.a` (a field read or a method call) is ADMITTED only when
+the classes `R` may have at that point -- the classes derived for `R` (the hashing pass's
+`_ex346` / `_eh372`; `Optional[T]` now derives `None` as well, as `Union[T, None]` always did,
+and a parameter defaulted to `None` holds `None`), refined by FLOW NARROWING -- are (i) at most
+one class and not `None`, or (ii) only builtin classes (`NoneType` included) each of which has `a`
+(`hasattr` on the real type, so `x.__class__` on an Optional and `x.real` on `Union[int, float]`
+stay admitted); otherwise it is refused (`PYCSL-R432-OPTIONAL-RECEIVER-ATTRIBUTE`). Underivable
+receivers (`#UND` / `#UNK`, `Any`, `object`) are not judged by this rule.
+
+NARROWING applies to a receiver that is a name or an attribute path `n.f.g`. A guard holds at
+the access when it is the test of an enclosing `if` (body: true; `else`: false), `while` (body:
+true), `x if T else y`, an earlier operand of `and` (true) / `or` (false), a comprehension's
+`if` (true), an earlier `assert T`, or an earlier `if T:` whose block ends in `return` / `raise`
+/ `continue` / `break` (false). A guard decomposes through `not`, `and` (true) and `or` (false)
+into leaves: `R is not None` / `R != None` and a bare `R` (not None), `R is None` / `R == None`
+(when false: not None), `isinstance(R, C)` / `isinstance(R, (C, D))` (exactly those classes).
+The search stops -- guards farther out no longer hold -- at a nested `def` / lambda / generator
+expression (each runs later) and at code
+that may rebind `R` between the guard and the access: a store / `del` of `R`'s root name, and,
+for an attribute path or a `global` / `nonlocal` name, a store of any attribute on the path or
+ANY call; a loop crossed on the way -- or a `while` whose test holds the access -- may not contain
+such code anywhere (a later iteration runs it first). Two rebinding shapes give a fact instead: `R = v` (`R` has `v`'s derived classes when
+they are derived and exclude `None`) and `if R is None: ...; R = v` (not `None`, or `v`'s
+classes). Witnesses `6500`-`6514`, `6548`, `6549` (`6509`-`6513` and `6549` exercise the rule's stop conditions
+on shapes another refusal or Why3 already rejected at base); controls `6515`-`6518`, `6520`-`6524`; `6519`:
+an `assert x is not None` narrows, and the assert's own AssertionError obligation then FAILS (expected FAIL).
+
+### 7.134 `str.join` / `bytes.join` over elements not derived `str` / `bytes` is refused under a TypeError claim (route #433, run #3)
+
+`"".join(xs)` lowers its elements as opaque values, so `xs: List[int]`, `List[Optional[str]]`,
+`List[Union[str, int]]`, `List[Any]`, `List[bytes]`, `Tuple[str, Optional[str]]`, the values of
+a `Dict[.., Optional[str]]` and `b"".join(List[Optional[bytes]])` all PROVED
+`no_exception \all` (CPython TypeError). RULE: in a function that is not `\trusted` /
+`\abstract` and claims TypeError, `S.join(it)` (one positional argument) whose receiver `S` is
+derived exactly `str` is ADMITTED only when the element classes of `it` (the derivation's
+iteration elements `_ei383`) are derived and all `str`; a receiver derived `bytes` /
+`bytearray` admits only `bytes` / `bytearray` elements. Any other element class, `None`, `Any`
+or an underivable element is refused (`PYCSL-R433-JOIN-ELEMENT-CLASS`). A join on a receiver not
+derived as `str` / `bytes` (`os.path.join`, an unknown receiver) is not judged by this rule.
+Witnesses `6525`-`6533`; controls `6534`, `6535`.
+
+### 7.135 `sorted` / `list.sort` / `min` / `max` over values not totally ordered are refused under a TypeError claim (route #437, run #3)
+
+`sorted(xs)` lowers the comparison as opaque, so `List[Optional[int]]`, `List[Optional[str]]`,
+`List[Tuple[int, Optional[int]]]`, tuples ending in a `dict`, a `List[Dict]` or a user class
+without `__lt__`, and `List[List[Optional[int]]]` all PROVED `no_exception \all` (CPython
+TypeError as soon as two such values are compared). RULE: in a function that is not `\trusted`
+/ `\abstract` and claims TypeError, `sorted(it)`, `L.sort()` (`L` derived a list), `min(it)` /
+`max(it)` and `min(a, b, ..)` / `max(a, b, ..)` are ADMITTED only when the compared values are
+derived and TOTALLY ORDERED among themselves: all numbers (`int` / `bool` / `float`), all `str`,
+all `bytes` / `bytearray`, all parameterised tuples whose components at each position are again
+admitted (`Tuple[T, ...]`: `T` at every position), or all parameterised lists whose elements are
+admitted. The `.items()` of a mapping compares only its (distinct) keys. A `key=` must be `len` /
+`abs` / `int` / `float` / `str` / `ord` (its result class) or a lambda whose body's classes are
+derived and admitted; `reverse=` / `default=` do not matter. `None`, a user class (with or
+without `__lt__`), a dict / set, `Any`, an un-parameterised tuple / list, a mix of groups and an
+underivable value are refused (`PYCSL-R437-UNORDERED-ELEMENTS`). Witnesses `6536`-`6545`;
+controls `6546`, `6547`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

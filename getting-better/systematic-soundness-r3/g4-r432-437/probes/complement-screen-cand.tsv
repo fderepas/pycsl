@@ -1,0 +1,10 @@
+p10_heapq_none.py	`heapq.heapify(...)` is not a function of the verified program and not on the list of operations known never to raise the exceptions `#@ no_exception` tracks, and this function claim
+p1_string_ann.py	[ir-semantic]: 'f' line 4: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise Attrib
+p2_union_none_first.py	[ir-semantic]: 'f' line 4: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise 
+p3_typing_attr.py	[ir-semantic]: 'f' line 4: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise Attri
+p4_alias.py	[ir-semantic]: 'f' line 5: the attribute `x.strip` is read on `x`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise AttributeEr
+p5_subscript_elem.py	[ir-semantic]: 'f' line 5: the attribute `xs[0].strip` is read on `xs[0]`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may 
+p6_func_ret.py	[ir-semantic]: 'f' line 6: the attribute `g(k).strip` is read on `g(k)`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython may raise At
+p7_field_opt_method.py	[ir-semantic]: 'm' line 7: the attribute `self.s.strip` is read on `self.s`, which may be an instance of ['None', 'str'] here -- `None` or a class without `strip` -- so CPython 
+p8_any.py	-
+p9_named_claim.py	function 'f' (line 3): no_exception names unknown exception 'AttributeError'. Known: ['IndexError', 'KeyError', 'StopIteration', 'ValueError', 'ZeroDivisionError'].

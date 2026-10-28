@@ -8239,9 +8239,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                                               _ast341.BitOr):
                             _wq383 += [_x383.left, _x383.right]
                         elif _hn383 in ("Optional", "Union"):
+                            # (#432) `Optional[T]` holds `None` too (as `Union[T, None]` does)
                             _wq383 += (list(_x383.slice.elts)
                                        if isinstance(_x383.slice, _ast341.Tuple)
-                                       else [_x383.slice])
+                                       else [_x383.slice]) + (
+                                           [_ast341.Constant(value=None)]
+                                           if _hn383 == "Optional" else [])
                         elif _hn383 in ("Annotated", "Final", "ClassVar"):
                             _wq383.append(_x383.slice.elts[0]
                                           if isinstance(_x383.slice, _ast341.Tuple)
@@ -8307,7 +8310,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if _hn383 in ("Optional", "Union"):
                             _wq383 += (list(_x383.slice.elts)
                                        if isinstance(_x383.slice, _ast341.Tuple)
-                                       else [_x383.slice])
+                                       else [_x383.slice]) + (
+                                           [_ast341.Constant(value=None)]
+                                           if _hn383 == "Optional" else [])
                         elif isinstance(_x383, _ast341.BinOp) and isinstance(_x383.op,
                                                                               _ast341.BitOr):
                             _wq383 += [_x383.left, _x383.right]
@@ -8358,7 +8363,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _ar383 = (list(_x383.slice.elts)
                                   if isinstance(_x383.slice, _ast341.Tuple) else [_x383.slice])
                         if _hn383 in ("Optional", "Union"):
-                            _qz383 += _ar383
+                            _qz383 += _ar383 + ([_ast341.Constant(value=None)]
+                                                if _hn383 == "Optional" else [])
                         elif _hn383 in ("Annotated", "Final", "ClassVar"):
                             _qz383 += _ar383[:1]
                         elif _hn383 in _TP383:
@@ -8815,6 +8821,688 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"type (a parameter, field or container element annotated "
                             f"`str` / `int` / a frozen record), or drop the claim.",
                             stage="ir-semantic", code="PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM")
+            # (#49) gen #38, ROUTES #432 / #433 / #437 (red team 34; MEASURED PROVED at 78b519f63
+            # under `#@ no_exception \all`, CPython AttributeError / TypeError). Three builtins whose
+            # TYPE-DEPENDENT precondition had no admission rule: an OPERATOR on an Optional / Union
+            # value is refused (Why3 rejects the union variant where an `int` / `string` is
+            # expected), but an attribute / method access lowers to an input-blind opaque value
+            # (`x_strip_0 ()`), and `str.join` / `sorted` / `min` / `max` lower their elements as
+            # opaque values, so they were admitted for ANY receiver / element class. Each rule
+            # ENUMERATES what it admits, over the classes derived above (`_ex346` / `_eh372` per
+            # expression, `_ty383` type expressions, `_ei383` iteration elements); outside its
+            # admitted set the site is REFUSED in a function that is neither `\trusted` nor
+            # `\abstract` and claims the exception (`\all`, the class, `Exception`,
+            # `BaseException`; an un-claimed one only ends abnormally, route #431):
+            #   #432 an attribute load `R.a` (a field read or a method call) is ADMITTED iff the
+            #     classes R may have AT THIS POINT -- its derived classes (+ `None` for a parameter
+            #     defaulted to `None`), refined by FLOW NARROWING -- name (i) at most one class and
+            #     not `None`, or (ii) only builtin classes (`NoneType` included) each of which has
+            #     `a` (`hasattr` on the real type: `x.__class__` on an Optional, `.real` on
+            #     `Union[int, float]`). Underivable marks ("#UND" / "#UNK"), `Any` and `object` are
+            #     not judged (residual). NARROWING, for R a name or an attribute path `n.f.g`
+            #     (anything else is never narrowed): climbing from the access to the function
+            #     entry, a guard holds at the access when it is the test of an enclosing `if`
+            #     (body: true, `else`: false) / `while` (body: true) / `x if T else y` / the
+            #     earlier operands of an `and` (true) / `or` (false) / a comprehension's `if`
+            #     (true), an earlier `assert T`, or an earlier `if T:` whose block ends in
+            #     `return` / `raise` / `continue` / `break` (false); a guard narrows through `not`,
+            #     `and` (true) and `or` (false) to the leaves `R is not None` / `R != None` (not
+            #     None), `R is None` / `R == None` (false: not None), `isinstance(R, C | (C, ..))`
+            #     (true: exactly those classes) and a bare `R` (true: not None). The climb STOPS
+            #     (guards farther out no longer hold) at a nested def / lambda / generator
+            #     expression (each runs later), and at code that may rebind R in between: a store
+            #     / `del` of R's root name, and -- for an attribute path or a `global` / `nonlocal`
+            #     name -- a store of any attribute on the path or ANY call; a loop crossed on the
+            #     way, or a `while` whose test holds the access, may not hold such code anywhere
+            #     (a later iteration runs it first). Exactly two rebinding shapes give a fact
+            #     instead: `R = v` (R then has v's derived classes, when they are derived and not
+            #     `None`) and `if R is None: ...; R = v` (not None, or v's classes).
+            #   #433 `S.join(it)` with S derived exactly `str` (exactly `bytes` / `bytearray`) is
+            #     ADMITTED iff the element classes of `it` are derived and all `str` (all `bytes`
+            #     / `bytearray`); any other / underivable element class is refused (TypeError).
+            #     A join on a receiver not derived as `str` / `bytes` is not judged (residual).
+            #   #437 `sorted(it)`, `L.sort()` (L derived a list), `min` / `max` (one iterable, or
+            #     two or more arguments) are ADMITTED iff the compared values are derived and
+            #     TOTALLY ORDERED among themselves: all numbers (`int` / `bool` / `float`), all
+            #     `str`, all `bytes` / `bytearray`, all parameterised tuples whose components at
+            #     each position are again admitted (`Tuple[T, ...]`: T at every position), or all
+            #     parameterised lists whose elements are admitted; a dict's `.items()` compares
+            #     its (distinct) keys only. A `key=` must be `len` / `abs` / `int` / `float` /
+            #     `str` / `ord` or a lambda whose body's classes are derived and admitted. None,
+            #     a user class (with or without `__lt__`), a dict / set, `Any`, an un-parameterised
+            #     tuple, mixed groups and underivable values are refused (TypeError).
+            _ir432 = _ct430.get((_ec346.lower() + "__" + _f346.name) if _ec346
+                                else _f346.name) or {}
+            _cc432 = _ir432.get("contracts") or {}
+            _cx432 = set(_cc432.get("no_exception") or [])
+            if _cc432.get("no_exception_all"):
+                _cx432.add("\\all")
+            _li432 = min([_d.lineno for _d in _f346.decorator_list] + [_f346.lineno]) - 2
+            while 0 <= _li432 < len(_sl430) and _sl430[_li432].lstrip().startswith("#@"):
+                _lt432 = _sl430[_li432].strip()
+                if _lt432.startswith("#@ no_exception"):
+                    if "\\all" in _lt432:
+                        _cx432.add("\\all")
+                    _cx432 |= {_w.strip(",;()[]") for _w in
+                               _lt432[len("#@ no_exception"):].replace(",", " ").split()}
+                _li432 -= 1
+            _ok432 = not (_ir432.get("trusted") or _ir432.get("abstract"))
+            _ae432 = _ok432 and bool(_cx432 & {"\\all", "AttributeError", "Exception",
+                                               "BaseException"})
+            _te432 = _ok432 and bool(_cx432 & {"\\all", "TypeError", "Exception",
+                                               "BaseException"})
+            _al432 = list(_ast341.walk(_f346)) if (_ae432 or _te432) else []
+            if _ae432:
+                _NT432 = {"int": int, "bool": bool, "float": float, "complex": complex,
+                          "str": str, "bytes": bytes, "bytearray": bytearray, "list": list,
+                          "List": list, "dict": dict, "Dict": dict, "set": set, "Set": set,
+                          "frozenset": frozenset, "FrozenSet": frozenset, "tuple": tuple,
+                          "Tuple": tuple, "None": type(None), "NoneType": type(None)}
+                _pm432 = {}
+                for _z432 in _al432:
+                    for _c432 in _ast341.iter_child_nodes(_z432):
+                        _pm432[id(_c432)] = _z432
+                # each node's own KILL tokens (`_ko432`) and its subtree's (`_kt432`)
+                _ko432 = {}
+                _kt432 = {}
+                for _z432 in reversed(_al432):
+                    _k432 = set()
+                    if isinstance(_z432, _ast341.Name) and not isinstance(_z432.ctx,
+                                                                         _ast341.Load):
+                        _k432.add(("N", _z432.id))
+                    elif isinstance(_z432, _ast341.Attribute) and not isinstance(
+                            _z432.ctx, _ast341.Load):
+                        _k432.add(("A", _z432.attr))
+                    elif isinstance(_z432, (_ast341.Call, _ast341.Await, _ast341.Yield,
+                                            _ast341.YieldFrom)):
+                        _k432.add(("C", ""))
+                    elif isinstance(_z432, _ast341.ExceptHandler) and _z432.name:
+                        _k432.add(("N", _z432.name))
+                    elif isinstance(_z432, (_ast341.Import, _ast341.ImportFrom)):
+                        _k432 |= {("N", (_a.asname or _a.name).split(".")[0])
+                                  for _a in _z432.names}
+                    elif isinstance(_z432, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                            _ast341.ClassDef)):
+                        _k432.add(("N", _z432.name))
+                    elif isinstance(_z432, (_ast341.Global, _ast341.Nonlocal)):
+                        _k432 |= {("N", _w) for _w in _z432.names}
+                    elif type(_z432).__name__ in ("MatchAs", "MatchStar") and getattr(
+                            _z432, "name", None):
+                        _k432.add(("N", _z432.name))
+                    elif type(_z432).__name__ == "MatchMapping" and getattr(
+                            _z432, "rest", None):
+                        _k432.add(("N", _z432.rest))
+                    _ko432[id(_z432)] = set(_k432)
+                    for _c432 in _ast341.iter_child_nodes(_z432):
+                        _k432 |= _kt432.get(id(_c432), set())
+                    _kt432[id(_z432)] = _k432
+                _gn432 = {_w for _z in _al432 if isinstance(_z, (_ast341.Global,
+                                                                 _ast341.Nonlocal))
+                          for _w in _z.names}
+                _pd432 = set()
+                _ps432 = _f346.args.posonlyargs + _f346.args.args
+                for _p432, _d432 in zip(_ps432[len(_ps432) - len(_f346.args.defaults):],
+                                        _f346.args.defaults):
+                    if isinstance(_d432, _ast341.Constant) and _d432.value is None:
+                        _pd432.add(_p432.arg)
+                for _p432, _d432 in zip(_f346.args.kwonlyargs, _f346.args.kw_defaults):
+                    if isinstance(_d432, _ast341.Constant) and _d432.value is None:
+                        _pd432.add(_p432.arg)
+                for _a432 in _al432:
+                    if not (isinstance(_a432, _ast341.Attribute)
+                            and isinstance(_a432.ctx, _ast341.Load)) or id(_a432) in _anx365:
+                        continue
+                    _r432 = _a432.value
+                    _cs432 = set(_ex346.get(id(_r432), set())) | set(_eh372.get(id(_r432),
+                                                                               set()))
+                    if isinstance(_r432, _ast341.BoolOp) and isinstance(_r432.op, _ast341.Or):
+                        # `a or b` yields an earlier operand only when it is truthy (not None)
+                        _cs432 = {_c for _v in _r432.values[:-1] for _c in (
+                            set(_ex346.get(id(_v), set())) | set(_eh372.get(id(_v), set())))
+                                  if _c not in ("None", "NoneType")} | set(_ex346.get(
+                                      id(_r432.values[-1]), set())) | set(_eh372.get(
+                                          id(_r432.values[-1]), set()))
+                    if isinstance(_r432, _ast341.Name) and _r432.id in _pd432:
+                        _cs432.add("None")
+                    _fs432 = set(_cs432)
+                    for _ph432 in (0, 1):
+                        _cn432 = {_c for _c in _fs432 if _c[:1] != "#"
+                                  and _c not in ("Any", "object")}
+                        if ((len(_cn432) <= 1 and not (_cn432 & {"None", "NoneType"}))
+                                or (_cn432 and all(_c in _NT432 and hasattr(_NT432[_c],
+                                                                           _a432.attr)
+                                                   for _c in _cn432))):
+                            break
+                        if _ph432 == 1:
+                            raise _PyCSLSemErr341(
+                                f"'{_f346.name}' line {getattr(_a432, 'lineno', 0)}: the "
+                                f"attribute `{_ast341.unparse(_a432)}` is read on "
+                                f"`{_ast341.unparse(_r432)}`, which may be an instance of "
+                                f"{sorted(_cn432)} here -- `None` or a class without "
+                                f"`{_a432.attr}` -- so CPython may raise AttributeError, "
+                                f"while this function claims `#@ no_exception` covering "
+                                f"AttributeError and the model lowers the access as an "
+                                f"opaque value (route #432; measured: `x: Optional[str]; "
+                                f"len(x.strip())` under `#@ no_exception \\all` proved). "
+                                f"Narrow the receiver first (`if "
+                                f"{_ast341.unparse(_r432)} is not None:`, `isinstance(..)`, "
+                                f"or an early `return` when it is `None`, with no rebinding "
+                                f"-- and, for an attribute path, no call -- in between), "
+                                f"or drop the claim.",
+                                stage="ir-semantic", code="PYCSL-R432-OPTIONAL-RECEIVER-ATTRIBUTE")
+                        # FLOW NARROWING (phase 1): the guards that hold at `_a432`
+                        _ch432 = []
+                        _w432 = _r432
+                        while isinstance(_w432, _ast341.Attribute):
+                            _ch432.append(_w432.attr)
+                            _w432 = _w432.value
+                        if not isinstance(_w432, _ast341.Name):
+                            continue
+                        _rt432 = _w432.id
+                        _kd432 = _ast341.dump(_r432)
+                        _cm432 = bool(_ch432) or _rt432 in _gn432
+                        _kl432 = {("N", _rt432)} | ({("C", "")} | {("A", _x) for _x in _ch432}
+                                                    if _cm432 else set())
+                        _gd432 = []
+                        _bs432 = None
+                        # (a) code of the access's own statement evaluated before it
+                        _an432 = set()
+                        _y432 = _a432
+                        while id(_y432) in _pm432 and not isinstance(_y432, _ast341.stmt):
+                            _y432 = _pm432[id(_y432)]
+                            _an432.add(id(_y432))
+                        _sd432 = {id(_z) for _z in _ast341.walk(_a432)}
+                        _pk432 = set()
+                        _tg432 = False
+                        if isinstance(_y432, (_ast341.Assign, _ast341.AugAssign,
+                                              _ast341.AnnAssign)) and _y432.value is not None:
+                            _tg432 = any(id(_z) == id(_a432) for _t in (
+                                _y432.targets if isinstance(_y432, _ast341.Assign)
+                                else [_y432.target]) for _z in _ast341.walk(_t))
+                            if _tg432:
+                                _pk432 |= _kt432.get(id(_y432.value), set())
+                        # (a target is stored AFTER its value / a `for` iterable is evaluated)
+                        if isinstance(_y432, (_ast341.Assign, _ast341.AugAssign,
+                                              _ast341.AnnAssign)) and not _tg432:
+                            _sd432 |= {id(_z) for _t in (
+                                _y432.targets if isinstance(_y432, _ast341.Assign)
+                                else [_y432.target]) for _z in _ast341.walk(_t)}
+                        elif isinstance(_y432, (_ast341.For, _ast341.AsyncFor)) and any(
+                                _z is _a432 for _z in _ast341.walk(_y432.iter)):
+                            _sd432 |= {id(_z) for _z in _ast341.walk(_y432.target)}
+                        for _z432 in _ast341.walk(_y432):
+                            if (id(_z432) not in _an432 and id(_z432) not in _sd432
+                                    and hasattr(_z432, "end_lineno")
+                                    and _z432.end_lineno is not None
+                                    and (_z432.end_lineno, _z432.end_col_offset)
+                                    <= (_a432.lineno, _a432.col_offset)):
+                                _pk432 |= _ko432.get(id(_z432), set())
+                        _st432 = bool(_pk432 & _kl432)
+                        # (b) the climb
+                        _nd432 = _a432
+                        _g432 = 0
+                        while not _st432 and _g432 < 4096:
+                            _g432 += 1
+                            _pa432 = _pm432.get(id(_nd432))
+                            if _pa432 is None or isinstance(_pa432, (_ast341.ClassDef,
+                                                                     _ast341.Lambda)):
+                                break
+                            if isinstance(_pa432, _ast341.BoolOp):
+                                _ix432 = [id(_v) for _v in _pa432.values].index(id(_nd432))
+                                for _v432 in reversed(_pa432.values[:_ix432]):
+                                    if _kt432.get(id(_v432), set()) & _kl432:
+                                        _st432 = True
+                                        break
+                                    _gd432.append((_v432, isinstance(_pa432.op, _ast341.And)))
+                            elif isinstance(_pa432, _ast341.IfExp):
+                                if _kt432.get(id(_pa432.test), set()) & _kl432:
+                                    _st432 = True
+                                elif _nd432 is _pa432.body:
+                                    _gd432.append((_pa432.test, True))
+                                elif _nd432 is _pa432.orelse:
+                                    _gd432.append((_pa432.test, False))
+                            elif isinstance(_pa432, (_ast341.ListComp, _ast341.SetComp,
+                                                     _ast341.GeneratorExp, _ast341.DictComp)):
+                                _bt432 = any(("N", _rt432) in _kt432.get(id(_q.target), set())
+                                             for _q in _pa432.generators)
+                                # what the comprehension may rebind besides its targets
+                                # binding R itself (it re-runs its parts per element)
+                                _gk432 = set()
+                                for _q432 in _pa432.generators:
+                                    _gk432 |= _kt432.get(id(_q432.iter), set())
+                                    _gk432 |= _kt432.get(id(_q432.target), set()) - {
+                                        ("N", _rt432)}
+                                    for _v432 in _q432.ifs:
+                                        _gk432 |= _kt432.get(id(_v432), set())
+                                for _v432 in ([_pa432.key, _pa432.value]
+                                              if isinstance(_pa432, _ast341.DictComp)
+                                              else [_pa432.elt]):
+                                    _gk432 |= _kt432.get(id(_v432), set())
+                                if not (_gk432 & _kl432) and not any(
+                                        _nd432 is _q for _q in _pa432.generators):
+                                    for _q432 in _pa432.generators:
+                                        _gd432 += [(_v, True) for _v in _q432.ifs]
+                                # a generator expression runs LATER (when consumed): no
+                                # guard outside it holds
+                                if _bt432 or _gk432 & _kl432 or isinstance(
+                                        _pa432, _ast341.GeneratorExp):
+                                    _st432 = True
+                            elif isinstance(_pa432, _ast341.comprehension):
+                                if ("N", _rt432) in _kt432.get(id(_pa432.target), set()):
+                                    _st432 = True
+                            elif isinstance(_pa432, _ast341.ExceptHandler):
+                                _tr432 = _pm432.get(id(_pa432))
+                                if (_pa432.name == _rt432 or _tr432 is None
+                                        or any(_kt432.get(id(_s), set()) & _kl432
+                                               for _s in _tr432.body)):
+                                    _st432 = True
+                                else:
+                                    _nd432 = _tr432
+                                continue
+                            if _st432:
+                                break
+                            # a statement list of `_pa432` holding `_nd432`
+                            _fl432 = None
+                            for _fn432 in ("body", "orelse", "finalbody"):
+                                _ls432 = getattr(_pa432, _fn432, None)
+                                if isinstance(_ls432, list) and any(_s is _nd432
+                                                                    for _s in _ls432):
+                                    _fl432 = _fn432
+                                    break
+                            if _fl432 is None:
+                                if isinstance(_pa432, (_ast341.FunctionDef,
+                                                       _ast341.AsyncFunctionDef)):
+                                    break
+                                # a `while` test re-runs after its body
+                                if (isinstance(_pa432, _ast341.While) and _nd432 is _pa432.test
+                                        and _kt432.get(id(_pa432), set()) & _kl432):
+                                    break
+                                _nd432 = _pa432
+                                continue
+                            _ls432 = getattr(_pa432, _fl432)
+                            _ix432 = [id(_s) for _s in _ls432].index(id(_nd432))
+                            for _s432 in reversed(_ls432[:_ix432]):
+                                if _kt432.get(id(_s432), set()) & _kl432:
+                                    # a rebinding: `R = v`, or `if R is None: ..; R = v`
+                                    _st432 = True
+                                    _sv432 = None
+                                    _ib432 = None
+                                    if (isinstance(_s432, _ast341.Assign)
+                                            and len(_s432.targets) == 1
+                                            and _ast341.dump(_s432.targets[0]).replace(
+                                                "Store()", "Load()") == _kd432):
+                                        _sv432 = _s432.value
+                                    elif (isinstance(_s432, _ast341.If) and not _s432.orelse
+                                          and isinstance(_s432.body[-1], _ast341.Assign)
+                                          and len(_s432.body[-1].targets) == 1
+                                          and _ast341.dump(_s432.body[-1].targets[0]).replace(
+                                              "Store()", "Load()") == _kd432
+                                          and not (_kt432.get(id(_s432.test), set())
+                                                   & _kl432)
+                                          and isinstance(_s432.test, _ast341.Compare)
+                                          and len(_s432.test.ops) == 1
+                                          and isinstance(_s432.test.ops[0], (_ast341.Is,
+                                                                             _ast341.Eq))
+                                          and _ast341.dump(_s432.test.left) == _kd432
+                                          and isinstance(_s432.test.comparators[0],
+                                                         _ast341.Constant)
+                                          and _s432.test.comparators[0].value is None):
+                                        _sv432 = _s432.body[-1].value
+                                        _ib432 = True
+                                    if _sv432 is not None:
+                                        _vc432 = (set(_ex346.get(id(_sv432), set()))
+                                                  | set(_eh372.get(id(_sv432), set())))
+                                        if (_vc432 and not (_vc432 & {"None", "NoneType"})
+                                                and not any(_c[:1] == "#" for _c in _vc432)):
+                                            _bs432 = (_vc432 if _ib432 is None else
+                                                      (_cs432 - {"None", "NoneType"}) | _vc432)
+                                    break
+                                if isinstance(_s432, _ast341.Assert):
+                                    _gd432.append((_s432.test, True))
+                                elif isinstance(_s432, _ast341.If):
+                                    _tb432 = [isinstance(_b[-1], (
+                                        _ast341.Return, _ast341.Raise, _ast341.Continue,
+                                        _ast341.Break)) or (
+                                            isinstance(_b[-1], _ast341.If) and _b[-1].orelse
+                                            and isinstance(_b[-1].body[-1], (
+                                                _ast341.Return, _ast341.Raise,
+                                                _ast341.Continue, _ast341.Break))
+                                            and isinstance(_b[-1].orelse[-1], (
+                                                _ast341.Return, _ast341.Raise,
+                                                _ast341.Continue, _ast341.Break)))
+                                        if _b else False for _b in (_s432.body, _s432.orelse)]
+                                    if _tb432[0] and not _tb432[1]:
+                                        _gd432.append((_s432.test, False))
+                                    elif _tb432[1] and not _tb432[0]:
+                                        _gd432.append((_s432.test, True))
+                            if _st432 or isinstance(_pa432, (_ast341.FunctionDef,
+                                                             _ast341.AsyncFunctionDef)):
+                                break
+                            # leaving the block: the enclosing statement
+                            if isinstance(_pa432, _ast341.If):
+                                if _kt432.get(id(_pa432.test), set()) & _kl432:
+                                    break
+                                _gd432.append((_pa432.test, _fl432 == "body"))
+                            elif isinstance(_pa432, (_ast341.While, _ast341.For,
+                                                     _ast341.AsyncFor)):
+                                if isinstance(_pa432, _ast341.While):
+                                    if _kt432.get(id(_pa432.test), set()) & _kl432:
+                                        break
+                                    _gd432.append((_pa432.test, _fl432 == "body"))
+                                if _kt432.get(id(_pa432), set()) & _kl432:
+                                    break
+                            elif isinstance(_pa432, (_ast341.With, _ast341.AsyncWith)):
+                                if any(_kt432.get(id(_w), set()) & _kl432
+                                       for _w in _pa432.items):
+                                    break
+                            elif isinstance(_pa432, _ast341.Try) or type(
+                                    _pa432).__name__ == "TryStar":
+                                if _fl432 != "body" and any(
+                                        _kt432.get(id(_s), set()) & _kl432
+                                        for _s in (_pa432.body + _pa432.handlers + (
+                                            _pa432.orelse if _fl432 == "finalbody" else []))):
+                                    break
+                            elif type(_pa432).__name__ == "match_case":
+                                _mt432 = _pm432.get(id(_pa432))
+                                if _mt432 is None or _kt432.get(id(_mt432), set()) & _kl432:
+                                    break
+                                _nd432 = _mt432
+                                continue
+                            _nd432 = _pa432
+                        # (c) the guards' leaves for R
+                        _nn432 = False
+                        _ic432 = None
+                        _lq432 = list(_gd432)
+                        _g432 = 0
+                        while _lq432 and _g432 < 4096:
+                            _g432 += 1
+                            _e432, _p432 = _lq432.pop()
+                            if isinstance(_e432, _ast341.UnaryOp) and isinstance(
+                                    _e432.op, _ast341.Not):
+                                _lq432.append((_e432.operand, not _p432))
+                            elif isinstance(_e432, _ast341.BoolOp) and (
+                                    isinstance(_e432.op, _ast341.And) == _p432):
+                                _lq432 += [(_v, _p432) for _v in _e432.values]
+                            elif (isinstance(_e432, _ast341.Compare) and len(_e432.ops) == 1
+                                  and isinstance(_e432.ops[0], (_ast341.Is, _ast341.IsNot,
+                                                                _ast341.Eq, _ast341.NotEq))):
+                                _sx432 = [_e432.left, _e432.comparators[0]]
+                                if any(isinstance(_s, _ast341.Constant) and _s.value is None
+                                       for _s in _sx432) and any(
+                                           _ast341.dump(_s) == _kd432 for _s in _sx432):
+                                    if isinstance(_e432.ops[0], (_ast341.IsNot,
+                                                                 _ast341.NotEq)) == _p432:
+                                        _nn432 = True
+                            elif (isinstance(_e432, _ast341.Call) and _p432
+                                  and isinstance(_e432.func, _ast341.Name)
+                                  and _e432.func.id == "isinstance"
+                                  and "isinstance" not in _lb383
+                                  and "isinstance" not in _ln394
+                                  and len(_e432.args) == 2 and not _e432.keywords
+                                  and _ast341.dump(_e432.args[0]) == _kd432):
+                                _ty432 = (_e432.args[1].elts if isinstance(
+                                    _e432.args[1], _ast341.Tuple) else [_e432.args[1]])
+                                if all(isinstance(_t, (_ast341.Name, _ast341.Attribute))
+                                       and (_t.id if isinstance(_t, _ast341.Name) else _t.attr)
+                                       not in ("object", "Any") for _t in _ty432):
+                                    _cy432 = {(_t.id if isinstance(_t, _ast341.Name)
+                                               else _t.attr) for _t in _ty432}
+                                    _ic432 = _cy432 if _ic432 is None else (_ic432 & _cy432)
+                            elif _p432 and _ast341.dump(_e432) == _kd432:
+                                _nn432 = True
+                        _fs432 = set(_bs432) if _bs432 is not None else set(_cs432)
+                        if _ic432 is not None:
+                            _fs432 = set(_ic432)
+                        if _nn432:
+                            _fs432 -= {"None", "NoneType"}
+            if _te432:
+                for _n432 in _al432:
+                    if not isinstance(_n432, _ast341.Call) or id(_n432) in _anx365:
+                        continue
+                    _fu432 = _n432.func
+                    _gq432 = None
+                    _kn432 = ""
+                    _ok433 = None
+                    if (isinstance(_fu432, _ast341.Attribute) and _fu432.attr == "join"
+                            and len(_n432.args) == 1 and not _n432.keywords
+                            and not isinstance(_n432.args[0], _ast341.Starred)):
+                        _rc432 = {_c for _c in (set(_ex346.get(id(_fu432.value), set()))
+                                                | set(_eh372.get(id(_fu432.value), set())))}
+                        if _rc432 == {"str"}:
+                            _ok433 = {"str"}
+                        elif _rc432 and _rc432 <= {"bytes", "bytearray"}:
+                            _ok433 = {"bytes", "bytearray"}
+                        else:
+                            continue
+                        _gq432 = list(_ei383.get(id(_n432.args[0])) or [_U383])
+                        _kn432 = _ast341.unparse(_fu432)
+                    elif (isinstance(_fu432, _ast341.Name)
+                          and _fu432.id in ("sorted", "min", "max")
+                          and _fu432.id not in _lb383 and _fu432.id not in _ln394
+                          and _fu432.id not in _gv394 and _fu432.id not in _mf383
+                          and _fu432.id not in _cls341
+                          and not any(isinstance(_c, _ast341.Starred) for _c in _n432.args)):
+                        _kn432 = _fu432.id
+                        if len(_n432.args) == 1:
+                            _gq432 = list(_ei383.get(id(_n432.args[0])) or [_U383])
+                            _it432 = _n432.args[0]
+                        elif len(_n432.args) >= 2 and _fu432.id != "sorted":
+                            _gq432 = [_t for _c in _n432.args
+                                      for _t in (_ty383.get(id(_c)) or [_U383])]
+                            _it432 = None
+                        else:
+                            continue
+                    elif (isinstance(_fu432, _ast341.Attribute) and _fu432.attr == "sort"
+                          and not _n432.args and _ty383.get(id(_fu432.value))
+                          and all(isinstance(_t, _ast341.Subscript)
+                                  and isinstance(_t.value, _ast341.Name)
+                                  and _t.value.id in ("List", "list", "#list")
+                                  for _t in _ty383[id(_fu432.value)])):
+                        _kn432 = _ast341.unparse(_fu432)
+                        _gq432 = list(_ei383.get(id(_fu432.value)) or [_U383])
+                        _it432 = None
+                    else:
+                        continue
+                    if _ok433 is None:
+                        # a dict's `.items()`: only the (distinct) keys are compared
+                        if (_it432 is not None and isinstance(_it432, _ast341.Call)
+                                and isinstance(_it432.func, _ast341.Attribute)
+                                and _it432.func.attr == "items" and not _it432.args
+                                and _ty383.get(id(_it432))
+                                and all(isinstance(_t, _ast341.Subscript)
+                                        and isinstance(_t.value, _ast341.Name)
+                                        and _t.value.id == "#items"
+                                        for _t in _ty383[id(_it432)])):
+                            _gq432 = [(_t.slice.elts[0] if isinstance(_t, _ast341.Subscript)
+                                       and isinstance(_t.slice, _ast341.Tuple)
+                                       and _t.slice.elts else _U383) for _t in _gq432]
+                        for _kw432 in _n432.keywords:
+                            if _kw432.arg == "key":
+                                _kv432 = _kw432.value
+                                if (isinstance(_kv432, _ast341.Constant)
+                                        and _kv432.value is None):
+                                    pass
+                                elif (isinstance(_kv432, _ast341.Name)
+                                      and _kv432.id in ("len", "abs", "int", "float", "str",
+                                                        "ord")
+                                      and _kv432.id not in _lb383 and _kv432.id not in _ln394
+                                      and _kv432.id not in _gv394 and _kv432.id not in _mf383):
+                                    _gq432 = [_ast341.Name(
+                                        id=("str" if _kv432.id == "str" else
+                                            "float" if _kv432.id == "float" else "int"),
+                                        ctx=_ast341.Load())]
+                                elif isinstance(_kv432, _ast341.Lambda):
+                                    # the body's classes, its one parameter read as an element
+                                    _lp432 = [_a.arg for _a in _kv432.args.args]
+                                    _lx432 = _kv432.body
+                                    if len(_lp432) != 1 or _kv432.args.vararg or (
+                                            _kv432.args.kwarg or _kv432.args.kwonlyargs):
+                                        _gq432 = [_U383]
+                                    elif (isinstance(_lx432, _ast341.Name)
+                                          and _lx432.id == _lp432[0]):
+                                        pass
+                                    elif (isinstance(_lx432, _ast341.Subscript)
+                                          and isinstance(_lx432.value, _ast341.Name)
+                                          and _lx432.value.id == _lp432[0]
+                                          and isinstance(_lx432.slice, _ast341.Constant)
+                                          and type(_lx432.slice.value) is int
+                                          and _lx432.slice.value >= 0):
+                                        _gq432 = [_t.slice.elts[_lx432.slice.value] if (
+                                            isinstance(_t, _ast341.Subscript)
+                                            and isinstance(_t.value, _ast341.Name)
+                                            and _t.value.id in _TP383
+                                            and isinstance(_t.slice, _ast341.Tuple)
+                                            and len(_t.slice.elts) > _lx432.slice.value
+                                            and not any(isinstance(_e, _ast341.Constant)
+                                                        and _e.value is Ellipsis
+                                                        for _e in _t.slice.elts))
+                                                  else _U383 for _t in _gq432]
+                                    elif any(isinstance(_z, _ast341.Name)
+                                             and _z.id == _lp432[0]
+                                             for _z in _ast341.walk(_lx432)):
+                                        # arithmetic over a numeric element is a number
+                                        _gq432 = ([_ast341.Name(id="float", ctx=_ast341.Load())]
+                                                  if _gq432 and all(
+                                                      isinstance(_t, _ast341.Name)
+                                                      and _t.id in ("int", "bool", "float")
+                                                      for _t in _gq432)
+                                                  and all(isinstance(_z, (
+                                                      _ast341.BinOp, _ast341.UnaryOp,
+                                                      _ast341.operator, _ast341.unaryop,
+                                                      _ast341.expr_context))
+                                                      or isinstance(_z, _ast341.Name)
+                                                      and _z.id == _lp432[0]
+                                                      or isinstance(_z, _ast341.Constant)
+                                                      and type(_z.value) in (int, float)
+                                                      for _z in _ast341.walk(_lx432))
+                                                  else [_U383])
+                                    else:
+                                        _gq432 = list(_ty383.get(id(_lx432)) or [_U383])
+                                else:
+                                    _gq432 = [_U383]
+                            elif _kw432.arg not in ("reverse", "default"):
+                                _gq432 = [_U383]
+                    # the classes / orderability of `_gq432`
+                    _wk432 = [list(_gq432)]
+                    _bd432 = None
+                    _g432 = 0
+                    while _wk432 and _bd432 is None and _g432 < 256:
+                        _g432 += 1
+                        _gp432 = _wk432.pop()
+                        _am432 = []
+                        _wq432 = list(_gp432)
+                        _h432 = 0
+                        while _wq432 and _h432 < 256:
+                            _h432 += 1
+                            _x432 = _wq432.pop()
+                            if isinstance(_x432, _ast341.Constant) and isinstance(
+                                    _x432.value, str):
+                                try:
+                                    _wq432.append(_ast341.parse(_x432.value, mode="eval").body)
+                                except (SyntaxError, ValueError):
+                                    _am432.append(("#UNK", None))
+                            elif isinstance(_x432, _ast341.Constant) and _x432.value is None:
+                                _am432.append(("None", None))
+                            elif isinstance(_x432, _ast341.Name) and _x432.id in _al383:
+                                _wq432.append(_al383[_x432.id])
+                            elif isinstance(_x432, (_ast341.Name, _ast341.Attribute)):
+                                _am432.append((_x432.id if isinstance(_x432, _ast341.Name)
+                                               else _x432.attr, None))
+                            elif isinstance(_x432, _ast341.BinOp) and isinstance(
+                                    _x432.op, _ast341.BitOr):
+                                _wq432 += [_x432.left, _x432.right]
+                            elif isinstance(_x432, _ast341.Subscript):
+                                _hv432 = _x432.value
+                                _hn432 = (_hv432.id if isinstance(_hv432, _ast341.Name) else
+                                          _hv432.attr if isinstance(_hv432, _ast341.Attribute)
+                                          else "")
+                                _ar432 = (list(_x432.slice.elts)
+                                          if isinstance(_x432.slice, _ast341.Tuple)
+                                          else [_x432.slice])
+                                if _hn432 in ("Optional", "Union"):
+                                    _wq432 += _ar432 + ([_ast341.Constant(value=None)]
+                                                        if _hn432 == "Optional" else [])
+                                elif _hn432 in ("Annotated", "Final"):
+                                    _wq432 += _ar432[:1]
+                                else:
+                                    _am432.append((_hn432, _ar432))
+                            else:
+                                _am432.append(("#UNK", None))
+                        if _wq432 or not _am432:
+                            _bd432 = "an underivable value"
+                            break
+                        if _ok433 is not None:
+                            _xx432 = sorted({_h for _h, _a in _am432} - _ok433)
+                            if _xx432:
+                                _bd432 = str(_xx432)
+                            break
+                        _ct432 = set()
+                        for _h432, _ar432 in _am432:
+                            if _h432 in ("int", "bool", "float"):
+                                _ct432.add("number")
+                            elif _h432 == "str":
+                                _ct432.add("str")
+                            elif _h432 in ("bytes", "bytearray"):
+                                _ct432.add("bytes")
+                            elif _h432 in ("Tuple", "tuple", "#tuple") and _ar432:
+                                _ct432.add("tuple")
+                            elif _h432 in ("List", "list", "#list") and _ar432:
+                                _ct432.add("list")
+                            else:
+                                _bd432 = ("an un-parameterised `%s`" % _h432
+                                          if _h432 in ("tuple", "Tuple", "list", "List")
+                                          else "`None`" if _h432 in ("None", "NoneType")
+                                          else "an underivable value" if _h432[:1] == "#"
+                                          else "`%s`" % _h432)
+                                break
+                        if _bd432 is not None:
+                            break
+                        if len(_ct432) > 1:
+                            _bd432 = "a mix of %s" % sorted(_ct432)
+                        elif _ct432 == {"list"}:
+                            _wk432.append([_a[0] for _h, _a in _am432])
+                        elif _ct432 == {"tuple"}:
+                            _vr432 = [_a[0] for _h, _a in _am432 if len(_a) == 2
+                                      and isinstance(_a[1], _ast341.Constant)
+                                      and _a[1].value is Ellipsis]
+                            _fx432 = [_a for _h, _a in _am432 if not (
+                                len(_a) == 2 and isinstance(_a[1], _ast341.Constant)
+                                and _a[1].value is Ellipsis)]
+                            for _i432 in range(max([len(_a) for _a in _fx432] + [1])):
+                                _wk432.append([_a[_i432] for _a in _fx432 if len(_a) > _i432]
+                                              + _vr432)
+                    if _wk432 and _bd432 is None:
+                        _bd432 = "an underivable value"
+                    if _bd432 is None:
+                        continue
+                    if _ok433 is not None:
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n432, 'lineno', 0)}: "
+                            f"`{_ast341.unparse(_n432)}` joins elements that may be "
+                            f"{_bd432}, not all {sorted(_ok433)}: `{_kn432}` raises TypeError "
+                            f"on any other element, while this function claims "
+                            f"`#@ no_exception` covering TypeError and the model lowers the "
+                            f"elements as opaque values (route #433; measured: `xs: "
+                            f"List[int]; len(\"\".join(xs))` under `#@ no_exception \\all` "
+                            f"proved). Join elements DERIVED "
+                            f"{' / '.join(sorted(_ok433))} (parameters, fields or container "
+                            f"elements annotated so -- e.g. a display `[a, b]` of such "
+                            f"parameters), or drop the claim.",
+                            stage="ir-semantic", code="PYCSL-R433-JOIN-ELEMENT-CLASS")
+                    raise _PyCSLSemErr341(
+                        f"'{_f346.name}' line {getattr(_n432, 'lineno', 0)}: "
+                        f"`{_ast341.unparse(_n432)}` compares values that may be {_bd432}: "
+                        f"`{_kn432}` raises TypeError unless the compared values are totally "
+                        f"ordered among themselves, while this function claims "
+                        f"`#@ no_exception` covering TypeError and the model lowers the "
+                        f"comparison as opaque (route #437; measured: `xs: List[Tuple[int, "
+                        f"Optional[int]]]; sorted(xs)` under `#@ no_exception \\all` "
+                        f"proved). Admitted: values derived as all numbers, all `str`, all "
+                        f"`bytes`, or parameterised tuples / lists of such (a `key=` of "
+                        f"`len` / `abs` / `int` / `float` / `str` / `ord`, or a lambda whose "
+                        f"result is derived so). Sort values declared with such a type (e.g. "
+                        f"`List[int]`), or drop the claim.",
+                        stage="ir-semantic", code="PYCSL-R437-UNORDERED-ELEMENTS")
         # ROUTE #361 — `InitVar` / `KW_ONLY` PSEUDO-FIELDS WERE MODELLED AS STORED FIELDS.
         # `k: InitVar[int]` and `_: KW_ONLY` joined the record and #347's synthesized
         # field set (ClassVar was excluded), so `d.k` / `d._` read under `no_exception`
