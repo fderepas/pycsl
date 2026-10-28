@@ -3400,8 +3400,8 @@ directly or through further same-file calls, is refused
 (`PYCSL-R430-CALLEE-UNDERIVABLE-HASH`). A named claim cannot carry TypeError (it is not a known
 exception), so only `\all` is concerned. Witnesses `6460`-`6462`; controls `6463` (the callee
 hashes a `str`), `6464` (an un-claimed caller).
-### 7.90 A string literal's characters reach the solver as the characters they are (route #411, run #3)
 
+### 7.90 A string literal's characters reach the solver as the characters they are (route #411, run #3)
 
 A Python `str` is a Why3 `string`, and Z3 decides it with its native string theory. Why3 1.8.2's
 SMT-LIB printer writes every literal character outside printable ASCII -- and `"` and `\` -- as
