@@ -1,4 +1,4 @@
-r"""OPEN ROUTE #431 carrier (probe l3p, executor rg 2026-10-28): an un-claimed caller's `return` in `finally:` swallows the callee's ambient hash TypeError, so `ensures out[0] == 1` PROVES; CPython leaves out[0] == 2. Gated by bin/check-open-route-carriers.py (SUCCESS today).
+r"""OPEN ROUTE #431 carrier (probe l3p, executor rg 2026-10-28): an un-claimed caller's `return` in `finally:` swallows the callee's ambient hash TypeError, so `ensures out[0] == 1` PROVED (before the repair); CPython leaves out[0] == 2. CLOSED by the route #431 repair (executor h430, 2026-10-28): now REFUSED (PYCSL-R431-FINALLY-JUMP-SWALLOWS-EXCEPTION); bin/check-open-route-carriers.py asserts REFUSED.
 """
 from typing import Dict, Any, List
 

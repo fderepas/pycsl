@@ -3342,6 +3342,28 @@ class is one of a fixed list of constructors that keep no reference to and set n
 `struct.Struct`, `uuid.UUID`); any other makes the file DYNAMIC (§7.63). Witnesses `6316`-`6322`;
 control `6337`.
 
+### 7.130 A jump inside a `finally:` block is refused (route #431, run #3)
+
+When a try body raises and its `finally:` block executes `return`, `break` or `continue`, CPython
+DISCARDS the in-flight exception: the function returns (or the loop goes on) normally. The model
+lowers the jump on the normal path only, so an exception PyCSL treats as ambient (an implicit raise
+outside every claim: a hash TypeError, an un-claimed KeyError, a callee's) became a normal return
+that the proved `ensures` misdescribes: `out[0] = 2; try: hash(m.get("a")); out[0] = 1 finally:
+return` PROVED `ensures out[0] == 1` (CPython leaves 2), also around `d["a"]` and around a call of
+an un-claimed hashing callee. RULE: in a function that is not `\trusted` / `\abstract`, a `return`
+anywhere in a `finally:` block, and a `break` / `continue` in it that is not inside a loop nested in
+the block, is refused (`PYCSL-R431-FINALLY-JUMP-SWALLOWS-EXCEPTION`); a nested `def` is its own
+function. PEP 765 makes the same shape a SyntaxWarning in Python 3.14. Measured cost 0 (no such jump
+in the root corpus, pyref, the mirrors or `pycsl_lib`). The other channels that turn an exception
+into a normal return were measured REFUSED by their own routes (probes in
+`getting-better/systematic-soundness-r3/h430-r430-431/probes/`): an `except` an un-modelled exception
+can reach, in the raising function, a caller or a nested `def` (route #174, incl. `except
+BaseException` / `Exception` / bare); a claimed caller of a callee raising KeyError / IndexError /
+ValueError implicitly (route #178); `contextlib.suppress` (route #257) and a file context manager whose
+`__exit__` returns True (routes #38 / #39); `except*` (the desugar refusal); a generator's own
+handler or `finally` (route #271: a generator call is not modelled). Witnesses `6450`-`6454`,
+`6457`; controls `6455`, `6456`.
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

@@ -1,5 +1,13 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-28): #431 REPAIRED (executor h430 off 725a1c7e5; code src/pycsl/pycsl.py next to route #156, corpus 6450-6457,
+##   census rows, docs annotations 7.130 / translational T.6.141, route431 REPAIR; no new def in a mirrored file, no axiom).
+##   A `return` anywhere in a `finally:` block, or a `break` / `continue` in it outside a loop nested in the block, is REFUSED
+##   (PYCSL-R431-FINALLY-JUMP-SWALLOWS-EXCEPTION). Witnesses 6450-6452 / 6457 PROVED at base -> REFUSED, 6453 / 6454 FAIL ->
+##   REFUSED; controls 6455 / 6456 PROVED both. Root 2512 -> 2514 0/0/0, pyref 2186 0/0/0, mirrors 53/53 0/0/0, pycsl_lib
+##   identical: cost 0, as the AST census said. Other channels (user __exit__ True, except BaseException, except*, nested def
+##   handlers, generators) measured REFUSED by #38/#39, #174, the desugar refusal, #271. rg's S0 re-run: every swallow REFUSED.
+
 ## run #3 (2026-10-28): #430 and #431 OPENED; route R-gate (claim-gated #UND hashing refusal) CERTIFIED-BOUNDARY (executor rg off
 ##   289fe6029, wall cycle #2 dict-value-model-r3, impl doc getting-better/dict-value-model-r3-impl.md; no src/bin/corpus change).
 ##   #431: a `return` in a `finally:` swallows an AMBIENT exception (un-claimed hash TypeError l3o / l3p, un-claimed KeyError l3n),

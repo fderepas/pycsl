@@ -1,0 +1,15 @@
+ROUTE #431 increment (executor h430, base 725a1c7e5), candidate = this commit.
+fidelity: check-self-annotate-sync rc=0 (932 functions verbatim); self-annotate-mirror-check rc=0 (53 mirrors)
+root byte-diff  rc=0: 2512 baseline / 2514 candidate .mlw, 0 MOVED / 0 GONE / 0 APPEARED (2 new control sources 6455/6456)
+pyref byte-diff rc=0: 2186 / 2186, 0 / 0 / 0
+mirror sweep    rc=0: 53 / 53, 0 / 0 / 0 (no OWED proof)
+pycsl_lib --no-proof screen: identical (104 files, rc0 87): lib-base.tsv vs g431/lib-cand.tsv
+planes (fast 61): first run 60/61 (refusal-witness-coverage red before the census rows: 6 undemonstrated > ceiling 5,
+  planes-first.log); after the census rows: rc=0, all 61 green (planes.log)
+refusal-witness-coverage rc=0 (329 demonstrated, 5 undemonstrated); refusal-advice-audited rc=0 (157 audited, +1 FOLLOWABLE R431)
+getattr-erasure rc=0; clause-survival --emit-dir rc=0 (10 deficit / 1474, all ledgered); assumed-facts --emit-dir rc=0
+  (4700 files, 88 facts); open-route-carriers rc=0 (14 carriers; the three #431 rows now assert REFUSED); doc-coherency rc=0
+census: 6 new REFUSAL rows (6450-6454, 6457) via _census_row (census.py, heavy.sh)
+\trusted count: 442 lines (unchanged); no axiom; ledger unchanged
+witnesses (g431/verdicts-base.tsv -> verdicts-cand.tsv): 6450/6451/6452/6457 PROVED -> REFUSED (ROUTE #431);
+  6453/6454 FAIL (Why3 type error) -> REFUSED; controls 6455/6456 PROVED -> PROVED

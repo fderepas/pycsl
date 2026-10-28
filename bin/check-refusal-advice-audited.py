@@ -719,6 +719,10 @@ AUDITED = {
         "Route #424. 'Call a static method instead (`K.of(1)`), or drop `__class_getitem__`': witness 6297's class with `@staticmethod def of(item: int) -> int` and `{K.of(1)}` VERIFIES (a424_static); a module function `of` instead VERIFIES (a424_plainfn). (A `@classmethod` is refused by the unmodelled-decorator rule, a424_classmethod: the advice names a static method.)"),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_z425, \'lineno\', 0)}: `{_ast341.unparse(_z425)}` names an object\'s `__init__` outside constructor chaining. '): (FOLLOWABLE,
         "Route #425. 'Build a new object (`a = A(-4)`) or write a verified method that sets the fields': witness 6300 (d22) with `b = A(4); return b.where()` VERIFIES (a425_new_object); with a `#@ requires n >= 0 / #@ assigns self.n` method `reset` called as `a.reset(4)` it VERIFIES (a425_method). Control 6334 is the admitted `super().__init__` chaining."),
+    # (#49) driver run #3 -- route #431 (h430), audited the day it landed. Probe in
+    # getting-better/systematic-soundness-r3/h430-r430-431/advice/.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr431(f"""a `{_hit431[1]}` inside a `finally:` block of {_hit431[0]!r} (ROUTE #431): when the try body raises, CPython runs the `f'): (FOLLOWABLE,
+        "Route #431. 'Move the `return` after the `try` statement': witness 6450 with `finally: return` rewritten `finally: pass` and `return` after the `try` (a431_follow) VERIFIES -- the ambient TypeError now propagates (CPython: abnormal exit, no normal return). Controls 6455 / 6456 are the same shape."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1001,6 +1005,8 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""line {getattr(_z423, \'lineno\', 0)}: `{_sh423}` uses {_rs423[id(_z423)]}, a CLASS-CREATING value (`type`, a metaclass), o'): '71a84b30a574',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_z424, \'lineno\', 0)}: `{_ast341.unparse(_z424)}` subscripts (or aliases) the class \'{_k424}\', whose `__class'): 'b770a4fc8abc',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_z425, \'lineno\', 0)}: `{_ast341.unparse(_z425)}` names an object\'s `__init__` outside constructor chaining. '): 'ba1718d38d1f',
+    # (#49) driver run #3 -- route #431 (h430)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr431(f"""a `{_hit431[1]}` inside a `finally:` block of {_hit431[0]!r} (ROUTE #431): when the try body raises, CPython runs the `f'): '89e9fd3b9a3b',
 }
 
 

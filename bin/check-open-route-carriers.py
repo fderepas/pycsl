@@ -210,22 +210,28 @@ CARRIERS = {
     # measured repair cost 0 (no jump in any `finally:` in root / pyref / mirror / pycsl_lib).
     # #430: a `no_exception \all` caller of an un-claimed callee hashing `#UND` (route #178 has
     # no TypeError-by-hashing bit). When #431 closes, re-run R-gate's spike S0 (impl doc §R).
+    # (#49) driver run #3 (executor h430, 2026-10-28): #431 is CLOSED — a `return` / `break` /
+    # `continue` inside a `finally:` block is REFUSED (PYCSL-R431-FINALLY-JUMP-SWALLOWS-EXCEPTION,
+    # corpus witnesses 6450-6454 / 6457). The three #431 rows now ASSERT the refusal: a regression
+    # that lets a finally-jump prove again turns this plane red. S0 re-run: every channel REFUSED.
     "getting-better/open-routes/route430-carrier-claimed-caller-unclaimed-hash-callee.py": (
         "SUCCESS", "#430",
         "a `no_exception \\all` caller returns `h(m)` where the un-claimed `h` hashes "
         "`m.get(\"a\")`; CPython raises TypeError"),
     "getting-better/open-routes/route431-carrier-finally-return-swallows-hash.py": (
-        "SUCCESS", "#431",
-        "`out[0] = 2; try: hash(m.get(\"a\")); out[0] = 1 finally: return` proves "
-        "`ensures out[0] == 1`; CPython swallows the TypeError and leaves out[0] == 2"),
+        "REFUSED", "#431",
+        "`out[0] = 2; try: hash(m.get(\"a\")); out[0] = 1 finally: return` proved "
+        "`ensures out[0] == 1` (PROVED before #431's repair); CPython swallows the TypeError and "
+        "leaves out[0] == 2; now REFUSED"),
     "getting-better/open-routes/route431-carrier-caller-finally-swallows-callee-hash.py": (
-        "SUCCESS", "#431",
+        "REFUSED", "#431",
         "the caller's `finally: return` swallows the un-claimed callee's hash TypeError; "
-        "`ensures out[0] == 1` proves, CPython leaves out[0] == 2"),
+        "`ensures out[0] == 1` PROVED before #431's repair, CPython leaves out[0] == 2; now "
+        "REFUSED"),
     "getting-better/open-routes/route431-carrier-finally-return-swallows-keyerror.py": (
-        "SUCCESS", "#431",
+        "REFUSED", "#431",
         "the same swallow over an ambient KeyError `d[\"a\"]` (the hole is not specific to "
-        "hashing); CPython leaves out[0] == 2"),
+        "hashing); CPython leaves out[0] == 2; now REFUSED"),
 }
 FLAGS = ["--memory-model", "hoare"]
 

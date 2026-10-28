@@ -5168,6 +5168,17 @@ In §T.6.73's `_dy406` census, a standard-library callee $q$ of a `_sm406` modul
 importing its longest module prefix and walking the remaining attributes reaches a callable without
 crossing a class, and the callable is not a class unless $q \in$ `_ck428`.
 
+### §T.6.141  Jumps inside `finally:` (route #431, run #3)
+
+_Corresponds to `annotations.md` §7.130._
+
+$\mathcal{T}$ of `Try(b, h, o, F)` lowers a `Return` / `Break` / `Continue` of $F$ on the path where
+$b$ terminated normally only; on the exceptional path of $b$ the jump would discard the exception,
+which no lowering represents. So before Module 6 (`_run_pipeline`, next to route #156, on the final
+IR) the translation is undefined, and the run refused, for a non-trusted function whose body holds a
+`Try` / `TryStar` with a `finalbody` containing a `Return`, or a `Break` / `Continue` not under a
+`For` / `While` of that `finalbody`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

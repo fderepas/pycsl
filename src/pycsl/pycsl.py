@@ -13183,6 +13183,66 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"`finally` whose try body cannot jump out IS modelled; move the jump "
                 f"after the `try`.",
                 stage="whyml-emit", code="PYCSL-R156-TRY-FINALLY-JUMP-DROPPED")
+    # (#49) ROUTE #431 — A JUMP IN A `finally:` BLOCK SWALLOWS THE IN-FLIGHT EXCEPTION. When
+    # the `finally` block executes `return` / `break` / `continue`, CPython DISCARDS the
+    # exception the try body raised and the function returns (or the loop goes on)
+    # NORMALLY. The model lowers that jump on the normal path only, so an AMBIENT exception
+    # (an implicit raise outside every claim — a hash TypeError, a KeyError of an
+    # un-claimed function, a callee's) turns into a normal return from a state the proved
+    # `ensures` never described. MEASURED at 289fe6029 (rg-dict-r3 probes, PROVED while
+    # CPython leaves out[0] == 2): `out[0] = 2; try: hash(m.get("a")); out[0] = 1
+    # finally: return` under `ensures out[0] == 1` (l3o), the same around `d["a"]` (l3n),
+    # and around a call of an un-claimed hashing callee (l3p). Route #21 refuses a
+    # `finally` WITH handlers and route #156 a jump in the try BODY; neither looks at the
+    # FINALBODY. RULE: in a non-trusted function, a `return` anywhere in a `finally:`
+    # block, or a `break` / `continue` in it that is not inside a loop nested in that
+    # block, is REFUSED (a nested `def` / `class` is lifted out of the body by Module 5, so
+    # it is not inside the block here). PEP 765 makes the same shape a SyntaxWarning in
+    # CPython 3.14. MEASURED COST 0 (AST census: no such jump in the root corpus, pyref,
+    # the mirrors or `pycsl_lib`).
+    for _f431 in ir_data.get("functions", []):
+        if (_f431.get("trusted") or _f431.get("abstract")
+                or _f431.get("trusted_parent")):
+            continue
+        _s431 = [_f431.get("body", [])]
+        _hit431 = None
+        while _s431 and _hit431 is None:
+            _n431 = _s431.pop()
+            if isinstance(_n431, dict):
+                if _n431.get("stmt") in ("Try", "TryStar") and _n431.get("finalbody"):
+                    # (node, inside a loop nested in the finally block)
+                    _j431 = [(_n431.get("finalbody"), False)]
+                    while _j431 and _hit431 is None:
+                        _x431, _lp431 = _j431.pop()
+                        if isinstance(_x431, dict):
+                            _k431 = _x431.get("stmt")
+                            if (_k431 == "Return"
+                                    or (_k431 in ("Break", "Continue") and not _lp431)):
+                                _hit431 = (_f431.get("name", "?"), _k431.lower())
+                                break
+                            _in431 = _lp431 or _k431 in ("For", "While", "AsyncFor")
+                            _j431.extend((_v, _in431) for _v in _x431.values())
+                        elif isinstance(_x431, (list, tuple)):
+                            _j431.extend((_v, _lp431) for _v in _x431)
+                    if _hit431 is not None:
+                        break
+                _s431.extend(_n431.values())
+            elif isinstance(_n431, (list, tuple)):
+                _s431.extend(_n431)
+        if _hit431 is not None:
+            from errors import PyCSLSemanticError as _PyCSLSemErr431
+            raise _PyCSLSemErr431(
+                f"a `{_hit431[1]}` inside a `finally:` block of {_hit431[0]!r} (ROUTE #431): "
+                f"when the try body raises, CPython runs the `finally` block and its "
+                f"`{_hit431[1]}` DISCARDS the in-flight exception, so the function returns "
+                f"(or the loop continues) normally — but the model lowers the jump on the "
+                f"normal path only, so an exception it treats as ambient (a hash TypeError, "
+                f"an un-claimed KeyError, a callee's raise) would end in a normal return "
+                f"its `ensures` never described (measured: `out[0] = 2; try: "
+                f"hash(m.get(\"a\")); out[0] = 1 finally: return` proved `out[0] == 1`, "
+                f"CPython leaves 2). PEP 765 makes this a SyntaxWarning in Python 3.14. "
+                f"Move the `{_hit431[1]}` after the `try` statement.",
+                stage="whyml-emit", code="PYCSL-R431-FINALLY-JUMP-SWALLOWS-EXCEPTION")
     # (#49) ROUTE #175 — A USER EXCEPTION SUBCLASS IS NOT CAUGHT BY ITS BASE CLASS HANDLER.
     # Handler matching knows the builtin hierarchy only (`exception_model.EXCEPTION_BASES`);
     # a user `class MyErr(ValueError)` / `class Sub(Base)` raised in a `try` is its own Why3
