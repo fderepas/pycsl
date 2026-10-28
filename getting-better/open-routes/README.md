@@ -1,5 +1,21 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-28): #432 / #433 / #437 REPAIRED (executor g4 off 1c083dcbe; code inline in `_run_pipeline` after the
+##   #349-#383 hashing pass, over its class derivation; corpus 6500-6549, census rows, advice audits R432 / R433 / R437, docs
+##   annotations 7.133-7.135 / translational T.6.144-T.6.146, REPAIR sections; no new def in a mirrored file, no axiom, no
+##   emission change). Each rule ENUMERATES what it admits under a claim covering the exception. #432: `R.a` admitted iff R's
+##   classes at that point (Optional now derives `None`, a `= None` default holds `None`; FLOW NARROWING of names / attribute
+##   paths by if / while / IfExp / and / or / assert / early-exit guards, stopped by rebinding, calls on attribute paths,
+##   nested defs and generator expressions) are one non-None class or builtins all having `a`
+##   (PYCSL-R432-OPTIONAL-RECEIVER-ATTRIBUTE). #433: `S.join(it)` with S derived str (bytes) admits only derived str (bytes /
+##   bytearray) elements (PYCSL-R433-JOIN-ELEMENT-CLASS). #437: sorted / list.sort / min / max admit only derived totally
+##   ordered values -- numbers, str, bytes, parameterised tuples / lists of such, a mapping's `.items()` keys
+##   (PYCSL-R437-UNORDERED-ELEMENTS). All 27 red-team probes + 3 g4 probes PROVED at base -> REFUSED; 6 rule witnesses (base-refused shapes) REFUSED; 13 controls PROVED both.
+##   Gates: fidelity rc=0; root 2518 -> 2531 0 MOVED / 1 GONE (4810 expected FAIL, now REFUSED) / 0 APPEARED; pyref 2186 0/0/0;
+##   mirrors 53/53 0/0/0 (no OWED proof); pycsl_lib identical; planes 61/61; rwc 334 / advice 162 / getattr / clause / assumed /
+##   carriers / doc rc=0; census +37 rows, 4621 / 4810 re-measured. Over-refusal cost: 0 PASS files (claimed-corpus screen: only
+##   4621 / 4810 change). Residuals: underivable / Any receivers and elements not judged; see each route's RESIDUALS.
+
 ## run #3 (2026-10-28): #432-#439 OPENED (red team 34 on 78b519f63, convergence measurement: 497 written / 474 fully proved /
 ##   63 confirmed; FINDINGS salvaged by the driver; rt33's 115/117 proofs now refused): #432 an optional / union receiver of an attribute or method access owes no attributeerror (8); #433 str.join / bytes.join over elements not derivably str / bytes owes no typeerror (9); #434 ord() of a string not of length 1 owes no typeerror (7); #435 an unbound str / bytes method descriptor applied to a wrong-type first argument owes no typeerror (8); #436 str.split / rsplit with maxsplit outside c ssize_t owes no overflowerror (5); #437 sorted() over elements not totally ordered owes no typeerror (10); #438 hashing a bare / unparameterised tuple (elements unknown) owes no typeerror (11); #439 a hashed value whose class comes through a protocol, a foreign user module, or setattr owes no typeerror (5).
 ##   Diagnosis: every family is a builtin whose TYPE-DEPENDENT precondition (receiver / element class, length, range,

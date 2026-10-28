@@ -728,6 +728,14 @@ AUDITED = {
         "Route #430. 'Declare the hashed value's source with a hashable type in the callee (e.g. `Dict[str, str]` rather than `Dict[str, Any]`), or drop `\\all` from this function's claim': witness 6460 with both `m: Dict[str, str]` (a430_typed_source) VERIFIES; with `\\all` dropped from `caller` (a430_drop_claim, = control 6464) it VERIFIES."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_rg430)}` is HASHED by `{_ast341.unparse(_n346)}` ('): (FOLLOWABLE,
         "Route R-gate. 'Derive the value from a source declared with a hashable type (a parameter, field or container element annotated `str` / `int` / a frozen record), or drop the claim': witnesses 6470 / 6473 with `Dict[str, str]` / `List[Dict[str, int]]` sources (argate_typed_source) VERIFY under `no_exception \\all`; 6470 with the claim dropped (argate_drop_claim, = control 6480) VERIFIES."),
+    # (#49) driver run #3 -- routes #432 / #433 / #437 (g4), audited the day they landed. Probes in
+    # getting-better/systematic-soundness-r3/g4-r432-437/advice/.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: the attribute `{_ast341.unparse(_a432)}` is read on `{_ast341.unparse(_'): (FOLLOWABLE,
+        "Route #432. 'Narrow the receiver first (`if x is not None:` ...), or drop the claim': witness 6500 with `if x is not None:` around the access (a432_narrow, = control 6515's shape) VERIFIES under `no_exception \\all`; with the claim dropped (a432_drop_claim, = control 6524) it VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` joins elements that may be {_bd432}, not a'): (FOLLOWABLE,
+        "Route #433. 'Join elements DERIVED str / bytes (... a display `[a, b]` of such parameters), or drop the claim': witness 6530's join rewritten over a display of two `str` parameters (a433_typed_source) VERIFIES under `no_exception \\all`; with the claim dropped (a433_drop_claim, = control 6535) it VERIFIES. (A `List[str]` PARAMETER joined by `str.join` does not type-check at base or candidate -- Why3 `array string` vs `array int` -- so the advice names a display.)"),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` compares values that may be {_bd432}: `{_kn4'): (FOLLOWABLE,
+        "Route #437. 'Sort values declared with such a type (e.g. `List[int]`), or drop the claim': witness 6537 with `xs: List[int]` (a437_typed_source) VERIFIES under `no_exception \\all`; with the claim dropped (a437_drop_claim) it VERIFIES. (`key=len` / a builtin key is refused by the pre-existing unmodelled-keyword rule, so the advice does not name a key.)"),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1015,6 +1023,10 @@ AUDITED_HASH = {
     # (#49) driver run #3 -- route #430 / route R-gate (h430)
     ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that may raise `TypeError` by hashing a value whose class cannot be derived (a set ele"): '38d2b19ee594',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n346, \'lineno\', 0)}: `{_ast341.unparse(_rg430)}` is HASHED by `{_ast341.unparse(_n346)}` ('): 'ff83a393ab80',
+    # (#49) driver run #3 -- routes #432 / #433 / #437 (g4)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: the attribute `{_ast341.unparse(_a432)}` is read on `{_ast341.unparse(_'): '948c2aa9d312',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` joins elements that may be {_bd432}, not a'): '60bebc3b18fa',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` compares values that may be {_bd432}: `{_kn4'): '395daa559d4d',
 }
 
 
