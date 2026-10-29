@@ -1,0 +1,14 @@
+# OPEN ROUTE #470 — m1 STAND-IN OBJECTS lack PEP 649 lazy annotations: a file def / class is a synthesized placeholder at import time, so reading its `__annotations__` (which CPython 3.14 evaluates on first access) does not evaluate an undefined annotation name (NameError at import)
+**Status: OPEN, Severity 1.** Red-team round 38 (2026-10-29, on a9eac4a08 after #460-#462: 688 probes / 155 proved / 142 confirmed; rt37's 83 all closed except #463 / #464). Census TSV `scratchpad/rt38/census.tsv`; the family block below is quoted from `scratchpad/rt38/FINDINGS.txt`.
+Witnesses `witnesses-r470/` (7): `g6_s649_func_annotations_lazy.py`, `g6_s651_class_annotations_lazy.py`, `g6_s673_method_annotations.py`, `g6_s675_len_class_annotations.py`, `g6_s676_return_annotation_lazy.py`, `g6_s677_ann_undefined_attr.py`, `g6_s678_ann_div_zero.py`.
+
+Driver repro: 17/17 family exemplars (scratchpad/rt38/verify/, F8 without --import-path) rc=0 Verification SUCCESS on main a9eac4a08 at 2026-10-29T14:55Z, each violating under CPython (scratchpad/rt38/driver-repro.txt).
+
+```
+F6 m1 STAND-IN OBJECTS lack PEP 649 lazy annotations: a file def / class is a synthesized placeholder at import time, so reading its `__annotations__` (which CPython 3.14 evaluates on first access) does not evaluate an undefined annotation name (NameError at import) (7)
+  EXEMPLAR: g6/s649_func_annotations_lazy.py (`def g(x: UndefZZ) -> int: return 1` then `X = g.__annotations__` at module level)
+  CPYTHON: NameError: name 'UndefZZ' is not defined at import (CPython 3.14 evaluates a PEP 649 lazy annotation on first access); same for C.__annotations__, C.m.__annotations__, a return annotation, `x: os.zz_none` (AttributeError), `x: 1 // 0` (ZeroDivisionError)
+  WHY IT PROVES: m1 binds a file def / class to a synthesized stand-in (a placeholder function / a class built from a synthesized namespace) whose `__annotations__` is not the real lazily-evaluated annotate function of the source, so reading it cannot raise; `inspect.signature` / `annotationlib` / `typing.get_type_hints` are refused (s650 / s617) but a bare attribute read is admitted.
+  PROPOSED SYSTEMATIC REPAIR: Allow-list the stand-ins' attributes: a read of `__annotations__` / `__annotate__` / `__signature__` / `__wrapped__` (any dunder not synthesized faithfully) of a file def or class is REFUSED under a claim, or synthesize the real `__annotate__` by compiling each annotation expression and evaluating it in the module namespace m1 has built at the point of the read (what CPython does). Witnesses s649 s651 s673 s675-s678; control: `X = g.__name__` (PASS).
+  PROBES: g6/s649_func_annotations_lazy.py g6/s651_class_annotations_lazy.py g6/s673_method_annotations.py g6/s675_len_class_annotations.py g6/s676_return_annotation_lazy.py g6/s677_ann_undefined_attr.py g6/s678_ann_div_zero.py
+```
