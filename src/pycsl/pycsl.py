@@ -11302,100 +11302,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 f"\\all`). Call the function with exactly its parameters, by "
                                 f"position or by their names.",
                                 stage="ir-semantic", code="PYCSL-R449-CALL-SIGNATURE")
-        # (#49) gen #37, ROUTE #455 (red team 36; MEASURED PROVED on 8fe7204c3 under `#@
-        # no_exception \all`, CPython TypeError / NotImplementedError) -- a BUILTIN DECORATOR
-        # whose meaning depends on its DEFINITION SITE was admitted anywhere: `@property def
-        # size(p)` at module level (or nested in a function) lowered as a plain `let size`
-        # that `f` called, while CPython binds `size` to a property object (not callable);
-        # `@typing.overload def g` with no implementation lowered as the stub's body, while
-        # CPython binds `g` to the overload dummy (NotImplementedError when called). RULE
-        # (allow-list per definition site, every scope of the file -- the module, each class
-        # body, each function body, through their compound statements): `property` /
-        # `x.setter` / `x.getter` / `x.deleter` / `functools.cached_property` /
-        # `classmethod` only on a `def` of a CLASS BODY; the LAST `def` of a name in its
-        # scope never `@overload`-decorated (an overload chain needs its implementation);
-        # `property` / `cached_property` / `staticmethod` / `classmethod` / `overload` /
-        # `lru_cache` / `cache` / `contextmanager` never on a `class` statement. Anything
-        # else is REFUSED, whatever the claims (the decorated name is never the function
-        # the model calls). CENSUS (corpora, 53 mirrors, `pycsl_lib`): 0 such sites
-        # outside the red-team witnesses. Decorator kinds are `_dk449`'s.
-        _sc455 = [(_t341.body, "module")]
-        for _z455 in _ast341.walk(_t341):
-            if isinstance(_z455, _ast341.ClassDef):
-                _sc455.append((_z455.body, "class"))
-            elif isinstance(_z455, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
-                _sc455.append((_z455.body, "function"))
-        for _bd455, _st455 in _sc455:
-            _q455 = list(_bd455)
-            _ds455 = []
-            while _q455:
-                _s455 = _q455.pop(0)
-                if isinstance(_s455, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
-                                      _ast341.ClassDef)):
-                    _ds455.append(_s455)
-                    continue
-                _ch455 = []
-                for _fl455 in ("body", "orelse", "finalbody"):
-                    _ch455 += [_y for _y in getattr(_s455, _fl455, []) or []
-                               if isinstance(_y, _ast341.stmt)]
-                for _h455 in (getattr(_s455, "handlers", []) or []):
-                    _ch455 += list(_h455.body)
-                for _h455 in (getattr(_s455, "cases", []) or []):
-                    _ch455 += list(_h455.body)
-                _q455 = _ch455 + _q455
-            _why455 = None
-            for _j455, _d455 in enumerate(_ds455):
-                if isinstance(_d455, _ast341.ClassDef):
-                    for _dc455 in _d455.decorator_list:
-                        _dt455 = _dc455.func if isinstance(_dc455, _ast341.Call) else _dc455
-                        _dn455 = _ast341.unparse(_dt455)
-                        _dr455 = _dn455.split(".")[0]
-                        _dq455 = ("builtins." + _dn455 if _dn455 in (
-                            "staticmethod", "classmethod", "property")
-                            and _dn455 not in _bound341 and _dn455 not in _imp341
-                            else (_im369.get(_dr455, "?") + _dn455[len(_dr455):])
-                            if _im369.get(_dr455, "?") != "?" else "?")
-                        if _dq455 in ("builtins.staticmethod", "builtins.classmethod",
-                                      "builtins.property", "functools.cached_property",
-                                      "typing.overload", "functools.lru_cache",
-                                      "functools.cache", "contextlib.contextmanager"):
-                            _why455 = (_d455, f"`@{_dn455}` decorates the class `{_d455.name}`"
-                                       f" (CPython binds the name to a wrapper object, not "
-                                       f"the class)")
-                            break
-                    if _why455 is not None:
-                        break
-                    continue
-                _k455 = _dk449.get(id(_d455))
-                if _st455 != "class" and (_k455 in ("prop", "class") or any(
-                        "classmethod" == _ast341.unparse(_x) for _x in _d455.decorator_list)):
-                    _why455 = (_d455, f"the {_st455}-level `def {_d455.name}` is decorated "
-                               f"`@{_ast341.unparse(_d455.decorator_list[0])}`, a decorator "
-                               f"admitted only on a method of a class body: CPython binds "
-                               f"`{_d455.name}` to a descriptor object that is not callable "
-                               f"(TypeError)")
-                    break
-                if _k455 == "ovl" and not any(
-                        isinstance(_e, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
-                                        _ast341.ClassDef)) and _e.name == _d455.name
-                        for _e in _ds455[_j455 + 1:]):
-                    _why455 = (_d455, f"the `@overload` stub `def {_d455.name}` is the last "
-                               f"definition of `{_d455.name}` in its scope (no implementation "
-                               f"follows): CPython binds `{_d455.name}` to the overload dummy, "
-                               f"which raises NotImplementedError when called")
-                    break
-            if _why455 is not None:
-                _dd455, _tx455 = _why455
-                raise _PyCSLSemErr341(
-                    f"line {getattr(_dd455, 'lineno', 0)}: {_tx455}, while the model lowers the "
-                    f"name as the decorated `def` itself and verifies its calls against its "
-                    f"body (route #455; measured: a module-level `@property def size(p)` called "
-                    f"as `size(path)`, and an `@overload` stub without implementation, PROVED "
-                    f"under `#@ no_exception \\all`). Admitted: `@property` / accessor / "
-                    f"`cached_property` / `classmethod` on a method of a class body, an "
-                    f"`@overload` chain followed by its undecorated implementation. Drop the "
-                    f"decorator, move the def into its class, or add the implementation.",
-                    stage="ir-semantic", code="PYCSL-R455-DECORATOR-SITE")
             # (#49) gen #38, ROUTES #446 / #453 / #457 / #458 / #445 (builtin receivers): the
             # in-function half of the opaque-fallback rule above (`_rc444`). Each row is
             # judged on the REAL class / module object, never on a hand list of failures:
@@ -11805,6 +11711,100 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"\\all`). Admitted: an attribute of every builtin class the "
                             f"receiver may have. Fix the attribute name, or drop the claim.",
                             stage="ir-semantic", code="PYCSL-R445-ATTRIBUTE-NOT-DEFINED")
+        # (#49) gen #37, ROUTE #455 (red team 36; MEASURED PROVED on 8fe7204c3 under `#@
+        # no_exception \all`, CPython TypeError / NotImplementedError) -- a BUILTIN DECORATOR
+        # whose meaning depends on its DEFINITION SITE was admitted anywhere: `@property def
+        # size(p)` at module level (or nested in a function) lowered as a plain `let size`
+        # that `f` called, while CPython binds `size` to a property object (not callable);
+        # `@typing.overload def g` with no implementation lowered as the stub's body, while
+        # CPython binds `g` to the overload dummy (NotImplementedError when called). RULE
+        # (allow-list per definition site, every scope of the file -- the module, each class
+        # body, each function body, through their compound statements): `property` /
+        # `x.setter` / `x.getter` / `x.deleter` / `functools.cached_property` /
+        # `classmethod` only on a `def` of a CLASS BODY; the LAST `def` of a name in its
+        # scope never `@overload`-decorated (an overload chain needs its implementation);
+        # `property` / `cached_property` / `staticmethod` / `classmethod` / `overload` /
+        # `lru_cache` / `cache` / `contextmanager` never on a `class` statement. Anything
+        # else is REFUSED, whatever the claims (the decorated name is never the function
+        # the model calls). CENSUS (corpora, 53 mirrors, `pycsl_lib`): 0 such sites
+        # outside the red-team witnesses. Decorator kinds are `_dk449`'s.
+        _sc455 = [(_t341.body, "module")]
+        for _z455 in _ast341.walk(_t341):
+            if isinstance(_z455, _ast341.ClassDef):
+                _sc455.append((_z455.body, "class"))
+            elif isinstance(_z455, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                _sc455.append((_z455.body, "function"))
+        for _bd455, _st455 in _sc455:
+            _q455 = list(_bd455)
+            _ds455 = []
+            while _q455:
+                _s455 = _q455.pop(0)
+                if isinstance(_s455, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                      _ast341.ClassDef)):
+                    _ds455.append(_s455)
+                    continue
+                _ch455 = []
+                for _fl455 in ("body", "orelse", "finalbody"):
+                    _ch455 += [_y for _y in getattr(_s455, _fl455, []) or []
+                               if isinstance(_y, _ast341.stmt)]
+                for _h455 in (getattr(_s455, "handlers", []) or []):
+                    _ch455 += list(_h455.body)
+                for _h455 in (getattr(_s455, "cases", []) or []):
+                    _ch455 += list(_h455.body)
+                _q455 = _ch455 + _q455
+            _why455 = None
+            for _j455, _d455 in enumerate(_ds455):
+                if isinstance(_d455, _ast341.ClassDef):
+                    for _dc455 in _d455.decorator_list:
+                        _dt455 = _dc455.func if isinstance(_dc455, _ast341.Call) else _dc455
+                        _dn455 = _ast341.unparse(_dt455)
+                        _dr455 = _dn455.split(".")[0]
+                        _dq455 = ("builtins." + _dn455 if _dn455 in (
+                            "staticmethod", "classmethod", "property")
+                            and _dn455 not in _bound341 and _dn455 not in _imp341
+                            else (_im369.get(_dr455, "?") + _dn455[len(_dr455):])
+                            if _im369.get(_dr455, "?") != "?" else "?")
+                        if _dq455 in ("builtins.staticmethod", "builtins.classmethod",
+                                      "builtins.property", "functools.cached_property",
+                                      "typing.overload", "functools.lru_cache",
+                                      "functools.cache", "contextlib.contextmanager"):
+                            _why455 = (_d455, f"`@{_dn455}` decorates the class `{_d455.name}`"
+                                       f" (CPython binds the name to a wrapper object, not "
+                                       f"the class)")
+                            break
+                    if _why455 is not None:
+                        break
+                    continue
+                _k455 = _dk449.get(id(_d455))
+                if _st455 != "class" and (_k455 in ("prop", "class") or any(
+                        "classmethod" == _ast341.unparse(_x) for _x in _d455.decorator_list)):
+                    _why455 = (_d455, f"the {_st455}-level `def {_d455.name}` is decorated "
+                               f"`@{_ast341.unparse(_d455.decorator_list[0])}`, a decorator "
+                               f"admitted only on a method of a class body: CPython binds "
+                               f"`{_d455.name}` to a descriptor object that is not callable "
+                               f"(TypeError)")
+                    break
+                if _k455 == "ovl" and not any(
+                        isinstance(_e, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                        _ast341.ClassDef)) and _e.name == _d455.name
+                        for _e in _ds455[_j455 + 1:]):
+                    _why455 = (_d455, f"the `@overload` stub `def {_d455.name}` is the last "
+                               f"definition of `{_d455.name}` in its scope (no implementation "
+                               f"follows): CPython binds `{_d455.name}` to the overload dummy, "
+                               f"which raises NotImplementedError when called")
+                    break
+            if _why455 is not None:
+                _dd455, _tx455 = _why455
+                raise _PyCSLSemErr341(
+                    f"line {getattr(_dd455, 'lineno', 0)}: {_tx455}, while the model lowers the "
+                    f"name as the decorated `def` itself and verifies its calls against its "
+                    f"body (route #455; measured: a module-level `@property def size(p)` called "
+                    f"as `size(path)`, and an `@overload` stub without implementation, PROVED "
+                    f"under `#@ no_exception \\all`). Admitted: `@property` / accessor / "
+                    f"`cached_property` / `classmethod` on a method of a class body, an "
+                    f"`@overload` chain followed by its undecorated implementation. Drop the "
+                    f"decorator, move the def into its class, or add the implementation.",
+                    stage="ir-semantic", code="PYCSL-R455-DECORATOR-SITE")
         # ROUTE #361 — `InitVar` / `KW_ONLY` PSEUDO-FIELDS WERE MODELLED AS STORED FIELDS.
         # `k: InitVar[int]` and `_: KW_ONLY` joined the record and #347's synthesized
         # field set (ClassVar was excluded), so `d.k` / `d._` read under `no_exception`
