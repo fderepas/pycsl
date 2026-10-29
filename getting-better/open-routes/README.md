@@ -5,7 +5,7 @@
 ##   statements; Severity 2, arguable); #462 `__init__` returning a value (1). k002 (property getter KeyError) joins #460.
 
 ## run #3 (2026-10-29): #460 REPAIRED (executor c460 off 370db7dc2; census of 31 claim-gated sites
-##   `getting-better/systematic-soundness-r3/c460/claim-gated-census.tsv`: 3 reached at base -> 19 now; corpus 7050-7056
+##   `getting-better/systematic-soundness-r3/c460/claim-gated-census.tsv`: 3 reached at base -> 20 now; corpus 7050-7056
 ##   (4 witnesses PROVED at base -> 2 REFUSED / 2 FAIL; 3 controls PROVED both), census +4 rows, docs annotations 7.210 /
 ##   translational T.6.220, REPAIR section). ONE reached-claim set (r1's `_rc444` closure): `_run_pipeline` hands Module 6
 ##   `reach_r460` (what callers' claims add to a def's own); `_reset_function_state` joins it into the BODY context (every

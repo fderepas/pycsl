@@ -29,9 +29,11 @@ CENSUS FIRST: `getting-better/systematic-soundness-r3/c460/claim-gated-census.ts
 of a function's claim in `src/pycsl/`: the Module 6 `_current_no_exception*` state and its 60 readers, the
 `_reset_function_state` refusal walks, the spec-level escape sets, the pycsl.py front-end and post-emission rules).
 At base 3 were REACHED (r1's `_rc444` / `_xf440`), 4 were own claim + a transitive callee SUMMARY for a fixed site list
-(#178, #430, #272, #179), the rest OWN. After the repair 19 read the reached claim (the 16 body checks below + the 3 of
-r1), 4 stay SUMMARY, and 8 stay OWN by design or as measured residuals (2 RELATIONS on declared contracts, #278 and
-Module 4's contradiction checks, must stay own; #432-family, #347, #357, #395 / #402, #439, ir_inline).
+(#178, #430, #272, #179), the rest OWN. After increment 1, 19 read the reached claim (16 Module 6 / post-emission
+sites + the 3 of r1; #178's summary counted among them); after increment 2, 20 (+ the #432-family front-end set);
+3 stay SUMMARY (#430, #272, #179 -- transitive by construction), and 8 stay OWN by design or as measured residuals (2
+RELATIONS on declared contracts, #278 and Module 4's contradiction checks, must stay own; #263 / #269, #347, #357,
+#395 / #402, #439, ir_inline).
 
 ONE REACHED-CLAIM SET. `_run_pipeline` (inline after route #444's closure; mirror twin `\trusted`) derives, from r1's
 `_rc444`, `_rx460[IR name]` = what the claims of the defs that may call a def add to its own (names; `\all` as a
