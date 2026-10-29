@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-29): #444-#459 OPENED (red team 36, SYSTEMATIC census of operators / dunders / scoping / call
+##   binding / modules on 8fe7204c3: 1723 probes / 240 proved / 209 confirmed; rt35's 175 all closed): #444 unbound-name-opaque (9); #445 missing-attribute-opaque (21); #446 unknown-operator-matmul (7); #447 augmented-shift-obligation (13); #448 builtin-arity-keyword (6); #449 user-call-signature (17); #450 super-call-opaque (6); #451 field-default-annotation (5); #452 bytes-int-argument-range (13); #453 module-function-by-name (56); #454 starred-non-iterable (3); #455 decorator-misuse (6); #456 set-method-arg-hash (14); #457 isinstance-class-spec (5); #458 operator-operand-classes (19); #459 conditional-module-binding (9).
+##   Diagnosis: the dominant shape (F1 F2 F3 F10 F14 F15, 117 of 209) is an OPAQUE FALLBACK -- a construct the emitter
+##   does not recognise is lowered to an opaque value instead of being refused; the rest are missing obligation rows.
+
 ## run #3 (2026-10-28): #440 / #441 REPAIRED (executor h440 off fa7cbb1aa; ONE signature table inline in `_run_pipeline`
 ##   after #432/#433/#437: `_FT440` 36 builtin rows + `_MT440` 100 (receiver class, method) rows, allow-list, refuse by
 ##   default; codes PYCSL-R440-METHOD-NOT-ADMITTED / PYCSL-R441-BUILTIN-SIGNATURE; corpus 6650-6682 witnesses + 6690-6695
