@@ -129,12 +129,40 @@ def _dedup_arrow_chain(t: Term) -> Term:
         return kind(binders=t.binders, ty=t.ty, body=_dedup_arrow_chain(t.body))
     raise TypeError(f"_dedup_arrow_chain: unknown {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _ac_normalize(t: Term) -> Term:
-    return None
+    if isinstance(t, BinOp) and t.op in (r"\/", r"/\\"):
+        # Collect all conjuncts/disjuncts at this level.
+        operands: List[Term] = []
+
+        def collect(node: Term) -> None:
+            if isinstance(node, BinOp) and node.op == t.op:
+                collect(node.lhs)
+                collect(node.rhs)
+            else:
+                operands.append(_ac_normalize(node))
+
+        collect(t)
+        operands_sorted = sorted(operands, key=lambda x: x.pp())
+        # Re-fold as right-leaning chain so structural equality holds.
+        out = operands_sorted[-1]
+        for o in reversed(operands_sorted[:-1]):
+            out = BinOp(t.op, o, out)
+        return out
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head, args=tuple(_ac_normalize(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _ac_normalize(t.lhs), _ac_normalize(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _ac_normalize(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=t.binders, ty=t.ty, body=_ac_normalize(t.body))
+    raise TypeError(f"_ac_normalize: unknown {type(t)}")
 
 #@ requires True
 #@ ensures True
