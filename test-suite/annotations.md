@@ -3721,6 +3721,29 @@ unmodelled list of strings of its own (it is not `s.split(" ")`), and its truth 
 (PROVES), `6821` (false claim, must NOT prove), `6822` (`(a)|b`, declined), `6823`
 (PROVES), `6824` (false claim, must NOT prove).
 
+### 7.171 A term transform may call `str -> str` functions and rename through a dict transform (lv3, run #3)
+
+A one-parameter Term->Term transform over a frozen-dataclass union (§7.160's shape, e.g.
+the mirror's `proof2why3/canonical.py::_normalize_names`) may also apply a function of the
+same file with signature `(x: str) -> str` to a `str` field (`Var(g(t.name))`,
+`App(head=g(t.head), args=..)`), and its two-constructor binder arm may be the block
+
+    nb = tuple(g(b) for b in t.binders)
+    m = {o: w for o, w in zip(t.binders, nb) if o != w}
+    br = S(t.body, m) if m else t.body       # S: a §7.160 Dict[str, str] transform
+    ty2 = g(t.ty)
+    kind = A if isinstance(t, A) else B
+    return kind(binders=nb, ty=ty2, body=f(br))
+
+The dict is abstract: which entries it holds and whether it is empty are not modelled
+(an over-approximation, no axiom). The recursion `f(br)` is not on a sub-term; it is
+accepted only in a file whose term transforms already use the proved size measure (one
+transform there recurses on the result of an arrow-chain flatten), and then `S` carries
+the PROVED fact that renaming preserves the size. Elsewhere the transform declines
+to the generic lowering. As for every term recognizer, a `requires` / `ensures` other than
+`True`, a raises or a `no_exception` claim declines. Witnesses `6825` (PROVES), `6826`
+(`ensures False`, must NOT prove), `6827` (no size measure in the file: declined).
+
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
 PyCSL lowers a Python name to a WhyML identifier by lowercasing a leading capital (`N` ->

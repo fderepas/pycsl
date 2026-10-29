@@ -5474,6 +5474,30 @@ the truth test (`_to_bool`) of that call = `(Array.length (str_split_ws_op ..) <
 Both ops are plain `val`s (each call a fresh array): an over-approximation, no axiom. The
 element read `s.split()[i]` keeps its §3.4 lowering (`str_split_elem_op`).
 
+### §T.6.181  Term transform with `str -> str` calls and a dict-renamed binder arm (lv3, run #3)
+
+_Corresponds to `annotations.md` §7.171._
+
+$\mathcal{T}$ of a 1-parameter transform $f(t: U) \to U$ accepted by
+`_recognize_term_transform_namemap` (tried only where every older 1-parameter form
+declines; the file's term spec in size mode, `spec["size_mode"] = True`): `let rec f (v_t:
+term) : term ensures { true } variant { term__size v_t }`, one `match` arm per constructor,
+each structural child's `term__size_pos` / `term__list_size_nonneg` called first. Builders:
+$t.F \mapsto$ `v_F`; $g(t.F) \mapsto$ `(g v_F)` ($g \in$ `spec["str_fns"]`, the file's
+`(str) -> str` functions); $f(t.G) \mapsto$ `(f v_G)`; `tuple(f(a) for a in t.L)`
+$\mapsto$ `(f__list v_L)` (`variant { term__list_size l }`). The binder block of §7.171
+$\mapsto$ `let l_nb = (f__lsc0 v_L) in let l_m = (f__zipmap v_L l_nb) in let l_br = (if
+f__nonempty l_m then (S v_G l_m) else v_G) in let l_ty2 = (g v_F) in A l_nb l_ty2 (f
+l_br)`, with `let rec f__lsc0 (l: list string) : list string` the element-wise map of $g$,
+`val function f__zipmap (a b: list string) : term__strdict` and `val function f__nonempty
+(m: term__strdict) : bool` uninterpreted. In size mode the §T.6.170 group of $S$ carries
+`ensures { term__size result = term__size v_t }` (and `term__list_size` for its list
+helper), proved by Why3: each arm's value is raised through a local `S__arm () : unit
+ensures { false } raises { Term__Sz_S r -> term__size r = term__size v_t }` and returned
+by the handler (`try S__arm (); absurd with Term__Sz_S r -> r end`, after `exception
+Term__Sz_S term`), so the size fact is checked per arm (stated once over the whole
+`match`, both provers time out). Outside size mode it is unchanged. Gated by `_term_contract_trivial`.
+
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 
 _Corresponds to `annotations.md` §7.17._

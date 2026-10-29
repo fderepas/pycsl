@@ -34554,6 +34554,33 @@ def compute_term_adt_spec(functions: List[Dict[str, Any]],
             if _d is not None and _d.get("size_mode"):
                 _sm = True
     spec["size_mode"] = _sm
+    # lv3 (`_normalize_names` shape): the names a 1-param transform may CALL besides
+    # itself -- (a) the file's read-only `Dict[str, str]` transforms accepted by the
+    # strmap recognizer (emitted as a real `let rec`, never an assumed `val`), and (b)
+    # the file's plain `(x: str) -> str` functions (whatever their emission: a `val`'s
+    # `requires` is a VC at the call, its `ensures` an over-approximation either way).
+    _smf: List[str] = []
+    _sfn: List[str] = []
+    for f in functions:
+        _nm = f.get("name")
+        if not isinstance(_nm, str):
+            continue
+        _ps = f.get("formal_params", []) or []
+        _pa = f.get("param_annotations") or {}
+        if len(_ps) == 2 and _term_contract_trivial(f):
+            try:
+                _d = _recognize_term_transform_strmap(f, spec)
+            except _PVWBail:
+                _d = None
+            if _d is not None:
+                _smf.append(_nm)
+        if (len(_ps) == 1 and _pa.get(_ps[0]) == "str"
+                and f.get("return_annotation") == "str"
+                and not f.get("param_defaults") and not f.get("is_method")
+                and not f.get("class_name")):
+            _sfn.append(_nm)
+    spec["strmap_fns"] = sorted(_smf)
+    spec["str_fns"] = sorted(_sfn)
     return spec
 
 
@@ -34835,6 +34862,12 @@ def recognize_term_isinstance_transform(func: Dict[str, Any],
     try:
         return _recognize_term_isinstance_transform(func, spec, const_dicts or {})
     except _PVWBail:
+        pass
+    # lv3 (`_normalize_names` shape): a separate fail-closed path, tried ONLY where
+    # every older form declines (so every file those accept is byte-identical).
+    try:
+        return _recognize_term_transform_namemap(func, spec)
+    except _PVWBail:
         return None
     # (#49) gen #30: the REDUNDANT broad arm DELETED. `except _PVWBail:` one line
     # above already absorbs this recognizer's own decline signal, so this handler could
@@ -34964,6 +34997,395 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
     if bguards:
         _d["size_mode"] = True
     return _d
+
+
+def _recognize_term_transform_namemap(func: Dict[str, Any],
+                                      spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """lv3 (`canonical._normalize_names` shape): a 1-param Term->Term transform whose
+    arms may CALL a `(str) -> str` function of the file on a `string` field and, in the
+    binder arm, rename through a read-only `Dict[str, str]` transform of the file:
+
+        if isinstance(t, C...): return t                       identity
+        if isinstance(t, C):    return C(<b>, ...)             rebuild, builders <b>:
+            t.F | self(t.G) | tuple(self(a) for a in t.L) | g(t.F)     (g in str_fns)
+        if isinstance(t, (A, B)):                              the binder block
+            x1 = tuple(g(b) for b in t.L)                      L a `list string` field
+            x2 = {k: v for k, v in zip(t.L, x1) if k != v}
+            x3 = S(t.G, x2) if x2 else t.G                     S in strmap_fns
+            x4 = g(t.F)
+            kind = A if isinstance(t, A) else B
+            return kind(<b | x_i | self(x3)>, ...)
+        raise ...                                              (trailing, unreachable)
+
+    MODEL. `x1` is the element-wise list map of `g` (a structural `let rec`); `x2` is
+    the abstract `term__strdict`, built by the uninterpreted `val function {n}__zipmap
+    L x1` (the dict depends on `t.L` and `x1` only: the key/value names are required to
+    be fresh, so the filter reads nothing else); `if x2` is the uninterpreted `val
+    function {n}__nonempty`. Both are deterministic functions of their inputs (an
+    over-approximation, never an assumption; no axiom). The IR keeps the comprehension's
+    `k, v` target only as `_comp_var`, which is immaterial for the same reason as in the
+    strmap recognizer: nothing is claimed about WHICH entries the dict holds.
+    TERMINATION. `self(x3)` recurses on a value that is NOT a subterm, so the group uses
+    the file's `term__size` measure (size mode, already proved there) and `S` carries
+    the PROVED postcondition `term__size result = term__size t` (emitted with S in size
+    mode); `self(x3)` then decreases from `term__size (A .. G ..) = 1 + term__size G`.
+    Every fact is a proof obligation. None / bail outside this exact shape."""
+    params = func.get("formal_params", [])
+    if len(params) != 1 or func.get("param_defaults"):
+        return None
+    if spec.get("size_mode") is not True:
+        return None                     # needs the file's proved `term__size` measure
+    subj = params[0]
+    ra = func.get("return_annotation")
+    pa = (func.get("param_annotations") or {}).get(subj)
+    if not (ra and ra == pa):
+        return None
+    body = func.get("body", [])
+    if not (isinstance(body, list) and body):
+        return None
+    name = func.get("name")
+    str_fns = set(spec.get("str_fns") or []) - {name}
+    strmap_fns = set(spec.get("strmap_fns") or []) - {name}
+    if not str_fns:
+        return None
+    ctor_set = set(spec["ctors"].keys())
+    arms: Dict[str, Any] = {}
+    lscs: List[str] = []                # the `g` of each `{n}__lsc<k>` list map
+    flags = {"zip": False, "nonempty": False, "list": False, "strcall": False}
+
+    def _strcall(e: Any, ftypes: Dict[str, str]) -> Optional[Tuple[str, str]]:
+        if not (isinstance(e, dict) and e.get("type") == "Call"
+                and e.get("func") in str_fns and not e.get("keywords")
+                and len(e.get("args") or []) == 1
+                and _is_term_field_read(e["args"][0], subj)):
+            return None
+        f = _term_field_of(e["args"][0])
+        if ftypes.get(f) != "string":
+            raise _PVWBail()
+        return (e["func"], f)
+
+    def _builder(e: Any, c: str, env: Dict[str, str]) -> Tuple[Any, str]:
+        ftypes = dict(spec["ctors"][c])
+        if not isinstance(e, dict):
+            raise _PVWBail()
+        if _is_term_field_read(e, subj):
+            f = _term_field_of(e)
+            if f not in ftypes:
+                raise _PVWBail()
+            return ("copy", f), ftypes[f]
+        if _is_var(e) and e.get("name") in env and env[e["name"]] in ("string", "list string"):
+            return ("local", e["name"]), env[e["name"]]
+        sc = _strcall(e, ftypes)
+        if sc is not None:
+            flags["strcall"] = True
+            return ("strcall", sc[0], sc[1]), "string"
+        if e.get("type") == "Call" and e.get("func") == name and not e.get("keywords"):
+            a = e.get("args") or []
+            if len(a) != 1:
+                raise _PVWBail()
+            if _is_term_field_read(a[0], subj) and ftypes.get(_term_field_of(a[0])) == "term":
+                return ("rec", _term_field_of(a[0])), "term"
+            if _is_var(a[0]) and env.get(a[0].get("name")) == "term~":
+                return ("reclocal", a[0]["name"]), "term"
+            raise _PVWBail()
+        if e.get("type") == "Call" and e.get("func") == "tuple":
+            b = _parse_field_builder(e, subj, name)
+            if b[0] != "maprec" or ftypes.get(b[1]) != "list term":
+                raise _PVWBail()
+            flags["list"] = True
+            return ("maprec", b[1]), "list term"
+        raise _PVWBail()
+
+    def _ctor_fields(call: Any, c: str, env: Dict[str, str]) -> List[Any]:
+        order = [fn for fn, _ in spec["ctors"][c]]
+        ftypes = dict(spec["ctors"][c])
+        kws = call.get("keywords") or []
+        args = call.get("args") or []
+        if kws and args:
+            raise _PVWBail()
+        prov: Dict[str, Any] = {}
+        if kws:
+            for kw in kws:
+                if not (isinstance(kw, dict) and isinstance(kw.get("arg"), str)
+                        and kw["arg"] not in prov):
+                    raise _PVWBail()
+                prov[kw["arg"]] = kw.get("value")
+            if set(prov) != set(order):
+                raise _PVWBail()
+        else:
+            if len(args) != len(order):
+                raise _PVWBail()
+            prov = dict(zip(order, args))
+        out_b = []
+        for fn in order:
+            b, bt = _builder(prov[fn], c, env)
+            if bt != ftypes[fn]:
+                raise _PVWBail()        # the builder's type must be the slot's
+            out_b.append(b)
+        return out_b
+
+    def _fresh(nm: Any, env: Dict[str, str]) -> bool:
+        return (isinstance(nm, str) and nm not in env and nm not in (subj, name, "_comp_var")
+                and nm not in ctor_set and nm not in str_fns and nm not in strmap_fns)
+
+    def _binder_block(ib: List[Any], classes: List[str]) -> Dict[str, Any]:
+        a, b = classes
+        if not ([fn for fn, _ in spec["ctors"][a]] == [fn for fn, _ in spec["ctors"][b]]
+                and dict(spec["ctors"][a]) == dict(spec["ctors"][b])):
+            raise _PVWBail()
+        ftypes = dict(spec["ctors"][a])
+        env: Dict[str, str] = {}
+        lets: List[Any] = []
+        assigned = {st.get("target") for st in ib if isinstance(st, dict)}
+        i = 0
+        while i < len(ib) - 2:
+            st = ib[i]
+            if not (isinstance(st, dict) and st.get("stmt") == "Assign"
+                    and _fresh(st.get("target"), env)):
+                raise _PVWBail()
+            x = st["target"]
+            v = st.get("value")
+            if not isinstance(v, dict):
+                raise _PVWBail()
+            vt = v.get("type")
+            if vt == "Call" and v.get("func") == "tuple":
+                # x = tuple(g(e) for e in t.L), L a `list string` field
+                ga = v.get("args") or []
+                if not (len(ga) == 1 and isinstance(ga[0], dict)
+                        and ga[0].get("type") == "GenExp" and not v.get("keywords")):
+                    raise _PVWBail()
+                gens = ga[0].get("generators") or []
+                el = ga[0].get("elt")
+                if not (len(gens) == 1 and not gens[0].get("ifs")):
+                    raise _PVWBail()
+                cv = gens[0].get("target")
+                it = gens[0].get("iter")
+                if not (_fresh(cv, env) and cv not in assigned
+                        and _is_term_field_read(it, subj)
+                        and ftypes.get(_term_field_of(it)) == "list string"
+                        and isinstance(el, dict) and el.get("type") == "Call"
+                        and el.get("func") in str_fns and not el.get("keywords")
+                        and len(el.get("args") or []) == 1 and _is_var(el["args"][0], cv)):
+                    raise _PVWBail()
+                lscs.append(el["func"])
+                lets.append(("lsc", x, len(lscs) - 1, _term_field_of(it)))
+                env[x] = "list string"
+            elif vt == "DictComp":
+                # x = {k: w for k, w in zip(t.L, x1) if k != w}
+                gens = v.get("generators") or []
+                kv, wv = v.get("key"), v.get("value")
+                if not (len(gens) == 1 and _is_var(kv) and _is_var(wv)
+                        and kv.get("name") != wv.get("name")
+                        and _fresh(kv.get("name"), env) and _fresh(wv.get("name"), env)
+                        and kv.get("name") not in assigned and wv.get("name") not in assigned
+                        and gens[0].get("target") == "_comp_var"):
+                    raise _PVWBail()
+                it = gens[0].get("iter")
+                ifs = gens[0].get("ifs") or []
+                if not (isinstance(it, dict) and it.get("type") == "Call"
+                        and it.get("func") == "zip" and not it.get("keywords")
+                        and len(it.get("args") or []) == 2):
+                    raise _PVWBail()
+                za, zb = it["args"]
+                if not (_is_term_field_read(za, subj)
+                        and ftypes.get(_term_field_of(za)) == "list string"
+                        and _is_var(zb) and env.get(zb.get("name")) == "list string"):
+                    raise _PVWBail()
+                if not (len(ifs) == 1 and isinstance(ifs[0], dict)
+                        and ifs[0].get("type") == "BinOp" and ifs[0].get("op") == "!="
+                        and {(ifs[0].get("left") or {}).get("name"),
+                             (ifs[0].get("right") or {}).get("name")}
+                        == {kv["name"], wv["name"]}
+                        and _is_var(ifs[0].get("left")) and _is_var(ifs[0].get("right"))):
+                    raise _PVWBail()
+                flags["zip"] = True
+                lets.append(("zip", x, _term_field_of(za), zb["name"]))
+                env[x] = "strdict"
+            elif vt == "IfExpr":
+                # x = S(t.G, m) if m else t.G
+                tst, bd, oe = v.get("test"), v.get("body"), v.get("orelse")
+                if not (_is_var(tst) and env.get(tst.get("name")) == "strdict"
+                        and _is_term_field_read(oe, subj)
+                        and ftypes.get(_term_field_of(oe)) == "term"
+                        and isinstance(bd, dict) and bd.get("type") == "Call"
+                        and bd.get("func") in strmap_fns and not bd.get("keywords")
+                        and len(bd.get("args") or []) == 2
+                        and _is_term_field_read(bd["args"][0], subj)
+                        and _term_field_of(bd["args"][0]) == _term_field_of(oe)
+                        and _is_var(bd["args"][1], tst.get("name"))):
+                    raise _PVWBail()
+                flags["nonempty"] = True
+                lets.append(("cond", x, bd["func"], _term_field_of(oe), tst["name"]))
+                env[x] = "term~"        # a term of the SAME size as the field
+            else:
+                sc = _strcall(v, ftypes)
+                if sc is None:
+                    raise _PVWBail()
+                flags["strcall"] = True
+                lets.append(("strcall", x, sc[0], sc[1]))
+                env[x] = "string"
+            i += 1
+        # kind = A if isinstance(t, A) else B ; return kind(...)
+        kst, rst = ib[-2], ib[-1]
+        if not (isinstance(kst, dict) and kst.get("stmt") == "Assign" and _is_return(rst)):
+            raise _PVWBail()
+        kvar = kst.get("target")
+        ie = kst.get("value")
+        if not (_fresh(kvar, env) and isinstance(ie, dict) and ie.get("type") == "IfExpr"):
+            raise _PVWBail()
+        tgt = _isinstance_target_classes(ie.get("test"), subj)
+        bv, ov = ie.get("body"), ie.get("orelse")
+        if not (len(tgt) == 1 and _is_var(bv, tgt[0]) and _is_var(ov)
+                and {tgt[0], ov.get("name")} == set(classes)):
+            raise _PVWBail()
+        call = rst.get("value")
+        if not (isinstance(call, dict) and call.get("type") == "Call"
+                and call.get("func") == kvar):
+            raise _PVWBail()
+        # every local is consumed by a later let or the rebuild (no dead binding)
+        fields = _ctor_fields(call, a, env)
+        used = set()
+        for b_ in fields:
+            if b_[0] in ("local", "reclocal"):
+                used.add(b_[1])
+        for lt in lets:
+            if lt[0] == "zip":
+                used.add(lt[3])
+            if lt[0] == "cond":
+                used.add(lt[4])
+        if used != set(env):
+            raise _PVWBail()
+        return {"lets": lets, "fields": fields}
+
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                    # trailing unreachable raise (totality below)
+        if not (isinstance(st, dict) and st.get("stmt") == "If" and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        ib = list(st.get("body") or [])
+        if not ib:
+            raise _PVWBail()
+        if len(ib) == 1 and _is_return(ib[0]) and _is_var(ib[0].get("value"), subj):
+            for c in classes:
+                if c in arms:
+                    raise _PVWBail()
+                arms[c] = {"kind": "id"}
+            continue
+        if len(ib) == 1 and _is_return(ib[0]):
+            if len(classes) != 1:
+                raise _PVWBail()
+            c = classes[0]
+            call = ib[0].get("value")
+            _require_ctor_call(call, c)
+            if c in arms:
+                raise _PVWBail()
+            arms[c] = {"kind": "nm", "ctor": c, "lets": [],
+                       "fields": _ctor_fields(call, c, {})}
+            continue
+        if len(classes) == 2 and len(ib) >= 3:
+            blk = _binder_block(ib, classes)
+            for c in classes:
+                if c in arms:
+                    raise _PVWBail()
+                arms[c] = {"kind": "nm", "ctor": c, "lets": blk["lets"],
+                           "fields": blk["fields"]}
+            continue
+        raise _PVWBail()
+    if set(arms) != ctor_set:
+        raise _PVWBail()                # totality over the ADT
+    # The namemap path exists for the CALLS; a transform without one is an older shape.
+    if not (flags["strcall"] or lscs):
+        raise _PVWBail()
+    return {"param": subj, "namemap": True, "arms": arms, "lscs": lscs,
+            "uses_list": flags["list"], "uses_zip": flags["zip"],
+            "uses_nonempty": flags["nonempty"], "uses_streq": False,
+            "size_mode": True}
+
+
+def _emit_term_transform_namemap(func: Dict[str, Any], desc: Dict[str, Any],
+                                 spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emission of `_recognize_term_transform_namemap` (see there). A `let rec` over the
+    certified `term` inductive with the file's proved `term__size` variant; the dict as
+    the abstract `term__strdict` with uninterpreted pure `zipmap`/`nonempty` (no axiom,
+    ledger unchanged)."""
+    if not spec.get("size_mode"):
+        raise _PVWBail()
+    n = whyml_ident(func["name"])
+    subj = desc["param"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    dt = "term__strdict"
+    out: List[str] = _emit_term_size_theory(spec)
+    if desc.get("uses_zip"):
+        out.append(f"  val function {n}__zipmap (a b: list string) : {dt}")
+    if desc.get("uses_nonempty"):
+        out.append(f"  val function {n}__nonempty (m: {dt}) : bool")
+    for k, g in enumerate(desc.get("lscs") or []):
+        out.append(f"  let rec {n}__lsc{k} (l: list string) : list string")
+        out.append("    variant  { l }")
+        out.append(f"  = match l with Nil -> Nil"
+                   f" | Cons h r -> Cons ({whyml_ident(g)} h) ({n}__lsc{k} r) end")
+
+    def _b(b: Any) -> str:
+        if b[0] == "copy":
+            return f"v_{b[1]}"
+        if b[0] == "local":
+            return f"l_{b[1]}"
+        if b[0] == "strcall":
+            return f"({whyml_ident(b[1])} v_{b[2]})"
+        if b[0] == "rec":
+            return f"({n} v_{b[1]})"
+        if b[0] == "reclocal":
+            return f"({n} l_{b[1]})"
+        if b[0] == "maprec":
+            return f"({n}__list v_{b[1]})"
+        raise _PVWBail()
+
+    out.append(f"  let rec {n} (v_{subj}: term) : term")
+    out.append("    ensures  { true }")
+    out.append(f"    variant  {{ term__size v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        arm = arms[c]
+        if arm["kind"] == "id":
+            out.append(f"    | {c}" + (" " + " ".join("_" for _ in fields) if fields else "")
+                       + f" -> v_{subj}")
+            continue
+        # every structural child is named: its positivity lemma is called below
+        binders = " ".join(f"v_{fn}" for fn, _ in fields)
+        pat = c + ((" " + binders) if binders else "")
+        rhs = c + ((" " + " ".join(_b(b) for b in arm["fields"])) if arm["fields"] else "")
+        for lt in reversed(arm["lets"]):
+            if lt[0] == "lsc":
+                e = f"({n}__lsc{lt[2]} v_{lt[3]})"
+            elif lt[0] == "zip":
+                e = f"({n}__zipmap v_{lt[2]} l_{lt[3]})"
+            elif lt[0] == "cond":
+                e = (f"(if {n}__nonempty l_{lt[4]} then ({whyml_ident(lt[2])} v_{lt[3]}"
+                     f" l_{lt[4]}) else v_{lt[3]})")
+            elif lt[0] == "strcall":
+                e = f"({whyml_ident(lt[2])} v_{lt[3]})"
+            else:
+                raise _PVWBail()
+            rhs = f"let l_{lt[1]} = {e} in {rhs}"
+        _pos = [f"term__size_pos v_{fn}" for fn, wt in fields if wt == "term"]
+        _pos += [f"term__list_size_nonneg v_{fn}" for fn, wt in fields if wt == "list term"]
+        if _pos:
+            rhs = "(" + "; ".join(_pos) + "; " + rhs + ")"
+        out.append(f"    | {pat} -> {rhs}")
+    out.append("    end")
+    if desc.get("uses_list"):
+        out.append(f"  with {n}__list (l: list term) : list term")
+        out.append("    ensures  { true }")
+        out.append("    variant  { term__list_size l }")
+        out.append(f"  = match l with Nil -> Nil"
+                   f" | Cons h t -> term__size_pos h; term__list_size_nonneg t;"
+                   f" Cons ({n} h) ({n}__list t) end")
+    return out
 
 
 def _recognize_term_transform_strmap(func: Dict[str, Any],
@@ -35218,16 +35640,41 @@ def _emit_term_transform_strmap(func: Dict[str, Any], desc: Dict[str, Any],
     out: List[str] = [f"  val function {n}__get (m: {dt}) (k: string) (d: string) : string"]
     if desc.get("uses_restrict"):
         out.append(f"  val function {n}__restrict (m: {dt}) (ks: list string) : {dt}")
+    # lv3: in a size-mode file (the `term__size` measure is defined and its lemmas
+    # proved) the group carries the PROVED postcondition that renaming preserves the
+    # size (every arm rebuilds the same constructor over recursed children), so a
+    # namemap transform may recurse on its result. MEASURED: stated directly, the
+    # postcondition is ONE goal over the whole `match` (a match hypothesis) and both
+    # provers time out / run out of memory on it, while each arm's instance is
+    # immediate. So each arm RAISES its value through a local function whose `raises`
+    # clause states the size fact -- checked at every raise, i.e. per arm -- and the
+    # handler returns it. Same value, same evaluation order; `ensures { false }` on the
+    # local function holds because every arm raises. A proof obligation, not an
+    # assumption. Files without size mode are byte-identical.
+    _szm = spec.get("size_mode") is True
+    _sx = f"Term__Sz_{n}"
+    if _szm:
+        out[:0] = _emit_term_size_theory(spec)
+        out.append(f"  exception {_sx} term")
     out.append(f"  let rec {n} (v_{subj}: term) (v_{mp}: {dt}) : term")
-    out.append("    ensures  { true }")
+    if _szm:
+        out.append(f"    ensures  {{ term__size result = term__size v_{subj} }}")
+    else:
+        out.append("    ensures  { true }")
     out.append(f"    variant  {{ v_{subj} }}")
-    out.append(f"  = match v_{subj} with")
+    if _szm:
+        out.append(f"  = let {n}__arm () : unit")
+        out.append("      ensures  { false }")
+        out.append(f"      raises   {{ {_sx} r -> term__size r = term__size v_{subj} }}")
+        out.append(f"    = match v_{subj} with")
+    else:
+        out.append(f"  = match v_{subj} with")
     for c in spec["order"]:
         fields = ctors[c]
         arm = arms[c]
         if arm["kind"] == "id":
             out.append(f"    | {c}" + (" " + " ".join("_" for _ in fields) if fields else "")
-                       + f" -> v_{subj}")
+                       + (f" -> raise ({_sx} v_{subj})" if _szm else f" -> v_{subj}"))
             continue
         used = {b[1] for b in arm["fields"]}
         if arm.get("local"):
@@ -35248,13 +35695,20 @@ def _emit_term_transform_strmap(func: Dict[str, Any], desc: Dict[str, Any],
             else:
                 raise _PVWBail()
         rhs = c + ((" " + " ".join(parts)) if parts else "")
+        if _szm:
+            rhs = f"raise ({_sx} ({rhs}))"
         if arm.get("local"):
             rhs = f"let v__lm = {n}__restrict v_{mp} v_{arm['local'][1]} in {rhs}"
         out.append(f"    | {pat} -> {rhs}")
     out.append("    end")
+    if _szm:
+        out.append(f"    in try {n}__arm (); absurd with {_sx} r -> r end")
     if desc.get("uses_list"):
         out.append(f"  with {n}__list (l: list term) (v_{mp}: {dt}) : list term")
-        out.append("    ensures  { true }")
+        if _szm:
+            out.append("    ensures  { term__list_size result = term__list_size l }")
+        else:
+            out.append("    ensures  { true }")
         out.append("    variant  { l }")
         out.append(f"  = match l with Nil -> Nil"
                    f" | Cons h t -> Cons ({n} h v_{mp}) ({n}__list t v_{mp}) end")
@@ -36018,6 +36472,8 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
     over the certified inductive; NO new axiom (ledger 3)."""
     if desc.get("strmap"):
         return _emit_term_transform_strmap(func, desc, spec, whyml_ident)
+    if desc.get("namemap"):
+        return _emit_term_transform_namemap(func, desc, spec, whyml_ident)
     n = whyml_ident(func["name"])
     subj = desc["param"]
     arms = desc["arms"]
@@ -36522,22 +36978,15 @@ def emit_term_flatten_arrow_group(func: Dict[str, Any], desc: Dict[str, Any],
     return out
 
 
-def _emit_flatten_size_mode(n: str, desc: Dict[str, Any], spec: Dict[str, Any]) -> List[str]:
-    """cv3 L-T3: `flatten_arrow_chain` in a file where a transform recurses on its
-    RESULT. The program walk `{n}__go` is the SAME recursion as the default emission,
-    with two differences, both strengthening only: (1) the spine guard is
-    `val function term_streq` (an uninterpreted but DETERMINISTIC string equality --
-    Python `str ==` is a function of its arguments -- shared with the transform's guard,
-    so the two tests cannot disagree), and (2) `{n}__go` carries PROVED postconditions
-    tying its result to two logic twins `{n}__goh`/`{n}__goc` (the same recursion, as
-    pure functions), about which `{n}__size`/`{n}__grow`/`{n}__grow_strict` are PROVED
-    lemmas over the defined measure `term__size`. Every fact is a proof obligation; no
-    axiom, no assumed contract. The `assert`s are proof hints (each is itself a goal)."""
-    subj = desc["subj"]
-    bc = desc["binop_cls"]
-    fields = desc["fields"]
-    of, f1, f2 = desc["op_field"], desc["f1"], desc["f2"]
-    lit = _mlw_str_lit(desc["arrow_lit"])
+def _emit_term_size_theory(spec: Dict[str, Any]) -> List[str]:
+    """The `term__size` measure and its positivity lemmas (cv3 L-T3), emitted ONCE per
+    file (lv3): by whichever size-mode group is emitted first -- a flatten walker, or a
+    size-mode strmap / namemap transform -- so a transform emitted before the file's
+    flatten walker still sees the measure declared before its first use. Empty on every
+    later call (the flag lives on the per-file spec)."""
+    if spec.get("__size_theory_done"):
+        return []
+    spec["__size_theory_done"] = True
     ctors = spec["ctors"]
     o: List[str] = []
 
@@ -36580,6 +37029,41 @@ def _emit_flatten_size_mode(n: str, desc: Dict[str, Any], spec: Dict[str, Any]) 
     o.append("    variant { l }")
     o.append("  = match l with Nil -> () | Cons h r -> term__size_pos h; term__list_size_nonneg r;"
              " assert { term__list_size l = 1 + term__size h + term__list_size r } end")
+    return o
+
+
+def _emit_flatten_size_mode(n: str, desc: Dict[str, Any], spec: Dict[str, Any]) -> List[str]:
+    """cv3 L-T3: `flatten_arrow_chain` in a file where a transform recurses on its
+    RESULT. The program walk `{n}__go` is the SAME recursion as the default emission,
+    with two differences, both strengthening only: (1) the spine guard is
+    `val function term_streq` (an uninterpreted but DETERMINISTIC string equality --
+    Python `str ==` is a function of its arguments -- shared with the transform's guard,
+    so the two tests cannot disagree), and (2) `{n}__go` carries PROVED postconditions
+    tying its result to two logic twins `{n}__goh`/`{n}__goc` (the same recursion, as
+    pure functions), about which `{n}__size`/`{n}__grow`/`{n}__grow_strict` are PROVED
+    lemmas over the defined measure `term__size`. Every fact is a proof obligation; no
+    axiom, no assumed contract. The `assert`s are proof hints (each is itself a goal)."""
+    subj = desc["subj"]
+    bc = desc["binop_cls"]
+    fields = desc["fields"]
+    of, f1, f2 = desc["op_field"], desc["f1"], desc["f2"]
+    lit = _mlw_str_lit(desc["arrow_lit"])
+    ctors = spec["ctors"]
+    o: List[str] = []
+
+    def _pat(c: str, names: Dict[str, str]) -> str:
+        bs = " ".join(names.get(fn, "_") for fn, _ in ctors[c])
+        return c + ((" " + bs) if bs else "")
+
+    def _sz(c: str, pre: str) -> str:
+        parts = ["1"]
+        for fn, wt in ctors[c]:
+            if wt == "term":
+                parts.append(f"term__size {pre}{fn}")
+            elif wt == "list term":
+                parts.append(f"term__list_size {pre}{fn}")
+        return " + ".join(parts)
+    o.extend(_emit_term_size_theory(spec))
     o.append(f"  let rec function {n}__app (a b: list term) : list term")
     o.append("    variant { a }")
     o.append("  = match a with Nil -> b | Cons h t -> Cons h (%s__app t b) end" % n)
