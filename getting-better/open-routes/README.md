@@ -31,6 +31,7 @@
 ##   2569 -> 2574 0 MOVED / 0 GONE / 0 APPEARED; pyref 2186 0/0/0; mirrors 53/53 0/0/0 (no OWED proof); planes 61/61; rwc 348 /
 ##   advice 175 / all ledgers rc=0. OVER-REFUSAL COST: 0 corpus / pyref / mirror / pycsl_lib files. Residual: class-code
 ##   mismatches of builtins in unclaimed callees (#441's table is claim-keyed), unresolved receivers, `*` / `**` calls.
+
 ## run #3 (2026-10-29): #444 / #445 / #446 / #453 / #457 / #458 REPAIRED (executor r1 off db6c57253; the OPAQUE-FALLBACK
 ##   families of red team 36, 117 witnesses, by ONE fail-closed rule inline in `_run_pipeline`; census of the Module 6
 ##   fallback sites `getting-better/systematic-soundness-r3/r1-opaque/census-fallback-sites.tsv` (436 rows, 14 now

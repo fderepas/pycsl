@@ -3743,6 +3743,7 @@ the PROVED fact that renaming preserves the size. Elsewhere the transform declin
 to the generic lowering. As for every term recognizer, a `requires` / `ensures` other than
 `True`, a raises or a `no_exception` claim declines. Witnesses `6825` (PROVES), `6826`
 (`ensures False`, must NOT prove), `6827` (no size measure in the file: declined).
+
 ### 7.200 An augmented assignment owes its operator's obligation (route #447, run #3)
 
 `c <<= b` / `c >>= b` on a local or parameter lowered to `c := (bit_lshift !c b)` without the
@@ -3833,6 +3834,7 @@ class or import; through an `if` when every arm binds it (a constant test select
 module binds somewhere but not definitely (not local, not a builtin, not in an annotation) is
 REFUSED (`PYCSL-R459-CONDITIONAL-MODULE-BINDING`). A `from m import *` stops the judgement.
 Witnesses `7036`-`7044`; controls `7045`, `7046`.
+
 ### 7.190 A call BINDS its callee's signature; `super()` resolves through the file MRO; builtin rows carry cross-constraints; builtin decorators are admitted per definition site (routes #448 / #449 / #450 / #455, run #3)
 
 Red team 36 measured four call-binding families PROVED under `#@ no_exception \all` while CPython raises.
@@ -3878,6 +3880,7 @@ def, of a local bound otherwise than by one `def`, through a receiver whose clas
 annotation or `self`, or with a `*` / `**` argument; a builtin without a published signature (`int`,
 `range`, `max` ...) other than through the cross-constraints and #441's rows; what a builtin / stdlib
 base method itself raises when reached through `super()`.
+
 ### 7.180 An opaque fallback is refused under the claim it would assume: names, attributes, `@`, module functions, class specs and operand classes (routes #444 / #445 / #446 / #453 / #457 / #458, run #3)
 
 Red team 36 (PROVED `#@ no_exception \all` on main, CPython NameError / AttributeError /

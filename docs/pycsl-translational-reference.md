@@ -5497,6 +5497,7 @@ ensures { false } raises { Term__Sz_S r -> term__size r = term__size v_t }` and 
 by the handler (`try S__arm (); absurd with Term__Sz_S r -> r end`, after `exception
 Term__Sz_S term`), so the size fact is checked per arm (stated once over the whole
 `match`, both provers time out). Outside size mode it is unchanged. Gated by `_term_contract_trivial`.
+
 ### §T.6.210  Augmented shift through the BinOp translation; augmented division refused (route #447, run #3)
 
 _Corresponds to `annotations.md` §7.200._
@@ -5580,6 +5581,7 @@ def / class names, imports, handler names, minus `global` / `nonlocal`), $n$ bou
 top-level statement, $n \notin D$ and not a builtin: refused
 (`PYCSL-R459-CONDITIONAL-MODULE-BINDING`). Skipped when the module has a `from m import *`.
 No emission change.
+
 ### §T.6.200  Call binding, `super()` resolution, builtin cross-constraints, decorator sites (routes #448 / #449 / #450 / #455, run #3)
 
 _Corresponds to `annotations.md` §7.190._
@@ -5615,6 +5617,7 @@ yield TE. Decorator sites (once per file, every scope through its compound state
 prop / class (`_dk449`) outside a class body, an `@overload` def with no later def / class of its name in
 its scope, a `class` decorated by a builtin decorator are refused (`PYCSL-R455-DECORATOR-SITE`). No
 emission changes.
+
 ### §T.6.190  Opaque fallbacks refused under the claim they would assume (routes #444 / #445 / #446 / #453 / #457 / #458, run #3)
 
 _Corresponds to `annotations.md` §7.180._
