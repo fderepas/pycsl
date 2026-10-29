@@ -3743,6 +3743,96 @@ the PROVED fact that renaming preserves the size. Elsewhere the transform declin
 to the generic lowering. As for every term recognizer, a `requires` / `ensures` other than
 `True`, a raises or a `no_exception` claim declines. Witnesses `6825` (PROVES), `6826`
 (`ensures False`, must NOT prove), `6827` (no size measure in the file: declined).
+### 7.200 An augmented assignment owes its operator's obligation (route #447, run #3)
+
+`c <<= b` / `c >>= b` on a local or parameter lowered to `c := (bit_lshift !c b)` without the
+shift-count row (`b >= 0`, ValueError) or route #414's ssize_t bound (`c = 0 \/ b <=
+2**63 - 1`, OverflowError) that the expression `c << b` owes: red team 36 PROVED `#@
+no_exception \all` for `mask <<= width` (CPython ValueError for `width = -1`). RULE: an
+augmented SHIFT on a name target is lowered as the expression `c = c << b` / `c = c >> b` (the
+same `_handle_binop` path, so the two cannot drift). AUDIT of every augmented operator against
+its plain BinOp row: `//=` / `%=` / `/=` on a name owe `b != 0` and the floored semantics, which
+only the expression form carries (the augmented form was an ill-formed `c := !c div b`, refused
+by Why3 by accident of syntax): it is now REFUSED (`PYCSL-R447-AUGASSIGN-DIVISION`; write `c = c
+// b`, control `7009`); `**=` keeps route #259's `requires { y >= 0 }` on `py_pow` (no `0 ** -n`);
+`+ - * & | ^` have no row. Field / element targets were already lowered through their own
+obligation paths. Witnesses `7000`-`7007`; controls `7008`, `7009`.
+
+### 7.201 A field default or annotated field store is of the field's annotation (route #451, run #3)
+
+A field's derived class is its annotation, so `name: str = None` in a `@dataclass` /
+`NamedTuple` / class body, and `self.s: str = s` with `s: Optional[str]`, gave a `str` field
+holding `None`: `c.name.strip()` PROVED `no_exception \all` (CPython AttributeError). RULE: §7.29's
+default-kind check (route #350) also judges, as the value `None` against the field's annotation,
+(i) a class-body `x: T = None` (or `field(default=None)`) of a `@dataclass` / `NamedTuple` class
+and (ii) an annotated attribute store `o.f: T = v` inside a lowered function whose `v` is `None`
+or a parameter whose annotation has a `None` arm (`Optional[..]`, `.. | None`) or whose default
+is `None` -- in each case only for a field NAME that some function claiming `no_exception`
+covering AttributeError / TypeError (`\all`, `Exception`, `BaseException`) reads as an
+attribute. Refused when no arm of `T` admits `None` (`PYCSL-R451-FIELD-DEFAULT-ANNOTATION`).
+NARROWED BY MEASUREMENT: the first, wider rule (every kind mismatch of every class-body default
+and store) refused 33 corpus files (PASS 0900 / 1190 / 2128 / 4444, the mirror's mixin
+declarations `x: Dict[str, str] = None` and un-annotated-parameter stores `self.t: int = t`); a
+plain class attribute default, a non-`None` kind mismatch and a field never read under a claim
+are residuals (route #236 judges dataclass defaults by value). Witnesses
+`7010`-`7014`; control `7015` (`name: str = ""`, `alt: Optional[str] = None`, `retries: int =
+3`).
+
+### 7.202 A byte search of a `bytes` value takes a byte (route #452, run #3)
+
+`R.find(n)` / `rfind` / `count` / `index` / `rindex` and `n in R` / `n not in R` with `R`
+derived `bytes` / `bytearray` raise ValueError ("byte must be in range(0, 256)") for an int `n`
+outside 0..255; §7.141's `BI` code admits the int arm with no range, and `b'abc'.find(n)` with
+`n: int` PROVED `no_exception \all`. RULE (allow-list over the classes of §7.141's derivation): the
+argument is ADMITTED iff its classes are all `bytes` / `bytearray` / `bool`, or it is an int
+literal in 0..255 (a sign included); an int / underivable argument is REFUSED under a claim
+covering ValueError, any other class under one covering TypeError (`PYCSL-R452-BYTE-RANGE`). A
+computed int is not judged in range even under a guard (residual: an obligation would need the
+receiver class in Module 6). Witnesses `7016`-`7022`; controls `7023`, `7024`.
+
+### 7.203 A starred element unpacks a derived iterable (route #454, run #3)
+
+`(*n,)` with `n: int` lowered as `n` itself (`iter_length n`), PROVED `no_exception \all` (CPython
+TypeError "Value after * must be an iterable"). RULE: under a claim covering TypeError, every
+starred element `*x` of a tuple / list / set display (not an assignment target) and of a call's
+positional arguments needs every class of `x` DERIVED iterable (§7.141's `IT` code: `str` /
+`bytes` / `bytearray` / `list` / `tuple` / `dict` / `set` / `frozenset` / views / iterators /
+`range` / `deque`, or a file class whose MRO binds `__iter__`), and every `**m` (a call keyword
+or a dict display) needs `m` derived `dict` / `Mapping`; the function's own `*args` / `**kwargs`
+are a tuple / dict. Else REFUSED (`PYCSL-R454-STARRED-NON-ITERABLE`). Witnesses `7025`-`7027`;
+control `7028`.
+
+### 7.204 A set method hashes the elements of its arguments (route #456, run #3)
+
+`s.difference(d.values())` with `d: Dict[str, List[str]]` PROVED `no_exception \all` (CPython
+TypeError, unhashable type: 'list'): only `set(..)` / `frozenset(..)` / `Counter(..)` / `dict(..)`
+/ `fromkeys(..)` arguments were hashed positions. RULE: on a receiver derived `set` / `frozenset`,
+each positional argument of `union` / `intersection` / `difference` / `symmetric_difference` /
+`issubset` / `issuperset` / `isdisjoint` / `update` / `intersection_update` /
+`difference_update` / `symmetric_difference_update` is a HASHED ITERABLE exactly as `set(x)`'s
+(§7.28 / routes #349 / #394 / #430 / #438: an unhashable element class is refused
+(`PYCSL-R349-UNHASHABLE-RECORD`), an underivable one under a claim covering TypeError
+(`PYCSL-R349-UNDERIVABLE-HASH-UNDER-CLAIM`)). `dict.update(x)` is not a new position (residual).
+Witnesses `7029`-`7034`; control `7035`.
+
+### 7.205 A module name read under a claim is bound definitely before any call (route #459, run #3)
+
+Module-level names were collected from every top-level binding whatever its control flow, so
+`G` bound only under `if TYPE_CHECKING:` / `if False:` / `if sys.platform == ..:`, in a `for _ in
+[]:` / `while False:` body, by a `try` body that raises, or AFTER the `__main__` block that calls
+`f`, was read by `f` as defined: `return G + n` PROVED `no_exception \all` (CPython NameError).
+RULE (module-level definite assignment): walking the top-level statements in order up to the
+CALL FRONTIER (the first `if __name__ ...` statement, or a statement holding, outside a def /
+lambda / class body, a call of a claimed function or of a file def / class that transitively
+calls one), a name is definitely bound by an unconditional assignment (with a value), def,
+class or import; through an `if` when every arm binds it (a constant test selects its arm;
+`TYPE_CHECKING` is False at run time); through a `try` when the body and every handler bind it
+(or the `finally` does); a `for` / `while` / `with` / `match` body binds nothing definitely;
+`del` unbinds. A function claiming `no_exception` covering NameError (`\all`, `NameError`,
+`Exception`, `BaseException`), neither `\trusted` nor `\abstract`, that loads a free name the
+module binds somewhere but not definitely (not local, not a builtin, not in an annotation) is
+REFUSED (`PYCSL-R459-CONDITIONAL-MODULE-BINDING`). A `from m import *` stops the judgement.
+Witnesses `7036`-`7044`; controls `7045`, `7046`.
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 

@@ -760,6 +760,17 @@ AUDITED = {
         "Routes #434-#436. 'Claim `#@ no_exception \\all` on the callee, or drop `\\all` from this function's claim': witness 6572's callee given `requires len(s) == 1` + `no_exception \\all` VERIFIES (control 6583); with the caller's `\\all` replaced by `no_exception IndexError` (a434_callee_drop_all) VERIFIES."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr434p(f"line {getattr(_n434, \'lineno\', 0)}: `{_ast434.unparse(_n434)}` applies `ord` (or an unbound `str` method) to a `pathlib.P'): (FOLLOWABLE,
         "Routes #434 / #435 (Path values). 'Convert it first (`ord(str(p)[0])`), or drop `\\all` from the context': witness 6579's `ord(p)` rewritten `ord(str(p)[0])` under `requires len(str(p)) >= 1` VERIFIES (control 6587); with `\\all` replaced by `no_exception IndexError` (a434_path_drop_all) VERIFIES."),
+    # (#49) driver run #3 -- routes #447 / #451 / #452 / #454 / #459 (r3, red team 36): each advice followed by its control.
+    ('src/pycsl/module6_whyml/statements.py', '_R447("augmented `%s=` on \'%s\' is not lowered: a floor division / modulo / true division owes `%s != 0` (ZeroDivisionError) and its floored '): (FOLLOWABLE,
+        "Route #447. 'Write the plain assignment `c = c // b`, which is lowered with its obligation': witness 7006's `c //= b` rewritten `c = c // b` under `requires b > 0` VERIFIES `\\\\result == a // b` (control 7009)."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr451(f"""\'{_bad350[0][0]}\' (line {_bad350[0][1]}) gives the field \'{_bad350[0][2]}: {_bad350[0][3]}\' the value `{_bad350[0][4]}`,'): (FOLLOWABLE,
+        'Route #451. \'Use a value of the annotated kind (`name: str = ""`), or widen the annotation (`Optional[str]`)\': witness 7010\'s `name: str = None` rewritten `name: str = ""` (with an `alt: Optional[str] = None` field beside it) VERIFIES `len(c.name.strip()) + c.retries` under `no_exception \\\\all` (control 7015).'),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr452(f"\'{_f346.name}\' line {getattr(_n452, \'lineno\', 0)}: `{_ast341.unparse(_n452)}` searches a `bytes` / `bytearray` for a byte,'): (FOLLOWABLE,
+        'Route #452. \'Search for an int literal (`data.find(71)`), or drop the claim\': witness 7020\'s `data.find(sep)` rewritten with int literals in 0..255 (`data.find(71) + data.count(0) + data.rfind(255)`) VERIFIES under `no_exception \\\\all` (control 7023; `71 in b"GET"`, control 7024). A guard `0 <= n < 256` does NOT admit a computed int, and the message says so.'),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr454(f"\'{_f346.name}\' line {getattr(_n452, \'lineno\', 0)}: `{(\'**\' if _sk452 == \'M\' else \'*\')}{_ast341.unparse(_x452)}` in `{_ast3'): (FOLLOWABLE,
+        "Route #454. 'Declare the value with such a class (`xs: Tuple[int, int]`), or drop the claim': witness 7025's `(*n,)` over `n: int` rewritten over `xs: Tuple[int, int]` (`t = (*xs, 1); return len(t)`) VERIFIES under `no_exception \\\\all` (control 7028). (`len((*xs,))` over a `List[int]` does not type-check, at base too, so the message names the tuple.)"),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr459(f"\'{_fn459.name}\' line {getattr(_z459, \'lineno\', 0)} reads the module name `{_z459.id}`, which the module binds only CONDITI'): (FOLLOWABLE,
+        "Route #459. 'Bind `G` unconditionally at module level before any call (every arm of the `if` / `try`)': witness 7036's `if TYPE_CHECKING: G = 1` rewritten `G = 1` (and `H` in both arms of an `if TYPE_CHECKING`, `K` in a `try` body and its handler) VERIFIES `G + H + K + n` under `no_exception \\\\all` (control 7045; an unconditional `def g` / `class C`, control 7046)."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1063,6 +1074,12 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', "_PyCSLSemErr434('a call checked under `no_exception \\\\all` -- `ord(x)` (TypeError unless len(x) == 1, route #434), an unbound `T.m(x, ..)` ("): '74d2e5dc14db',
     ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _x178['func'] + '(...)` calls code that holds `ord(x)` (TypeError unless len(x) == 1), an unbound `T.m(x, ..)` (TypeError"): 'b9d4801ec771',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr434p(f"line {getattr(_n434, \'lineno\', 0)}: `{_ast434.unparse(_n434)}` applies `ord` (or an unbound `str` method) to a `pathlib.P'): '38c10bda4efa',
+    # (#49) driver run #3 -- routes #447 / #451 / #452 / #454 / #459 (r3)
+    ('src/pycsl/module6_whyml/statements.py', '_R447("augmented `%s=` on \'%s\' is not lowered: a floor division / modulo / true division owes `%s != 0` (ZeroDivisionError) and its floored '): '36096550a798',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr451(f"""\'{_bad350[0][0]}\' (line {_bad350[0][1]}) gives the field \'{_bad350[0][2]}: {_bad350[0][3]}\' the value `{_bad350[0][4]}`,'): '5fde1d8d339f',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr452(f"\'{_f346.name}\' line {getattr(_n452, \'lineno\', 0)}: `{_ast341.unparse(_n452)}` searches a `bytes` / `bytearray` for a byte,'): '3964a6d38de2',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr454(f"\'{_f346.name}\' line {getattr(_n452, \'lineno\', 0)}: `{(\'**\' if _sk452 == \'M\' else \'*\')}{_ast341.unparse(_x452)}` in `{_ast3'): '1608e2e60bb3',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr459(f"\'{_fn459.name}\' line {getattr(_z459, \'lineno\', 0)} reads the module name `{_z459.id}`, which the module binds only CONDITI'): '728ea66ffeb9',
 }
 
 

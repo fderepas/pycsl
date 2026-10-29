@@ -3325,6 +3325,36 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # axiom, ledger stays 3). Gated on `_str_set_locals`, which is empty for
             # every corpus function -> byte-identical.
             code = f"{indent}{safe_target} := (StrSet.union !{safe_target} {val})"
+        elif raw_op in ("<<", ">>"):
+            # (#49) ROUTE #447 (red team 36; MEASURED PROVED on 8fe7204c3 under `#@
+            #   no_exception \all`, CPython ValueError / OverflowError): `c <<= b` on a local
+            #   or parameter lowered to `c := (bit_lshift !c b)` WITHOUT the `b >= 0` row
+            #   (`("binop", "<<")`, ValueError) and #414's ssize_t bound (OverflowError) that
+            #   the expression `c << b` owes. AUDIT of every augmented operator on a NAME
+            #   target against its plain BinOp obligation row: `<<` `>>` (non_neg_shift; `<<`
+            #   also #414) are lowered HERE through the SAME expression path as `c = c op b`
+            #   (`_handle_binop`: `_wrap_with_no_exception_assert` and #414), so the two can
+            #   never drift; `//` `%` `/` (no_div_zero) are REFUSED just below (they were
+            #   ill-formed `c := !c div b`, fail-closed only by an accident of syntax, and the
+            #   floored `pycsl_div` / `pycsl_mod` they need is declared from BinOp sites only);
+            #   `**` declares #259's `requires { y >= 0 }` on `py_pow` (below), which excludes
+            #   `0 ** -n`; `+ - * & | ^` have no row. Inline: the mirror twin of this method is
+            #   `\trusted`.
+            _bin447 = {"type": "BinOp", "op": raw_op,
+                       "left": {"type": "Var", "name": target}, "right": _val_d}
+            code = f"{indent}{safe_target} := {self._expr_to_whyml(_bin447, local_refs)}"
+        elif raw_op in ("div", "//", "%", "/"):
+            from errors import PyCSLSemanticError as _R447
+            raise _R447(
+                "augmented `%s=` on '%s' is not lowered: a floor division / modulo / true "
+                "division owes `%s != 0` (ZeroDivisionError) and its floored semantics, "
+                "which only the expression form carries (route #447; the augmented form used "
+                "to lower to an ill-formed `%s := !%s div ...`). Write the plain assignment "
+                "`%s = %s %s ...`, which is lowered with its obligation."
+                % ("//" if raw_op == "div" else raw_op, target, "the divisor", target,
+                   target, target, target, "//" if raw_op == "div" else raw_op),
+                stage="module6-whyml",
+                code="PYCSL-R447-AUGASSIGN-DIVISION")
         elif raw_op in bitwise_ops:
             op_fn = bitwise_ops[raw_op]
             if raw_op == "**":

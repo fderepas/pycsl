@@ -5497,6 +5497,89 @@ ensures { false } raises { Term__Sz_S r -> term__size r = term__size v_t }` and 
 by the handler (`try S__arm (); absurd with Term__Sz_S r -> r end`, after `exception
 Term__Sz_S term`), so the size fact is checked per arm (stated once over the whole
 `match`, both provers time out). Outside size mode it is unchanged. Gated by `_term_contract_trivial`.
+### §T.6.210  Augmented shift through the BinOp translation; augmented division refused (route #447, run #3)
+
+_Corresponds to `annotations.md` §7.200._
+
+For an `AugAssign` $c \mathbin{op}{=} e$ with a name target $c$ and $op \in \{$`<<`, `>>`$\}$,
+$\mathcal{T}$ emits `c := ` $\mathcal{T}_e$(`BinOp`$(op$, `Var` $c$, $e))$ -- the expression
+translation of `c op e` (`_handle_binop`: `_wrap_with_no_exception_assert(("binop", op), ..)`
+injects `non_neg_shift (e)` under a ValueError claim and, for `<<` under `\all`, route #414's
+`!c = 0 \/ e <= 9223372036854775807`). For $op \in \{$`//` (IR `div`), `%`, `/`$\}$ the
+statement is refused (`PYCSL-R447-AUGASSIGN-DIVISION`). Every other operator keeps its
+translation (`**` declares `py_pow` with `requires { y >= 0 }`). Emission changes only for
+files with an augmented shift on a name (none in the corpus or the mirror before this route).
+
+### §T.6.211  Field defaults and annotated stores in the default-kind check (route #451, run #3)
+
+_Corresponds to `annotations.md` §7.201._
+
+The obligation set of route #350's check (`_ob350`: (annotation, value) pairs) is extended
+by the pairs $(T, $ `None`$)$ of (i) every class-body `AnnAssign` $x: T = v$ of a `ClassDef`
+decorated by a `dataclass` expression or with a `NamedTuple` base, $v$ the constant `None` (or
+the `default=` keyword of a `field(..)` call), and (ii) every `AnnAssign` $o.f: T = v$ with an
+`Attribute` target in a lowered function, $v$ the constant `None` or a `Name` that is a
+parameter of a def in that function whose annotation mentions `Optional` / `None` or whose
+default is `None` -- both only when $x$ / $f$ is in `_rd451`, the attribute names loaded in the
+defs whose names are claimed (IR `no_exception_all`, or `no_exception` $\ni$ AttributeError /
+TypeError / Exception / BaseException). The pairs are judged by the same arm-admission rule; a
+failure raises `PYCSL-R451-FIELD-DEFAULT-ANNOTATION`. No emission change.
+
+### §T.6.212  The byte-search range rule (route #452, run #3)
+
+_Corresponds to `annotations.md` §7.202._
+
+Over the classes $K(x)$ of §T.6.152's derivation (`_ty383` read through `_CN440`, file classes
+`C:`$n$, `_rs440` for admitted builtin results, `?` underivable), a site is a call
+$R.m(a, ..)$, $m \in \{$`find`, `rfind`, `count`, `index`, `rindex`$\}$ ($a$ not starred), or a
+`Compare` operand pair $a$ `in` / `not in` $R$, with $K(R) \cap \{$`bytes`, `bytearray`$\} \ne
+\emptyset$. It is refused (`PYCSL-R452-BYTE-RANGE`) when $a$ is an int literal (sign included)
+outside $[0, 256)$ under a ValueError claim, or $a$ is not a literal and $K(a) \not\subseteq
+\{$`bytes`, `bytearray`, `bool`$\}$ with ($K(a) \cap \{$`int`, `?`$\} \ne \emptyset$ or
+$K(a) = \emptyset$) under a ValueError claim, or $K(a) \setminus \{$`int`, `bool`, `bytes`,
+`bytearray`$\} \ne \emptyset$ under a TypeError claim. No emission change.
+
+### §T.6.213  Starred and double-starred elements (route #454, run #3)
+
+_Corresponds to `annotations.md` §7.203._
+
+Under a TypeError claim (`_te432`), for every `Starred` element $*x$ of a `Tuple` / `List` /
+`Set` node in `Load` context and of a `Call`'s `args`, and every $**m$ (a `keyword` with `arg
+is None`, a `Dict` entry with key `None`), with $K$ as in §T.6.212 ($K(x) = \{$`tuple`$\}$ /
+$\{$`dict`$\}$ for the function's own vararg / kwarg): refused
+(`PYCSL-R454-STARRED-NON-ITERABLE`) unless $K(x) \ne \emptyset$ and every $c \in K(x)$ is in
+`_KS440["IT"]` or is `C:`$n$ with some class of $n$'s file MRO binding `__iter__`
+(`_cb383`); for $**m$, $\emptyset \ne K(m) \subseteq \{$`dict`, `Mapping`$\}$. No emission change.
+
+### §T.6.214  Set-method arguments as hashed iterables (route #456, run #3)
+
+_Corresponds to `annotations.md` §7.204._
+
+In the hashing pass of routes #349 / #394, a `Call` $R.m(a_1..a_k)$ with $m$ one of the
+eleven set methods of §7.204 and some type expression of `_ty383`$(R)$ headed `Set` / `set` /
+`#set` / `FrozenSet` / `frozenset` / `AbstractSet` / `MutableSet` adds, per non-starred $a_i$,
+its elements (a `List` / `Tuple` / `Set` display), its `elt` (a comprehension), or $a_i$ itself
+to the hashed iterables `_xe394` (its element classes from `_ei383`). The existing
+unhashable / underivable judgements then apply unchanged. No emission change.
+
+### §T.6.215  Module-level definite assignment (route #459, run #3)
+
+_Corresponds to `annotations.md` §7.205._
+
+Let $F$ be the claimed functions (IR `no_exception_all`, or `no_exception` $\ni$ `NameError` /
+`Exception` / `BaseException`; not `trusted` / `abstract`) and $F^*$ its closure under "a
+file def / class whose body calls (by name or attribute tail) a member". $D$ := the union, over
+the module's top-level statements before the first one that is an `If` whose test mentions
+`__name__` or holds a `Call` of $F^*$ outside nested defs / lambdas / classes, of the names the
+statement binds definitely ($B$: `Assign` / valued `AnnAssign` targets, def / class names,
+import aliases; `If`: $\bigcap$ of its selected arms' straight-line $B$, an arm selected by a
+`Constant` test or `TYPE_CHECKING` = False; `Try`: $B$(body + orelse) $\cap \bigcap_h B(h)$
+$\cup$ $B$(finalbody); `Delete` removes). For $f \in F$ and every `Name` load $n$ in $f$ outside
+annotations / $f$'s decorators and defaults, with $n$ not local to $f$ (args, stores, nested
+def / class names, imports, handler names, minus `global` / `nonlocal`), $n$ bound by some
+top-level statement, $n \notin D$ and not a builtin: refused
+(`PYCSL-R459-CONDITIONAL-MODULE-BINDING`). Skipped when the module has a `from m import *`.
+No emission change.
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 

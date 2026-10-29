@@ -1,5 +1,22 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-29): #447 / #451 / #452 / #454 / #456 / #459 REPAIRED (executor r3 off db6c57253; the MISSING-OBLIGATION
+##   families of red team 36; corpus 7000-7046 (38 witnesses + 9 controls), census +38 rows / 3 re-measured (5066 5071 5072),
+##   advice audits R447 / R451 / R452 / R454 / R459, docs annotations 7.200-7.205 / translational T.6.210-T.6.215, REPAIR
+##   sections; no new def in a mirrored file, no axiom). #447: an augmented SHIFT on a name is lowered through the BinOp
+##   path (its `non_neg_shift` row + #414's bound; emission of augmented shifts only, none outside the new files); `//=`
+##   `%=` `/=` on a name REFUSED (were ill-formed WhyML). #451: #350's default-kind check also judges `None` defaults of
+##   `@dataclass` / NamedTuple fields and annotated stores `self.f: T = v` (v None / an Optional parameter), for fields read
+##   under a claim (NARROWED after the wide rule refused 33 corpus + 8 mirror files). #452: a byte search of a derived
+##   `bytes` / `bytearray` admits only bytes-like / bool / an int literal in 0..255. #454: starred / double-starred values
+##   must be derived iterables / mappings. #456: set-method arguments are hashed iterables (#349 / #394 rules). #459:
+##   module-level definite assignment for names read by claimed functions. All 57 route witnesses PROVED at base 8fe7204c3
+##   and now FAIL (13 shifts: obligation Unknown) or are REFUSED (44); 9 controls PROVED at base and candidate.
+##   Gates: fidelity rc=0; root 2569 -> 2581 .mlw, 0 MOVED / 3 GONE (5066 5071 5072, expected-FAIL `*self` witnesses of
+##   route #375: VERIFY-FAIL -> REFUSED by #454) / 0 APPEARED; pyref 2186 0/0/0; mirror 53/53 0/0/0 (no OWED proof);
+##   planes 61/61; rwc 349 demonstrated / advice 176 audited / dropped-mutation / getattr / carriers / frame- / raises-honesty /
+##   clause / assumed / trusted-reasons 413 / doc rc=0. Over-refusal cost: 0 PASS files (root, pyref, mirror).
+
 ## run #3 (2026-10-29): #444-#459 OPENED (red team 36, SYSTEMATIC census of operators / dunders / scoping / call
 ##   binding / modules on 8fe7204c3: 1723 probes / 240 proved / 209 confirmed; rt35's 175 all closed): #444 unbound-name-opaque (9); #445 missing-attribute-opaque (21); #446 unknown-operator-matmul (7); #447 augmented-shift-obligation (13); #448 builtin-arity-keyword (6); #449 user-call-signature (17); #450 super-call-opaque (6); #451 field-default-annotation (5); #452 bytes-int-argument-range (13); #453 module-function-by-name (56); #454 starred-non-iterable (3); #455 decorator-misuse (6); #456 set-method-arg-hash (14); #457 isinstance-class-spec (5); #458 operator-operand-classes (19); #459 conditional-module-binding (9).
 ##   Diagnosis: the dominant shape (F1 F2 F3 F10 F14 F15, 117 of 209) is an OPAQUE FALLBACK -- a construct the emitter

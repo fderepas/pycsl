@@ -8674,6 +8674,43 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _hx349 = [_it349]
                             _xe394.add(id(_it349))
                     elif (isinstance(_fu349, _ast341.Attribute)
+                          and _fu349.attr in ("union", "intersection", "difference",
+                                              "symmetric_difference", "issubset",
+                                              "issuperset", "isdisjoint", "update",
+                                              "intersection_update", "difference_update",
+                                              "symmetric_difference_update")
+                          and _n346.args
+                          and any(isinstance(_t456.value if isinstance(
+                              _t456, _ast341.Subscript) else _t456, _ast341.Name)
+                                  and (_t456.value if isinstance(_t456, _ast341.Subscript)
+                                       else _t456).id in (
+                                           "Set", "set", "#set", "FrozenSet", "frozenset",
+                                           "AbstractSet", "MutableSet")
+                                  for _t456 in (_ty383.get(id(_fu349.value)) or []))):
+                        # (#49) gen #38, ROUTE #456 (red team 36; MEASURED PROVED on 8fe7204c3
+                        # under `#@ no_exception \all`, CPython TypeError): a SET METHOD hashes
+                        # every ELEMENT of each iterable argument (`s.difference(d.values())`
+                        # with `d: Dict[str, List[str]]`: "unhashable type: 'list'"), but only
+                        # `set(..)` / `frozenset(..)` / `Counter(..)` / `dict(..)` /
+                        # `fromkeys(..)` arguments were hashed positions. RULE: on a receiver
+                        # derived `set` / `frozenset` (`_ty383`), each positional argument of
+                        # `union` / `intersection` / `difference` / `symmetric_difference` /
+                        # `issubset` / `issuperset` / `isdisjoint` / `update` / `*_update` is a
+                        # HASHED ITERABLE exactly as `set(x)`'s: a display's elements, a
+                        # comprehension's element, any other iterable's derived elements
+                        # (#394 / #430 / #438: unhashable refused always, underivable under a
+                        # claim covering TypeError). A starred argument is #454's.
+                        for _it456 in _n346.args:
+                            if isinstance(_it456, (_ast341.List, _ast341.Tuple, _ast341.Set)):
+                                _hx349 += [_e for _e in _it456.elts
+                                           if not isinstance(_e, _ast341.Starred)]
+                            elif isinstance(_it456, (_ast341.ListComp, _ast341.GeneratorExp,
+                                                     _ast341.SetComp)):
+                                _hx349.append(_it456.elt)
+                            elif not isinstance(_it456, _ast341.Starred):
+                                _hx349.append(_it456)
+                                _xe394.add(id(_it456))
+                    elif (isinstance(_fu349, _ast341.Attribute)
                           and _fu349.attr in ("add", "discard", "remove", "get", "setdefault",
                                               "pop", "__contains__", "__getitem__")
                           and _n346.args
@@ -10388,6 +10425,198 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"method that has a row (`rfind` for `rindex`, `find` for `index`), or drop "
                     f"the claim.",
                     stage="ir-semantic", code="PYCSL-R440-METHOD-NOT-ADMITTED")
+            # (#49) gen #38, ROUTES #452 / #454 (red team 36; MEASURED PROVED on 8fe7204c3 under
+            # `#@ no_exception \all`, CPython ValueError / TypeError). Two value-dependent
+            # preconditions the signature table (#441) does not state, judged over the SAME
+            # derived classes (`_ty383`, read as #440 reads them: `_CN440` heads, file classes
+            # "C:<name>", an admitted builtin call's row result `_rs440`, "?" underivable):
+            #   #452 `R.find(n)` / `rfind` / `count` / `index` / `rindex` and `n in R` /
+            #     `n not in R` with R derived `bytes` / `bytearray` raise ValueError ("byte must
+            #     be in range(0, 256)") for an int n outside 0..255 (#441's BI code admits the
+            #     int arm with no range). ADMITTED iff n's classes are all `bytes` / `bytearray`
+            #     / `bool`, or n is an int literal in 0..255 (`+` / `-` sign included); any
+            #     other int / underivable n is REFUSED (a TypeError for a non-int non-bytes n
+            #     is refused too) under a claim covering ValueError (TypeError).
+            #   #454 a STARRED element `*x` of a tuple / list / set display or of a call's
+            #     positional arguments raises TypeError ("Value after * must be an iterable")
+            #     unless x is iterable, and `**m` (a call / dict display) unless m is a
+            #     mapping; `(*n,)` with `n: int` lowered as `n`. ADMITTED iff every class of x
+            #     is DERIVED iterable (#441's IT code: str / bytes / list / tuple / dict / set /
+            #     views / iterators / range ..., or a file class whose MRO binds `__iter__`),
+            #     resp. every class of m is `dict` / `Mapping`; the function's own `*args` /
+            #     `**kwargs` are a tuple / dict. Else REFUSED under a claim covering TypeError.
+            #     (A starred ASSIGNMENT target always receives a list; its source is #173 /
+            #     #301's unpacking.)
+            _vx452 = _ok432 and bool(_cx432 & {"\\all", "ValueError", "TypeError",
+                                                 "Exception", "BaseException"})
+            _st452 = []
+            for _n452 in (_al432 or list(_ast341.walk(_f346))) if (_vx452 or _te432) else ():
+                if id(_n452) in _anx365:
+                    continue
+                if (_vx452 and isinstance(_n452, _ast341.Call)
+                        and isinstance(_n452.func, _ast341.Attribute)
+                        and _n452.func.attr in ("find", "rfind", "count", "index", "rindex")
+                        and _n452.args and not isinstance(_n452.args[0], _ast341.Starred)):
+                    _st452.append(("B", _n452, _n452.func.value, _n452.args[0]))
+                elif _vx452 and isinstance(_n452, _ast341.Compare):
+                    _cm452 = [_n452.left] + list(_n452.comparators)
+                    for _i452, _o452 in enumerate(_n452.ops):
+                        if isinstance(_o452, (_ast341.In, _ast341.NotIn)):
+                            _st452.append(("B", _n452, _cm452[_i452 + 1], _cm452[_i452]))
+                elif _te432 and isinstance(_n452, (_ast341.Tuple, _ast341.List, _ast341.Set)):
+                    if isinstance(getattr(_n452, "ctx", None), (_ast341.Store, _ast341.Del)):
+                        continue
+                    _st452 += [("S", _n452, _e.value, None) for _e in _n452.elts
+                               if isinstance(_e, _ast341.Starred)]
+                elif _te432 and isinstance(_n452, _ast341.Call):
+                    _st452 += [("S", _n452, _e.value, None) for _e in _n452.args
+                               if isinstance(_e, _ast341.Starred)]
+                    _st452 += [("M", _n452, _k.value, None) for _k in _n452.keywords
+                               if _k.arg is None]
+                elif _te432 and isinstance(_n452, _ast341.Dict):
+                    _st452 += [("M", _n452, _v, None) for _k, _v in zip(_n452.keys,
+                                                                       _n452.values)
+                               if _k is None]
+            _va452 = _f346.args.vararg.arg if _f346.args.vararg is not None else None
+            _vk452 = _f346.args.kwarg.arg if _f346.args.kwarg is not None else None
+            for _sk452, _n452, _x452, _a452 in _st452:
+                # the classes of the receiver / starred value (and of the byte argument)
+                _cz452 = {}
+                for _s452, _y452 in (("x", _x452), ("a", _a452)):
+                    if _y452 is None:
+                        continue
+                    _cz452[_s452] = set()
+                    if isinstance(_y452, _ast341.Name) and _y452.id in (_va452, _vk452):
+                        _cz452[_s452].add("tuple" if _y452.id == _va452 else "dict")
+                        continue
+                    _tl452 = _ty383.get(id(_y452)) or [_U383]
+                    if id(_y452) in _rs440 and any(_t is _U383 or _t is _K394
+                                                   for _t in _tl452):
+                        _cz452[_s452] |= set(_rs440[id(_y452)])
+                        continue
+                    _wq452 = list(_tl452)
+                    _g452 = 0
+                    while _wq452 and _g452 < 4096:
+                        _g452 += 1
+                        _w452 = _wq452.pop()
+                        if _w452 is _B383:
+                            continue
+                        if isinstance(_w452, _ast341.Constant) and isinstance(_w452.value, str):
+                            try:
+                                _wq452.append(_ast341.parse(_w452.value, mode="eval").body)
+                            except (SyntaxError, ValueError):
+                                _cz452[_s452].add("?")
+                        elif isinstance(_w452, _ast341.Constant) and _w452.value is None:
+                            _cz452[_s452].add("None")
+                        elif isinstance(_w452, _ast341.Name) and _w452.id in _al383:
+                            _wq452.append(_al383[_w452.id])
+                        elif isinstance(_w452, (_ast341.Name, _ast341.Attribute)):
+                            _h452 = (_w452.id if isinstance(_w452, _ast341.Name)
+                                     else _w452.attr)
+                            _cz452[_s452].add("C:" + _h452 if _h452 in _cls341
+                                              else _CN440.get(_h452, "?"))
+                        elif (isinstance(_w452, _ast341.BinOp)
+                              and isinstance(_w452.op, _ast341.BitOr)):
+                            _wq452 += [_w452.left, _w452.right]
+                        elif isinstance(_w452, _ast341.Subscript):
+                            _hv452 = _w452.value
+                            _h452 = (_hv452.id if isinstance(_hv452, _ast341.Name) else
+                                     _hv452.attr if isinstance(_hv452, _ast341.Attribute)
+                                     else "")
+                            _ar452 = (list(_w452.slice.elts)
+                                      if isinstance(_w452.slice, _ast341.Tuple)
+                                      else [_w452.slice])
+                            if _h452 in ("Optional", "Union"):
+                                _wq452 += _ar452 + ([_ast341.Constant(value=None)]
+                                                    if _h452 == "Optional" else [])
+                            elif _h452 in ("Annotated", "Final", "ClassVar"):
+                                _wq452 += _ar452[:1]
+                            else:
+                                _cz452[_s452].add("C:" + _h452 if _h452 in _cls341
+                                                  else _CN440.get(_h452, "?"))
+                        else:
+                            _cz452[_s452].add("?")
+                    if _wq452:
+                        _cz452[_s452].add("?")
+                _rc452 = _cz452.get("x", set())
+                _why452 = None
+                if _sk452 == "B":
+                    if not (_rc452 & {"bytes", "bytearray"}):
+                        continue
+                    _lv452 = None
+                    _ay452 = _a452
+                    _sg452 = 1
+                    if (isinstance(_ay452, _ast341.UnaryOp)
+                            and isinstance(_ay452.op, (_ast341.USub, _ast341.UAdd))):
+                        _sg452 = -1 if isinstance(_ay452.op, _ast341.USub) else 1
+                        _ay452 = _ay452.operand
+                    if (isinstance(_ay452, _ast341.Constant)
+                            and type(_ay452.value) in (int, bool)):
+                        _lv452 = _sg452 * int(_ay452.value)
+                    _ac452 = _cz452.get("a", set())
+                    if _lv452 is not None:
+                        if not 0 <= _lv452 < 256 and bool(_cx432 & {
+                                "\\all", "ValueError", "Exception", "BaseException"}):
+                            _why452 = (f"the int literal {_lv452} is outside range(0, 256) "
+                                       f"(ValueError)")
+                    elif not _ac452 or not _ac452 <= {"bytes", "bytearray", "bool"}:
+                        # an int (or underivable) value owes the range (ValueError); any
+                        # other class is not bytes-like (TypeError): judged by the claim
+                        _vv452 = bool(_cx432 & {"\\all", "ValueError", "Exception",
+                                                "BaseException"})
+                        if ((_vv452 and (not _ac452 or _ac452 & {"int", "?"}))
+                                or (_te432 and (not _ac452 or _ac452 - {
+                                    "int", "bool", "bytes", "bytearray"}))):
+                            _why452 = (f"`{_ast341.unparse(_a452)}` (classes "
+                                       f"{sorted(_ac452) or ['?']}) may be an int outside "
+                                       f"range(0, 256) (ValueError) or not bytes-like "
+                                       f"(TypeError)")
+                    if _why452 is not None:
+                        from errors import PyCSLSemanticError as _PyCSLSemErr452
+                        raise _PyCSLSemErr452(
+                            f"'{_f346.name}' line {getattr(_n452, 'lineno', 0)}: "
+                            f"`{_ast341.unparse(_n452)}` searches a `bytes` / `bytearray` "
+                            f"for a byte, and {_why452}, while this function claims "
+                            f"`#@ no_exception` covering it and the search lowers to an "
+                            f"opaque value (route #452; measured: `b'abc'.find(n)` and `n in "
+                            f"b'abc'` with `n: int` proved `no_exception \\all`, CPython "
+                            f"ValueError for n = 256). Admitted: a bytes-like argument, a "
+                            f"`bool`, or an int literal in 0..255 (a computed int is not "
+                            f"judged in range, even under a guard). Search for an int literal "
+                            f"(`data.find(71)`), or drop the claim.",
+                            stage="ir-semantic", code="PYCSL-R452-BYTE-RANGE")
+                    continue
+                _ok454 = bool(_rc452)
+                for _c452 in sorted(_rc452):
+                    if _sk452 == "M":
+                        _ok454 = _ok454 and _c452 in ("dict", "Mapping")
+                    elif _c452.startswith("C:"):
+                        _ok454 = _ok454 and any(
+                            _a in _cls341 and "__iter__" in _cb383.get(_a, set())
+                            for _a in (_mro363.get(_c452[2:])
+                                       or _clo346.get(_c452[2:], [_c452[2:]])))
+                    else:
+                        _ok454 = _ok454 and _c452 in _KS440["IT"]
+                if not _ok454:
+                    from errors import PyCSLSemanticError as _PyCSLSemErr454
+                    raise _PyCSLSemErr454(
+                        f"'{_f346.name}' line {getattr(_n452, 'lineno', 0)}: "
+                        f"`{'**' if _sk452 == 'M' else '*'}{_ast341.unparse(_x452)}` in "
+                        f"`{_ast341.unparse(_n452)}` unpacks a value whose classes "
+                        f"({sorted(_rc452) or ['?']}) are not all derived "
+                        + ("mappings" if _sk452 == "M" else "iterables")
+                        + f": CPython raises TypeError there (\"Value after "
+                        f"{'**' if _sk452 == 'M' else '*'} must be "
+                        + ("a mapping" if _sk452 == "M" else "an iterable")
+                        + f"\"), while this function claims `#@ no_exception` covering "
+                        f"TypeError and the display lowers the value itself (route #454; "
+                        f"measured: `len((*n,))` with `n: int` proved `no_exception \\all`). "
+                        f"Admitted: a value derived as str / bytes / list / tuple / dict / "
+                        f"set / a view / an iterator / range (or a file class whose MRO "
+                        f"defines `__iter__`); for `**`, a dict / Mapping. Declare the "
+                        f"value with such a class (`xs: Tuple[int, int]`), or drop the "
+                        f"claim.",
+                        stage="ir-semantic", code="PYCSL-R454-STARRED-NON-ITERABLE")
         # ROUTE #361 — `InitVar` / `KW_ONLY` PSEUDO-FIELDS WERE MODELLED AS STORED FIELDS.
         # `k: InitVar[int]` and `_: KW_ONLY` joined the record and #347's synthesized
         # field set (ClassVar was excluded), so `d.k` / `d._` read under `no_exception`
@@ -14002,6 +14231,265 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"`requires len(str(p)) == 1` proved, CPython TypeError). Convert it "
                         f"first (`ord(str(p)[0])`), or drop `\\all` from the context.",
                         stage="whyml", code="PYCSL-R434-ORD-PATH")
+    # (#49) gen #38, ROUTE #459 (red team 36; MEASURED PROVED on 8fe7204c3 under `#@
+    # no_exception \all`, CPython NameError) -- A CONDITIONAL MODULE-LEVEL BINDING. Module names
+    # are collected from every top-level binding whatever its control flow, so `G` bound only
+    # under `if TYPE_CHECKING:` / `if False:` / `if sys.platform == ..:` / `for _ in []:` /
+    # `while False:` / the failing arm of a `try`, or AFTER the statement that calls `f`, was
+    # read by `f` as defined (an int constant folds to its value). RULE (definite assignment at
+    # module level, as #264 inside a body): walking the module's top-level statements in order
+    # up to the CALL FRONTIER -- the first `if __name__ == ...` statement or statement holding
+    # (outside a def / lambda / class body) a call of a claimed function or of a file function /
+    # class that (transitively) calls one -- a name is DEFINITELY bound by an assignment / an
+    # annotated assignment with a value / a def / class / import when the statement is unconditional;
+    # through an `if`, when every arm binds it (a constant test, `TYPE_CHECKING` (False at run
+    # time) and `typing.TYPE_CHECKING` select one arm); through a `try`, when the body and
+    # every handler bind it (or `finally` does); a `for` / `while` / `with` / `match` body
+    # binds nothing definitely; `del` unbinds. A function that claims `no_exception` covering
+    # NameError (`\all`, NameError, Exception, BaseException), is neither `\trusted` nor
+    # `\abstract`, and LOADS a free name (not local to it, not a builtin) that the module
+    # binds somewhere but not definitely before the frontier is REFUSED
+    # (PYCSL-R459-CONDITIONAL-MODULE-BINDING). A `from m import *` stops the judgement (any
+    # name may come from it). Inline; `_run_pipeline`'s mirror twin is `\trusted`.
+    import ast as _ast459
+    import builtins as _bi459
+    _cl459 = set()
+    for _f459 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
+        if not isinstance(_f459, dict) or _f459.get("trusted") or _f459.get("abstract"):
+            continue
+        _cc459 = _f459.get("contracts") or {}
+        if _cc459.get("no_exception_all") or set(_cc459.get("no_exception") or []) & {
+                "NameError", "Exception", "BaseException"}:
+            _cl459.add(str(_f459.get("name", "")).rsplit("__", 1)[-1])
+    try:
+        _tr459 = _ast459.parse(source_code) if _cl459 else None
+    except SyntaxError:
+        _tr459 = None
+    if _tr459 is not None and not any(
+            isinstance(_z, _ast459.ImportFrom) and any(_a.name == "*" for _a in _z.names)
+            for _z in _tr459.body):
+        # the claimed functions and every file def / class that (transitively) calls one
+        _fd459 = set(_cl459)
+        _cg459 = {}
+        for _z459 in _ast459.walk(_tr459):
+            if isinstance(_z459, (_ast459.FunctionDef, _ast459.AsyncFunctionDef,
+                                  _ast459.ClassDef)):
+                _cg459.setdefault(_z459.name, set())
+                for _w459 in _ast459.walk(_z459):
+                    if isinstance(_w459, _ast459.Call):
+                        _cg459[_z459.name].add(
+                            _w459.func.id if isinstance(_w459.func, _ast459.Name) else
+                            _w459.func.attr if isinstance(_w459.func, _ast459.Attribute)
+                            else "")
+        _ch459 = True
+        while _ch459:
+            _ch459 = False
+            for _k459, _v459 in _cg459.items():
+                if _k459 not in _fd459 and _v459 & _fd459:
+                    _fd459.add(_k459)
+                    _ch459 = True
+        # every name the module binds anywhere at top level (any control flow)
+        _ab459 = set()
+        _sk459 = list(_tr459.body)
+        while _sk459:
+            _s459 = _sk459.pop()
+            if isinstance(_s459, (_ast459.FunctionDef, _ast459.AsyncFunctionDef,
+                                  _ast459.ClassDef)):
+                _ab459.add(_s459.name)
+                continue
+            for _z459 in _ast459.walk(_s459):
+                if isinstance(_z459, _ast459.Name) and isinstance(_z459.ctx, _ast459.Store):
+                    _ab459.add(_z459.id)
+                elif isinstance(_z459, (_ast459.FunctionDef, _ast459.AsyncFunctionDef,
+                                        _ast459.ClassDef)):
+                    _ab459.add(_z459.name)
+                elif isinstance(_z459, (_ast459.Import, _ast459.ImportFrom)):
+                    _ab459 |= {(_a.asname or _a.name).split(".")[0] for _a in _z459.names}
+                elif isinstance(_z459, _ast459.ExceptHandler) and _z459.name:
+                    _ab459.add(_z459.name)
+        # the definitely-bound set before the call frontier: an explicit stack machine over
+        # (statements, index, set-so-far) frames; a compound statement pushes its arms
+        _db459 = set()
+        _fr459 = False
+        for _s459 in _tr459.body:
+            if _fr459:
+                break
+            _ex459 = [_s459]
+            if isinstance(_s459, (_ast459.FunctionDef, _ast459.AsyncFunctionDef)):
+                _ex459 = list(_s459.decorator_list) + [
+                    _d for _d in (_s459.args.defaults + _s459.args.kw_defaults) if _d]
+            elif isinstance(_s459, _ast459.ClassDef):
+                _ex459 = list(_s459.decorator_list) + list(_s459.bases) + [
+                    _k.value for _k in _s459.keywords]
+            for _e459 in _ex459:
+                _wk459 = [_e459]
+                while _wk459 and not _fr459:
+                    _z459 = _wk459.pop()
+                    if isinstance(_z459, (_ast459.FunctionDef, _ast459.AsyncFunctionDef,
+                                          _ast459.Lambda, _ast459.ClassDef)):
+                        continue
+                    if isinstance(_z459, _ast459.If) and "__name__" in _ast459.unparse(
+                            _z459.test):
+                        _fr459 = True
+                    elif isinstance(_z459, _ast459.Call):
+                        _cf459 = _z459.func
+                        _cn459 = (_cf459.id if isinstance(_cf459, _ast459.Name) else
+                                  _cf459.attr if isinstance(_cf459, _ast459.Attribute) else "")
+                        if _cn459 in _fd459:
+                            _fr459 = True
+                    _wk459.extend(_ast459.iter_child_nodes(_z459))
+            if _fr459:
+                break
+            # the names this top-level statement binds DEFINITELY: a worklist of
+            # (statement, mode) where mode "d" = definitely executed
+            _bd459 = set()
+            _q459 = [_s459]
+            while _q459:
+                _t459 = _q459.pop()
+                if isinstance(_t459, (_ast459.FunctionDef, _ast459.AsyncFunctionDef,
+                                      _ast459.ClassDef)):
+                    _bd459.add(_t459.name)
+                elif isinstance(_t459, (_ast459.Assign, _ast459.AnnAssign)):
+                    if isinstance(_t459, _ast459.AnnAssign) and _t459.value is None:
+                        continue
+                    for _tg459 in (_t459.targets if isinstance(_t459, _ast459.Assign)
+                                   else [_t459.target]):
+                        _bd459 |= {_w.id for _w in _ast459.walk(_tg459)
+                                   if isinstance(_w, _ast459.Name)
+                                   and isinstance(_w.ctx, _ast459.Store)}
+                elif isinstance(_t459, (_ast459.Import, _ast459.ImportFrom)):
+                    _bd459 |= {(_a.asname or _a.name).split(".")[0] for _a in _t459.names}
+                elif isinstance(_t459, _ast459.If):
+                    _ts459 = _ast459.unparse(_t459.test)
+                    _cv459 = None
+                    if isinstance(_t459.test, _ast459.Constant):
+                        _cv459 = bool(_t459.test.value)
+                    elif _ts459 in ("TYPE_CHECKING", "typing.TYPE_CHECKING"):
+                        _cv459 = False
+                    _arm459 = []
+                    for _bl459 in ([_t459.body] if _cv459 is True else [_t459.orelse]
+                                   if _cv459 is False else [_t459.body, _t459.orelse]):
+                        # each arm's definite set: its statements in order (nested
+                        # compound statements recurse through the same worklist by a
+                        # private copy)
+                        _ab2459 = set()
+                        _q2459 = list(_bl459)
+                        while _q2459:
+                            _u459 = _q2459.pop(0)
+                            if isinstance(_u459, (_ast459.FunctionDef,
+                                                  _ast459.AsyncFunctionDef,
+                                                  _ast459.ClassDef)):
+                                _ab2459.add(_u459.name)
+                            elif isinstance(_u459, (_ast459.Assign, _ast459.AnnAssign)):
+                                if (isinstance(_u459, _ast459.AnnAssign)
+                                        and _u459.value is None):
+                                    continue
+                                for _tg459 in (_u459.targets if isinstance(
+                                        _u459, _ast459.Assign) else [_u459.target]):
+                                    _ab2459 |= {_w.id for _w in _ast459.walk(_tg459)
+                                                if isinstance(_w, _ast459.Name)
+                                                and isinstance(_w.ctx, _ast459.Store)}
+                            elif isinstance(_u459, (_ast459.Import, _ast459.ImportFrom)):
+                                _ab2459 |= {(_a.asname or _a.name).split(".")[0]
+                                            for _a in _u459.names}
+                            elif isinstance(_u459, _ast459.Delete):
+                                _ab2459 -= {_w.id for _w in _ast459.walk(_u459)
+                                            if isinstance(_w, _ast459.Name)}
+                            elif isinstance(_u459, (_ast459.If, _ast459.Try)) or (
+                                    getattr(_ast459, "TryStar", None) is not None
+                                    and isinstance(_u459, _ast459.TryStar)):
+                                # a nested compound arm counts only through the names
+                                # bound in EVERY one of its arms, conservatively: none
+                                pass
+                        _arm459.append(_ab2459)
+                    if _arm459:
+                        _bd459 |= set.intersection(*_arm459)
+                elif isinstance(_t459, _ast459.Try) or (
+                        getattr(_ast459, "TryStar", None) is not None
+                        and isinstance(_t459, _ast459.TryStar)):
+                    _arm459 = []
+                    for _bl459 in ([_t459.body + _t459.orelse]
+                                   + [_h.body for _h in _t459.handlers]):
+                        _ab2459 = set()
+                        for _u459 in _bl459:
+                            if isinstance(_u459, (_ast459.FunctionDef,
+                                                  _ast459.AsyncFunctionDef,
+                                                  _ast459.ClassDef)):
+                                _ab2459.add(_u459.name)
+                            elif isinstance(_u459, (_ast459.Assign, _ast459.AnnAssign)) and (
+                                    not isinstance(_u459, _ast459.AnnAssign)
+                                    or _u459.value is not None):
+                                for _tg459 in (_u459.targets if isinstance(
+                                        _u459, _ast459.Assign) else [_u459.target]):
+                                    _ab2459 |= {_w.id for _w in _ast459.walk(_tg459)
+                                                if isinstance(_w, _ast459.Name)
+                                                and isinstance(_w.ctx, _ast459.Store)}
+                            elif isinstance(_u459, (_ast459.Import, _ast459.ImportFrom)):
+                                _ab2459 |= {(_a.asname or _a.name).split(".")[0]
+                                            for _a in _u459.names}
+                        _arm459.append(_ab2459)
+                    _bd459 |= set.intersection(*_arm459)
+                    for _u459 in _t459.finalbody:
+                        _q459.append(_u459)
+                elif isinstance(_t459, _ast459.Delete):
+                    _db459 -= {_w.id for _w in _ast459.walk(_t459)
+                               if isinstance(_w, _ast459.Name)}
+            _db459 |= _bd459
+        for _fn459 in [_z for _z in _ast459.walk(_tr459)
+                       if isinstance(_z, (_ast459.FunctionDef, _ast459.AsyncFunctionDef))
+                       and _z.name in _cl459]:
+            _lo459 = set()
+            _gl459 = set()
+            _ld459 = []
+            _an459 = set()
+            for _z459 in _ast459.walk(_fn459):
+                if isinstance(_z459, _ast459.arg):
+                    _lo459.add(_z459.arg)
+                    if _z459.annotation is not None:
+                        _an459 |= {id(_w) for _w in _ast459.walk(_z459.annotation)}
+                elif isinstance(_z459, (_ast459.FunctionDef, _ast459.AsyncFunctionDef)):
+                    if _z459 is not _fn459:
+                        _lo459.add(_z459.name)
+                    if _z459.returns is not None:
+                        _an459 |= {id(_w) for _w in _ast459.walk(_z459.returns)}
+                    for _d459 in _z459.decorator_list + [
+                            _d for _d in (_z459.args.defaults + _z459.args.kw_defaults) if _d]:
+                        if _z459 is _fn459:
+                            _an459 |= {id(_w) for _w in _ast459.walk(_d459)}
+                elif isinstance(_z459, _ast459.ClassDef):
+                    _lo459.add(_z459.name)
+                elif isinstance(_z459, _ast459.AnnAssign):
+                    _an459 |= {id(_w) for _w in _ast459.walk(_z459.annotation)}
+                elif isinstance(_z459, (_ast459.Global, _ast459.Nonlocal)):
+                    _gl459 |= set(_z459.names)
+                elif isinstance(_z459, (_ast459.Import, _ast459.ImportFrom)):
+                    _lo459 |= {(_a.asname or _a.name).split(".")[0] for _a in _z459.names}
+                elif isinstance(_z459, _ast459.ExceptHandler) and _z459.name:
+                    _lo459.add(_z459.name)
+                elif isinstance(_z459, _ast459.Name):
+                    if isinstance(_z459.ctx, _ast459.Load):
+                        _ld459.append(_z459)
+                    else:
+                        _lo459.add(_z459.id)
+            _lo459 -= _gl459
+            for _z459 in _ld459:
+                if (id(_z459) in _an459 or _z459.id in _lo459 or _z459.id not in _ab459
+                        or _z459.id in _db459 or hasattr(_bi459, _z459.id)):
+                    continue
+                from errors import PyCSLSemanticError as _PyCSLSemErr459
+                raise _PyCSLSemErr459(
+                    f"'{_fn459.name}' line {getattr(_z459, 'lineno', 0)} reads the module name "
+                    f"`{_z459.id}`, which the module binds only CONDITIONALLY (under an `if` "
+                    f"not every arm of which binds it -- `if TYPE_CHECKING:` is False at run "
+                    f"time --, a `for` / `while` / `with` / `match` body, a `try` arm that may "
+                    f"not run) or only AFTER the statement that calls a function of the file "
+                    f"(`if __name__ == ...` or a module-level call), so CPython may raise "
+                    f"NameError there, while this function claims `#@ no_exception` covering "
+                    f"NameError (route #459; measured: `if TYPE_CHECKING: G = 1` and `G = 1` "
+                    f"after the `__main__` block proved `return G + n` under `no_exception "
+                    f"\\all`). Bind `{_z459.id}` unconditionally at module level before any "
+                    f"call (every arm of the `if` / `try`), or drop the claim.",
+                    stage="ir-semantic", code="PYCSL-R459-CONDITIONAL-MODULE-BINDING")
     # (#49) gen #37, ROUTE #384 — A `\length` CLASS INVARIANT WHOSE CONSTRUCTOR GOAL CANNOT BE
     # STATED IS REFUSED, NOT ASSUMED. Module 6 states route #226's `_check_class_inv_<c>` goal
     # from the constructor's end state of each list field (`ctor_len_r384` above); when that
@@ -16609,9 +17097,35 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # and 1 pycsl_lib `int`/`str = None` defaults sit on `\trusted` stubs.
     # INLINE (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
     _bad350: List[Any] = []
-    for _F350 in _low350:
+    # (#49) gen #38, ROUTE #451 (red team 36; MEASURED PROVED on 8fe7204c3 under `#@
+    # no_exception \all`, CPython AttributeError): a FIELD's derived class is its annotation,
+    # so a class-body default `name: str = None` (a `@dataclass` / NamedTuple field, a plain
+    # class attribute) and an annotated field store `self.s: str = s` with `s:
+    # Optional[str]` gave a `str` field holding None (`c.name.strip()` proved). RULE: the
+    # SAME kind check as a parameter default, over (i) every class-body `x: T = v` of every
+    # class of the file (`field(default=v)` reads v; `field(default_factory=..)` / another
+    # call is not judged: its value is not known statically) and (ii) every annotated
+    # attribute store `o.f: T = v` inside a lowered function; only a LITERAL / display / bare
+    # NAME value is judged there (a computed value is left to the field's other uses), a
+    # bare name resolving as for a default (module constant, or the enclosing function's
+    # parameter of that name: its annotation must admit the field's). Refused
+    # unconditionally, as #350 (PYCSL-R451-FIELD-DEFAULT-ANNOTATION).
+    _lc451 = [_c for _c in _A273.walk(_src350) if isinstance(_c, _A273.ClassDef)]
+    _cl451 = set()
+    for _f451 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
+        if not isinstance(_f451, dict) or _f451.get("trusted") or _f451.get("abstract"):
+            continue
+        _cc451 = _f451.get("contracts") or {}
+        if _cc451.get("no_exception_all") or set(_cc451.get("no_exception") or []) & {
+                "AttributeError", "TypeError", "Exception", "BaseException"}:
+            _cl451.add(str(_f451.get("name", "")).rsplit("__", 1)[-1])
+    _rd451 = {_z.attr for _d in _A273.walk(_src350)
+              if isinstance(_d, _FN273) and _d.name in _cl451
+              for _z in _A273.walk(_d) if isinstance(_z, _A273.Attribute)
+              and isinstance(_z.ctx, _A273.Load)}
+    for _F350 in _low350 + _lc451:
         _pa350: Dict[str, Set[str]] = {}
-        for _x350 in _A273.walk(_F350):
+        for _x350 in (_A273.walk(_F350) if isinstance(_F350, _FN273) else ()):
             if isinstance(_x350, _FN273):
                 _xa350 = _x350.args
                 for _p350 in (list(getattr(_xa350, "posonlyargs", None) or [])
@@ -16619,15 +17133,74 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _pa350.setdefault(_p350.arg, set()).add(
                         _A273.unparse(_p350.annotation) if _p350.annotation is not None
                         else "?")
-        for _N350 in _A273.walk(_F350):
-            if not isinstance(_N350, _FN273) or _bad350:
+        for _N350 in (_A273.walk(_F350) if isinstance(_F350, _FN273) else [_F350]):
+            if not isinstance(_N350, (_FN273, _A273.ClassDef, _A273.AnnAssign)) or _bad350:
                 continue
-            _na350 = _N350.args
-            _po350 = list(getattr(_na350, "posonlyargs", None) or []) + list(_na350.args or [])
             _ob350: List[Any] = []
-            for _p350, _d350 in (list(zip(_po350[len(_po350) - len(_na350.defaults or []):],
-                                          _na350.defaults or []))
-                                 + list(zip(_na350.kwonlyargs or [], _na350.kw_defaults or []))):
+            if not isinstance(_N350, _FN273):
+                # (#451) class-body field defaults of a `@dataclass` / NamedTuple class and
+                # annotated attribute stores: a `None` value, or (a store) a parameter whose
+                # annotation has a `None` arm or whose default is `None`; only for a field NAME
+                # some claimed function reads (`_rd451`)
+                _fd451 = []
+                if isinstance(_N350, _A273.ClassDef) and (any(
+                        "dataclass" in _A273.unparse(_d) for _d in _N350.decorator_list)
+                        or any(_A273.unparse(_b) in ("NamedTuple", "typing.NamedTuple")
+                               for _b in _N350.bases)):
+                    _fd451 = [_s for _s in _N350.body if isinstance(_s, _A273.AnnAssign)
+                              and isinstance(_s.target, _A273.Name) and _s.value is not None]
+                elif (isinstance(_N350, _A273.AnnAssign)
+                      and isinstance(_N350.target, _A273.Attribute) and _N350.value is not None):
+                    _fd451 = [_N350]
+                for _s451 in _fd451:
+                    _v451 = _s451.value
+                    if (isinstance(_v451, _A273.Call)
+                            and _A273.unparse(_v451.func) in ("field", "dataclasses.field")):
+                        _v451 = next((_k.value for _k in _v451.keywords
+                                      if _k.arg == "default"), None)
+                    _fn451 = (_s451.target.id if isinstance(_s451.target, _A273.Name)
+                              else _s451.target.attr)
+                    if _v451 is None or _fn451 not in _rd451:
+                        continue
+                    _nv451 = isinstance(_v451, _A273.Constant) and _v451.value is None
+                    if (not _nv451 and isinstance(_v451, _A273.Name)
+                            and isinstance(_s451.target, _A273.Attribute)):
+                        for _x451 in (_A273.walk(_F350) if isinstance(_F350, _FN273) else ()):
+                            if not isinstance(_x451, _FN273):
+                                continue
+                            _xa451 = _x451.args
+                            _ps451 = (list(getattr(_xa451, "posonlyargs", None) or [])
+                                      + list(_xa451.args or []))
+                            _dd451 = dict(zip([_q.arg for _q in _ps451[
+                                len(_ps451) - len(_xa451.defaults or []):]],
+                                _xa451.defaults or []))
+                            _dd451.update({_q.arg: _d for _q, _d in zip(
+                                _xa451.kwonlyargs or [], _xa451.kw_defaults or []) if _d})
+                            for _q451 in _ps451 + list(_xa451.kwonlyargs or []):
+                                if _q451.arg != _v451.id:
+                                    continue
+                                _an451 = (_A273.unparse(_q451.annotation)
+                                          if _q451.annotation is not None else "")
+                                _df451 = _dd451.get(_q451.arg)
+                                import re as _re451
+                                if (_re451.search(r"\b(Optional|None)\b", _an451)
+                                        or (isinstance(_df451, _A273.Constant)
+                                            and _df451.value is None)):
+                                    _nv451 = True
+                    if not _nv451:
+                        continue
+                    # judged as the value `None` against the field's annotation
+                    _ob350.append((_s451.annotation, _A273.Constant(value=None),
+                                   _A273.unparse(_s451.target), _v451))
+            else:
+                _na350 = _N350.args
+                _po350 = (list(getattr(_na350, "posonlyargs", None) or [])
+                          + list(_na350.args or []))
+            for _p350, _d350 in ((list(zip(_po350[len(_po350) - len(_na350.defaults or []):],
+                                           _na350.defaults or []))
+                                  + list(zip(_na350.kwonlyargs or [],
+                                             _na350.kw_defaults or [])))
+                                 if isinstance(_N350, _FN273) else []):
                 if _d350 is not None and _p350.annotation is not None:
                     _ob350.append((_p350.annotation, _d350, _p350.arg, _d350))
             _guard350 = 0
@@ -16783,8 +17356,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if _adm350:
                         _ok350.append((_hd350, _sa350))
                 if not _ok350:
-                    _bad350.append((_N350.name, getattr(_N350, "lineno", 0), _pn350,
-                                    _A273.unparse(_an350)[:60], _A273.unparse(_top350)[:60]))
+                    _bad350.append((getattr(_N350, "name", getattr(_F350, "name", "?")),
+                                    getattr(_N350, "lineno", 0), _pn350,
+                                    _A273.unparse(_an350)[:60], _A273.unparse(_top350)[:60],
+                                    not isinstance(_N350, _FN273)))
                     break
                 # -- element obligations, when exactly one arm admits a display
                 if len(_ok350) == 1 and _disp350 is not None and _ok350[0][1]:
@@ -16805,12 +17380,29 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _ob350 += [(_t, _e, _pn350, _top350)
                                            for _t, _e in zip(_sa350, _el350)]
                             elif not (len(_sa350) == 1 and isinstance(_sa350[0], _A273.Tuple)):
-                                _bad350.append((_N350.name, getattr(_N350, "lineno", 0),
+                                _bad350.append((getattr(_N350, "name",
+                                                        getattr(_F350, "name", "?")),
+                                                getattr(_N350, "lineno", 0),
                                                 _pn350, _A273.unparse(_an350)[:60],
-                                                _A273.unparse(_top350)[:60]))
+                                                _A273.unparse(_top350)[:60],
+                                                not isinstance(_N350, _FN273)))
                                 break
                         elif len(_sa350) >= 1:
                             _ob350 += [(_sa350[0], _e, _pn350, _top350) for _e in _el350]
+    if _bad350 and _bad350[0][5]:
+        from errors import PyCSLSemanticError as _PyCSLSemErr451
+        raise _PyCSLSemErr451(
+            f"'{_bad350[0][0]}' (line {_bad350[0][1]}) gives the field "
+            f"'{_bad350[0][2]}: {_bad350[0][3]}' the value `{_bad350[0][4]}`, which is not of "
+            f"the annotation's kind (route #451; measured: a `@dataclass` field `name: str = "
+            f"None` and `self.s: str = s` with `s: Optional[str]` proved `c.name.strip()` "
+            f"under `#@ no_exception \\all`, CPython AttributeError). The field is modelled "
+            f"with the annotated class, so every read of it would be verified as that class "
+            f"while Python stores the value. Use a value of the annotated kind (`name: str = "
+            f"\"\"`), or widen the annotation (`Optional[str]`), whose `None` arm is then "
+            f"checked at each use.",
+            filename=args.file, stage="ir-semantic",
+            code="PYCSL-R451-FIELD-DEFAULT-ANNOTATION")
     if _bad350:
         from errors import PyCSLSemanticError as _PyCSLSemErr350
         raise _PyCSLSemErr350(
