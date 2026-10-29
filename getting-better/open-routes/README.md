@@ -11,6 +11,7 @@
 
 ## run #3 (2026-10-29): #473 OPENED (found by executor lv5, driver-reproduced on a9eac4a08): a LOCAL empty list passed to a
 ##   callee is the 1024-element placeholder `Array.make 1024 0`, discharging the callee's `len(c) >= 1` (2 witnesses).
+
 ## run #3 (2026-10-29): #466 / #467 / #468 / #472 REPAIRED (executor x1 off daf5c3d1f; the FILE BOUNDARY of red team 38;
 ##   inline at the end of `_run_pipeline` after #461 / #462, mirror twin `\trusted`, no new def in a mirrored file, no
 ##   axiom, no emission change). #466 / #472: under any claim, imports are resolved on the TARGET's path (file dir,
@@ -26,6 +27,7 @@
 ##   T.6.290-T.6.292; REPAIR sections. Gates: fidelity rc=0; root 2604 -> 2609
 ##   0/0/0, pyref 2186 0/0/0, mirror 53 0/0/0; planes 61/61; ledgers rc=0; trusted 437. Over-refusal cost: 0 PASS
 ##   (corpus 6642 kept by the #467 allow-list; #468 narrowed after a wide cut refused 3382 + 11 mirror files).
+
 ## run #3 (2026-10-29): #465 / #469 / #470 / #471 REPAIRED (executor x2 off daf5c3d1f; inline in `_run_pipeline`: a new
 ##   compile gate just before m1's #461 block, the rest inside it; mirror twin `\trusted`, no new def, no axiom, no emission
 ##   change). #465: the claimed file's bytes are decoded by CPython's `tokenize.detect_encoding` (must equal the verified
