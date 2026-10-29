@@ -5679,6 +5679,43 @@ b: list 'a) : list 'a variant { a }` emitted before the group. A path that runs 
 body declines, and so does any other statement. No new symbol is assumed, and the axiom
 ledger is unchanged.
 
+### §T.6.231  AC flatten-sort-refold arm of a term transform (lv4, run #3)
+
+_Corresponds to `annotations.md` §7.221._
+
+The guarded arm of §7.221 (`_parse_ac_guard`; the lifted closure $G$ is the IR function
+that directly follows $f$, with `closure_captures` $\subseteq \{A, t\}$) is placed in
+the arm of $C$ of the size-mode group (`variant { term__size v_t }`). It is `if pystr_eq
+v_F l1 || .. then B else` followed by the general arm, where $B$ is
+
+    let rec f__collect (q: term) (acc: list term) : list term
+      requires { term__size q < term__size v_t }  ensures { result <> Nil }  variant { q }
+    = match q with
+      | C q_.. -> if pystr_eq q_F v_F then (term__size_pos ..; let a1 = f__collect q_X acc in
+                  let a2 = f__collect q_Y a1 in a2) else (term__size_pos q; let x = f q in Cons x acc)
+      | _ -> (term__size_pos q; let x = f q in Cons x acc) end in
+    let l_rev = (let a1 = f__collect v_X Nil in let a2 = f__collect v_Y a1 in a2) in
+    let l_ops = f__acrev l_rev Nil in f__acrev_ne l_rev Nil;
+    let l_sorted = f__acsort l_ops Nil in f__aclen_cons l_ops; f__acsort_len l_ops Nil;
+    let l_out = f__aclast l_sorted in
+    let rec f__chain (xs: list term) (o2: term) : term variant { xs }
+    = match xs with Nil -> o2 | Cons h r -> C ⟦t.F | h | f__chain r o2⟧ end in
+    f__chain (f__acinit l_sorted) l_out
+
+The root call `G(t)` is lowered to its descent branch: inside $C$'s arm `isinstance(t,
+C)` holds and `t.F == t.F` is reflexive `str` equality. `A.append(e)` builds the list
+reversed and `f__acrev` restores Python's order, which matters because the sort is
+stable. The helpers are emitted once before the group. They are all defined, apart from
+`val function f__ackey (x: term) : string` (the key `x.M()`) and `val function f__aclt (a
+b: string) : bool` (the key `<`). `f__acins` inserts an element before the first element
+whose key is greater (stable). `f__acsort l acc` folds `f__acins` over `l`.
+`f__aclast` has `requires { l <> Nil }`. `f__acinit` drops the last element. The ghost
+functions `f__acrev_ne`, `f__aclen_nonneg`, `f__aclen_cons`, `f__acins_len` and
+`f__acsort_len` prove the non-emptiness and length facts at their call sites. They are
+not global lemmas, because those would enter every later goal's context (measured: an
+unrelated flatten lemma then timed out). In size mode the group declares the
+`term__size` theory itself when it is the first size-mode group. No axiom is added.
+
 ### §T.6.200  Call binding, `super()` resolution, builtin cross-constraints, decorator sites (routes #448 / #449 / #450 / #455, run #3)
 
 _Corresponds to `annotations.md` §7.190._

@@ -3934,6 +3934,38 @@ for every term recognizer, a contract other than `True` declines. Witnesses `710
 (PROVES), `7101` (`ensures False`, must NOT prove), `7102` (an aliased list, declined),
 `7103` (a `continue` that does not step the spine, declined).
 
+### 7.221 A term transform may flatten, sort and re-fold an associative operator chain (lv4, run #3)
+
+A one-parameter Term->Term transform (§7.160's shape, e.g. the mirror's
+`proof2why3/canonical.py::_ac_normalize`) may have one guarded arm, placed before the
+general arm of the same class:
+
+    if isinstance(t, C) and t.op in ("l1", "l2"):
+        operands = []
+        def collect(node):
+            if isinstance(node, C) and node.op == t.op:
+                collect(node.lhs)
+                collect(node.rhs)
+            else:
+                operands.append(f(node))
+        collect(t)
+        operands_sorted = sorted(operands, key=lambda x: x.pp())
+        out = operands_sorted[-1]
+        for o in reversed(operands_sorted[:-1]):
+            out = C(t.op, o, out)
+        return out
+
+The nested `collect` is folded into the arm, so the lifted sibling emits nothing. The
+call `f(node)` is on a proper descendant of `t`: the root call `collect(t)` always
+descends, because `t.op == t.op` holds. So the call terminates by the file's term-size
+measure. The arm is accepted only in a file whose term transforms already use that
+measure. `sorted` is a defined stable insertion sort. Its key `x.M()` and the key
+comparison are uninterpreted: deterministic, and nothing is claimed about them. The
+length law of the sort is proved, which proves that `operands_sorted[-1]` is in range.
+Any other closure shape declines. As for every term recognizer, a contract other than
+`True` declines. Witnesses `7104` (PROVES), `7105` (`ensures False`, must NOT prove),
+`7106` (a closure that does not descend, declined).
+
 ### 7.190 A call BINDS its callee's signature; `super()` resolves through the file MRO; builtin rows carry cross-constraints; builtin decorators are admitted per definition site (routes #448 / #449 / #450 / #455, run #3)
 
 Red team 36 measured four call-binding families PROVED under `#@ no_exception \all` while CPython raises.

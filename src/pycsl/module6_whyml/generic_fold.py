@@ -34524,6 +34524,15 @@ def compute_term_adt_spec(functions: List[Dict[str, Any]],
             spec_fields.append((fn, wt))
         ctors[c] = spec_fields
     spec = {"ctors": ctors, "order": sorted(ctor_names)}
+    _lifted: Dict[int, Any] = {}
+    for _i, f in enumerate(functions[:-1]):
+        _nx = functions[_i + 1]
+        if (isinstance(_nx, dict) and _nx.get("closure_captures")
+                and isinstance(_nx.get("name"), str)
+                and not _nx.get("trusted") and not _nx.get("abstract")):
+            _lifted[id(f)] = _nx
+    spec["lifted_next"] = _lifted       # lv4: see `folded_closures` below
+    spec["folded_closures"] = set()
     # cv3 L-T2: the (`list term`, `term`) -> `term` list builders of this file
     # (`mk_arrow_chain`), so a transform arm may CALL one. Only a function the
     # list-build recognizer accepts is listed: it is emitted as a `let` (a real body,
@@ -34581,6 +34590,20 @@ def compute_term_adt_spec(functions: List[Dict[str, Any]],
             _sfn.append(_nm)
     spec["strmap_fns"] = sorted(_smf)
     spec["str_fns"] = sorted(_sfn)
+    # lv4 (`_ac_normalize` shape): a transform's nested `def` is LIFTED by the front end
+    # to the sibling that directly follows it, with its captured names listed. Pair each
+    # function with that sibling; when the transform recognizer folds the closure into
+    # the transform's own emission (`acguard`), the lifted sibling emits nothing (it is
+    # never called: the fold is self-contained). Keyed on object identity.
+    _lifted = spec["lifted_next"]
+    _fold: set = set()
+    for f in functions:
+        if id(f) not in _lifted:
+            continue
+        _d = recognize_term_isinstance_transform(f, spec, {})
+        if _d is not None and _d.get("folds_closure"):
+            _fold.add(id(_lifted[id(f)]))
+    spec["folded_closures"] = _fold
     return spec
 
 
@@ -34855,9 +34878,12 @@ def recognize_term_isinstance_transform(func: Dict[str, Any],
                                         ) -> Optional[Dict[str, Any]]:
     """Fail-closed recognizer for the Term->Term transform over the `term`
     variant (the `_flip_comparisons` shape). Returns a desc or None."""
-    if not _term_contract_trivial(func):
-        return None
     if not spec:
+        return None
+    if id(func) in (spec.get("folded_closures") or ()):
+        # lv4: a lifted closure folded into its enclosing transform's emission.
+        return {"folded": True}
+    if not _term_contract_trivial(func):
         return None
     try:
         return _recognize_term_isinstance_transform(func, spec, const_dicts or {})
@@ -34908,6 +34934,7 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
     default_id = False
     lcs: List[Any] = []
     bguards: Dict[str, Any] = {}
+    acguards: Dict[str, Any] = {}
     for _si, st in enumerate(body):
         if isinstance(st, dict) and st.get("stmt") == "Raise":
             continue                    # trailing unreachable raise (total match)
@@ -34931,6 +34958,12 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
         # the existing VC-free `val pystr_eq` guard (the condmap precedent), so neither
         # branch is assumed. `self(t.L[i])` is read off the element-wise `n__list` map
         # (see the emitter for why). No new value shape, no axiom.
+        _ag = _parse_ac_guard(st, subj, name, spec, ctor_set, func)
+        if _ag is not None:
+            if _ag["ctor"] in arms or _ag["ctor"] in guards or _ag["ctor"] in acguards:
+                raise _PVWBail()
+            acguards[_ag["ctor"]] = _ag
+            continue
         _bg = _parse_block_guard(st, subj, name, spec, ctor_set, lcs)
         if _bg is not None:
             if _bg["ctor"] in arms or _bg["ctor"] in guards or _bg["ctor"] in bguards:
@@ -34990,8 +35023,19 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
                 raise _PVWBail()
             arms[_gc] = dict(arms[_gc], bguard=_gd)
         uses_list = True
+    if acguards:
+        if guards or bguards or spec.get("size_mode") is False:
+            raise _PVWBail()            # needs the file's size measure; one guard kind
+        for _gc, _gd in acguards.items():
+            if _gc not in arms or arms[_gc].get("kind") not in ("rebuild", "id"):
+                raise _PVWBail()
+            arms[_gc] = dict(arms[_gc], acguard=_gd)
+        uses_streq = True
     _d = {"param": subj, "arms": arms,
           "uses_list": uses_list, "uses_streq": uses_streq}
+    if acguards:
+        _d["size_mode"] = True
+        _d["folds_closure"] = True
     if lcs:
         _d["lcs"] = lcs
     if bguards:
@@ -35713,6 +35757,197 @@ def _emit_term_transform_strmap(func: Dict[str, Any], desc: Dict[str, Any],
         out.append(f"  = match l with Nil -> Nil"
                    f" | Cons h t -> Cons ({n} h v_{mp}) ({n}__list t v_{mp}) end")
     return out
+
+
+def _mlw_str_lit_bs(s: Optional[str]) -> str:
+    """lv4: a WhyML string literal that may contain a backslash (escaped `\\`, the
+    main emitter's `_whyml_string_literal` convention); quotes / control chars bail."""
+    if (not isinstance(s, str) or '"' in s
+            or any(ord(c) < 32 or ord(c) > 126 for c in s)):
+        raise _PVWBail()
+    return '"' + s.replace("\\", "\\\\") + '"'
+
+
+def _parse_ac_guard(st: Dict[str, Any], subj: str, name: str, spec: Dict[str, Any],
+                    ctor_set: set, func: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """lv4 (`_ac_normalize` shape): the AC-flatten-and-sort arm
+
+        if isinstance(t, C) and t.F in ("l1", "l2", ..):
+            A = []
+            def G(node):                          # lifted: the sibling after `func`
+                if isinstance(node, C) and node.F == t.F:
+                    G(node.X); G(node.Y)           # C's term fields, each once
+                else:
+                    A.append(self(node))
+            G(t)
+            S = sorted(A, key=lambda x: x.M())
+            O = S[-1]
+            for o in reversed(S[:-1]):
+                O = C(<t.F | o | O>)               # C rebuilt from t.F, o and O
+            return O
+
+    None when `st` is not this shape (the caller tries the other arm forms); a
+    malformed body bails. The emitter folds G into a local structural `let rec` with
+    the PROVED size precondition that makes `self(node)` terminate (`node` is t or a
+    proper descendant, and at `node = t` the exact string test is true, so `self` is
+    called only on a proper descendant)."""
+    test = st.get("test")
+    if not (isinstance(test, dict) and test.get("type") == "BinOp"
+            and test.get("op") == "and"):
+        return None
+    inst, mem = test.get("left"), test.get("right")
+    cls = _isinstance_target_classes(inst, subj)
+    if not (len(cls) == 1 and cls[0] in ctor_set):
+        return None
+    if not (isinstance(mem, dict) and mem.get("type") == "BinOp" and mem.get("op") == "in"
+            and _is_term_field_read(mem.get("left"), subj)
+            and _is_string_tuple(mem.get("right"))):
+        return None
+    c = cls[0]
+    fields = spec["ctors"][c]
+    ftypes = dict(fields)
+    sfield = _term_field_of(mem["left"])
+    if ftypes.get(sfield) != "string":
+        return None
+    lits = [_is_string(e) for e in mem["right"]["elts"]]
+    for x in lits:
+        _mlw_str_lit_bs(x)
+    ib = st.get("body") or []
+    if st.get("orelse") or len(ib) != 6:
+        raise _PVWBail()
+    s0, s1, s2, s3, s4, s5 = ib
+    # A = []
+    if not (s0.get("stmt") == "Assign" and isinstance(s0.get("target"), str)
+            and isinstance(s0.get("value"), dict) and s0["value"].get("type") == "ArrayLit"
+            and not s0["value"].get("elts")):
+        raise _PVWBail()
+    acc = s0["target"]
+    # G(t)
+    v1 = s1.get("value") if s1.get("stmt") == "Expr" else None
+    lifted = (spec.get("lifted_next") or {}).get(id(func))
+    if not (isinstance(v1, dict) and v1.get("type") == "Call" and lifted is not None
+            and v1.get("func") == lifted.get("name") and not v1.get("keywords")
+            and len(v1.get("args") or []) == 1 and _is_var(v1["args"][0], subj)):
+        raise _PVWBail()
+    gname = lifted["name"]
+    if (set(lifted.get("closure_captures") or []) - {acc, subj}
+            or (lifted.get("contracts") or {}).get("ensures")
+            or (lifted.get("contracts") or {}).get("requires")
+            or not _term_contract_trivial(lifted)
+            or len(lifted.get("formal_params") or []) != 1):
+        raise _PVWBail()
+    gp = lifted["formal_params"][0]
+    if gp in (acc, subj, gname, name):
+        raise _PVWBail()
+    gb = lifted.get("body") or []
+    if not (len(gb) == 1 and gb[0].get("stmt") == "If"):
+        raise _PVWBail()
+    gt = gb[0].get("test")
+    if not (isinstance(gt, dict) and gt.get("type") == "BinOp" and gt.get("op") == "and"
+            and _isinstance_target_classes(gt.get("left"), gp) == [c]):
+        raise _PVWBail()
+    geq = gt.get("right")
+    if not (isinstance(geq, dict) and geq.get("type") == "BinOp" and geq.get("op") == "=="
+            and _is_term_field_read(geq.get("left"), gp)
+            and _term_field_of(geq["left"]) == sfield
+            and _is_term_field_read(geq.get("right"), subj)
+            and _term_field_of(geq["right"]) == sfield):
+        raise _PVWBail()
+    rec_fields: List[str] = []
+    for gs in gb[0].get("body") or []:
+        gv = gs.get("value") if gs.get("stmt") == "Expr" else None
+        if not (isinstance(gv, dict) and gv.get("type") == "Call" and gv.get("func") == gname
+                and not gv.get("keywords") and len(gv.get("args") or []) == 1
+                and _is_term_field_read(gv["args"][0], gp)
+                and ftypes.get(_term_field_of(gv["args"][0])) == "term"):
+            raise _PVWBail()
+        rec_fields.append(_term_field_of(gv["args"][0]))
+    if not rec_fields or len(set(rec_fields)) != len(rec_fields):
+        raise _PVWBail()
+    ge = gb[0].get("orelse") or []
+    gv = ge[0].get("value") if len(ge) == 1 and ge[0].get("stmt") == "Expr" else None
+    if not (isinstance(gv, dict) and gv.get("type") == "Call"
+            and gv.get("func") == f"{acc}.append" and len(gv.get("args") or []) == 1):
+        raise _PVWBail()
+    ga = gv["args"][0]
+    if not (isinstance(ga, dict) and ga.get("type") == "Call" and ga.get("func") == name
+            and not ga.get("keywords") and len(ga.get("args") or []) == 1
+            and _is_var(ga["args"][0], gp)):
+        raise _PVWBail()
+    # S = sorted(A, key=lambda x: x.M())
+    v2 = s2.get("value")
+    if not (s2.get("stmt") == "Assign" and isinstance(s2.get("target"), str)
+            and isinstance(v2, dict) and v2.get("type") == "Call" and v2.get("func") == "sorted"
+            and len(v2.get("args") or []) == 1 and _is_var(v2["args"][0], acc)
+            and len(v2.get("keywords") or []) == 1):
+        raise _PVWBail()
+    srt = s2["target"]
+    kw = v2["keywords"][0]
+    lam = kw.get("value") if isinstance(kw, dict) else None
+    if not (kw.get("arg") == "key" and isinstance(lam, dict) and lam.get("type") == "Lambda"
+            and len(lam.get("params") or []) == 1):
+        raise _PVWBail()
+    lx = lam["params"][0]
+    lb = lam.get("body")
+    if not (isinstance(lb, dict) and lb.get("type") == "Call" and not lb.get("args")
+            and not lb.get("keywords") and isinstance(lb.get("func"), str)
+            and lb["func"].count(".") == 1 and lb["func"].split(".")[0] == lx):
+        raise _PVWBail()
+    meth = lb["func"].split(".")[1]
+    if not meth.isidentifier():
+        raise _PVWBail()
+
+    def _neg1(e: Any) -> bool:
+        return (isinstance(e, dict) and e.get("type") == "UnaryOp" and e.get("op") == "-"
+                and isinstance(e.get("expr"), dict) and e["expr"].get("type") == "Number"
+                and e["expr"].get("value") == 1)
+    # O = S[-1]
+    v3 = s3.get("value")
+    if not (s3.get("stmt") == "Assign" and isinstance(s3.get("target"), str)
+            and isinstance(v3, dict) and v3.get("type") == "Subscript"
+            and _is_var(v3.get("value"), srt) and _neg1(v3.get("index"))):
+        raise _PVWBail()
+    outv = s3["target"]
+    # for o in reversed(S[:-1]): O = C(..)
+    it = s4.get("iter")
+    ov = s4.get("target")
+    if not (s4.get("stmt") == "For" and isinstance(ov, str) and not s4.get("orelse")
+            and not s4.get("invariants") and not s4.get("variants")
+            and isinstance(it, dict) and it.get("type") == "Call" and it.get("func") == "reversed"
+            and len(it.get("args") or []) == 1):
+        raise _PVWBail()
+    sl = it["args"][0]
+    slc = sl.get("slice") if isinstance(sl, dict) else None
+    if not (isinstance(sl, dict) and sl.get("type") == "SliceAccess" and _is_var(sl.get("value"), srt)
+            and isinstance(slc, dict) and slc.get("lower") is None and slc.get("step") is None
+            and _neg1(slc.get("upper"))):
+        raise _PVWBail()
+    fb = s4.get("body") or []
+    fv = fb[0].get("value") if len(fb) == 1 and fb[0].get("stmt") == "Assign" else None
+    if not (fv is not None and fb[0].get("target") == outv and fv.get("type") == "Call"
+            and fv.get("func") == c and not fv.get("keywords")
+            and len(fv.get("args") or []) == len(fields)):
+        raise _PVWBail()
+    build: List[Any] = []
+    for (ffn, fwt), av in zip(fields, fv["args"]):
+        if _is_var(av, ov) and fwt == "term":
+            build.append(("o",))
+        elif _is_var(av, outv) and fwt == "term":
+            build.append(("out",))
+        elif _is_term_field_read(av, subj) and ftypes.get(_term_field_of(av)) == fwt \
+                and fwt == "string":
+            build.append(("field", _term_field_of(av)))
+        else:
+            raise _PVWBail()
+    if [b[0] for b in build].count("o") != 1 or [b[0] for b in build].count("out") != 1:
+        raise _PVWBail()
+    if not (_is_return(s5) and _is_var(s5.get("value"), outv)):
+        raise _PVWBail()
+    names = {acc, srt, outv, ov}
+    if len(names) != 4 or names & {subj, name, gname, lx}:
+        raise _PVWBail()
+    return {"ctor": c, "sfield": sfield, "lits": lits, "rec_fields": rec_fields,
+            "meth": meth, "build": build}
 
 
 def _parse_block_guard(st: Dict[str, Any], subj: str, name: str, spec: Dict[str, Any],
@@ -36813,6 +37048,8 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
     map helper for `list term` children). PROGRAM `let rec` (calls `val pystr_eq`
     for the const-map guard); structural `variant` — termination Why3-intrinsic
     over the certified inductive; NO new axiom (ledger 3)."""
+    if desc.get("folded"):
+        return []                       # lv4: folded into its enclosing transform
     if desc.get("strmap"):
         return _emit_term_transform_strmap(func, desc, spec, whyml_ident)
     if desc.get("namemap"):
@@ -36834,6 +37071,9 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
     if _size:
         if not spec.get("size_mode"):
             raise _PVWBail()
+        # lv4: declare the measure here if this is the file's FIRST size-mode group
+        # (empty otherwise, so every older emission is byte-identical).
+        out[:0] = _emit_term_size_theory(spec)
         for _c, _a in arms.items():
             _bg = _a.get("bguard")
             if _bg:
@@ -36842,6 +37082,10 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
                 _lnames["__fdesc__" + _fn] = dict(_bg["fdesc"], subj_here=subj)
     if _size and any((_a.get("bguard") or {}).get("dedups") for _a in arms.values()):
         out.append(f"  val function {n}__mem (x: term) (l: list term) : bool")
+    if any(_a.get("acguard") for _a in arms.values()):
+        if not _size:
+            raise _PVWBail()
+        out.extend(_emit_ac_helpers(n))
     if any(_a.get("kind") == "block" and _a.get("uses_app") for _a in arms.values()):
         # lv4: the scan loop's list accumulators (`acc.extend` / `acc.append`) as a
         # DEFINED total append (structural), never an abstract operation.
@@ -36865,6 +37109,8 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
             _bg = arm.get("bguard")
             if _bg:
                 used = used | set(_bg["fdesc"]["fields"]) | {_bg["sfield"]}
+            if arm.get("acguard"):
+                used = used | {arm["acguard"]["sfield"]}
         binders = " ".join(f"v_{fn}" if fn in used else "_" for (fn, _wt) in fields)
         pat = c + ((" " + binders) if binders else "")
         if arm.get("kind") == "block":
@@ -36909,6 +37155,10 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
             if _bg:
                 rhs = (f"if term_streq v_{_bg['sfield']} {_mlw_str_lit(_bg['slit'])}"
                        f" then {_emit_block_node(_bg['node'], n, _lnames)} else {rhs}")
+            _ag = arm.get("acguard")
+            if _ag:
+                rhs = (f"if {_emit_ac_cond(_ag)} then {_emit_ac_block(_ag, c, fields, subj, n)}"
+                       f" else {rhs}")
             _pos = [f"term__size_pos v_{fn}" for fn, wt in fields if wt == "term"]
             _pos += [f"term__list_size_nonneg v_{fn}" for fn, wt in fields
                      if wt == "list term"]
@@ -36940,7 +37190,134 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
             out.append("    variant  { l }")
             out.append(f"  = match l with Nil -> Nil"
                        f" | Cons h t -> Cons ({n} h) ({n}__list t) end")
+    for _c in spec["order"]:
+        _ag = arms[_c].get("acguard")
+        if _ag:
+            out.extend(_emit_ac_collect(_ag, _c, ctors[_c], n))
     return out
+
+
+def _ac_thread(ag: Dict[str, Any], n: str, pf: str, names: Dict[str, str],
+               acc0: str) -> str:
+    """lv4: `G(x.X); G(x.Y)` threading the (reversed) accumulator, Python's order; the
+    last result is bound to `(h, r)` (the open `let .. in` is closed by the caller)."""
+    d = f"(let a0 = {acc0} in"
+    for _k, rf in enumerate(ag["rec_fields"]):
+        if _k:
+            d += f" let a{_k} = Cons h{_k} r{_k} in"
+        d += f" let (h{_k + 1}, r{_k + 1}) = {n}__collect {pf} {names[rf]} a{_k} in"
+    _m = len(ag["rec_fields"])
+    return d + f" let h = h{_m} in let r = r{_m} in"
+
+
+def _emit_ac_collect(ag: Dict[str, Any], c: str, fields: List[Any], n: str) -> List[str]:
+    """lv4: the folded closure `G` as a MEMBER of the transform's recursive group (its
+    call `{n} q` is mutual recursion). `variant { term__size q + 1 }` against the group's
+    `term__size v_t`: `{n} t -> G(t.X)` decreases because `term__size t = 1 + ..` with
+    every child of size >= 1, `G(q) -> G(q.X)` decreases structurally, and `G(q) -> {n}
+    q` decreases by the `+ 1`. `pf` is the captured `t.F`. The accumulator is built
+    reversed: see `_emit_ac_block`. The result `(h, r)` IS the list `Cons h r` (every
+    call appends at least once), so its non-emptiness is syntactic, not a postcondition
+    (measured: `ensures { result <> Nil }` over the merged match times out in both
+    provers in the whole-file context)."""
+    sf = ag["sfield"]
+    qb = {fn: f"q_{fn}" for fn, _ in fields}
+    pat = c + " " + " ".join(qb[fn] for fn, _ in fields)
+    pos = "; ".join(f"term__size_pos {qb[fn]}" for fn, wt in fields if wt == "term")
+    leaf = f"(term__size_pos q; let x = {n} q in (x, acc))"
+    d = _ac_thread(ag, n, "pf", qb, "acc") + " (h, r))"
+    return [
+        f"  with {n}__collect (pf: string) (q: term) (acc: list term) : (term, list term)",
+        "    variant  { term__size q + 1 }",
+        f"  = match q with | {pat} -> if pystr_eq {qb[sf]} pf"
+        f" then ({pos}; {d}) else {leaf} | _ -> {leaf} end",
+    ]
+
+
+def _emit_ac_helpers(n: str) -> List[str]:
+    """lv4: the DEFINED list helpers of the AC arm (see `_parse_ac_guard`): length,
+    append, a STABLE insertion sort under the key `x.M()` and the comparison `<` of the
+    keys (both uninterpreted `val function`s: deterministic, nothing claimed about them;
+    the sort itself is defined, so its length law is PROVED, as a ghost function called
+    where it is used -- not a global lemma, which would enter every later goal's context), the last element
+    (partial: `requires l <> Nil`, proved at the call) and all-but-last."""
+    return [
+        f"  let rec function {n}__aclen (l: list term) : int",
+        "    variant  { l }",
+        f"  = match l with Nil -> 0 | Cons _ r -> 1 + {n}__aclen r end",
+        f"  let rec function {n}__acrev (l acc: list term) : list term",
+        "    variant  { l }",
+        f"  = match l with Nil -> acc | Cons h r -> {n}__acrev r (Cons h acc) end",
+        f"  let rec ghost {n}__acrev_ne (l acc: list term) : unit",
+        "    requires { l <> Nil \\/ acc <> Nil }",
+        f"    ensures  {{ {n}__acrev l acc <> Nil }}",
+        "    variant  { l }",
+        f"  = match l with Nil -> () | Cons h r -> {n}__acrev_ne r (Cons h acc) end",
+        f"  let rec ghost {n}__aclen_nonneg (l: list term) : unit",
+        f"    ensures  {{ {n}__aclen l >= 0 }}",
+        "    variant  { l }",
+        f"  = match l with Nil -> () | Cons _ r -> {n}__aclen_nonneg r end",
+        f"  let ghost {n}__aclen_cons (l: list term) : unit",
+        f"    ensures  {{ l <> Nil -> {n}__aclen l >= 1 }}",
+        f"  = match l with Nil -> () | Cons _ r -> {n}__aclen_nonneg r end",
+        f"  val function {n}__ackey (x: term) : string",
+        f"  val function {n}__aclt (a b: string) : bool",
+        f"  let rec function {n}__acins (x: term) (l: list term) : list term",
+        "    variant  { l }",
+        f"  = match l with Nil -> Cons x Nil | Cons y r -> if {n}__aclt ({n}__ackey x)"
+        f" ({n}__ackey y) then Cons x l else Cons y ({n}__acins x r) end",
+        f"  let rec ghost {n}__acins_len (x: term) (l: list term) : unit",
+        f"    ensures  {{ {n}__aclen ({n}__acins x l) = 1 + {n}__aclen l }}",
+        "    variant  { l }",
+        f"  = match l with Nil -> () | Cons _ r -> {n}__acins_len x r end",
+        f"  let rec function {n}__acsort (l acc: list term) : list term",
+        "    variant  { l }",
+        f"  = match l with Nil -> acc | Cons h r -> {n}__acsort r ({n}__acins h acc) end",
+        f"  let rec ghost {n}__acsort_len (l acc: list term) : unit",
+        f"    ensures  {{ {n}__aclen ({n}__acsort l acc) = {n}__aclen l + {n}__aclen acc }}",
+        "    variant  { l }",
+        f"  = match l with Nil -> () | Cons h r -> {n}__acins_len h acc;"
+        f" {n}__acsort_len r ({n}__acins h acc) end",
+        f"  let rec {n}__aclast (l: list term) : term",
+        "    requires { l <> Nil }",
+        "    variant  { l }",
+        f"  = match l with Nil -> absurd | Cons h Nil -> h | Cons _ r -> {n}__aclast r end",
+        f"  let rec function {n}__acinit (l: list term) : list term",
+        "    variant  { l }",
+        f"  = match l with Nil -> Nil | Cons _ Nil -> Nil | Cons h r -> Cons h ({n}__acinit r) end",
+    ]
+
+
+def _emit_ac_cond(ag: Dict[str, Any]) -> str:
+    return " || ".join(f"pystr_eq v_{ag['sfield']} {_mlw_str_lit_bs(x)}" for x in ag["lits"])
+
+
+def _emit_ac_block(ag: Dict[str, Any], c: str, fields: List[Any], subj: str, n: str) -> str:
+    """lv4: the AC arm body. The ROOT call `G(t)` is lowered by evaluating its test:
+    inside C's match arm `isinstance(t, C)` holds and `t.F == t.F` is `str` equality of
+    a value with itself (reflexive), so Python takes the descent branch -- `G(t.X);
+    G(t.Y)` -- which is what is emitted (on the arm's pattern variables; `G` itself is
+    the group member `{n}__collect`, see `_emit_ac_collect`). `A.append(e)` builds the
+    list reversed and `{n}__acrev` restores Python's order (the order matters: the sort
+    is stable)."""
+    root = (_ac_thread(ag, n, f"v_{ag['sfield']}",
+                       {fn: f"v_{fn}" for fn, _ in fields}, "Nil") + " Cons h r)")
+    args = []
+    for b in ag["build"]:
+        if b[0] == "o":
+            args.append("h")
+        elif b[0] == "out":
+            args.append(f"({n}__chain r o2)")
+        else:
+            args.append(f"v_{b[1]}")
+    chain = (f"let rec {n}__chain (xs: list term) (o2: term) : term variant {{ xs }}"
+             f" = match xs with Nil -> o2 | Cons h r -> {c} {' '.join(args)} end in")
+    return (f"(let l_rev = {root} in let l_ops = {n}__acrev l_rev Nil in"
+            f" {n}__acrev_ne l_rev Nil;"
+            f" let l_sorted = {n}__acsort l_ops Nil in {n}__aclen_cons l_ops;"
+            f" {n}__acsort_len l_ops Nil;"
+            f" let l_out = {n}__aclast l_sorted in {chain}"
+            f" {n}__chain ({n}__acinit l_sorted) l_out)")
 
 
 def _emit_builder(b: Any, n: str, mapval: Optional[str] = None) -> str:

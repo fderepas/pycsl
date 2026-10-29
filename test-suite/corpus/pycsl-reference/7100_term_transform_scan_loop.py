@@ -8,6 +8,7 @@ defined total append. Afterwards `if hyps: out = mk_chain(hyps, cur)` re-binds `
 Base: `flat` declines every term recognizer (generic lowering: `bs.extend(...)` REFUSED).
 Control (expected FAIL): 7101 (`ensures False`).
 """
+# pycsl-expected: PASS
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import List
