@@ -3905,6 +3905,7 @@ mangled. A `#@` claim is mangled by the class its anchor sits in (a class invari
 a subclass `D` of `C` is `self._D__x` (not `C`'s field; under `no_exception` route #445 refuses the read,
 and a claim over its value FAILS), `C.__K` outside any class reads `__K` (not `C`'s `_C__K`), and
 `self._C__x` in `D` reads `C`'s field. Witnesses `7200`-`7204`; controls `7205`-`7207`.
+
 ### 7.300 An empty list is EMPTY across a call boundary (route #473, run #3)
 
 `c = []` (also `c: List[int] = []`, `c = list([])`) used to lower to the fixed-size placeholder
@@ -4124,6 +4125,7 @@ does any `ensures` other than `True` or any `raises` / `no_exception` claim.
 Witnesses: `7230` proves. Each of the following must NOT prove: `7231` (`ensures
 False`), `7232` (no `len` precondition), `7233` (a caller forwards an unconstrained
 counter), `7234` (the increment comes before the read, declined).
+
 ### 7.290 A verified module must COMPILE under CPython, decoded as CPython decodes it (route #465, run #3)
 
 The file used to be read only with `ast.parse`, which stops before CPython's future / symbol-table /

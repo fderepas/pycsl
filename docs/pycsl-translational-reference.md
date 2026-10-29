@@ -5649,6 +5649,7 @@ its body under $K$ (unmangled). Every extraction's contract strings are rewritte
 `\b__(\w+)` $\mapsto \mu_C$ with $C$ the class enclosing the statement at its `line_number` (for a
 `ClassDef` extraction, that class). The tables then key on CPython's names: a read of `_D__x` on an
 instance of `D` whose record has `_C__x` is not a field (FAIL, or refused under `no_exception` by #445).
+
 ### §T.6.310  The empty-list placeholder at a function boundary (route #473, run #3)
 
 _Corresponds to `annotations.md` §7.300._
@@ -5886,6 +5887,7 @@ v_t` (lv3). `S` is required to be a member of the file's `strmap_fns`, so `term_
 is already declared. Each recursive call appears in $f$'s own emitted body, so the #274
 check ("a writing call inside a generator vanishes") counts it as applied. No axiom is
 added.
+
 ### §T.6.300  The CPython compile gate (route #465, run #3)
 
 _Corresponds to `annotations.md` §7.290._
