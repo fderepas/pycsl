@@ -5582,6 +5582,29 @@ top-level statement, $n \notin D$ and not a builtin: refused
 (`PYCSL-R459-CONDITIONAL-MODULE-BINDING`). Skipped when the module has a `from m import *`.
 No emission change.
 
+### §T.6.220  The reached claim (route #460, run #3)
+
+_Corresponds to `annotations.md` §7.210._
+
+Let $C(d)$ be the declared claim of a def $d$ (IR `no_exception` $\cup$ `\all` when
+`no_exception_all`) and $R(d)$ := $C(d) \cup \bigcup \{ R(c) \mid c \to d \}$ the least fixpoint over
+route #444's call relation $\to$ ($c$ mentions $d$'s name, $d$'s method name as an attribute, a
+constructor of $d$'s class's MRO, or $d$ is a dunder of a file class; $d$ neither `trusted` nor
+`abstract`). `_run_pipeline` hands Module 6 `reach_r460`[$d$] $= R(d) \setminus C(d)$ (the
+names; `\all` as a flag) for every $d$ with a non-empty difference and no own `\all`. Module 6's
+`_reset_function_state` joins it into the BODY context: `_current_no_exception` /
+`_current_no_exception_all` (every trigger `assert`) and the claim sets of the #64 / #65 / #71
+walks (refusals #64 / #65 / #66 / #71 / #72 / #160 / #161 / #173 / #207 and #178's `_act178`).
+The SPECIFICATION reads $C(d)$: #304's own-raise wrapper, #171's widening, the escaping
+`callee_escaping` set and `_wrap_call_with_callee_raises_assert`'s `\all` arm, the callee claims
+`_module_func_no_exception` a call site reads, and #178's `_decl178`. The #434 fail-closed
+census, #451 and #459 count $R(d)$. #161 rows: `super()` (no arguments, receiver-less) in a
+plain method with a positional first parameter (`meth_r460`, from the source); `super().m()`,
+$m \in$ \{`__str__`, `__repr__`\}, no arguments, in the same-named method of a file class
+whose bases are all `object` / `BaseException` / a modelled builtin exception (not a file class).
+A Module 6 refusal while `reach_r460` is non-empty gains a `NOTE (route #460)` sentence. Emission
+changes only in reached bodies (their trigger asserts).
+
 ### §T.6.200  Call binding, `super()` resolution, builtin cross-constraints, decorator sites (routes #448 / #449 / #450 / #455, run #3)
 
 _Corresponds to `annotations.md` §7.190._

@@ -324,11 +324,17 @@ class Module6_WhyMLTranspiler(
         # EXPLICIT raises: route #171 widens `_current_no_exception` with the implicit
         # exceptions a handler catches, and a callee's declared `raises` of such an
         # exception is modelled faithfully (raised, then caught) rather than asserted away.
+        # (#49) ROUTE #460 -- likewise `\all`: a claim only REACHED from a caller
+        # (`reach_r460`) widens the body's IMPLICIT obligations, never the treatment of a
+        # callee's declared (modelled) raise, which escapes into this function's `raises`.
+        _all460 = self._current_no_exception_all
         for _f171 in (self.ir.get("functions", []) or []):
             if _f171.get("name") == getattr(self, "_current_sig_func_name", None):
                 active &= set(((_f171.get("contracts") or {}).get("no_exception")) or [])
+                _all460 = _all460 and bool((_f171.get("contracts") or {}).get(
+                    "no_exception_all"))
                 break
-        if self._current_no_exception_all:
+        if _all460:
             from exception_model import all_phase1_exceptions
             active.update(all_phase1_exceptions())
         if not active:

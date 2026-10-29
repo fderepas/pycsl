@@ -4,6 +4,16 @@
 ##   confirmed; rt36's 209 ALL closed): #461 a verified file whose IMPORT raises (20: class-creation errors, raising module
 ##   statements; Severity 2, arguable); #462 `__init__` returning a value (1). k002 (property getter KeyError) joins #460.
 
+## run #3 (2026-10-29): #460 REPAIRED (executor c460 off 370db7dc2; census of 31 claim-gated sites
+##   `getting-better/systematic-soundness-r3/c460/claim-gated-census.tsv`: 3 reached at base -> 19 now; corpus 7050-7056
+##   (4 witnesses PROVED at base -> 2 REFUSED / 2 FAIL; 3 controls PROVED both), census +4 rows, docs annotations 7.210 /
+##   translational T.6.220, REPAIR section). ONE reached-claim set (r1's `_rc444` closure): `_run_pipeline` hands Module 6
+##   `reach_r460` (what callers' claims add to a def's own); `_reset_function_state` joins it into the BODY context (every
+##   trigger assert, the #64 / #65 / #71 refusal walks: #66 / #72 / #160 / #161 / #173 / #207 / #178's walk); #434's site
+##   census, #451, #459 count it; the SPEC (raises, #304 / #171 wrappers, call-site claims, #178's `_decl178`) keeps the
+##   declared claim. Two #161 rows (`super()` in a plain method; `super().__str__/__repr__()` of a builtin-exception
+##   subclass). Cost: corpus 0 GONE, 2 MOVED (0382 / 0383: a reached `256 // n` owes `no_div_zero`, M1 PROVED base and
+##   candidate), pyref 0, mirror 0. Residual: the front-end #432-family rows stay own-claim (r1's measured 10-file cost).
 ## run #3 (2026-10-29): #460 OPENED (measured by executor r1, driver-reproduced on 8fe7204c3 and on the post-#444-#459
 ##   candidate): a caller's `no_exception` claim does not reach an UN-claimed callee's Module 6 obligations / #161
 ##   admission (`math.factorial(n)` in an un-claimed g called by a claimed f PROVES; CPython ValueError). Partial reach

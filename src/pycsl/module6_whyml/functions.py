@@ -780,6 +780,12 @@ class FunctionEmissionMixin:
             _r71_c = func.get("contracts", {}) or {}
             _r71_all = bool(_r71_c.get("no_exception_all"))
             _r71_named = set(_r71_c.get("no_exception", []) or [])
+            # (#49) ROUTE #460 -- the body is judged under its REACHED claim too
+            # (`_run_pipeline`'s `reach_r460`: the claims of the defs that may call it)
+            _rh460 = (getattr(self, "reach_r460", None) or {}).get(str(func.get("name", "")))
+            if _rh460 is not None:
+                _r71_all = _r71_all or bool(_rh460[1])
+                _r71_named |= set(_rh460[0])
             if _r71_all or ("KeyError" in _r71_named):
                 _r71_work = list(body_stmts or [])
                 while _r71_work:
@@ -971,6 +977,8 @@ class FunctionEmissionMixin:
         # exception-model fix should cost: nothing.
         _r64_c = func.get("contracts", {}) or {}
         _r64_on = bool(_r64_c.get("no_exception")) or bool(_r64_c.get("no_exception_all"))
+        # (#49) ROUTE #460 -- or a REACHED claim (`reach_r460`)
+        _r64_on = _r64_on or bool((getattr(self, "reach_r460", None) or {}).get(str(func.get("name", ""))))
         _r64_st = func.get("symbol_table")
         if _r64_on and isinstance(_r64_st, dict):
             _r64_work = list(func.get("body", []) or [])
@@ -1017,6 +1025,19 @@ class FunctionEmissionMixin:
         _r65_c = func.get("contracts", {}) or {}
         _r65_all = bool(_r65_c.get("no_exception_all"))
         _r65_named = set(_r65_c.get("no_exception", []) or [])
+        # (#49) ROUTE #460 -- A CALLER'S CLAIM ASSUMES EVERY BODY IT MAY RUN. MEASURED PROVED
+        # at 370db7dc2 (CPython ValueError / AssertionError): `#@ no_exception \all`
+        # `f(n): return g(n)` with an un-claimed `g(n): return math.factorial(n)` (or
+        # `assert n > 0`). The refusals of this walk (#65 / #66 / #72 / #160 / #161 / #207,
+        # #173, #178's) and the trigger obligations (`_current_no_exception` below) read the
+        # REACHED claim: `_run_pipeline`'s `reach_r460[name]` = what the claims of the defs
+        # that may call this one (route #444's closure) add to its own. The specification
+        # (raises, escape wrappers, the claim callers read at a call site) keeps the
+        # declared claim.
+        _rh460 = (getattr(self, "reach_r460", None) or {}).get(str(func.get("name", "")))
+        if _rh460 is not None:
+            _r65_all = _r65_all or bool(_rh460[1])
+            _r65_named |= set(_rh460[0])
         if _r65_all or _r65_named:
             _R65_ORPHANS = {
                 ("call", "divmod"): "ZeroDivisionError",
@@ -1295,6 +1316,46 @@ class FunctionEmissionMixin:
                         # already REFUSED, as was the same class with an UNtrusted raising
                         # `boom` (its body's raise propagates). So the hole was the trusted
                         # METHOD only, admitted by `_tail161 in _tails161`.
+                        # (#49) ROUTE #460 ROW -- `super().__str__()` / `super().__repr__()`
+                        # (no arguments) in a `__str__` / `__repr__` of a file class whose
+                        # bases are all builtin exception classes or `object`: it runs
+                        # `BaseException.__str__` / `object.__repr__` (str / repr of the args,
+                        # i.e. builtin values or file-class dunders, every one of which is
+                        # judged under the claim route #444 reaches it with). Measured: corpus
+                        # control 6982 (`class E(Exception): def __str__(self): return
+                        # super().__str__()`), REACHED from a claiming `f` as a file-class
+                        # dunder, was refused by the #161 default here.
+                        _rv460 = _r65_n.get("receiver")
+                        _me460 = str(func.get("name", ""))
+                        # A bare zero-argument `super()` in a PLAIN method of a file class
+                        # with a positional first parameter (`meth_r460`, from the source;
+                        # CPython raises RuntimeError only without one) builds a proxy and
+                        # runs nothing; the method called on it is judged by the rows above
+                        # (a program method tail) or below. Measured: corpus control 6982's
+                        # `super().__str__()` in a REACHED `Exception` subclass was refused.
+                        _sp460 = (_r65_f == "super" and _rv460 is None
+                                  and not _r65_n.get("args") and not _r65_n.get("keywords"))
+                        if (_sp460 and not _ok161
+                                and _me460 in (getattr(self, "meth_r460", None) or ())):
+                            _ok161 = True
+                        if (not _ok161 and _r65_f in ("__str__", "__repr__")
+                                and (_me460.endswith("____str__")
+                                     or _me460.endswith("____repr__"))
+                                and _me460.rsplit("____", 1)[0] != ""
+                                and not _r65_n.get("args") and not _r65_n.get("keywords")
+                                and isinstance(_rv460, dict) and _rv460.get("type") == "Call"
+                                and _rv460.get("func") == "super"
+                                and not _rv460.get("args") and not _rv460.get("keywords")):
+                            from exception_model import bases_closure as _bc460
+                            _cb460 = dict(getattr(self, "class_bases_r304", None) or {})
+                            _hit460 = [_k for _k in _cb460
+                                       if str(_k).lower() == _me460.rsplit("____", 1)[0]]
+                            if (len(_hit460) == 1 and _cb460[_hit460[0]]
+                                    and all(str(_b) not in _cb460 and (
+                                        str(_b) in ("object", "BaseException")
+                                        or bool(_bc460(str(_b))))
+                                            for _b in _cb460[_hit460[0]])):
+                                _ok161 = True
                         if _ok161 and _is_method161:
                             _bodyless207 = set()
                             for _f207 in (self.ir.get("functions", []) or []):
@@ -2126,6 +2187,12 @@ class FunctionEmissionMixin:
         contracts = func.get("contracts", {})
         self._current_no_exception: Set[str] = set(contracts.get("no_exception", []) or [])
         self._current_no_exception_all: bool = bool(contracts.get("no_exception_all", False))
+        # (#49) ROUTE #460 -- the trigger obligations of a body are owed under its REACHED
+        # claim too (`reach_r460`, see the #65 walk above)
+        _rh460 = (getattr(self, "reach_r460", None) or {}).get(str(func.get("name", "")))
+        if _rh460 is not None:
+            self._current_no_exception |= set(_rh460[0])
+            self._current_no_exception_all = self._current_no_exception_all or bool(_rh460[1])
         # (#49) ROUTE #332 — under `\all` (or a named set holding AssertionError or a base)
         # a Python `assert` is a REAL obligation (statements.py lowers its test), so the
         # three loop-target analyses below must count a read inside it as a read.
@@ -10097,7 +10164,10 @@ class FunctionEmissionMixin:
         # we would emit a spurious `raises {E}` on a function PyCSL is
         # otherwise free to emit as a pure `let function` (TR-BUG-2 / 0383).
         callee_escaping = self._callee_raised_in(body_stmts)
-        if self._current_no_exception_all:
+        # (#49) ROUTE #460 -- the DECLARED `\all`: a REACHED-only claim leaves a callee's
+        # declared raise escaping (judged at this function's call sites, as before)
+        if self._current_no_exception_all and bool(
+                (func.get("contracts", {}) or {}).get("no_exception_all")):
             from exception_model import all_phase1_exceptions
             callee_escaping -= set(all_phase1_exceptions())
         # (#49) ROUTE #171 — the DECLARED set, not the handler-widened one.

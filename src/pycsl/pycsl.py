@@ -2900,6 +2900,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # (#49) ROUTE #430 — the functions holding an underivable hashed site, filled by the
     # #349-#383 hashing pass and read by route #178's callee summary in Module 6.
     _und430 = set()
+    # (#49) ROUTE #460 — the REACHED claim of each un-claimed (or narrower-claimed) function,
+    # by IR name: (exception names, `\all`) the callers' claims add to its own. Filled from
+    # route #444's call-graph closure (`_rc444`) below; written into the IR Module 6 consumes.
+    _rx460 = {}
+    _ms460 = set()
 
     # Non-vacuity gate exempt-set — stashed on `args` (the object shared with
     # `_run_proofs`, where the gate runs but `ir_data` is out of scope). A declared
@@ -7369,6 +7374,38 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if not _cx444 <= _o444:
                     _o444 |= _cx444
                     _wq444.append(_d444)
+        # (#49) ROUTE #460 (red team 36, driver-reproduced: `#@ no_exception \all` `f(n):
+        # return g(n)` with an un-claimed `g(n): return math.factorial(n)` PROVED, CPython
+        # ValueError for f(-1); and `assert n > 0` in the un-claimed `g`, AssertionError for
+        # f(0)). A caller's claim is an assumption about every body it may run, but Module 6
+        # judged each body under that body's OWN claim only, so a callee's obligations and
+        # refusals (#65 / #66 / #72 / #160 / #161 / #173 / #207, the trigger asserts, #178's
+        # summary) were owed nowhere. RULE: the EFFECTIVE claim of a def is its own JOINED
+        # with the claims of every def that may call it -- route #444's closure `_rc444`
+        # (by name, method tail, property load, constructor, file-class dunder; `\trusted` /
+        # `\abstract` defs not entered) -- handed to Module 6 (`transpiler.reach_r460`,
+        # below), whose BODY checks and trigger obligations read it.
+        for _f460, _e460 in _fn346:
+            _rs460 = _rc444.get(id(_f460))
+            if not _rs460 or id(_f460) in _tr444:
+                continue
+            _n460 = (_e460.lower() + "__" + _f460.name) if _e460 else _f460.name
+            _c460 = (_ct430.get(_n460) or {}).get("contracts") or {}
+            if _n460 not in _ct430 or _c460.get("no_exception_all"):
+                continue
+            _al460 = "\\all" in _rs460
+            _nm460 = {_w for _w in _rs460 if _w.isidentifier()} - set(
+                _c460.get("no_exception") or [])
+            if _al460 or _nm460:
+                _o460 = _rx460.setdefault(_n460, [set(), False])
+                _o460[0] |= _nm460
+                _o460[1] = _o460[1] or _al460
+                # a plain (not static / class / property ...) method of a file class with a
+                # positional first parameter: a zero-argument `super()` in it cannot raise
+                # (the #161 row in Module 6 reads `meth_r460`)
+                if (_e460 is not None and _dk449.get(id(_f460)) == "plain"
+                        and (_f460.args.posonlyargs or _f460.args.args)):
+                    _ms460.add(_n460)
         # `_im444[name]`: the import targets binding `name` anywhere in the file ("m" / full
         # module path, or "f" / module + attribute); `_mg444`: the names the MODULE scope
         # binds (def / class / import / assignment / loop / `with` / `except` / match targets
@@ -14429,6 +14466,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     stage="ir-semantic", code="PYCSL-R327-IDENT-COLLISION")
             _seen327[_w327] = _nm327
 
+    from errors import PyCSLError as _PyCSLErr460
+
     # [Module 6] WhyML Transpilation
     # C2c: lazy import — the core backend is only loaded when we actually transpile,
     # keeping the front-end import path free of the core.
@@ -15375,7 +15414,32 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     transpiler.r417_obls = []
     # (#434 / #435 / #436) the list the emitter records every CHECKED site in (checked below)
     transpiler.r434_ok = []
-    _mlw = transpiler.transpile()
+    # (#49) ROUTE #460 -- the REACHED claim of each def (`_rx460`: what its callers' claims
+    # add to its own), read by Module 6's `_reset_function_state` for the def's BODY checks
+    # only: the trigger obligations (`_current_no_exception`) and the claim-gated refusals
+    # (#64 / #65 / #66 / #71 / #72 / #160 / #161 / #173 / #207, #178's walk). The def's
+    # SPECIFICATION keeps its declared claim (its `raises`, the #304 / #171 escape wrappers,
+    # the claim its callers read at a call site, #178's callee summary), so an explicit
+    # raise stays modelled and judged at the call site, as before.
+    transpiler.reach_r460 = {_k: (sorted(_v[0]), bool(_v[1])) for _k, _v in _rx460.items()}
+    transpiler.meth_r460 = set(_ms460)
+    # (#49) ROUTE #460 -- a refusal Module 6 raises inside a REACHED def says "this function
+    # claims `#@ no_exception`" of a def that claims nothing itself: name the reached defs.
+    try:
+        _mlw = transpiler.transpile()
+    except _PyCSLErr460 as _e460:
+        if _rx460 and _e460.args and isinstance(_e460.args[0], str):
+            _e460.args = (_e460.args[0] + (
+                " NOTE (route #460): in this file " + ", ".join(
+                    "`" + _k + "`" for _k in sorted(_rx460)) + " claim(s) no such "
+                "`#@ no_exception` themselves but may be called by a function that does, "
+                "so each is judged under that REACHED claim (the caller's claim assumes "
+                "every body it may run). When the site above is in one of them, the repair "
+                "above applies THERE (an obligation it owes is discharged by ITS OWN "
+                "`#@ requires`), or drop the exception from the claim of the function "
+                "calling it."),
+            ) + tuple(_e460.args[1:])
+        raise
     # (#49) ROUTE #417 -- every OverflowError obligation the emitter attached to a
     # `list(range(..))` / `sorted(range(..))` / `float(int)` argument carries a tag stable
     # per call node; a later int coercion that drops the argument term drops the obligation
@@ -15432,7 +15496,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     _sc434 = {}
     for _f434 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
         if (not isinstance(_f434, dict) or _f434.get("trusted") or _f434.get("abstract")
-                or not (_f434.get("contracts") or {}).get("no_exception_all")):
+                or not ((_f434.get("contracts") or {}).get("no_exception_all")
+                        # (#49) ROUTE #460 -- or a REACHED `\all` (`_rx460`)
+                        or (_rx460.get(str(_f434.get("name", ""))) or [None, False])[1])):
             continue
         _wk434 = [_f434.get("body")]
         while _wk434:
@@ -15658,7 +15724,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     for _f459 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
         if not isinstance(_f459, dict) or _f459.get("trusted") or _f459.get("abstract"):
             continue
-        _cc459 = _f459.get("contracts") or {}
+        _cc459 = dict(_f459.get("contracts") or {})
+        # (#49) ROUTE #460 -- the REACHED claim counts (`_rx460`)
+        if str(_f459.get("name", "")) in _rx460:
+            _cc459["no_exception_all"] = (bool(_cc459.get("no_exception_all"))
+                                       or _rx460[str(_f459.get("name", ""))][1])
+            _cc459["no_exception"] = sorted(set(_cc459.get("no_exception") or [])
+                                         | _rx460[str(_f459.get("name", ""))][0])
         if _cc459.get("no_exception_all") or set(_cc459.get("no_exception") or []) & {
                 "NameError", "Exception", "BaseException"}:
             _cl459.add(str(_f459.get("name", "")).rsplit("__", 1)[-1])
@@ -18516,7 +18588,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     for _f451 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
         if not isinstance(_f451, dict) or _f451.get("trusted") or _f451.get("abstract"):
             continue
-        _cc451 = _f451.get("contracts") or {}
+        _cc451 = dict(_f451.get("contracts") or {})
+        # (#49) ROUTE #460 -- the REACHED claim counts (`_rx460`)
+        if str(_f451.get("name", "")) in _rx460:
+            _cc451["no_exception_all"] = (bool(_cc451.get("no_exception_all"))
+                                       or _rx460[str(_f451.get("name", ""))][1])
+            _cc451["no_exception"] = sorted(set(_cc451.get("no_exception") or [])
+                                         | _rx460[str(_f451.get("name", ""))][0])
         if _cc451.get("no_exception_all") or set(_cc451.get("no_exception") or []) & {
                 "AttributeError", "TypeError", "Exception", "BaseException"}:
             _cl451.add(str(_f451.get("name", "")).rsplit("__", 1)[-1])

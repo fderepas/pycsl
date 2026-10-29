@@ -3835,6 +3835,31 @@ module binds somewhere but not definitely (not local, not a builtin, not in an a
 REFUSED (`PYCSL-R459-CONDITIONAL-MODULE-BINDING`). A `from m import *` stops the judgement.
 Witnesses `7036`-`7044`; controls `7045`, `7046`.
 
+### 7.210 A caller's claim is owed in every body it may run (route #460, run #3)
+
+A `#@ no_exception` claim is an assumption about every body the claiming function may run, but
+each body's claim-gated checks and trigger obligations read that body's OWN claim only, so an
+un-claimed callee's exceptions were owed nowhere: `#@ no_exception \all` `f(n): return g(n)`
+with an un-claimed `g(n): return math.factorial(n)` PROVED (CPython ValueError for `f(-1)`),
+and so did an un-claimed `g` holding `assert n > 0` (AssertionError for `f(0)`). RULE (the
+REACHED claim): the effective claim of a def is its own joined with the claims of every def
+that may call it, through the file's call graph -- route #444's closure (by name, method tail,
+property load, constructor, file-class dunder; `\trusted` / `\abstract` defs are not entered,
+their contracts speak at the call site). A reached def's BODY is judged under it: its trigger
+assertions are emitted in its body and discharged by ITS OWN `requires` (so a reached `g`
+dividing by `n` now owes `n <> 0` in `g`), and the claim-gated refusals (#64 / #65 / #66 / #71
+/ #72 / #160 / #161 / #173 / #178's walk / #207, the #434 site census, #451, #459) fire there.
+Its SPECIFICATION keeps its declared claim: an explicit (modelled) raise and a callee's declared
+`raises` still escape into its `raises` clause and are judged at its call sites, so a caller
+that guards a declared raise still proves. A refusal raised inside a reached def carries a
+`NOTE (route #460)` naming the reached defs. ROWS (the over-refusals the reach exposed, each
+narrower than the default): a zero-argument `super()` in a plain method of a file class with a
+positional first parameter, and `super().__str__()` / `super().__repr__()` in a `__str__` /
+`__repr__` of a class whose bases are builtin exception classes or `object`, are admitted by
+#161. Not reached (own claim only): the front-end #432 / #437 / #440 / #443 / #447 / #452 rows
+(r1 measured the whole-claim reach refusing 10 accepted corpus files), #347, #357, #395 / #402,
+#439 (another file's defs). Witnesses `7050`-`7053`; controls `7054`-`7056`.
+
 ### 7.190 A call BINDS its callee's signature; `super()` resolves through the file MRO; builtin rows carry cross-constraints; builtin decorators are admitted per definition site (routes #448 / #449 / #450 / #455, run #3)
 
 Red team 36 measured four call-binding families PROVED under `#@ no_exception \all` while CPython raises.
