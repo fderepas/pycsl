@@ -736,6 +736,16 @@ AUDITED = {
         "Route #433. 'Join elements DERIVED str / bytes (... a display `[a, b]` of such parameters), or drop the claim': witness 6530's join rewritten over a display of two `str` parameters (a433_typed_source) VERIFIES under `no_exception \\all`; with the claim dropped (a433_drop_claim, = control 6535) it VERIFIES. (A `List[str]` PARAMETER joined by `str.join` does not type-check at base or candidate -- Why3 `array string` vs `array int` -- so the advice names a display.)"),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` compares values that may be {_bd432}: `{_kn4'): (FOLLOWABLE,
         "Route #437. 'Sort values declared with such a type (e.g. `List[int]`), or drop the claim': witness 6537 with `xs: List[int]` (a437_typed_source) VERIFIES under `no_exception \\all`; with the claim dropped (a437_drop_claim) it VERIFIES. (`key=len` / a builtin key is refused by the pre-existing unmodelled-keyword rule, so the advice does not name a key.)"),
+    # (#49) driver run #3 -- routes #448 / #449 / #450 / #455 (r2), audited the day they landed.
+    # Probes in getting-better/systematic-soundness-r3/r2-r448-455/advice/.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n449, \'lineno\', 0)}: the builtin call `{_ast341.unparse(_n449)}` does not match `{_bn448}`\'s'): (FOLLOWABLE,
+        "Route #448. 'Drop `default=` when passing several positionals (`max(a, b)`), and call the builtin with the arguments it takes': witness 6950 as `max(a, b)` (a448_drop_default) VERIFIES under `no_exception \\all`; witness 6952's helper calling `len(n)` on a list (a448_unclaimed_len) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n449, \'lineno\', 0)}: the call `{_ast341.unparse(_n449)}` {_bd449b} for `{_ow449}` (the `def '): (FOLLOWABLE,
+        "Route #449. 'Call the function with exactly its parameters, by position or by their names': witness 6953 as `parse(path, mode)` (a449_exact_params) VERIFIES under `no_exception \\all`; witness 6954 as `total(items, initial=1)` (a449_by_name) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_nn450, \'lineno\', 0)}: `{_ast341.unparse(_nn450)}` is not admitted: {_tx450}. CPython " + (\'r'): (FOLLOWABLE,
+        "Route #450. 'Call a method the base class defines with its parameters, or read the field through `self`': witness 6963 as `super().h()` (a450_base_method) VERIFIES under the caller's `no_exception \\all`; witness 6964 as `self.v` (a450_field_through_self) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_dd455, \'lineno\', 0)}: {_tx455}, while the model lowers the name as the decorated `def` itself and verifies '): (FOLLOWABLE,
+        "Route #455. 'Drop the decorator, move the def into its class, or add the implementation': witness 6966 without `@property` (a455_drop_decorator) VERIFIES under `no_exception \\all`; witness 6968 with an undecorated implementation after the stub (a455_add_implementation) VERIFIES; a property on a class-body method is control 6984 (PROVED)."),
     # (#49) driver run #3 -- routes #440 / #441 (h440), audited the day they landed. Probes in
     # getting-better/systematic-soundness-r3/h440-r440-441/advice/.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n440, \'lineno\', 0)}: the method call `{_ast341.unparse(_n440)}` is not admitted: {_tx440}. "'): (FOLLOWABLE,
@@ -1064,6 +1074,11 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: the attribute `{_ast341.unparse(_a432)}` is read on `{_ast341.unparse(_'): '948c2aa9d312',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` joins elements that may be {_bd432}, not a'): '60bebc3b18fa',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` compares values that may be {_bd432}: `{_kn4'): '395daa559d4d',
+    # (#49) driver run #3 -- routes #448 / #449 / #450 / #455 (r2)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n449, \'lineno\', 0)}: the builtin call `{_ast341.unparse(_n449)}` does not match `{_bn448}`\'s'): '5dab34943b93',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n449, \'lineno\', 0)}: the call `{_ast341.unparse(_n449)}` {_bd449b} for `{_ow449}` (the `def '): '34a1352004cd',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_nn450, \'lineno\', 0)}: `{_ast341.unparse(_nn450)}` is not admitted: {_tx450}. CPython " + (\'r'): '7d0529ed7c76',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"line {getattr(_dd455, \'lineno\', 0)}: {_tx455}, while the model lowers the name as the decorated `def` itself and verifies '): '9b4f17729123',
     # (#49) driver run #3 -- routes #440 / #441 (h440)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n440, \'lineno\', 0)}: the method call `{_ast341.unparse(_n440)}` is not admitted: {_tx440}. "'): 'c87556676c90',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n440, \'lineno\', 0)}: the call `{_ast341.unparse(_n440)}` does not match the signature row of'): '9df58646bf78',

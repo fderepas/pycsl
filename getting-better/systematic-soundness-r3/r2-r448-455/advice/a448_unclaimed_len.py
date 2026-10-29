@@ -1,4 +1,4 @@
-# advice probe (route #448): witness 6952 calling `len` with the argument it takes -- must VERIFY
+# advice probe (route #448): witness 6952 calling the builtin with the arguments it takes -- must VERIFY
 from typing import List
 
 

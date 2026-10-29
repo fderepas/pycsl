@@ -3833,6 +3833,51 @@ class or import; through an `if` when every arm binds it (a constant test select
 module binds somewhere but not definitely (not local, not a builtin, not in an annotation) is
 REFUSED (`PYCSL-R459-CONDITIONAL-MODULE-BINDING`). A `from m import *` stops the judgement.
 Witnesses `7036`-`7044`; controls `7045`, `7046`.
+### 7.190 A call BINDS its callee's signature; `super()` resolves through the file MRO; builtin rows carry cross-constraints; builtin decorators are admitted per definition site (routes #448 / #449 / #450 / #455, run #3)
+
+Red team 36 measured four call-binding families PROVED under `#@ no_exception \all` while CPython raises.
+(#449) A call of a FILE function bound its arguments by position / name and silently DROPPED the rest:
+`parse(path, mode, True)` over `def parse(path, mode)` lowered `parse path mode`, `total(items, start=1)`
+over `def total(items, initial=0)` dropped `start` and used the default, `g(1, 2, b=3)`, a nested def,
+a later-defined module function, `C.s(n, n)` of a `@staticmethod`, `self.m(n, n)`. (#450) `super().m(..)`
+lowered as an opaque value whether or not a base binds `m`, with any arity, and `super().v` read an
+instance field (not visible through `super`). (#448) #441's `max` / `min` row checked each keyword alone,
+so `max(a, b, default=0)` passed (CPython ties `default=` to ONE positional). (#455) `@property` /
+`@typing.overload` on a module-level or nested `def` were ignored (CPython binds a property object, not
+callable, or the overload dummy, NotImplementedError). RULES (allow-list, refuse by default), in EVERY
+function that is neither `\trusted` nor `\abstract` -- a claim of the CALLER covers what an unclaimed
+callee raises (measured: the mismatch in an unclaimed `h`, `f` claiming `no_exception \all` and calling
+`h`, PROVED), so these checks are NOT keyed on the function's own claim:
+(#449) a call whose callee resolves statically -- a module-level `def` bound once (no other module
+binding, no `global`), a `def` of the function's own scope bound once, `C.m(..)` of a file class,
+`self.m(..)` (every file class whose MRO holds the enclosing class: dynamic dispatch), `p.m(..)` of a
+parameter annotated with file classes (and their file subclasses) -- reaching a plain / `staticmethod` /
+`classmethod` `def` (the argument-forwarding `lru_cache` / `cache` / `contextmanager` kept) must bind
+by CPython's algorithm: no surplus positional unless `*args`, every keyword a parameter not already
+bound (a positional-only one only into `**kwargs`) or absorbed by `**kwargs`, every parameter without a
+default bound (`PYCSL-R449-CALL-SIGNATURE`). A `*` / `**` argument stays route #379's; a callee that does
+not resolve is #440 / #441 / #161's. (#450) `super()` is admitted only as the receiver of an attribute,
+in a method of a file class (zero-argument: not a staticmethod, not inside a lambda) or as `super(X,
+self)`; for every file class S whose MRO holds X, the first class after X in S's MRO whose CLASS
+NAMESPACE binds the name (a file class body; a builtin / stdlib base by its real `__mro__`, `object`
+last) must exist and a call must bind against it (a file `def` as in #449, a real base method by its
+published `inspect.signature`); an unknown MRO or base, a store / `del` through `super()`, or a bare
+`super()` value is refused (`PYCSL-R450-SUPER-UNRESOLVED`); `super().__init__(..)` stays route #380's.
+(#448) a builtin row carries CROSS-CONSTRAINTS `_XC448` -- keyword k accepted only with lo..hi
+positionals: `max` / `min` `default` (1), `sum` / `enumerate` `start` (1), `round` `ndigits` (1), `int`
+`base` (1), `replace` `count` (2), `split` `sep` (0) / `maxsplit` (0..1); `pow` with a modulus needs
+three `int`s -- checked by #441's table under a claim (`PYCSL-R441-BUILTIN-SIGNATURE`) and in every
+function together with the builtin's real `inspect.signature` where CPython publishes one (`len(n, n)`
+in an unclaimed callee; `PYCSL-R448-BUILTIN-CROSS-CONSTRAINT`). (#455) `property` / accessors /
+`cached_property` / `classmethod` only on a `def` of a class body; the last `def` of a name in its scope
+never `@overload`-decorated; no builtin decorator on a `class` statement (`PYCSL-R455-DECORATOR-SITE`,
+whatever the claims). Witnesses `6950`-`6969`; controls `6980`-`6984`. Measured cost: 0 corpus /
+`python-reference` / mirror / `pycsl_lib` files refused that emitted at base (the 2569-file corpus
+emission and the 53 mirrors byte-identical). Residual (not judged): calls of a closure's enclosing-scope
+def, of a local bound otherwise than by one `def`, through a receiver whose class is not a parameter
+annotation or `self`, or with a `*` / `**` argument; a builtin without a published signature (`int`,
+`range`, `max` ...) other than through the cross-constraints and #441's rows; what a builtin / stdlib
+base method itself raises when reached through `super()`.
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 

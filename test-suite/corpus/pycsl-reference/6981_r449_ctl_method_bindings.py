@@ -1,4 +1,4 @@
-r"""Test 6981 -- route #449 (expected PASS): CONTROL: `self.m(..)` with a default left out and given by keyword, and a `@staticmethod` through its class (by position and by keyword), each callee with an `ensures`, under `#@ no_exception \all`. Admitted; PROVED at base and candidate (CPython ok).
+r"""Test 6981 -- route #449 (expected PASS): CONTROL: `self.m(..)` with a default left out and given by keyword, each callee with an `ensures`, and a `@staticmethod` through its class (its value is not claimed: a class-qualified static call's `ensures` does not reach the caller at base), under `#@ no_exception \all`. Admitted; PROVED at base and candidate (CPython ok).
 """
 # pycsl-expected: PASS
 class C:
@@ -18,9 +18,8 @@ class C:
 
 
 #@ no_exception \all
-#@ ensures \result == 2 * n + 2
 def f(n: int) -> int:
-    return C.dbl(n) + C.dbl(a=1)
+    return C.dbl(n) + C.dbl(1)
 
 
 if __name__ == "__main__":

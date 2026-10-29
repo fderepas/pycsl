@@ -5580,6 +5580,41 @@ def / class names, imports, handler names, minus `global` / `nonlocal`), $n$ bou
 top-level statement, $n \notin D$ and not a builtin: refused
 (`PYCSL-R459-CONDITIONAL-MODULE-BINDING`). Skipped when the module has a `from m import *`.
 No emission change.
+### §T.6.200  Call binding, `super()` resolution, builtin cross-constraints, decorator sites (routes #448 / #449 / #450 / #455, run #3)
+
+_Corresponds to `annotations.md` §7.190._
+
+In `_run_pipeline`, for every function $f$ whose IR record is neither trusted nor abstract and whose own
+`#@` block holds no `\trusted` / `\abstract` (claims are not consulted): let $O(f)$ be the nodes of $f$'s
+own scope (its body; of a nested def / class only the decorators, defaults, bases and class keywords;
+lambda bodies entered). For a `Call` $c \in O(f)$ with no `*` / `**` argument, the target set $D(c)$ is:
+$g(..)$ $\mapsto$ $\{(d, 0)\}$ for $d$ the unique def of $f$'s own scope named $g$, else (if $g \notin$
+`_lb383` $\cup$ `_ln394`) the module-level def bound once (`_md369`$[g] = [$def$]$, $g \notin$ globals /
+imports / classes); $C.m(..)$ ($C$ an unshadowed file class) $\mapsto$ $(d, \delta)$ for $d$ the last
+class-body def of $m$ along $C$'s MRO; $self.m(..)$ $\mapsto$ the same over every file class $S$ with
+the enclosing class in MRO$(S)$; $p.m(..)$ ($p$ a parameter annotated with file classes / None)
+$\mapsto$ the same over their file subclasses. $\delta$ = 0 for a staticmethod (or `__new__`), 1 for a
+classmethod, 1 for a plain def reached through an instance, else 0; a def of another decorator kind, a
+non-def binding, a non-file base or an unknown MRO empties $D(c)$ (not judged). For $(d, \delta) \in
+D(c)$ with formals $P$ = posonly $\cdot$ args, defaults on the last $|defaults|$: refused
+(`PYCSL-R449-CALL-SIGNATURE`) iff $|args(c)| > |P| - \delta$ without vararg, or a keyword names a
+positional-only formal (no kwarg), a formal already bound (the first $\delta$ included), or no formal
+(no kwarg), or a formal without default (positional after $\delta$, or keyword-only) stays unbound.
+`super()`: for $a = $ `super(..).`$n$ ($n \ne$ `__init__`) the class $X$ is the enclosing class (zero
+arguments, $f$ not a staticmethod, not in a lambda, $f$ with a positional formal) or $X$ of `super(X,
+self)`; for each file class $S \ni X$ in its MRO, $T$ = the first class of MRO$(S)$ after $X$ with $n \in$
+`_cb383`$[T]$ (file) or, for a non-file base resolved through `builtins` / a stdlib `from M import B`, the
+first class of $B$.`__mro__` with $n \in$ `vars` (`object` deferred to the end); no $T$, an unresolved
+base, a store, or a call that does not bind ($T$'s def as above; a real method by
+`inspect.signature(..).bind`, the instance slot prepended for a plain method) is refused
+(`PYCSL-R450-SUPER-UNRESOLVED`), as is a `super(..)` that is not an attribute receiver. Builtins: for an
+unshadowed builtin call $b(..)$, refused (`PYCSL-R448-BUILTIN-CROSS-CONSTRAINT`) iff a keyword $k$ with
+`_XC448`$[b][k] = (lo, hi)$ has $|args| \notin [lo, hi]$, or `inspect.signature(builtins.b)` exists and does
+not bind; in §T.6.152's table the same `_XC448` rows (and `pow` with three positionals: every code `I`)
+yield TE. Decorator sites (once per file, every scope through its compound statements): a def of kind
+prop / class (`_dk449`) outside a class body, an `@overload` def with no later def / class of its name in
+its scope, a `class` decorated by a builtin decorator are refused (`PYCSL-R455-DECORATOR-SITE`). No
+emission changes.
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 

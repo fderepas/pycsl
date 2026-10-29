@@ -17,7 +17,7 @@ def ident(a: int, /) -> int:
 
 
 #@ no_exception \all
-#@ ensures \result == 3 * n + 3
+#@ ensures \result == 4 * n + 4
 def f(n: int) -> int:
     return add(n) + add(n, b=2) + add(a=n) + sub(n) + sub(n, k=0) - ident(n)
 

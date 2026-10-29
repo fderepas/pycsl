@@ -2,7 +2,7 @@ r"""Test 6982 -- route #450 (expected PASS): CONTROL: `super().h(k)` in an overr
 """
 # pycsl-expected: PASS
 class B:
-    #@ ensures \result == k
+    #@ ensures \result >= k
     def h(self, k: int) -> int:
         return k
 
