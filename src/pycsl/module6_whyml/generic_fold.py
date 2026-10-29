@@ -34884,7 +34884,12 @@ def recognize_term_isinstance_transform(func: Dict[str, Any],
         # lv4: a lifted closure folded into its enclosing transform's emission.
         return {"folded": True}
     if not _term_contract_trivial(func):
-        return None
+        # lv5: the counter transform admits ONE non-trivial requires, which it CARRIES
+        # (`_term_contract_counter`); every other contract still declines.
+        try:
+            return _recognize_term_transform_counter(func, spec)
+        except _PVWBail:
+            return None
     try:
         return _recognize_term_isinstance_transform(func, spec, const_dicts or {})
     except _PVWBail:
@@ -34913,7 +34918,11 @@ def _recognize_term_isinstance_transform(func: Dict[str, Any],
     if len(params) == 2:
         # lv2 (`substitute` shape): a transform threading a read-only `Dict[str, str]`
         # second parameter. Separate fail-closed path (see its docstring).
-        return _recognize_term_transform_strmap(func, spec)
+        _d2 = _recognize_term_transform_strmap(func, spec)
+        if _d2 is not None:
+            return _d2
+        # lv5 (`_alpha_rename` shape): a transform threading a one-cell counter.
+        return _recognize_term_transform_counter(func, spec)
     if len(params) != 1:
         return None
     subj = params[0]
@@ -35757,6 +35766,475 @@ def _emit_term_transform_strmap(func: Dict[str, Any], desc: Dict[str, Any],
         out.append(f"  = match l with Nil -> Nil"
                    f" | Cons h t -> Cons ({n} h v_{mp}) ({n}__list t v_{mp}) end")
     return out
+
+
+def _term_contract_counter(func: Dict[str, Any], cp: str) -> Optional[List[str]]:
+    """lv5 SOUNDNESS GATE of the counter transform (the `_term_contract_trivial` stance,
+    widened by exactly one clause that is CARRIED, never dropped). The group is emitted
+    with a fixed `ensures { true }`, so every `ensures` must be the literal `True` and no
+    `raises` / `no_exception` claim may be made. A `requires` is either the literal
+    `True` or exactly `len(<cp>) >= 1` -- the bound that makes the body's `cp[0]` reads
+    and store defined -- and is EMITTED as `requires { Array.length <cp> >= 1 }` (checked at
+    every call site). Returns the admitted requires (`"len1"` = the bound), or None
+    (fail closed)."""
+    c = func.get("contracts", {}) or {}
+
+    def _true(e: Any) -> bool:
+        return (isinstance(e, dict) and e.get("type") in ("Bool", "Constant", "NameConstant")
+                and e.get("value") is True)
+    if not all(_true(e) for e in (c.get("ensures", []) or [])):
+        return None
+    if c.get("raises") or c.get("no_exception") or c.get("no_exception_all"):
+        return None
+    out: List[str] = []
+    for e in (c.get("requires", []) or []):
+        if _true(e):
+            continue
+        if (isinstance(e, dict) and e.get("type") == "BinOp" and e.get("op") == ">="
+                and isinstance(e.get("left"), dict) and e["left"].get("type") == "Call"
+                and e["left"].get("func") == "len" and not e["left"].get("keywords")
+                and len(e["left"].get("args") or []) == 1
+                and _is_var(e["left"]["args"][0], cp)
+                and isinstance(e.get("right"), dict) and e["right"].get("type") == "Number"
+                and e["right"].get("value") == 1 and not isinstance(e["right"].get("value"), bool)):
+            if "len1" not in out:
+                out.append("len1")          # rendered by the emitter on the cell's name
+            continue
+        return None
+    return out
+
+
+def _recognize_term_transform_counter(func: Dict[str, Any],
+                                      spec: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """lv5 (`canonical._alpha_rename` shape): a Term->Term transform that THREADS a
+    mutable one-cell `List[int]` counter `c` (fresh-name supply) through the traversal:
+
+        if isinstance(t, C...): return t                               identity
+        if isinstance(t, C):    return C(<b>, ...)                     rebuild, <b>:
+            t.F | self(t.G, c) | tuple(self(a, c) for a in t.L)
+        if isinstance(t, (A, B)):                                      the binder block
+            NN = []
+            MM: Dict[str, str] = {}
+            for O in t.L:                       L a `list string` field
+                NW = f"<lit>{c[0]}"
+                c[0] += 1
+                NN.append(NW)
+                MM[O] = NW
+            R = S(t.G, MM)                      S a strmap transform of the file
+            R2 = self(R, c)
+            K = A if isinstance(t, A) else B
+            return K(<tuple(NN) | t.F | R2>, ...)
+        raise ...                                                      (trailing)
+
+    MODEL (state-passing, faithful to Python's left-to-right evaluation). The counter
+    cell is threaded as an int: `{n}__st t k` returns the rebuilt term and the counter's
+    final value; children are visited in SOURCE ORDER of the constructor call's argument
+    expressions (Python evaluates call arguments left to right; a generator inside
+    `tuple(..)` is consumed in list order). The binder loop is a structural `let rec`
+    over the `list string` field: each step builds `NW` from the CURRENT counter, then
+    increments it, appends `NW` and stores `MM[O] = NW` in that order. The wrapper
+    `{n} t c` reads `c[0]`, runs the pure core and writes the final value back to
+    `c[0]` -- exactly the cell the body mutates (`writes { c }`, the declared frame).
+    `f"<lit>{c[0]}"` is the uninterpreted pure `val function {n}__fmt` (a deterministic
+    function of the counter value), the dict `MM` is the abstract `term__strdict` built
+    by the uninterpreted `{n}__dempty` / `{n}__dset m k v` (deterministic functions of
+    their inputs: an over-approximation, never an assumption; no axiom). `cp[0]` is
+    defined only on a non-empty list: the cell read is a checked `Array` access under the
+    carried `requires { Array.length c >= 1 }` (see `_term_contract_counter`).
+    TERMINATION. `self(R, c)` recurses on `S`'s result: the file's proved `term__size`
+    measure (size mode) and `S`'s PROVED `term__size result = term__size t` (lv3), so
+    the variant decreases from `term__size (A .. G ..) = 1 + term__size G`.
+    The counter may be passed ONLY to `self` and read ONLY as `c[0]` in the f-string and
+    the `c[0] = c[0] + 1` store; every expression of the body is matched (fail closed)."""
+    params = func.get("formal_params", [])
+    if len(params) != 2 or func.get("param_defaults"):
+        return None
+    if spec.get("size_mode") is not True:
+        return None
+    subj, cp = params
+    ann = func.get("param_annotations") or {}
+    ra = func.get("return_annotation")
+    if not (ra and ra == ann.get(subj) and ann.get(cp) == "list"):
+        return None
+    if (func.get("param_list_elem_types") or {}).get(cp) not in (None, "int"):
+        return None
+    reqs = _term_contract_counter(func, cp)
+    if reqs is None:
+        return None
+    if [a.get("name") for a in (func.get("contracts", {}) or {}).get("assigns", []) or []
+            if isinstance(a, dict)] != [cp]:
+        return None                     # the declared frame must be exactly the cell
+    body = func.get("body", [])
+    if not (isinstance(body, list) and body):
+        return None
+    name = func.get("name")
+    if name in (subj, cp):
+        return None
+    strmap_fns = set(spec.get("strmap_fns") or []) - {name}
+    ctor_set = set(spec["ctors"].keys())
+    arms: Dict[str, Any] = {}
+    flags = {"list": False, "bind": False}
+
+    def _c0(e: Any) -> bool:
+        return (isinstance(e, dict) and e.get("type") == "Subscript"
+                and _is_var(e.get("value"), cp)
+                and isinstance(e.get("index"), dict) and e["index"].get("type") == "Number"
+                and e["index"].get("value") == 0 and not isinstance(e["index"].get("value"), bool))
+
+    def _selfcall(e: Any) -> Optional[Any]:
+        if (isinstance(e, dict) and e.get("type") == "Call" and e.get("func") == name
+                and not e.get("keywords") and len(e.get("args") or []) == 2
+                and _is_var(e["args"][1], cp)):
+            return e["args"][0]
+        return None
+
+    def _builder(e: Any, ftypes: Dict[str, str], locs: Dict[str, str]) -> Any:
+        if _is_term_field_read(e, subj):
+            f = _term_field_of(e)
+            if f not in ftypes:
+                raise _PVWBail()
+            return ("copy", f, ftypes[f])
+        if _is_var(e) and e.get("name") in locs:
+            return ("loc", e["name"], locs[e["name"]])
+        a0 = _selfcall(e)
+        if a0 is not None:
+            if not _is_term_field_read(a0, subj) or ftypes.get(_term_field_of(a0)) != "term":
+                raise _PVWBail()
+            return ("rec", _term_field_of(a0), "term")
+        if (isinstance(e, dict) and e.get("type") == "Call" and e.get("func") == "tuple"
+                and not e.get("keywords") and len(e.get("args") or []) == 1):
+            g = e["args"][0]
+            if _is_var(g) and locs.get(g.get("name")) == "names":
+                return ("loc", g["name"], "list string")
+            if isinstance(g, dict) and g.get("type") == "GenExp":
+                gens = g.get("generators", [])
+                elt = g.get("elt")
+                if not (len(gens) == 1 and not gens[0].get("ifs")):
+                    raise _PVWBail()
+                tv = gens[0].get("target")
+                it = gens[0].get("iter")
+                ea = _selfcall(elt)
+                if not (isinstance(tv, str) and tv != "_comp_var"
+                        and tv not in (subj, cp, name) and ea is not None
+                        and _is_var(ea, tv) and _is_term_field_read(it, subj)
+                        and ftypes.get(_term_field_of(it)) == "list term"):
+                    raise _PVWBail()
+                flags["list"] = True
+                return ("maprec", _term_field_of(it), "list term")
+        raise _PVWBail()
+
+    def _fields(call: Any, c: str, locs: Dict[str, str]) -> Tuple[List[Any], List[str]]:
+        """(builders in FIELD order, field names in SOURCE evaluation order)."""
+        fname_order = [fn for fn, _ in spec["ctors"][c]]
+        ftypes = dict(spec["ctors"][c])
+        kws = call.get("keywords") or []
+        args = call.get("args") or []
+        if kws and args:
+            raise _PVWBail()
+        provided: Dict[str, Any] = {}
+        src_order: List[str] = []
+        if kws:
+            for kw in kws:
+                if not (isinstance(kw, dict) and isinstance(kw.get("arg"), str)) \
+                        or kw["arg"] in provided:
+                    raise _PVWBail()
+                provided[kw["arg"]] = kw.get("value")
+                src_order.append(kw["arg"])
+            if set(provided) != set(fname_order):
+                raise _PVWBail()
+        else:
+            if len(args) != len(fname_order):
+                raise _PVWBail()
+            provided = dict(zip(fname_order, args))
+            src_order = list(fname_order)
+        out_b = []
+        for fn in fname_order:
+            b = _builder(provided[fn], ftypes, locs)
+            if b[2] != ftypes.get(fn):
+                raise _PVWBail()        # value type == slot type (fail closed)
+            out_b.append(b)
+        return out_b, src_order
+
+    def _bind_block(ib: List[Any], classes: List[str]) -> Dict[str, Any]:
+        if len(ib) != 7 or len(classes) != 2:
+            raise _PVWBail()
+        a, b = classes
+        if [fn for fn, _ in spec["ctors"][a]] != [fn for fn, _ in spec["ctors"][b]] \
+                or dict(spec["ctors"][a]) != dict(spec["ctors"][b]):
+            raise _PVWBail()
+        ftypes = dict(spec["ctors"][a])
+        s0, s1, s2, s3, s4, s5, s6 = ib
+        taken = {subj, cp, name}
+
+        def _fresh(x: Any) -> str:
+            if not isinstance(x, str) or x in taken or x == "_comp_var":
+                raise _PVWBail()
+            taken.add(x)
+            return x
+        if not (s0.get("stmt") == "Assign" and isinstance(s0.get("value"), dict)
+                and s0["value"].get("type") == "ArrayLit" and not s0["value"].get("elts")):
+            raise _PVWBail()
+        nn = _fresh(s0.get("target"))
+        if not (s1.get("stmt") == "Assign" and isinstance(s1.get("value"), dict)
+                and s1["value"].get("type") == "DictLit"
+                and not s1["value"].get("keys") and not s1["value"].get("values")):
+            raise _PVWBail()
+        mm = _fresh(s1.get("target"))
+        if not ((func.get("dict_key_types") or {}).get(mm) == "string"
+                and (func.get("dict_value_types") or {}).get(mm) == "string"):
+            raise _PVWBail()
+        if not (s2.get("stmt") == "For" and not s2.get("orelse")
+                and not s2.get("invariants") and not s2.get("variants")
+                and _is_term_field_read(s2.get("iter"), subj)
+                and ftypes.get(_term_field_of(s2["iter"])) == "list string"):
+            raise _PVWBail()
+        lf = _term_field_of(s2["iter"])
+        o = _fresh(s2.get("target"))
+        lb = s2.get("body") or []
+        if len(lb) != 4:
+            raise _PVWBail()
+        l0, l1, l2, l3 = lb
+        if not (isinstance(l0, dict) and l0.get("stmt") == "Assign"
+                and isinstance(l0.get("value"), dict) and l0["value"].get("type") == "FString"):
+            raise _PVWBail()
+        nw = _fresh(l0.get("target"))
+        parts = l0["value"].get("parts") or []
+        if not (len(parts) == 2 and isinstance(parts[0], dict)
+                and parts[0].get("type") == "String" and isinstance(parts[0].get("value"), str)
+                and _c0(parts[1])):
+            raise _PVWBail()
+        lit = parts[0]["value"]
+        if not (isinstance(l1, dict) and l1.get("stmt") == "ArraySet"
+                and _is_var(l1.get("array"), cp)
+                and isinstance(l1.get("index"), dict) and l1["index"].get("type") == "Number"
+                and l1["index"].get("value") == 0 and not isinstance(l1["index"].get("value"), bool)
+                and isinstance(l1.get("value"), dict) and l1["value"].get("type") == "BinOp"
+                and l1["value"].get("op") == "+" and _c0(l1["value"].get("left"))
+                and isinstance(l1["value"].get("right"), dict)
+                and l1["value"]["right"].get("type") == "Number"
+                and l1["value"]["right"].get("value") == 1
+                and not isinstance(l1["value"]["right"].get("value"), bool)):
+            raise _PVWBail()
+        if not (isinstance(l2, dict) and l2.get("stmt") == "Expr"
+                and isinstance(l2.get("value"), dict) and l2["value"].get("type") == "Call"
+                and l2["value"].get("func") == f"{nn}.append"
+                and not l2["value"].get("keywords")
+                and len(l2["value"].get("args") or []) == 1
+                and _is_var(l2["value"]["args"][0], nw)):
+            raise _PVWBail()
+        if not (isinstance(l3, dict) and l3.get("stmt") == "ArraySet"
+                and _is_var(l3.get("array"), mm) and _is_var(l3.get("index"), o)
+                and _is_var(l3.get("value"), nw)):
+            raise _PVWBail()
+        # R = S(t.G, MM)
+        v4 = s3.get("value")
+        if not (s3.get("stmt") == "Assign" and isinstance(v4, dict) and v4.get("type") == "Call"
+                and v4.get("func") in strmap_fns and not v4.get("keywords")
+                and len(v4.get("args") or []) == 2
+                and _is_term_field_read(v4["args"][0], subj)
+                and ftypes.get(_term_field_of(v4["args"][0])) == "term"
+                and _is_var(v4["args"][1], mm)):
+            raise _PVWBail()
+        sf, gf = v4["func"], _term_field_of(v4["args"][0])
+        r = s3.get("target")
+        if not isinstance(r, str) or r in taken:
+            raise _PVWBail()
+        taken.add(r)
+        # R2 = self(R, c)   (R2 may rebind R)
+        a5 = _selfcall(s4.get("value")) if s4.get("stmt") == "Assign" else None
+        if not (a5 is not None and _is_var(a5, r)):
+            raise _PVWBail()
+        r2 = s4.get("target")
+        if not isinstance(r2, str) or (r2 in taken and r2 != r):
+            raise _PVWBail()
+        taken.add(r2)
+        # K = A if isinstance(t, A) else B
+        ie = s5.get("value")
+        if not (s5.get("stmt") == "Assign" and isinstance(ie, dict)
+                and ie.get("type") == "IfExpr"):
+            raise _PVWBail()
+        kv = _fresh(s5.get("target"))
+        tgt = _isinstance_target_classes(ie.get("test"), subj)
+        bv, ov = ie.get("body"), ie.get("orelse")
+        if not (len(tgt) == 1 and _is_var(bv, tgt[0]) and _is_var(ov)
+                and {tgt[0], ov.get("name")} == set(classes)):
+            raise _PVWBail()
+        if not _is_return(s6):
+            raise _PVWBail()
+        call = s6.get("value")
+        if not (isinstance(call, dict) and call.get("type") == "Call"
+                and call.get("func") == kv):
+            raise _PVWBail()
+        locs = {nn: "names", r2: "term"}
+        fl, _so = _fields(call, a, locs)
+        if any(bb[0] in ("rec", "maprec") for bb in fl):
+            raise _PVWBail()            # the block's only recursion is self(R, c)
+        if [bb for bb in fl if bb[0] == "loc" and bb[1] == r2] == [] \
+                or len([bb for bb in fl if bb[0] == "loc"]) != 2:
+            raise _PVWBail()            # tuple(NN) and R2, each exactly once
+        flags["bind"] = True
+        return {"kind": "bind", "lf": lf, "lit": lit, "sfn": sf, "gf": gf,
+                "nn": nn, "r2": r2, "fields": fl}
+
+    for st in body:
+        if isinstance(st, dict) and st.get("stmt") == "Raise":
+            continue                    # trailing unreachable raise (totality below)
+        if not (isinstance(st, dict) and st.get("stmt") == "If" and not st.get("orelse")):
+            raise _PVWBail()
+        classes = _isinstance_target_classes(st.get("test"), subj)
+        if not classes or any(c not in ctor_set for c in classes):
+            raise _PVWBail()
+        ib = list(st.get("body") or [])
+        if not ib:
+            raise _PVWBail()
+        if len(ib) == 1 and _is_return(ib[0]) and _is_var(ib[0].get("value"), subj):
+            for c in classes:
+                if c in arms:
+                    raise _PVWBail()
+                arms[c] = {"kind": "id"}
+            continue
+        if len(ib) == 1 and _is_return(ib[0]):
+            if len(classes) != 1:
+                raise _PVWBail()
+            c = classes[0]
+            call = ib[0].get("value")
+            _require_ctor_call(call, c)
+            if c in arms:
+                raise _PVWBail()
+            fl, so = _fields(call, c, {})
+            arms[c] = {"kind": "rb", "fields": fl, "src_order": so}
+            continue
+        d = _bind_block(ib, classes)
+        for c in classes:
+            if c in arms:
+                raise _PVWBail()
+            arms[c] = dict(d)
+    if set(arms) != ctor_set:
+        raise _PVWBail()                # totality over the ADT
+    return {"param": subj, "counter": cp, "arms": arms, "requires": reqs,
+            "uses_list": flags["list"], "uses_bind": flags["bind"],
+            "uses_streq": False, "size_mode": True}
+
+
+def _emit_term_transform_counter(func: Dict[str, Any], desc: Dict[str, Any],
+                                 spec: Dict[str, Any], whyml_ident) -> List[str]:
+    """Emission of `_recognize_term_transform_counter` (see there): the transform
+    ITSELF as a `let rec` over the certified `term` inductive (the file's proved
+    `term__size` variant) that takes the counter cell `c : array int` and mutates it
+    in place exactly where Python does (`writes { c }`, the declared frame), every
+    recursive call applied at its own point of the body in source order (explicit
+    `let`s), the binder loop a structural `let rec` over the `list string` field that
+    reads `c[0]`, builds the name, increments the cell, then extends the name list and
+    the dict. Every cell access is a checked `Array` access. No axiom."""
+    if not spec.get("size_mode"):
+        raise _PVWBail()
+    n = whyml_ident(func["name"])
+    subj, cp = desc["param"], desc["counter"]
+    arms = desc["arms"]
+    ctors = spec["ctors"]
+    dt = "term__strdict"
+    # The cell keeps the PARAMETER's own WhyML name (the frame plane reads the emitted
+    # `writes` by parameter name); it must not collide with a local of the emission.
+    vc = whyml_ident(cp)
+    if (vc in ("l", "m", "o", "r", "nw", "nn", "m2", "h", "t", "h2", "t2", "k")
+            or vc[:2] in ("v_", "l_", "r_") or vc.startswith(n)):
+        raise _PVWBail()
+    reqs = []
+    for rq in desc.get("requires") or []:
+        if rq != "len1":
+            raise _PVWBail()
+        # qualified: an unqualified `length` resolves to `String.length` in a file that
+        # opens the string theory (measured, corpus 7230)
+        reqs.append(f"Array.length {vc} >= 1")
+    req_lines = [f"    requires {{ {rq} }}" for rq in reqs] or ["    requires { true }"]
+    out: List[str] = _emit_term_size_theory(spec)
+    if desc.get("uses_bind"):
+        lits = {a["lit"] for a in arms.values() if a["kind"] == "bind"}
+        if len(lits) != 1:
+            raise _PVWBail()
+        out.append(f"  val function {n}__fmt (k: int) : string"
+                   f"   (* f-string `{_mlw_comment_safe(next(iter(lits)))}` + str(k):"
+                   f" uninterpreted, no axiom *)")
+        out.append(f"  val function {n}__dempty : {dt}")
+        out.append(f"  val function {n}__dset (m: {dt}) (k v: string) : {dt}")
+        out.append(f"  let rec {n}__bl (l: list string) ({vc}: array int) (m: {dt})"
+                   f" : (list string, {dt})")
+        out.extend(req_lines)
+        out.append(f"    writes   {{ {vc} }}")
+        out.append("    variant  { l }")
+        out.append(f"  = match l with Nil -> (Nil, m) | Cons o r ->"
+                   f" let nw = {n}__fmt {vc}[0] in {vc}[0] <- {vc}[0] + 1;"
+                   f" let (nn, m2) = {n}__bl r {vc} ({n}__dset m o nw) in"
+                   f" (Cons nw nn, m2) end")
+    out.append(f"  let rec {n} (v_{subj}: term) ({vc}: array int) : term")
+    out.extend(req_lines)
+    out.append("    ensures  { true }")
+    out.append(f"    writes   {{ {vc} }}")
+    out.append(f"    variant  {{ term__size v_{subj} }}")
+    out.append(f"  = match v_{subj} with")
+    for c in spec["order"]:
+        fields = ctors[c]
+        arm = arms[c]
+        if arm["kind"] == "id":
+            out.append(f"    | {c}" + (" " + " ".join("_" for _ in fields) if fields else "")
+                       + f" -> v_{subj}")
+            continue
+        binders = " ".join(f"v_{fn}" for fn, _ in fields)
+        pat = c + ((" " + binders) if binders else "")
+        _pos = [f"term__size_pos v_{fn}" for fn, wt in fields if wt == "term"]
+        _pos += [f"term__list_size_nonneg v_{fn}" for fn, wt in fields if wt == "list term"]
+        pre = ("; ".join(_pos) + "; ") if _pos else ""
+        fnames = [fn for fn, _ in fields]
+        if arm["kind"] == "rb":
+            vals: Dict[str, str] = {}
+            lets: List[str] = []
+            for fn in arm["src_order"]:
+                b = arm["fields"][fnames.index(fn)]
+                if b[0] == "copy":
+                    vals[fn] = f"v_{b[1]}"
+                elif b[0] in ("rec", "maprec"):
+                    callee = n if b[0] == "rec" else f"{n}__list"
+                    lets.append(f"let r_{fn} = {callee} v_{b[1]} {vc} in")
+                    vals[fn] = f"r_{fn}"
+                else:
+                    raise _PVWBail()
+            rhs = " ".join(lets + [c + ((" " + " ".join(vals[fn] for fn in fnames))
+                                        if fnames else "")])
+            out.append(f"    | {pat} -> ({pre}{rhs})")
+            continue
+        if arm["kind"] == "bind":
+            vals = {}
+            for fn, b in zip(fnames, arm["fields"]):
+                if b[0] == "copy":
+                    vals[fn] = f"v_{b[1]}"
+                elif b[0] == "loc" and b[2] == "list string":
+                    vals[fn] = "l_nn"
+                elif b[0] == "loc" and b[2] == "term":
+                    vals[fn] = "l_r2"
+                else:
+                    raise _PVWBail()
+            rhs = (f"let (l_nn, l_mm) = {n}__bl v_{arm['lf']} {vc} {n}__dempty in"
+                   f" let l_r = {whyml_ident(arm['sfn'])} v_{arm['gf']} l_mm in"
+                   f" let l_r2 = {n} l_r {vc} in"
+                   f" {c} " + " ".join(vals[fn] for fn in fnames))
+            out.append(f"    | {pat} -> ({pre}{rhs})")
+            continue
+        raise _PVWBail()
+    out.append("    end")
+    if desc.get("uses_list"):
+        out.append(f"  with {n}__list (l: list term) ({vc}: array int) : list term")
+        out.extend(req_lines)
+        out.append("    ensures  { true }")
+        out.append(f"    writes   {{ {vc} }}")
+        out.append("    variant  { term__list_size l }")
+        out.append(f"  = match l with Nil -> Nil"
+                   f" | Cons h t -> term__size_pos h; term__list_size_nonneg t;"
+                   f" let h2 = {n} h {vc} in let t2 = {n}__list t {vc} in Cons h2 t2 end")
+    return out
+
+
+def _mlw_comment_safe(s: str) -> str:
+    return "".join(ch for ch in s if ch.isalnum() or ch in "_ -.")
 
 
 def _mlw_str_lit_bs(s: Optional[str]) -> str:
@@ -37054,6 +37532,8 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
         return _emit_term_transform_strmap(func, desc, spec, whyml_ident)
     if desc.get("namemap"):
         return _emit_term_transform_namemap(func, desc, spec, whyml_ident)
+    if desc.get("counter"):
+        return _emit_term_transform_counter(func, desc, spec, whyml_ident)
     n = whyml_ident(func["name"])
     subj = desc["param"]
     arms = desc["arms"]
@@ -40859,6 +41339,11 @@ _RC420_HONOURS: Dict[str, frozenset] = {
     "recognize_collect_escaping_exceptions": frozenset({"ensures"}),
     "recognize_callee_implicit_exceptions": frozenset({"ensures"}),
     "recognize_find_array_and_dict_vars": frozenset({"ensures"}),
+    # lv5: ONLY the counter-transform path admits a non-literal requires (exactly
+    # `len(<counter>) >= 1`, EMITTED as `requires { Array.length <counter> >= 1 }` on the
+    # top-level `let rec`); every other path of this recognizer re-checks
+    # `_term_contract_trivial` and declines on any non-`True` requires.
+    "recognize_term_isinstance_transform": frozenset({"requires"}),
 }
 
 

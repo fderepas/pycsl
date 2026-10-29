@@ -4009,6 +4009,40 @@ Any other closure shape declines. As for every term recognizer, a contract other
 `True` declines. Witnesses `7104` (PROVES), `7105` (`ensures False`, must NOT prove),
 `7106` (a closure that does not descend, declined).
 
+### 7.250 A term transform may thread a one-cell counter (lv5, run #3)
+
+A two-parameter Term->Term transform `f(t, c)` whose second parameter is a `List[int]`
+cell (the mirror's `proof2why3/canonical.py::_alpha_rename`, a fresh-name supply) is
+recognized when its arms are identity arms, rebuild arms over `t.F`, `f(t.G, c)` and
+`tuple(f(a, c) for a in t.L)`, and one binder block of exactly this shape:
+
+    new_names = []
+    mapping: Dict[str, str] = {}
+    for old in t.binders:
+        new = f"v{c[0]}"
+        c[0] += 1
+        new_names.append(new)
+        mapping[old] = new
+    r = S(t.body, mapping)                # S: a Dict[str, str] transform of the file
+    r = f(r, c)
+    kind = A if isinstance(t, A) else B
+    return kind(binders=tuple(new_names), ty=t.ty, body=r)
+
+`f` is emitted as a recursive WhyML function that takes the cell and writes it in place,
+with each recursive call made at its own point in source order. Python evaluates call
+arguments left to right, so the counter values are the ones the program produces. The
+declared frame must be exactly `assigns c`. A precondition must be `True` or exactly
+`len(c) >= 1`, and it is carried into the WhyML, so every caller must prove it. Without
+it the read `c[0]` cannot be proved, because Python raises IndexError on an empty list.
+The f-string, the empty dict and the dict store are uninterpreted functions of their
+inputs, so nothing is claimed about the names they build. The call `f(r, c)` recurses on
+the result of `S`. It terminates by the file's term-size measure, because `S` has the
+proved postcondition that it preserves term size. Any other body shape declines, and so
+does any `ensures` other than `True` or any `raises` / `no_exception` claim.
+Witnesses: `7230` proves. Each of the following must NOT prove: `7231` (`ensures
+False`), `7232` (no `len` precondition), `7233` (a caller forwards an unconstrained
+counter), `7234` (the increment comes before the read, declined).
+
 ### 7.190 A call BINDS its callee's signature; `super()` resolves through the file MRO; builtin rows carry cross-constraints; builtin decorators are admitted per definition site (routes #448 / #449 / #450 / #455, run #3)
 
 Red team 36 measured four call-binding families PROVED under `#@ no_exception \all` while CPython raises.

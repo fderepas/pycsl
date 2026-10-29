@@ -5759,6 +5759,42 @@ not global lemmas, because those would enter every later goal's context (measure
 unrelated flatten lemma then timed out). In size mode the group declares the
 `term__size` theory itself when it is the first size-mode group. No axiom is added.
 
+### §T.6.260  Counter-cell term transform (lv5, run #3)
+
+_Corresponds to `annotations.md` §7.250._
+
+`_recognize_term_transform_counter` (generic_fold.py) is tried for a two-parameter
+transform $f(t, c)$ when the strmap path declines and the file is in size mode. Its gate
+is `_term_contract_counter`: every `ensures` is literally `True`, there is no `raises` /
+`no_exception` claim, and each `requires` is `True` or exactly `len(c) >= 1`. The route
+#420 central gate honours `requires` for `recognize_term_isinstance_transform`. Every
+other path of that recognizer still applies `_term_contract_trivial`. The emission is:
+
+    val function f__fmt (k: int) : string                 (* the f-string *)
+    val function f__dempty : term__strdict
+    val function f__dset (m: term__strdict) (k v: string) : term__strdict
+    let rec f__bl (l: list string) (c: array int) (m: term__strdict) : (list string, term__strdict)
+      requires { R } writes { c } variant { l }
+    = match l with Nil -> (Nil, m) | Cons o r -> let nw = f__fmt c[0] in
+        c[0] <- c[0] + 1; let (nn, m2) = f__bl r c (f__dset m o nw) in (Cons nw nn, m2) end
+    let rec f (v_t: term) (c: array int) : term
+      requires { R } ensures { true } writes { c } variant { term__size v_t }
+    = match v_t with
+      | <identity> -> v_t
+      | C v_.. -> (<positivity lemmas>; let r_F1 = f v_F1 c in .. C ⟦copy | r_Fi⟧)
+      | A v_L v_ty v_G -> (term__size_pos v_G; let (l_nn, l_mm) = f__bl v_L c f__dempty in
+                           let l_r = S v_G l_mm in let l_r2 = f l_r c in A ⟦l_nn | v_ty | l_r2⟧) end
+    with f__list (l: list term) (c: array int) : list term
+      requires { R } ensures { true } writes { c } variant { term__list_size l } = ..
+
+$R$ is `Array.length c >= 1` (the cell keeps the parameter's own name, which the frame plane reads) when it is declared, and `true` otherwise. The `let`s of a rebuild
+arm follow the source order of the constructor call's argument expressions. The recursion
+on `l_r` decreases because `S` has the proved postcondition `term__size result = term__size
+v_t` (lv3). `S` is required to be a member of the file's `strmap_fns`, so `term__strdict`
+is already declared. Each recursive call appears in $f$'s own emitted body, so the #274
+check ("a writing call inside a generator vanishes") counts it as applied. No axiom is
+added.
+
 ### §T.6.200  Call binding, `super()` resolution, builtin cross-constraints, decorator sites (routes #448 / #449 / #450 / #455, run #3)
 
 _Corresponds to `annotations.md` §7.190._
