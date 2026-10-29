@@ -7212,6 +7212,80 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _ct430 = {str(_f.get("name", "")): _f for _f in (_ir342.get("functions") or [])
                   if isinstance(_f, dict)}
         _sl430 = source_code.splitlines()
+        # (#49) gen #37, ROUTES #449 / #450 / #455 (red team 36): file-wide facts for the
+        # CALL-BINDING checks run in each function below and the decorator-site check after
+        # this loop. `_gn449`: the names a `global` / `nonlocal` statement names; `_mdf449`:
+        # the module-level `def` statements whose name has no other module binding (route
+        # #369's `_md369`), no `global` rebinding, no import / class of that name; `_cbd449[C]`:
+        # name -> the `def` statement of C's class body that binds it LAST (None when that
+        # last binding is not a plain `def` statement of the body: an assignment, an import,
+        # a def nested in body control flow, a nested class); `_dk449[id(def)]`: the def's
+        # decorator kind ("plain", "static", "class", "prop", "ovl", "other"; the
+        # argument-forwarding `functools.lru_cache` / `cache` and
+        # `contextlib.contextmanager` keep the kind); `_sub449[C]`: the file classes whose
+        # C3 MRO holds C (C itself included); `_umro449`: the file classes with no C3 MRO.
+        _gn449 = {_g449 for _z449 in _ast341.walk(_t341)
+                  if isinstance(_z449, (_ast341.Global, _ast341.Nonlocal))
+                  for _g449 in _z449.names}
+        _mdf449 = {}
+        for _s449 in _t341.body:
+            if (isinstance(_s449, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                    and _md369.get(_s449.name) == ["def"] and _s449.name not in _gn449
+                    and _s449.name not in _imp341 and _s449.name not in _cls341):
+                _mdf449[_s449.name] = _s449
+        _cbd449 = {}
+        for _cn449, _ks449 in _cls341.items():
+            if len(_ks449) != 1:
+                continue
+            _bd449 = {}
+            for _s449 in _ks449[0].body:
+                for _z449 in ([_s449] if isinstance(_s449, (
+                        _ast341.FunctionDef, _ast341.AsyncFunctionDef, _ast341.ClassDef))
+                        else _ast341.walk(_s449)):
+                    if isinstance(_z449, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                        _bd449[_z449.name] = _z449 if _z449 is _s449 else None
+                    elif isinstance(_z449, _ast341.ClassDef):
+                        _bd449[_z449.name] = None
+                    elif (isinstance(_z449, _ast341.Name)
+                          and not isinstance(_z449.ctx, _ast341.Load)):
+                        _bd449[_z449.id] = None
+                    elif isinstance(_z449, (_ast341.Import, _ast341.ImportFrom)):
+                        for _a449 in _z449.names:
+                            _bd449[(_a449.asname or _a449.name).split(".")[0]] = None
+            _cbd449[_cn449] = _bd449
+        _dk449 = {}
+        for _z449 in _ast341.walk(_t341):
+            if not isinstance(_z449, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                continue
+            _k449 = "plain"
+            for _d449 in _z449.decorator_list:
+                _dt449 = _d449.func if isinstance(_d449, _ast341.Call) else _d449
+                _dn449 = _ast341.unparse(_dt449)
+                _dr449 = _dn449.split(".")[0]
+                _dq449 = ("builtins." + _dn449 if _dn449 in ("staticmethod", "classmethod",
+                                                              "property")
+                          and _dn449 not in _bound341 and _dn449 not in _imp341
+                          else (_im369.get(_dr449, "?") + _dn449[len(_dr449):])
+                          if _im369.get(_dr449, "?") != "?" else "?")
+                if (isinstance(_dt449, _ast341.Attribute)
+                        and _dt449.attr in ("setter", "getter", "deleter")
+                        and isinstance(_dt449.value, _ast341.Name)
+                        and _dt449.value.id not in _im369):
+                    _dq449 = "builtins.property"
+                _nk449 = {"builtins.staticmethod": "static", "builtins.classmethod": "class",
+                          "builtins.property": "prop", "functools.cached_property": "prop",
+                          "typing.overload": "ovl"}.get(_dq449)
+                if _dq449 in ("functools.lru_cache", "functools.cache",
+                              "contextlib.contextmanager"):
+                    continue
+                _k449 = _nk449 if _nk449 is not None and _k449 == "plain" else "other"
+            _dk449[id(_z449)] = _k449
+        _sub449 = {}
+        for _cn449 in _cls341:
+            for _a449 in (_mro363.get(_cn449) or []):
+                if _a449 in _cls341:
+                    _sub449.setdefault(_a449, []).append(_cn449)
+        _umro449 = {_cn449 for _cn449 in _cls341 if not _mro363.get(_cn449)}
         for _f346, _ec346 in _fn346:
             _pa346 = (_f346.args.posonlyargs + _f346.args.args + _f346.args.kwonlyargs
                       + [_x for _x in (_f346.args.vararg, _f346.args.kwarg) if _x])
@@ -9961,6 +10035,27 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _MT440[("set", _m440)] = (1, 1, {}, ("*",), "#349 (element hashing)")
             _MT440[("set", "clear")] = (0, 0, {}, (), "")
             _MT440[("set", "update")] = (0, None, {}, ("IT",), "#349 (element hashing)")
+            # (#49) gen #37, ROUTE #448 (red team 36; MEASURED PROVED on 8fe7204c3: `max(a, b,
+            # default=0)` under `#@ no_exception \all`, CPython TypeError) -- ROW CROSS-
+            # CONSTRAINTS: a row checked each keyword ALONE, while CPython ties some keywords
+            # to the positional count. `_XC448[row key][keyword] = (lo, hi)`: the keyword is
+            # accepted only with lo..hi positional arguments (a keyword that also names a
+            # positional slot is a duplicate once that slot is filled; `int(base=)` needs
+            # its string). AUDIT of every row with a keyword (36 + 100): max / min
+            # `default` (the gap), sum / enumerate `start`, round `ndigits`, int `base`,
+            # str / bytes / bytearray `replace` `count`, `split` `sep` / `maxsplit`; the
+            # keyword-only `key` / `reverse` / `strict` / `sep` / `end` / `file` / `flush`
+            # and dict / update `**` have none. (A builtin keyword other than max / min's
+            # is refused by #275 / #314 today, measured; the rows say so independently.)
+            # `pow` with three positionals needs all three `int` (its row's codes are
+            # rewritten below, as `int(x, base)`'s are). Consulted by the table under a
+            # claim and, in EVERY function, by the call-binding pass after it.
+            _XC448 = {("#f", "max"): {"default": (1, 1)}, ("#f", "min"): {"default": (1, 1)},
+                      ("#f", "sum"): {"start": (1, 1)}, ("#f", "enumerate"): {"start": (1, 1)},
+                      ("#f", "round"): {"ndigits": (1, 1)}, ("#f", "int"): {"base": (1, 1)}}
+            for _k440 in ("str", "bytes", "bytearray"):
+                _XC448[(_k440, "replace")] = {"count": (2, 2)}
+                _XC448[(_k440, "split")] = {"sep": (0, 0), "maxsplit": (0, 1)}
             _BM440 = {_m for (_k, _m) in _MT440}
             _PY440 = {"str": str, "bytes": bytes, "bytearray": bytearray, "int": int,
                       "bool": bool, "float": float, "complex": complex, "list": list,
@@ -10255,6 +10350,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             len(_ps440) == 2 or any(_k.arg == "base" for _k in _n440.keywords)):
                         _ck440 = [(_s, ("SB" if _s == 0 else _c), _v, _d)
                                   for _s, _c, _v, _d in _ck440]
+                    if _rr440 == "#f" and _fu440.id == "pow" and len(_ps440) == 3:
+                        # (#448) a modulus makes every operand `int` (CPython TypeError)
+                        _ck440 = [(_s, "I", _v, _d) for _s, _c, _v, _d in _ck440]
+                    for _kw440 in _n440.keywords:
+                        _lh448 = _XC448.get(("#f", _fu440.id) if _rr440 == "#f"
+                                            else (_rr440, _md440), {}).get(_kw440.arg)
+                        if _lh448 is not None and not (_lh448[0] <= len(_ps440)
+                                                       <= _lh448[1]):
+                            _why440 = ("TE", f"its keyword `{_kw440.arg}` is accepted only "
+                                       f"with " + (f"{_lh448[0]}" if _lh448[0] == _lh448[1]
+                                                   else f"{_lh448[0]} to {_lh448[1]}")
+                                       + f" positional argument(s), not {len(_ps440)} "
+                                       f"(route #448 cross-constraint)")
+                            break
+                    if _why440 is not None:
+                        break
                     for _s440, _c440, _v440, _d440 in _ck440:
                         _ks440 = [_k for _k, _a in _cz440.get(_s440, [("?", [])])] or ["?"]
                         _es440 = [_k for _k, _a in _cz440.get(
@@ -10617,6 +10728,520 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"value with such a class (`xs: Tuple[int, int]`), or drop the "
                         f"claim.",
                         stage="ir-semantic", code="PYCSL-R454-STARRED-NON-ITERABLE")
+            # (#49) gen #37, ROUTES #448 / #449 / #450 (red team 36; each MEASURED PROVED on
+            # 8fe7204c3 under `#@ no_exception \all`, CPython TypeError / AttributeError). A
+            # call of a FILE function binds its arguments by position / name and silently
+            # DROPS the rest (`parse(p, m, True)` lowered `parse p m`; `total(xs, start=1)`
+            # dropped `start` and used the default; `g(1, 2, b=3)`; `self.m(n, n)`;
+            # `C.s(n, n)` of a staticmethod), `super().m(..)` lowered as an opaque
+            # `m_k (super_0 ())` whether or not a class after the enclosing one in the MRO
+            # binds m (and with any arity), and `max(a, b, default=0)` passed #441's row
+            # (each keyword was checked alone). The model never raises for any of them.
+            # RULE (allow-list, refuse by default), in EVERY function that is neither
+            # `\trusted` nor `\abstract` -- a claim of the CALLER covers what an unclaimed
+            # callee raises (measured: the mismatch in an unclaimed `h`, `f` claiming
+            # `no_exception \all` and calling `h`, PROVED), so the check is not keyed on
+            # this function's own claim:
+            #   (#449) a call whose callee RESOLVES statically -- a module-level `def` bound
+            #     once (`_mdf449`) or a `def` of this function's own scope bound once
+            #     (`_nb422`), unshadowed; `C.m(..)` of a file class C; `self.m(..)` (every
+            #     file class whose MRO holds the enclosing class: dynamic dispatch); `p.m(..)`
+            #     of a parameter annotated with file classes (and their file subclasses) --
+            #     to a plain / `staticmethod` / `classmethod` `def` (argument-forwarding
+            #     `lru_cache` / `cache` / `contextmanager` decorators kept) must BIND by
+            #     CPython's algorithm: no surplus positional unless `*args`, every keyword a
+            #     parameter not already bound (a positional-only one only into `**kwargs`) or
+            #     `**kwargs`, every parameter without a default bound. A `*` / `**` argument is
+            #     route #379's; a callee that does not resolve is not judged here (#440 /
+            #     #441 / #161 decide it).
+            #   (#450) `super()` is admitted only as `super().a` / `super(X, self).a` in a
+            #     method of a file class X (zero-argument form: not a staticmethod, not in a
+            #     lambda); for EVERY file class S whose MRO holds X, the first class after X
+            #     in S's MRO whose CLASS NAMESPACE binds `a` (a file class body; a builtin /
+            #     stdlib base by its real `__mro__`, `object` last) must exist (instance
+            #     fields are not visible through super: AttributeError), and a call must bind
+            #     against it (a file `def` as in #449; a real base method by
+            #     `inspect.signature`). `super().__init__(..)` stays route #380's.
+            #   (#448) a builtin call (unshadowed, as #441) obeys its row's CROSS-CONSTRAINTS
+            #     `_XC448` (keyword k => positional count in a range: `max` / `min`
+            #     `default=` only with ONE positional), and binds by the builtin's real
+            #     `inspect.signature` where CPython publishes one (`len(n, n)`).
+            # No emission change; `_run_pipeline` is `\trusted` in the mirror. A def whose
+            # own `#@` block says `\trusted` / `\abstract` is skipped even when its IR record
+            # is not found by name (a class-body `__new__` of the mirror's `pure_ast`).
+            _tr449 = False
+            _li449 = min([_d.lineno for _d in _f346.decorator_list] + [_f346.lineno]) - 2
+            while 0 <= _li449 < len(_sl430) and _sl430[_li449].lstrip().startswith("#@"):
+                if _sl430[_li449].strip().split()[1:2] in (["\\trusted"], ["\\abstract"]):
+                    _tr449 = True
+                _li449 -= 1
+            if _ok432 and not _tr449:
+                import inspect as _in449
+                import importlib as _il449
+                # this function's OWN scope: a nested def / class is judged as its own
+                # function (`_fn346`), only its decorators, defaults and bases run here; a
+                # lambda body is entered (its parameters shadow, through `_ln394`)
+                _os449 = []
+                _lm449 = set()
+                _wq449 = [(_c449, False) for _c449 in _f346.body]
+                while _wq449:
+                    _c449, _il449b = _wq449.pop()
+                    _os449.append(_c449)
+                    if _il449b:
+                        _lm449.add(id(_c449))
+                    if isinstance(_c449, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                        _y449 = (list(_c449.decorator_list) + list(_c449.args.defaults)
+                                 + [_d for _d in _c449.args.kw_defaults if _d is not None])
+                    elif isinstance(_c449, _ast341.ClassDef):
+                        _y449 = (list(_c449.decorator_list) + list(_c449.bases)
+                                 + [_k.value for _k in _c449.keywords])
+                    else:
+                        _y449 = list(_ast341.iter_child_nodes(_c449))
+                    _wq449 += [(_z449, _il449b or isinstance(_c449, _ast341.Lambda))
+                               for _z449 in _y449]
+                _nd449 = {_c449.name: _c449 for _c449 in _os449
+                          if isinstance(_c449, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                          and _nb422.get(_c449.name) == 1}
+                _fk449 = _dk449.get(id(_f346), "plain")
+                _cf449 = {id(_z449.func) for _z449 in _os449 if isinstance(_z449, _ast341.Call)}
+                # the parameters annotated with file classes only (plus None): name -> classes
+                _pc449 = {}
+                for _p449 in _pa346:
+                    if _p449 is _f346.args.vararg or _p449 is _f346.args.kwarg:
+                        continue
+                    _q449 = [_p449.annotation] if _p449.annotation is not None else []
+                    _cl449 = set()
+                    while _q449 and _cl449 is not None:
+                        _y449 = _q449.pop()
+                        if isinstance(_y449, _ast341.Constant) and isinstance(_y449.value, str):
+                            try:
+                                _q449.append(_ast341.parse(_y449.value, mode="eval").body)
+                            except (SyntaxError, ValueError):
+                                _cl449 = None
+                        elif isinstance(_y449, _ast341.Constant) and _y449.value is None:
+                            pass
+                        elif (isinstance(_y449, _ast341.Name) and _y449.id in _cls341
+                              and _y449.id not in _bound341 and _y449.id not in _imp341):
+                            _cl449.add(_y449.id)
+                        elif isinstance(_y449, _ast341.BinOp) and isinstance(_y449.op,
+                                                                              _ast341.BitOr):
+                            _q449 += [_y449.left, _y449.right]
+                        elif (isinstance(_y449, _ast341.Subscript)
+                              and isinstance(_y449.value, _ast341.Name)
+                              and _im369.get(_y449.value.id) in ("typing.Optional",
+                                                                 "typing.Union")):
+                            _q449 += (list(_y449.slice.elts) if isinstance(
+                                _y449.slice, _ast341.Tuple) else [_y449.slice])
+                        else:
+                            _cl449 = None
+                    if _cl449 and _p449.arg not in _lb383 and _p449.arg != _self346:
+                        _pc449[_p449.arg] = _cl449
+                # (call, [(def, number of leading parameters bound implicitly)], callee text)
+                _ck449 = []
+                _why450 = None
+                for _n449 in _os449:
+                    if (isinstance(_n449, _ast341.Call) and isinstance(_n449.func, _ast341.Name)
+                            and _n449.func.id == "super" and "super" not in _bound341):
+                        # (#450) `super(..)` must be the receiver of an attribute (below)
+                        if not any(isinstance(_z, _ast341.Attribute) and _z.value is _n449
+                                   for _z in _os449):
+                            _why450 = ("TE", _n449, "a `super()` object used otherwise than "
+                                       "as the receiver of an attribute is not modelled")
+                            break
+                    if (isinstance(_n449, _ast341.Attribute)
+                            and isinstance(_n449.value, _ast341.Call)
+                            and isinstance(_n449.value.func, _ast341.Name)
+                            and _n449.value.func.id == "super" and "super" not in _bound341
+                            and _n449.attr != "__init__"):
+                        _sv450 = _n449.value
+                        _X450 = None
+                        if not _sv450.args and not _sv450.keywords:
+                            if (_ec346 is not None and _fk449 in ("plain", "class", "prop")
+                                    and id(_sv450) not in _lm449
+                                    and (_f346.args.posonlyargs + _f346.args.args)):
+                                _X450 = _ec346
+                        elif (len(_sv450.args) == 2 and not _sv450.keywords
+                              and isinstance(_sv450.args[0], _ast341.Name)
+                              and _sv450.args[0].id in _cls341
+                              and _sv450.args[0].id not in _bound341
+                              and isinstance(_sv450.args[1], _ast341.Name)
+                              and _sv450.args[1].id == _self346 and _self346 is not None
+                              and _self346 not in _lb383):
+                            _X450 = _sv450.args[0].id
+                        if _X450 is None:
+                            _why450 = ("TE", _n449, "`super()` does not resolve here (outside a "
+                                       "method of a file class, in a staticmethod or a lambda, "
+                                       "or not the `super(Class, self)` form)")
+                            break
+                        _ss450 = _sub449.get(_X450, [_X450])
+                        if _X450 in _umro449 or any(_s in _umro449 for _s in _ss450) or any(
+                                _X450 in _clo346.get(_s, []) for _s in _umro449):
+                            _why450 = ("TE", _n449, f"the MRO of `{_X450}` (or of a file class "
+                                       f"deriving from it) is not known")
+                            break
+                        _cm450 = (id(_n449) in _cf449 and _fk449 != "class")
+                        _tg450 = []
+                        for _S450 in _ss450:
+                            _mr450 = _mro363[_S450]
+                            _fd450 = None
+                            _ob450 = False
+                            for _T450 in _mr450[_mr450.index(_X450) + 1:]:
+                                if _T450 in _cls341:
+                                    if len(_cls341[_T450]) != 1:
+                                        _fd450 = ("?", _T450)
+                                        break
+                                    if _n449.attr in _cb383.get(_T450, set()):
+                                        _fd450 = ("F", _T450)
+                                        break
+                                    continue
+                                _tn450 = _T450.rstrip("@")
+                                _rc450 = None
+                                _iq450 = _im369.get(_tn450, "?")
+                                if _iq450 != "?" and "." in _iq450:
+                                    try:
+                                        _rc450 = getattr(_il449.import_module(
+                                            _iq450.rsplit(".", 1)[0]), _iq450.rsplit(".", 1)[1],
+                                            None)
+                                    except Exception:
+                                        _rc450 = None
+                                elif (_tn450 not in _bound341 and _tn450 not in _imp341
+                                      and _tn450 not in _cls341):
+                                    _rc450 = getattr(_bi369, _tn450, None)
+                                if not isinstance(_rc450, type):
+                                    _fd450 = ("?", _T450)
+                                    break
+                                _ow450 = next((_k for _k in _rc450.__mro__
+                                               if _n449.attr in vars(_k)), None)
+                                if _ow450 is object:
+                                    _ob450 = True
+                                elif _ow450 is not None:
+                                    _fd450 = ("B", _ow450)
+                                    break
+                            if _fd450 is None and (_ob450 or _n449.attr in vars(object)):
+                                _fd450 = ("B", object)
+                            if _fd450 is None:
+                                _why450 = ("AE", _n449, f"no class after `{_X450}` in the MRO of "
+                                           f"`{_S450}` binds `{_n449.attr}` in its class "
+                                           f"namespace (an instance field is not visible "
+                                           f"through `super()`)")
+                                break
+                            if _fd450[0] == "?":
+                                _why450 = ("TE", _n449, f"the base `{_fd450[1]}` in the MRO of "
+                                           f"`{_S450}` does not resolve to one class")
+                                break
+                            if not isinstance(_n449.ctx, _ast341.Load):
+                                _why450 = ("AE", _n449, "a store / `del` through `super()` "
+                                           "is not modelled")
+                                break
+                            if id(_n449) not in _cf449:
+                                continue
+                            _cl450 = next(_z for _z in _os449 if isinstance(_z, _ast341.Call)
+                                          and _z.func is _n449)
+                            if _fd450[0] == "F":
+                                _D450 = _cbd449.get(_fd450[1], {}).get(_n449.attr)
+                                _dk450 = _dk449.get(id(_D450)) if _D450 is not None else None
+                                if _dk450 not in ("plain", "static", "class"):
+                                    _why450 = ("TE", _n449, f"`{_fd450[1]}.{_n449.attr}` is not "
+                                               f"a plain / staticmethod / classmethod `def` of "
+                                               f"its class body, so the call's binding is not "
+                                               f"modelled")
+                                    break
+                                _tg450.append((_D450, 0 if _dk450 == "static"
+                                               or _n449.attr == "__new__" else 1 if (
+                                                   _dk450 == "class" or _cm450) else 0))
+                                continue
+                            # a builtin / stdlib base's method: its real signature
+                            _at450 = _in449.getattr_static(_fd450[1], _n449.attr, None)
+                            try:
+                                _sg450 = _in449.signature(getattr(_fd450[1], _n449.attr))
+                            except (TypeError, ValueError):
+                                _sg450 = None
+                            if _sg450 is None or any(isinstance(_a, _ast341.Starred)
+                                                     for _a in _cl450.args) or any(
+                                    _k.arg is None for _k in _cl450.keywords):
+                                _why450 = ("TE", _n449, f"the signature of "
+                                           f"`{_fd450[1].__name__}.{_n449.attr}` is not "
+                                           f"published (or a `*` / `**` argument is passed)")
+                                break
+                            _pr450 = ([None] if _cm450 and not isinstance(
+                                _at450, (staticmethod, classmethod)) and _n449.attr != "__new__"
+                                else [])
+                            try:
+                                _sg450.bind(*(_pr450 + [None] * len(_cl450.args)),
+                                            **{_k.arg: None for _k in _cl450.keywords})
+                            except TypeError as _e450:
+                                _why450 = ("TE", _n449, f"it does not bind against "
+                                           f"`{_fd450[1].__name__}.{_n449.attr}{_sg450}`: "
+                                           f"{_e450}")
+                                break
+                        if _why450 is not None:
+                            break
+                        if _tg450:
+                            _ck449.append((_cl450, _tg450, f"super().{_n449.attr}"))
+                        continue
+                    if not isinstance(_n449, _ast341.Call):
+                        continue
+                    _fx449 = _n449.func
+                    _tg449 = []
+                    if isinstance(_fx449, _ast341.Name):
+                        _D449 = None
+                        if _fx449.id in _nd449:
+                            _D449 = _nd449[_fx449.id]
+                        elif not (_fx449.id in _lb383 or _fx449.id in _ln394):
+                            _D449 = _mdf449.get(_fx449.id)
+                        if _D449 is not None and _dk449.get(id(_D449)) in ("plain", "static"):
+                            _tg449 = [(_D449, 0)]
+                    elif (isinstance(_fx449, _ast341.Attribute)
+                          and isinstance(_fx449.value, _ast341.Name)):
+                        _rn449 = _fx449.value.id
+                        _cs449 = None
+                        _im449 = True
+                        if (_rn449 in _cls341 and _rn449 not in _lb383 and _rn449 not in _ln394
+                                and _rn449 not in _bound341 and _rn449 not in _imp341):
+                            _cs449 = [_rn449]
+                            _im449 = False
+                        elif (_rn449 == _self346 and _self346 is not None
+                              and _rn449 not in _lb383 and _ec346 is not None):
+                            _cs449 = list(_sub449.get(_ec346, [_ec346]))
+                            _im449 = _fk449 != "class"
+                        elif _rn449 in _pc449:
+                            _cs449 = sorted({_s for _c in _pc449[_rn449]
+                                             for _s in _sub449.get(_c, [_c])})
+                        for _S449 in (_cs449 or []):
+                            if _S449 in _umro449:
+                                _tg449 = []
+                                break
+                            _D449 = "?"
+                            for _T449 in _mro363[_S449]:
+                                if _T449 in _cls341:
+                                    if _fx449.attr in _cb383.get(_T449, set()):
+                                        _D449 = (_cbd449.get(_T449, {}).get(_fx449.attr)
+                                                 if len(_cls341[_T449]) == 1 else None)
+                                        break
+                                elif _T449 not in ("object", "Generic", "Protocol", "ABC"):
+                                    _D449 = None
+                                    break
+                            if _D449 == "?":
+                                continue
+                            _dk449b = _dk449.get(id(_D449)) if _D449 is not None else None
+                            if _dk449b not in ("plain", "static", "class"):
+                                _tg449 = []
+                                break
+                            _tg449.append((_D449, 0 if _dk449b == "static"
+                                           or _fx449.attr == "__new__" else 1 if (
+                                               _dk449b == "class" or _im449) else 0))
+                    if _tg449:
+                        _ck449.append((_n449, _tg449, _ast341.unparse(_fx449)))
+                if _why450 is not None:
+                    _ex450, _nn450, _tx450 = _why450
+                    raise _PyCSLSemErr341(
+                        f"'{_f346.name}' line {getattr(_nn450, 'lineno', 0)}: "
+                        f"`{_ast341.unparse(_nn450)}` is not admitted: {_tx450}. CPython "
+                        + ("raises AttributeError" if _ex450 == "AE" else
+                           "raises TypeError / RuntimeError")
+                        + f" there, while the model lowers a `super()` access as an opaque "
+                        f"value that never raises (route #450; measured: `super().m()` with no "
+                        f"base `m`, and `super().h(1)` over `def h(self)`, PROVED under a "
+                        f"caller's `#@ no_exception \\all`). Admitted: `super().m(..)` / "
+                        f"`super().a` in a method of a file class, when for every file class "
+                        f"deriving from it the next class of its MRO binding the name in its "
+                        f"class namespace exists and the call binds against that method. Call "
+                        f"a method the base class defines with its parameters, or read the "
+                        f"field through `self`.",
+                        stage="ir-semantic", code="PYCSL-R450-SUPER-UNRESOLVED")
+                # (#448) builtins: the row cross-constraints, then the real signature
+                for _n449 in _os449:
+                    if not (isinstance(_n449, _ast341.Call)
+                            and isinstance(_n449.func, _ast341.Name)):
+                        continue
+                    _bn448 = _n449.func.id
+                    if (_bn448 in _lb383 or _bn448 in _ln394 or _bn448 in _gv394
+                            or _bn448 in _mf383 or _bn448 in _cls341
+                            or _bn448 in (_bound341 | _imp341)
+                            or not callable(getattr(_bi369, _bn448, None))):
+                        continue
+                    if any(isinstance(_a, _ast341.Starred) for _a in _n449.args) or any(
+                            _k.arg is None for _k in _n449.keywords):
+                        continue
+                    _bd448 = None
+                    for _k448 in _n449.keywords:
+                        _lh448 = _XC448.get(("#f", _bn448), {}).get(_k448.arg)
+                        if _lh448 is not None and not (_lh448[0] <= len(_n449.args)
+                                                       <= _lh448[1]):
+                            _bd448 = (f"the keyword `{_k448.arg}` is accepted only with "
+                                      + (f"{_lh448[0]}" if _lh448[0] == _lh448[1] else
+                                         f"{_lh448[0]} to {_lh448[1]}")
+                                      + f" positional argument(s), not {len(_n449.args)}")
+                            break
+                    if _bd448 is None:
+                        try:
+                            _sg448 = _in449.signature(getattr(_bi369, _bn448))
+                        except (TypeError, ValueError):
+                            _sg448 = None
+                        if _sg448 is not None:
+                            try:
+                                _sg448.bind(*([None] * len(_n449.args)),
+                                            **{_k.arg: None for _k in _n449.keywords})
+                            except TypeError as _e448:
+                                _bd448 = f"it does not bind against `{_bn448}{_sg448}`: {_e448}"
+                    if _bd448 is not None:
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n449, 'lineno', 0)}: the builtin "
+                            f"call `{_ast341.unparse(_n449)}` does not match `{_bn448}`'s "
+                            f"signature: {_bd448}. CPython raises TypeError there, while the "
+                            f"call lowers to a value that never raises (route #448; measured: "
+                            f"`max(a, b, default=0)` under `#@ no_exception \\all`, and "
+                            f"`len(n, n)` in an unclaimed callee of a claiming function, "
+                            f"PROVED). Drop `default=` when passing several positionals "
+                            f"(`max(a, b)`), and call the builtin with the arguments it "
+                            f"takes.",
+                            stage="ir-semantic", code="PYCSL-R448-BUILTIN-CROSS-CONSTRAINT")
+                # (#449 / #450) bind each resolved call against every callee it may reach
+                for _n449, _tg449, _ow449 in _ck449:
+                    if any(isinstance(_a, _ast341.Starred) for _a in _n449.args) or any(
+                            _k.arg is None for _k in _n449.keywords):
+                        continue
+                    for _D449, _dr449 in _tg449:
+                        _A449 = _D449.args
+                        _al449 = list(_A449.posonlyargs) + list(_A449.args)
+                        _nd449b = len(_al449) - len(_A449.defaults)
+                        _po449 = {_p.arg for _p in _A449.posonlyargs}
+                        _pp449 = _al449[_dr449:]
+                        _bd449b = None
+                        _gv449 = {_p.arg for _p in _al449[:_dr449]}
+                        if len(_n449.args) > len(_pp449) and _A449.vararg is None:
+                            _bd449b = (f"takes {len(_pp449)} positional argument(s) but "
+                                       f"{len(_n449.args)} were given")
+                        _gv449 |= {_p.arg for _p in _pp449[:len(_n449.args)]}
+                        for _kw449 in _n449.keywords:
+                            if _bd449b is not None:
+                                break
+                            if _kw449.arg in _po449:
+                                if _A449.kwarg is None:
+                                    _bd449b = (f"got the positional-only argument "
+                                               f"'{_kw449.arg}' by keyword")
+                            elif _kw449.arg in _gv449:
+                                _bd449b = f"got multiple values for argument '{_kw449.arg}'"
+                            elif _kw449.arg in {_p.arg for _p in _al449 + _A449.kwonlyargs}:
+                                _gv449.add(_kw449.arg)
+                            elif _A449.kwarg is None:
+                                _bd449b = f"got an unexpected keyword argument '{_kw449.arg}'"
+                        if _bd449b is None:
+                            _ms449 = ([_p.arg for _j, _p in enumerate(_al449)
+                                       if _j >= _dr449 and _j < _nd449b
+                                       and _p.arg not in _gv449]
+                                      + [_p.arg for _p, _d in zip(_A449.kwonlyargs,
+                                                                  _A449.kw_defaults)
+                                         if _d is None and _p.arg not in _gv449])
+                            if _ms449:
+                                _bd449b = f"is missing the required argument(s) {_ms449}"
+                        if _bd449b is not None:
+                            raise _PyCSLSemErr341(
+                                f"'{_f346.name}' line {getattr(_n449, 'lineno', 0)}: the call "
+                                f"`{_ast341.unparse(_n449)}` {_bd449b} for `{_ow449}` (the "
+                                f"`def {_D449.name}` of line {_D449.lineno}). CPython raises "
+                                f"TypeError there, while the model binds the arguments it can, "
+                                f"drops the rest and verifies the call as succeeding (route "
+                                f"#449; measured: `parse(path, mode, True)` over `def "
+                                f"parse(path, mode)` and `total(items, start=1)` over `def "
+                                f"total(items, initial=0)` PROVED under `#@ no_exception "
+                                f"\\all`). Call the function with exactly its parameters, by "
+                                f"position or by their names.",
+                                stage="ir-semantic", code="PYCSL-R449-CALL-SIGNATURE")
+        # (#49) gen #37, ROUTE #455 (red team 36; MEASURED PROVED on 8fe7204c3 under `#@
+        # no_exception \all`, CPython TypeError / NotImplementedError) -- a BUILTIN DECORATOR
+        # whose meaning depends on its DEFINITION SITE was admitted anywhere: `@property def
+        # size(p)` at module level (or nested in a function) lowered as a plain `let size`
+        # that `f` called, while CPython binds `size` to a property object (not callable);
+        # `@typing.overload def g` with no implementation lowered as the stub's body, while
+        # CPython binds `g` to the overload dummy (NotImplementedError when called). RULE
+        # (allow-list per definition site, every scope of the file -- the module, each class
+        # body, each function body, through their compound statements): `property` /
+        # `x.setter` / `x.getter` / `x.deleter` / `functools.cached_property` /
+        # `classmethod` only on a `def` of a CLASS BODY; the LAST `def` of a name in its
+        # scope never `@overload`-decorated (an overload chain needs its implementation);
+        # `property` / `cached_property` / `staticmethod` / `classmethod` / `overload` /
+        # `lru_cache` / `cache` / `contextmanager` never on a `class` statement. Anything
+        # else is REFUSED, whatever the claims (the decorated name is never the function
+        # the model calls). CENSUS (corpora, 53 mirrors, `pycsl_lib`): 0 such sites
+        # outside the red-team witnesses. Decorator kinds are `_dk449`'s.
+        _sc455 = [(_t341.body, "module")]
+        for _z455 in _ast341.walk(_t341):
+            if isinstance(_z455, _ast341.ClassDef):
+                _sc455.append((_z455.body, "class"))
+            elif isinstance(_z455, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                _sc455.append((_z455.body, "function"))
+        for _bd455, _st455 in _sc455:
+            _q455 = list(_bd455)
+            _ds455 = []
+            while _q455:
+                _s455 = _q455.pop(0)
+                if isinstance(_s455, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                      _ast341.ClassDef)):
+                    _ds455.append(_s455)
+                    continue
+                _ch455 = []
+                for _fl455 in ("body", "orelse", "finalbody"):
+                    _ch455 += [_y for _y in getattr(_s455, _fl455, []) or []
+                               if isinstance(_y, _ast341.stmt)]
+                for _h455 in (getattr(_s455, "handlers", []) or []):
+                    _ch455 += list(_h455.body)
+                for _h455 in (getattr(_s455, "cases", []) or []):
+                    _ch455 += list(_h455.body)
+                _q455 = _ch455 + _q455
+            _why455 = None
+            for _j455, _d455 in enumerate(_ds455):
+                if isinstance(_d455, _ast341.ClassDef):
+                    for _dc455 in _d455.decorator_list:
+                        _dt455 = _dc455.func if isinstance(_dc455, _ast341.Call) else _dc455
+                        _dn455 = _ast341.unparse(_dt455)
+                        _dr455 = _dn455.split(".")[0]
+                        _dq455 = ("builtins." + _dn455 if _dn455 in (
+                            "staticmethod", "classmethod", "property")
+                            and _dn455 not in _bound341 and _dn455 not in _imp341
+                            else (_im369.get(_dr455, "?") + _dn455[len(_dr455):])
+                            if _im369.get(_dr455, "?") != "?" else "?")
+                        if _dq455 in ("builtins.staticmethod", "builtins.classmethod",
+                                      "builtins.property", "functools.cached_property",
+                                      "typing.overload", "functools.lru_cache",
+                                      "functools.cache", "contextlib.contextmanager"):
+                            _why455 = (_d455, f"`@{_dn455}` decorates the class `{_d455.name}`"
+                                       f" (CPython binds the name to a wrapper object, not "
+                                       f"the class)")
+                            break
+                    if _why455 is not None:
+                        break
+                    continue
+                _k455 = _dk449.get(id(_d455))
+                if _st455 != "class" and (_k455 in ("prop", "class") or any(
+                        "classmethod" == _ast341.unparse(_x) for _x in _d455.decorator_list)):
+                    _why455 = (_d455, f"the {_st455}-level `def {_d455.name}` is decorated "
+                               f"`@{_ast341.unparse(_d455.decorator_list[0])}`, a decorator "
+                               f"admitted only on a method of a class body: CPython binds "
+                               f"`{_d455.name}` to a descriptor object that is not callable "
+                               f"(TypeError)")
+                    break
+                if _k455 == "ovl" and not any(
+                        isinstance(_e, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                        _ast341.ClassDef)) and _e.name == _d455.name
+                        for _e in _ds455[_j455 + 1:]):
+                    _why455 = (_d455, f"the `@overload` stub `def {_d455.name}` is the last "
+                               f"definition of `{_d455.name}` in its scope (no implementation "
+                               f"follows): CPython binds `{_d455.name}` to the overload dummy, "
+                               f"which raises NotImplementedError when called")
+                    break
+            if _why455 is not None:
+                _dd455, _tx455 = _why455
+                raise _PyCSLSemErr341(
+                    f"line {getattr(_dd455, 'lineno', 0)}: {_tx455}, while the model lowers the "
+                    f"name as the decorated `def` itself and verifies its calls against its "
+                    f"body (route #455; measured: a module-level `@property def size(p)` called "
+                    f"as `size(path)`, and an `@overload` stub without implementation, PROVED "
+                    f"under `#@ no_exception \\all`). Admitted: `@property` / accessor / "
+                    f"`cached_property` / `classmethod` on a method of a class body, an "
+                    f"`@overload` chain followed by its undecorated implementation. Drop the "
+                    f"decorator, move the def into its class, or add the implementation.",
+                    stage="ir-semantic", code="PYCSL-R455-DECORATOR-SITE")
         # ROUTE #361 — `InitVar` / `KW_ONLY` PSEUDO-FIELDS WERE MODELLED AS STORED FIELDS.
         # `k: InitVar[int]` and `_: KW_ONLY` joined the record and #347's synthesized
         # field set (ClassVar was excluded), so `d.k` / `d._` read under `no_exception`
