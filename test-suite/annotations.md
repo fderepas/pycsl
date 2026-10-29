@@ -3936,6 +3936,71 @@ whose body is itself admitted, `del` of a bound name, `type X = ..`. Anything el
 `__init__` with a `return <expr>` other than `None`, a `yield`, or `async` is REFUSED under any claim in
 the file (`PYCSL-R462-INIT-RETURNS-VALUE`). Witnesses `7130`-`7150`; controls `7151`, `7152`.
 
+### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
+
+Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
+for `f` returning `g(n)` imported from a helper module whose top level is `X = 1 // 0` / `{}['k']` / `assert 1
+== 2` / `raise RuntimeError` / an MRO conflict / a dataclass mutable default / `import zz_no_such_mod` / a
+compile-time SyntaxError (`def g(x): global x`), from a package whose `__init__` raises, from a helper whose
+OWN import raises (m254), from a helper binding `g` only under `if False:` / in a `for` body / after a raising
+statement in a `try`, through a circular import reaching the partially initialised helper, and through `h.g(n)`
+on a module binding no `g` (#466); and `import frontend` / `errors` / `pycsl` (any module of the VERIFIER, whose
+sys.path[0] is src/pycsl) admitted as importable without `--import-path` (#472). CPython raises at import.
+RULE (allow-list, refuse by default) when a verified def of the file carries any `#@ no_exception` claim:
+modules are resolved on the TARGET program's path -- this file's directory, the `--import-path` roots, then the
+interpreter's path MINUS the verifier's own source tree (src/pycsl, src/); a standard-library name is the
+standard library; not found is ModuleNotFoundError (`PYCSL-R472-IMPORT-NOT-ON-TARGET-PATH` when the name exists
+only on the verifier's path). A module found in this file's directory or on an `--import-path` root is the
+PROGRAM's code and is IMPORTED, in CPython's order and with CPython's partial-module semantics (it enters the
+module table before its body runs; each package `__init__` on the way first): its source must `compile()`, and
+its top level and class bodies are run statement by statement on real values -- imports (recursively), `def`
+(decorators and defaults evaluated, the body a placeholder refused if import-time code calls it), `class`
+(created by `types.new_class`, its allow-listed decorators applied for real), assignments, `if` (the arm the
+real test selects), `try` (body, else, finally; a raise refuses), `assert`, `del`, docstrings; anything else
+(`for`, `while`, `with`, an attribute store ...) is REFUSED. Expressions are evaluated by CPython over those
+values; the only calls admitted are side-effect-free standard-library callables and builtin-type methods. `from
+M import n` needs `n` BOUND in M's namespace at that moment (or a submodule); `M.n` read by a claimed function
+needs `n` bound once M is imported; a relative import in the verified file is refused (a script has no parent
+package). An INSTALLED module (site-packages) is a declared library: it must exist, its top level is not run.
+Refusal: `PYCSL-R466-IMPORTED-MODULE-RAISES`. Witnesses `7260`-`7265`, `7267`-`7269`, `7282`-`7284` (the package
+`__init__` case is red-team m250, refused; no corpus fixture, its package would not load in check-corpus-executes); controls `7285`, `7288`,
+`7289` (a circular import whose name is bound before the cycle closes).
+
+### 7.281 A claim reaching an imported function needs that function's own claim (route #467, run #3)
+
+An imported function is a bodyless stub: route #460's reached claim (§7.210) stops at the file boundary and
+#178's walk of its body is a deny-list. Red team 38 measured PROVED `no_exception \all` for `return g(n)` with an
+un-claimed imported `g` whose body holds `assert x != x`, `next(iter([]))`, `pow(2, -1, 4 * x)`, `x.zz`,
+`getattr(x, 'zz')`, `len(x)` / `x()` / `iter(x)` of an int, `json.loads('{')`, `open()` of a missing file,
+`'a' + x`, `bytes.decode`, `struct.pack`, `range(0, 1, 0)`, or a call of a SECOND un-claimed helper whose assert
+fails. RULE (allow-list, refuse by default): under a claim covering E of a def of the file (its own or a
+caller's, `_rc444`), a reference to a function of a program module (§7.280: a call, a value, `M.g`, a constructor
+of an imported class -- its `__init__` / `__new__` / `__post_init__` / dunders, also through a class of this file
+deriving from it, a dataclass `default_factory` --, and any method of an imported class with the same name as an
+attribute read) is REFUSED unless that function itself claims `#@ no_exception` covering E (`\all`, or a superset
+of the named exceptions: a declared modular assumption, the function is verified when its module is) or its body
+is on the exception-free allow-list: `return` / assignments / augmented `+ - * & | ^` / `if` over parameters
+annotated `int` / `bool` with `+ - * & | ^`, comparisons and boolean operators, no call, subscript or attribute.
+Refusal: `PYCSL-R467-IMPORTED-UNCLAIMED`. Witnesses `7270`-`7274`; controls `7286`, corpus `6642` (`inc(n): return
+n + 1`, on the allow-list).
+
+### 7.282 A bodyless `val` must keep the length of a list parameter (route #468, run #3)
+
+An imported, `\trusted` or `\abstract` function is emitted as a bodyless `val` whose frame writes its list
+parameter (`val g (x: array int) : unit writes { x }`, route #317's default frame or a declared `#@ assigns x`),
+and a Why3 `array`'s length is immutable: `len(a)` after `g(a)` kept the entry length while the body appended /
+popped / cleared / `+=` / sliced / `heappush`-ed / `insort`-ed / aliased / closed over the list (34 spellings
+PROVED `\result == 2`, CPython 3 or 1). RULE (allow-list, refuse by default, no claim needed): each list
+(or `bytearray`) parameter of such a `val` that the VERIFIED code of this file references (a call, a value, a
+method tail) and that is not itself declared `#@ \trusted` (an explicit trust, like its contract: the trusted
+surface's frames are check-trusted-frame-honesty's ledger) must be LENGTH-PRESERVED by the function's SOURCE body (this file and the modules it
+imports): it occurs only as an element store `x[i] = v` / element or slice read, the argument of a builtin that
+does not mutate it (`len`, `sorted`, `sum`, `min`, `max`, `list`, `tuple`, `set`, `enumerate`, `zip`, ...), an
+operand of a comparison or of a fresh-list `+` / `*`, the iterable of a loop, the returned value, or the receiver of `sort()` /
+`reverse()` / `copy()` / `count()` / `index()`; any other occurrence (a mutator, an alias, an argument of another
+call, a store to the name) is REFUSED, as route #49 refuses the same mutators on a list parameter of a verified
+body. Refusal: `PYCSL-R468-VAL-LIST-LENGTH`. Witnesses `7275`-`7281`; control `7287` (`x[0] = 1` only).
+
 ### 7.220 A term transform's binder arm may run a `while True:` scan loop down the spine (lv4, run #3)
 
 A one-parameter Term->Term transform (§7.160's shape, e.g. the mirror's

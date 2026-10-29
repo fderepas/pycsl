@@ -73,6 +73,21 @@ KNOWN_LOAD_FAILURES = {
     # was written for — and it moves three emissions to buy a property no driver uses.
     "circ_b.py": "a cycle has an entry point and this is not it; every driver enters at "
                  "circ_a, which imports cleanly. Two-sided form measured and declined.",
+    # (#49) driver run #3 -- route #466 (x1). Helpers whose IMPORT raises BY DESIGN: each is
+    # the imported module of an expected-FAIL witness (7260 / 7262-7265 / 7268) pinning that
+    # a claimed importer is REFUSED because CPython raises at `import` (`X = 1 // 0`, a
+    # dataclass mutable default, an MRO conflict, a missing module, a circular import
+    # reaching a partial module, a dependency that raises). Loading them IS the failure
+    # they witness; a version that loads would witness nothing.
+    "x1_h466a.py": "route #466 witness fixture (7260 / 7268): `X = 1 // 0` at import, by design.",
+    "x1_h466c.py": "route #466 witness fixture (7262): a dataclass mutable default, by design.",
+    "x1_h466d.py": "route #466 witness fixture (7263): `class Z(A, B)` MRO conflict, by design.",
+    "x1_h466e.py": "route #466 witness fixture (7264): imports a missing module, by design.",
+    "x1_h466f.py": "route #466 witness fixture (7265): a circular import reaching a partial "
+                   "module, by design.",
+    "x1_h466g.py": "route #466 witness fixture (7265): the other half of that cycle, by design.",
+    "x1_h466h.py": "route #466 witness fixture (7268): its own import of x1_h466a raises, by "
+                   "design.",
 }
 
 # A file with a LEADING-DOT import is not runnable by `exec`ing it standalone — a relative

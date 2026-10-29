@@ -2,6 +2,21 @@
 
 ## run #3 (2026-10-29): #473 OPENED (found by executor lv5, driver-reproduced on a9eac4a08): a LOCAL empty list passed to a
 ##   callee is the 1024-element placeholder `Array.make 1024 0`, discharging the callee's `len(c) >= 1` (2 witnesses).
+## run #3 (2026-10-29): #466 / #467 / #468 / #472 REPAIRED (executor x1 off daf5c3d1f; the FILE BOUNDARY of red team 38;
+##   inline at the end of `_run_pipeline` after #461 / #462, mirror twin `\trusted`, no new def in a mirrored file, no
+##   axiom, no emission change). #466 / #472: under any claim, imports are resolved on the TARGET's path (file dir,
+##   `--import-path`, sys.path minus src/pycsl and src/; PYCSL-R472-IMPORT-NOT-ON-TARGET-PATH) and every PROGRAM module
+##   (file dir / `--import-path`) is IMPORTED here in CPython's order with partial-module semantics -- compile(), top level
+##   and class bodies run on real values (CPython `eval` behind a call allow-list, placeholders for defs, `types.new_class`
+##   + real decorators), `from M import n` needs n bound at that moment (PYCSL-R466-IMPORTED-MODULE-RAISES). #467: a
+##   reached function of a program module must claim `no_exception` covering the caller's claim, or be on an int-arithmetic
+##   allow-list (PYCSL-R467-IMPORTED-UNCLAIMED). #468: a bodyless `val`'s list / bytearray parameter must be length-
+##   preserved by its SOURCE body (PYCSL-R468-VAL-LIST-LENGTH). Corpus 7260-7289 minus 7266 (24 witnesses PROVED at base -> REFUSED;
+##   5 controls PROVED at base and candidate); red-team witnesses 80/81 PROVED at base -> 81/81 refused (m260 by #161);
+##   census +24 rows; 7 import-raising helpers named in check-corpus-executes' KNOWN_LOAD_FAILURES; advice audits R466 (2) / R467 / R468 FOLLOWABLE; docs annotations 7.280-7.282 / translational
+##   T.6.290-T.6.292; REPAIR sections. Gates: fidelity rc=0; root 2604 -> 2609
+##   0/0/0, pyref 2186 0/0/0, mirror 53 0/0/0; planes 61/61; ledgers rc=0; trusted 437. Over-refusal cost: 0 PASS
+##   (corpus 6642 kept by the #467 allow-list; #468 narrowed after a wide cut refused 3382 + 11 mirror files).
 
 ## run #3 (2026-10-29): #465-#472 OPENED (red team 38 on a9eac4a08: 688 probes / 155 proved / 142 confirmed; rt37's 83
 ##   all closed except #463 / #464): #465 compile-time-syntax-error (20); #466 imported-module-import-raises (18); #467 imported-callee-exceptions (17); #468 imported-callee-list-length (34); #469 module-dunders-script-view (16); #470 standin-lazy-annotations (7); #471 class-in-function-creation (18); #472 import-resolved-on-verifier-path (12).

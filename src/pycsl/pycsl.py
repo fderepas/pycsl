@@ -23395,6 +23395,1191 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"\\all`, CPython TypeError). Drop the returned value from `__init__` (use a "
                 f"bare `return` or `return None`), and return the value from a separate method.",
                 stage="ir-semantic", code="PYCSL-R462-INIT-RETURNS-VALUE")
+    # (#49) gen #39, ROUTES #466 / #467 / #472 (red team 38, driver-reproduced on a9eac4a08
+    # under `#@ no_exception \all`): THE FILE BOUNDARY. Route #461 runs only THIS file's top
+    # level, and judged the existence of an imported module on the VERIFIER's own sys.path.
+    #   #466: a module this file imports (or a package `__init__` on the way) whose import
+    #         raises -- `X = 1 // 0`, an `assert`, an MRO conflict, a dataclass mutable
+    #         default, a SyntaxError, a missing module or name it imports, a name bound only
+    #         under `if False:` / in a `for`, a circular import -- makes every function of
+    #         this file uncallable, and each PROVED;
+    #   #467: an un-claimed function of an imported module called under a claim (an
+    #         `assert`, `next()` of an empty iterator, `getattr` of a missing attribute,
+    #         `json.loads`, ...) is a bodyless stub, so its exceptions were owed nowhere;
+    #   #472: `import frontend` / `errors` / `pycsl` counted as importable because the
+    #         VERIFIER can import them (its sys.path[0] is src/pycsl).
+    # RULE (allow-list, refuse by default; any `no_exception` claim in the file, `_rc444`):
+    #   * modules are resolved on the TARGET program's path, the way CPython running this
+    #     file as a script does: this file's directory, then the `--import-path` roots, then
+    #     the interpreter's own path MINUS the verifier's source tree (src/pycsl, src/);
+    #     a standard-library name is the standard library. Not found = ModuleNotFoundError.
+    #   * a module found in THIS FILE'S DIRECTORY or on an `--import-path` root (the
+    #     program's own code) is IMPORTED here,
+    #     memoised in CPython's order with CPython's partial-module semantics (it enters the
+    #     module table BEFORE its body runs, so a cycle reaches a partially initialised
+    #     module): its source must compile (`compile()`, so symbol-table errors count), and
+    #     its top level -- and every class body -- is run statement by statement on REAL
+    #     values: imports (recursively), `def` (decorators and defaults evaluated; the body
+    #     is a placeholder that raises a private BaseException if import-time code calls
+    #     it), `class` (created by CPython's own `types.new_class`, its decorators --
+    #     `dataclass`, `total_ordering`, `unique` ... -- applied for real), assignments,
+    #     `if` (the arm the real test selects), `try` (body, else, finally; a raise is a
+    #     refusal), `assert`, `del`, docstrings; anything else is REFUSED. Expressions are
+    #     evaluated by CPython over those values, and the only calls admitted are of
+    #     side-effect-free standard-library callables and builtin-type methods. A `from M
+    #     import n` needs `n` BOUND in M's resulting namespace (or a submodule).
+    #   * an INSTALLED module (site-packages) is a declared LIBRARY: it must exist (and
+    #     bind a `from` name somewhere), its top level is not run -- the same standing as
+    #     the standard library.
+    #   * under a claim covering E, a reference (call, value, attribute, constructor, any
+    #     method of the same name) to a function of a program module (above) that does not
+    #     itself claim `no_exception` covering E is REFUSED, unless its body is on the tiny
+    #     exception-free allow-list (returns / assignments / `if` over `int` / `bool`
+    #     parameters with + - * & | ^ and comparisons, no call, subscript or attribute).
+    #   * a relative import in this file is REFUSED (a script has no parent package).
+    # Inline (no nested def: check-mirror-coverage); `_run_pipeline`'s mirror twin is
+    # `\trusted`. Separate from route #461's in-file evaluation above.
+    _c466 = bool(_rc444) if _t341 is not None else False
+    if _c466:
+        import ast as _a466
+        import os as _o466
+        import sys as _s466
+        import types as _ty466
+        import builtins as _bi466
+        import importlib as _il466
+        import importlib.machinery as _ilm466
+        _SX466 = type("PyCSLUserCode466", (BaseException,), {})
+        _fp466 = _o466.path.abspath(str(args.file)) if getattr(args, "file", None) else ""
+        _fd466 = _o466.path.dirname(_fp466)
+        _ip466 = [_o466.path.abspath(str(_d)) for _d in (getattr(args, "import_path", None) or [])]
+        _vd466 = _o466.path.dirname(_o466.path.abspath(__file__))
+        _vs466 = _o466.path.dirname(_vd466)
+        # the target's path: (dir, role) -- J judged (this file's directory and the
+        # `--import-path` roots: the program's own modules), I installed (the interpreter's
+        # path minus the verifier's own tree)
+        _pt466 = [(_fd466, "J")] + [(_d, "J") for _d in _ip466 if _d != _fd466]
+        for _d466 in _s466.path:
+            _ad466 = _o466.path.abspath(_d466) if _d466 else ""
+            if (not _d466 or _ad466 in (_vd466, _vs466, _fd466) or _ad466 in _ip466
+                    or _ad466.startswith(_vd466 + _o466.sep)):
+                continue
+            if _ad466 not in [_p for _p, _r in _pt466]:
+                _pt466.append((_ad466, "I"))
+        _rf466 = None       # (code, message) of the refusal
+        _UKC466 = type("PyCSLUnknown466", (), {
+            "__bool__": lambda _s: (_ for _ in ()).throw(_SX466("an unknown value")),
+            "__iter__": lambda _s: (_ for _ in ()).throw(_SX466("an unknown value")),
+            "__call__": lambda _s, *_a, **_k: (_ for _ in ()).throw(_SX466("an unknown value")),
+            "__getattr__": lambda _s, _n: (_ for _ in ()).throw(_SX466("an unknown value")),
+            "__getitem__": lambda _s, _n: (_ for _ in ()).throw(_SX466("an unknown value")),
+            "__eq__": lambda _s, _o: (_ for _ in ()).throw(_SX466("an unknown value")),
+            "__hash__": lambda _s: 0})
+        _UK466 = _UKC466()
+        # side-effect-free callables an import-time expression may call (by identity)
+        _pu466 = set()
+        for _n466 in ("abs all any ascii bin bool bytes callable chr complex dict divmod "
+                      "enumerate filter float format frozenset getattr hasattr hash hex id "
+                      "int isinstance issubclass iter len list map max min next object oct "
+                      "ord pow property range repr reversed round set slice sorted "
+                      "staticmethod classmethod str sum tuple type zip").split():
+            _pu466.add(id(getattr(_bi466, _n466)))
+        for _m466, _ns466 in (("re", "compile escape"),
+                              ("typing", "TypeVar NewType NamedTuple TypedDict cast overload "
+                               "final override no_type_check runtime_checkable ParamSpec TypeVarTuple "
+                               "get_origin get_args"),
+                              ("collections", "namedtuple OrderedDict defaultdict deque Counter "
+                               "ChainMap"),
+                              ("dataclasses", "dataclass field"),
+                              ("enum", "auto unique Enum IntEnum Flag IntFlag StrEnum"),
+                              ("functools", "partial lru_cache cache wraps total_ordering "
+                               "reduce cached_property singledispatch"),
+                              ("abc", "abstractmethod"),
+                              ("contextlib", "contextmanager"),
+                              ("itertools", "chain product repeat islice count"),
+                              ("operator", "itemgetter attrgetter methodcaller"),
+                              ("types", "SimpleNamespace MappingProxyType"),
+                              ("os.path", "join dirname basename normpath splitext abspath"),
+                              ("math", "sqrt floor ceil log exp pow fabs isqrt gcd")):
+            try:
+                _mo466 = _il466.import_module(_m466)
+            except ImportError:
+                continue
+            for _n466 in _ns466.split():
+                if hasattr(_mo466, _n466):
+                    _pu466.add(id(getattr(_mo466, _n466)))
+        _ma466 = set()          # ids of callables produced by an admitted decorator factory
+        _bt466 = (str, bytes, int, float, complex, bool, tuple, list, dict, set, frozenset)
+        _mods466 = {}           # module name -> record
+        _pd466 = {}             # id(placeholder) -> (file, def node, record)
+        _keep466 = []
+        _cl466 = []             # (class object, file, ClassDef node)
+        _stdn466 = set(_s466.stdlib_module_names) | set(_s466.builtin_module_names)
+        # the main file: only its import statements, in execution order (class bodies, the
+        # bodies of `if` / `try` / `with` / loops, and the claimed defs' bodies: an import
+        # in a claimed function runs when it is called); `if __name__ == "__main__":` and
+        # `if TYPE_CHECKING:` are not run at import
+        _mi466 = []
+        _wk466 = [list(_t341.body)]
+        _cd466 = {id(_d) for _d, _c in _fn346 if _rc444.get(id(_d))}
+        while _wk466:
+            _bl466 = _wk466.pop(0)
+            for _z466 in _bl466:
+                if isinstance(_z466, (_a466.Import, _a466.ImportFrom)):
+                    _mi466.append(_z466)
+                elif isinstance(_z466, (_a466.FunctionDef, _a466.AsyncFunctionDef)):
+                    if id(_z466) in _cd466:
+                        _mi466 += [_y for _y in _a466.walk(_z466)
+                                   if isinstance(_y, (_a466.Import, _a466.ImportFrom))]
+                elif isinstance(_z466, _a466.If):
+                    _ts466 = _a466.unparse(_z466.test).replace(" ", "")
+                    if _ts466 not in ("__name__=='__main__'", '__name__=="__main__"',
+                                      "TYPE_CHECKING", "typing.TYPE_CHECKING", "False"):
+                        _wk466.insert(0, list(_z466.body) + list(_z466.orelse))
+                    else:
+                        _wk466.insert(0, list(_z466.orelse))
+                elif isinstance(_z466, _a466.ClassDef):
+                    _wk466.insert(0, list(_z466.body))
+                elif isinstance(_z466, (_a466.Try, _a466.With, _a466.For, _a466.While,
+                                        _a466.AsyncWith, _a466.AsyncFor)) or (
+                        type(_z466).__name__ == "TryStar"):
+                    _sub466 = list(getattr(_z466, "body", []) or [])
+                    for _h466 in getattr(_z466, "handlers", []) or []:
+                        _sub466 += list(_h466.body)
+                    _sub466 += list(getattr(_z466, "orelse", []) or [])
+                    _sub466 += list(getattr(_z466, "finalbody", []) or [])
+                    _wk466.insert(0, _sub466)
+        _mm466 = _ty466.ModuleType("__main__")
+        _mods466["__main__"] = {"st": "D", "mo": _mm466, "file": _fp466, "role": "M",
+                                "path": None, "pkg": None}
+        # frames: [stmts, index, globals, locals, record, class-info]
+        _fr466 = [[_mi466, 0, _mm466.__dict__, _mm466.__dict__, _mods466["__main__"], None]]
+        _cur466 = None
+        while _fr466 and _rf466 is None:
+            _F466 = _fr466[-1]
+            if _F466[1] >= len(_F466[0]):
+                _fr466.pop()
+                _ci466 = _F466[5]
+                if _ci466 is not None and _ci466[0] == "mod":
+                    _ci466[1]["st"] = "D"
+                    _pn466 = _ci466[1]["name"].rpartition(".")
+                    if _pn466[0] and _pn466[0] in _mods466 and _mods466[_pn466[0]]["mo"] is not None:
+                        setattr(_mods466[_pn466[0]]["mo"], _pn466[2], _ci466[1]["mo"])
+                elif _ci466 is not None and _ci466[0] == "cls":
+                    # create the class with CPython's own machinery, then its decorators
+                    _cn466, _cb466, _ck466, _cdec466, _cnode466, _cns466, _ctl466 = _ci466[1:]
+                    _cur466 = _cnode466
+                    try:
+                        _cv466 = _ty466.new_class(_cn466, tuple(_cb466), dict(_ck466),
+                                                  lambda _ns, _src=_cns466: _ns.update(_src))
+                        for _dv466 in reversed(_cdec466):
+                            _cv466 = _dv466(_cv466)
+                    except _SX466 as _x466:
+                        _rf466 = ("R", f"creating the class `{_cn466}` (line {_cnode466.lineno} "
+                                       f"of {_F466[4]['file']}) runs code of that module "
+                                       f"({_x466})")
+                        break
+                    except Exception as _x466:
+                        _rf466 = ("X", f"creating the class `{_cn466}` (line {_cnode466.lineno} "
+                                       f"of {_F466[4]['file']}) raises {type(_x466).__name__} "
+                                       f"({str(_x466)[:100]})")
+                        break
+                    _cl466.append((_cv466, _F466[4]["file"], _cnode466))
+                    _ctl466[_cn466] = _cv466
+                continue
+            _s466x = _F466[0][_F466[1]]
+            _cur466 = _s466x
+            _G466, _L466, _R466 = _F466[2], _F466[3], _F466[4]
+            _adv466 = True
+            _why466 = None
+            _exprs466 = []
+            # ---- the statements that need no expression: imports
+            if isinstance(_s466x, (_a466.Import, _a466.ImportFrom)):
+                _lv466 = getattr(_s466x, "level", 0) or 0
+                if isinstance(_s466x, _a466.ImportFrom) and _lv466:
+                    if _R466["role"] == "M" or _R466["pkg"] is None:
+                        _why466 = ("X", f"`{_a466.unparse(_s466x)}` is a relative import in a "
+                                        f"module with no parent package (CPython raises "
+                                        f"ImportError: attempted relative import with no "
+                                        f"known parent package)")
+                    else:
+                        _pp466 = _R466["pkg"].split(".")
+                        if _lv466 - 1 >= len(_pp466):
+                            _why466 = ("X", f"`{_a466.unparse(_s466x)}` goes beyond the top-level "
+                                            f"package (CPython ImportError)")
+                        else:
+                            _tg466 = ".".join(_pp466[:len(_pp466) - (_lv466 - 1)])
+                            if _s466x.module:
+                                _tg466 += "." + _s466x.module
+                            _need466 = [_tg466]
+                else:
+                    if isinstance(_s466x, _a466.ImportFrom):
+                        _need466 = [_s466x.module]
+                    else:
+                        _need466 = [_al.name for _al in _s466x.names]
+                if _why466 is None:
+                    # every package on the way, in order; a missing one is LOADED first
+                    # (the statement is re-run afterwards)
+                    _ld466 = None
+                    for _nm466 in _need466:
+                        _pq466 = _nm466.split(".")
+                        for _k466 in range(1, len(_pq466) + 1):
+                            _sb466 = ".".join(_pq466[:_k466])
+                            if _sb466 not in _mods466:
+                                _ld466 = _sb466
+                                break
+                        if _ld466:
+                            break
+                    if _ld466 is None and isinstance(_s466x, _a466.ImportFrom):
+                        _tm466 = _mods466[_need466[0]]
+                        for _al466 in _s466x.names:
+                            if _al466.name == "*":
+                                continue
+                            _sb466 = _need466[0] + "." + _al466.name
+                            if (_tm466["role"] in ("J", "M") and _tm466["mo"] is not None
+                                    and _al466.name not in _tm466["mo"].__dict__
+                                    and _tm466["path"] and _sb466 not in _mods466):
+                                _ld466 = _sb466
+                                break
+                    if _ld466 is not None:
+                        _adv466 = False
+                        _pq466 = _ld466.rpartition(".")
+                        _top466 = _ld466.split(".")[0]
+                        if _top466 in _stdn466:
+                            try:
+                                _rm466 = _il466.import_module(_ld466)
+                                _mods466[_ld466] = {"st": "D", "mo": _rm466, "file": None,
+                                                    "role": "S", "path": None, "pkg": None,
+                                                    "name": _ld466}
+                            except Exception as _x466:
+                                _why466 = ("X", f"`{_a466.unparse(_s466x)}`: importing "
+                                                f"`{_ld466}` raises {type(_x466).__name__} "
+                                                f"in CPython ({str(_x466)[:80]})")
+                        else:
+                            if _pq466[0]:
+                                _par466 = _mods466[_pq466[0]]
+                                _cands466 = ([(_d, _par466["role"]) for _d in _par466["path"]]
+                                             if _par466["path"] else [])
+                                _leaf466 = _pq466[2]
+                            else:
+                                _cands466 = list(_pt466)
+                                _leaf466 = _ld466
+                            _hit466 = None
+                            _nsp466 = []
+                            for _d466, _r466 in _cands466:
+                                _c466p = _o466.path.join(_d466, _leaf466)
+                                if _o466.path.isfile(_o466.path.join(_c466p, "__init__.py")):
+                                    _hit466 = (_o466.path.join(_c466p, "__init__.py"), _r466,
+                                               [_c466p])
+                                    break
+                                if _o466.path.isfile(_c466p + ".py"):
+                                    _hit466 = (_c466p + ".py", _r466, None)
+                                    break
+                                if _r466 in ("L", "I") and _ilm466.PathFinder.find_spec(
+                                        _leaf466, [_d466]) is not None and not _o466.path.isdir(_c466p):
+                                    _hit466 = ("", _r466, None)
+                                    break
+                                if _o466.path.isdir(_c466p):
+                                    _nsp466.append((_c466p, _r466))
+                            if _hit466 is None and _nsp466:
+                                _nmo466 = _ty466.ModuleType(_ld466)
+                                _nmo466.__path__ = [_p for _p, _r in _nsp466]
+                                _mods466[_ld466] = {"st": "D", "mo": _nmo466, "file": None,
+                                                    "role": _nsp466[0][1],
+                                                    "path": [_p for _p, _r in _nsp466],
+                                                    "pkg": _ld466, "name": _ld466}
+                                if _pq466[0] and _mods466[_pq466[0]]["mo"] is not None:
+                                    setattr(_mods466[_pq466[0]]["mo"], _pq466[2], _nmo466)
+                            elif _hit466 is None:
+                                if True:
+                                    _vh466 = any(_o466.path.exists(_o466.path.join(_b, *_ld466.split(".")) + _x)
+                                                 for _b in (_vd466, _vs466) for _x in (".py", ""))
+                                    _why466 = ("P" if _vh466 else "X",
+                                               f"`{_a466.unparse(_s466x)}`: the module `{_ld466}` "
+                                               f"is not found on the program's path (this "
+                                               f"file's directory, `--import-path`, installed "
+                                               f"packages)" + (", only on the VERIFIER's own "
+                                                               "path (src/pycsl / src)"
+                                                               if _vh466 else "")
+                                               + " (CPython raises ModuleNotFoundError)")
+                            elif _hit466[1] in ("L", "I"):
+                                _lmo466 = _ty466.ModuleType(_ld466)
+                                _lmo466.__getattr__ = lambda _n: _UK466
+                                if _hit466[2]:
+                                    _lmo466.__path__ = _hit466[2]
+                                _mods466[_ld466] = {"st": "D", "mo": _lmo466, "file": _hit466[0],
+                                                    "role": _hit466[1], "path": _hit466[2],
+                                                    "pkg": _ld466 if _hit466[2] else _pq466[0],
+                                                    "name": _ld466}
+                                if _pq466[0] and _mods466[_pq466[0]]["mo"] is not None:
+                                    setattr(_mods466[_pq466[0]]["mo"], _pq466[2], _lmo466)
+                            else:
+                                # a module of the program: compile, then RUN its top level
+                                try:
+                                    _raw466 = open(_hit466[0], "rb").read()
+                                    compile(_raw466, _hit466[0], "exec", dont_inherit=True)
+                                    _tr466 = _a466.parse(_raw466, _hit466[0])
+                                except (SyntaxError, ValueError, OSError) as _x466:
+                                    _tr466 = None
+                                    _why466 = ("X", f"`{_a466.unparse(_s466x)}`: the module "
+                                                    f"`{_ld466}` ({_hit466[0]}) does not compile "
+                                                    f"({type(_x466).__name__}: {str(_x466)[:80]})")
+                                if _tr466 is not None:
+                                    _umo466 = _ty466.ModuleType(_ld466)
+                                    _umo466.__file__ = _hit466[0]
+                                    _umo466.__package__ = _ld466 if _hit466[2] else _pq466[0]
+                                    _umo466.__doc__ = _a466.get_docstring(_tr466, clean=False)
+                                    _umo466.__builtins__ = _bi466
+                                    _umo466.__spec__ = None
+                                    _umo466.__loader__ = None
+                                    if _hit466[2]:
+                                        _umo466.__path__ = list(_hit466[2])
+                                    _rec466 = {"st": "L", "mo": _umo466, "file": _hit466[0],
+                                               "role": "J", "path": _hit466[2],
+                                               "pkg": _umo466.__package__ or None,
+                                               "name": _ld466, "src": _raw466}
+                                    _mods466[_ld466] = _rec466
+                                    # registered under a PRIVATE name for the class machinery
+                                    # (`dataclass` reads `sys.modules[cls.__module__]`), and
+                                    # unregistered below on every path
+                                    _s466.modules["__pycsl466__." + _ld466] = _umo466
+                                    _fr466.append([list(_tr466.body), 0, _umo466.__dict__,
+                                                   _umo466.__dict__, _rec466, ("mod", _rec466)])
+                        if _why466 is None:
+                            continue
+                    elif _why466 is None:
+                        # all loaded: bind
+                        for _al466 in _s466x.names:
+                            if isinstance(_s466x, _a466.Import):
+                                if _al466.asname:
+                                    _L466[_al466.asname] = _mods466[_al466.name]["mo"]
+                                else:
+                                    _L466[_al466.name.split(".")[0]] = _mods466[
+                                        _al466.name.split(".")[0]]["mo"]
+                                continue
+                            _tm466 = _mods466[_need466[0]]
+                            if _tm466["mo"] is None:
+                                _why466 = ("X", f"`{_a466.unparse(_s466x)}`: `{_need466[0]}` "
+                                                f"cannot be imported")
+                                break
+                            _td466 = _tm466["mo"].__dict__
+                            if _al466.name == "*":
+                                if _tm466["role"] in ("L", "I"):
+                                    _why466 = ("U", f"`{_a466.unparse(_s466x)}` binds names of a "
+                                                    f"library module the verifier does not list")
+                                    break
+                                if _tm466["role"] == "S":
+                                    _an466 = getattr(_tm466["mo"], "__all__", None) or [
+                                        _k for _k in dir(_tm466["mo"]) if not _k.startswith("_")]
+                                else:
+                                    _an466 = _td466.get("__all__")
+                                    if _an466 is None:
+                                        _an466 = [_k for _k in list(_td466) if not _k.startswith("_")]
+                                for _k466 in list(_an466):
+                                    if not isinstance(_k466, str) or not hasattr(_tm466["mo"], _k466):
+                                        _why466 = ("X", f"`{_a466.unparse(_s466x)}`: `{_k466}` of "
+                                                        f"`__all__` is not bound (CPython "
+                                                        f"AttributeError)")
+                                        break
+                                    _L466[_k466] = getattr(_tm466["mo"], _k466)
+                                if _why466:
+                                    break
+                                continue
+                            _sb466 = _need466[0] + "." + _al466.name
+                            if _tm466["role"] in ("J", "M"):
+                                if _al466.name in _td466:
+                                    _L466[_al466.asname or _al466.name] = _td466[_al466.name]
+                                elif _sb466 in _mods466 and _mods466[_sb466]["mo"] is not None:
+                                    _L466[_al466.asname or _al466.name] = _mods466[_sb466]["mo"]
+                                elif "__getattr__" in _td466:
+                                    _L466[_al466.asname or _al466.name] = _UK466
+                                else:
+                                    _why466 = ("X", f"`{_a466.unparse(_s466x)}`: the module "
+                                                    f"`{_need466[0]}` has no `{_al466.name}` "
+                                                    f"bound " + ("YET (it is being imported: a "
+                                                                 "circular import) "
+                                                                 if _tm466["st"] == "L" else
+                                                                 "when its import completes ")
+                                                    + "(CPython ImportError)")
+                                    break
+                            elif _tm466["role"] == "S":
+                                if hasattr(_tm466["mo"], _al466.name):
+                                    _L466[_al466.asname or _al466.name] = getattr(
+                                        _tm466["mo"], _al466.name)
+                                else:
+                                    try:
+                                        _L466[_al466.asname or _al466.name] = _il466.import_module(_sb466)
+                                    except Exception as _x466:
+                                        _why466 = ("X", f"`{_a466.unparse(_s466x)}` raises "
+                                                        f"{type(_x466).__name__} in CPython "
+                                                        f"({str(_x466)[:80]})")
+                                        break
+                            else:
+                                # a library module: the name must be bound somewhere in it or
+                                # be a submodule
+                                _okl466 = bool(_tm466["path"]) and any(
+                                    _o466.path.exists(_o466.path.join(_p, _al466.name) + _x)
+                                    for _p in _tm466["path"] for _x in (".py", ""))
+                                if not _okl466 and _tm466["file"] and _tm466["file"].endswith(".py"):
+                                    try:
+                                        _lt466 = _a466.parse(open(_tm466["file"], "rb").read())
+                                    except Exception:
+                                        _lt466 = None
+                                    _okl466 = _lt466 is None
+                                    for _z466 in (_a466.walk(_lt466) if _lt466 is not None else []):
+                                        if isinstance(_z466, (_a466.FunctionDef,
+                                                              _a466.AsyncFunctionDef, _a466.ClassDef)):
+                                            _okl466 = _okl466 or _z466.name in (_al466.name, "__getattr__")
+                                        elif isinstance(_z466, _a466.Name) and not isinstance(
+                                                _z466.ctx, _a466.Load):
+                                            _okl466 = _okl466 or _z466.id == _al466.name
+                                        elif isinstance(_z466, (_a466.Import, _a466.ImportFrom)):
+                                            _okl466 = _okl466 or any(
+                                                (_a.asname or _a.name).split(".")[0] == _al466.name
+                                                or _a.name == "*" for _a in _z466.names)
+                                elif not _okl466:
+                                    _okl466 = True
+                                if not _okl466:
+                                    _why466 = ("X", f"`{_a466.unparse(_s466x)}`: the module "
+                                                    f"`{_need466[0]}` binds no `{_al466.name}` "
+                                                    f"(CPython ImportError)")
+                                    break
+                                _L466[_al466.asname or _al466.name] = _UK466
+            # ---- every other statement (only in a program module / class body)
+            elif isinstance(_s466x, _a466.Expr):
+                if not isinstance(_s466x.value, _a466.Constant):
+                    _exprs466 = [("expr", _s466x.value)]
+            elif isinstance(_s466x, (_a466.Pass, _a466.Global, _a466.Nonlocal)):
+                pass
+            elif isinstance(_s466x, (_a466.FunctionDef, _a466.AsyncFunctionDef, _a466.ClassDef)):
+                _exprs466 = [("dec", _d) for _d in _s466x.decorator_list]
+                if isinstance(_s466x, _a466.ClassDef):
+                    _exprs466 += [("base", _b) for _b in _s466x.bases]
+                    _exprs466 += [("kw", _k.value) for _k in _s466x.keywords]
+                else:
+                    _exprs466 += [("dflt", _d) for _d in (list(_s466x.args.defaults)
+                                                          + [_k for _k in _s466x.args.kw_defaults
+                                                             if _k is not None])]
+            elif isinstance(_s466x, _a466.Assign):
+                _exprs466 = [("val", _s466x.value)]
+            elif isinstance(_s466x, _a466.AugAssign) and isinstance(_s466x.target, _a466.Name):
+                _exprs466 = [("val", _a466.BinOp(left=_a466.Name(id=_s466x.target.id,
+                                                                 ctx=_a466.Load()),
+                                                 op=_s466x.op, right=_s466x.value))]
+            elif isinstance(_s466x, _a466.AnnAssign):
+                _exprs466 = [("val", _s466x.value)] if _s466x.value is not None else []
+            elif isinstance(_s466x, (_a466.If, _a466.Assert)):
+                _exprs466 = [("test", _s466x.test)]
+            elif isinstance(_s466x, (_a466.Try, _a466.Delete, _a466.TypeAlias)) or (
+                    type(_s466x).__name__ == "TryStar"):
+                pass
+            elif isinstance(_s466x, _a466.Raise):
+                _why466 = ("X", f"`{_a466.unparse(_s466x)[:60]}` raises at import")
+            else:
+                _why466 = ("U", f"`{_a466.unparse(_s466x).splitlines()[0][:60]}` is not on the "
+                                f"import-time allow-list (a `for` / `while` / `with` / `match`, "
+                                f"an attribute store ...)")
+            if _why466 is None and _R466["role"] == "M" and not isinstance(
+                    _s466x, (_a466.Import, _a466.ImportFrom)):
+                _exprs466 = []
+            # ---- evaluate the statement's expressions over real values
+            _vals466 = []
+            for _ek466, _e466 in _exprs466:
+                if _why466 is not None:
+                    break
+                # SAFETY: every call in the expression (lambda bodies and comprehensions
+                # included) must name an admitted callable, resolved now in this scope
+                _sh466 = set()
+                for _y466 in _a466.walk(_e466):
+                    if isinstance(_y466, (_a466.NamedExpr, _a466.Await, _a466.Yield,
+                                          _a466.YieldFrom)):
+                        _why466 = ("U", f"`{_a466.unparse(_e466)[:60]}` binds or suspends "
+                                        f"inside an import-time expression")
+                    elif isinstance(_y466, _a466.comprehension):
+                        _sh466 |= {_q.id for _q in _a466.walk(_y466.target)
+                                   if isinstance(_q, _a466.Name)}
+                    elif isinstance(_y466, _a466.Lambda):
+                        _sh466 |= {_q.arg for _q in _a466.walk(_y466.args)
+                                   if isinstance(_q, _a466.arg)}
+                    if (_F466[5] is not None and _F466[5][0] == "cls"
+                            and isinstance(_y466, (_a466.Lambda, _a466.ListComp, _a466.SetComp,
+                                                   _a466.DictComp, _a466.GeneratorExp))
+                            and any(isinstance(_q, _a466.Call) for _q in _a466.walk(_y466))):
+                        _why466 = ("U", f"`{_a466.unparse(_e466)[:60]}`: a call in a nested scope "
+                                        f"of a class body")
+                for _y466 in _a466.walk(_e466):
+                    if _why466 is not None:
+                        break
+                    if not isinstance(_y466, _a466.Call):
+                        continue
+                    _cf466 = _y466.func
+                    _ch466 = []
+                    while isinstance(_cf466, _a466.Attribute):
+                        _ch466.insert(0, _cf466.attr)
+                        _cf466 = _cf466.value
+                    _cv466 = None
+                    _cok466 = False
+                    if isinstance(_cf466, _a466.Name) and _cf466.id not in _sh466:
+                        if _cf466.id in _L466:
+                            _cv466 = _L466[_cf466.id]
+                        elif _cf466.id in _G466:
+                            _cv466 = _G466[_cf466.id]
+                        elif hasattr(_bi466, _cf466.id):
+                            _cv466 = getattr(_bi466, _cf466.id)
+                        else:
+                            _cv466 = _UK466
+                        try:
+                            for _at466 in _ch466:
+                                _cv466 = getattr(_cv466, _at466)
+                            _cok466 = _cv466 is not _UK466
+                        except BaseException:
+                            _cok466 = False
+                    elif isinstance(_cf466, _a466.Constant) and _ch466:
+                        try:
+                            _cv466 = _cf466.value
+                            for _at466 in _ch466:
+                                _cv466 = getattr(_cv466, _at466)
+                            _cok466 = True
+                        except Exception:
+                            _cok466 = False
+                    if _cok466:
+                        _cok466 = (id(_cv466) in _pu466 or id(_cv466) in _ma466
+                                   or (type(_cv466) in (_ty466.BuiltinMethodType,
+                                                        _ty466.MethodWrapperType)
+                                       and type(getattr(_cv466, "__self__", None)) in _bt466)
+                                   or (type(_cv466) in (_ty466.MethodDescriptorType,
+                                                        _ty466.ClassMethodDescriptorType)
+                                       and getattr(_cv466, "__objclass__", None) in _bt466))
+                    if not _cok466:
+                        _why466 = ("U", f"`{_a466.unparse(_y466)[:60]}` calls something other "
+                                        f"than a side-effect-free standard-library callable at "
+                                        f"import")
+                if _why466 is not None:
+                    break
+                try:
+                    _v466 = eval(compile(_a466.fix_missing_locations(_a466.Expression(body=_e466)),
+                                         _R466["file"] or "<m>", "eval", dont_inherit=True),
+                                 _G466, _L466)
+                except _SX466 as _x466:
+                    _why466 = ("R", f"`{_a466.unparse(_e466)[:60]}` runs code of the module at "
+                                    f"import ({_x466})")
+                    break
+                except Exception as _x466:
+                    _why466 = ("X", f"`{_a466.unparse(_e466)[:60]}` raises "
+                                    f"{type(_x466).__name__} ({str(_x466)[:80]})")
+                    break
+                if _ek466 == "dec" and isinstance(_e466, _a466.Call):
+                    _ma466.add(id(_v466))
+                    _keep466.append(_v466)
+                _vals466.append((_ek466, _v466))
+            # ---- apply the statement
+            if _why466 is None and _R466["role"] != "M" and not isinstance(
+                    _s466x, (_a466.Import, _a466.ImportFrom)):
+                try:
+                    if isinstance(_s466x, (_a466.FunctionDef, _a466.AsyncFunctionDef)):
+                        _ph466 = (lambda _m: (lambda *_a, **_k: (_ for _ in ()).throw(_SX466(_m))))(
+                            f"`{_s466x.name}` (line {_s466x.lineno})")
+                        _ph466.__name__ = _s466x.name
+                        _ph466.__qualname__ = _s466x.name
+                        _ph466.__module__ = "__pycsl466__." + str(_R466.get("name"))
+                        _pd466[id(_ph466)] = (_R466["file"], _s466x, _R466)
+                        _keep466.append(_ph466)
+                        _fv466 = _ph466
+                        for _dk466, _dv466 in reversed([_q for _q in _vals466 if _q[0] == "dec"]):
+                            _cok466 = (id(_dv466) in _pu466 or id(_dv466) in _ma466 or (
+                                type(_dv466) in (_ty466.BuiltinMethodType, _ty466.MethodType)
+                                and isinstance(getattr(_dv466, "__self__", None), property)))
+                            if not _cok466:
+                                _why466 = ("U", f"the decorator of `{_s466x.name}` (line "
+                                                f"{_s466x.lineno}) is not on the allow-list")
+                                break
+                            _fv466 = _dv466(_fv466)
+                            _pd466[id(_fv466)] = (_R466["file"], _s466x, _R466)
+                            _keep466.append(_fv466)
+                        if _why466 is None:
+                            _L466[_s466x.name] = _fv466
+                    elif isinstance(_s466x, _a466.ClassDef):
+                        _cdec466 = [_v for _k, _v in _vals466 if _k == "dec"]
+                        for _dv466 in _cdec466:
+                            if not (id(_dv466) in _pu466 or id(_dv466) in _ma466):
+                                _why466 = ("U", f"the decorator of `{_s466x.name}` (line "
+                                                f"{_s466x.lineno}) is not on the allow-list")
+                        _ck466 = {}
+                        _kv466 = [_v for _k, _v in _vals466 if _k == "kw"]
+                        for _kn466, _kx466 in zip(_s466x.keywords, _kv466):
+                            if _kn466.arg is None:
+                                _why466 = ("U", f"`**` in the keywords of `{_s466x.name}`")
+                            elif _kn466.arg == "metaclass":
+                                import abc as _abc466
+                                import enum as _en466
+                                if _kx466 not in (_abc466.ABCMeta, type, _en466.EnumMeta):
+                                    _why466 = ("U", f"the metaclass of `{_s466x.name}` is not on "
+                                                    f"the allow-list")
+                            _ck466[_kn466.arg] = _kx466
+                        if _why466 is None:
+                            _cns466 = {"__module__": "__pycsl466__." + str(_R466.get("name")),
+                                       "__qualname__": _s466x.name, "__annotations__": {}}
+                            _d466c = _a466.get_docstring(_s466x, clean=False)
+                            if _d466c is not None:
+                                _cns466["__doc__"] = _d466c
+                            _fr466.append([list(_s466x.body), 0, _G466, _cns466, _R466,
+                                           ("cls", _s466x.name,
+                                            [_v for _k, _v in _vals466 if _k == "base"],
+                                            _ck466, _cdec466, _s466x, _cns466, _L466)])
+                    elif isinstance(_s466x, _a466.Assign):
+                        for _tg466 in _s466x.targets:
+                            if isinstance(_tg466, _a466.Name):
+                                _L466[_tg466.id] = _vals466[0][1]
+                            elif isinstance(_tg466, (_a466.Tuple, _a466.List)) and all(
+                                    isinstance(_q, _a466.Name) for _q in _tg466.elts):
+                                if type(_vals466[0][1]) not in _bt466:
+                                    _why466 = ("U", f"unpacking a non-builtin value at line "
+                                                    f"{_s466x.lineno}")
+                                    break
+                                _up466 = list(_vals466[0][1])
+                                if len(_up466) != len(_tg466.elts):
+                                    _why466 = ("X", f"line {_s466x.lineno}: the unpack raises "
+                                                    f"ValueError")
+                                    break
+                                for _q466, _u466 in zip(_tg466.elts, _up466):
+                                    _L466[_q466.id] = _u466
+                            elif (isinstance(_tg466, _a466.Subscript)
+                                  and isinstance(_tg466.value, _a466.Name)
+                                  and type(_L466.get(_tg466.value.id)) in (dict, list)
+                                  and not isinstance(_tg466.slice, _a466.Slice)):
+                                _ix466 = eval(compile(_a466.Expression(body=_tg466.slice),
+                                                      "<m>", "eval", dont_inherit=True),
+                                              _G466, _L466) if not any(
+                                    isinstance(_q, _a466.Call) for _q in _a466.walk(_tg466.slice)
+                                ) else _UK466
+                                if _ix466 is _UK466 or type(_ix466) not in _bt466:
+                                    _why466 = ("U", f"a subscript store at line {_s466x.lineno}")
+                                    break
+                                _L466[_tg466.value.id][_ix466] = _vals466[0][1]
+                            else:
+                                _why466 = ("U", f"the assignment target at line {_s466x.lineno} "
+                                                f"is not a name")
+                                break
+                    elif isinstance(_s466x, _a466.AugAssign):
+                        _L466[_s466x.target.id] = _vals466[0][1]
+                    elif isinstance(_s466x, _a466.AnnAssign):
+                        if not isinstance(_s466x.target, _a466.Name):
+                            _why466 = ("U", f"the annotated target at line {_s466x.lineno} is "
+                                            f"not a name")
+                        else:
+                            if _L466 is not _G466 and "__annotations__" in _L466:
+                                _L466["__annotations__"][_s466x.target.id] = _a466.unparse(
+                                    _s466x.annotation)
+                            if _vals466:
+                                _L466[_s466x.target.id] = _vals466[0][1]
+                    elif isinstance(_s466x, _a466.If):
+                        _adv466 = False
+                        _F466[1] += 1
+                        _fr466.append([list(_s466x.body if _vals466[0][1] else _s466x.orelse),
+                                       0, _G466, _L466, _R466, None])
+                    elif isinstance(_s466x, _a466.Assert):
+                        if not _vals466[0][1]:
+                            _why466 = ("X", f"`{_a466.unparse(_s466x)[:60]}` fails at import "
+                                            f"(AssertionError)")
+                    elif isinstance(_s466x, _a466.Delete):
+                        for _tg466 in _s466x.targets:
+                            if isinstance(_tg466, _a466.Name) and _tg466.id in _L466:
+                                del _L466[_tg466.id]
+                            else:
+                                _why466 = ("X" if isinstance(_tg466, _a466.Name) else "U",
+                                           f"`{_a466.unparse(_s466x)[:60]}` at import")
+                    elif isinstance(_s466x, _a466.TypeAlias):
+                        _L466[_s466x.name.id] = _UK466
+                    elif isinstance(_s466x, _a466.Try) or type(_s466x).__name__ == "TryStar":
+                        _adv466 = False
+                        _F466[1] += 1
+                        _fr466.append([list(_s466x.body) + list(_s466x.orelse)
+                                       + list(_s466x.finalbody), 0, _G466, _L466, _R466, None])
+                except _SX466 as _x466:
+                    _why466 = ("R", f"line {getattr(_s466x, 'lineno', 0)} runs code of the "
+                                    f"module at import ({_x466})")
+                except Exception as _x466:
+                    _why466 = ("X", f"line {getattr(_s466x, 'lineno', 0)} raises "
+                                    f"{type(_x466).__name__} ({str(_x466)[:80]})")
+            if _why466 is not None:
+                _rf466 = (_why466[0], f"{_R466['file'] or '<main>'}: {_why466[1]}")
+                break
+            if _adv466:
+                _F466[1] += 1
+        for _k466 in [_k for _k in _s466.modules if _k.startswith("__pycsl466__.")]:
+            del _s466.modules[_k466]
+        # ---- route #467: a function of a program module reached under a claim
+        if _rf466 is None:
+            _mt466 = {}
+            _cls466 = {}
+            for _cv466, _cf466, _cn466 in _cl466:
+                _cls466[id(_cv466)] = (_cf466, _cn466)
+                for _m466 in _cn466.body:
+                    if isinstance(_m466, (_a466.FunctionDef, _a466.AsyncFunctionDef)):
+                        _mt466.setdefault(_m466.name, []).append((_cf466, _m466))
+            _src466 = {}
+            for _r466 in _mods466.values():
+                if _r466.get("src") is not None:
+                    _src466[_r466["file"]] = _r466["src"].decode("utf-8", "replace").splitlines()
+            _md466 = _mm466.__dict__
+            # a class of THIS file whose base is a class of a program module: constructing it
+            # (or an operator on it) runs the base's constructor / dunders
+            _jb466 = {}
+            for _z466 in _a466.walk(_t341):
+                if isinstance(_z466, _a466.ClassDef):
+                    for _b466 in _z466.bases:
+                        _rt466 = _b466
+                        _ch466 = []
+                        while isinstance(_rt466, _a466.Attribute):
+                            _ch466.insert(0, _rt466.attr)
+                            _rt466 = _rt466.value
+                        if isinstance(_rt466, _a466.Name) and _rt466.id in _md466:
+                            _ov466 = _md466[_rt466.id]
+                            for _at466 in _ch466:
+                                _ov466 = getattr(_ov466, _at466, None) if isinstance(
+                                    _ov466, _ty466.ModuleType) else None
+                            if isinstance(_ov466, type) and id(_ov466) in _cls466:
+                                _jb466.setdefault(_z466.name, []).append(_ov466)
+            for _d466, _c466x in _fn346:
+                _cx466 = _rc444.get(id(_d466))
+                if not _cx466 or _rf466 is not None:
+                    continue
+                _tg466 = []
+                for _y466 in _a466.walk(_d466):
+                    _vv466 = []
+                    if isinstance(_y466, _a466.Name) and _y466.id in _md466:
+                        _vv466.append(_md466[_y466.id])
+                    elif isinstance(_y466, _a466.Attribute):
+                        _tg466 += [(_f, _n, f"`.{_y466.attr}`") for _f, _n in _mt466.get(_y466.attr, [])]
+                        _ch466 = []
+                        _rt466 = _y466
+                        while isinstance(_rt466, _a466.Attribute):
+                            _ch466.insert(0, _rt466.attr)
+                            _rt466 = _rt466.value
+                        if isinstance(_rt466, _a466.Name) and isinstance(
+                                _md466.get(_rt466.id), _ty466.ModuleType):
+                            _ov466 = _md466[_rt466.id]
+                            for _at466 in _ch466:
+                                if not isinstance(_ov466, _ty466.ModuleType):
+                                    break
+                                _om466 = _ov466
+                                _ov466 = _ov466.__dict__.get(_at466, _UK466)
+                                if (_ov466 is _UK466 and "__getattr__" not in _om466.__dict__
+                                        and any(_r["mo"] is _om466 and _r["role"] in ("J", "S")
+                                                for _r in _mods466.values())
+                                        and not hasattr(_om466, _at466)):
+                                    _rf466 = ("A", f"{_fp466}: `{_d466.name}` (line "
+                                                   f"{_d466.lineno}) reads `{_a466.unparse(_y466)[:50]}`"
+                                                   f", but the module `{_om466.__name__}` binds no "
+                                                   f"`{_at466}` once imported (CPython "
+                                                   f"AttributeError)")
+                                    break
+                            _vv466.append(_ov466)
+                    if isinstance(_y466, _a466.Name) and _y466.id in _jb466:
+                        _vv466 += _jb466[_y466.id]
+                    for _ov466 in _vv466:
+                        for _df466 in (getattr(_ov466, "__dataclass_fields__", None) or {}).values() if isinstance(_ov466, type) else []:
+                            _fy466 = getattr(_df466, "default_factory", None)
+                            if id(_fy466) in _pd466:
+                                _tg466.append((_pd466[id(_fy466)][0], _pd466[id(_fy466)][1],
+                                               f"the `default_factory` of `{_a466.unparse(_y466)[:40]}`"))
+                        if id(_ov466) in _pd466:
+                            _tg466.append((_pd466[id(_ov466)][0], _pd466[id(_ov466)][1],
+                                           f"`{_a466.unparse(_y466)[:40]}`"))
+                        elif isinstance(_ov466, type):
+                            for _b466 in getattr(_ov466, "__mro__", ()):
+                                if id(_b466) not in _cls466:
+                                    continue
+                                for _m466 in _cls466[id(_b466)][1].body:
+                                    if isinstance(_m466, (_a466.FunctionDef, _a466.AsyncFunctionDef)) and (
+                                            _m466.name in ("__init__", "__new__", "__post_init__")
+                                            or (_m466.name.startswith("__") and _m466.name.endswith("__"))):
+                                        _tg466.append((_cls466[id(_b466)][0], _m466,
+                                                       f"`{_a466.unparse(_y466)[:40]}`"))
+                for _tf466, _tn466, _how466 in (_tg466 if _rf466 is None else []):
+                    # the callee's own claim (the `#@` block above it)
+                    _ln466 = _src466.get(_tf466, [])
+                    _li466 = min([_q.lineno for _q in _tn466.decorator_list] + [_tn466.lineno]) - 2
+                    _own466 = set()
+                    while 0 <= _li466 < len(_ln466) and _ln466[_li466].lstrip().startswith("#@"):
+                        _lt466 = _ln466[_li466].strip()
+                        if _lt466.startswith("#@ no_exception"):
+                            if "\\all" in _lt466:
+                                _own466.add("\\all")
+                            _own466 |= {_w.strip(",;()[]") for _w in
+                                        _lt466[len("#@ no_exception"):].replace(",", " ").split()}
+                        _li466 -= 1
+                    if "\\all" in _own466 or ("\\all" not in _cx466 and {
+                            _w for _w in _cx466 if _w.isidentifier()} <= _own466):
+                        continue
+                    # the exception-free allow-list: int / bool arithmetic and comparisons
+                    _ia466 = _tn466.args
+                    _ok466 = (not _tn466.decorator_list and _ia466.vararg is None
+                              and _ia466.kwarg is None and not isinstance(_tn466, _a466.AsyncFunctionDef))
+                    _int466 = {_q.arg for _q in (_ia466.posonlyargs + _ia466.args + _ia466.kwonlyargs)
+                               if isinstance(_q.annotation, _a466.Name)
+                               and _q.annotation.id in ("int", "bool")}
+                    _rd466 = {_q.arg for _q in (_ia466.posonlyargs + _ia466.args + _ia466.kwonlyargs)}
+                    _sw466 = [(_q, True) for _q in reversed(_tn466.body)]
+                    while _sw466 and _ok466:
+                        _q466, _top466 = _sw466.pop()
+                        _ex466 = []
+                        if isinstance(_q466, _a466.Return):
+                            _ex466 = [_q466.value] if _q466.value is not None else []
+                        elif isinstance(_q466, _a466.Expr) and isinstance(_q466.value, _a466.Constant):
+                            pass
+                        elif isinstance(_q466, _a466.Pass):
+                            pass
+                        elif (isinstance(_q466, _a466.Assign) and len(_q466.targets) == 1
+                              and isinstance(_q466.targets[0], _a466.Name)):
+                            _ex466 = [_q466.value]
+                        elif (isinstance(_q466, _a466.AugAssign) and isinstance(_q466.target, _a466.Name)
+                              and _q466.target.id in _int466 and isinstance(_q466.op, (
+                                  _a466.Add, _a466.Sub, _a466.Mult, _a466.BitAnd, _a466.BitOr,
+                                  _a466.BitXor))):
+                            _ex466 = [_q466.value]
+                        elif isinstance(_q466, _a466.If):
+                            _ex466 = [_q466.test]
+                            _sw466 += [(_q, False) for _q in reversed(list(_q466.body) + list(_q466.orelse))]
+                        else:
+                            _ok466 = False
+                        # every expression: int-typed operands for + - * & | ^, comparisons,
+                        # boolean operators, names that are parameters or earlier straight-line
+                        # locals, constants; nothing else
+                        _ew466 = list(_ex466)
+                        while _ew466 and _ok466:
+                            _e466 = _ew466.pop()
+                            if isinstance(_e466, _a466.Constant):
+                                _ok466 = type(_e466.value) in (int, bool, str, type(None), float)
+                            elif isinstance(_e466, _a466.Name):
+                                _ok466 = _e466.id in _rd466
+                            elif isinstance(_e466, _a466.BinOp):
+                                _ok466 = isinstance(_e466.op, (_a466.Add, _a466.Sub, _a466.Mult,
+                                                               _a466.BitAnd, _a466.BitOr, _a466.BitXor))
+                                for _o2 in (_e466.left, _e466.right):
+                                    _ok466 = _ok466 and (
+                                        (isinstance(_o2, _a466.Name) and _o2.id in _int466)
+                                        or (isinstance(_o2, _a466.Constant) and type(_o2.value) in (int, bool))
+                                        or isinstance(_o2, (_a466.BinOp, _a466.UnaryOp)))
+                                _ew466 += [_e466.left, _e466.right]
+                            elif isinstance(_e466, _a466.UnaryOp):
+                                _ok466 = isinstance(_e466.op, _a466.Not) or (
+                                    (isinstance(_e466.operand, _a466.Name) and _e466.operand.id in _int466)
+                                    or (isinstance(_e466.operand, _a466.Constant)
+                                        and type(_e466.operand.value) in (int, bool))
+                                    or isinstance(_e466.operand, (_a466.BinOp, _a466.UnaryOp)))
+                                if isinstance(_e466.op, _a466.Not):
+                                    _ok466 = (isinstance(_e466.operand, (_a466.Compare, _a466.BoolOp))
+                                              or (isinstance(_e466.operand, _a466.Name)
+                                                  and _e466.operand.id in _int466))
+                                _ew466.append(_e466.operand)
+                            elif isinstance(_e466, _a466.Compare):
+                                for _o2, _op2 in zip([_e466.left] + list(_e466.comparators),
+                                                     list(_e466.ops) * 2):
+                                    _ok466 = _ok466 and (
+                                        (isinstance(_o2, _a466.Name) and _o2.id in _int466)
+                                        or (isinstance(_o2, _a466.Constant) and type(_o2.value) in (int, bool))
+                                        or isinstance(_o2, (_a466.BinOp, _a466.UnaryOp)))
+                                _ew466 += [_e466.left] + list(_e466.comparators)
+                            elif isinstance(_e466, _a466.BoolOp):
+                                for _o2 in _e466.values:
+                                    _ok466 = _ok466 and (
+                                        isinstance(_o2, (_a466.Compare, _a466.BoolOp))
+                                        or (isinstance(_o2, _a466.Name) and _o2.id in _int466))
+                                _ew466 += list(_e466.values)
+                            elif isinstance(_e466, _a466.IfExp):
+                                _ok466 = isinstance(_e466.test, (_a466.Compare, _a466.BoolOp)) or (
+                                    isinstance(_e466.test, _a466.Name) and _e466.test.id in _int466)
+                                _ew466 += [_e466.test, _e466.body, _e466.orelse]
+                            else:
+                                _ok466 = False
+                        if _ok466 and isinstance(_q466, _a466.Assign):
+                            _tn2 = _q466.targets[0].id
+                            _v2 = _q466.value
+                            if _top466:
+                                _rd466.add(_tn2)
+                            if ((isinstance(_v2, _a466.Name) and _v2.id in _int466)
+                                    or (isinstance(_v2, _a466.Constant) and type(_v2.value) in (int, bool))
+                                    or isinstance(_v2, (_a466.BinOp, _a466.UnaryOp))):
+                                if _top466 or _tn2 in _int466:
+                                    _int466.add(_tn2)
+                            else:
+                                _int466.discard(_tn2)
+                    if not _ok466:
+                        _rf466 = ("C", f"`{_d466.name}` (line {_d466.lineno}) claims `#@ "
+                                       f"no_exception {' '.join(sorted(_cx466))}` (its own or a "
+                                       f"caller's) and reaches {_how466}, the function "
+                                       f"`{_tn466.name}` of {_tf466} (line {_tn466.lineno}), "
+                                       f"which claims no `no_exception` covering it and whose "
+                                       f"body is not on the exception-free allow-list")
+                        break
+        if _rf466 is not None:
+            from errors import PyCSLSemanticError as _PyCSLSemErr466
+            if _rf466[0] == "C":
+                raise _PyCSLSemErr466(
+                    f"{_rf466[1]}. An imported function is a bodyless stub whose body is never "
+                    f"verified here, so a claim reaching it would be proved by ASSUMPTION "
+                    f"(route #467; measured: an un-claimed `def g(x): assert x != x` of an "
+                    f"imported module, `next(iter([]))`, `getattr(x, 'zz')`, `json.loads` "
+                    f"and `open()` each PROVED `no_exception \\all` for a claimed caller "
+                    f"`return g(n)`, CPython raises). Give the imported function its own "
+                    f"`#@ no_exception` claim covering the caller's (it is verified when its "
+                    f"module is), or drop the exception from this function's claim.",
+                    stage="ir-semantic", code="PYCSL-R467-IMPORTED-UNCLAIMED")
+            if _rf466[0] == "P":
+                raise _PyCSLSemErr466(
+                    f"{_rf466[1]}. The verified program runs under ITS OWN module path -- this "
+                    f"file's directory, the `--import-path` roots, the installed packages -- "
+                    f"never the verifier's (route #472; measured: `import frontend`, `import "
+                    f"errors` and `import pycsl` each PROVED `no_exception \\all` of a function "
+                    f"of the module without `--import-path`, CPython raises "
+                    f"ModuleNotFoundError). Put the module next to this file, or pass its root "
+                    f"with `--import-path`.",
+                    stage="ir-semantic", code="PYCSL-R472-IMPORT-NOT-ON-TARGET-PATH")
+            if _rf466[0] == "A":
+                raise _PyCSLSemErr466(
+                    f"{_rf466[1]}, while it claims `#@ no_exception` (route #466; measured: "
+                    f"`import h; h.g(n)` with `g` bound only under `if False:` in `h` PROVED "
+                    f"`no_exception \\all`, CPython AttributeError). The modules of the program "
+                    f"are imported here statement by statement, so the names they bind are "
+                    f"known. Bind the name unconditionally at the module's top level, or read "
+                    f"a name it binds.",
+                    stage="ir-semantic", code="PYCSL-R466-IMPORTED-MODULE-RAISES")
+            raise _PyCSLSemErr466(
+                f"{_rf466[1]}, so IMPORTING this module raises (or runs code the verifier does "
+                f"not judge) before any of its functions can run, while this file claims `#@ "
+                f"no_exception` (route #466; measured: a helper module with `X = 1 // 0`, an "
+                f"`assert`, an MRO conflict, a dataclass mutable default, a missing import, a "
+                f"name bound only under `if False:` and a circular import each PROVED `no_exception "
+                f"\\all` of the importer's function, CPython raises at import). The modules of "
+                f"the program (found in this file's directory or on `--import-path`) are imported here statement by "
+                f"statement on the same exception-free allow-list as route #461 (imports of "
+                f"modules that exist and bind the imported names, `def` / `class` whose "
+                f"decorators, defaults and bases evaluate, assignments of values side-effect-free "
+                f"standard-library code computes). Rewrite the module's top level so that it "
+                f"cannot raise, import only names it binds unconditionally, or move the "
+                f"computation into a function.",
+                stage="ir-semantic", code="PYCSL-R466-IMPORTED-MODULE-RAISES")
+    # (#49) gen #39, ROUTE #468 (red team 38, driver-reproduced on a9eac4a08): a BODYLESS
+    # `val` (an imported function, `\trusted`, `\abstract`) with a LIST parameter its body
+    # writes is emitted `val g (x: array int) : unit writes { x }` (route #317's default
+    # frame, or a declared `#@ assigns x`), and a Why3 `array`'s length is not mutable: the
+    # caller keeps `length x` across the call, so an `append` / `pop` / `+=` / `heappush` /
+    # alias / closure in the body is invisible (measured: an un-contracted imported `def
+    # g(x): x.append(1)` with `g(a); return len(a)` PROVED `\result == 2`, CPython 3; also
+    # with a truthful `#@ assigns x`, and through a same-file `\abstract`). RULE (allow-
+    # list, refuse by default): each list parameter of such a `val` must be LENGTH-
+    # PRESERVED by the body -- the parameter occurs only as the array of an element store
+    # `x[i] = v`, the value of an element read `x[i]`, the argument of `len(x)`, the
+    # iterable of a `for`, or the receiver of `sort()` / `reverse()`; anything else (a
+    # mutator, an alias, forwarding it to a call, a nested function) is REFUSED, as route
+    # #49 refuses the same mutators in a verified body. Inline; `_run_pipeline`'s mirror twin
+    # is `\trusted`.
+    _rf468 = None
+    _ix468 = None
+    _rd468 = None
+    for _f468 in ((getattr(transpiler, "ir", None) or {}).get("functions", []) or []):
+        if _rf468 is not None:
+            break
+        if not isinstance(_f468, dict) or not (_f468.get("trusted") or _f468.get("abstract")):
+            continue
+        _pa468 = _f468.get("param_annotations", {}) or {}
+        _lp468 = [(_p.get("name") if isinstance(_p, dict) else _p)
+                  for _p in (_f468.get("formal_params", []) or [])]
+        _lp468 = [_p for _p in _lp468 if isinstance(_p, str)
+                  and _pa468.get(_p) in ("list", "bytearray")]
+        if not _lp468:
+            continue
+        # the SOURCE of the body (the IR drops spellings it cannot lower: a closure, a
+        # lambda, `getattr(x, "append")(1)`): this file and the modules it imports,
+        # transitively, as the import resolution finds them; `name` and `<class>__name`
+        if _ix468 is None:
+            import ast as _a468
+            import sys as _s468
+            from frontend.ir_resolve import _resolve_module_path as _rmp468
+            _ix468 = {}
+            _fq468 = [(str(getattr(args, "file", "") or ""), _t341)]
+            _sl468 = {str(getattr(args, "file", "") or ""): source_code.splitlines()}
+            _tr468 = set()      # ids of defs whose own `#@` block says `\trusted`
+            _ab468 = set()      # ... or `\abstract`
+            _mf468 = str(getattr(args, "file", "") or "")
+            _sn468 = set()
+            while _fq468 and len(_sn468) < 200:
+                _ff468, _tt468 = _fq468.pop(0)
+                if _tt468 is None or _ff468 in _sn468:
+                    continue
+                _sn468.add(_ff468)
+                for _z468 in _a468.walk(_tt468):
+                    if isinstance(_z468, (_a468.FunctionDef, _a468.AsyncFunctionDef)):
+                        _ln468 = _sl468.get(_ff468, [])
+                        _li468 = min([_q.lineno for _q in _z468.decorator_list]
+                                     + [_z468.lineno]) - 2
+                        while 0 <= _li468 < len(_ln468) and (
+                                _ln468[_li468].lstrip().startswith("#@")
+                                or not _ln468[_li468].strip()):
+                            if _ln468[_li468].lstrip().startswith("#@ \\trusted"):
+                                _tr468.add(id(_z468))
+                            if _ln468[_li468].lstrip().startswith("#@ \\abstract"):
+                                _ab468.add(id(_z468))
+                            _li468 -= 1
+                    if isinstance(_z468, _a468.ClassDef):
+                        for _m468 in _z468.body:
+                            if isinstance(_m468, (_a468.FunctionDef, _a468.AsyncFunctionDef)):
+                                _ix468.setdefault(_z468.name.lower() + "__" + _m468.name,
+                                                  []).append((_ff468, _m468))
+                    elif isinstance(_z468, (_a468.FunctionDef, _a468.AsyncFunctionDef)):
+                        _ix468.setdefault(_z468.name, []).append((_ff468, _z468))
+                    _mq468 = []
+                    if isinstance(_z468, _a468.Import):
+                        _mq468 = [(_al.name, 0) for _al in _z468.names]
+                    elif isinstance(_z468, _a468.ImportFrom):
+                        _mq468 = [(_z468.module or "", _z468.level or 0)] + [
+                            (((_z468.module + ".") if _z468.module else "") + _al.name,
+                             _z468.level or 0) for _al in _z468.names if _al.name != "*"]
+                    for _mn468, _lv468 in _mq468:
+                        if _lv468 == 0 and (not _mn468 or _mn468.split(".")[0] in
+                                            _s468.stdlib_module_names):
+                            continue
+                        try:
+                            _rp468 = _rmp468(_mn468, _lv468, _ff468)
+                        except Exception:
+                            _rp468 = None
+                        if _rp468 and _rp468 not in _sn468:
+                            try:
+                                _rb468 = open(_rp468, "rb").read()
+                                _fq468.append((_rp468, _a468.parse(_rb468)))
+                                _sl468[_rp468] = _rb468.decode("utf-8", "replace").splitlines()
+                            except Exception:
+                                pass
+        # an EXPLICIT `#@ \\trusted` def (its own `#@` block; here or in its module) is a
+        # declared assumption, like its contract (the trusted surface's frames are
+        # route #316 / check-trusted-frame-honesty's ledger): not judged here
+        # the names the VERIFIED code of this file reads (a call, a value, a method tail):
+        # a `val` nothing verified here calls cannot make a caller's length wrong
+        if _rd468 is None:
+            _rd468 = set()
+            for _z468 in _a468.walk(_t341):
+                if (isinstance(_z468, (_a468.FunctionDef, _a468.AsyncFunctionDef))
+                        and id(_z468) not in _tr468 and id(_z468) not in _ab468):
+                    for _y468 in _a468.walk(_z468):
+                        if isinstance(_y468, _a468.Name):
+                            _rd468.add(_y468.id)
+                        elif isinstance(_y468, _a468.Attribute):
+                            _rd468.add(_y468.attr)
+        _nm468 = str(_f468.get("name", ""))
+        if _nm468 not in _rd468 and _nm468.rsplit("__", 1)[-1] not in _rd468:
+            continue
+        # the function's own source: this file's def when it has one, else the modules'
+        # (an import alias `from m import g as k` is looked up by its original name)
+        _sd468 = _ix468.get(_nm468, []) + [
+            _q for _z468 in _a468.walk(_t341) if isinstance(_z468, _a468.ImportFrom)
+            for _al468 in _z468.names if _al468.asname == _nm468 and _al468.name != _nm468
+            for _q in _ix468.get(_al468.name, [])]
+        if any(_q[0] == _mf468 for _q in _sd468):
+            _sd468 = [_q for _q in _sd468 if _q[0] == _mf468]
+        _sd468 = [_q[1] for _q in _sd468]
+        for _d468 in [_q for _q in _sd468 if id(_q) not in _tr468]:
+            _wk468 = [(_q, _d468, None) for _q in _d468.body]
+            while _wk468 and _rf468 is None:
+                _x468, _pn468, _pk468 = _wk468.pop()
+                if isinstance(_x468, _a468.Name) and _x468.id in _lp468:
+                    # a READ that cannot change the length: an element (or a slice) read, an
+                    # element store `x[i] = v`, the argument of a builtin that does not mutate
+                    # its argument, an operand of a comparison or of a fresh-list `+` / `*`,
+                    # the iterable of a loop, the returned value (the caller's aliasing of a
+                    # returned argument is route #288's), or a length-keeping method
+                    _ok468 = isinstance(_x468.ctx, _a468.Load) and (
+                        (isinstance(_pn468, _a468.Subscript) and _pk468 == "value"
+                         and not isinstance(_pn468.ctx, _a468.Del)
+                         and not (isinstance(_pn468.slice, _a468.Slice)
+                                  and not isinstance(_pn468.ctx, _a468.Load)))
+                        or (isinstance(_pn468, _a468.Call) and _pk468 == "args"
+                            and isinstance(_pn468.func, _a468.Name) and _pn468.func.id in (
+                                "len", "sorted", "sum", "min", "max", "any", "all", "list",
+                                "tuple", "set", "frozenset", "enumerate", "zip", "reversed",
+                                "iter", "str", "repr", "bool", "isinstance", "id")
+                            and not _pn468.keywords)
+                        or isinstance(_pn468, (_a468.Compare, _a468.BoolOp))
+                        or (isinstance(_pn468, _a468.UnaryOp)
+                            and isinstance(_pn468.op, _a468.Not))
+                        or (isinstance(_pn468, (_a468.If, _a468.While, _a468.IfExp,
+                                                _a468.Assert)) and _pk468 == "test")
+                        or (isinstance(_pn468, _a468.Call) and _pk468 == "args"
+                            and isinstance(_pn468.func, _a468.Attribute)
+                            and isinstance(_pn468.func.value, (_a468.Constant,
+                                                               _a468.JoinedStr))
+                            and isinstance(getattr(_pn468.func.value, "value", ""), str))
+                        or (isinstance(_pn468, _a468.BinOp)
+                            and isinstance(_pn468.op, (_a468.Add, _a468.Mult)))
+                        or (isinstance(_pn468, (_a468.For, _a468.comprehension))
+                            and _pk468 == "iter")
+                        or isinstance(_pn468, _a468.Return)
+                        or (isinstance(_pn468, _a468.Attribute) and _pk468 == "value"
+                            and _pn468.attr in ("sort", "reverse", "copy", "count", "index")))
+                    if not _ok468:
+                        _rf468 = (_f468, _x468.id, f"line {_x468.lineno}: "
+                                                   f"`{_a468.unparse(_pn468)[:50]}`")
+                    continue
+                for _k468, _v468 in _a468.iter_fields(_x468):
+                    if isinstance(_v468, _a468.AST):
+                        _wk468.append((_v468, _x468, _k468))
+                    elif isinstance(_v468, list):
+                        _wk468.extend((_q, _x468, _k468) for _q in _v468
+                                      if isinstance(_q, _a468.AST))
+        # EVERY list parameter, written or not: route #317's fixpoint does not see every
+        # spelling (`list.append(x, 1)`, `getattr(x, "append")`, `[x][0].append`), and a
+        # `val` without `writes { x }` keeps the length just the same
+        # (no source found: the IR body, with the same rows)
+        for _p468 in (_lp468 if not _sd468 else []):
+            if _rf468 is not None:
+                continue
+            _wk468 = [(_f468.get("body", []) or [], None, None)]
+            while _wk468 and _rf468 is None:
+                _x468, _pn468, _pk468 = _wk468.pop()
+                if isinstance(_x468, list):
+                    _wk468.extend((_v, _pn468, _pk468) for _v in _x468)
+                    continue
+                if not isinstance(_x468, dict):
+                    continue
+                if _x468.get("type") == "Var" and _x468.get("name") == _p468:
+                    _ix468 = (_pn468 or {}).get("index")
+                    _ok468 = isinstance(_pn468, dict) and (
+                        (_pn468.get("stmt") == "ArraySet" and _pk468 == "array"
+                         and not (isinstance(_ix468, dict) and _ix468.get("type") == "Slice"))
+                        or (_pn468.get("type") == "Subscript" and _pk468 == "value"
+                            and not (isinstance(_ix468, dict) and _ix468.get("type") == "Slice"))
+                        or (_pn468.get("type") == "Call" and _pn468.get("func") == "len"
+                            and _pk468 == "args" and len(_pn468.get("args") or []) == 1
+                            and not _pn468.get("keywords"))
+                        or (_pn468.get("stmt") == "For" and _pk468 == "iter"))
+                    if not _ok468:
+                        _rf468 = (_f468, _p468, "it is used as a value (an alias, an argument, "
+                                                "a container element ...)")
+                    continue
+                for _k468, _v468 in _x468.items():
+                    if isinstance(_v468, str) and _k468 != "name" and not (
+                            _x468.get("type") in ("String", "Str", "Constant", "Number")
+                            and _k468 == "value") and (
+                            _v468 == _p468 or _v468.startswith(_p468 + ".")
+                            or _v468.startswith(_p468 + "[")):
+                        if _k468 == "func" and _v468 in (_p468 + ".sort", _p468 + ".reverse"):
+                            continue
+                        _rf468 = (_f468, _p468, f"`{_v468}` ({_k468})")
+                        break
+                    if isinstance(_v468, (dict, list)):
+                        _wk468.append((_v468, _x468, _k468))
+    if _rf468 is not None:
+        from errors import PyCSLSemanticError as _PyCSLSemErr468
+        raise _PyCSLSemErr468(
+            f"`{_rf468[0].get('name')}` is emitted as a bodyless `val` (imported, `\\trusted` "
+            f"or `\\abstract`) with the list parameter `{_rf468[1]}`, and its body may change "
+            f"that list's LENGTH ({_rf468[2]}). A Why3 `array`'s length is "
+            f"not mutable, so every caller would keep `len({_rf468[1]})` unchanged across the "
+            f"call (route #468; measured: an imported un-contracted `def g(x): x.append(1)` "
+            f"with `g(a); return len(a)` PROVED `\\result == 2`, CPython returns 3; the same "
+            f"with `#@ assigns x` and through a same-file `\\abstract`). Route #49 refuses the "
+            f"same mutators on a list parameter of a verified body. Write only the list's "
+            f"elements in the callee (`x[i] = v`), or drop the length change from it.",
+            stage="ir-semantic", code="PYCSL-R468-VAL-LIST-LENGTH")
     return _mlw
 
 

@@ -5692,6 +5692,77 @@ statement's line and CPython's exception text. (#462) for every `ClassDef` and i
 `Return` whose value is not `Constant(None)`, raises `PYCSL-R462-INIT-RETURNS-VALUE`. No emission
 change.
 
+### §T.6.290  Imported modules of the program under a claim; the target's module path (routes #466 / #472, run #3)
+
+_Corresponds to `annotations.md` §7.280._
+
+Gate: `_rc444` $\neq \emptyset$. In `_run_pipeline`, after route #461 / #462 and before the WhyML text is
+returned. Target path $T$ = [(this file's directory, J)] + [(each `--import-path` root, J)] + [(each `sys.path`
+entry not in {src/pycsl and below, src/, ''}, I)]. A frame machine over (statements, globals $G$, locals $L$,
+module record, class info) starts from `__main__` with the IMPORT statements of the verified file in execution
+order (module level, class bodies, `if` arms other than `__name__ == "__main__"` / `TYPE_CHECKING` / `False`,
+`try` / `with` / loop bodies, and the bodies of the defs in $\mathrm{dom}(\_rc444)$). `import a.b` / `from a.b
+import n` needs each prefix loaded; an unloaded prefix suspends the statement (re-run on return) and LOADS it:
+a stdlib top name: `importlib.import_module` (an exception refuses); otherwise the first $T$ entry (or the
+parent package's `__path__`) holding `name/__init__.py` or `name.py` -- role J: register the record in state
+LOADING, `compile(src, file, "exec")` (a SyntaxError refuses), register `sys.modules["__pycsl466__." + name]`,
+push the module body with $G = L$ = a fresh `ModuleType` dict (`__name__`, `__file__`, `__package__`, `__path__`);
+role I (or a native spec): a stand-in module whose `__getattr__` yields the unknown $\bot$; only directories:
+a namespace package; nothing: refuse (`PYCSL-R472-...` iff the name exists under src/pycsl or src/, else
+`PYCSL-R466-...`). On completion the record is DONE and bound on its parent. Binding: `import` binds the top
+(or `as` the leaf) module; `from M import n` binds $M.n$ if $n \in$ M's dict NOW (state LOADING included: the
+partial module), else submodule `M.n` (loaded), else $\bot$ if M binds `__getattr__`, else refuses (ImportError);
+for an I module $n$ must be bound somewhere in its AST or be a submodule; `*` binds `__all__` (each bound) or the
+public names. A relative import with no parent package (the verified file, a top-level module) refuses. Other
+statements (J modules only): `Expr`, `FunctionDef` (decorators evaluated, allow-listed by identity -- the pure set
+$P_{466}$, a property's `setter`, a factory result of $P_{466}$ --, defaults evaluated; binds a placeholder raising
+the private $\Omega$), `ClassDef` (decorators, bases, keywords evaluated; a metaclass other than `type` /
+`ABCMeta` / `EnumMeta` refuses; the body runs in $L$ = an ordered namespace with `__annotations__` of source
+strings; on completion `types.new_class` + decorators bottom-up), `Assign` (names, a tuple of names over a
+builtin value, a subscript store into a builtin dict / list), `AugAssign` / `AnnAssign` to a name, `If` (the arm
+$v(\text{test})$ selects), `Assert`, `Delete` of a bound name, `TypeAlias` ($\bot$), `Try` (body + orelse +
+finalbody), `Pass` / `Global`; anything else refuses. An expression is evaluated by `eval` in $(G, L)$ after a
+SAFETY scan: no walrus / await / yield, and every `Call` names (through a `Name` / `Attribute` chain resolved
+now, not shadowed by a comprehension or lambda variable, not inside a nested scope of a class body) a member of
+$P_{466}$, a factory result, or a builtin-type bound method / method descriptor. $\Omega$ refuses ("runs code of
+the module"), any other exception refuses (CPython's text). Then, per def $d$ with $\_rc444[d] \neq \emptyset$, a
+read `M.n` of a J module whose dict lacks $n$ (no `__getattr__`) refuses. Placeholders are unregistered on every
+path. No emission change.
+
+### §T.6.291  A reached imported function's own claim (route #467, run #3)
+
+_Corresponds to `annotations.md` §7.281._
+
+After §T.6.290 succeeds, for each def $d$ with claim $C = \_rc444[d]$: the targets are every placeholder (or
+decorated placeholder) a `Name` of $d$ resolves to in `__main__`'s bindings, every `Attribute` chain rooted at a
+J module, for a class value (or a class of this file with such a base) every `__init__` / `__new__` /
+`__post_init__` / dunder in its MRO's J class bodies and every placeholder `default_factory` of its dataclass
+fields, and, for each `Attribute` `.m`, every method `m` of every J class. A target $g$ passes iff its own `#@`
+block reads `#@ no_exception` with `\all`, or $\backslash\mathrm{all} \notin C$ and the identifiers of $C$ are
+among its named exceptions, or $g$ is undecorated, without `*args` / `**kwargs`, not `async`, and its body is on
+the allow-list (statements `Return`, docstring, `Pass`, `Assign` to one name, `AugAssign` with `+ - * & | ^` on an
+int name, `If`; expressions: constants, names that are parameters or earlier straight-line locals, `BinOp`
+`+ - * & | ^` / unary operators / `Compare` over int-typed operands -- parameters annotated `int` / `bool`, int
+constants, locals assigned from such --, `BoolOp`, `IfExp` with a comparison test). Otherwise
+`PYCSL-R467-IMPORTED-UNCLAIMED`. No emission change.
+
+### §T.6.292  Length of a list parameter of a bodyless `val` (route #468, run #3)
+
+_Corresponds to `annotations.md` §7.282._
+
+No gate. After the transpiler ran, for each IR function with `trusted` or `abstract` whose name (or its tail
+after the last `__`) is read by a def of this file that is neither `\trusted` nor `\abstract`, and each formal parameter
+$p$ with `param_annotations[p]` $\in$ {`list`, `bytearray`}: its SOURCE defs are looked up by IR name (`name`, `<class lower>__name`)
+over this file and the files its imports resolve to (`_resolve_module_path`, transitively, standard library
+excluded); this file's def when it has one; a def whose own `#@` block (blank lines allowed) says `\trusted` is
+skipped. Every `Name(p)` in a source body must be a `Load` in one of: the value of a `Subscript` that is not a
+`Del` and not a slice store; an argument of a call of `len` `sorted` `sum` `min` `max` `any` `all` `list` `tuple`
+`set` `frozenset` `enumerate` `zip` `reversed` `iter` `str` `repr` `bool` `isinstance` `id` (no keywords); a
+`Compare` operand; a `BinOp` `+` / `*` operand; the `iter` of a `For` / comprehension; the value of a `Return`; the receiver of `.sort`
+`.reverse` `.copy` `.count` `.index`. When no source def is found, the IR body is scanned with the same rows
+(`ArraySet.array`, `Subscript.value`, `len`, `For.iter`, and no `func` string rooted at $p$ other than
+`p.sort` / `p.reverse`). Otherwise `PYCSL-R468-VAL-LIST-LENGTH`. No emission change.
+
 ### §T.6.230  Scan loop in a term transform's block arm (lv4, run #3)
 
 _Corresponds to `annotations.md` §7.220._

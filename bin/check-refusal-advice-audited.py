@@ -819,6 +819,16 @@ AUDITED = {
         "Route #457. 'Name the class itself, or drop the claim': witness 6864 with `isinstance(x, dict)` (a457_class) VERIFIES under `no_exception \\all`; with the claim dropped (a457_drop_claim) VERIFIES."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n444, \'lineno\', 0)}: `{_ast341.unparse(_n444).strip()}` applies `{_SY444.get(type(_n444.op),'): (FOLLOWABLE,
         "Route #458. 'Declare both operands of one class (`n: str` for `n + s`), join paths with `os.path.join(base, name)`, or drop the claim': witness 6867 with `n: str` (a458_one_class) VERIFIES under `no_exception \\all`; witness 6866 rewritten `os.path.join(base, name)` (a458_path_join) VERIFIES; 6867 with the claim dropped (a458_drop_claim) VERIFIES. (`str(n) + s` stays Unknown under `\\all` -- the #281 4300-digit `str(int)` obligation -- so the message does not advise it.)"),
+    # (#49) driver run #3 -- routes #466 / #467 / #468 (x1, red team 38). Probes in
+    # getting-better/open-routes/witnesses-r466/advice/.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr468(f"`{_rf468[0].get(\'name\')}` is emitted as a bodyless `val` (imported, `\\\\trusted` or `\\\\abstract`) with the list parameter `'): (FOLLOWABLE,
+        "Route #468. 'Write only the list's elements in the callee (`x[i] = v`), or drop the length change from it': witness 7275's helper `x.append(1)` replaced by `x[0] = 1` (a468_elements_only, = control 7287) VERIFIES `\\result == 2`. (A first draft also advised 'build the list in a local and RETURN it (`a = g(a)`)', copied from route #49's local-function advice: measured UNTRIED for an IMPORTED callee -- `a = g(a)` / `len(g(a))` of a list-returning imported `val` do not type-check -- so it was removed from the message.)"),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}, so IMPORTING this module raises (or runs code the verifier does not judge) before any of its functions can ru'): (FOLLOWABLE,
+        "Route #466. 'Rewrite the module's top level so that it cannot raise, import only names it binds unconditionally, or move the computation into a function': witness 7260's helper `X = 1 // 0` rewritten `X = 1 // 1` (getting-better/open-routes/witnesses-r466/advice/a466_helper_made_exception_free) VERIFIES under `no_exception \\all`; control 7285 (a clean helper with a `field(default_factory=list)` dataclass) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}. An imported function is a bodyless stub whose body is never verified here, so a claim reaching it would be pr'): (FOLLOWABLE,
+        "Route #467. 'Give the imported function its own `#@ no_exception` claim covering the caller's ..., or drop the exception from this function's claim': the helper `g` claiming `no_exception \\all` with `#@ requires x >= 0` over its `assert` (a467_callee_claims, = control 7286) VERIFIES; witness 7270 with the caller's claim dropped (a467_drop_claim) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}, while it claims `#@ no_exception` (route #466; measured: `import h; h.g(n)` with `g` bound only under `if Fal'): (FOLLOWABLE,
+        "Route #466 (module attribute). 'Bind the name unconditionally at the module's top level, or read a name it binds': witness 7267's helper with `g` bound outside the `if False:` (a466_attr_bound_unconditionally) VERIFIES."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1143,6 +1153,11 @@ AUDITED_HASH = {
     # (#49) driver run #3 -- routes #461 / #462 (m1)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr461(f"""line {_rf461[0]}: {_rf461[1]}, so IMPORTING this module raises before any of its functions can run, while this file clai'): 'bb3438b921be',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr461(f"\'{_rf462[1]}.__init__\' line {_rf462[0]}: `__init__` can return a value other than None (a `return <expr>`, a `yield`, an `'): '073d0c1c10d2',
+    # (#49) driver run #3 -- routes #466 / #467 / #468 (x1)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr468(f"`{_rf468[0].get(\'name\')}` is emitted as a bodyless `val` (imported, `\\\\trusted` or `\\\\abstract`) with the list parameter `'): '6078d3bf98d1',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}, so IMPORTING this module raises (or runs code the verifier does not judge) before any of its functions can ru'): '1af5865820ca',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}. An imported function is a bodyless stub whose body is never verified here, so a claim reaching it would be pr'): '56d160fd38ce',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}, while it claims `#@ no_exception` (route #466; measured: `import h; h.g(n)` with `g` bound only under `if Fal'): 'a2c8af7db38d',
 }
 
 
