@@ -16,6 +16,7 @@
 ##   route #375: VERIFY-FAIL -> REFUSED by #454) / 0 APPEARED; pyref 2186 0/0/0; mirror 53/53 0/0/0 (no OWED proof);
 ##   planes 61/61; rwc 349 demonstrated / advice 176 audited / dropped-mutation / getattr / carriers / frame- / raises-honesty /
 ##   clause / assumed / trusted-reasons 413 / doc rc=0. Over-refusal cost: 0 PASS files (root, pyref, mirror).
+
 ## run #3 (2026-10-29): #448 / #449 / #450 / #455 REPAIRED (executor r2 off db6c57253; CALL BINDING inline in `_run_pipeline`,
 ##   in EVERY non-trusted function -- an unclaimed callee's TypeError reaches its caller's claim, measured; allow-list, refuse
 ##   by default; no new def in a mirrored file, no axiom, no emission change; annotations 7.190 / translational T.6.200).
