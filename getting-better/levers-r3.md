@@ -155,6 +155,50 @@ but the older DictComp recognizers that READ `k`/`v` by name (generic_fold.py ~2
 ~11203) rely on the unpacking order the IR does not record: UN-PROBED, a candidate red-team
 probe (`{v: k for k, v in d.items()}` vs `{k: v ...}`).
 
+## lv4 build record (`_flatten_foralls`, driver run #3, 2026-10-29)
+
+Base `370db7dc2` (main; `#@ \trusted` 439, trusted-reasons 411). Bases v12/ca + v12/ma.
+
+**B1 `8a6f26cd1`** - `generic_fold.py` only (not mirrored). The `while True:` SCAN loop in a
+single-class block arm of a 1-param term transform (`scan` in `_parse_block_arm`; annotations
+7.220, translational T.6.230): a local structural `let rec f__scanK (state) variant { s_cur }`
+(`continue` = recursive call, accepted only after the one `cur = cur.F` step under an
+isinstance narrowing; `break` = return the state), the list accumulators through a defined
+total append `f__app`, the look-ahead `while isinstance(w, C) and ..: w = w.G` as a local
+structural skip; plus `list(t.F)` / `[]` fresh list locals, `tuple(x)` identity and the
+`if xs: y = E` re-binding. ALIASING guard: a mutated list must be created by the block and
+not read before the loop. Fragment-by-fragment (scratch tree): verbatim port -> TC-OK (first
+emission) -> `--fun _flatten_foralls` 222 Valid / 0 -> four screen oracles green
+(untrusted-emitted 906 / 0 re-abstracted; yield-erasure OK; shadowed-selfcalls 14 = ratchet;
+emitted-vacuity no new erasure) -> whole file 241 Valid / 0 (base 225). Witnesses 7100
+(PASS, 18 Valid; base REFUSED), 7101 (`ensures False`, refused), 7102 (aliased list, refused;
+MEASURED load-bearing: with the aliasing check disabled 7102 PROVES an unfaithful model),
+7103 (continue without a spine step, refused; with the descent check disabled the
+`variant decrease` times out, 2 non-Valid: defence in depth).
+
+**B2 `14d58d01f`** - conversion `proof2why3/canonical.py::_flatten_foralls` (439 -> **438**;
+trusted-reasons 411 -> 410). Gate battery on the B2 tree: fidelity 0 / 0 (936 verbatim, 53
+mirrors); doc-coherency 0; root byte-diff 0 MOVED / 0 GONE / 0 APPEARED (2592 / 2593, 7100
+new); pyref 0 MOVED (2186 / 2186); mirror 1 MOVED = canonical.mlw, byte-equal to the proved
+emission; planes 61/61; trusted-reasons 410 <-> 410; assumed-facts 0; refusal-witness-coverage
+361; advice-audited 188; dropped-mutation 0; getattr-erasure DECLARED 0; open-route-carriers 0;
+frame-honesty 0/1, 0/93; raises-honesty 19 / 50 silent (was 51); clause-survival 10 ledgered
+of 1542.
+
+**Spikes stopped (measured blockers).**
+
+| candidate | first blocker (measured) | why stopped |
+|---|---|---|
+| `parser.py::lex` (termination) | the emitted outer `while (!i < !n)` carries no variant; the digit / ident inner loops test the COMPUTED receiver `s[j].isdigit()` / `s[j].isalnum()`, lowered to the polymorphic receiver-blind-by-type `val isdigit_1 (x0: 'a0) : int` / `isalnum_1` (expressions.py ~12270), NOT `py_isdigit_op` of `c = s[i]`, so `j > i` after the inner loop is unprovable; no `py_isalnum_op` exists, so `isalpha c -> isalnum c` has no carrier (Python defines `isalnum` of one char as `isalpha or isdecimal or isdigit or isnumeric`, so a DEFINITIONAL model is possible, but it lives in mirrored `expressions.py` / the abstract-op preamble and moves every corpus file using it); the op loop's `i += str_length_op op` needs `length op > 0` for 14 `Seq.get` literals (two built by `pystr_cat (pystr_chr 92) ..`). `--fun lex` cannot even run: it emits `val _parser__parse_* .. variant {..}` (`unexpected 'variant' clause`), a pre-existing `--fun` defect for parser.py. | 4 links, the first in a mirrored file |
+| normalize (5) | `normalize_whyml_axiom` / `normalize_prover_output`: REFUSED R325, and the failing site is the ALREADY-converted `_strip_all_parens` (`re_sub_3` opaque int): one `re.sub(pat, lambda m: .., out, count=1)` in the file turns the file's `re.sub` binding opaque. `_nat_to_int_with_sidecond` = `re.compile(..).sub(<nested def>)`, `_expand_anon_binders` = `pattern.sub(lambda, s, count=1)` in `while True`, `_alpha_rename` = `re.match` + `sorted(key=lambda)` + `re.escape` f-string pattern. NO stub needs only a literal pattern + string replacement. | no candidate in scope |
+| `canonical.py::_ac_normalize` | REFUSED at `functions.py:9781`: the lifted `collect` sibling captures `operands`, `t`. Suppressing it needs a per-recognizer `_*_walk_ids` slot wired in mirrored `preamble.py` (~2776) + `functions.py` (~8160). Behind it, not prototyped: `t.op in (<tuple literal>)`, recursion on a non-subterm (`_ac_normalize(node)`, node a descendant) needing size mode AND exact string equality (`node.op == t.op` must be decided true at `node = t`, `pystr_eq` is uninterpreted), `sorted(key=lambda x: x.pp())` (a definitional stable sort over an uninterpreted key), `[-1]` (needs a proved length fact), `reversed(xs[:-1])` fold. | mirrored wiring + 5 fragments |
+| `canonical.py::_alpha_rename` | writes `counter[0]` (mirror frame `assigns counter`) from inside a generator self-call; dict built by a store loop; `f"v{counter[0]}"`; recursion on `substitute`'s result | state threading through a term transform: new shape |
+| `proof_axiom_allowlist.py::parse_rocq_assumptions_block` | L3-tc: `(int, array int)` vs `(int, int)`: the `tuple[bool, list[str]]` return annotation lowers to `(int, int)` (int-erasure of the PEP 585 element type) while `names: list[str]` lowers to `array int` | type lowering in mirrored types.py |
+| `ir_schema.py::validate_ir` | REFUSED: optional TypedDict key `"name"` read | dict-shape model |
+| `frontend/exec_splice.py::_ExecSplicer.visit_Expr` | REFUSED: reads the exception object bound by `except .. as exc` | exception payload model |
+| `proof2why3/crosscheck.py::CrossCheckResult.diagnostic` | L3-tc `string` vs `int`: `for label, ok in self.pairwise.items()` (a property returning a dict literal) lowers to the 0-ary input-blind `self_pairwise_items_0 ()` with `label` / `ok` erased to `any int` | property-call + dict-items tuple loop (mirrored statements) |
+| `frontend/import_classifier.py::_stub_set` | FOUR ORACLES GREEN (L3-tc ok, untrusted-emitted 907, yield OK, shadowed 14, vacuity no new erasure) but HOLLOW: the emission is `if not (path_isdir_op stub_dir) then any int else set_comp 0` (mirror return placeholder `-> int`; `set()` -> `any int`; the comprehension over `Path.iterdir()` -> the input-blind `set_comp 0`). REJECTED by rule 5 (non-vacuity); the vacuity oracle passes it because `stub_dir` is read by the `is_dir` test. A screen false-green worth a ratchet. | hollow |
+
 ## Residuals (honest)
 
 1. **Contract-dropping beyond the term family is UN-PROBED.** `generic_fold.py` has 399
