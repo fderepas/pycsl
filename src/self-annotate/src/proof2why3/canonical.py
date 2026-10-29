@@ -167,12 +167,55 @@ def _sort_arrow_hypotheses(t: Term) -> Term:
                     body=_sort_arrow_hypotheses(t.body))
     raise TypeError(f"_sort_arrow_hypotheses: unknown {type(t)}")
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _flatten_foralls(t: Term) -> Term:
-    return None
+    if isinstance(t, Forall):
+        new_body = _flatten_foralls(t.body)
+        # Walk through any leading arrow chain hyps, gathering them
+        # alongside subsequent Foralls of the same type.
+        binders = list(t.binders)
+        cur = new_body
+        gathered_hyps: List[Term] = []
+        while True:
+            if isinstance(cur, Forall) and cur.ty == t.ty:
+                # Fold this binder in.
+                binders.extend(cur.binders)
+                cur = cur.body
+                continue
+            if isinstance(cur, BinOp) and cur.op == "->":
+                # Look ahead: is there another same-type Forall later?
+                # If yes, gather this hypothesis; the binder dependency
+                # is independent (gcd-family assumption).
+                inner = cur.rhs
+                while isinstance(inner, BinOp) and inner.op == "->":
+                    inner = inner.rhs
+                if isinstance(inner, Forall) and inner.ty == t.ty:
+                    # The hypotheses bind to v0; they stay where they
+                    # are. Continue scanning past them.
+                    gathered_hyps.append(cur.lhs)
+                    cur = cur.rhs
+                    continue
+            break
+        # Re-emit: forall binders : ty, hyps -> ... -> remaining body.
+        body_out = cur
+        if gathered_hyps:
+            body_out = mk_arrow_chain(gathered_hyps, cur)
+        return Forall(binders=tuple(binders), ty=t.ty, body=body_out)
+    if isinstance(t, Exists):
+        return Exists(binders=t.binders, ty=t.ty,
+                      body=_flatten_foralls(t.body))
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_flatten_foralls(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _flatten_foralls(t.lhs), _flatten_foralls(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _flatten_foralls(t.arg))
+    raise TypeError(f"_flatten_foralls: unknown {type(t)}")
 
 #@ requires True
 #@ ensures True
