@@ -31,6 +31,20 @@
 ##   2569 -> 2574 0 MOVED / 0 GONE / 0 APPEARED; pyref 2186 0/0/0; mirrors 53/53 0/0/0 (no OWED proof); planes 61/61; rwc 348 /
 ##   advice 175 / all ledgers rc=0. OVER-REFUSAL COST: 0 corpus / pyref / mirror / pycsl_lib files. Residual: class-code
 ##   mismatches of builtins in unclaimed callees (#441's table is claim-keyed), unresolved receivers, `*` / `**` calls.
+## run #3 (2026-10-29): #444 / #445 / #446 / #453 / #457 / #458 REPAIRED (executor r1 off db6c57253; the OPAQUE-FALLBACK
+##   families of red team 36, 117 witnesses, by ONE fail-closed rule inline in `_run_pipeline`; census of the Module 6
+##   fallback sites `getting-better/systematic-soundness-r3/r1-opaque/census-fallback-sites.tsv` (436 rows, 14 now
+##   FAIL-CLOSED); codes PYCSL-R444-UNBOUND-NAME / R445-ATTRIBUTE-NOT-DEFINED / R446-MATMUL-UNMODELLED /
+##   R453-MODULE-ATTRIBUTE / R453-MODULE-FUNCTION-NOT-ADMITTED / R457-CLASS-SPEC-NOT-A-CLASS / R458-OPERAND-CLASSES;
+##   corpus 6850-6867 witnesses + 6870-6874 controls, census +18 rows / 9 re-measured, 8 advice audits, annotations
+##   §7.180 / translational §T.6.190, REPAIR sections; no def in a mirrored file, no axiom, no emission change).
+##   The claim of a function now REACHES its callees for these rules (`_rc444`: #445's exemplar is a claimed `f`
+##   calling an unclaimed method that reads `self.cout`). Allow-list rows judged on the REAL objects: bindings, file
+##   MRO / #347 definitely-assigned fields, `hasattr` on the real builtin class / stdlib module, `isinstance(0, o)`,
+##   `operator.<op>` on samples of the class pair, and three (module, function) rows (`os.path.join`, `copy.copy`,
+##   `dataclasses.replace`). All 117 route witnesses refused. Cost: 0 PASS files, 0 mirror files; 5 expected-FAIL
+##   witnesses (4491 / 4492 / 4494 / 4808 / 4815) now refused (GONE), 4 already-refused witnesses refused earlier.
+##   Residual: non-stdlib modules, multi-class / underivable operands and receivers, non-file bases, dynamic attributes.
 
 ## run #3 (2026-10-29): #444-#459 OPENED (red team 36, SYSTEMATIC census of operators / dunders / scoping / call
 ##   binding / modules on 8fe7204c3: 1723 probes / 240 proved / 209 confirmed; rt35's 175 all closed): #444 unbound-name-opaque (9); #445 missing-attribute-opaque (21); #446 unknown-operator-matmul (7); #447 augmented-shift-obligation (13); #448 builtin-arity-keyword (6); #449 user-call-signature (17); #450 super-call-opaque (6); #451 field-default-annotation (5); #452 bytes-int-argument-range (13); #453 module-function-by-name (56); #454 starred-non-iterable (3); #455 decorator-misuse (6); #456 set-method-arg-hash (14); #457 isinstance-class-spec (5); #458 operator-operand-classes (19); #459 conditional-module-binding (9).

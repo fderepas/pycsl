@@ -7286,6 +7286,148 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _a449 in _cls341:
                     _sub449.setdefault(_a449, []).append(_cn449)
         _umro449 = {_cn449 for _cn449 in _cls341 if not _mro363.get(_cn449)}
+        # (#49) gen #38, ROUTES #444 / #445 / #446 / #453 / #457 / #458 (red team 36; MEASURED
+        # PROVED on 8fe7204c3 under `#@ no_exception \all`, CPython NameError / AttributeError /
+        # TypeError / OSError). THE OPAQUE FALLBACKS: a construct Module 6 does not recognise is
+        # lowered to an opaque value with nothing owed -- an unbound name to `val constant x`
+        # (expressions.py, the Name fallback), a missing attribute to `getattr_<cls>` /
+        # `getattr_2` / `get_<attr>`, `@` to `unknown_op`, a module function to an opaque `val`
+        # admitted by its TAIL name (#161's method list), an operator to the lowering of ONE
+        # operand's class. RULE (allow-list, refuse by default; census of the fallback sites:
+        # getting-better/systematic-soundness-r3/r1-opaque/): under a `no_exception` claim
+        # covering what CPython raises there, each such construct is ADMITTED only by an
+        # allow-list row -- a resolved binding (#444), an attribute the receiver's class
+        # defines (#445), an (operator, left class, right class) triple the real classes
+        # support (#446 / #458), a (module, attribute) pair the real module object has and,
+        # for a function admitted by a #161 method tail, an explicit row (#453), a class
+        # spec resolved to a real class (#457) -- and REFUSED otherwise. The claim that speaks
+        # for a def (`_rc444[id(def)]`) is its own (as #432 reads it) JOINED with the claim of
+        # every claiming def that may call it: by name, by method tail (any receiver), by an
+        # attribute load of a method's name (a property), a constructor `C(..)` (the
+        # `__init__` / `__post_init__` / `__new__` of C's MRO) and every dunder method of a
+        # file class (an operator, a subscript, a `for` ...), closed transitively -- an opaque
+        # value inside a callee is as much assumed by the caller's claim (measured: `return
+        # p.g()` with `g` reading `self.cout`). `\trusted` / `\abstract` defs are not entered
+        # (no body is lowered; #207 / #161 judge calls to them).
+        _rc444 = {}
+        _bn444 = {}
+        _tr444 = set()
+        _wq444 = []
+        for _f444, _e444 in _fn346:
+            _bn444.setdefault(_f444.name, []).append((_f444, _e444))
+            _ir444 = _ct430.get((_e444.lower() + "__" + _f444.name) if _e444
+                                else _f444.name) or {}
+            if _ir444.get("trusted") or _ir444.get("abstract"):
+                _tr444.add(id(_f444))
+                continue
+            _cc444 = _ir444.get("contracts") or {}
+            _cx444 = set(_cc444.get("no_exception") or [])
+            if _cc444.get("no_exception_all"):
+                _cx444.add("\\all")
+            _li444 = min([_d.lineno for _d in _f444.decorator_list] + [_f444.lineno]) - 2
+            while 0 <= _li444 < len(_sl430) and _sl430[_li444].lstrip().startswith("#@"):
+                _lt444 = _sl430[_li444].strip()
+                if _lt444.startswith("#@ \\trusted") or _lt444.startswith("#@ \\abstract"):
+                    _tr444.add(id(_f444))
+                if _lt444.startswith("#@ no_exception"):
+                    if "\\all" in _lt444:
+                        _cx444.add("\\all")
+                    _cx444 |= {_w.strip(",;()[]") for _w in
+                               _lt444[len("#@ no_exception"):].replace(",", " ").split()}
+                _li444 -= 1
+            if _cx444 and id(_f444) not in _tr444:
+                _rc444[id(_f444)] = set(_cx444)
+                _wq444.append(_f444)
+        _du444 = [(_d, _c) for _d, _c in _fn346
+                  if _c is not None and _d.name.startswith("__") and _d.name.endswith("__")]
+        _g444 = 0
+        while _wq444 and _g444 < 20000:
+            _g444 += 1
+            _f444 = _wq444.pop()
+            _cx444 = _rc444[id(_f444)]
+            _tg444 = list(_du444)
+            for _z444 in _ast341.walk(_f444):
+                if _z444 is _f444:
+                    continue
+                if isinstance(_z444, _ast341.Name):
+                    _tg444 += _bn444.get(_z444.id, [])
+                    if _z444.id in _cls341:
+                        for _a444 in _clo346.get(_z444.id, []):
+                            for _k444 in ("__init__", "__post_init__", "__new__"):
+                                _tg444 += [(_d, _c) for _d, _c in _bn444.get(_k444, [])
+                                           if _c == _a444]
+                elif isinstance(_z444, _ast341.Attribute):
+                    _tg444 += [(_d, _c) for _d, _c in _bn444.get(_z444.attr, [])
+                               if _c is not None]
+                elif isinstance(_z444, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                    _tg444 += [(_d, _c) for _d, _c in _bn444.get(_z444.name, [])
+                               if _d is _z444]
+            for _d444, _c444 in _tg444:
+                if id(_d444) in _tr444:
+                    continue
+                _o444 = _rc444.setdefault(id(_d444), set())
+                if not _cx444 <= _o444:
+                    _o444 |= _cx444
+                    _wq444.append(_d444)
+        # `_im444[name]`: the import targets binding `name` anywhere in the file ("m" / full
+        # module path, or "f" / module + attribute); `_mg444`: the names the MODULE scope
+        # binds (def / class / import / assignment / loop / `with` / `except` / match targets
+        # at any depth of module-level statements, not inside a def / class / lambda /
+        # comprehension), plus names a def declares `global` and stores; `_st444`: a
+        # star import (#444 is then not judged)
+        _im444 = {}
+        _ix444 = set()
+        _ac444 = {}
+        _mg444 = set()
+        _st444 = False
+        for _z444 in _ast341.walk(_t341):
+            if isinstance(_z444, _ast341.Import):
+                for _a444 in _z444.names:
+                    if _a444.asname:
+                        _im444.setdefault(_a444.asname, set()).add(("m", _a444.name, ""))
+                    else:
+                        _im444.setdefault(_a444.name.split(".")[0], set()).add(
+                            ("m", _a444.name.split(".")[0], ""))
+                        _ix444.add(_a444.name)
+            elif isinstance(_z444, _ast341.ImportFrom):
+                for _a444 in _z444.names:
+                    if _a444.name == "*":
+                        _st444 = True
+                        continue
+                    _im444.setdefault(_a444.asname or _a444.name, set()).add(
+                        ("f", ("." * (_z444.level or 0)) + (_z444.module or ""), _a444.name))
+            elif isinstance(_z444, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                _gl444 = {_n for _y in _ast341.walk(_z444) if isinstance(_y, _ast341.Global)
+                          for _n in _y.names}
+                _mg444 |= _gl444
+        _wq444 = list(_t341.body)
+        while _wq444:
+            _z444 = _wq444.pop()
+            if isinstance(_z444, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                  _ast341.ClassDef)):
+                _mg444.add(_z444.name)
+                continue
+            if isinstance(_z444, (_ast341.Lambda, _ast341.ListComp, _ast341.SetComp,
+                                  _ast341.DictComp, _ast341.GeneratorExp)):
+                continue
+            if isinstance(_z444, (_ast341.Import, _ast341.ImportFrom)):
+                _mg444 |= {(_a.asname or _a.name).split(".")[0] for _a in _z444.names}
+            elif isinstance(_z444, _ast341.Name) and not isinstance(_z444.ctx, _ast341.Load):
+                _mg444.add(_z444.id)
+            elif (isinstance(_z444, (_ast341.ExceptHandler, _ast341.MatchAs,
+                                     _ast341.MatchStar)) and isinstance(_z444.name, str)):
+                _mg444.add(_z444.name)
+            _wq444 += list(_ast341.iter_child_nodes(_z444))
+        import builtins as _bt444
+        import operator as _op444
+        import importlib as _il444
+        _mg444 |= set(dir(_bt444)) | {"__file__", "__name__", "__doc__", "__builtins__",
+                                      "__spec__", "__loader__", "__package__",
+                                      "__annotations__", "__path__", "__cached__"}
+        # the real object an import binds (stdlib modules only; anything else is not
+        # judged: `None`), cached per name
+        _ro444 = {}
+        _NO444 = object()
         for _f346, _ec346 in _fn346:
             _pa346 = (_f346.args.posonlyargs + _f346.args.args + _f346.args.kwonlyargs
                       + [_x for _x in (_f346.args.vararg, _f346.args.kwarg) if _x])
@@ -11242,6 +11384,415 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"`@overload` chain followed by its undecorated implementation. Drop the "
                     f"decorator, move the def into its class, or add the implementation.",
                     stage="ir-semantic", code="PYCSL-R455-DECORATOR-SITE")
+            # (#49) gen #38, ROUTES #446 / #453 / #457 / #458 / #445 (builtin receivers): the
+            # in-function half of the opaque-fallback rule above (`_rc444`). Each row is
+            # judged on the REAL class / module object, never on a hand list of failures:
+            #   #446 `a @ b` / `a @= b` lowers to `unknown_op` (no raises) whatever the
+            #     operands -- REFUSED under any claim (a file `__matmul__` is not consulted).
+            #   #458 a binary / augmented operator whose two operands are DERIVED (`_ty383`)
+            #     as builtin classes is ADMITTED iff the real operation on a sample of each
+            #     class pair does not raise TypeError (`operator.<op>` / `operator.i<op>`);
+            #     `str` / `bytes` `%` (formatting) is value-dependent and not judged, `None`
+            #     operands are #252's, an underivable or abstract operand is not judged.
+            #   #457 `isinstance(x, S)` / `issubclass(c, S)`: every imported name / dotted
+            #     attribute in S (through tuples and `|`) is RESOLVED on the real stdlib
+            #     module and must be usable as a class spec (`isinstance(0, o)` raises no
+            #     TypeError: refuses functions, `typing.Any`, special forms).
+            #   #453 an attribute chain rooted at an imported stdlib module must exist on the
+            #     real module object (`hasattr`; a dotted store of the same chain in the file
+            #     admits it); a CALL of such a chain whose tail is one of #161's METHOD names
+            #     (admitted today by that tail whatever the module) is ADMITTED only by an
+            #     explicit (module, function) row of `_MF444` with its argument classes.
+            #   #445 an attribute load on a receiver DERIVED only as builtin classes must be
+            #     an attribute of each real class (`n.zz`, `n.bit_lenght` on an `int`).
+            _cx444 = (_rc444.get(id(_f346)) or set()) if id(_f346) not in _tr444 else set()
+            _ae444 = bool(_cx444 & {"\\all", "AttributeError", "Exception", "BaseException"})
+            _te444 = bool(_cx444 & {"\\all", "TypeError", "Exception", "BaseException"})
+            for _n444 in (_po383 if _cx444 else ()):
+                if (isinstance(_n444, _ast341.BinOp) and isinstance(_n444.op, _ast341.MatMult)) or (
+                        isinstance(_n444, _ast341.AugAssign)
+                        and isinstance(_n444.op, _ast341.MatMult)):
+                    raise _PyCSLSemErr341(
+                        f"'{_f346.name}' line {getattr(_n444, 'lineno', 0)}: "
+                        f"`{_ast341.unparse(_n444).strip()}` uses the matrix-multiplication "
+                        f"operator `@`, which has no lowering rule: it lowers to an opaque "
+                        f"`unknown_op` with no `raises`, so the `#@ no_exception` claim of "
+                        f"this function (or of a function that calls it) would be verified "
+                        f"while CPython raises TypeError for every builtin operand class "
+                        f"(route #446; measured: `a: int; a @ b` under `#@ no_exception "
+                        f"\\all` proved). Admitted: none (a file class's `__matmul__` is not "
+                        f"consulted by the lowering). Define and call a NAMED method of a "
+                        f"file class (`a.matmul(b)`), or drop the claim.",
+                        stage="ir-semantic", code="PYCSL-R446-MATMUL-UNMODELLED")
+            # the classes DERIVED for the operands / receivers / arguments judged below
+            _sx444 = []
+            _cf444 = {}
+            for _n444 in (_po383 if _cx444 else ()):
+                if isinstance(_n444, _ast341.BinOp):
+                    _sx444 += [_n444.left, _n444.right]
+                elif isinstance(_n444, _ast341.AugAssign):
+                    _sx444 += [_n444.target, _n444.value]
+                elif isinstance(_n444, _ast341.Attribute):
+                    _sx444.append(_n444.value)
+                elif isinstance(_n444, _ast341.Call):
+                    _cf444[id(_n444.func)] = _n444
+                    _sx444 += [_a for _a in _n444.args if not isinstance(_a, _ast341.Starred)]
+            _kz444 = {}
+            _wk444 = []
+            for _x444 in _sx444:
+                if id(_x444) in _kz444:
+                    continue
+                _kz444[id(_x444)] = set()
+                _tl444 = _ty383.get(id(_x444)) or [_U383]
+                if id(_x444) in _rs440 and all(_t is _U383 or _t is _K394 for _t in _tl444):
+                    _kz444[id(_x444)] |= set(_rs440[id(_x444)])
+                    continue
+                _wk444 += [(id(_x444), _t) for _t in _tl444]
+            _g444 = 0
+            while _wk444 and _g444 < 20000:
+                _g444 += 1
+                _s444, _x444 = _wk444.pop()
+                if _x444 is _B383:
+                    continue
+                if isinstance(_x444, _ast341.Constant) and isinstance(_x444.value, str):
+                    try:
+                        _wk444.append((_s444, _ast341.parse(_x444.value, mode="eval").body))
+                    except (SyntaxError, ValueError):
+                        _kz444[_s444].add("?")
+                elif isinstance(_x444, _ast341.Constant) and _x444.value is None:
+                    _kz444[_s444].add("None")
+                elif isinstance(_x444, _ast341.Name) and _x444.id in _al383:
+                    _wk444.append((_s444, _al383[_x444.id]))
+                elif isinstance(_x444, (_ast341.Name, _ast341.Attribute)):
+                    _h444 = _x444.id if isinstance(_x444, _ast341.Name) else _x444.attr
+                    _kz444[_s444].add("C:" + _h444 if _h444 in _cls341
+                                      else _CN440.get(_h444, "?"))
+                elif isinstance(_x444, _ast341.BinOp) and isinstance(_x444.op, _ast341.BitOr):
+                    _wk444 += [(_s444, _x444.left), (_s444, _x444.right)]
+                elif isinstance(_x444, _ast341.Subscript):
+                    _hv444 = _x444.value
+                    _h444 = (_hv444.id if isinstance(_hv444, _ast341.Name) else
+                             _hv444.attr if isinstance(_hv444, _ast341.Attribute) else "")
+                    _ar444 = (list(_x444.slice.elts) if isinstance(_x444.slice, _ast341.Tuple)
+                              else [_x444.slice])
+                    if _h444 in ("Optional", "Union"):
+                        _wk444 += [(_s444, _e) for _e in _ar444]
+                        if _h444 == "Optional":
+                            _kz444[_s444].add("None")
+                    elif _h444 in ("Annotated", "Final", "ClassVar"):
+                        _wk444 += [(_s444, _e) for _e in _ar444[:1]]
+                    else:
+                        _kz444[_s444].add("C:" + _h444 if _h444 in _cls341
+                                          else _CN440.get(_h444, "?"))
+                else:
+                    _kz444[_s444].add("?")
+            for _s444, _x444 in _wk444:
+                _kz444[_s444].add("?")
+            # (#458) operator class triples, on real samples of each builtin class
+            _ON444 = {_ast341.Add: "add", _ast341.Sub: "sub", _ast341.Mult: "mul",
+                      _ast341.Div: "truediv", _ast341.FloorDiv: "floordiv",
+                      _ast341.Mod: "mod", _ast341.Pow: "pow", _ast341.LShift: "lshift",
+                      _ast341.RShift: "rshift", _ast341.BitOr: "or_",
+                      _ast341.BitXor: "xor", _ast341.BitAnd: "and_"}
+            _SY444 = {_ast341.Add: "+", _ast341.Sub: "-", _ast341.Mult: "*", _ast341.Div: "/",
+                      _ast341.FloorDiv: "//", _ast341.Mod: "%", _ast341.Pow: "**",
+                      _ast341.LShift: "<<", _ast341.RShift: ">>", _ast341.BitOr: "|",
+                      _ast341.BitXor: "^", _ast341.BitAnd: "&"}
+            _SK444 = {"int", "bool", "float", "complex", "str", "bytes", "bytearray", "list",
+                      "tuple", "dict", "set", "frozenset", "range", "keys", "values", "items"}
+            for _n444 in (_po383 if _te444 else ()):
+                if isinstance(_n444, _ast341.BinOp):
+                    _l444, _r444, _au444 = _n444.left, _n444.right, False
+                elif isinstance(_n444, _ast341.AugAssign):
+                    _l444, _r444, _au444 = _n444.target, _n444.value, True
+                else:
+                    continue
+                _on444 = _ON444.get(type(_n444.op))
+                _lk444 = _kz444.get(id(_l444), {"?"}) - {"None"}
+                _rk444 = _kz444.get(id(_r444), {"?"}) - {"None"}
+                if (_on444 is None or len(_lk444) != 1 or len(_rk444) != 1
+                        or not (_lk444 | _rk444) <= _SK444):
+                    continue
+                if _on444 == "mod" and _lk444 & {"str", "bytes", "bytearray"}:
+                    continue
+                if _au444:
+                    _on444 = "i" + _on444.rstrip("_")
+                _bd444 = None
+                for _p444 in sorted((_a, _b) for _a in _lk444 for _b in _rk444):
+                    _sv444 = [{"int": 2, "bool": True, "float": 2.0, "complex": 2j, "str": "a",
+                               "bytes": b"a", "bytearray": bytearray(b"a"), "list": [2],
+                               "tuple": (2,), "dict": {2: 2}, "set": {2},
+                               "frozenset": frozenset({2}), "range": range(2),
+                               "keys": {2: 2}.keys(), "values": {2: 2}.values(),
+                               "items": {2: 2}.items()}[_c] for _c in _p444]
+                    try:
+                        getattr(_op444, _on444)(_sv444[0], _sv444[1])
+                    except TypeError:
+                        _bd444 = _p444
+                        break
+                    except Exception:
+                        pass
+                if _bd444 is not None:
+                    raise _PyCSLSemErr341(
+                        f"'{_f346.name}' line {getattr(_n444, 'lineno', 0)}: "
+                        f"`{_ast341.unparse(_n444).strip()}` applies "
+                        f"`{_SY444.get(type(_n444.op), '?') + ('=' if _au444 else '')}` "
+                        f"to operands derived as `{_bd444[0]}` and `{_bd444[1]}`; CPython "
+                        f"raises TypeError for that class pair, while the function (or a "
+                        f"function that calls it) claims `#@ no_exception` covering TypeError "
+                        f"and the operator is lowered by ONE operand's class (route #458; "
+                        f"measured: `base: str, name: str; base / name` lowered as a path "
+                        f"join and `n: int, s: str; n + s` as a string concatenation, both "
+                        f"proved under `#@ no_exception \\all`). Admitted: an (operator, left "
+                        f"class, right class) triple the real builtin classes support (the "
+                        f"numeric tower, sequence concatenation / repetition, set and dict "
+                        f"operators). Declare both operands of one class (`n: str` for "
+                        f"`n + s`), join paths with `os.path.join(base, name)`, or drop the "
+                        f"claim.",
+                        stage="ir-semantic", code="PYCSL-R458-OPERAND-CLASSES")
+            # (#457 / #453) resolve the imported names this function reads on the REAL stdlib
+            # module object (`_ro444[name]` = (object, dotted path) or None: not judged)
+            for _n444 in (_po383 if _cx444 else ()):
+                if not isinstance(_n444, _ast341.Name) or _n444.id in _ro444:
+                    continue
+                if _n444.id not in _im444:
+                    continue
+                _ro444[_n444.id] = None
+                _ts444 = _im444.get(_n444.id, set())
+                if len(_ts444) != 1:
+                    continue
+                _kd444, _md444, _at444 = next(iter(_ts444))
+                _rt444 = _md444.split(".")[0]
+                if (not _md444 or _md444.startswith(".")
+                        or _rt444 not in getattr(sys, "stdlib_module_names", ())
+                        or _rt444 in ("antigravity", "this", "idlelib", "tkinter", "turtle",
+                                      "turtledemo", "__main__", "__future__")):
+                    continue
+                try:
+                    if _kd444 == "m":
+                        _ro444[_n444.id] = (_il444.import_module(_md444), _md444)
+                    else:
+                        _ob444 = _il444.import_module(_md444)
+                        if hasattr(_ob444, _at444):
+                            _ro444[_n444.id] = (getattr(_ob444, _at444),
+                                                _md444 + "." + _at444)
+                        else:
+                            _ro444[_n444.id] = (_il444.import_module(_md444 + "." + _at444),
+                                                _md444 + "." + _at444)
+                except Exception:
+                    _ro444[_n444.id] = (_NO444, _md444 + ("." + _at444 if _kd444 == "f"
+                                                          else ""))
+            # the attribute chains this file STORES (`sys.flag = 1` admits `sys.flag`)
+            _ms444 = {_ast341.unparse(_z) for _z in _ast341.walk(_t341)
+                      if isinstance(_z, _ast341.Attribute)
+                      and not isinstance(_z.ctx, _ast341.Load)} if _cx444 else set()
+            # `_MF444[module.function]` = (min, max positional, class code of every
+            # positional) -- the (module, function) rows a #161 METHOD tail may admit
+            #   CP: a builtin value, or an instance of a file class whose file MRO binds no
+            #       copy-protocol hook (`copy.copy` then copies the instance dict: no raise)
+            #   DR: exactly a file `@dataclass` with no `__post_init__` and no `InitVar`
+            #       (`dataclasses.replace(d)` re-runs the synthesized `__init__` only)
+            _MF444 = {"os.path.join": (1, None, "S"), "posixpath.join": (1, None, "S"),
+                      "copy.copy": (1, 1, "CP"), "dataclasses.replace": (1, 1, "DR")}
+            for _n444 in (_po383 if _cx444 else ()):
+                if isinstance(_n444, _ast341.Call) and isinstance(
+                        _n444.func, _ast341.Name) and _n444.func.id in (
+                        "isinstance", "issubclass") and len(_n444.args) == 2 and not (
+                        _n444.func.id in _lb383 or _n444.func.id in _ln394
+                        or _n444.func.id in _bound341 or _n444.func.id in _imp341
+                        or _n444.func.id in _mf383 or _n444.func.id in _cls341):
+                    _q444 = [_n444.args[1]]
+                    while _q444 and _te444:
+                        _y444 = _q444.pop()
+                        if isinstance(_y444, _ast341.Tuple):
+                            _q444 += list(_y444.elts)
+                            continue
+                        if isinstance(_y444, _ast341.BinOp) and isinstance(_y444.op,
+                                                                           _ast341.BitOr):
+                            _q444 += [_y444.left, _y444.right]
+                            continue
+                        _ch444 = []
+                        _z444 = _y444
+                        while isinstance(_z444, _ast341.Attribute):
+                            _ch444.insert(0, _z444.attr)
+                            _z444 = _z444.value
+                        if not (isinstance(_z444, _ast341.Name) and _z444.id in _im444
+                                and _z444.id not in _lb383 and _z444.id not in _ln394
+                                and _z444.id not in _bound341 and _z444.id not in _cls341):
+                            continue
+                        _rv444 = _ro444.get(_z444.id)
+                        if _rv444 is None or _rv444[0] is _NO444:
+                            continue
+                        _ob444 = _rv444[0]
+                        for _a444 in _ch444:
+                            _ob444 = getattr(_ob444, _a444, _NO444)
+                        _bk444 = _ob444 is _NO444
+                        if not _bk444:
+                            try:
+                                if _n444.func.id == "isinstance":
+                                    isinstance(0, _ob444)
+                                else:
+                                    issubclass(int, _ob444)
+                            except TypeError:
+                                _bk444 = True
+                            except Exception:
+                                pass
+                        if _bk444:
+                            raise _PyCSLSemErr341(
+                                f"'{_f346.name}' line {getattr(_n444, 'lineno', 0)}: "
+                                f"`{_ast341.unparse(_n444)}` names "
+                                f"`{_ast341.unparse(_y444)}` as a class, but it resolves "
+                                f"(through its import, on the real module) to "
+                                f"{'nothing' if _ob444 is _NO444 else repr(type(_ob444).__name__) + ' object'}"
+                                f" that `{_n444.func.id}` rejects: CPython raises TypeError "
+                                f"(\"arg 2 must be a type, a tuple of types, or a union\"), "
+                                f"while the function (or a function that calls it) claims "
+                                f"`#@ no_exception` covering TypeError and the test lowers "
+                                f"to an opaque value (route #457; measured: `from math import "
+                                f"sqrt; isinstance(x, sqrt)` and `isinstance(x, Any)` proved "
+                                f"under `#@ no_exception \\all`). Admitted: a builtin or file "
+                                f"class, or an imported name resolving to a real class, a "
+                                f"union or a tuple of these. Name the class itself, or drop "
+                                f"the claim.",
+                                stage="ir-semantic", code="PYCSL-R457-CLASS-SPEC-NOT-A-CLASS")
+                if not isinstance(_n444, _ast341.Attribute) or isinstance(_n444.ctx,
+                                                                          _ast341.Store):
+                    continue
+                _ch444 = []
+                _z444 = _n444
+                while isinstance(_z444, _ast341.Attribute):
+                    _ch444.insert(0, _z444.attr)
+                    _z444 = _z444.value
+                if (isinstance(_z444, _ast341.Name) and _z444.id in _im444
+                        and _z444.id not in _lb383 and _z444.id not in _ln394
+                        and _z444.id not in _bound341 and _z444.id not in _cls341):
+                    _rv444 = _ro444.get(_z444.id)
+                    if _rv444 is None or _rv444[0] is _NO444:
+                        continue
+                    _ob444 = _rv444[0]
+                    _dp444 = _rv444[1]
+                    _ms0444 = None
+                    for _i444, _a444 in enumerate(_ch444):
+                        _dp444 += "." + _a444
+                        if hasattr(_ob444, _a444):
+                            _ob444 = getattr(_ob444, _a444)
+                        elif _dp444 in _ix444:
+                            try:
+                                _ob444 = _il444.import_module(_dp444)
+                            except Exception:
+                                _ob444 = None
+                                break
+                        elif (_z444.id + "." + ".".join(_ch444[:_i444 + 1])) in _ms444:
+                            _ob444 = None
+                            break
+                        else:
+                            _ms0444 = _a444
+                            break
+                    if _ms0444 is not None and _ae444:
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n444, 'lineno', 0)}: "
+                            f"`{_ast341.unparse(_n444)}` reads `{_ms0444}`, which the real "
+                            f"module `{_dp444.rsplit('.', 1)[0]}` does not have: CPython "
+                            f"raises AttributeError, while the function (or a function "
+                            f"that calls it) claims `#@ no_exception` covering "
+                            f"AttributeError and the access lowers to an opaque value "
+                            f"(route #453; measured: `sys.maxint`, `math.PI`, `os.sepp` and "
+                            f"`os.path.lower(s)` proved under `#@ no_exception \\all`). "
+                            f"Admitted: an attribute the module object has at verification "
+                            f"time, or one this file stores on it. Use the attribute the module "
+                            f"actually has (`sys.maxsize` for `sys.maxint`), or drop the claim.",
+                            stage="ir-semantic", code="PYCSL-R453-MODULE-ATTRIBUTE")
+                    _c444 = _cf444.get(id(_n444))
+                    if (_c444 is None or _ob444 is None or _ms0444 is not None
+                            or _n444.attr not in _BM440):
+                        continue
+                    _row444 = _MF444.get(_dp444)
+                    _bd444 = None
+                    if _row444 is None:
+                        _bd444 = "it has no (module, function) row"
+                    elif _c444.keywords or any(isinstance(_a, _ast341.Starred)
+                                               for _a in _c444.args):
+                        _bd444 = "its row takes no keyword or `*` argument"
+                    elif len(_c444.args) < _row444[0] or (_row444[1] is not None
+                                                          and len(_c444.args) > _row444[1]):
+                        _bd444 = f"its row takes {_row444[0]} or more positional arguments"
+                    else:
+                        for _a444 in _c444.args:
+                            _ka444 = _kz444.get(id(_a444), {"?"})
+                            _ok444 = bool(_ka444) and _ka444 <= _KS440.get(_row444[2], set())
+                            if _row444[2] == "CP":
+                                _ok444 = bool(_ka444)
+                                for _k444 in _ka444:
+                                    if _k444 in _SK444 or _k444 == "None":
+                                        continue
+                                    _x444 = _k444[2:] if _k444.startswith("C:") else None
+                                    if _x444 is None or any(
+                                            (_a not in _cls341 and _a not in (
+                                                "object", "Generic", "ABC"))
+                                            or (_cb383.get(_a, set()) & {
+                                                "__copy__", "__reduce__", "__reduce_ex__",
+                                                "__getstate__", "__setstate__", "__new__",
+                                                "__deepcopy__", "__getattr__",
+                                                "__getattribute__", "__slots__"})
+                                            for _a in _clo346.get(_x444, [_x444])):
+                                        _ok444 = False
+                            elif _row444[2] == "DR":
+                                _x444 = (next(iter(_ka444))[2:] if len(_ka444) == 1
+                                         and next(iter(_ka444)).startswith("C:") else None)
+                                _ok444 = (_x444 is not None and _x444 in _dc346
+                                          and not _pf361.get(_x444)
+                                          and not any("__post_init__" in _cb383.get(_a, set())
+                                                      for _a in _clo346.get(_x444, [_x444])))
+                            if not _ok444:
+                                _bd444 = (f"its argument `{_ast341.unparse(_a444)}` is not "
+                                          f"derived of the row's class(es) "
+                                          f"{sorted(_KS440.get(_row444[2], set())) or _row444[2]}")
+                                break
+                    if _bd444 is not None:
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n444, 'lineno', 0)}: the call "
+                            f"`{_ast341.unparse(_c444)}` calls the MODULE function "
+                            f"`{_dp444}`, which is admitted today only because its tail "
+                            f"`{_n444.attr}` is a builtin METHOD name of route #161's list, and "
+                            f"{_bd444}. Its exceptions are not modelled (it lowers to an "
+                            f"opaque `val` with no `raises`), while the function (or a "
+                            f"function that calls it) claims `#@ no_exception` (route #453; "
+                            f"measured: `shutil.copy(path, ..)` -- FileNotFoundError -- "
+                            f"`os.replace`, `itertools.count(<str>)` -- TypeError -- proved "
+                            f"under `#@ no_exception \\all`). Admitted: a (module, function) "
+                            f"row of the table (`os.path.join` over `str` arguments, `copy.copy` "
+                            f"of a builtin value or of a file-class instance without copy "
+                            f"hooks, `dataclasses.replace(d)` of a file `@dataclass`). Use a "
+                            f"function that has a row, or drop the claim (the claim of a caller "
+                            f"reaches this function too).",
+                            stage="ir-semantic", code="PYCSL-R453-MODULE-FUNCTION-NOT-ADMITTED")
+                    continue
+                # (#445) a receiver derived only as builtin classes: the real class has it
+                _kr444 = _kz444.get(id(_n444.value), {"?"}) - {"None"}
+                _nw444 = _nr440.get(id(_n444))
+                if _nw444 is not None and _nw444[1]:
+                    # #432's `isinstance` guard decided the receiver's classes here
+                    _kr444 = {"C:" + _c if _c in _cls341 else _CN440.get(_c, "?")
+                              for _c in _nw444[0]} - {"None"}
+                elif len(_kr444) > 1:
+                    # several classes and no decided guard: a narrowing this rule does not
+                    # see may apply (not judged)
+                    _kr444 = {"?"}
+                _ac444[id(_n444)] = _kr444
+                if _ae444 and _kr444 and "?" not in _kr444 and _kr444 <= set(_PY440):
+                    _mk444 = sorted(_k for _k in _kr444 if not hasattr(_PY440[_k], _n444.attr))
+                    if _mk444:
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n444, 'lineno', 0)}: "
+                            f"`{_ast341.unparse(_n444)}` reads `{_n444.attr}` on a receiver "
+                            f"derived as `{_mk444[0]}`, which has no such attribute: CPython "
+                            f"raises AttributeError, while the function (or a function that "
+                            f"calls it) claims `#@ no_exception` covering AttributeError and "
+                            f"the access lowers to an opaque `getattr` (route #445; measured: "
+                            f"`n: int; n.zz` and `n.bit_lenght` proved under `#@ no_exception "
+                            f"\\all`). Admitted: an attribute of every builtin class the "
+                            f"receiver may have. Fix the attribute name, or drop the claim.",
+                            stage="ir-semantic", code="PYCSL-R445-ATTRIBUTE-NOT-DEFINED")
         # ROUTE #361 — `InitVar` / `KW_ONLY` PSEUDO-FIELDS WERE MODELLED AS STORED FIELDS.
         # `k: InitVar[int]` and `_: KW_ONLY` joined the record and #347's synthesized
         # field set (ClassVar was excluded), so `d.k` / `d._` read under `no_exception`
@@ -11628,6 +12179,219 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"`self.{_n346.attr}` on every `__init__` path (e.g. a default "
                         f"before the branch), or give the class a class-level default.",
                         stage="ir-semantic", code="PYCSL-R347-FIELD-MAYBE-UNASSIGNED")
+        # (#49) gen #38, ROUTES #444 / #445 (file-class receivers): the post-#347 half of the
+        # opaque-fallback rule (`_rc444` above; it needs #347's definite-assignment sets).
+        #   #444 under a claim covering NameError, every Name LOAD of the def's body must
+        #     resolve: a parameter, a name its own scope binds (an assignment / loop / `with` /
+        #     `except` / match / import / nested def or class / walrus target; `global` /
+        #     `nonlocal`), an enclosing def's binding (`_eb394`), a module-scope binding
+        #     (`_mg444`) or a builtin of the real `builtins` module. A comprehension's /
+        #     generator's / lambda's targets are scoped to it (its first iterable is read
+        #     outside). Annotations are not read. A file with a `*` import is not judged.
+        #   #445 under a claim covering AttributeError, an attribute LOAD on a receiver
+        #     whose class is a FILE class X -- `self` of a method of X, a class object `X`,
+        #     or a receiver DERIVED (`_ty383`) only as file classes -- must be (a) a binding
+        #     of X's class body over its file MRO (a method / property / class attribute /
+        #     nested class; an annotation without a value binds nothing, except in a
+        #     `Protocol`), (b) for an instance, a field DEFINITELY assigned by X's constructor
+        #     (#347's `_da347`, which follows only the `__init__` chain actually run: a
+        #     subclass `__init__` without `super().__init__()` runs no base store), (c) an
+        #     attribute of every object (`__class__`, `__dict__` ...) / of `type` for a
+        #     class object, or (d) a name the file stores through another receiver
+        #     (`_xa383`). A class whose MRO has a non-file base (other than `object` /
+        #     `Generic` / `Protocol` / `ABC`) or a `__getattr__` / `__getattribute__`, and a
+        #     file that adds attributes dynamically (`_dy383`), are not judged.
+        _cbx444 = {}
+        for _cn444, _ks444 in _cls341.items():
+            _pr444 = any(isinstance(_b, (_ast341.Name, _ast341.Attribute)) and (
+                _b.id if isinstance(_b, _ast341.Name) else _b.attr) == "Protocol"
+                for _k in _ks444 for _b in _k.bases)
+            for _k444 in _ks444:
+                for _s444 in _k444.body:
+                    for _z444 in ([_s444] if isinstance(_s444, (
+                            _ast341.FunctionDef, _ast341.AsyncFunctionDef, _ast341.ClassDef))
+                            else _ast341.walk(_s444)):
+                        if isinstance(_z444, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                              _ast341.ClassDef)):
+                            _cbx444.setdefault(_cn444, set()).add(_z444.name)
+                        elif (isinstance(_z444, _ast341.AnnAssign) and _z444.value is None
+                              and isinstance(_z444.target, _ast341.Name) and not _pr444):
+                            _cbx444.setdefault(_cn444, set())
+                        elif (isinstance(_z444, _ast341.Name)
+                              and not isinstance(_z444.ctx, _ast341.Load)
+                              and not (isinstance(_s444, _ast341.AnnAssign)
+                                       and _s444.value is None and _s444.target is _z444
+                                       and not _pr444)):
+                            _cbx444.setdefault(_cn444, set()).add(_z444.id)
+                        elif isinstance(_z444, (_ast341.Import, _ast341.ImportFrom)):
+                            _cbx444.setdefault(_cn444, set()).update(
+                                (_a.asname or _a.name).split(".")[0] for _a in _z444.names)
+        for _f444, _e444 in _fn346:
+            _cx444 = _rc444.get(id(_f444)) or set()
+            if not _cx444 or id(_f444) in _tr444:
+                continue
+            _ne444 = bool(_cx444 & {"\\all", "NameError", "Exception", "BaseException"})
+            _ae444 = bool(_cx444 & {"\\all", "AttributeError", "Exception", "BaseException"})
+            _pz444 = (_f444.args.posonlyargs + _f444.args.args + _f444.args.kwonlyargs
+                      + [_a for _a in (_f444.args.vararg, _f444.args.kwarg) if _a is not None])
+            _lo444 = {_a.arg for _a in _pz444} | set(_eb394.get(id(_f444), set()))
+            if _e444 is not None:
+                _lo444.add("__class__")
+            _wq444 = list(_f444.body)
+            while _wq444:
+                _z444 = _wq444.pop()
+                if isinstance(_z444, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                      _ast341.ClassDef)):
+                    _lo444.add(_z444.name)
+                    continue
+                if isinstance(_z444, _ast341.Lambda):
+                    continue
+                if isinstance(_z444, (_ast341.ListComp, _ast341.SetComp, _ast341.DictComp,
+                                      _ast341.GeneratorExp)):
+                    _lo444 |= {_y.target.id for _y in _ast341.walk(_z444)
+                               if isinstance(_y, _ast341.NamedExpr)
+                               and isinstance(_y.target, _ast341.Name)}
+                    continue
+                if isinstance(_z444, _ast341.Name) and not isinstance(_z444.ctx, _ast341.Load):
+                    _lo444.add(_z444.id)
+                elif isinstance(_z444, (_ast341.Import, _ast341.ImportFrom)):
+                    _lo444 |= {(_a.asname or _a.name).split(".")[0] for _a in _z444.names}
+                elif (isinstance(_z444, (_ast341.ExceptHandler, _ast341.MatchAs,
+                                         _ast341.MatchStar)) and isinstance(_z444.name, str)):
+                    _lo444.add(_z444.name)
+                elif isinstance(_z444, (_ast341.Global, _ast341.Nonlocal)):
+                    _lo444 |= set(_z444.names)
+                _wq444 += list(_ast341.iter_child_nodes(_z444))
+            _wq444 = [(_z, frozenset()) for _z in _f444.body] if (_ne444 and not _st444) else []
+            while _wq444:
+                _z444, _ex444 = _wq444.pop()
+                if isinstance(_z444, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                    _wq444 += [(_y, _ex444) for _y in _z444.decorator_list
+                               + _z444.args.defaults + _z444.args.kw_defaults if _y is not None]
+                    continue
+                if isinstance(_z444, _ast341.ClassDef):
+                    _wq444 += [(_y, _ex444) for _y in _z444.decorator_list + _z444.bases]
+                    continue
+                if isinstance(_z444, _ast341.AnnAssign):
+                    _wq444 += [(_y, _ex444) for _y in (_z444.target, _z444.value)
+                               if _y is not None]
+                    continue
+                if isinstance(_z444, _ast341.Lambda):
+                    _wq444 += [(_y, _ex444) for _y in _z444.args.defaults
+                               + _z444.args.kw_defaults if _y is not None]
+                    _wq444.append((_z444.body, _ex444 | {
+                        _a.arg for _a in _ast341.walk(_z444.args)
+                        if isinstance(_a, _ast341.arg)}))
+                    continue
+                if isinstance(_z444, (_ast341.ListComp, _ast341.SetComp, _ast341.DictComp,
+                                      _ast341.GeneratorExp)):
+                    _in444 = _ex444 | {_y.id for _g in _z444.generators
+                                       for _y in _ast341.walk(_g.target)
+                                       if isinstance(_y, _ast341.Name)}
+                    for _i444, _g in enumerate(_z444.generators):
+                        _wq444.append((_g.iter, _ex444 if _i444 == 0 else _in444))
+                        _wq444 += [(_y, _in444) for _y in _g.ifs]
+                    _wq444 += [(_y, _in444) for _y in (
+                        [_z444.key, _z444.value] if isinstance(_z444, _ast341.DictComp)
+                        else [_z444.elt])]
+                    continue
+                if (isinstance(_z444, _ast341.Name) and isinstance(_z444.ctx, _ast341.Load)
+                        and _z444.id not in _lo444 and _z444.id not in _mg444
+                        and _z444.id not in _ex444):
+                    raise _PyCSLSemErr341(
+                        f"'{_f444.name}' line {getattr(_z444, 'lineno', 0)}: it reads the "
+                        f"name `{_z444.id}`, which no scope binds -- not a parameter, a local, "
+                        f"an enclosing function's or a module-level binding, nor a builtin "
+                        f"(a comprehension's / generator's target is scoped to it). CPython "
+                        f"raises NameError there, while the function (or a function that "
+                        f"calls it) claims `#@ no_exception` covering NameError and the name "
+                        f"lowers to an opaque `val constant` (route #444; measured: `return "
+                        f"totl` for `total`, `[x for x in xs]; return x` and an undefined "
+                        f"global proved under `#@ no_exception \\all`). Admitted: a name "
+                        f"resolved to a binding. Fix the name or bind it before the read "
+                        f"(e.g. a module-level `{_z444.id} = ...`), or drop the claim.",
+                        stage="ir-semantic", code="PYCSL-R444-UNBOUND-NAME")
+                _wq444 += [(_y, _ex444) for _y in _ast341.iter_child_nodes(_z444)]
+            if not _ae444 or _dy383:
+                continue
+            _sf444 = None
+            _km444 = False
+            _dn444 = {_ast341.unparse(_d) for _d in _f444.decorator_list}
+            if (_e444 is not None and (_f444.args.posonlyargs + _f444.args.args)
+                    and "staticmethod" not in _dn444):
+                _sf444 = (_f444.args.posonlyargs + _f444.args.args)[0].arg
+                _km444 = "classmethod" in _dn444
+                if any(isinstance(_y, _ast341.Name) and _y.id == _sf444
+                       and not isinstance(_y.ctx, _ast341.Load) for _y in _ast341.walk(_f444)) or any(
+                        isinstance(_y, _ast341.arg) and _y.arg == _sf444 and _y is not
+                        (_f444.args.posonlyargs + _f444.args.args)[0]
+                        for _y in _ast341.walk(_f444)):
+                    _sf444 = None
+            for _z444 in _ast341.walk(_f444):
+                if not isinstance(_z444, _ast341.Attribute) or isinstance(_z444.ctx,
+                                                                          _ast341.Store):
+                    continue
+                _rv444 = _z444.value
+                _xs444 = []
+                _ko444 = False
+                if isinstance(_rv444, _ast341.Name) and _sf444 is not None and _rv444.id == _sf444:
+                    _xs444 = [_e444]
+                    _ko444 = _km444
+                elif (isinstance(_rv444, _ast341.Name) and _rv444.id in _cls341
+                      and _rv444.id not in _lo444 and _rv444.id not in _bound341):
+                    _xs444 = [_rv444.id]
+                    _ko444 = True
+                elif (isinstance(_rv444, _ast341.Attribute) and _rv444.attr in _cls341
+                      and isinstance(_rv444.value, _ast341.Name)
+                      and _rv444.value.id in _cls341 and _rv444.value.id not in _lo444
+                      and _rv444.value.id not in _bound341
+                      and _rv444.attr in _cbx444.get(_rv444.value.id, set())
+                      and len(_cls341[_rv444.attr]) == 1):
+                    # a nested class object `P.Inner`
+                    _xs444 = [_rv444.attr]
+                    _ko444 = True
+                elif id(_z444) in _ac444:
+                    _kr444 = _ac444[id(_z444)]
+                    if _kr444 and all(_k.startswith("C:") for _k in _kr444):
+                        _xs444 = sorted(_k[2:] for _k in _kr444)
+                for _x444 in _xs444:
+                    _mr444 = _clo346.get(_x444, [_x444])
+                    if any(_a not in _cls341 and _a not in ("object", "Generic", "Protocol",
+                                                             "ABC") for _a in _mr444):
+                        continue
+                    _nm444 = set()
+                    for _a444 in _mr444:
+                        _nm444 |= _cbx444.get(_a444, set())
+                    if "__getattr__" in _nm444 or "__getattribute__" in _nm444:
+                        continue
+                    if _z444.attr in _nm444 or _z444.attr in _xa383:
+                        continue
+                    if _ko444 and hasattr(type, _z444.attr):
+                        continue
+                    if not _ko444 and (hasattr(object(), _z444.attr)
+                                       or _z444.attr in (_da347.get(_x444) or set())):
+                        continue
+                    raise _PyCSLSemErr341(
+                        f"'{_f444.name}' line {getattr(_z444, 'lineno', 0)}: "
+                        f"`{_ast341.unparse(_z444)}` reads `{_z444.attr}` on "
+                        + (f"the class `{_x444}`" if _ko444 else
+                           f"an instance of the file class `{_x444}`")
+                        + f", whose file MRO binds no such method / class attribute"
+                        + ("" if _ko444 else
+                           " and whose constructor does not definitely assign such a field "
+                           "(a store under a branch / loop / `try`, in another method, or in "
+                           "a base `__init__` the subclass `__init__` never calls)")
+                        + f". CPython raises AttributeError there, while the function (or a "
+                        f"function that calls it) claims `#@ no_exception` covering "
+                        f"AttributeError and the access lowers to an opaque `getattr` or an "
+                        f"always-present record field (route #445; measured: `self.cout` "
+                        f"for `self.count`, a field set in one `__init__` branch, a subclass "
+                        f"skipping `super().__init__()` proved under `#@ no_exception "
+                        f"\\all`). Admitted: a class-body binding of the file MRO or a field "
+                        f"assigned on every path of the constructor actually run. Fix the "
+                        f"name, assign the field on every `__init__` path (call "
+                        f"`super().__init__()`), or drop the claim.",
+                        stage="ir-semantic", code="PYCSL-R445-ATTRIBUTE-NOT-DEFINED")
 
     # (#49) ROUTE #263 — RECURSION THROUGH A METHOD CALL WAS NEVER CHECKED FOR TERMINATION.
     # Module 6 lowers a `self.m(...)` / `obj.m(...)` / `C().m(...)` call to a bodyless

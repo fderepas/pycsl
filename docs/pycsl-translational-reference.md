@@ -5615,6 +5615,59 @@ yield TE. Decorator sites (once per file, every scope through its compound state
 prop / class (`_dk449`) outside a class body, an `@overload` def with no later def / class of its name in
 its scope, a `class` decorated by a builtin decorator are refused (`PYCSL-R455-DECORATOR-SITE`). No
 emission changes.
+### §T.6.190  Opaque fallbacks refused under the claim they would assume (routes #444 / #445 / #446 / #453 / #457 / #458, run #3)
+
+_Corresponds to `annotations.md` §7.180._
+
+Let $\mathit{CL}(f)$ be $f$'s own `no_exception` set (IR record, else its `#@` block, as §T.6.144)
+for a function that is neither `\trusted` nor `\abstract`; $\mathit{CL}^*$ is the least map with
+$\mathit{CL} \subseteq \mathit{CL}^*$ and $\mathit{CL}^*(g) \supseteq \mathit{CL}^*(f)$ whenever $g$ is not bodyless and
+$f$'s body holds a `Name` $g$ (any def of that name), an `Attribute` $.g$ ($g$ a method), a
+`Name` $C$ of a file class with $g \in \{$`__init__`, `__post_init__`, `__new__`$\}$ a method of
+a class of `_clo346`$[C]$, a nested def $g$, or $g$ any dunder method of a file class
+(`_rc444`). Write $\mathit{cov}(E) \iff \mathit{CL}^*(f) \cap \{$`\all`$, E,$ `Exception`$,$
+`BaseException`$\} \ne \emptyset$. No emission changes; each rule below is a refusal in
+`_run_pipeline`.
+
+* (#444) If $\mathit{cov}$(NameError) and no `from M import *`: a `Name` load reached from
+  $f$'s body (not entering nested `def` / `class` bodies, annotations, or a comprehension's
+  targets; a comprehension's targets bind its `ifs`, element and later iterables, a lambda's
+  parameters its body) whose identifier is not in $L(f) \cup$ `_eb394`$(f) \cup$ `_mg444` $\cup$
+  `dir(builtins)` is refused (`PYCSL-R444-UNBOUND-NAME`), where $L(f)$ = parameters $\cup$ the
+  non-`Load` names, import names, def / class names, `except` / match capture names,
+  `global` / `nonlocal` names and walrus targets of $f$'s own scope, and `_mg444` the same over
+  module-level statements plus every `global` name.
+* (#445) If $\mathit{cov}$(AttributeError) and not `_dy383`: for an `Attribute` load $R.a$ with
+  $R$ the (unrebound) first parameter of a non-static method of $X$, or a `Name` / nested
+  `P.Inner` class object $X$, or $R$ with derived classes $K(R) \subseteq \{$`C:`$X_i\}$, and
+  every base of `_clo346`$[X]$ a file class or `object` / `Generic` / `Protocol` / `ABC`, no
+  `__getattr__` / `__getattribute__` in $B(X) = \bigcup_{a \in \texttt{\_clo346}[X]}$ `_cbx444`$[a]$:
+  refused (`PYCSL-R445-ATTRIBUTE-NOT-DEFINED`) unless $a \in B(X) \cup$ `_xa383`, or (instance)
+  `hasattr(object(), a)` or $a \in$ `_da347`$[X]$, or (class object) `hasattr(type, a)`.
+  For $K(R) = \{k\}$ a builtin class (or the classes of a decided `_nr440` guard), refused unless
+  `hasattr(`$k$`, a)` for each.
+* (#446) Any claim: every `BinOp` / `AugAssign` with `MatMult` is refused
+  (`PYCSL-R446-MATMUL-UNMODELLED`); Module 6's `unknown_op` is unreachable under a claim.
+* (#453) For $r.a_1 \ldots a_n$ with $r$ bound once, by an import of a module whose root is in
+  `sys.stdlib_module_names`, and not rebound: the chain is walked on the real object
+  (`importlib.import_module`); the first $a_i$ with `not hasattr` that is neither a submodule
+  the file imports nor a stored dotted chain is refused under $\mathit{cov}$(AttributeError)
+  (`PYCSL-R453-MODULE-ATTRIBUTE`). A call of the chain with $a_n \in$ `_BM440` is refused under
+  any claim (`PYCSL-R453-MODULE-FUNCTION-NOT-ADMITTED`) unless its dotted path has a row of
+  `_MF444` (`os.path.join` / `posixpath.join`: $\ge 1$ positional, each derived `str`;
+  `copy.copy`: one positional derived as builtin classes or as file classes whose MRO binds no
+  copy hook; `dataclasses.replace`: one positional derived exactly a file `@dataclass` with no
+  `__post_init__` and no `InitVar`), with no keyword or `*` argument.
+* (#457) For `isinstance(x, S)` / `issubclass(c, S)` (the builtin unshadowed) under
+  $\mathit{cov}$(TypeError): each leaf of $S$ (through `Tuple` and `|`) that is an imported name
+  or a chain rooted at one resolves, as in #453, to an object $o$; refused
+  (`PYCSL-R457-CLASS-SPEC-NOT-A-CLASS`) when the chain is missing or `isinstance(0, o)` /
+  `issubclass(int, o)` raises TypeError.
+* (#458) For `BinOp` / `AugAssign` $l \oplus r$ under $\mathit{cov}$(TypeError) with $K(l) \setminus
+  \{\texttt{None}\} = \{k_l\}$, $K(r) \setminus \{\texttt{None}\} = \{k_r\}$, both among the
+  sixteen sampled builtin classes, $\oplus$ not `%` on a `str` / `bytes` / `bytearray` left:
+  refused (`PYCSL-R458-OPERAND-CLASSES`) when `operator.`$\oplus$ (`operator.i`$\oplus$ for the
+  augmented form) on fresh sample values of $k_l, k_r$ raises TypeError.
 
 ### §T.6.28  Identifier lowering is checked injective; identity tests in every position (routes #327 / #329 / #333)
 

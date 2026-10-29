@@ -3878,6 +3878,75 @@ def, of a local bound otherwise than by one `def`, through a receiver whose clas
 annotation or `self`, or with a `*` / `**` argument; a builtin without a published signature (`int`,
 `range`, `max` ...) other than through the cross-constraints and #441's rows; what a builtin / stdlib
 base method itself raises when reached through `super()`.
+### 7.180 An opaque fallback is refused under the claim it would assume: names, attributes, `@`, module functions, class specs and operand classes (routes #444 / #445 / #446 / #453 / #457 / #458, run #3)
+
+Red team 36 (PROVED `#@ no_exception \all` on main, CPython NameError / AttributeError /
+TypeError / OSError) found six ways in which a construct the emitter does not recognise is lowered
+to an OPAQUE value with nothing owed, so the claim is verified by assumption: an unbound name
+becomes `val constant x` (#444: a misspelt local, a comprehension target read after the
+comprehension, an undefined global); a missing attribute becomes an opaque `getattr` or an
+always-present record field (#445: `self.cout` for `self.count`, a field stored in one `__init__`
+branch, a subclass whose `__init__` skips `super().__init__()`, `n.zz` on an `int`, `P.zzz` on a
+class); `a @ b` becomes `unknown_op` (#446); a module function is admitted by its tail when the
+tail is one of route #161's builtin METHOD names (`shutil.copy`, `os.replace`,
+`itertools.count(<str>)`) and a module attribute the module does not have (`sys.maxint`,
+`math.PI`, `os.path.lower`) becomes an opaque `get_<attr>` (#453); `isinstance(x, S)` accepts any
+imported name as a class (`sqrt`, `json.loads`, `typing.Any`) (#457); and a binary operator is
+lowered by ONE operand's class (`str / str` as a path join, `int + str` as a concatenation) (#458).
+
+ONE RULE, allow-list polarity, refuse by default. The claim that speaks for a function is its own
+`#@ no_exception` JOINED with the claim of every claiming function that may call it (by name, by
+method name on any receiver, by an attribute load of a method's name, by a constructor `C(..)` --
+the `__init__` / `__post_init__` / `__new__` of C's file MRO -- and every dunder method of a file
+class), transitively; `\trusted` / `\abstract` functions are not entered. Under that claim, when
+it covers the exception CPython raises there:
+
+* (#444, NameError) every name read in the body must resolve to a parameter, a binding of the
+  function's own scope (assignment / loop / `with` / `except` / match / import / nested def or
+  class / walrus target / `global` / `nonlocal`), an enclosing function's binding, a module-scope
+  binding (at any depth of module-level statements, not inside a def / class / lambda /
+  comprehension; plus names a function declares `global`) or a builtin of the real `builtins`
+  module. A comprehension's, generator's or lambda's targets are scoped to it. Annotations are
+  not read; a file with a `*` import is not judged. `PYCSL-R444-UNBOUND-NAME`.
+* (#445, AttributeError) an attribute read on a receiver whose class is a FILE class X -- `self`
+  of a method of X (not rebound), a class object `X` (or a nested class `P.Inner`), or a receiver
+  derived (§7.131) only as file classes -- must be a binding of X's class body over its file MRO
+  (a method, property, class attribute, nested class; an annotation without a value binds
+  nothing except in a `Protocol`), or for an instance a field DEFINITELY assigned by the
+  constructor actually run (route #347's sets: a subclass `__init__` without
+  `super().__init__()` runs no base store), or an attribute of every object (of `type` for a
+  class object), or a name the file stores through another receiver. A class with a non-file
+  base (other than `object` / `Generic` / `Protocol` / `ABC`) or a `__getattr__` /
+  `__getattribute__`, and a file that adds attributes dynamically (`setattr`, `__dict__`), are
+  not judged. On a receiver derived as exactly ONE builtin class (or the classes an
+  `isinstance` guard decided, §7.133), the real class must have the attribute.
+  `PYCSL-R445-ATTRIBUTE-NOT-DEFINED`.
+* (#446) `@` / `@=` is refused under ANY claim: it has no lowering rule.
+  `PYCSL-R446-MATMUL-UNMODELLED`.
+* (#453) an attribute chain rooted at a name bound once by an import of a standard-library
+  module must exist on the REAL module object at verification time (`hasattr`, a submodule the
+  file imports, or a dotted store of the chain in the file) -- AttributeError,
+  `PYCSL-R453-MODULE-ATTRIBUTE`; and a CALL of such a chain whose tail is one of route #161's
+  method names is admitted (under any claim) only by a (module, function) row with its argument
+  classes: `os.path.join` over `str` arguments, `copy.copy` of a builtin value or of a file-class
+  instance whose MRO binds no copy-protocol hook, `dataclasses.replace(d)` of exactly a file
+  `@dataclass` with no `__post_init__` and no `InitVar`.
+  `PYCSL-R453-MODULE-FUNCTION-NOT-ADMITTED`. A non-standard-library module is not judged.
+* (#457, TypeError) each imported name / dotted attribute in the class spec of
+  `isinstance` / `issubclass` (through tuples and `|`) is resolved on the real standard-library
+  module and must be accepted by the real `isinstance(0, o)` / `issubclass(int, o)` (functions,
+  `typing.Any` and special forms are refused). `PYCSL-R457-CLASS-SPEC-NOT-A-CLASS`.
+* (#458, TypeError) a binary or augmented operator whose two operands are each derived as
+  exactly ONE builtin class is admitted iff the real operation on a sample value of each class
+  raises no TypeError (`operator.<op>` / `operator.i<op>`): the CPython numeric tower, sequence
+  concatenation and repetition, set and dict operators pass; `str / str`, `int + str`,
+  `bytes + int` are refused. `str` / `bytes` `%` (formatting, value-dependent), `None` operands
+  (route #252), several or underivable classes are not judged.
+  `PYCSL-R458-OPERAND-CLASSES`.
+
+No emission changes; no axiom. Witnesses `6850`-`6867` (expected FAIL, refused); controls
+`6870`-`6874` (expected PASS). Census of the fallback sites:
+`getting-better/systematic-soundness-r3/r1-opaque/census-fallback-sites.tsv`.
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)
 
