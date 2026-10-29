@@ -5608,6 +5608,47 @@ with `_rc444`[$d$] unless $d$ is named `__init__` / `__post_init__` / `__new__`;
 underivable-receiver refusal skips a receiver `super(...)` (an unshadowed `super`) when the
 def's OWN claim covers no AttributeError (\all / AttributeError / Exception / BaseException).
 Emission changes only in reached bodies (their trigger asserts).
+### §T.6.240  Module import under a claim; `__init__` return value (routes #461 / #462, run #3)
+
+_Corresponds to `annotations.md` §7.230._
+
+Gate: `_rc444` $\neq \emptyset$ (a def, neither trusted nor abstract, with a `no_exception` claim). In
+`_run_pipeline`, after the WhyML text is final and before it is returned, the module body is executed
+abstractly by a frame machine over (statements, scope): module scope $E$ (seeded with `__name__` = the
+file stem, `__file__`, `__doc__`), a class scope $L$ with its ordered namespace events $N$ and
+annotation map $A$. For a statement $s$ the expressions CPython evaluates when $s$ runs (an `Assign`
+value and subscript-target parts, an `AugAssign` target and value, an `AnnAssign` value -- its
+annotation only in a class body, softened to its source string on an unbound name or an unknown value --,
+a def's decorators / defaults / keyword defaults, a class's decorators / bases / keyword values, an
+`If` / `Assert` test) are evaluated in post-order to REAL Python values $v(e)$: `Constant`, `Name` ($L$,
+$E$, builtins; else NameError), `Attribute` (`getattr`; on a module, a value that is not a class /
+module / callable / immutable scalar / tuple / frozenset / typing-enum-re-dataclasses-types-abc object
+becomes UNKNOWN $\bot$), `Subscript`, `Slice`, `BinOp` / `UnaryOp` / `BoolOp` / `Compare` / `IfExp`
+(through `operator`, with size bounds), displays, f-strings, `Lambda` (a placeholder), `Call` of: the
+pure set $P$ (builtins `int` `str` `frozenset` `sorted` ..., `re.compile`, `typing.TypeVar` /
+`NamedTuple` ..., `collections.namedtuple` ..., `dataclasses.field` / `dataclass`, `enum.auto`,
+`functools.partial` / `lru_cache` ..., `os.path.join` ..., `json.loads`, `copy.copy`), a builtin-type
+method or descriptor, a factory closure of `functools` / `dataclasses` / `enum` / `typing` / `abc`, a
+synthesized class, a file def with body `return c` called with no argument ($\mapsto c$), or a
+synthesized class whose own plain `__init__(self, p..)` only stores constants / parameters on `self`
+called with exactly its positionals (stores made by `setattr` on `object.__new__(C)`). Every file def
+is a PLACEHOLDER function raising a private `BaseException` $\Omega$ when called (an identity def
+`def d(x): return x` used as a decorator is the identity). A $\bot$ operand outside a display, an
+exception, $\Omega$, or a construct outside this list refuses $s$. Statement actions: bind names
+(unpacking checked on $v$), `If` pushes the arm $v(\text{test})$ selects, `Try` pushes body + orelse +
+finalbody (handlers dead), `Import` / `ImportFrom` resolve (stdlib: `importlib.import_module`, attribute
+or submodule; else a file / package under the file's directory, `--import-path`, `sys.path`, or an
+installed spec, the `from` name bound at that module's top level, a submodule, or a `__getattr__`;
+stdlib `*` binds its public names, a non-stdlib `*` refuses), `ClassDef` pushes its body and on
+completion requires `_mro363[C]` $\neq$ None (C unique in the file) and evaluates
+`types.new_class(C, bases, keywords, exec_body)` with `exec_body` replaying
+`__module__`, `__qualname__`, $N$ in order and `__annotations__` $= A$, then applies each decorator
+(placeholder identity, $P$, a factory closure) bottom-up; the module is registered in `sys.modules`
+under a private name for the duration. Any refusal raises `PYCSL-R461-IMPORT-RAISES` with the
+statement's line and CPython's exception text. (#462) for every `ClassDef` and its `__init__`: an
+`AsyncFunctionDef`, or, outside nested def / lambda / class bodies, a `Yield` / `YieldFrom` or a
+`Return` whose value is not `Constant(None)`, raises `PYCSL-R462-INIT-RETURNS-VALUE`. No emission
+change.
 
 ### §T.6.200  Call binding, `super()` resolution, builtin cross-constraints, decorator sites (routes #448 / #449 / #450 / #455, run #3)
 

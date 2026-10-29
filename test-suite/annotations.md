@@ -3864,6 +3864,35 @@ files measured), and a `super()` receiver in a def whose AttributeError claim is
 judged by #450 rather than #443. Not reached (own claim only): #347, #357, #395 / #402, #439
 (another file's defs). Witnesses `7050`-`7053`, `7057` (an un-claimed `@property` getter reading
 a missing key, reached through the attribute load), `7059`; controls `7054`-`7056`, `7058`, `7060`.
+### 7.230 A claimed module must IMPORT without raising; `__init__` returns None (routes #461 / #462, run #3)
+
+A claimed function of a module whose import raises is never callable, yet red team 37 measured PROVED
+`no_exception \all` for `f` beside `class Z(int, str)` / `class Z(bool)` / an Enum member bound twice / a
+NamedTuple with a non-default field after a default or a field `_x` / `@dataclass(order=True)` over a user
+`__lt__` / a frozen dataclass over a non-frozen one / a mutable or misordered dataclass default / a
+dataclass `x = field(..)` without an annotation / `__slots__ = ('x',)` beside `x = 1` / two `__slots__`
+bases / an MRO conflict / `class Z(B, flag=1)` / a base `__init_subclass__` that raises, and beside a
+module-level `X = 1 // 0`, `V = {}['k']`, `V = int('x')`, `assert 1 == 2`, a class body `K = 1 // 0`
+(#461); and a claimed `C(n)` over `def __init__(..): ..; return n` (#462, CPython TypeError).
+RULE (allow-list, refuse by default) when a verified def of the file carries any `#@ no_exception` claim:
+the module top level and every class body it reaches are RUN on a synthesized equivalent, statement by
+statement. Expressions are evaluated over real values (literals, builtins, standard-library module
+objects, earlier bindings; a module attribute that is run-time state -- `os.environ`, `sys.argv` -- is
+unknown), calling only side-effect-free standard-library callables, builtin-type methods, the classes
+being synthesized and two shapes of file code (a `def` whose body is `return <constant>`, a class whose
+own `__init__` only stores constants / parameters on `self`); any other file code -- method bodies, a
+metaclass, `__init_subclass__`, an Enum member constructor, `__class_getitem__`, a non-identity
+decorator -- is a placeholder whose call is refused (code run at import is not judged). Each class is
+created by CPython's own `types.new_class` on its synthesized namespace and its decorators applied for
+real, and the C3 order `_mro363` must exist: whatever CPython raises there is the verdict. Admitted
+statements: imports of modules that exist (standard library: imported; otherwise found next to the file,
+on `--import-path` or installed, a `from` name bound by that module), `def`, `class`, assignments /
+augmented / annotated assignments to names, docstrings, `pass`, `assert` of a true test, `if` (the arm
+the real test selects -- `if __name__ == "__main__":` and `if TYPE_CHECKING:` are not run), a `try`
+whose body is itself admitted, `del` of a bound name, `type X = ..`. Anything else (`for`, `while`,
+`with`, `raise`, an attribute store, a walrus) is REFUSED (`PYCSL-R461-IMPORT-RAISES`). (#462) an
+`__init__` with a `return <expr>` other than `None`, a `yield`, or `async` is REFUSED under any claim in
+the file (`PYCSL-R462-INIT-RETURNS-VALUE`). Witnesses `7130`-`7150`; controls `7151`, `7152`.
 
 ### 7.190 A call BINDS its callee's signature; `super()` resolves through the file MRO; builtin rows carry cross-constraints; builtin decorators are admitted per definition site (routes #448 / #449 / #450 / #455, run #3)
 

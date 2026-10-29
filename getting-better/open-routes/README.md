@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-29): #461 / #462 REPAIRED (executor m1 off b1611d192; inline at the end of `_run_pipeline`, mirror twin
+##   `\trusted`, no new def in a mirrored file, no axiom, no emission change). #461: under any `no_exception` claim, the
+##   module top level and every class body are RUN on a synthesized equivalent -- real values, only side-effect-free
+##   stdlib calls, file code as placeholders (refused when CPython's machinery would call it), classes created by
+##   `types.new_class` + their real decorators + `_mro363` -- and anything outside the allow-list is REFUSED
+##   (PYCSL-R461-IMPORT-RAISES, CPython's own exception text). #462: an `__init__` returning a value / yielding / async
+##   is REFUSED (PYCSL-R462-INIT-RETURNS-VALUE). Corpus 7130-7152 (21 witnesses: PROVED at base, REFUSED; controls 7151,
+##   7152 PROVED at base and candidate); census +21 rows; advice audits R461 / R462 FOLLOWABLE; docs annotations 7.230 /
+##   translational T.6.240. Over-refusal cost: 0 PASS (static screen of 1193 claimed corpus files; two narrow file-code
+##   rows added after the first cut refused 1297 / 6330); byte-diff root 2592 -> 2594 0/0/0, pyref 2186 0/0/0, mirror 53
+##   0/0/0. Gates: see route461 REPAIR.
+
 ## run #3 (2026-10-29): #461 / #462 OPENED (red team 37 on 370db7dc2, driver-salvaged: 641 census rows / 27 proved / 22
 ##   confirmed; rt36's 209 ALL closed): #461 a verified file whose IMPORT raises (20: class-creation errors, raising module
 ##   statements; Severity 2, arguable); #462 `__init__` returning a value (1). k002 (property getter KeyError) joins #460.

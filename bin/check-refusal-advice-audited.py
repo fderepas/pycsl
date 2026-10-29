@@ -781,6 +781,12 @@ AUDITED = {
         "Route #454. 'Declare the value with such a class (`xs: Tuple[int, int]`), or drop the claim': witness 7025's `(*n,)` over `n: int` rewritten over `xs: Tuple[int, int]` (`t = (*xs, 1); return len(t)`) VERIFIES under `no_exception \\\\all` (control 7028). (`len((*xs,))` over a `List[int]` does not type-check, at base too, so the message names the tuple.)"),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr459(f"\'{_fn459.name}\' line {getattr(_z459, \'lineno\', 0)} reads the module name `{_z459.id}`, which the module binds only CONDITI'): (FOLLOWABLE,
         "Route #459. 'Bind `G` unconditionally at module level before any call (every arm of the `if` / `try`)': witness 7036's `if TYPE_CHECKING: G = 1` rewritten `G = 1` (and `H` in both arms of an `if TYPE_CHECKING`, `K` in a `try` body and its handler) VERIFIES `G + H + K + n` under `no_exception \\\\all` (control 7045; an unconditional `def g` / `class C`, control 7046)."),
+    # (#49) driver run #3 -- routes #461 / #462 (m1, red team 37). Probes in
+    # getting-better/open-routes/witnesses-r461/advice/.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr461(f"""line {_rf461[0]}: {_rf461[1]}, so IMPORTING this module raises before any of its functions can run, while this file clai'): (FOLLOWABLE,
+        "Route #461. 'Rewrite the statement so that it cannot raise (use a non-zero divisor ... `field(default_factory=list)` for a mutable dataclass default ...), or move the computation into a function of the module, where it is verified with the rest': witness 7137's `X = 1 // 0` rewritten `X = 1 // 1` (a461_made_exception_free) VERIFIES under `no_exception \\all`; the computation moved into `compute_x(d)` with `#@ requires d != 0` (a461_moved_into_function) VERIFIES; witness 7147's `xs: List[int] = []` rewritten `field(default_factory=list)` (a461_class_made_exception_free) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr461(f"\'{_rf462[1]}.__init__\' line {_rf462[0]}: `__init__` can return a value other than None (a `return <expr>`, a `yield`, an `'): (FOLLOWABLE,
+        "Route #462. 'Drop the returned value from `__init__` (use a bare `return` or `return None`)': witness 7150 with `return n` dropped (a462_return_nothing) VERIFIES under `no_exception \\all`; control 7152 (a bare `return` and `return None`) VERIFIES."),
     # (#49) driver run #3 -- routes #444 / #445 / #446 / #453 / #457 / #458 (r1), audited the day they
     # landed. Probes in getting-better/systematic-soundness-r3/r1-opaque/advice/.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f444.name}\' line {getattr(_z444, \'lineno\', 0)}: it reads the name `{_z444.id}`, which no scope binds -- not a parameter'): (FOLLOWABLE,
@@ -1113,6 +1119,9 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr452(f"\'{_f346.name}\' line {getattr(_n452, \'lineno\', 0)}: `{_ast341.unparse(_n452)}` searches a `bytes` / `bytearray` for a byte,'): '3964a6d38de2',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr454(f"\'{_f346.name}\' line {getattr(_n452, \'lineno\', 0)}: `{(\'**\' if _sk452 == \'M\' else \'*\')}{_ast341.unparse(_x452)}` in `{_ast3'): '1608e2e60bb3',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr459(f"\'{_fn459.name}\' line {getattr(_z459, \'lineno\', 0)} reads the module name `{_z459.id}`, which the module binds only CONDITI'): '728ea66ffeb9',
+    # (#49) driver run #3 -- routes #461 / #462 (m1)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr461(f"""line {_rf461[0]}: {_rf461[1]}, so IMPORTING this module raises before any of its functions can run, while this file clai'): 'bb3438b921be',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr461(f"\'{_rf462[1]}.__init__\' line {_rf462[0]}: `__init__` can return a value other than None (a `return <expr>`, a `yield`, an `'): '073d0c1c10d2',
 }
 
 

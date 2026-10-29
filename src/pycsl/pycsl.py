@@ -22465,6 +22465,887 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _res411.append(_l411)
             _k411 += 1
         _mlw = "\n".join(_res411)
+    # (#49) gen #39, ROUTES #461 / #462 (red team 37; MEASURED PROVED on 370db7dc2 under `#@
+    # no_exception \all`, CPython raises AT IMPORT / at construction). A claimed function of
+    # a module whose IMPORT raises is never callable: class-creation errors (an instance
+    # lay-out conflict, `bool` as a base, an Enum duplicate member, NamedTuple field order /
+    # underscore names, `@dataclass(order=True)` over a user `__lt__`, frozen-from-non-frozen,
+    # a mutable or misordered dataclass default, a field without an annotation, `__slots__`
+    # vs a class variable, an MRO conflict, an `__init_subclass__` keyword mismatch or body)
+    # and raising module-level statements (`1 // 0`, `{}['k']`, `int('x')`, `assert`). RULE
+    # (allow-list, refuse by default; any `no_exception` claim of a verified def in the file,
+    # `_rc444`): the MODULE TOP LEVEL and every CLASS BODY reached from it are run on an
+    # abstract-free SYNTHESIZED EQUIVALENT, statement by statement in source order:
+    #   * every expression is evaluated over REAL values (literals, builtins, standard-library
+    #     module objects, earlier bindings), and the only calls made are of side-effect-free
+    #     standard-library callables (`_pu461`), builtin-type methods, the classes being
+    #     synthesized, and two field-free shapes of this file's code (a `def` whose body is
+    #     `return <constant>`, a class whose own `__init__` only stores constants /
+    #     parameters on `self`); ANY other file code (`def` bodies, methods, metaclasses,
+    #     `__init_subclass__`, Enum member constructors, `__class_getitem__` ...) is a
+    #     PLACEHOLDER that raises a private BaseException when the real machinery calls it
+    #     (refused: the verifier does not judge code run at import);
+    #   * a class is created by CPython's own `types.new_class` on its synthesized namespace
+    #     (the class-body bindings in order, its evaluated bases / keywords, the real
+    #     annotations where they evaluate), then its decorators are applied for real
+    #     (`dataclass(...)`, `total_ordering`, `unique` ...), and `_mro363` (the C3 order
+    #     computed above) must exist: whatever CPython raises there IS the verdict, never a
+    #     hand list of failures;
+    #   * admitted statements: imports of modules that exist (standard library: imported for
+    #     real; otherwise found next to the file / on `--import-path` / installed, and a
+    #     `from` name bound by that module's top level), `def`, `class`, assignments / `+=`
+    #     / annotated assignments to names (unpacking judged for real), docstrings, `pass`,
+    #     `assert` of a true test, `if` (the arm the real test selects: `if __name__ ==
+    #     "__main__":` is not run at import, `if TYPE_CHECKING:` neither), `try` whose
+    #     body is itself admitted, `del` of a bound name, `type X = ..`; anything else
+    #     (`for`, `while`, `with`, `raise`, an attribute store, a walrus ...) is REFUSED.
+    #   Annotations are lazy (PEP 649, CPython 3.14): one that does not evaluate is kept as
+    #   its source string. #462: an `__init__` that can return a value other than `None`
+    #   (`return <expr>`, a `yield`, an `async def`) is REFUSED under any claim in the file
+    #   (CPython TypeError at construction). Inline; `_run_pipeline`'s mirror twin is
+    #   `\trusted`.
+    _cl461 = bool(_rc444) if _t341 is not None else False
+    if _cl461:
+        try:
+            _t461 = __import__("ast").parse(source_code)
+        except (SyntaxError, ValueError):
+            _t461 = None
+        _cl461 = _t461 is not None
+    if _cl461:
+        _fp461 = os.path.abspath(str(args.file)) if getattr(args, "file", None) else ""
+        _ip461 = list(getattr(args, "import_path", None) or [])
+        _mr461 = {_k: _v for _k, _v in _mro363.items() if len(_cls341.get(_k, [])) == 1}
+        import ast as _ast461
+        import builtins as _bi461
+        import sys as _sy461
+        import os as _os461
+        import types as _ty461
+        import operator as _op461
+        import importlib as _il461
+        import importlib.util as _ilu461
+        import importlib.machinery as _ilm461
+        _rf461 = None
+        _UK461 = object()
+        _SX461 = type("PyCSLUserCode461", (BaseException,), {})
+        _MN461 = "__pycsl461_" + str(_os461.getpid()) + "__"
+        _md461 = _ty461.ModuleType(_MN461)
+        # the PURE allow-list: real callables whose call on real argument values has no effect
+        # outside the values themselves (no I/O, no global state), so calling them here IS
+        # CPython's own verdict on whether the statement raises
+        _pu461 = set()
+        for _n461 in ("abs all any ascii bin bool bytearray bytes callable chr complex dict divmod "
+                      "enumerate filter float format frozenset getattr hasattr hash hex int "
+                      "isinstance issubclass iter len list map max min next object oct ord pow range "
+                      "repr reversed round set slice sorted str sum tuple type zip property "
+                      "staticmethod classmethod memoryview").split():
+            _pu461.add(id(getattr(_bi461, _n461)))
+        for _m461, _ns461 in (("re", "compile escape"), ("typing", "TypeVar NewType NamedTuple "
+                              "TypedDict cast ParamSpec TypeVarTuple TypeAliasType overload final "
+                              "override runtime_checkable no_type_check"),
+                              ("collections", "namedtuple OrderedDict defaultdict Counter deque "
+                               "ChainMap"), ("dataclasses", "field dataclass"),
+                              ("enum", "auto member nonmember unique"),
+                              ("functools", "partial lru_cache wraps cache cached_property "
+                               "total_ordering singledispatch reduce"),
+                              ("decimal", "Decimal"), ("fractions", "Fraction"),
+                              ("types", "MappingProxyType SimpleNamespace"),
+                              ("operator", "itemgetter attrgetter methodcaller"),
+                              ("os.path", "join basename dirname splitext normpath"),
+                              ("abc", "abstractmethod"), ("contextlib", "contextmanager"),
+                              ("string", "Template"), ("struct", "calcsize Struct"),
+                              ("datetime", "timedelta date timezone"), ("json", "loads dumps"),
+                              ("copy", "copy deepcopy")):
+            try:
+                _mo461 = _il461.import_module(_m461)
+            except ImportError:
+                continue
+            for _n461 in _ns461.split():
+                if hasattr(_mo461, _n461):
+                    _pu461.add(id(getattr(_mo461, _n461)))
+        _bt461 = (str, bytes, bytearray, int, float, complex, bool, tuple, list, dict, set,
+                  frozenset, range, slice, memoryview, property, type(None))
+        _opb461 = {_ast461.Add: _op461.add, _ast461.Sub: _op461.sub, _ast461.Mult: _op461.mul,
+                   _ast461.Div: _op461.truediv, _ast461.FloorDiv: _op461.floordiv,
+                   _ast461.Mod: _op461.mod, _ast461.Pow: _op461.pow, _ast461.LShift: _op461.lshift,
+                   _ast461.RShift: _op461.rshift, _ast461.BitOr: _op461.or_,
+                   _ast461.BitXor: _op461.xor, _ast461.BitAnd: _op461.and_,
+                   _ast461.MatMult: _op461.matmul}
+        _opc461 = {_ast461.Eq: _op461.eq, _ast461.NotEq: _op461.ne, _ast461.Lt: _op461.lt,
+                   _ast461.LtE: _op461.le, _ast461.Gt: _op461.gt, _ast461.GtE: _op461.ge,
+                   _ast461.Is: _op461.is_, _ast461.IsNot: _op461.is_not,
+                   _ast461.In: (lambda _a, _b: _a in _b), _ast461.NotIn: (lambda _a, _b: _a not in _b)}
+        _opu461 = {_ast461.UAdd: _op461.pos, _ast461.USub: _op461.neg, _ast461.Not: _op461.not_,
+                   _ast461.Invert: _op461.invert}
+        _sy2461 = set()
+        _me461 = {"__name__": _os461.path.splitext(_os461.path.basename(_fp461))[0] or "m",
+                  "__file__": _fp461, "__doc__": _ast461.get_docstring(_t461, clean=False),
+                  "__package__": "", "__spec__": None, "__loader__": None,
+                  "__builtins__": _bi461}
+        _dirs461 = ([_os461.path.dirname(_fp461)] if _fp461 else []) + [str(_d) for _d in _ip461]
+        # frames: [stmts, index, kind ("m" module / "c" class body / "a" arm), loc, ns, ann,
+        #          class node, bases, keywords, decorators, parent loc, parent ns, parent ann,
+        #          qualified-name prefix of the scope]
+        _s461 = _t461
+        _fr461 = [[list(_t461.body), 0, "m", None, None, None, None, None, None, None, None, None,
+                   None, ""]]
+        _sys_saved461 = _sy461.modules.get(_MN461)
+        _sy461.modules[_MN461] = _md461
+        try:
+            while _fr461 and _rf461 is None:
+                _F461 = _fr461[-1]
+                if _F461[1] >= len(_F461[0]):
+                    _fr461.pop()
+                    if _F461[2] != "c":
+                        continue
+                    # ---- class creation, by CPython's own machinery on the synthesized namespace
+                    _k461 = _F461[6]
+                    if _k461.name in _mr461 and _mr461[_k461.name] is None:
+                        _rf461 = (_k461.lineno, f"`class {_k461.name}` has no consistent C3 method "
+                                  f"resolution order over its bases (CPython raises TypeError when "
+                                  f"the class statement runs)", "class")
+                        break
+                    _ev461 = [("__module__", _MN461), ("__qualname__", _F461[13][:-1])] + list(_F461[4])
+                    _an461 = dict(_F461[5])
+                    _bs461 = list(_F461[7])
+                    if getattr(_k461, "type_params", None):
+                        _tv461 = []
+                        for _p461 in _k461.type_params:
+                            _tv461.append(_il461.import_module("typing").ParamSpec(_p461.name)
+                                          if isinstance(_p461, _ast461.ParamSpec) else
+                                          _il461.import_module("typing").TypeVarTuple(_p461.name)
+                                          if isinstance(_p461, _ast461.TypeVarTuple) else
+                                          _il461.import_module("typing").TypeVar(_p461.name))
+                        _bs461.append(_il461.import_module("typing").Generic[tuple(_tv461)])
+                    try:
+                        _cv461 = _ty461.new_class(
+                            _k461.name, tuple(_bs461), dict(_F461[8]),
+                            (lambda _ns, _e=_ev461, _a=_an461: (
+                                [_ns.__setitem__(_x, _y) for _x, _y in _e],
+                                _ns.__setitem__("__annotations__", _a) if _a else None)))
+                        _sy2461.add(id(_cv461))
+                        for _dv461, _dn461 in reversed(list(_F461[9])):
+                            if getattr(_dv461, "_ph461", None) is not None:
+                                if not getattr(_dv461, "_id461", False):
+                                    raise _SX461(_ast461.unparse(_dn461))
+                                continue
+                            if not (id(_dv461) in _pu461 or (
+                                    getattr(_dv461, "__module__", "") in (
+                                        "functools", "dataclasses", "enum", "typing", "abc")
+                                    and "<locals>" in getattr(_dv461, "__qualname__", ""))):
+                                _rf461 = (_dn461.lineno, f"the class decorator "
+                                          f"`{_ast461.unparse(_dn461)}` is not on the exception-free "
+                                          f"allow-list (its application at import is not evaluated)",
+                                          "stmt")
+                                break
+                            _cv461 = _dv461(_cv461)
+                            _sy2461.add(id(_cv461))
+                    except _SX461 as _x461:
+                        _rf461 = (_k461.lineno, f"creating `class {_k461.name}` runs code of this "
+                                  f"file at import (`{_x461}`: an `__init_subclass__`, a metaclass, "
+                                  f"an Enum member constructor, a decorator ...), which the verifier "
+                                  f"does not judge", "class")
+                        break
+                    except Exception as _x461:
+                        _rf461 = (_k461.lineno, f"creating `class {_k461.name}` raises "
+                                  f"{type(_x461).__name__} in CPython ({_x461})", "class")
+                        break
+                    if _rf461 is not None:
+                        break
+                    if _F461[10] is not None:
+                        _F461[10][_k461.name] = _cv461
+                        _F461[11].append((_k461.name, _cv461))
+                    else:
+                        _me461[_k461.name] = _cv461
+                    _md461.__dict__.update(_me461)
+                    continue
+                _s461 = _F461[0][_F461[1]]
+                _F461[1] += 1
+                _lc461 = _F461[3]
+                _why461 = ""
+                # ---- the expressions this statement evaluates when it runs (soft = an annotation:
+                # lazily evaluated in 3.14, a failure is recorded as its source string)
+                _ex461 = []
+                if isinstance(_s461, _ast461.Expr):
+                    _ex461 = [(_s461.value, False)]
+                elif isinstance(_s461, _ast461.Assign):
+                    _ex461 = [(_s461.value, False)]
+                    for _g461 in _s461.targets:
+                        for _w461 in _ast461.walk(_g461):
+                            if isinstance(_w461, _ast461.Attribute):
+                                _why461 = (f"the attribute store `{_ast461.unparse(_g461)}` is not on "
+                                           f"the exception-free allow-list")
+                            elif isinstance(_w461, _ast461.Subscript):
+                                _ex461 += [(_w461.value, False), (_w461.slice, False)]
+                elif isinstance(_s461, _ast461.AugAssign):
+                    if not isinstance(_s461.target, _ast461.Name):
+                        _why461 = (f"the augmented store `{_ast461.unparse(_s461.target)}` is not on "
+                                   f"the exception-free allow-list")
+                    _ex461 = [(_s461.target, False), (_s461.value, False)]
+                elif isinstance(_s461, _ast461.AnnAssign):
+                    if not isinstance(_s461.target, _ast461.Name):
+                        _why461 = (f"the annotated store `{_ast461.unparse(_s461.target)}` is not on "
+                                   f"the exception-free allow-list")
+                    if _s461.value is not None:
+                        _ex461 = [(_s461.value, False)]
+                    if _F461[5] is not None:
+                        _ex461.append((_s461.annotation, True))
+                elif isinstance(_s461, (_ast461.FunctionDef, _ast461.AsyncFunctionDef)):
+                    _ex461 = ([(_d, False) for _d in _s461.decorator_list]
+                              + [(_d, False) for _d in _s461.args.defaults]
+                              + [(_d, False) for _d in _s461.args.kw_defaults if _d is not None])
+                elif isinstance(_s461, _ast461.ClassDef):
+                    _ex461 = ([(_d, False) for _d in _s461.decorator_list]
+                              + [(_d, False) for _d in _s461.bases]
+                              + [(_d.value, False) for _d in _s461.keywords])
+                elif isinstance(_s461, (_ast461.If, _ast461.Assert)):
+                    _ex461 = [(_s461.test, False)]
+                elif isinstance(_s461, _ast461.Delete):
+                    if not all(isinstance(_g, _ast461.Name) for _g in _s461.targets):
+                        _why461 = f"`{_ast461.unparse(_s461)}` is not on the exception-free allow-list"
+                elif isinstance(_s461, _ast461.Global) and _F461[2] == "m":
+                    pass
+                elif isinstance(_s461, (_ast461.Pass, _ast461.Import, _ast461.ImportFrom,
+                                        _ast461.Try, _ast461.TypeAlias)) or (
+                        getattr(_ast461, "TryStar", None) is not None
+                        and isinstance(_s461, _ast461.TryStar)):
+                    pass
+                else:
+                    _why461 = (f"a `{type(_s461).__name__}` statement (`"
+                               f"{_ast461.unparse(_s461).splitlines()[0][:60]}`) is not on the "
+                               f"exception-free allow-list")
+                # ---- the evaluator: each root in post-order over real values (`_vv461`)
+                _vv461 = {}
+                for _r461, _soft461 in _ex461:
+                    if _why461:
+                        break
+                    _po461 = []
+                    _sk461 = [(_r461, False)]
+                    _bad461 = ""
+                    _bk461 = ""
+                    while _sk461 and not _bad461:
+                        _n461, _dn461 = _sk461.pop()
+                        if _dn461:
+                            _po461.append(_n461)
+                            continue
+                        _sk461.append((_n461, True))
+                        if isinstance(_n461, _ast461.Lambda):
+                            _ch461 = ([_d for _d in _n461.args.defaults]
+                                      + [_d for _d in _n461.args.kw_defaults if _d is not None])
+                        elif isinstance(_n461, (_ast461.Constant, _ast461.Name)):
+                            _ch461 = []
+                        elif isinstance(_n461, _ast461.Call):
+                            _ch461 = [_n461.func] + list(_n461.args) + [_k.value for _k in
+                                                                       _n461.keywords]
+                        elif isinstance(_n461, _ast461.Dict):
+                            _ch461 = [_k for _k in _n461.keys if _k is not None] + list(_n461.values)
+                        elif isinstance(_n461, (_ast461.Attribute, _ast461.Subscript, _ast461.Slice,
+                                                _ast461.BinOp, _ast461.UnaryOp, _ast461.BoolOp,
+                                                _ast461.Compare, _ast461.IfExp, _ast461.Tuple,
+                                                _ast461.List, _ast461.Set, _ast461.Starred,
+                                                _ast461.JoinedStr, _ast461.FormattedValue)):
+                            _ch461 = [_c for _c in _ast461.iter_child_nodes(_n461)
+                                      if isinstance(_c, _ast461.expr)]
+                        else:
+                            _bad461 = (f"the expression `{_ast461.unparse(_n461)[:60]}` (a "
+                                       f"`{type(_n461).__name__}`) is not evaluated by the "
+                                       f"exception-free allow-list")
+                            break
+                        for _c461 in reversed(_ch461):
+                            _sk461.append((_c461, False))
+                    for _n461 in (_po461 if not _bad461 else []):
+                        _V461 = _vv461.get
+                        try:
+                            if isinstance(_n461, _ast461.Constant):
+                                _vv461[id(_n461)] = _n461.value
+                            elif isinstance(_n461, _ast461.Name):
+                                if _lc461 is not None and _n461.id in _lc461:
+                                    _vv461[id(_n461)] = _lc461[_n461.id]
+                                elif _n461.id in _me461:
+                                    _vv461[id(_n461)] = _me461[_n461.id]
+                                elif hasattr(_bi461, _n461.id):
+                                    _vv461[id(_n461)] = getattr(_bi461, _n461.id)
+                                else:
+                                    _bad461 = (f"`{_n461.id}` is not bound at this point of the "
+                                               f"module (CPython raises NameError)")
+                                    _bk461 = "soft"
+                                    break
+                            elif isinstance(_n461, _ast461.Starred):
+                                _vv461[id(_n461)] = _V461(id(_n461.value))
+                            elif isinstance(_n461, _ast461.Lambda):
+                                _vv461[id(_n461)] = (lambda *_a, _q461=_ast461.unparse(_n461)[:40],
+                                                     **_k: (_ for _ in ()).throw(_SX461(_q461)))
+                                _vv461[id(_n461)]._ph461 = _n461
+                            else:
+                                _cs461 = [_V461(id(_c)) for _c in _ast461.iter_child_nodes(_n461)
+                                          if isinstance(_c, _ast461.expr)]
+                                if isinstance(_n461, (_ast461.Call, _ast461.Dict)):
+                                    _cs461 = [_V461(id(_c)) for _c in (
+                                        ([_n461.func] + list(_n461.args) + [_k.value for _k in
+                                                                            _n461.keywords])
+                                        if isinstance(_n461, _ast461.Call) else
+                                        ([_k for _k in _n461.keys if _k is not None]
+                                         + list(_n461.values)))]
+                                if any(_c is _UK461 for _c in _cs461) and not isinstance(
+                                        _n461, (_ast461.Tuple, _ast461.List, _ast461.Dict)):
+                                    _bad461 = (f"`{_ast461.unparse(_n461)[:60]}` reads a value the "
+                                               f"verifier cannot evaluate (a name imported from a "
+                                               f"non-standard-library module, a type alias, run-time state such "
+                                               f"as `os.environ` / `sys.argv` ...)")
+                                    _bk461 = "soft"
+                                    break
+                                if isinstance(_n461, _ast461.Attribute):
+                                    _z461 = getattr(_V461(id(_n461.value)), _n461.attr)
+                                    _vv461[id(_n461)] = (_z461 if not isinstance(
+                                        _V461(id(_n461.value)), _ty461.ModuleType) else (_z461 if (callable(_z461) or isinstance(_z461, (
+                                        type, _ty461.ModuleType, int, float, complex, str, bytes,
+                                        bool, type(None), tuple, frozenset, range))
+                                        or type(_z461).__module__ in ("typing", "enum", "re", "dataclasses", "types", "abc"))
+                                        else _UK461))
+                                elif isinstance(_n461, _ast461.Subscript):
+                                    _vv461[id(_n461)] = _V461(id(_n461.value))[_V461(id(_n461.slice))]
+                                elif isinstance(_n461, _ast461.Slice):
+                                    _vv461[id(_n461)] = slice(
+                                        *[(_V461(id(_c)) if _c is not None else None)
+                                          for _c in (_n461.lower, _n461.upper, _n461.step)])
+                                elif isinstance(_n461, _ast461.BinOp):
+                                    _a461, _b461 = _V461(id(_n461.left)), _V461(id(_n461.right))
+                                    if (isinstance(_n461.op, (_ast461.Pow, _ast461.LShift))
+                                            and isinstance(_b461, int) and (abs(_b461) > 4096 or (
+                                                isinstance(_a461, int) and max(_a461.bit_length(), 1)
+                                                * (abs(_b461) if isinstance(_n461.op, _ast461.Pow)
+                                                   else 1) + (abs(_b461) if isinstance(
+                                                    _n461.op, _ast461.LShift) else 0) > 10 ** 7))) or (
+                                            isinstance(_n461.op, _ast461.Mult) and any(
+                                                isinstance(_z, int) and isinstance(_y, (
+                                                    str, bytes, list, tuple)) and abs(_z) * len(_y)
+                                                > 10 ** 7 for _z, _y in ((_a461, _b461),
+                                                                         (_b461, _a461)))) or (
+                                            isinstance(_n461.op, _ast461.Mult) and any(
+                                                isinstance(_z, int) and abs(_z) > 10 ** 6
+                                                for _z in (_a461, _b461)) and any(
+                                                isinstance(_z, (str, bytes, list, tuple))
+                                                for _z in (_a461, _b461))):
+                                        _bad461 = (f"`{_ast461.unparse(_n461)[:60]}` is too large "
+                                                   f"to evaluate")
+                                        break
+                                    _vv461[id(_n461)] = _opb461[type(_n461.op)](_a461, _b461)
+                                elif isinstance(_n461, _ast461.UnaryOp):
+                                    _vv461[id(_n461)] = _opu461[type(_n461.op)](_V461(id(_n461.operand)))
+                                elif isinstance(_n461, _ast461.BoolOp):
+                                    _z461 = _V461(id(_n461.values[0]))
+                                    for _c461 in _n461.values[1:]:
+                                        if bool(_z461) == isinstance(_n461.op, _ast461.Or):
+                                            break
+                                        _z461 = _V461(id(_c461))
+                                    _vv461[id(_n461)] = _z461
+                                elif isinstance(_n461, _ast461.Compare):
+                                    _z461 = True
+                                    _a461 = _V461(id(_n461.left))
+                                    for _o461, _c461 in zip(_n461.ops, _n461.comparators):
+                                        _b461 = _V461(id(_c461))
+                                        _z461 = _opc461[type(_o461)](_a461, _b461)
+                                        if not _z461:
+                                            break
+                                        _a461 = _b461
+                                    _vv461[id(_n461)] = _z461
+                                elif isinstance(_n461, _ast461.IfExp):
+                                    _vv461[id(_n461)] = (_V461(id(_n461.body)) if _V461(id(_n461.test))
+                                                         else _V461(id(_n461.orelse)))
+                                elif isinstance(_n461, (_ast461.Tuple, _ast461.List, _ast461.Set)):
+                                    _z461 = []
+                                    for _c461 in _n461.elts:
+                                        if isinstance(_c461, _ast461.Starred):
+                                            if _V461(id(_c461)) is _UK461:
+                                                raise TypeError("unknown starred value")
+                                            _z461.extend(list(_V461(id(_c461))))
+                                        else:
+                                            _z461.append(_V461(id(_c461)))
+                                    if isinstance(_n461, _ast461.Set) and _UK461 in _z461:
+                                        raise TypeError("unknown set element")
+                                    _vv461[id(_n461)] = (tuple(_z461) if isinstance(
+                                        _n461, _ast461.Tuple) else set(_z461) if isinstance(
+                                        _n461, _ast461.Set) else _z461)
+                                elif isinstance(_n461, _ast461.Dict):
+                                    _z461 = {}
+                                    for _kk461, _vn461 in zip(_n461.keys, _n461.values):
+                                        if _kk461 is None:
+                                            _z461.update(_V461(id(_vn461)))
+                                        elif _V461(id(_kk461)) is _UK461:
+                                            raise TypeError("unknown dict key")
+                                        else:
+                                            _z461[_V461(id(_kk461))] = _V461(id(_vn461))
+                                    _vv461[id(_n461)] = _z461
+                                elif isinstance(_n461, _ast461.FormattedValue):
+                                    _z461 = _V461(id(_n461.value))
+                                    _z461 = (repr(_z461) if _n461.conversion == 114 else
+                                             str(_z461) if _n461.conversion == 115 else
+                                             ascii(_z461) if _n461.conversion == 97 else _z461)
+                                    _vv461[id(_n461)] = format(
+                                        _z461, _V461(id(_n461.format_spec)) if _n461.format_spec
+                                        is not None else "")
+                                elif isinstance(_n461, _ast461.JoinedStr):
+                                    _vv461[id(_n461)] = "".join(str(_V461(id(_c))) for _c in
+                                                                _n461.values)
+                                elif isinstance(_n461, _ast461.Call):
+                                    _f461 = _V461(id(_n461.func))
+                                    _a461 = []
+                                    for _c461 in _n461.args:
+                                        if isinstance(_c461, _ast461.Starred):
+                                            _a461.extend(list(_V461(id(_c461))))
+                                        else:
+                                            _a461.append(_V461(id(_c461)))
+                                    _k461 = {}
+                                    for _c461 in _n461.keywords:
+                                        if _c461.arg is None:
+                                            _k461.update(_V461(id(_c461.value)))
+                                        else:
+                                            _k461[_c461.arg] = _V461(id(_c461.value))
+                                    _pf461 = getattr(_f461, "__func__", _f461)
+                                    if getattr(_pf461, "_ph461", None) is not None:
+                                        if (getattr(_pf461, "_id461", False) and len(_a461) == 1
+                                                and not _k461):
+                                            _vv461[id(_n461)] = _a461[0]
+                                            continue
+                                        # a file `def` whose body is `return <constant>`, called
+                                        # with no argument, returns that constant
+                                        _pd461 = _pf461._ph461
+                                        _pb461 = [_b for _b in getattr(_pd461, "body", []) if not (
+                                            isinstance(_b, _ast461.Expr)
+                                            and isinstance(_b.value, _ast461.Constant))]
+                                        if (isinstance(_pd461, _ast461.FunctionDef)
+                                                and _pf461 is _f461 and not _a461 and not _k461
+                                                and not _pd461.decorator_list
+                                                and not (_pd461.args.posonlyargs + _pd461.args.args
+                                                         + _pd461.args.kwonlyargs)
+                                                and _pd461.args.vararg is None
+                                                and _pd461.args.kwarg is None
+                                                and len(_pb461) == 1
+                                                and isinstance(_pb461[0], _ast461.Return)
+                                                and isinstance(_pb461[0].value, _ast461.Constant)):
+                                            _vv461[id(_n461)] = _pb461[0].value.value
+                                            continue
+                                        raise _SX461(_ast461.unparse(_n461.func))
+                                    # a file class whose construction is a FIELD INITIALISER: its own
+                                    # plain `__init__(self, p1, .., pn)` (no default, no decorator)
+                                    # only stores `self.<a> = <constant or parameter>`, called with
+                                    # exactly n positional arguments, and `object.__new__`: the
+                                    # stores are made for real on `object.__new__(C)` (a `__slots__`
+                                    # / `__setattr__` of the class decides them as CPython would)
+                                    _pi461 = (_f461.__dict__.get("__init__")
+                                              if id(_f461) in _sy2461 else None)
+                                    _pd461 = getattr(_pi461, "_ph461", None)
+                                    if isinstance(_pd461, _ast461.FunctionDef):
+                                        _pa461 = [_x.arg for _x in (_pd461.args.posonlyargs
+                                                                    + _pd461.args.args)]
+                                        _pb461 = [_b for _b in _pd461.body if not (
+                                            isinstance(_b, (_ast461.Pass))
+                                            or (isinstance(_b, _ast461.Expr)
+                                                and isinstance(_b.value, _ast461.Constant)))]
+                                        if (_pa461 and not _pd461.decorator_list
+                                                and not _pd461.args.defaults
+                                                and not _pd461.args.kwonlyargs
+                                                and _pd461.args.vararg is None
+                                                and _pd461.args.kwarg is None
+                                                and _f461.__new__ is object.__new__
+                                                and not _k461 and len(_a461) == len(_pa461) - 1
+                                                and all(isinstance(_b, _ast461.Assign)
+                                                        and len(_b.targets) == 1
+                                                        and isinstance(_b.targets[0], _ast461.Attribute)
+                                                        and isinstance(_b.targets[0].value,
+                                                                       _ast461.Name)
+                                                        and _b.targets[0].value.id == _pa461[0]
+                                                        and (isinstance(_b.value, _ast461.Constant)
+                                                             or (isinstance(_b.value, _ast461.Name)
+                                                                 and _b.value.id in _pa461[1:]))
+                                                        for _b in _pb461)):
+                                            _o461 = object.__new__(_f461)
+                                            _pm461 = dict(zip(_pa461[1:], _a461))
+                                            for _b461 in _pb461:
+                                                setattr(_o461, _b461.targets[0].attr,
+                                                        _b461.value.value if isinstance(
+                                                            _b461.value, _ast461.Constant)
+                                                        else _pm461[_b461.value.id])
+                                            _vv461[id(_n461)] = _o461
+                                            continue
+                                    _sf461 = getattr(_f461, "__self__", None)
+                                    _oc461 = getattr(_f461, "__objclass__", None)
+                                    if not (id(_f461) in _pu461 or id(_f461) in _sy2461
+                                            or (isinstance(_f461, (_ty461.BuiltinMethodType,
+                                                                   _ty461.MethodWrapperType))
+                                                and (type(_sf461) in _bt461 or _sf461 in _bt461))
+                                            or (isinstance(_f461, (_ty461.MethodDescriptorType,
+                                                                   _ty461.WrapperDescriptorType,
+                                                                   _ty461.ClassMethodDescriptorType))
+                                                and _oc461 in _bt461)
+                                            or (getattr(_f461, "__module__", "") in (
+                                                "functools", "dataclasses", "enum", "typing", "abc")
+                                                and "<locals>" in getattr(_f461, "__qualname__",
+                                                                           ""))):
+                                        _bad461 = (f"the call `{_ast461.unparse(_n461)[:60]}` is not "
+                                                   f"on the exception-free allow-list (only calls of "
+                                                   f"side-effect-free standard-library callables are "
+                                                   f"evaluated)")
+                                        break
+                                    if any((isinstance(_z, int) and abs(_z) > 10 ** 7)
+                                           or (isinstance(_z, range) and len(_z) > 10 ** 6)
+                                           for _z in _a461 + list(_k461.values())):
+                                        _bad461 = (f"`{_ast461.unparse(_n461)[:60]}` is too large to "
+                                                   f"evaluate")
+                                        break
+                                    _vv461[id(_n461)] = _f461(*_a461, **_k461)
+                        except _SX461 as _x461:
+                            _bad461 = (f"`{_ast461.unparse(_n461)[:60]}` runs code of this file at "
+                                       f"import (`{_x461}`), which the verifier does not judge there")
+                            break
+                        except Exception as _x461:
+                            _bad461 = (f"`{_ast461.unparse(_n461)[:60]}` raises "
+                                       f"{type(_x461).__name__} in CPython ({str(_x461)[:80]})")
+                            break
+                    if _bad461:
+                        if _soft461 and _bk461 == "soft":
+                            _vv461[id(_r461)] = _ast461.unparse(_r461)
+                            continue
+                        _why461 = _bad461
+                if _why461:
+                    _rf461 = (_s461.lineno, _why461, "stmt")
+                    break
+                # ---- the statement's own action
+                _bd461 = []
+                if isinstance(_s461, _ast461.Assign):
+                    for _g461 in _s461.targets:
+                        _wl461 = [(_g461, _vv461[id(_s461.value)])]
+                        while _wl461 and not _why461:
+                            _g2461, _v461 = _wl461.pop()
+                            if isinstance(_g2461, _ast461.Name):
+                                _bd461.append((_g2461.id, _v461))
+                            elif isinstance(_g2461, _ast461.Subscript):
+                                _c461 = _vv461[id(_g2461.value)]
+                                if type(_c461) not in (list, dict, bytearray):
+                                    _why461 = (f"the subscript store `{_ast461.unparse(_g2461)}` is "
+                                               f"not on the exception-free allow-list")
+                                    break
+                                try:
+                                    _c461[_vv461[id(_g2461.slice)]] = _v461
+                                except Exception as _x461:
+                                    _why461 = (f"`{_ast461.unparse(_g2461)} = ...` raises "
+                                               f"{type(_x461).__name__} in CPython ({_x461})")
+                            elif isinstance(_g2461, (_ast461.Tuple, _ast461.List)):
+                                _st461 = [_i for _i, _e in enumerate(_g2461.elts)
+                                          if isinstance(_e, _ast461.Starred)]
+                                try:
+                                    if _v461 is _UK461:
+                                        raise TypeError("unknown value unpacked")
+                                    _ls461 = list(_v461)
+                                    if not _st461 and len(_ls461) != len(_g2461.elts):
+                                        raise ValueError(f"{len(_ls461)} values for "
+                                                         f"{len(_g2461.elts)} targets")
+                                    if _st461 and len(_ls461) < len(_g2461.elts) - 1:
+                                        raise ValueError("not enough values to unpack")
+                                except Exception as _x461:
+                                    _why461 = (f"unpacking into `{_ast461.unparse(_g2461)}` raises "
+                                               f"{type(_x461).__name__} in CPython ({_x461})")
+                                    break
+                                if _st461:
+                                    _i461 = _st461[0]
+                                    _nt461 = len(_g2461.elts) - _i461 - 1
+                                    _pr461 = (list(zip(_g2461.elts[:_i461], _ls461[:_i461]))
+                                              + [(_g2461.elts[_i461].value,
+                                                  _ls461[_i461:len(_ls461) - _nt461])]
+                                              + list(zip(_g2461.elts[_i461 + 1:],
+                                                         _ls461[len(_ls461) - _nt461:])))
+                                else:
+                                    _pr461 = list(zip(_g2461.elts, _ls461))
+                                _wl461 += _pr461
+                            else:
+                                _why461 = (f"the store `{_ast461.unparse(_g2461)}` is not on the "
+                                           f"exception-free allow-list")
+                elif isinstance(_s461, _ast461.AugAssign):
+                    try:
+                        _a461 = _vv461[id(_s461.target)]
+                        _b461 = _vv461[id(_s461.value)]
+                        if _a461 is _UK461 or _b461 is _UK461:
+                            raise TypeError("unknown operand")
+                        if (isinstance(_s461.op, (_ast461.Pow, _ast461.LShift))
+                                and isinstance(_b461, int) and (abs(_b461) > 4096 or (
+                                    isinstance(_a461, int) and _a461.bit_length() * (
+                                        abs(_b461) if isinstance(_s461.op, _ast461.Pow) else 1)
+                                    > 10 ** 7))) or (isinstance(_s461.op, _ast461.Mult) and any(
+                                isinstance(_z, int) and isinstance(_y, (str, bytes, list, tuple))
+                                and abs(_z) * len(_y) > 10 ** 7
+                                for _z, _y in ((_a461, _b461), (_b461, _a461)))):
+                            raise OverflowError("too large to evaluate")
+                        _bd461.append((_s461.target.id, _opb461[type(_s461.op)](_a461, _b461)))
+                    except Exception as _x461:
+                        _why461 = (f"`{_ast461.unparse(_s461)}` raises {type(_x461).__name__} in "
+                                   f"CPython ({_x461})")
+                elif isinstance(_s461, _ast461.AnnAssign):
+                    if _F461[5] is not None:
+                        _F461[5][_s461.target.id] = _vv461.get(id(_s461.annotation))
+                    if _s461.value is not None:
+                        _bd461.append((_s461.target.id, _vv461[id(_s461.value)]))
+                elif isinstance(_s461, (_ast461.FunctionDef, _ast461.AsyncFunctionDef)):
+                    _pp461 = _s461.args.posonlyargs + _s461.args.args
+                    _bb461 = [_b for _b in _s461.body if not (
+                        isinstance(_b, _ast461.Expr) and isinstance(_b.value, _ast461.Constant))]
+                    _v461 = (lambda *_a, _q461=_s461.name, **_k: (_ for _ in ()).throw(
+                        _SX461(_q461)))
+                    _v461.__name__ = _s461.name
+                    _v461.__qualname__ = _F461[13] + _s461.name
+                    _v461._ph461 = _s461
+                    _v461._id461 = (isinstance(_s461, _ast461.FunctionDef) and len(_pp461) == 1
+                                    and not _s461.args.defaults and not _s461.args.kwonlyargs
+                                    and _s461.args.vararg is None and _s461.args.kwarg is None
+                                    and len(_bb461) == 1 and isinstance(_bb461[0], _ast461.Return)
+                                    and isinstance(_bb461[0].value, _ast461.Name)
+                                    and _bb461[0].value.id == _pp461[0].arg)
+                    try:
+                        for _dn461 in reversed(_s461.decorator_list):
+                            _dv461 = _vv461[id(_dn461)]
+                            if getattr(_dv461, "_ph461", None) is not None:
+                                if not getattr(_dv461, "_id461", False):
+                                    raise _SX461(_ast461.unparse(_dn461))
+                                continue
+                            _sf461 = getattr(_dv461, "__self__", None)
+                            if not (id(_dv461) in _pu461 or isinstance(_sf461, property) or (
+                                    getattr(_dv461, "__module__", "") in (
+                                        "functools", "dataclasses", "enum", "typing", "abc")
+                                    and "<locals>" in getattr(_dv461, "__qualname__", ""))):
+                                _why461 = (f"the decorator `{_ast461.unparse(_dn461)}` is not on the "
+                                           f"exception-free allow-list (its application at import is "
+                                           f"not evaluated)")
+                                break
+                            _v461 = _dv461(_v461)
+                    except _SX461 as _x461:
+                        _why461 = (f"the decorator `{_x461}` of `def {_s461.name}` runs code of this "
+                                   f"file at import, which the verifier does not judge there")
+                    except Exception as _x461:
+                        _why461 = (f"decorating `def {_s461.name}` raises {type(_x461).__name__} in "
+                                   f"CPython ({_x461})")
+                    _bd461.append((_s461.name, _v461))
+                elif isinstance(_s461, _ast461.ClassDef):
+                    if any(_vv461[id(_b)] is _UK461 for _b in _s461.bases) or any(
+                            _k.arg is None for _k in _s461.keywords):
+                        _rf461 = (_s461.lineno, f"a base or keyword of `class {_s461.name}` is a "
+                                  f"value the verifier cannot evaluate (a class imported from a "
+                                  f"non-standard-library module ...)", "stmt")
+                        break
+                    _fr461.append([list(_s461.body), 0, "c", {}, [], {}, _s461,
+                                   [_vv461[id(_b)] for _b in _s461.bases],
+                                   {_k.arg: _vv461[id(_k.value)] for _k in _s461.keywords},
+                                   [(_vv461[id(_d)], _d) for _d in _s461.decorator_list],
+                                   _F461[3], _F461[4], _F461[5],
+                                   _F461[13] + _s461.name + "."])
+                    continue
+                elif isinstance(_s461, _ast461.If):
+                    _fr461.append([list(_s461.body if _vv461[id(_s461.test)] else _s461.orelse), 0,
+                                   "a", _F461[3], _F461[4], _F461[5], None, None, None, None,
+                                   None, None, None, _F461[13]])
+                    continue
+                elif isinstance(_s461, _ast461.Assert):
+                    if not _vv461[id(_s461.test)]:
+                        _why461 = (f"`{_ast461.unparse(_s461)[:60]}` fails (CPython raises "
+                                   f"AssertionError)")
+                elif isinstance(_s461, _ast461.Try) or (
+                        getattr(_ast461, "TryStar", None) is not None
+                        and isinstance(_s461, _ast461.TryStar)):
+                    # the body must itself be exception-free (so no handler runs)
+                    _fr461.append([list(_s461.body) + list(_s461.orelse) + list(_s461.finalbody), 0,
+                                   "a", _F461[3], _F461[4], _F461[5], None, None, None, None,
+                                   None, None, None, _F461[13]])
+                    continue
+                elif isinstance(_s461, _ast461.Delete):
+                    for _g461 in _s461.targets:
+                        if _F461[3] is not None or _g461.id not in _me461:
+                            _why461 = (f"`{_ast461.unparse(_s461)}` deletes a name not bound at "
+                                       f"module level here (CPython NameError), or in a class body")
+                            break
+                        del _me461[_g461.id]
+                elif isinstance(_s461, _ast461.TypeAlias):
+                    _bd461.append((_s461.name.id, _UK461))
+                elif isinstance(_s461, (_ast461.Import, _ast461.ImportFrom)):
+                    for _al461 in _s461.names:
+                        _mn2461 = (_al461.name if isinstance(_s461, _ast461.Import)
+                                   else (_s461.module or ""))
+                        _lv461 = getattr(_s461, "level", 0) or 0
+                        _top461 = _mn2461.split(".")[0]
+                        _rv461 = None
+                        if _lv461 == 0 and _top461 in _sy461.stdlib_module_names:
+                            if _top461 in ("antigravity", "this", "__hello__", "__phello__",
+                                           "idlelib", "turtledemo"):
+                                _rv461 = _UK461
+                            else:
+                                try:
+                                    _mo461 = _il461.import_module(_mn2461)
+                                    if isinstance(_s461, _ast461.Import):
+                                        _rv461 = (_mo461 if _al461.asname
+                                                  else _il461.import_module(_top461))
+                                    elif _al461.name == "*":
+                                        _rv461 = {_k: getattr(_mo461, _k) for _k in (
+                                            getattr(_mo461, "__all__", None)
+                                            or [_k for _k in dir(_mo461) if not _k.startswith("_")])
+                                            if hasattr(_mo461, _k)}
+                                    elif hasattr(_mo461, _al461.name):
+                                        _z461 = getattr(_mo461, _al461.name)
+                                        _rv461 = (_z461 if (callable(_z461) or isinstance(_z461, (
+                                            type, _ty461.ModuleType, int, float, complex, str, bytes,
+                                            bool, type(None), tuple, frozenset, range))
+                                            or type(_z461).__module__ in ("typing", "enum", "re", "dataclasses", "types", "abc"))
+                                            else _UK461)
+                                    else:
+                                        _rv461 = _il461.import_module(_mn2461 + "." + _al461.name)
+                                except Exception as _x461:
+                                    _why461 = (f"`{_ast461.unparse(_s461)}` raises "
+                                               f"{type(_x461).__name__} in CPython ({_x461})")
+                                    break
+                        else:
+                            # a module outside the standard library: found on disk (the file's
+                            # directory, `--import-path`, an installed package); a `from` name
+                            # must be bound by that module's top level or be a submodule
+                            _bs2461 = ([_os461.path.dirname(_fp461)] if _lv461 == 0 else
+                                       [_os461.path.normpath(_os461.path.join(
+                                           _os461.path.dirname(_fp461), *([".."] * (_lv461 - 1))))])
+                            if _lv461 == 0:
+                                _bs2461 = _dirs461 + list(_sy461.path)
+                            _pth461 = None
+                            _pp2461 = [_p for _p in _mn2461.split(".") if _p]
+                            for _d461 in _bs2461:
+                                _c461 = _os461.path.join(_d461, *_pp2461) if _pp2461 else _d461
+                                if _pp2461 and _os461.path.isfile(_c461 + ".py"):
+                                    _pth461 = _c461 + ".py"
+                                elif _os461.path.isfile(_os461.path.join(_c461, "__init__.py")):
+                                    _pth461 = _os461.path.join(_c461, "__init__.py")
+                                elif _os461.path.isdir(_c461) and _pp2461:
+                                    _pth461 = _c461
+                                if _pth461:
+                                    break
+                            if _pth461 is None and _lv461 == 0:
+                                try:
+                                    _sp461 = _ilm461.PathFinder.find_spec(_top461)
+                                except Exception:
+                                    _sp461 = None
+                                if _sp461 is not None and (len(_pp2461) == 1
+                                                           or isinstance(_s461, _ast461.ImportFrom)):
+                                    _pth461 = _sp461.origin or _top461
+                            if _pth461 is None:
+                                _why461 = (f"`{_ast461.unparse(_s461)}`: the module `{'.' * _lv461}"
+                                           f"{_mn2461}` is not found next to this file, on "
+                                           f"`--import-path` or installed (CPython raises "
+                                           f"ModuleNotFoundError / ImportError)")
+                                break
+                            _rv461 = _UK461
+                            if isinstance(_s461, _ast461.ImportFrom) and _al461.name != "*" and (
+                                    _os461.path.isfile(_pth461)):
+                                _sub461 = _os461.path.join(_os461.path.dirname(_pth461), _al461.name)
+                                if not (_pth461.endswith("__init__.py") and (
+                                        _os461.path.isfile(_sub461 + ".py")
+                                        or _os461.path.isdir(_sub461))):
+                                    try:
+                                        _mt461 = _ast461.parse(open(_pth461, encoding="utf-8").read())
+                                    except Exception:
+                                        _mt461 = None
+                                    _ok461 = _mt461 is None
+                                    for _z461 in (_ast461.walk(_mt461) if _mt461 is not None else []):
+                                        if isinstance(_z461, (_ast461.FunctionDef,
+                                                              _ast461.AsyncFunctionDef,
+                                                              _ast461.ClassDef)):
+                                            _ok461 = _ok461 or _z461.name in (_al461.name,
+                                                                              "__getattr__")
+                                        elif isinstance(_z461, _ast461.Name) and not isinstance(
+                                                _z461.ctx, _ast461.Load):
+                                            _ok461 = _ok461 or _z461.id == _al461.name
+                                        elif isinstance(_z461, (_ast461.Import, _ast461.ImportFrom)):
+                                            _ok461 = _ok461 or any(
+                                                (_a.asname or _a.name).split(".")[0] == _al461.name
+                                                or _a.name == "*" for _a in _z461.names)
+                                    if not _ok461:
+                                        _why461 = (f"`{_ast461.unparse(_s461)}`: the module "
+                                                   f"`{_mn2461}` binds no `{_al461.name}` (CPython "
+                                                   f"raises ImportError)")
+                                        break
+                        if isinstance(_s461, _ast461.ImportFrom) and _al461.name == "*":
+                            if isinstance(_rv461, dict):
+                                _bd461 += list(_rv461.items())
+                            else:
+                                _why461 = (f"`{_ast461.unparse(_s461)}` binds names the verifier "
+                                           f"cannot list")
+                                break
+                        else:
+                            _bd461.append(((_al461.asname or _al461.name.split(".")[0])
+                                           if isinstance(_s461, _ast461.Import)
+                                           else (_al461.asname or _al461.name), _rv461))
+                if _why461:
+                    _rf461 = (_s461.lineno, _why461, "stmt")
+                    break
+                for _x461, _v461 in _bd461:
+                    if _F461[3] is not None:
+                        _F461[3][_x461] = _v461
+                        _F461[4].append((_x461, _v461))
+                    else:
+                        _me461[_x461] = _v461
+                _md461.__dict__.update(_me461)
+        except _SX461 as _x461:
+            _rf461 = (getattr(_s461, "lineno", 0), f"`{_ast461.unparse(_s461).splitlines()[0][:60]}` "
+                      f"runs code of this file at import (`{_x461}`), which the verifier does not "
+                      f"judge there", "stmt")
+        except Exception as _x461:
+            _rf461 = (getattr(_s461, "lineno", 0), f"`{_ast461.unparse(_s461).splitlines()[0][:60]}` "
+                      f"could not be evaluated ({type(_x461).__name__}: {str(_x461)[:80]})", "stmt")
+        # (no `finally`: the private module is unregistered on every path that returns here)
+        if _sys_saved461 is None:
+            _sy461.modules.pop(_MN461, None)
+        else:
+            _sy461.modules[_MN461] = _sys_saved461
+        # ---- route #462: an `__init__` that can return a value other than None
+        _rf462 = None
+        for _k462 in _ast461.walk(_t461):
+            if not isinstance(_k462, _ast461.ClassDef):
+                continue
+            for _d462 in _k462.body:
+                if not (isinstance(_d462, (_ast461.FunctionDef, _ast461.AsyncFunctionDef))
+                        and _d462.name == "__init__"):
+                    continue
+                _wk462 = list(_d462.body)
+                while _wk462 and _rf462 is None:
+                    _z462 = _wk462.pop()
+                    if isinstance(_z462, (_ast461.FunctionDef, _ast461.AsyncFunctionDef,
+                                          _ast461.Lambda, _ast461.ClassDef)):
+                        continue
+                    if isinstance(_d462, _ast461.AsyncFunctionDef) or isinstance(
+                            _z462, (_ast461.Yield, _ast461.YieldFrom)) or (
+                            isinstance(_z462, _ast461.Return) and _z462.value is not None
+                            and not (isinstance(_z462.value, _ast461.Constant)
+                                     and _z462.value.value is None)):
+                        _rf462 = (getattr(_z462, "lineno", _d462.lineno), _k462.name, _d462)
+                    _wk462.extend(_ast461.iter_child_nodes(_z462))
+        from errors import PyCSLSemanticError as _PyCSLSemErr461
+        if _rf461 is not None:
+            raise _PyCSLSemErr461(
+                f"line {_rf461[0]}: {_rf461[1]}, so IMPORTING this module raises before any "
+                f"of its functions can run, while this file claims `#@ no_exception` (route "
+                f"#461; measured: `X = 1 // 0`, `class Z(int, str)`, a `@dataclass` mutable "
+                f"default and an MRO conflict at module level each PROVED `no_exception \\all` "
+                f"of a function of the module, CPython raises at import). Under a claim, the "
+                f"module top level and every class body admit only statements on the "
+                f"exception-free allow-list (imports of modules that exist; `def` / `class` "
+                f"whose decorators, defaults, bases and keywords evaluate without raising; "
+                f"assignments of values that side-effect-free standard-library code computes "
+                f"without raising; `if __name__ == \"__main__\":`), and each class is created "
+                f"by CPython's own machinery on a synthesized namespace. Rewrite the statement "
+                f"so that it cannot raise (use a non-zero divisor, a present key, a parsable "
+                f"literal, `field(default_factory=list)` for a mutable dataclass default, bases "
+                f"with a consistent order and lay-out), or move the computation into a function "
+                f"of the module, where it is verified with the rest.",
+                stage="ir-semantic", code="PYCSL-R461-IMPORT-RAISES")
+        if _rf462 is not None:
+            raise _PyCSLSemErr461(
+                f"'{_rf462[1]}.__init__' line {_rf462[0]}: `__init__` can return a value other "
+                f"than None (a `return <expr>`, a `yield`, an `async def`), so constructing "
+                f"`{_rf462[1]}` raises TypeError (`__init__() should return None`), while this "
+                f"file claims `#@ no_exception` (route #462; measured: `def __init__(self, n): "
+                f"self.n = n; return n` with a claimed caller `C(n)` PROVED `no_exception "
+                f"\\all`, CPython TypeError). Drop the returned value from `__init__` (use a "
+                f"bare `return` or `return None`), and return the value from a separate method.",
+                stage="ir-semantic", code="PYCSL-R462-INIT-RETURNS-VALUE")
     return _mlw
 
 
