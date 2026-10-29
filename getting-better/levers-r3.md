@@ -260,7 +260,7 @@ The 7 TC-OK stubs, each read against the conversion gate:
 | stub | verdict (measured) |
 |---|---|
 | `canonical._alpha_rename` | first blocker at base: R274 (a WRITING self-call inside `tuple(.. for ..)`); BUILT below, CONVERTED |
-| `errors.PyCSLError.__init__` | emits only the four `_check_class_inv_*` goals `forall l line. l = line -> l >= 0`, unprovable without `requires line >= 0`; WITH it errors.py proves 0 non-Valid (spike). USER-DECISION lever (route #226): 92 `PyCSL*Error(` construction sites in 13 mirror files, and no raise site constructs the record in the model, so the requires would never be checked. Mirror movers NOT measured (needs a sweep). Not landed (driver) |
+| `errors.PyCSLError.__init__` | emits only the four `_check_class_inv_*` goals `forall l line. l = line -> l >= 0`, unprovable without `requires line >= 0`; WITH it errors.py proves 0 non-Valid (spike). USER-DECISION lever (route #226): 92 `PyCSL*Error(` construction sites in 13 mirror files, and no raise site constructs the record in the model, so the requires would never be checked. Mirror movers NOT measured (the sweep was cancelled at the driver's request: heavy queue). Not landed (driver) |
 | `audit_proof_reverify._cache_root` | `root.mkdir(..)` -> the 0-ary input-blind `root_mkdir_0 ()`: HOLLOW (rule 5), rejected |
 | `identifiers.stable_hash` | body `pycsl_mod (int_2 (any int) 16) 2147483647`: input-blind (`any int`), rejected |
 | `import_classifier._stub_set` | hollow (lv4) |
