@@ -185,13 +185,41 @@ emission; planes 61/61; trusted-reasons 410 <-> 410; assumed-facts 0; refusal-wi
 frame-honesty 0/1, 0/93; raises-honesty 19 / 50 silent (was 51); clause-survival 10 ledgered
 of 1542.
 
+**B3 `aac72b30f` / B4 `1751aef78`** - the AC flatten-sort-refold arm (`_parse_ac_guard`,
+annotations 7.221, translational T.6.231) and the conversion of
+`proof2why3/canonical.py::_ac_normalize` (438 -> **437**; trusted-reasons 410 -> 409). First
+blocker at base: REFUSED at `functions.py:9781` (the lifted `collect` captures `operands`,
+`t`). Built WITHOUT touching the mirrored wiring: `compute_term_adt_spec` pairs a transform
+with the lifted sibling that follows it and marks it folded; the folded sibling's own
+recognition returns `{"folded": True}` and emits nothing, which `functions.py` reaches
+before its closure-capture refusal. Fragment-by-fragment (scratch tree): TC FAIL `unbound
+term__list_size_nonneg` (the group preceded the file's size theory: a size-mode transform
+group now declares it when first) -> exact string equality: `use string.OCaml as SO` makes
+every later int literal ambiguous with `int63` (measured), and `str_eq_op` is absent from
+the `--fun` emission, so the root call `G(t)` is lowered to its descent branch (`t.F ==
+t.F` is reflexive) and every inner test stays `pystr_eq` -> TC-OK -> `--fun` 4 non-Valid:
+the leaf called `_ac_normalize q` TWICE (fixed: one `let`), a global-lemma context pushed
+`flatten_arrow_chain__eta` over its limit (fixed: the length laws are ghost functions
+called where used), and the non-emptiness postcondition of `collect` timed out (local
+`let rec`, then as a group member with `variant { term__size q + 1 }`, measured both) ->
+fixed by returning `(h, r)` = the non-empty reversed accumulator `Cons h r` (syntactic) ->
+`--fun` 259 Valid / 0 -> whole file 277 Valid / 0 -> four oracles green. Witnesses 7104
+(PASS 124 Valid; base REFUSED), 7105 (`ensures False`, refused), 7106 (`collect(node)`
+itself: declined, refused). Gate battery on the B4 tree: fidelity 0 / 0 (938, 53); doc 0;
+root 0 MOVED (2592 / 2594); pyref 0 MOVED (2186); mirror 1 MOVED = canonical, equal to the
+proved emission; planes 61/61; trusted-reasons 409 <-> 409; assumed-facts 0; rwc 361;
+advice 188; dropped-mutation 0; getattr DECLARED 0; carriers 0; frame-honesty 0/1, 0/93;
+raises-honesty 19 / 49 silent; clause-survival 10 ledgered of 1543.
+Residual: the key `x.M()` is an uninterpreted total function, so an exception the key
+method could raise is outside the model (the same stance as every term recognizer, which
+claims nothing about exceptions: `_term_contract_trivial` refuses any raises claim).
+
 **Spikes stopped (measured blockers).**
 
 | candidate | first blocker (measured) | why stopped |
 |---|---|---|
 | `parser.py::lex` (termination) | the emitted outer `while (!i < !n)` carries no variant; the digit / ident inner loops test the COMPUTED receiver `s[j].isdigit()` / `s[j].isalnum()`, lowered to the polymorphic receiver-blind-by-type `val isdigit_1 (x0: 'a0) : int` / `isalnum_1` (expressions.py ~12270), NOT `py_isdigit_op` of `c = s[i]`, so `j > i` after the inner loop is unprovable; no `py_isalnum_op` exists, so `isalpha c -> isalnum c` has no carrier (Python defines `isalnum` of one char as `isalpha or isdecimal or isdigit or isnumeric`, so a DEFINITIONAL model is possible, but it lives in mirrored `expressions.py` / the abstract-op preamble and moves every corpus file using it); the op loop's `i += str_length_op op` needs `length op > 0` for 14 `Seq.get` literals (two built by `pystr_cat (pystr_chr 92) ..`). `--fun lex` cannot even run: it emits `val _parser__parse_* .. variant {..}` (`unexpected 'variant' clause`), a pre-existing `--fun` defect for parser.py. | 4 links, the first in a mirrored file |
 | normalize (5) | `normalize_whyml_axiom` / `normalize_prover_output`: REFUSED R325, and the failing site is the ALREADY-converted `_strip_all_parens` (`re_sub_3` opaque int): one `re.sub(pat, lambda m: .., out, count=1)` in the file turns the file's `re.sub` binding opaque. `_nat_to_int_with_sidecond` = `re.compile(..).sub(<nested def>)`, `_expand_anon_binders` = `pattern.sub(lambda, s, count=1)` in `while True`, `_alpha_rename` = `re.match` + `sorted(key=lambda)` + `re.escape` f-string pattern. NO stub needs only a literal pattern + string replacement. | no candidate in scope |
-| `canonical.py::_ac_normalize` | REFUSED at `functions.py:9781`: the lifted `collect` sibling captures `operands`, `t`. Suppressing it needs a per-recognizer `_*_walk_ids` slot wired in mirrored `preamble.py` (~2776) + `functions.py` (~8160). Behind it, not prototyped: `t.op in (<tuple literal>)`, recursion on a non-subterm (`_ac_normalize(node)`, node a descendant) needing size mode AND exact string equality (`node.op == t.op` must be decided true at `node = t`, `pystr_eq` is uninterpreted), `sorted(key=lambda x: x.pp())` (a definitional stable sort over an uninterpreted key), `[-1]` (needs a proved length fact), `reversed(xs[:-1])` fold. | mirrored wiring + 5 fragments |
 | `canonical.py::_alpha_rename` | writes `counter[0]` (mirror frame `assigns counter`) from inside a generator self-call; dict built by a store loop; `f"v{counter[0]}"`; recursion on `substitute`'s result | state threading through a term transform: new shape |
 | `proof_axiom_allowlist.py::parse_rocq_assumptions_block` | L3-tc: `(int, array int)` vs `(int, int)`: the `tuple[bool, list[str]]` return annotation lowers to `(int, int)` (int-erasure of the PEP 585 element type) while `names: list[str]` lowers to `array int` | type lowering in mirrored types.py |
 | `ir_schema.py::validate_ir` | REFUSED: optional TypedDict key `"name"` read | dict-shape model |
