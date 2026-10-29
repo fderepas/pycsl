@@ -21487,6 +21487,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _txt310: Dict[int, str] = {}
                     _ab311: Dict[int, Set[str]] = {}
                     _pr311: List[int] = []
+                    _np311 = False
                     for _i307 in sorted(_bind307 + _r310c):
                         _p307, _n307 = _r307_ops[_i307]
                         _nm307 = f"_pycsl_seq{_h307}_{_i307}"
@@ -21506,7 +21507,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                                                      invariant_ctx, subst)
                                 _pr311.append(_i307)
                             except PyCSLIRError:
-                                pass
+                                # A FAILED probe is no verdict, but it must still MARK the
+                                # re-emission: unmarked, the node was re-emitted UNCHANGED,
+                                # met this same probe again and recursed until Python's
+                                # stack overflowed — an UNEXPECTED PIPELINE ERROR (cv6 D1,
+                                # `d.setdefault(k, []).extend(xs)`, `len(xs.append(1) ..)`).
+                                # Marked, the operand is lowered IN POSITION, where its own
+                                # refusal (route #280 / the in-place-mutator refusal) fires.
+                                _np311 = True
                             self._abstract_ops = _ab2311
                             continue
                         if _i307 in _r310c:
@@ -21532,7 +21540,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             else:
                                 _l307[_p307[1]] = _mk307
                             _md307[_p307[0]] = _l307
-                    if _pr311:
+                    if _pr311 or _np311:
                         _md307["_pycsl_r311n"] = True
                     _body307 = self._expr_to_whyml(_md307, local_refs, invariant_ctx, subst)
                     for _nm307, _s307 in _lets307:

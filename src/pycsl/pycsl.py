@@ -13725,9 +13725,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # exception edge from inside a `try` carries the state BEFORE the raising operation;
     # `except E as e` UNBINDS `e` when the handler ends; a `finally` is analysed on the
     # normal path and once more on the exceptional one; a `with` body may be left by an
-    # exception its `__exit__` SUPPRESSES; a `match` with no irrefutable unguarded arm may
-    # fall through; `and`/`or`/`if-else` operands and comprehension bodies are
-    # conditional, so a walrus there binds nothing definitely. A call statement to a
+    # exception its `__exit__` SUPPRESSES (unless the manager is the builtin `open` or
+    # `warnings.catch_warnings`, cv6 D4); a `match` with no irrefutable unguarded arm may
+    # fall through; `and`/`or` short-circuit is CONTROL FLOW (a walrus in an earlier operand
+    # is bound in the later ones, only the first operand's binding survives the join, cv6
+    # D4); `if-else` arms and comprehension bodies are conditional, so a walrus there binds
+    # nothing definitely. A call statement to a
     # same-file function (or `self.` method) EVERY definition of which ends in `raise` and
     # has no `return` cannot fall through (the parsers' `self._err(...)` idiom).
     # UNREACHABLE code is never refused (its state is TOP).
@@ -13784,6 +13787,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _r264_range_ok = False
         elif isinstance(_r264_n, _A264.alias) and (_r264_n.asname or _r264_n.name) == "range":
             _r264_range_ok = False
+    # (cv6 D4) CONTEXT MANAGERS THAT NEVER SUPPRESS. A `with` body may be left by an
+    # exception its `__exit__` SUPPRESSES, so a binding made in the body is not definite
+    # after the `with` — unless the manager is one whose `__exit__` is KNOWN to return a
+    # false value: the builtin `open(...)` (`IOBase.__exit__` closes and returns None) and
+    # `warnings.catch_warnings(...)` (restores the filters and returns None). Like the
+    # constant-`range` rule, the NAME must mean the builtin / the stdlib module: `open` is
+    # bound NOWHERE in the file, and a module name `m` in `m.catch_warnings(...)` is bound
+    # in the file ONLY by `import warnings [as m]` (a parameter, an assignment, a `def`, any
+    # other import of it disqualifies it). A star import disqualifies both.
+    _r264_bnd = {}
+    _r264_star = False
+    for _r264_n in _A264.walk(_r264_tree):
+        if isinstance(_r264_n, _A264.Name) and isinstance(_r264_n.ctx, (_A264.Store, _A264.Del)):
+            _r264_bnd.setdefault(_r264_n.id, []).append(False)
+        elif isinstance(_r264_n, (_R264_FNS, _A264.ClassDef)):
+            _r264_bnd.setdefault(_r264_n.name, []).append(False)
+        elif isinstance(_r264_n, _A264.arg):
+            _r264_bnd.setdefault(_r264_n.arg, []).append(False)
+        elif isinstance(_r264_n, _A264.alias):
+            if _r264_n.name == "*":
+                _r264_star = True
+            else:
+                _r264_bnd.setdefault(_r264_n.asname or _r264_n.name.split(".")[0], []).append(
+                    _r264_n.name == "warnings")
+        elif isinstance(_r264_n, _A264.ExceptHandler) and _r264_n.name:
+            _r264_bnd.setdefault(_r264_n.name, []).append(False)
+        elif isinstance(_r264_n, (_A264.MatchAs, _A264.MatchStar)) and _r264_n.name:
+            _r264_bnd.setdefault(_r264_n.name, []).append(False)
+        elif isinstance(_r264_n, _A264.MatchMapping) and _r264_n.rest:
+            _r264_bnd.setdefault(_r264_n.rest, []).append(False)
+    _r264_open_ok = not _r264_star and "open" not in _r264_bnd
+    _r264_warn = set() if _r264_star else {
+        _r264_k for _r264_k, _r264_v in _r264_bnd.items() if _r264_v and all(_r264_v)}
     _r264_noret = {_r264_k for _r264_k, _r264_v in _r264_defs.items() if all(_r264_v)}
     _r264_fns = []
     _r264_stk = [_r264_tree]
@@ -13957,9 +13993,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _r264_seq = [("E", _r264_e.value, _r264_c, _r264_sh),
                                  ("B", _r264_e.target.id, _r264_c)]
                 elif isinstance(_r264_e, _A264.BoolOp):
-                    _r264_seq = ([("E", _r264_e.values[0], _r264_c, _r264_sh)]
-                                 + [("E", _r264_x, True, _r264_sh)
-                                    for _r264_x in _r264_e.values[1:]])
+                    # (cv6 D4) SHORT-CIRCUIT AS CONTROL FLOW, not as one "conditional" flag:
+                    # operand k runs only after operands 0..k-1 ran and did not decide the
+                    # result, so a walrus in an EARLIER operand IS bound when a later one
+                    # reads it (the chain desugar's `a <= (_pycsl_cmp_1 := f()) and
+                    # _pycsl_cmp_1 <= b`). Each operand after the first starts from the
+                    # state after the previous one; every operand may exit to the JOIN, which
+                    # therefore keeps only what the FIRST operand binds.
+                    _r264_nodes.append([None, [], []])
+                    _r264_J = len(_r264_nodes) - 1
+                    _r264_seq = [("E", _r264_e.values[0], _r264_c, _r264_sh)]
+                    for _r264_x in _r264_e.values[1:]:
+                        _r264_seq += [("link", _r264_J), ("E", _r264_x, _r264_c, _r264_sh)]
+                    _r264_seq += [("link", _r264_J), ("setcur", _r264_J)]
                 elif isinstance(_r264_e, _A264.IfExp):
                     _r264_seq = [("E", _r264_e.test, _r264_c, _r264_sh),
                                  ("E", _r264_e.body, True, _r264_sh),
@@ -14136,7 +14182,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     # control can reach the statement after the `with` from inside it.
                     _r264_nodes.extend([[None, [], []], [None, [], []]])
                     _r264_W, _r264_X = len(_r264_nodes) - 2, len(_r264_nodes) - 1
-                    _r264_nodes[_r264_W][1].append(_r264_X)
+                    if not all(
+                            isinstance(_r264_x.context_expr, _A264.Call)
+                            and ((_r264_open_ok
+                                  and isinstance(_r264_x.context_expr.func, _A264.Name)
+                                  and _r264_x.context_expr.func.id == "open")
+                                 or (isinstance(_r264_x.context_expr.func, _A264.Attribute)
+                                     and _r264_x.context_expr.func.attr == "catch_warnings"
+                                     and isinstance(_r264_x.context_expr.func.value,
+                                                    _A264.Name)
+                                     and _r264_x.context_expr.func.value.id in _r264_warn))
+                            for _r264_x in _r264_s.items):
+                        _r264_nodes[_r264_W][1].append(_r264_X)
                     if _r264_outer is not None:
                         _r264_nodes[_r264_W][1].append(_r264_outer)
                     _r264_seq = []
