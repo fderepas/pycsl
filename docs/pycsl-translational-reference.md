@@ -5608,6 +5608,7 @@ with `_rc444`[$d$] unless $d$ is named `__init__` / `__post_init__` / `__new__`;
 underivable-receiver refusal skips a receiver `super(...)` (an unshadowed `super`) when the
 def's OWN claim covers no AttributeError (\all / AttributeError / Exception / BaseException).
 Emission changes only in reached bodies (their trigger asserts).
+
 ### §T.6.240  Module import under a claim; `__init__` return value (routes #461 / #462, run #3)
 
 _Corresponds to `annotations.md` §7.230._
@@ -5649,6 +5650,7 @@ statement's line and CPython's exception text. (#462) for every `ClassDef` and i
 `AsyncFunctionDef`, or, outside nested def / lambda / class bodies, a `Yield` / `YieldFrom` or a
 `Return` whose value is not `Constant(None)`, raises `PYCSL-R462-INIT-RETURNS-VALUE`. No emission
 change.
+
 ### §T.6.230  Scan loop in a term transform's block arm (lv4, run #3)
 
 _Corresponds to `annotations.md` §7.220._

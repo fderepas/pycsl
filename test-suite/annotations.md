@@ -3864,6 +3864,7 @@ files measured), and a `super()` receiver in a def whose AttributeError claim is
 judged by #450 rather than #443. Not reached (own claim only): #347, #357, #395 / #402, #439
 (another file's defs). Witnesses `7050`-`7053`, `7057` (an un-claimed `@property` getter reading
 a missing key, reached through the attribute load), `7059`; controls `7054`-`7056`, `7058`, `7060`.
+
 ### 7.230 A claimed module must IMPORT without raising; `__init__` returns None (routes #461 / #462, run #3)
 
 A claimed function of a module whose import raises is never callable, yet red team 37 measured PROVED
@@ -3893,6 +3894,7 @@ whose body is itself admitted, `del` of a bound name, `type X = ..`. Anything el
 `with`, `raise`, an attribute store, a walrus) is REFUSED (`PYCSL-R461-IMPORT-RAISES`). (#462) an
 `__init__` with a `return <expr>` other than `None`, a `yield`, or `async` is REFUSED under any claim in
 the file (`PYCSL-R462-INIT-RETURNS-VALUE`). Witnesses `7130`-`7150`; controls `7151`, `7152`.
+
 ### 7.220 A term transform's binder arm may run a `while True:` scan loop down the spine (lv4, run #3)
 
 A one-parameter Term->Term transform (§7.160's shape, e.g. the mirror's
