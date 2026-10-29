@@ -4162,8 +4162,10 @@ attribute read or `getattr` / `hasattr` with a constant name): `__annotations__`
 `__annotate_func__` / `__annotations_cache__` of anything; any dunder except `__name__` / `__qualname__` /
 `__func__` / `__self__` / `__wrapped__` of a placeholder def or of an object wrapping one (bound method,
 `staticmethod`, `classmethod`, `property`, an object whose static `__wrapped__` is one); `__doc__` /
-`__firstlineno__` / `__static_attributes__` / `__type_params__` of a synthesized class or its instance,
-and the class's `__dict__` -- are REFUSED (`PYCSL-R461-IMPORT-RAISES`). Witnesses `7350`-`7355`; control
+`__firstlineno__` / `__static_attributes__` / `__type_params__` / `__dataclass_fields__` (its `Field.type`
+is m1's source string for an annotation that did not evaluate, a ForwardRef in CPython) of a synthesized class or its
+instance,
+and the class's `__dict__` -- are REFUSED (`PYCSL-R461-IMPORT-RAISES`). Witnesses `7350`-`7355`, `7373`; control
 `7371` (`g.__name__`, `C.m.__qualname__`).
 
 ### 7.293 Every class statement is created by CPython, wherever it is nested (route #471, run #3)

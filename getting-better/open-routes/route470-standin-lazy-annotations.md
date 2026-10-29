@@ -20,11 +20,14 @@ constant name, is REFUSED for `__annotations__` / `__annotate__` / `__annotate_f
 anything; for any dunder other than `__name__` / `__qualname__` / `__func__` / `__self__` / `__wrapped__` of a
 placeholder def or an object wrapping one (bound method, `staticmethod`, `classmethod`, `property`, an object whose
 static `__wrapped__` is one: `lru_cache`, `functools.wraps`); and for `__doc__` / `__firstlineno__` /
-`__static_attributes__` / `__type_params__` of a synthesized class or of its instance, and a class's `__dict__`
+`__static_attributes__` / `__type_params__` / `__dataclass_fields__` (its `Field.type` was m1's source string
+where CPython 3.14 has a ForwardRef: x2's own bypass probe p1, witness 7373) of a synthesized class or of its instance, and a class's `__dict__`
 (none of these is synthesized as CPython builds it). `inspect.*`, `typing.get_type_hints`, `annotationlib` were already
 outside the pure set. Code `PYCSL-R461-IMPORT-RAISES`.
 
-Witnesses 7350-7355 (s649 s651 s673 s676 s677 s678; all 7 of `witnesses-r470/` measured REFUSED). Control 7371
+Witnesses 7350-7355 (s649 s651 s673 s676 s677 s678; all 7 of `witnesses-r470/` measured REFUSED) and 7373 (x2's own
+bypass probe: `isinstance(C.__dataclass_fields__['x'].type, str)` over an undefined annotation; PROVED at base
+daf5c3d1f, REFUSED; increment 2, gated separately: root 2604 -> 2608 0/0/0, pyref 0/0/0, mirror 53 0/0/0, planes 61/61). Control 7371
 (`g.__name__`, `C.m.__qualname__`, a class field): PROVED at base and candidate.
 
 OVER-REFUSAL COST, measured (candidate vs base emission of main daf5c3d1f = 33f7ac681's): byte-diff root 2604 -> 2608 .mlw, 0 MOVED / 0 GONE / 0 APPEARED (4 new controls); pyref 2186 / 2186 0/0/0; mirror 53 / 53 0/0/0 (no OWED proof). Static screens: CPython `compile()` + cookie decode of all 6937 corpus / pyref / mirror / pycsl_lib files: only the 12 new #465 witnesses fail; 1274 claimed files scanned for function-body classes, module-dunder reads and dunder attribute reads -- the one PASS file the first cut refused (5590, `class C(B)` over a class `B` of the same def) is admitted by the narrow row below; 0 corpus PASS file refused.

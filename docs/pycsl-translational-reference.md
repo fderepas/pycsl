@@ -5917,7 +5917,7 @@ string $a$: $a \in$ \{`__annotations__`, `__annotate__`, `__annotate_func__`, `_
 $a$ is a dunder $\notin$ \{`__name__`, `__qualname__`, `__func__`, `__self__`, `__wrapped__`\} and $o$ is a
 placeholder (a function carrying `_ph461`), a bound method / `staticmethod` / `classmethod` over one, a
 `property` with one as accessor, or a non-class object whose static `__wrapped__` is one; or $a \in$
-\{`__doc__`, `__firstlineno__`, `__static_attributes__`, `__type_params__`\} (or `__dict__` with $o$ a
+\{`__doc__`, `__firstlineno__`, `__static_attributes__`, `__type_params__`, `__dataclass_fields__`\} (or `__dict__` with $o$ a
 class) and $o$ or `type(o)` is a synthesized class.
 
 ### §T.6.303  Function-body class statements as jobs (route #471, run #3)

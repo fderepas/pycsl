@@ -22876,7 +22876,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # a wrapper's `__wrapped__`) of a placeholder or of an object wrapping one (a bound
         # method, `property`, `staticmethod`, `classmethod`, a `functools` wrapper), and of
         # `__doc__` / `__dict__` / `__firstlineno__` / `__static_attributes__` /
-        # `__type_params__` of a synthesized class or of its instance is REFUSED.
+        # `__type_params__` / `__dataclass_fields__` (its `Field.type` is the annotation, a
+        # source string where it did not evaluate, a ForwardRef in CPython) of a synthesized
+        # class or of its instance is REFUSED.
         _isp470 = (lambda _o: isinstance(_o, _ty461.FunctionType) and "_ph461" in _o.__dict__)
         _wsp470 = (lambda _o: _isp470(_o) or (
             isinstance(_o, (_ty461.MethodType, staticmethod, classmethod))
@@ -22889,7 +22891,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _a.startswith("__") and _a.endswith("__") and _a not in (
                 "__name__", "__qualname__", "__func__", "__self__", "__wrapped__")
             and _wsp470(_o)) or (
-            (_a in ("__doc__", "__firstlineno__", "__static_attributes__", "__type_params__")
+            (_a in ("__doc__", "__firstlineno__", "__static_attributes__", "__type_params__",
+                    "__dataclass_fields__")
              or (_a == "__dict__" and isinstance(_o, type)))
             and ((isinstance(_o, type) and id(_o) in _sy2461) or id(type(_o)) in _sy2461)))
         # the module name CPython's frame-introspecting factories (`namedtuple`, the functional

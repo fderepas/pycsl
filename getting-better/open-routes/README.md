@@ -35,8 +35,8 @@
 ##   `__annotations__` / `__annotate__`, of a placeholder def's unsynthesized dunders, and of a synthesized class's
 ##   `__doc__` / `__dict__` / ... are REFUSED. #471: every function-body class statement is a JOB created by
 ##   `types.new_class` on the final module bindings, function-local / `global`-ed / mutable values unknown, one narrow row
-##   for an earlier class of the same def (PYCSL-R471-LOCAL-CLASS-RAISES). Corpus 7330-7368 (39 witnesses, PROVED at base,
-##   REFUSED; all 61 red-team files REFUSED), controls 7369-7372 PROVED at base and candidate; census +39 rows; advice
+##   for an earlier class of the same def (PYCSL-R471-LOCAL-CLASS-RAISES). Corpus 7330-7368 + 7373 (40 witnesses, PROVED at base,
+##   REFUSED; all 61 red-team files REFUSED), controls 7369-7372 PROVED at base and candidate; census +40 rows; advice
 ##   audit R465 FOLLOWABLE; docs annotations 7.290-7.293 / translational T.6.300-T.6.303. Over-refusal cost: 0 corpus PASS
 ##   (5590 kept by the narrow row), byte-diff root 2604 -> 2608 0/0/0, pyref 2186 0/0/0, mirror 53 / 53 0/0/0 (no OWED proof). Gates: see the
 ##   route REPAIR sections.
