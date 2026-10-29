@@ -781,6 +781,20 @@ AUDITED = {
         "Route #454. 'Declare the value with such a class (`xs: Tuple[int, int]`), or drop the claim': witness 7025's `(*n,)` over `n: int` rewritten over `xs: Tuple[int, int]` (`t = (*xs, 1); return len(t)`) VERIFIES under `no_exception \\\\all` (control 7028). (`len((*xs,))` over a `List[int]` does not type-check, at base too, so the message names the tuple.)"),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr459(f"\'{_fn459.name}\' line {getattr(_z459, \'lineno\', 0)} reads the module name `{_z459.id}`, which the module binds only CONDITI'): (FOLLOWABLE,
         "Route #459. 'Bind `G` unconditionally at module level before any call (every arm of the `if` / `try`)': witness 7036's `if TYPE_CHECKING: G = 1` rewritten `G = 1` (and `H` in both arms of an `if TYPE_CHECKING`, `K` in a `try` body and its handler) VERIFIES `G + H + K + n` under `no_exception \\\\all` (control 7045; an unconditional `def g` / `class C`, control 7046)."),
+    # (#49) driver run #3 -- route #463 (cc1, red team 37). Probes in
+    # getting-better/open-routes/witnesses-r463/advice/.
+    ('src/pycsl/frontend/Module1_Ingestor.py', 'PyCSLParseError(\'line \' + str(_c.lineno) + ": this `#@` directive follows code on the same line, where it is a plain comment and would be SI'): (FOLLOWABLE,
+        "Route #463. 'Write it on its own line: above the `def`/loop it describes, or, for a statement-level `assert`/`ghost`, on the line after the statement it follows': witness 7186's `y = n + 1  #@ assert y == 2` rewritten with `#@ assert y == n + 1` on its own line after `y = n + 1` (a463_trailing_own_line) VERIFIES."),
+    ('src/pycsl/frontend/Module1_Ingestor.py', 'PyCSLParseError(\'line \' + str(_c.lineno) + \': `\' + _c.text.strip()[:60] + "` is a near-miss spelling of a `#@` directive: the tokenizer read'): (FOLLOWABLE,
+        "Route #463. 'Write `#@` with no space or extra `#` between `#` and `@` (e.g. `#@ ensures ...`), or reword the comment': witness 7185's `# @ensures` respelled `#@ ensures` over a true claim (a463_near_miss_respelled) VERIFIES; prose `# @dataclass` and a quoted `#     #@ ensures` stay comments (control 7195)."),
+    ('src/pycsl/frontend/Module1_Ingestor.py', 'PyCSLParseError(\'the `#@` line `\' + _ln.strip()[:60] + "` sits above the first statement of a file that has no `def`/`class`/loop/`with` to '): (FOLLOWABLE,
+        "Route #463. 'Move it directly above the construct it describes, or delete it': witness 7189's statements moved into `def g` with the `#@ assert` above the line it checks (a463_header_moved_into_def) VERIFIES; deleting the line leaves a claim-free file."),
+    ('src/pycsl/frontend/Module1_Ingestor.py', "PyCSLParseError('line ' + str(min([_c.lineno for _c in _tail463 if _c.indent == 0] or [_c.lineno for _c in coms])) + ': ' + str(len(coms) - "): (FOLLOWABLE,
+        "Route #463. 'Move them directly above the construct they describe, or delete them': witness 7188 with the column-0 `#@ assert 1 == 2` deleted (a463_eof_tail_deleted) VERIFIES."),
+    ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"`{_cc_n}` is bound {len(_cc_ns)} times in {_cc_sname} (lines {\', \'.join((str(getattr(_y, \'lineno\', 0)) for _y in _cc_ns'): (FOLLOWABLE,
+        "Route #463. 'Give each definition its own name, or delete the dead one': witness 7180 with the claimed first def renamed `f0` (a463_shadow_renamed) VERIFIES; deleting the dead claimed def is control 7194's shape (an unclaimed earlier binding, PROVED)."),
+    ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"""line {_e.line_number}: a `{type(_cc_c).__name__}` directive is attached to a statement outside every function body (m'): (FOLLOWABLE,
+        "Route #463. 'Move the code and its claim into a function, or delete the claim': witness 7190's `x = 1` / `#@ assert x == 2` / `y = x + 1` moved into `def main` with a true assert (a463_module_stmt_into_function) VERIFIES."),
     # (#49) driver run #3 -- routes #461 / #462 (m1, red team 37). Probes in
     # getting-better/open-routes/witnesses-r461/advice/.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr461(f"""line {_rf461[0]}: {_rf461[1]}, so IMPORTING this module raises before any of its functions can run, while this file clai'): (FOLLOWABLE,
@@ -820,6 +834,13 @@ AUDITED = {
 # refuses a truncated census: a stale verdict about prose is indistinguishable from a
 # fresh one from the outside.
 AUDITED_HASH = {
+    # (#49) driver run #3 -- route #463 (cc1)
+    ('src/pycsl/frontend/Module1_Ingestor.py', 'PyCSLParseError(\'line \' + str(_c.lineno) + ": this `#@` directive follows code on the same line, where it is a plain comment and would be SI'): '31f0c53155cb',
+    ('src/pycsl/frontend/Module1_Ingestor.py', 'PyCSLParseError(\'line \' + str(_c.lineno) + \': `\' + _c.text.strip()[:60] + "` is a near-miss spelling of a `#@` directive: the tokenizer read'): '588cbe0604b8',
+    ('src/pycsl/frontend/Module1_Ingestor.py', 'PyCSLParseError(\'the `#@` line `\' + _ln.strip()[:60] + "` sits above the first statement of a file that has no `def`/`class`/loop/`with` to '): '4f6dd7d8dade',
+    ('src/pycsl/frontend/Module1_Ingestor.py', "PyCSLParseError('line ' + str(min([_c.lineno for _c in _tail463 if _c.indent == 0] or [_c.lineno for _c in coms])) + ': ' + str(len(coms) - "): '11580677430f',
+    ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"`{_cc_n}` is bound {len(_cc_ns)} times in {_cc_sname} (lines {\', \'.join((str(getattr(_y, \'lineno\', 0)) for _y in _cc_ns'): '256abb2730e4',
+    ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"""line {_e.line_number}: a `{type(_cc_c).__name__}` directive is attached to a statement outside every function body (m'): '87891bc5b9b2',
     # (#49) driver run #3 (c226) — route #226 polarity flip.
     ("src/pycsl/pycsl.py", '_PyCSLSemanticError(f"class \'{_n226r}\' carries a `#@ class invariant`, but its constructor obligation (route #226: the invariant must hold w'): '90d0102c3b29',
     # (#49) gen #36 -- route #252.

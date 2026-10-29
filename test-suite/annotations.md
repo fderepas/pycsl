@@ -3865,6 +3865,47 @@ judged by #450 rather than #443. Not reached (own claim only): #347, #357, #395 
 (another file's defs). Witnesses `7050`-`7053`, `7057` (an un-claimed `@property` getter reading
 a missing key, reached through the attribute load), `7059`; controls `7054`-`7056`, `7058`, `7060`.
 
+### 7.240 Every written `#@` claim is attached or refused (route #463, run #3)
+
+A `#@` line binds to the construct that FOLLOWS it (a `def` / `class` / loop / `with` for its contract, any
+statement inside a function body for `assert` / `check` / `ghost` / `label`), or, written as the last line
+of a body, to the end of that body. Red team 37 measured "All contracts formally proven" for files whose
+only written claim was false because the claim was never attached: a `#@` block indented (spaces or a tab)
+above a column-0 `def`; a second module-level `def f` replacing the claimed first one; `# @ensures` (a
+near-miss spelling). Each of the following is now REFUSED, naming the line:
+- a `#@` written after code on its line (`x = f()  #@ assert x > 0`) -- write it on its own line;
+- a NEAR-MISS spelling: `#`, then spaces / tabs or further `#`, then `@` and a directive keyword or a
+  `\`-name (`# @ensures`, `#\t@requires`, `##@assert`). Prose such as `# @dataclass` and a quoted
+  directive inside a comment (`#     #@ ensures ...`) stay plain comments;
+- a `#@` block indented DEEPER than the statement that follows it, which belongs to no body (the
+  F6 shape above a column-0 `def`, or an over-indented `#@ assert` between two statements of a body).
+  Indent a contract block exactly like the construct it sits above;
+- `#@` lines above the first statement of a file with no `def` / `class` / loop / `with` to consume them
+  (module-scope directives -- `shared`, `datatype`, `mutex_invariant`, `lock_order` -- excepted), and a
+  column-0 `#@` line after the last statement (a block running to end-of-file was already refused);
+- a statement-level directive (`assert`, `ghost`, `label`, `check`, a loop's `loop invariant`, a `with`'s
+  `critical`) whose statement is outside every function body -- module level, a class body,
+  `if __name__ == "__main__":` -- which is never lowered;
+- in the module or a class body, a name bound two or more times (def / class / assignment / import) of
+  which an EARLIER binding is a `def` / `class` carrying a `#@` claim: CPython keeps the last binding, so
+  that claim would describe nothing. A property accessor chain (`@property def x`, `@x.setter def x`) and
+  an `@overload` chain are one binding each. An unclaimed earlier binding is allowed (the claimed last one
+  is the function CPython calls).
+Witnesses `7180`-`7193`; controls `7194`-`7197`.
+
+### 7.241 Private names are mangled as CPython mangles them (route #464, run #3)
+
+An identifier `__x` (two leading underscores, not ending in `__`) written lexically inside class `C` --
+its methods and anything nested in them, but not a nested class, which uses its own name -- is
+`_C__x` (`C` stripped of leading underscores; no mangling if `C` is all underscores), exactly as CPython
+compiles it: attribute names, plain names, def / class names, parameters, keywords, `global` /
+`nonlocal`, `except .. as`, match captures. Strings (`getattr(o, "__x")`, `__slots__` entries) are not
+mangled. A `#@` claim is mangled by the class its anchor sits in (a class invariant by its own class), so
+`#@ ensures self.__x == n` on a method of `C` reads the field the body writes. Consequently `self.__x` in
+a subclass `D` of `C` is `self._D__x` (not `C`'s field; under `no_exception` route #445 refuses the read,
+and a claim over its value FAILS), `C.__K` outside any class reads `__K` (not `C`'s `_C__K`), and
+`self._C__x` in `D` reads `C`'s field. Witnesses `7200`-`7204`; controls `7205`-`7207`.
+
 ### 7.230 A claimed module must IMPORT without raising; `__init__` returns None (routes #461 / #462, run #3)
 
 A claimed function of a module whose import raises is never callable, yet red team 37 measured PROVED

@@ -249,7 +249,10 @@ def main():
                                        "class not defined after exec"))
                     continue
                 try:
-                    got = getattr(ns[cls](), fn)()
+                    # (#49) route #464: a method `__m` of class C is bound as `_C__m`
+                    got = getattr(ns[cls](), ("_" + cls.lstrip("_") + fn)
+                                  if fn.startswith("__") and not fn.endswith("__")
+                                  and cls.lstrip("_") else fn)()
                 except BaseException as _e_fn:
                     raised.append((os.path.basename(f), cls + "." + fn,
                                    type(_e_fn).__name__, str(_e_fn)[:60]))

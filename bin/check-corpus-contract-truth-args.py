@@ -360,6 +360,24 @@ def _calls(node):
 PARAM_POOL = {}
 
 
+def _mangle464(x, cls):
+    """CPython's private-name mangling of a claim's text by its class (route #464): every
+    `__name` token that is not a dunder becomes `_<cls stripped of leading _>__name`."""
+    pfx = cls.lstrip("_")
+    if not pfx:
+        return x
+    if isinstance(x, str):
+        return re.sub(r"\b__(\w+)", lambda m: m.group(0) if m.group(0).endswith("__")
+                      else "_" + pfx + m.group(0), x)
+    if isinstance(x, list):
+        return [_mangle464(y, cls) for y in x]
+    if isinstance(x, tuple):
+        return tuple(_mangle464(y, cls) for y in x)
+    if isinstance(x, dict):
+        return {k: _mangle464(v, cls) for k, v in x.items()}
+    return x
+
+
 def collect(no_exclusions=False):
     """Per file: the functions whose contracts this oracle can evaluate, plus the census
     numbers for everything it deliberately leaves out."""
@@ -698,6 +716,13 @@ def collect(no_exclusions=False):
                     "list:int": LIST_POOL_INT, "list:str": LIST_POOL_STR,
                     "set:int": SET_POOL_INT,
                     "dict:si": DICT_POOL_SI, "dict:ii": DICT_POOL_II}.get(_tag, POOL)
+            # (#49) ROUTE #464 — a claim is MANGLED by the class of its anchor (annotations
+            # §7.241): `#@ ensures \result == self.__x` on a method of C reads `self._C__x`, the
+            # field CPython stores. Evaluated here OUTSIDE any class, the unmangled text would
+            # read `__x` and raise — the oracle charging the program with its own misreading.
+            if _cls is not None:
+                ens, reqs, post, preds, _raises_when, _creqs = (
+                    _mangle464(x, _cls) for x in (ens, reqs, post, preds, _raises_when, _creqs))
             per.setdefault(f, []).append(
                 (name, [a.arg for a in ps], ens, reqs, bool(reach(name) & trusted),
                  _cls, _raises_when, post, preds, _diverges,

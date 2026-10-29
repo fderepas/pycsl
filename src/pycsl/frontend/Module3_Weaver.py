@@ -2102,10 +2102,92 @@ class Module3_Weaver:
                     f"proven'. Move it directly above the `def`/`class` it describes, or "
                     f"delete it. (Directives: {', '.join(_kinds) or '<none>'}.)")
             _i = _j
+        python_ast = ast.parse(self.source_code)
+        # (#49) ROUTE #464 — PRIVATE NAME MANGLING (red team 37 F8; MEASURED PROVED at 33f7ac681,
+        # CPython AttributeError). CPython compiles an identifier `__x` (two leading
+        # underscores, not ending in `__`, no dot) written lexically inside the body of class
+        # C — its methods and the defs / lambdas / comprehensions nested in them, but NOT a
+        # nested class, which mangles by its own name — as `_C__x` (C stripped of leading
+        # underscores; no mangling when C is all underscores). The field / method /
+        # class-attribute tables read the names AS WRITTEN, so `self.__x` read in a subclass D
+        # (`_D__x`) found the base's field (`_C__x`), and `C.__K` outside any class (`__K`)
+        # found C's class attribute (`_C__K`): both PROVED `#@ no_exception \all`, CPython
+        # raises AttributeError. RULE: rewrite the tree to CPython's names HERE, before any
+        # table is built (this is the one step the main pipeline and `ir_resolve`'s
+        # dependency pipeline share), over every identifier CPython mangles: `Name`,
+        # `Attribute.attr`, def / class names, parameters, call keywords, `global` /
+        # `nonlocal` names, `except ... as`, match captures / class-pattern attributes.
+        # Strings (`getattr(o, "__x")`, `__slots__` entries) are never mangled, as in
+        # CPython. A `#@` claim is mangled the same way, by the class its anchor sits in (a
+        # class invariant by its own class): `#@ ensures self.__x == n` on a method of C reads
+        # `self._C__x`, the field the body writes. CENSUS: 17 corpus files + python-reference 0133
+        # write a private name (all route #367 / #374 / #388 / #396 witnesses or controls);
+        # 0 mirror / `pycsl_lib` files do.
+        _mg_done: set = set()
+        _mg_sline: Dict[int, Any] = {}   # statement / def line -> enclosing class
+        _mg_cline: Dict[int, Any] = {}   # class line -> the class itself
+        _mg_stack: list = [(_mg_c, None) for _mg_c in ast.iter_child_nodes(python_ast)]
+        while _mg_stack:
+            _mg_n, _mg_cls = _mg_stack.pop()
+            _mg_t = type(_mg_n).__name__
+            _mg_pfx = ("_" + _mg_cls.lstrip("_")) if _mg_cls and _mg_cls.lstrip("_") else None
+            _mg_own = _mg_n.name if _mg_t == "ClassDef" else None   # the body mangles by this
+            if isinstance(_mg_n, ast.stmt):
+                _mg_sline.setdefault(_mg_n.lineno, _mg_cls)
+                if _mg_own is not None:
+                    _mg_cline.setdefault(_mg_n.lineno, _mg_own)
+            # (no `setattr` with a computed name: route #118's rule (5) refuses that in any
+            # module the dependency pipeline reads, and this module is one)
+            if _mg_pfx and _mg_t in ("Name", "Attribute", "arg", "keyword", "FunctionDef",
+                                     "AsyncFunctionDef", "ClassDef", "ExceptHandler",
+                                     "MatchAs", "MatchStar", "MatchMapping"):
+                _mg_v = (_mg_n.id if _mg_t == "Name" else _mg_n.attr if _mg_t == "Attribute"
+                         else _mg_n.arg if _mg_t in ("arg", "keyword")
+                         else _mg_n.rest if _mg_t == "MatchMapping" else _mg_n.name)
+                if (isinstance(_mg_v, str) and _mg_v.startswith("__")
+                        and not _mg_v.endswith("__") and "." not in _mg_v):
+                    _mg_done.add(_mg_v)
+                    if _mg_t == "Name":
+                        _mg_n.id = _mg_pfx + _mg_v
+                    elif _mg_t == "Attribute":
+                        _mg_n.attr = _mg_pfx + _mg_v
+                    elif _mg_t in ("arg", "keyword"):
+                        _mg_n.arg = _mg_pfx + _mg_v
+                    elif _mg_t == "MatchMapping":
+                        _mg_n.rest = _mg_pfx + _mg_v
+                    else:
+                        _mg_n.name = _mg_pfx + _mg_v
+            if _mg_pfx and _mg_t in ("Global", "Nonlocal", "MatchClass"):
+                _mg_ls = []
+                for _mg_v in (_mg_n.kwd_attrs if _mg_t == "MatchClass" else _mg_n.names) or []:
+                    if _mg_v.startswith("__") and not _mg_v.endswith("__") and "." not in _mg_v:
+                        _mg_done.add(_mg_v)
+                        _mg_v = _mg_pfx + _mg_v
+                    _mg_ls.append(_mg_v)
+                if _mg_t == "MatchClass":
+                    _mg_n.kwd_attrs = _mg_ls
+                else:
+                    _mg_n.names = _mg_ls
+            if _mg_t == "ClassDef":
+                # bases / keywords / decorators run in the ENCLOSING scope; the body in C's
+                for _mg_c in list(_mg_n.bases) + list(_mg_n.keywords) + list(
+                        _mg_n.decorator_list):
+                    _mg_stack.append((_mg_c, _mg_cls))
+                for _mg_c in _mg_n.body:
+                    _mg_stack.append((_mg_c, _mg_own))
+                continue
+            _mg_stack.extend((_mg_c, _mg_cls) for _mg_c in ast.iter_child_nodes(_mg_n))
+        for _e in self.extracted_data:
+            _mg_cx = (_mg_cline.get(_e.line_number) if _e.node_type == "ClassDef"
+                      else _mg_sline.get(_e.line_number))
+            if _mg_cx and _mg_cx.lstrip("_"):
+                _e.contracts = [re.sub(
+                    r"\b__(\w+)", lambda _m: _m.group(0) if _m.group(0).endswith("__")
+                    else "_" + _mg_cx.lstrip("_") + _m.group(0), _mg_s)
+                    for _mg_s in _e.contracts]
         contracts_map, trailing_contracts_map = self._parse_extracted_contracts()
         self._reject_misplaced_directives()
         happy_props = self._extract_happy_properties(contracts_map)
-        python_ast = ast.parse(self.source_code)
         # (#49) ROUTES #118 + #119 — A FUNCTION NAME IS NOT A CONSTANT IN PYTHON. Every call is
         # resolved against the `def` of that name (module function or class method), and
         # nothing consulted a LATER rebinding of it. Measured, each PROVING a contract of the
@@ -2875,6 +2957,107 @@ class Module3_Weaver:
                 "rebinds it. None of these is modelled: use a modelled decorator (or an "
                 "identity decorator `def d(f): return f`), give each definition its own "
                 "name, or move the star import above every definition.")
+        # (#49) ROUTE #463 — CLAIM CONSERVATION, the SHADOWED claim (red team 37 F5; MEASURED
+        # PROVED at 33f7ac681, CPython violates the written contract). `#@ ensures \result == n`
+        # on a module-level `def f`, then a second `def f` (with or without its own contract):
+        # the module scope's duplicate `def` is fail-closed in the sense that the model agrees
+        # with CPython that the LAST def wins — but the claim written on the FIRST one is then
+        # verified against nothing, and the run printed "All contracts formally proven" for a
+        # file whose only written claim is false. RULE: in the module and in every class body,
+        # a name bound two or more times (def / class / Name store / import, nested def and
+        # class bodies excluded) of which a NON-LAST binding is a `def` / `class` carrying a
+        # `#@` claim is REFUSED — except a property accessor chain (`@property def x` then
+        # `@x.setter` / `@x.getter` / `@x.deleter` defs: one property object holds every
+        # accessor) and an `@overload` chain (Module 5 folds each stub's claims into the
+        # implementation's guard). (Two extractions on ONE line, which `contracts_map` would
+        # collapse, cannot arise: `_assign` hands a comment to the FIRST target starting at or
+        # after it, so only one target per line ever receives leading lines.)
+        # CENSUS: see route463-claim-conservation.md (REPAIR).
+        _cc_claimed = {_e.line_number for _e in self.extracted_data
+                       if _e.node_type in ("FunctionDef", "ClassDef")}
+        _cc_scopes: list = [(python_ast.body, "the module")]
+        for _cc_cl in ast.walk(python_ast):
+            if isinstance(_cc_cl, ast.ClassDef):
+                _cc_scopes.append((_cc_cl.body, f"class `{_cc_cl.name}`"))
+        for _cc_body, _cc_sname in _cc_scopes:
+            _cc_sites: Dict[str, list] = {}
+            _cc_stack: list = list(_cc_body)
+            while _cc_stack:
+                _cc_x = _cc_stack.pop()
+                if isinstance(_cc_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    _cc_sites.setdefault(_cc_x.name, []).append(_cc_x)
+                    continue
+                if isinstance(_cc_x, ast.Lambda):
+                    continue
+                if isinstance(_cc_x, ast.Name) and isinstance(_cc_x.ctx, (ast.Store, ast.Del)):
+                    _cc_sites.setdefault(_cc_x.id, []).append(_cc_x)
+                elif isinstance(_cc_x, (ast.Import, ast.ImportFrom)):
+                    for _cc_a in _cc_x.names:
+                        if _cc_a.name != "*":
+                            _cc_sites.setdefault((_cc_a.asname or _cc_a.name).split(".")[0],
+                                                 []).append(_cc_x)
+                _cc_stack.extend(ast.iter_child_nodes(_cc_x))
+            for _cc_n, _cc_ns in _cc_sites.items():
+                if len(_cc_ns) < 2:
+                    continue
+                _cc_ns = [_cc_ns[_cc_o[2]] for _cc_o in sorted(
+                    [(getattr(_y, "lineno", 0), getattr(_y, "col_offset", 0), _cc_i)
+                     for _cc_i, _y in enumerate(_cc_ns)])]
+                _cc_hit = [_y for _y in _cc_ns[:-1]
+                           if isinstance(_y, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                              ast.ClassDef)) and _y.lineno in _cc_claimed]
+                if not _cc_hit:
+                    continue
+                _cc_fd = all(isinstance(_y, (ast.FunctionDef, ast.AsyncFunctionDef))
+                             for _y in _cc_ns)
+                if _cc_fd and any(isinstance(_d, ast.Name) and _d.id == "property"
+                                  for _d in _cc_ns[0].decorator_list) and all(
+                        any(isinstance(_d, ast.Attribute) and isinstance(_d.value, ast.Name)
+                            and _d.value.id == _cc_n
+                            and _d.attr in ("setter", "getter", "deleter")
+                            for _d in _y.decorator_list) for _y in _cc_ns[1:]):
+                    continue
+                if _cc_fd and all(
+                        any((isinstance(_d, ast.Name) and _d.id == "overload")
+                            or (isinstance(_d, ast.Attribute) and _d.attr == "overload")
+                            for _d in _y.decorator_list) for _y in _cc_ns[:-1]):
+                    continue
+                raise PyCSLSemanticError(
+                    f"`{_cc_n}` is bound {len(_cc_ns)} times in {_cc_sname} (lines "
+                    f"{', '.join(str(getattr(_y, 'lineno', 0)) for _y in _cc_ns)}) and the "
+                    f"`{type(_cc_hit[0]).__name__.replace('Async', '')}` at line "
+                    f"{_cc_hit[0].lineno} carries a `#@` claim: CPython keeps only the LAST "
+                    f"binding, so that claim would be verified against nothing and SILENTLY "
+                    f"DROPPED while the run still reported 'All contracts formally proven' "
+                    f"(route #463). Give each definition its own name, or delete the dead one.")
+        # (#49) ROUTE #463 — a STATEMENT-level claim OUTSIDE every function body. Only function
+        # bodies are lowered: a `#@ assert x == 2` (or `ghost` / `label` / `check`, or a
+        # `loop invariant` on a loop, or `critical` on a `with`) written among MODULE-level
+        # statements or in a class body — `if __name__ == "__main__":` included — attached
+        # cleanly to its statement and was then never checked (measured: `x = 1`, then
+        # `#@ assert x == 2` above `y = x + 1`, printed "All contracts formally proven").
+        # RULE: such a directive is refused unless its anchor statement lies inside a `def`.
+        # Module-scope directives (`shared` / `datatype` / `inductive` / `happy` / ...) are
+        # not statement claims and are unaffected.
+        _cc_infn: set = set()
+        for _cc_f in ast.walk(python_ast):
+            if isinstance(_cc_f, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                for _cc_s in ast.walk(_cc_f):
+                    if _cc_s is not _cc_f and isinstance(_cc_s, ast.stmt):
+                        _cc_infn.add(_cc_s.lineno)
+        for _e in self.extracted_data:
+            if _e.node_type not in ("SimpleStatement", "TrailingSimpleStatement", "While",
+                                    "For", "With") or _e.line_number in _cc_infn:
+                continue
+            for _cc_c in self.parser_module.parse_node_contracts(_e.contracts, _e.line_number):
+                if not isinstance(_cc_c, self._ANY_ANCHOR):
+                    raise PyCSLSemanticError(
+                        f"line {_e.line_number}: a `{type(_cc_c).__name__}` directive is "
+                        f"attached to a statement outside every function body (module level, "
+                        f"a class body, or `if __name__ == \"__main__\":`), which is never "
+                        f"lowered, so the claim would be SILENTLY DISCARDED while the run "
+                        f"still reported 'All contracts formally proven' (route #463). Move the "
+                        f"code and its claim into a function, or delete the claim.")
         # (#49) ROUTES #130-#133 — FOUR MORE PLACES WHERE A NAME'S RUNTIME VALUE IS NOT THE ONE
         # THE MODEL READS. Measured at 65237fdb, each PROVING a claim CPython contradicts:
         #   #130 an IMPORTED name bound twice: `from plainlib import inc` then `from starlib

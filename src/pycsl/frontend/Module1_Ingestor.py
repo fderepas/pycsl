@@ -166,7 +166,108 @@ class Module1_Ingestor:
                         "is associated with the statement that FOLLOWS it, and a "
                         "statement already in progress cannot follow it). Move it to its "
                         "own line above that statement.", stage="Module1")
-        return _Harvester(coms).run(tree)
+        # (#49) ROUTE #463 — CLAIM CONSERVATION (red team 37 F6; MEASURED PROVED at 33f7ac681,
+        # CPython violates the written contract). Every `#@` comment must land in a slot that
+        # is EMITTED; `_assign` has three slots that are not:
+        #   · a FOOTER on a statement that is not the last of a child suite. An indented
+        #     block above a less-indented statement (`    #@ ensures \result == n` above a
+        #     column-0 `def f`, one space or a tab likewise) bisects to the PREVIOUS
+        #     statement's footer — a module-level `import` — and `_emit_suite` emits a
+        #     footer only for the last statement of a suite, so `f` was lowered with NO
+        #     contract and the run printed "All contracts formally proven";
+        #   · the MODULE HEADER of a file with no def / class / loop / `with` to consume it
+        #     (its module-level `shared` / `datatype` / ... lines are still emitted);
+        #   · a column-0 comment with no statement after it (`nxt is None`) — refused by
+        #     `Module3_Weaver.process`'s end-of-file guard UNLESS an indented `#@` shares the
+        #     run, which turns that guard's column-0 test off while the column-0 line is
+        #     still dropped here.
+        # And two spellings never reached `_assign` at all: a `#@` written AFTER code on its
+        # line (`x = f()  #@ assert x > 0`; only own-line comments are harvested) and a
+        # NEAR-MISS (`# @ensures`, `#\t@requires`, `##@assert`: a directive keyword or a
+        # `\`-name after `#` + spaces/tabs + `@`, or after `##`+ `@`), each a plain comment
+        # to the tokenizer. RULE: refuse all five. A near-miss is keyed on the directive
+        # keyword so prose such as `# @dataclass` / `# @property` stays a comment, and a
+        # QUOTED directive (`#     #@ ensures ...` -- a comment that cites `#@` text, as in
+        # the mirror's own route write-ups) is not a near-miss: its `#@` is deliberate.
+        # CENSUS (tokenized, all 8004 `.py` files of `test-suite/`, `src/`, `bin/`, `tests/`):
+        # 0 trailing `#@`; 0 near-miss directives (44 `# @<decorator>` prose comments, all in
+        # the live `src/pycsl`, none a directive keyword); orphan footers / headers: see
+        # route463-claim-conservation.md (REPAIR).
+        # SPELLED INLINE in this `\trusted` method (no new helper: a new method becomes a new
+        # `val` in the emission of every mirror importing the ingestor).
+        _kw463 = ("requires", "ensures", "assigns", "loop", "assert", "check", "assume",
+                  "assumes", "ghost", "label", "class", "raises", "no_exception", "reveal",
+                  "unfold", "havoc", "lemma", "proof", "shared", "datatype", "inductive",
+                  "act", "happy", "for", "with", "uses", "interface", "footprint",
+                  "mutex_invariant", "lock_order", "critical", "acquires", "releases",
+                  "depends", "depends_method", "requires_method", "complete", "disjoint",
+                  "given", "mixin", "provides", "shared_state", "touches_field",
+                  "compose_from", "conforms_to", "allow_finalizer",
+                  "allow_iteration_mutation", "thread_entry", "verify_module",
+                  "propagate_frame", "fresh_globals", "sibling_concrete", "no_inline",
+                  "bounded_int", "invariant", "variant", "trusted", "abstract", "diverges",
+                  "preserves")
+        for _c in ast.comments(self.source_code):
+            if _c.text.startswith("#@"):
+                if not _c.own_line:
+                    raise PyCSLParseError(
+                        "line " + str(_c.lineno) + ": this `#@` directive follows code on "
+                        "the same line, where it is a plain comment and would be SILENTLY "
+                        "DISCARDED while the run still reports 'All contracts formally "
+                        "proven' (route #463). Write it on its own line: above the "
+                        "`def`/loop it describes, or, for a statement-level `assert`/`ghost`, "
+                        "on the line after the statement it follows.", stage="Module1")
+                continue
+            _m463 = re.match(r"#(?:[ \t]+|#+)@\s*(\\?)([A-Za-z_]+)", _c.text)
+            if _m463 and (_m463.group(1) or _m463.group(2).lower() in _kw463):
+                raise PyCSLParseError(
+                    "line " + str(_c.lineno) + ": `" + _c.text.strip()[:60] + "` is a "
+                    "near-miss spelling of a `#@` directive: the tokenizer reads it as a plain "
+                    "comment, so the claim would be SILENTLY DISCARDED while the run still "
+                    "reports 'All contracts formally proven' (route #463). Write `#@` with no "
+                    "space or extra `#` between `#` and `@` (e.g. `#@ ensures ...`), or reword "
+                    "the comment.", stage="Module1")
+        _h463 = _Harvester(coms)
+        _out463 = _h463.run(tree)
+        _last463 = set()
+        for _t in _h463._flat:
+            for _cs in _t.child_suites:
+                if _cs:
+                    _last463.add(id(_cs[-1]))
+        _held463 = len(_h463._module_header)
+        for _t in _h463._flat:
+            _held463 += len(_t.leading) + len(_t.footer)
+            if _t.footer and id(_t) not in _last463:
+                raise PyCSLParseError(
+                    "the `#@` block after line " + str(_t.report_line) + " (`"
+                    + _t.footer[0][:60] + "`) is indented deeper than the statement that "
+                    "follows it, so it belongs to no block: it would be SILENTLY DISCARDED "
+                    "while the run still reports 'All contracts formally proven' (route "
+                    "#463). Indent a contract block exactly like the `def`/`class`/loop it "
+                    "sits above (a `#@` block above a column-0 `def` starts in column 0).",
+                    stage="Module1")
+        if _h463._module_header and not _h463._header_consumed:
+            for _ln in _h463._module_header:
+                if not any(_ln.strip().startswith(_p) for _p in _MODULE_PREFIXES):
+                    raise PyCSLParseError(
+                        "the `#@` line `" + _ln.strip()[:60] + "` sits above the first "
+                        "statement of a file that has no `def`/`class`/loop/`with` to attach "
+                        "it to, so it would be SILENTLY DISCARDED while the run still reports "
+                        "'All contracts formally proven' (route #463). Move it directly above "
+                        "the construct it describes, or delete it.", stage="Module1")
+        if _held463 != len(coms):
+            _tail463 = [_c for _c in coms if not any(_t.start_line > _c.lineno
+                                                     for _t in _h463._flat)]
+            if any(_c.indent > 0 for _c in _tail463) or len(_tail463) != len(coms) - _held463:
+                raise PyCSLParseError(
+                    "line " + str(min([_c.lineno for _c in _tail463 if _c.indent == 0]
+                                      or [_c.lineno for _c in coms]))
+                    + ": " + str(len(coms) - _held463) + " `#@` line(s) after the last "
+                    "statement attach to nothing and would be SILENTLY DISCARDED while the "
+                    "run still reports 'All contracts formally proven' (route #463). Move "
+                    "them directly above the construct they describe, or delete them.",
+                    stage="Module1")
+        return _out463
 
 
 class _Harvester:

@@ -7,6 +7,21 @@
 ##   all closed except #463 / #464): #465 compile-time-syntax-error (20); #466 imported-module-import-raises (18); #467 imported-callee-exceptions (17); #468 imported-callee-list-length (34); #469 module-dunders-script-view (16); #470 standin-lazy-annotations (7); #471 class-in-function-creation (18); #472 import-resolved-on-verifier-path (12).
 ##   Diagnosis: the FILE BOUNDARY (imported user modules not judged like local code: F2 F3 F4 F8) and #461's evaluation
 ##   boundary (F5 F6 F7), plus compile-time SyntaxErrors (F1).
+## run #3 (2026-10-29): #463 / #464 REPAIRED (executor cc1 off a9eac4a08; inline in `Module1_Ingestor.process` /
+##   `Module3_Weaver.process` / `_run_pipeline`, all mirror twins `\trusted`, no new def in a mirrored file, no axiom).
+##   #463 CLAIM CONSERVATION: every own-line `#@` comment must land in an emitted slot -- an orphan footer (an indented
+##   block above a less-indented statement: the F6 shape), an unconsumed module header, a dropped end-of-file line are
+##   REFUSED; a `#@` after code and a near-miss spelling (`# @ensures`, `#\t@`, `##@`) are REFUSED; a module / class
+##   name bound twice whose EARLIER binding is a claimed def / class is REFUSED (property / overload chains exempt);
+##   a statement-level directive outside every function body (module level, class body, `__main__`) is REFUSED.
+##   The mirror's own dead duplicate `def _contract_referenced_var_names` (frontend/ir_resolve, live + mirror) deleted.
+##   #464 PRIVATE NAME MANGLING: `__x` inside class C is rewritten `_C__x` in the woven tree, in `_t341` and in the
+##   claims, so the field / method / class-attribute tables and #445's admission see CPython's names. Corpus 7180-7207
+##   (19 witnesses refused / FAIL, 7 controls PROVED); census +19 rows, 7 re-measured (5440 + six #374 slot witnesses);
+##   advice audits R463 x6 FOLLOWABLE; docs annotations 7.240 / 7.241, translational T.6.250 / T.6.251. Byte-diff:
+##   root 2604 -> 2613 2 MOVED (5091, 5465) / 0 GONE / 1 APPEARED (5440, expected FAIL, now FAILS on the claim),
+##   pyref 2186 1 MOVED (0133) / 0 / 0, mirror 53 0 / 0 / 0. Over-refusal cost: 0 corpus / pyref / mirror files (the
+##   one mirror hit, ir_resolve's dead duplicate def, was repaired in source). Gates: see route463 / route464 REPAIR.
 
 ## run #3 (2026-10-29): #463 / #464 OPENED (red team 37 families F5 / F6 / F8, still proving on the landed 33f7ac681 --
 ##   rt37's other 75 confirmed are refused / not proved there): #463 a written `#@` claim silently dropped (redefined def;

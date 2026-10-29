@@ -5609,6 +5609,47 @@ underivable-receiver refusal skips a receiver `super(...)` (an unshadowed `super
 def's OWN claim covers no AttributeError (\all / AttributeError / Exception / BaseException).
 Emission changes only in reached bodies (their trigger asserts).
 
+### §T.6.250  Claim conservation (route #463, run #3)
+
+_Corresponds to `annotations.md` §7.240._
+
+No lowering change; three refusal points. (1) `Module1_Ingestor.process`, over the token stream $K$ of
+comments: a `#@` comment with code before it on its line refuses; a comment matching
+`#(?:[ \t]+|#+)@\s*(\\?)([A-Za-z_]+)` whose group 1 is `\` or whose group 2 (lower-cased) is a directive
+keyword refuses. After `_Harvester.run`, with $F$ the harvested targets and $L = \{\,\text{last}(S) \mid
+S \text{ a non-empty child suite of some } t \in F\,\}$: a target with a non-empty footer not in $L$
+refuses (`_emit_suite` emits footers only for $L$); a module header not consumed by a header consumer
+with a line that is not a module-scope prefix refuses; and if $\sum_t |\text{leading}_t| + |\text{footer}_t|
++ |\text{header}|$ differs from the number of own-line `#@` comments while an indented `#@` comment lies
+after the last target start, refuses (the all-column-0 tail is left to the end-of-file rule). (2)
+`Module3_Weaver.process`, after the binding rules of routes #118 / #377: for the module body and every
+class body, the binding sites of each name (def / class nodes, `Name` Store / Del, import aliases; nested
+def / class / lambda bodies excluded) sorted by position: a non-last site that is a def / class whose
+line carries a `FunctionDef` / `ClassDef` extraction refuses, unless the sites are a property accessor
+chain or every non-last site is an `@overload` def. (3) Same method: an extraction of kind
+`SimpleStatement` / `TrailingSimpleStatement` / `While` / `For` / `With` whose `line_number` is not the
+line of a statement nested in some `FunctionDef` / `AsyncFunctionDef` refuses if any of its parsed
+directives is not a module-scope directive (`_ANY_ANCHOR`). The dead first `def
+_contract_referenced_var_names` of `frontend/ir_resolve.py` (live and mirror; CPython binds the second)
+was deleted.
+
+### §T.6.251  Private-name mangling (route #464, run #3)
+
+_Corresponds to `annotations.md` §7.241._
+
+$\mu_C(x) = \texttt{\_}\,\mathrm{lstrip}(C,\texttt{\_})\,x$ if $C \neq \bot$, $\mathrm{lstrip}(C,\texttt{\_})
+\neq \epsilon$, $x$ starts with `__`, does not end with `__` and has no `.`; else $x$. A walk with an
+enclosing-class state ($\bot$ at module level) rewrites, in `Module3_Weaver.process` right after
+`ast.parse` (before contracts are parsed, so both the main pipeline and `ir_resolve`'s dependency
+pipeline see it) and on `_run_pipeline`'s `_t341` (read by routes #347 / #383 / #444 / #445): `Name.id`,
+`Attribute.attr`, `arg.arg`, `keyword.arg`, def / class `name`, `ExceptHandler.name`, `MatchAs` /
+`MatchStar` `name`, `MatchMapping.rest`, `Global` / `Nonlocal` `names`, `MatchClass.kwd_attrs` by
+$\mu_C$. A `ClassDef` named $K$: its name, bases, keywords and decorators under the enclosing state,
+its body under $K$ (unmangled). Every extraction's contract strings are rewritten by
+`\b__(\w+)` $\mapsto \mu_C$ with $C$ the class enclosing the statement at its `line_number` (for a
+`ClassDef` extraction, that class). The tables then key on CPython's names: a read of `_D__x` on an
+instance of `D` whose record has `_C__x` is not a field (FAIL, or refused under `no_exception` by #445).
+
 ### §T.6.240  Module import under a claim; `__init__` return value (routes #461 / #462, run #3)
 
 _Corresponds to `annotations.md` §7.230._

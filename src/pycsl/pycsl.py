@@ -3006,6 +3006,55 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _t341 = _ast341.parse(source_code)
     except (SyntaxError, ValueError):
         _t341 = None
+    # (#49) ROUTE #464 — the tree every `_t341` check reads (route #445's attribute admission,
+    # #347's definite-assignment sets, #383's class-body bindings ...) carries CPython's
+    # PRIVATE-NAME MANGLING, exactly as `Module3_Weaver.process` applies it to the woven tree
+    # (see there): `__x` lexically inside class C is `_C__x`. Measured before: `self.__x` read
+    # in subclass D was admitted by #445 as C's constructor field and `C.__K` outside the class
+    # as C's class attribute, both under `#@ no_exception \all`; CPython AttributeError.
+    # Checks that mangle by themselves (#374, GD #388 / #396, #370) see a mangled attribute as
+    # an ordinary name, which is what CPython stores.
+    _mg_stack = [(_mg_c, None) for _mg_c in _ast341.iter_child_nodes(_t341)] if _t341 else []
+    while _mg_stack:
+        _mg_n, _mg_cls = _mg_stack.pop()
+        _mg_t = type(_mg_n).__name__
+        _mg_pfx = ("_" + _mg_cls.lstrip("_")) if _mg_cls and _mg_cls.lstrip("_") else None
+        _mg_own = _mg_n.name if _mg_t == "ClassDef" else None
+        if _mg_pfx and _mg_t in ("Name", "Attribute", "arg", "keyword", "FunctionDef",
+                                 "AsyncFunctionDef", "ClassDef", "ExceptHandler", "MatchAs",
+                                 "MatchStar", "MatchMapping"):
+            _mg_v = (_mg_n.id if _mg_t == "Name" else _mg_n.attr if _mg_t == "Attribute"
+                     else _mg_n.arg if _mg_t in ("arg", "keyword")
+                     else _mg_n.rest if _mg_t == "MatchMapping" else _mg_n.name)
+            if (isinstance(_mg_v, str) and _mg_v.startswith("__") and not _mg_v.endswith("__")
+                    and "." not in _mg_v):
+                if _mg_t == "Name":
+                    _mg_n.id = _mg_pfx + _mg_v
+                elif _mg_t == "Attribute":
+                    _mg_n.attr = _mg_pfx + _mg_v
+                elif _mg_t in ("arg", "keyword"):
+                    _mg_n.arg = _mg_pfx + _mg_v
+                elif _mg_t == "MatchMapping":
+                    _mg_n.rest = _mg_pfx + _mg_v
+                else:
+                    _mg_n.name = _mg_pfx + _mg_v
+        if _mg_pfx and _mg_t in ("Global", "Nonlocal", "MatchClass"):
+            _mg_ls = []
+            for _mg_v in (_mg_n.kwd_attrs if _mg_t == "MatchClass" else _mg_n.names) or []:
+                if _mg_v.startswith("__") and not _mg_v.endswith("__") and "." not in _mg_v:
+                    _mg_v = _mg_pfx + _mg_v
+                _mg_ls.append(_mg_v)
+            if _mg_t == "MatchClass":
+                _mg_n.kwd_attrs = _mg_ls
+            else:
+                _mg_n.names = _mg_ls
+        if _mg_t == "ClassDef":
+            for _mg_c in list(_mg_n.bases) + list(_mg_n.keywords) + list(_mg_n.decorator_list):
+                _mg_stack.append((_mg_c, _mg_cls))
+            for _mg_c in _mg_n.body:
+                _mg_stack.append((_mg_c, _mg_own))
+            continue
+        _mg_stack.extend((_mg_c, _mg_cls) for _mg_c in _ast341.iter_child_nodes(_mg_n))
     # (#406) set by the call census below (`_dy406`), read by GD (`class_binds_r376`)
     _dy406 = False
     if _t341 is not None:
