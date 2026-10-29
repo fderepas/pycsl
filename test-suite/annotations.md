@@ -3905,6 +3905,23 @@ mangled. A `#@` claim is mangled by the class its anchor sits in (a class invari
 a subclass `D` of `C` is `self._D__x` (not `C`'s field; under `no_exception` route #445 refuses the read,
 and a claim over its value FAILS), `C.__K` outside any class reads `__K` (not `C`'s `_C__K`), and
 `self._C__x` in `D` reads `C`'s field. Witnesses `7200`-`7204`; controls `7205`-`7207`.
+### 7.300 An empty list is EMPTY across a call boundary (route #473, run #3)
+
+`c = []` (also `c: List[int] = []`, `c = list([])`) used to lower to the fixed-size placeholder
+`let c = (Array.make 1024 0) in`, and a later `g(c)` handed the callee an array of length 1024:
+`g`'s `requires len(c) >= 1` was discharged against 1024 and the call PROVED while CPython raises
+IndexError; a callee's `ensures \result == len(c)` gave the caller `1024`, and `list([])`'s own
+`len(c)` read 1024. Routes #195 / #196 had corrected only the direct argument `g([])`.
+RULE: an empty list literal is the genuinely EMPTY array `(Array.make 0 0)` wherever the IR can
+attribute the placeholder to it -- every placeholder of a function that builds no real
+1024-element list (`[v] * 1024`, `bytearray(1024)`, a constructor whose record default is 1024
+elements), and, in a function that does, every `let` / `ref` / `:=` binding of a local whose every
+assignment is `[]` (and the remaining placeholders too when each real-list producer is the whole
+value of a local the emission names). A real 1024-element list keeps 1024; an append target's
+capacity (`X_len` sidecar) is untouched. No new refusal: the positions an unattributable
+placeholder can still occupy (a direct field store beside a 1024-default constructor) were measured
+fail-closed. Length obligations only get harder; CPython's own `\result == 0` now proves.
+Witnesses `7380`-`7389`, `7396` (PROVED at base, FAIL now); controls `7391`-`7395`.
 
 ### 7.230 A claimed module must IMPORT without raising; `__init__` returns None (routes #461 / #462, run #3)
 

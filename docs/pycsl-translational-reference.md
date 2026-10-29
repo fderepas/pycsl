@@ -5649,6 +5649,27 @@ its body under $K$ (unmangled). Every extraction's contract strings are rewritte
 `\b__(\w+)` $\mapsto \mu_C$ with $C$ the class enclosing the statement at its `line_number` (for a
 `ClassDef` extraction, that class). The tables then key on CPython's names: a read of `_D__x` on an
 instance of `D` whose record has `_C__x` is not a field (FAIL, or refused under `no_exception` by #445).
+### §T.6.310  The empty-list placeholder at a function boundary (route #473, run #3)
+
+_Corresponds to `annotations.md` §7.300._
+
+Module 6 lowers an `ArrayLit` with no elements to the text `(Array.make 1024 0)` -- the same text
+`[0] * 1024`, `bytearray(1024)` and a 1024-element record field default produce. In
+`_run_pipeline`, after route #159's `in_bounds` correction and gen #31's `(Array.length result)`
+correction, and before route #269: for each IR function $f$ whose body contains an empty
+`ArrayLit`, let $Q_f$ be the locals all of whose `Assign` / `AnnAssign` values are empty
+`ArrayLit`s and that carry no length-changing method call (`append`, `extend`, `insert`,
+`remove`, `pop`, `clear`) or `AugAssign`; $R_f$ the locals none of whose assigned values contains
+an empty `ArrayLit`; and $P_f$ the real-list producers (a `BinOp *` over an `ArrayLit`, a call of
+`bytearray` / `bytes`, a constructor of a class whose declaration carries `1024` or of an unknown
+capitalised name). $f$ is ambiguous iff some producer is not the whole value of an assignment to
+a local of $R_f$ (constructors never are), or the body names a number of placeholders by locals of
+$R_f$ other than $|P_f|$. In the WhyML block of $f$ (matched by its exact WhyML name, cut at
+`let` / `val` / `with`), an unquoted placeholder bound by `let X = [ref]` or `X :=` is kept when
+$X$ has an `X_len` sidecar, has a length-changing surface or is in $R_f$; it becomes
+`(Array.make 0 0)` when $X \in Q_f$, and so does every other placeholder when $f$ is not
+ambiguous. Nothing else changes. Since 0 is the length of `[]` and the least length, every
+`Array.length`-shaped goal over a rewritten value is the faithful one and at least as hard as before.
 
 ### §T.6.240  Module import under a claim; `__init__` return value (routes #461 / #462, run #3)
 

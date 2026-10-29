@@ -18286,6 +18286,172 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _hdr_EL = _hdr_EL.replace("(Array.length result)", "(0)")
             _out_EL.append(_hdr_EL + _body_EL)
         _mlw = "".join(_out_EL)
+    # (#49) ROUTE #473 — THE EMPTY-LIST PLACEHOLDER ESCAPES ITS FUNCTION. `c = []` (or
+    # `c: List[int] = []`, or `c = list([])`) lowers to `let c = (Array.make 1024 0) in`, and
+    # a later `g(c)` hands the CALLEE an array of length 1024: `g`'s `requires len(c) >= 1`
+    # was discharged against 1024 and the call PROVED while CPython raises IndexError
+    # (witnesses-r473, driver-reproduced at a9eac4a08). Routes #195/#196 corrected only the
+    # DIRECT argument `g([])`; #159 and gen #31 corrected one obligation each (`in_bounds`,
+    # a final `return xs`). The same bound array also reached a FIELD STORE (`o.xs = c`,
+    # and the direct `o.xs = []`), a RETURN inside a tuple or on one branch (`return (c,
+    # 1)`, `snapshot c`), an alias (`d = c; g(d)`), a stubbed method call's R167 assertion,
+    # and the function's own `len(c)` whenever the size fold did not run (`list([])`).
+    # CENSUS (base emission of 33f7ac681): 27 paren placeholders in 21 corpus files, 0 in
+    # pyref, 0 in mirror function bodies (the two mirror hits are string LITERALS), so the
+    # emitter has ONE producer of the paren spelling for an empty list (the `ArrayLit` with
+    # no elements) and THREE producers of the same text for a REAL 1024-element list
+    # (`[0] * 1024`, `bytearray(1024)` / `bytes(1024)`, a record field default).
+    # REPAIR (faithful, not a refusal): the empty list's value is the genuinely EMPTY
+    # array `(Array.make 0 0)` (#196's own value) wherever it is the empty literal. The IR
+    # decides which occurrences those are, the text only locates them:
+    #   (a) a function whose IR body holds an empty list literal and NO producer of a real
+    #       1024-element list: every unquoted placeholder in its body is the empty list.
+    #   (b) a function that holds both: `let X = (Array.make 1024 0) in` (or `let X = ref
+    #       ..` / `X := ..`) for a local X every IR binding of which is the empty literal
+    #       becomes `(Array.make 0 0)`. When EVERY real-list producer is the whole value of
+    #       an assignment to a local all of whose bindings are real lists (`d = [0] * 1024`)
+    #       and the text names exactly that many placeholders by such locals (the
+    #       consistency check), the remaining placeholders are the empty literal too.
+    #       Otherwise (a constructor whose record default is 1024 elements, a producer in
+    #       a direct position) the unnamed placeholders are LEFT AS THEY WERE: every such
+    #       direct position was measured fail-closed at base (a field store: L3-tc
+    #       `iter_length` over the array; a direct call argument: #196; a final return:
+    #       gen #31; a return on a branch / a tuple / a conditional: `Seq.empty` / `any`).
+    # A `let X = (Array.make 1024 0) in` with an `X_len` sidecar is a CAPACITY (gen #31's
+    # literal-rebind counter), not a value, and is left alone: such a local cannot escape
+    # (rebinding a list local that is used as a value is refused upstream, measured).
+    # A local with a LENGTH-CHANGING surface in the IR (`.append` / `.extend` / `.insert` /
+    # `.remove` / `.pop` / `.clear` on it, an augmented assignment to it) is left alone.
+    # MEASURED: every one of those methods but `.append` is already refused upstream on a
+    # list local, and an appended / augmented local is the resizable `ref seq` model, never
+    # this let, so the arm is a backstop. An element or slice STORE keeps the binding's
+    # length: on the zero-length array its bounds obligation fails, as CPython raises (#159).
+    # The length 0 is the smallest one, so every length-shaped obligation can only get
+    # harder; the true `\result == 0` / `len(c) == 0` start to prove (7391, 7395).
+    # INLINE (check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+    import re as _re473
+    import json as _js473
+    _PLH473 = "(Array.make 1024 0)"
+    if _PLH473 in _mlw:
+        try:
+            _ir473 = _js473.loads(json_ir)
+        except Exception:
+            _ir473 = {}
+        # a class of this unit is a 1024-producer only if its declaration carries the
+        # number (a list field default of 1024 elements); any other capitalised callee
+        # (an imported class) is assumed to be one.
+        _cls473 = {str(_td.get("name")): ("1024" in repr(_td))
+                   for _td in (_ir473.get("type_decls") or [])
+                   if isinstance(_td, dict) and _td.get("name")}
+
+        _dec473 = {}
+        _asg473_mixed = {}
+        for _f473 in (_ir473.get("functions") or []):
+            if not isinstance(_f473, dict) or not isinstance(_f473.get("name"), str):
+                continue
+            # every IR node of the body (an explicit stack: no nested def in a mirrored file)
+            _nodes473 = []
+            _stk473 = [_f473.get("body") or []]
+            while _stk473:
+                _n473 = _stk473.pop()
+                if isinstance(_n473, dict):
+                    _nodes473.append(_n473)
+                    _stk473.extend(_n473.values())
+                elif isinstance(_n473, list):
+                    _stk473.extend(_n473)
+            _isempty473 = [isinstance(_d, dict) and _d.get("type") == "ArrayLit"
+                           and not (_d.get("elts") or []) for _d in _nodes473]
+            _nempty473 = sum(_isempty473)
+            if not _nempty473:
+                continue
+            _gen473 = []
+            _asg473 = {}
+            _mut473 = set()
+            for _d in _nodes473:
+                if (_d.get("type") == "BinOp" and _d.get("op") == "*"
+                        and any(isinstance(_d.get(_s), dict)
+                                and _d[_s].get("type") == "ArrayLit"
+                                for _s in ("left", "right"))):
+                    _gen473.append(id(_d))
+                if isinstance(_d.get("func"), str):
+                    _fn473 = _d["func"].split(".")[-1]
+                    if _fn473 in ("bytearray", "bytes"):
+                        _gen473.append(id(_d))
+                    elif _cls473.get(_fn473) or (_fn473[:1].isupper()
+                                                 and _fn473 not in _cls473):
+                        # a constructor's 1024-element field default sits INSIDE a record
+                        # literal, where no local names it: never attributable
+                        _gen473.append(None)
+                    # a LENGTH-CHANGING method on a local (the others keep the length)
+                    if _d["func"].count(".") == 1 and _d["func"].split(".")[1] in (
+                            "append", "extend", "insert", "remove", "pop", "clear"):
+                        _mut473.add(_d["func"].split(".")[0])
+                if _d.get("stmt") in ("Assign", "AnnAssign") and isinstance(_d.get("target"), str):
+                    _asg473.setdefault(_d["target"], []).append(_d.get("value"))
+                elif _d.get("stmt") == "AugAssign" and isinstance(_d.get("target"), str):
+                    _mut473.add(_d["target"])
+            _qual473 = set()
+            _real473 = set()
+            for _x473, _vs473 in _asg473.items():
+                if _x473 in _mut473 or not _vs473:
+                    continue
+                if all(isinstance(_v, dict) and _v.get("type") == "ArrayLit"
+                       and not (_v.get("elts") or []) for _v in _vs473):
+                    _qual473.add(_x473)
+                elif ("'type': 'ArrayLit', 'elts': []" not in repr(_vs473)):
+                    _real473.add(_x473)
+            # every REAL-list producer is the whole value of an assignment to a local whose
+            # bindings are all real lists: then each such placeholder is a `let` the text can
+            # name, and every OTHER placeholder of the body is the empty literal.
+            _genlet473 = {id(_v) for _x in _real473 for _v in _asg473[_x]}
+            _amb473 = bool(_gen473) and not all(_g in _genlet473 for _g in _gen473)
+            _dec473[_re473.sub(r"[^A-Za-z0-9_']", "_", _f473["name"])] = (
+                _amb473, _qual473, _mut473, _real473, len(_gen473))
+        if _dec473:
+            _cuts473 = [_m.start() for _m in
+                        _re473.finditer(r"\n  (?:let|val|with)\b", _mlw)] + [len(_mlw)]
+            _out473 = [_mlw[:_cuts473[0]]]
+            for _k473 in range(len(_cuts473) - 1):
+                _blk = _mlw[_cuts473[_k473]:_cuts473[_k473 + 1]]
+                _bn = _re473.match(r"\n  (?:let|with)\s+(?:(?:function|rec|ghost)\s+)*"
+                                   r"([A-Za-z_][A-Za-z0-9_']*)", _blk)
+                _eq = _re473.search(r"\n  =\n", _blk)
+                if not _bn or not _eq or _bn.group(1) not in _dec473:
+                    _out473.append(_blk)
+                    continue
+                _amb, _qual, _mut, _real, _ngen = _dec473[_bn.group(1)]
+                _hdr, _body = _blk[:_eq.end()], _blk[_eq.end():]
+                _cap = {_x for _x in _re473.findall(
+                    r"let ([A-Za-z_][A-Za-z0-9_']*) = \(Array\.make 1024 0\) in", _body)
+                    if _re473.search(r"\b" + _re473.escape(_x) + r"_len\b", _blk)}
+                _hits = []
+                for _m in _re473.finditer(r'(?<!")\(Array\.make 1024 0\)(?!")', _body):
+                    _lm = _re473.search(r"(?:let ([A-Za-z_][A-Za-z0-9_']*) = (?:ref )?"
+                                        r"|([A-Za-z_][A-Za-z0-9_']*) := )$",
+                                        _body[max(0, _m.start() - 160):_m.start()])
+                    _hits.append((_m, (_lm.group(1) or _lm.group(2)) if _lm else None))
+                # THE CONSISTENCY CHECK: each real-list producer the IR found must be exactly
+                # one placeholder the text names by a REAL local; otherwise the body is
+                # ambiguous and only the IR-named empty locals are rewritten.
+                if _ngen and sum(1 for _h in _hits if _h[1] in _real) != _ngen:
+                    _amb = True
+                _parts = []
+                _pos = 0
+                for _m, _x in _hits:
+                    _new = _m.group(0)
+                    if _x is not None and (_x in _cap or _x in _mut or _x in _real):
+                        pass
+                    elif _x is not None and _x in _qual:
+                        _new = "(Array.make 0 0)"
+                    elif not _amb:
+                        _new = "(Array.make 0 0)"
+                    _parts.append(_body[_pos:_m.start()])
+                    _parts.append(_new)
+                    _pos = _m.end()
+                _parts.append(_body[_pos:])
+                _nbody = "".join(_parts)
+                _out473.append(_hdr + _nbody)
+            _mlw = "".join(_out473)
     # (#49) ROUTE #269 — THE DIVERGENCE A STUB FORGOT (R1/R2 + R3), decided on the EMISSION.
     # Route #263 made `_handle_dotted_call`'s stub of a `#@ \diverges` method carry
     # `diverges`, but that is ONE of many stub producers: `C().spin(k)` reaches the generic

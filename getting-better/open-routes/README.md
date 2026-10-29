@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-29): #473 REPAIRED (executor e473 off 1f3aa3081; inline in `_run_pipeline`, mirror twin `\trusted`, no
+##   new def in a mirrored file, no axiom, NO refusal): an empty list literal is the genuinely EMPTY `(Array.make 0 0)`
+##   wherever the IR attributes the `(Array.make 1024 0)` text to it (a function with no real-1024-list producer: every
+##   placeholder; otherwise each let / ref of a local only ever assigned `[]`, plus the rest when every producer is a
+##   named real-list local). Census `systematic-soundness-r3/e473/placeholder-census.tsv` (54 probes, 11 PROVED at base:
+##   call argument / alias / method / keyword / branch / bound result / mixed function / callee length / `list([])`);
+##   corpus 7380-7389, 7396 (PROVED at base, FAIL now), controls 7391-7395; root 10 MOVED (exactly `1024` -> `0` in the
+##   placeholder-route witnesses 1015 1016 1536 1538 1541 1588 1590 1595 1869 1870), pyref 0, mirror 0 (no OWED proof).
+
 ## run #3 (2026-10-29): #473 OPENED (found by executor lv5, driver-reproduced on a9eac4a08): a LOCAL empty list passed to a
 ##   callee is the 1024-element placeholder `Array.make 1024 0`, discharging the callee's `len(c) >= 1` (2 witnesses).
 ## run #3 (2026-10-29): #466 / #467 / #468 / #472 REPAIRED (executor x1 off daf5c3d1f; the FILE BOUNDARY of red team 38;
