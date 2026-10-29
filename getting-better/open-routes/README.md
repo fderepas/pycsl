@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-29): #463 / #464 OPENED (red team 37 families F5 / F6 / F8, still proving on the landed 33f7ac681 --
+##   rt37's other 75 confirmed are refused / not proved there): #463 a written `#@` claim silently dropped (redefined def;
+##   indented claim block) -- 'All contracts formally proven' for a file whose only claim is false (6); #464 private name
+##   mangling ignored (2).
+
 ## run #3 (2026-10-29): #461 / #462 REPAIRED (executor m1 off b1611d192; inline at the end of `_run_pipeline`, mirror twin
 ##   `\trusted`, no new def in a mirrored file, no axiom, no emission change). #461: under any `no_exception` claim, the
 ##   module top level and every class body are RUN on a synthesized equivalent -- real values, only side-effect-free
