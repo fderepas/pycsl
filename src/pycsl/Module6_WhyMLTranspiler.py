@@ -611,11 +611,95 @@ class Module6_WhyMLTranspiler(
             _pp316 = list(_f316.get("formal_params", []) or [])
             _ann316 = _f316.get("param_annotations", {}) or {}
             _st316 = _f316.get("symbol_table", {}) or {}
+            # (cv6 D3) A TOP-LEVEL REBINDING STARTS A NEW VARIABLE. The alias analysis
+            # below is flow-INSENSITIVE per name, so `q = param` followed by an
+            # unconditional `q = [..fresh..]` and `q.sort()` was charged to `param`
+            # (PYCSL-METHOD-FRAME on `_Unparser._str_literal_helper`). A plain assignment
+            # that is a statement of the function's OWN body list (not nested in any block)
+            # runs on every path that reaches a later top-level statement, and nothing
+            # after it flows back before it, so every read/write of the name in a LATER
+            # top-level statement sees THIS binding or a later one: the analysis is run on
+            # a COPY of the body in which each such assignment of a non-parameter local
+            # renames the name to a fresh version (`q@1`, `q@2`, ...) from its target on —
+            # SSA at statement granularity; the right-hand side still reads the previous
+            # version. Each version's taint is then computed by the unchanged fixpoint (a
+            # version bound to an alias of a parameter is tainted, a conditional rebinding
+            # inside a block stays part of the enclosing version). Renamed are exactly the
+            # positions the analysis reads names from (`Var.name`, a statement/walrus
+            # `target`, `targets`/`tuple_targets`, `object`, the dotted head of `func`). NOT
+            # split: a parameter, `self`, a module-level name, and any name read inside a
+            # `Lambda` / generator expression (evaluated LATE, it may see a later version).
+            _bd316: Any = _f316.get("body", []) or []
+            if isinstance(_bd316, list) and len(_bd316) > 1:
+                _late316: Set[str] = set()
+                _wk316 = [_bd316]
+                _lz316 = False
+                while _wk316:
+                    _x316 = _wk316.pop()
+                    if isinstance(_x316, list):
+                        _wk316.extend(_x316)
+                    elif isinstance(_x316, dict):
+                        if _x316.get("type") in ("Lambda", "GenExp", "GeneratorExp"):
+                            _wl316: List[Any] = [_x316]
+                            while _wl316:
+                                _z316 = _wl316.pop()
+                                if isinstance(_z316, str):
+                                    _late316.add(_z316.split(".")[0])
+                                elif isinstance(_z316, dict):
+                                    _wl316.extend(_z316.values())
+                                elif isinstance(_z316, list):
+                                    _wl316.extend(_z316)
+                        _wk316.extend(v for v in _x316.values() if isinstance(v, (dict, list)))
+                _ver316: Dict[str, str] = {}
+                _cnt316: Dict[str, int] = {}
+                _nb316: List[Any] = []
+                for _s316 in _bd316:
+                    _tg316 = (_s316.get("target") if isinstance(_s316, dict)
+                              and _s316.get("stmt") in ("Assign", "GhostAssign") else None)
+                    _sp316 = (isinstance(_tg316, str) and _tg316 not in _pp316
+                              and _tg316 != "self" and _tg316 not in _glob316
+                              and _tg316 not in _late316 and "." not in _tg316)
+                    if not _ver316 and not _sp316:
+                        _nb316.append(_s316)
+                        continue
+                    import copy as _cp316
+                    _c316 = _cp316.deepcopy(_s316)
+                    _wk316 = [_c316]
+                    while _wk316:
+                        _x316 = _wk316.pop()
+                        if isinstance(_x316, list):
+                            _wk316.extend(_x316)
+                            continue
+                        if not isinstance(_x316, dict):
+                            continue
+                        for _k316 in ("name", "target", "object", "func"):
+                            _v316 = _x316.get(_k316)
+                            if not isinstance(_v316, str) or (
+                                    _k316 == "name" and _x316.get("type") != "Var"):
+                                continue
+                            _h316 = _v316.split(".")[0]
+                            if _h316 in _ver316:
+                                _x316[_k316] = _ver316[_h316] + _v316[len(_h316):]
+                        for _k316 in ("targets", "tuple_targets"):
+                            if isinstance(_x316.get(_k316), list):
+                                _x316[_k316] = [_ver316.get(_t316, _t316)
+                                                if isinstance(_t316, str) else _t316
+                                                for _t316 in _x316[_k316]]
+                        _wk316.extend(v for v in _x316.values() if isinstance(v, (dict, list)))
+                    if _sp316:
+                        _cnt316[_tg316] = _cnt316.get(_tg316, 0) + 1
+                        _ver316[_tg316] = _tg316 + "@" + str(_cnt316[_tg316])
+                        _c316["target"] = _ver316[_tg316]
+                        if _tg316 in _st316:
+                            _st316 = dict(_st316)
+                            _st316[_ver316[_tg316]] = _st316[_tg316]
+                    _nb316.append(_c316)
+                _bd316 = _nb316
             # one generic walk: every statement dict (has "stmt") and expression dict
             # (has "type") anywhere in the body, nested bodies/handlers/lambdas included.
             _stm316: List[Dict[str, Any]] = []
             _exp316: List[Dict[str, Any]] = []
-            _wk316: List[Any] = [_f316.get("body", []) or []]
+            _wk316: List[Any] = [_bd316]
             while _wk316:
                 _x316 = _wk316.pop()
                 if isinstance(_x316, dict):
