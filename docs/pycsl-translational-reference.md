@@ -5602,8 +5602,12 @@ census, #451 and #459 count $R(d)$. #161 rows: `super()` (no arguments, receiver
 plain method with a positional first parameter (`meth_r460`, from the source); `super().m()`,
 $m \in$ \{`__str__`, `__repr__`\}, no arguments, in the same-named method of a file class
 whose bases are all `object` / `BaseException` / a modelled builtin exception (not a file class).
-A Module 6 refusal while `reach_r460` is non-empty gains a `NOTE (route #460)` sentence. Emission
-changes only in reached bodies (their trigger asserts).
+A Module 6 refusal while `reach_r460` is non-empty gains a `NOTE (route #460)` sentence. In the
+front end, #432's claim set `_cx432` (read by #432 / #437 / #440 / #443 / #447 / #452) is joined
+with `_rc444`[$d$] unless $d$ is named `__init__` / `__post_init__` / `__new__`; #443's
+underivable-receiver refusal skips a receiver `super(...)` (an unshadowed `super`) when the
+def's OWN claim covers no AttributeError (\all / AttributeError / Exception / BaseException).
+Emission changes only in reached bodies (their trigger asserts).
 
 ### §T.6.200  Call binding, `super()` resolution, builtin cross-constraints, decorator sites (routes #448 / #449 / #450 / #455, run #3)
 

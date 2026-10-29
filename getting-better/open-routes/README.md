@@ -13,7 +13,9 @@
 ##   census, #451, #459 count it; the SPEC (raises, #304 / #171 wrappers, call-site claims, #178's `_decl178`) keeps the
 ##   declared claim. Two #161 rows (`super()` in a plain method; `super().__str__/__repr__()` of a builtin-exception
 ##   subclass). Cost: corpus 0 GONE, 2 MOVED (0382 / 0383: a reached `256 // n` owes `no_div_zero`, M1 PROVED base and
-##   candidate), pyref 0, mirror 0. Residual: the front-end #432-family rows stay own-claim (r1's measured 10-file cost).
+##   candidate), pyref 0, mirror 0. Increment 2: the front-end #432-family claim `_cx432` reaches too (constructors keep
+##   their own; a `super()` receiver under a reached-only claim is #450's): whole reach measured 12 corpus files refused,
+##   0 after the rows; witnesses 7057 (rt37 k002 property getter) / 7059, controls 7058 / 7060.
 ## run #3 (2026-10-29): #460 OPENED (measured by executor r1, driver-reproduced on 8fe7204c3 and on the post-#444-#459
 ##   candidate): a caller's `no_exception` claim does not reach an UN-claimed callee's Module 6 obligations / #161
 ##   admission (`math.factorial(n)` in an un-claimed g called by a claimed f PROVES; CPython ValueError). Partial reach

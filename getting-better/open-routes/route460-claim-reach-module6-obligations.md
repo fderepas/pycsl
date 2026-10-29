@@ -75,12 +75,30 @@ dropped), a460_repair_there (#161's "give the callee a contract" applied in the 
 for the verdicts. The NOTE is appended to an existing refusal (not a new `raise PyCSL*Error` site), so the advice-audit
 plane does not key it; the audit is recorded here.
 
-RESIDUALS. R1: the front-end #432 / #437 / #440 / #443 / #447 / #452 rows read the own claim (r1's measured cost of the
-whole-claim reach: 10 accepted corpus files, `super()` receivers in reached constructors and `list.pop`); only #441's
-builtin-function rows reach (`_xf440`). R2: #347 (partially-built objects), #357, #395 / #402 (run before the
+INCREMENT 2 (the #432 family). `_cx432` (read by #432 / #437 / #440 / #443 / #447 / #452) is joined with `_rc444`
+for every def except a constructor (`__init__` / `__post_init__` / `__new__`). MEASURED FIRST, the whole reach (r1's
+`_cx432 |= _rc444`) on the 1200 claimed corpus files: 12 accepted files refused -- 4690 4880 4882 4885 4886 5091 5680
+6871 (#443: `super()` / `super(B, self)` receiver of `.__init__` underivable), 5270 (PASS) and FAIL witnesses 5240 /
+5259 (#440 `self.disk.pop()`), all inside a CONSTRUCTOR reached only as a file-class dunder (no claimed caller of
+those files constructs the class), and 6982 (`super().h` in a reached override); mirror 0 MOVED / 0 GONE. ROWS: a
+constructor keeps its own claim for this family; #443's underivable-receiver refusal skips a `super(...)` receiver
+when the def's OWN claim covers no AttributeError (the attribute is #450's to judge). Re-screened: 0 GONE, 0 APPEARED.
+Witness 7059 (`b.find(n)`, int `n`, in an un-claimed callee: PROVED at base, CPython ValueError; REFUSED by #452 now),
+control 7060 (`b.find(98)`: PROVED both). Red team 37's carrier `rt37/e3/k002_property_getter_raises.py` (an
+un-claimed `@property` reading `self.d['k']`) is witness 7057: PROVED at base, FAILS now (reached through the
+attribute-load edge; it fails by a Why3 type error `unbound ... str_hash_op`, which the SAME getter claiming `\all`
+itself also hits at base -- a pre-existing emission defect of claimed property getters, fail-closed, residual R5);
+control 7058 (a safe un-claimed getter: PROVED both).
+
+RESIDUALS. R1: a constructor's #432-family rows read its own claim (a claimed caller's `C(..)` runs it: those
+rows are not reached; the Module 6 body checks ARE). R2: #347 (partially-built objects), #357, #395 / #402 (run before the
 closure exists), #439 (imported modules: another file's call graph). R3: the reach is route #444's over-approximation
 (method tails on any receiver, every file-class dunder), so a def may be judged under a claim no caller actually
 reaches it with (over-refusal, measured 1 corpus file before the rows above, 0 after). R4: a reached def's IMPLICIT
 obligations are judged under its own `requires` only; a caller that guards an implicit raise in an un-claimed callee
 (`if n > 0: g(n)` with `g` asserting `n > 0` and no `requires`) now FAILS where CPython is fine -- the repair is the
-callee's own `requires`, which the NOTE names.
+callee's own `requires`, which the NOTE names. R5: a claimed (own or reached) `@property` getter with a dict read
+emits `str_hash_op` without its declaration (Why3 type error, fail-closed).
+R6: a FRONT-END refusal (#432 family, as r1's `_xf440` rows already did) raised in a reached def says "this function
+claims `#@ no_exception`" without the NOTE (it is the calling function's claim; "drop the claim" means the caller's --
+followed for 7059: f without its claim VERIFIES only in the sense of being unclaimed, i.e. base behaviour).

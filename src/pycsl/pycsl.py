@@ -9298,6 +9298,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _cx432 |= {_w.strip(",;()[]") for _w in
                                _lt432[len("#@ no_exception"):].replace(",", " ").split()}
                 _li432 -= 1
+            # (#49) ROUTE #460 -- the #432 / #437 / #440 / #443 / #447 / #452 rows judge a def
+            # under its REACHED claim too (`_rc444`). ROWS (measured: the whole reach refused
+            # 12 accepted corpus files): a CONSTRUCTOR (`__init__` / `__post_init__` /
+            # `__new__`) keeps its own claim here (every file-class dunder is reached, so a
+            # constructor no claimed caller runs would be judged: 4690 4880 4882 4885 4886
+            # 5091 5270 5680 6871 and witnesses 5240 5259); and a `super()` receiver in a def
+            # whose AttributeError claim is only REACHED is judged by #450, not #443 (6982).
+            _cxo460 = set(_cx432)
+            if _f346.name not in ("__init__", "__post_init__", "__new__"):
+                _cx432 |= set(_rc444.get(id(_f346)) or set())
+            _ro460 = not (_cxo460 & {"\\all", "AttributeError", "Exception", "BaseException"})
             _ok432 = not (_ir432.get("trusted") or _ir432.get("abstract"))
             _ae432 = _ok432 and bool(_cx432 & {"\\all", "AttributeError", "Exception",
                                                "BaseException"})
@@ -9483,6 +9494,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             # `isinstance` guard decided them (read by #440 / #441)
                             _nr440[id(_a432)] = (set(_fs432), _ph432 == 1
                                                  and _ic432 is not None)
+                            break
+                        if (_ph432 == 1 and _ud443 and _ro460
+                                and isinstance(_r432, _ast341.Call)
+                                and isinstance(_r432.func, _ast341.Name)
+                                and _r432.func.id == "super" and "super" not in _bound341):
                             break
                         if _ph432 == 1 and _ud443:
                             raise _PyCSLSemErr341(

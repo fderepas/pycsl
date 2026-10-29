@@ -3856,9 +3856,14 @@ that guards a declared raise still proves. A refusal raised inside a reached def
 narrower than the default): a zero-argument `super()` in a plain method of a file class with a
 positional first parameter, and `super().__str__()` / `super().__repr__()` in a `__str__` /
 `__repr__` of a class whose bases are builtin exception classes or `object`, are admitted by
-#161. Not reached (own claim only): the front-end #432 / #437 / #440 / #443 / #447 / #452 rows
-(r1 measured the whole-claim reach refusing 10 accepted corpus files), #347, #357, #395 / #402,
-#439 (another file's defs). Witnesses `7050`-`7053`; controls `7054`-`7056`.
+#161. The front-end #432 / #437 / #440 / #443 / #447 / #452 rows read the reached claim too
+(an un-claimed callee's `b.find(n)` with an int `n` is now refused), with two rows: a
+CONSTRUCTOR (`__init__` / `__post_init__` / `__new__`) keeps its own claim there (every file-class
+dunder is reached, so a constructor no claimed caller runs would be judged: 12 accepted corpus
+files measured), and a `super()` receiver in a def whose AttributeError claim is only reached is
+judged by #450 rather than #443. Not reached (own claim only): #347, #357, #395 / #402, #439
+(another file's defs). Witnesses `7050`-`7053`, `7057` (an un-claimed `@property` getter reading
+a missing key, reached through the attribute load), `7059`; controls `7054`-`7056`, `7058`, `7060`.
 
 ### 7.190 A call BINDS its callee's signature; `super()` resolves through the file MRO; builtin rows carry cross-constraints; builtin decorators are admitted per definition site (routes #448 / #449 / #450 / #455, run #3)
 
