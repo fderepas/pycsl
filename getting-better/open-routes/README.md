@@ -7,6 +7,7 @@
 ##   all closed except #463 / #464): #465 compile-time-syntax-error (20); #466 imported-module-import-raises (18); #467 imported-callee-exceptions (17); #468 imported-callee-list-length (34); #469 module-dunders-script-view (16); #470 standin-lazy-annotations (7); #471 class-in-function-creation (18); #472 import-resolved-on-verifier-path (12).
 ##   Diagnosis: the FILE BOUNDARY (imported user modules not judged like local code: F2 F3 F4 F8) and #461's evaluation
 ##   boundary (F5 F6 F7), plus compile-time SyntaxErrors (F1).
+
 ## run #3 (2026-10-29): #463 / #464 REPAIRED (executor cc1 off a9eac4a08; inline in `Module1_Ingestor.process` /
 ##   `Module3_Weaver.process` / `_run_pipeline`, all mirror twins `\trusted`, no new def in a mirrored file, no axiom).
 ##   #463 CLAIM CONSERVATION: every own-line `#@` comment must land in an emitted slot -- an orphan footer (an indented
