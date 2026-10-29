@@ -3893,6 +3893,46 @@ whose body is itself admitted, `del` of a bound name, `type X = ..`. Anything el
 `with`, `raise`, an attribute store, a walrus) is REFUSED (`PYCSL-R461-IMPORT-RAISES`). (#462) an
 `__init__` with a `return <expr>` other than `None`, a `yield`, or `async` is REFUSED under any claim in
 the file (`PYCSL-R462-INIT-RETURNS-VALUE`). Witnesses `7130`-`7150`; controls `7151`, `7152`.
+### 7.220 A term transform's binder arm may run a `while True:` scan loop down the spine (lv4, run #3)
+
+A one-parameter Term->Term transform (§7.160's shape, e.g. the mirror's
+`proof2why3/canonical.py::_flatten_foralls`) may have a single-class block arm that
+binds fresh lists and runs a scan loop:
+
+    bs = list(t.binders)                  # a NEW list
+    cur = nb                              # nb = f(t.body), bound above
+    hyps = []                             # a NEW list, typed by its appends
+    while True:
+        if isinstance(cur, C) and <str> == <str>:
+            bs.extend(cur.binders)        # / hyps.append(cur.lhs)
+            cur = cur.body                # the spine step, once, to a field of cur
+            continue
+        if isinstance(cur, B) and cur.op == "->":
+            inner = cur.rhs               # a loop-local look-ahead
+            while isinstance(inner, B) and inner.op == "->":
+                inner = inner.rhs
+            if isinstance(inner, C) and inner.ty == t.ty:
+                hyps.append(cur.lhs)
+                cur = cur.rhs
+                continue
+        break
+    out = cur
+    if hyps:
+        out = mk_chain(hyps, cur)         # a list builder of the file
+    return C(binders=tuple(bs), ty=t.ty, body=out)
+
+The loop lowers to a local recursive function over the loop state (`continue` is the
+recursive call, `break` returns the state). It is accepted only when exactly one state
+variable is a term and every `continue` path has stepped it once to a term field of its
+own loop-entry value, under an `isinstance` test. That makes termination provable from
+the structure of the term. A path that reaches the end of the loop body without
+`continue` / `break` declines. String `==` is the uninterpreted `pystr_eq`, so both
+branches stay possible. The mutated lists must be created by the block (`[]` /
+`list(..)`) and not read before the loop, so no alias can see the mutation. Anything else
+declines to the generic lowering, which refuses the in-place `.extend` / `.append`. As
+for every term recognizer, a contract other than `True` declines. Witnesses `7100`
+(PROVES), `7101` (`ensures False`, must NOT prove), `7102` (an aliased list, declined),
+`7103` (a `continue` that does not step the spine, declined).
 
 ### 7.190 A call BINDS its callee's signature; `super()` resolves through the file MRO; builtin rows carry cross-constraints; builtin decorators are admitted per definition site (routes #448 / #449 / #450 / #455, run #3)
 

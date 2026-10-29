@@ -35907,6 +35907,17 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
                 raise _PVWBail()
             used.add(_term_field_of(args[0]))
             return ("rec", _term_field_of(args[0])), "term"
+        if (fn in ("tuple", "list") and len(args) == 1 and comp is None
+                and isinstance(args[0], dict)
+                and ((fn == "tuple" and _is_var(args[0]) and args[0].get("name") in env
+                      and env[args[0]["name"]] in ("list string", "list term"))
+                     or (fn == "list" and _is_term_field_read(args[0], subj)
+                         and ftypes.get(_term_field_of(args[0]))
+                         in ("list string", "list term")))):
+            # lv4 (`_flatten_foralls` shape): `list(t.F)` / `tuple(x)` re-wrap a
+            # sequence of the SAME elements (a copy); the value model has no aliasing,
+            # so both are the identity on the `list` value.
+            return expr(args[0], env, comp)
         if fn == "tuple":
             b = _parse_field_builder(e, subj, name)
             if b[0] != "maprec" or ftypes.get(b[1]) != "list term":
@@ -35953,6 +35964,254 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
         flags["streq"] = True
         return ("strtest", fn, lits)
 
+    fresh: set = set()                  # lv4: un-aliased lists this block created
+
+    def scan(st: Dict[str, Any], rest: List[Any], env: Dict[str, str]) -> Any:
+        """lv4 (`_flatten_foralls` shape): a `while True:` loop over a term spine,
+
+            while True:
+                if isinstance(v, C) and <str == str> ...:     # narrows v to C
+                    acc.extend(v.F) | acc.append(v.F)         # list accumulators
+                    w = v.F                                   # a loop-local look-ahead
+                    while isinstance(w, C') and <str == str>: # a pure look-ahead walk
+                        w = w.G
+                    cur = cur.F                               # the spine step
+                    continue
+                break
+
+        lowered to a LOCAL `let rec` over the loop state (the block locals the body
+        re-assigns or mutates), in which `continue` is the recursive call and `break`
+        returns the state. Exactly one state variable is a `term` (`cur`); every
+        `continue` path must have re-assigned it ONCE to a `term` field of its own
+        loop-entry value under an isinstance narrowing, so the structural `variant {
+        s_cur }` holds (termination PROVED, never assumed). The list accumulators are
+        only extended / appended (`{n}__app`, a defined total append); each `if`
+        lowers to a `match` + the VC-free `val pystr_eq` guard (both branches possible:
+        an over-approximation), its fall-through path continuing with the statements
+        after it (Python's control flow, duplicated, not approximated). A path that
+        runs off the end of the loop body without `continue` / `break` bails, as does
+        any other statement. A loop-local is dropped from the environment after the
+        loop (a later read of it bails)."""
+        k = flags.get("scan", 0)
+        flags["scan"] = k + 1
+        body = st.get("body")
+        if not (isinstance(body, list) and body):
+            raise _PVWBail()
+        assigned: set = set()
+        mutated: set = set()
+
+        def collect(stmts: Any) -> None:
+            if not isinstance(stmts, list):
+                raise _PVWBail()
+            for s in stmts:
+                if not isinstance(s, dict):
+                    raise _PVWBail()
+                sk = s.get("stmt")
+                if sk == "Assign" and isinstance(s.get("target"), str):
+                    assigned.add(s["target"])
+                elif sk == "Expr":
+                    v = s.get("value")
+                    fnm = v.get("func") if isinstance(v, dict) else None
+                    if not (isinstance(v, dict) and v.get("type") == "Call"
+                            and isinstance(fnm, str) and fnm.count(".") == 1
+                            and fnm.split(".")[1] in ("extend", "append")
+                            and not v.get("keywords") and len(v.get("args") or []) == 1):
+                        raise _PVWBail()
+                    mutated.add(fnm.split(".")[0])
+                elif sk in ("If", "While"):
+                    if s.get("orelse"):
+                        raise _PVWBail()
+                    collect(s.get("body"))
+                elif sk not in ("Continue", "Break"):
+                    raise _PVWBail()
+        collect(body)
+        if not mutated <= set(env) or mutated & assigned:
+            raise _PVWBail()
+        if not mutated <= fresh:
+            # ALIASING: Python mutates the list OBJECT. The value model is sound only
+            # for a list the block itself created (`[]` / `list(t.F)`) and never read
+            # between its binding and this loop (no alias can exist; `t.F` itself is
+            # never mutated). Anything else bails.
+            raise _PVWBail()
+        svars = sorted((assigned | mutated) & set(env))
+        tvars = [v for v in svars if env[v] == "term"]
+        if len(tvars) != 1 or tvars[0] in mutated:
+            raise _PVWBail()
+        vv = tvars[0]
+        if any(env[v] not in ("list string", "list term") for v in svars if v != vv):
+            raise _PVWBail()
+        for x in assigned - set(env):
+            if x in (subj, name) or x in svars:
+                raise _PVWBail()
+        ctr = {"p": 0, "skip": 0}
+
+        def lexpr(e: Any, lenv: Dict[str, str], narrow: Dict[str, Any]) -> Tuple[str, str]:
+            if not isinstance(e, dict):
+                raise _PVWBail()
+            if (e.get("type") == "Attribute" and _is_var(e.get("object"))
+                    and isinstance(e.get("attr"), str)):
+                ov = e["object"].get("name")
+                fa = e["attr"]
+                if ov in narrow:
+                    c2, bmap = narrow[ov]
+                    if fa not in bmap:
+                        raise _PVWBail()
+                    return bmap[fa], dict(spec["ctors"][c2])[fa]
+                if ov == subj and ov not in lenv:
+                    if fa not in ftypes:
+                        raise _PVWBail()
+                    used.add(fa)
+                    return f"v_{fa}", ftypes[fa]
+                raise _PVWBail()        # a field of a value not narrowed to a ctor
+            if _is_var(e) and e.get("name") in lenv:
+                return f"s_{e['name']}", lenv[e["name"]]
+            if e.get("type") == "String":
+                return _mlw_str_lit(e.get("value")), "string"
+            raise _PVWBail()
+
+        def guard(test: Any, lenv: Dict[str, str], narrow: Dict[str, Any]
+                  ) -> Tuple[str, str, List[str], Dict[str, Any], List[Any]]:
+            conj: List[Any] = []
+
+            def flat(x: Any) -> None:
+                if isinstance(x, dict) and x.get("type") == "BinOp" and x.get("op") == "and":
+                    flat(x.get("left"))
+                    flat(x.get("right"))
+                else:
+                    conj.append(x)
+            flat(test)
+            inst = conj[0]
+            if not (isinstance(inst, dict) and inst.get("type") == "Call"
+                    and inst.get("func") == "isinstance"
+                    and len(inst.get("args") or []) == 2 and _is_var(inst["args"][0])):
+                raise _PVWBail()
+            gv = inst["args"][0].get("name")
+            cls2 = _isinstance_target_classes(inst, gv)
+            if not (gv in lenv and lenv[gv] == "term" and gv not in narrow
+                    and len(cls2) == 1 and cls2[0] in spec["ctors"]):
+                raise _PVWBail()
+            c2 = cls2[0]
+            bmap: Dict[str, str] = {}
+            pats: List[str] = []
+            for (ffn, _fwt) in spec["ctors"][c2]:
+                ctr["p"] += 1
+                bmap[ffn] = f"p{k}_{ctr['p']}"
+                pats.append(bmap[ffn])
+            return gv, c2, pats, dict(narrow, **{gv: (c2, bmap)}), conj[1:]
+
+        def conds(cs: List[Any], lenv: Dict[str, str], narrow: Dict[str, Any]) -> str:
+            out: List[str] = []
+            for c in cs:
+                if not (isinstance(c, dict) and c.get("type") == "BinOp"
+                        and c.get("op") == "=="):
+                    raise _PVWBail()
+                a, at = lexpr(c.get("left"), lenv, narrow)
+                b, bt = lexpr(c.get("right"), lenv, narrow)
+                if at != "string" or bt != "string":
+                    raise _PVWBail()
+                flags["streq"] = True
+                out.append(f"pystr_eq {a} {b}")
+            return " && ".join(out)
+
+        def state() -> str:
+            xs = [f"s_{v}" for v in svars]
+            return xs[0] if len(xs) == 1 else "(" + ", ".join(xs) + ")"
+
+        def sbody(stmts: List[Any], lenv: Dict[str, str], narrow: Dict[str, Any],
+                  vstate: str) -> str:
+            if not stmts:
+                raise _PVWBail()        # ran off the loop body: an implicit continue
+            s = stmts[0]
+            more = stmts[1:]
+            sk = s.get("stmt")
+            if sk == "Break":
+                return state()
+            if sk == "Continue":
+                if vstate != "dec":
+                    raise _PVWBail()    # a continue that does not descend the spine
+                return f"(\\N\\__scan{k} " + " ".join(f"s_{v}" for v in svars) + ")"
+            if sk == "Expr":
+                v = s["value"]
+                recv, meth = v["func"].split(".")
+                if recv not in svars or recv == vv:
+                    raise _PVWBail()
+                ex, et = lexpr(v["args"][0], lenv, narrow)
+                if meth == "extend":
+                    if et != lenv[recv]:
+                        raise _PVWBail()
+                    upd = f"(\\N\\__app s_{recv} {ex})"
+                else:
+                    if "list " + et != lenv[recv]:
+                        raise _PVWBail()
+                    upd = f"(\\N\\__app s_{recv} (Cons {ex} Nil))"
+                flags["app"] = True
+                return f"(let s_{recv} = {upd} in {sbody(more, lenv, narrow, vstate)})"
+            if sk == "Assign":
+                tg = s["target"]
+                ex, et = lexpr(s.get("value"), lenv, narrow)
+                if et != "term":
+                    raise _PVWBail()
+                lenv2 = dict(lenv)
+                narrow2 = {x: y for x, y in narrow.items() if x != tg}
+                if tg == vv:
+                    va = s.get("value")
+                    if not (vstate == "entry" and va.get("type") == "Attribute"
+                            and _is_var(va.get("object"), vv) and vv in narrow):
+                        raise _PVWBail()    # the spine step: once, to a field of cur
+                    vstate2 = "dec"
+                else:
+                    if tg in lenv and lenv[tg] != "term":
+                        raise _PVWBail()
+                    lenv2[tg] = "term"
+                    vstate2 = vstate
+                return f"(let s_{tg} = {ex} in {sbody(more, lenv2, narrow2, vstate2)})"
+            if sk == "If":
+                ib = s.get("body") or []
+                if not ib or any(isinstance(x, dict) and x.get("stmt") in ("Continue", "Break")
+                                 for x in ib[:-1]):
+                    raise _PVWBail()    # dead code after a continue / break
+                gv, c2, pats, narrow2, rest_c = guard(s.get("test"), lenv, narrow)
+                cs = conds(rest_c, lenv, narrow2)
+                then_ = sbody(list(ib) + list(more), lenv, narrow2, vstate)
+                else_ = sbody(more, lenv, narrow, vstate)
+                inner = f"if {cs} then {then_} else {else_}" if cs else then_
+                return (f"(match s_{gv} with {c2} {' '.join(pats)} -> {inner}"
+                        f" | _ -> {else_} end)")
+            if sk == "While":
+                # a pure look-ahead walk of a loop-local: `while isinstance(w, C) and
+                # <str == str>: w = w.G` -> a local structural `let rec` skip.
+                wb = s.get("body") or []
+                if s.get("invariants") or s.get("variants"):
+                    raise _PVWBail()
+                gv, c2, pats, narrow2, rest_c = guard(s.get("test"), lenv, narrow)
+                if not (gv not in svars and len(wb) == 1 and isinstance(wb[0], dict)
+                        and wb[0].get("stmt") == "Assign" and wb[0].get("target") == gv):
+                    raise _PVWBail()
+                wv = wb[0].get("value")
+                if not (isinstance(wv, dict) and wv.get("type") == "Attribute"
+                        and _is_var(wv.get("object"), gv)):
+                    raise _PVWBail()
+                # inside the walk the subject is the helper's own parameter `q`
+                lenv_w = {x: y for x, y in lenv.items() if x != gv}
+                cs = conds(rest_c, lenv_w, narrow2)
+                nx, nt = lexpr(wv, lenv_w, narrow2)
+                if nt != "term":
+                    raise _PVWBail()
+                ctr["skip"] += 1
+                sk_n = f"\\N\\__scan{k}_skip{ctr['skip']}"
+                step = f"if {cs} then {sk_n} {nx} else q" if cs else f"{sk_n} {nx}"
+                narrow3 = {x: y for x, y in narrow.items() if x != gv}
+                return (f"(let rec {sk_n} (q: term) : term variant {{ q }}"
+                        f" = match q with {c2} {' '.join(pats)} -> {step} | _ -> q end in"
+                        f" let s_{gv} = {sk_n} s_{gv} in"
+                        f" {sbody(more, lenv, narrow3, vstate)})")
+            raise _PVWBail()
+
+        lenv0 = {v: env[v] for v in svars}
+        code = sbody(list(body), lenv0, {}, "entry")
+        env2 = {x: y for x, y in env.items()}
+        return ("scan", k, [(v, env[v]) for v in svars], code, block(rest, env2))
+
     def block(stmts: Any, env: Dict[str, str]) -> Any:
         if not (isinstance(stmts, list) and stmts):
             raise _PVWBail()
@@ -35960,6 +36219,8 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
         rest = stmts[1:]
         if not isinstance(st, dict):
             raise _PVWBail()
+        if st.get("stmt") != "While":
+            fresh.difference_update(_var_names_in(st))
         if _is_return(st):
             if rest:
                 raise _PVWBail()        # dead code after a return: not this shape
@@ -35973,12 +36234,47 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
             tg = st["target"]
             if tg in env or tg == subj or tg == name or not rest:
                 raise _PVWBail()        # bound once, and something must follow
-            en, et = expr(st.get("value"), env, None)
-            if et not in ("term", "list term"):
+            _v = st.get("value")
+            if (isinstance(_v, dict) and _v.get("type") == "ArrayLit"
+                    and not _v.get("elts")):
+                # lv4: `x = []` is typed by the scan loop (below) that appends a
+                # `term` to it; with no such loop the element type is unknown: bail.
+                if not any(_scan_appends(s2, tg) for s2 in rest):
+                    raise _PVWBail()
+                en, et = ("nil",), "list term"
+                fresh.add(tg)
+            else:
+                en, et = expr(_v, env, None)
+                if (isinstance(_v, dict) and _v.get("type") == "Call"
+                        and _v.get("func") == "list"):
+                    fresh.add(tg)       # `list(...)` always builds a NEW list
+            if et not in ("term", "list term", "list string"):
                 raise _PVWBail()
             env2 = dict(env)
             env2[tg] = et
             return ("let", tg, en, block(rest, env2))
+        if (st.get("stmt") == "While" and rest
+                and isinstance(st.get("test"), dict) and st["test"].get("type") == "Bool"
+                and st["test"].get("value") is True
+                and not st.get("invariants") and not st.get("variants")
+                and not st.get("orelse")):
+            # lv4 (`_flatten_foralls` shape): a `while True:` SCAN loop. See `scan`.
+            return scan(st, rest, env)
+        if (st.get("stmt") == "If" and not st.get("orelse") and rest
+                and _is_var(st.get("test")) and st["test"].get("name") in env
+                and env[st["test"]["name"]] in ("list term", "list string")
+                and isinstance(st.get("body"), list) and len(st["body"]) == 1
+                and isinstance(st["body"][0], dict)
+                and st["body"][0].get("stmt") == "Assign"
+                and st["body"][0].get("target") in env):
+            # lv4: `if xs: y = E` (a list's truthiness = non-empty) re-binding a local
+            # `y` bound above, at its own type -> `let y = match xs with Nil -> y |
+            # _ -> E end` (exactly Python's two paths; nothing assumed).
+            tg = st["body"][0]["target"]
+            en, et = expr(st["body"][0].get("value"), env, None)
+            if et != env[tg] or tg == st["test"]["name"]:
+                raise _PVWBail()
+            return ("ifrebind", st["test"]["name"], tg, en, block(rest, env))
         if st.get("stmt") == "If" and not st.get("orelse") and rest:
             te = strtest(st.get("test"))
             return ("if", te, block(st.get("body"), env), block(rest, env))
@@ -36061,11 +36357,40 @@ def _parse_block_arm(ibody: Any, subj: str, name: str, spec: Dict[str, Any],
         raise _PVWBail()                # a single return: the older arm forms own it
     return {"kind": "block", "node": node, "used": sorted(used),
             "uses_list": flags["list"], "uses_streq": flags["streq"],
-            "flatten": flags["flatten"], "dedups": flags.get("dedup", 0)}
+            "flatten": flags["flatten"], "dedups": flags.get("dedup", 0),
+            "uses_app": bool(flags.get("app"))}
+
+
+def _var_names_in(node: Any) -> set:
+    """lv4: every `Var` name read anywhere inside an IR node."""
+    out: set = set()
+    if isinstance(node, dict):
+        if node.get("type") == "Var" and isinstance(node.get("name"), str):
+            out.add(node["name"])
+        for v in node.values():
+            out |= _var_names_in(v)
+    elif isinstance(node, list):
+        for v in node:
+            out |= _var_names_in(v)
+    return out
+
+
+def _scan_appends(st: Any, x: str) -> bool:
+    """lv4: does `st` contain (at any depth) the statement `x.append(...)`?"""
+    if isinstance(st, dict):
+        if st.get("stmt") == "Expr":
+            v = st.get("value")
+            return (isinstance(v, dict) and v.get("type") == "Call"
+                    and v.get("func") == f"{x}.append")
+        return any(_scan_appends(s, x) for s in (st.get("body") or [])
+                   if st.get("stmt") in ("If", "While", "For"))
+    return False
 
 
 def _emit_block_expr(e: Any, n: str, list_names: Dict[str, str]) -> str:
     tag = e[0]
+    if tag == "nil":
+        return "Nil"
     if tag == "field":
         return f"v_{e[1]}"
     if tag == "local":
@@ -36109,6 +36434,24 @@ def _emit_block_node(b: Any, n: str, list_names: Dict[str, str]) -> str:
         cond = " || ".join(f"pystr_eq v_{_t[1]} {_mlw_str_lit(x)}" for x in _t[2])
         return (f"(if {cond} then {_emit_block_node(b[2], n, list_names)}"
                 f" else {_emit_block_node(b[3], n, list_names)})")
+    if tag == "ifrebind":
+        return (f"(let l_{b[2]} = (match l_{b[1]} with Nil -> l_{b[2]} | _ -> "
+                f"{_emit_block_expr(b[3], n, list_names)} end) in "
+                f"{_emit_block_node(b[4], n, list_names)})")
+    if tag == "scan":
+        # lv4: the `while True:` scan loop as a local structural `let rec` over its
+        # state (see `scan` in `_parse_block_arm`).
+        _k, _sv, _code = b[1], b[2], b[3]
+        _ps = " ".join(f"(s_{v}: {t})" for v, t in _sv)
+        _rt = _sv[0][1] if len(_sv) == 1 else "(" + ", ".join(t for _, t in _sv) + ")"
+        _vv = [v for v, t in _sv if t == "term"][0]
+        _lhs = (f"l_{_sv[0][0]}" if len(_sv) == 1
+                else "(" + ", ".join(f"l_{v}" for v, _ in _sv) + ")")
+        _args = " ".join(f"l_{v}" for v, _ in _sv)
+        return (f"(let rec {n}__scan{_k} {_ps} : {_rt} variant {{ s_{_vv} }}"
+                f" = {_code.replace(chr(92) + 'N' + chr(92), n)} in"
+                f" let {_lhs} = {n}__scan{_k} {_args} in"
+                f" {_emit_block_node(b[4], n, list_names)})")
     if tag == "dedup":
         return (f"(let l_{b[3]} = {n}__dedup{b[1]} l_{b[2]} Nil in "
                 f"{_emit_block_node(b[4], n, list_names)})")
@@ -36499,6 +36842,12 @@ def emit_term_isinstance_transform_group(func: Dict[str, Any], desc: Dict[str, A
                 _lnames["__fdesc__" + _fn] = dict(_bg["fdesc"], subj_here=subj)
     if _size and any((_a.get("bguard") or {}).get("dedups") for _a in arms.values()):
         out.append(f"  val function {n}__mem (x: term) (l: list term) : bool")
+    if any(_a.get("kind") == "block" and _a.get("uses_app") for _a in arms.values()):
+        # lv4: the scan loop's list accumulators (`acc.extend` / `acc.append`) as a
+        # DEFINED total append (structural), never an abstract operation.
+        out.append(f"  let rec function {n}__app (a b: list 'a) : list 'a")
+        out.append("    variant  { a }")
+        out.append(f"  = match a with Nil -> b | Cons h r -> Cons h ({n}__app r b) end")
     out.append(f"  let rec {n} (v_{subj}: term) : term")
     out.append("    ensures  { true }")
     if _size:

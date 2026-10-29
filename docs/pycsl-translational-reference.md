@@ -5649,6 +5649,35 @@ statement's line and CPython's exception text. (#462) for every `ClassDef` and i
 `AsyncFunctionDef`, or, outside nested def / lambda / class bodies, a `Yield` / `YieldFrom` or a
 `Return` whose value is not `Constant(None)`, raises `PYCSL-R462-INIT-RETURNS-VALUE`. No emission
 change.
+### §T.6.230  Scan loop in a term transform's block arm (lv4, run #3)
+
+_Corresponds to `annotations.md` §7.220._
+
+Inside a §T.6.170 block arm (`_parse_block_arm`), $\mathcal{T}$ of `x = list(t.F)` /
+`x = []` is `let l_x = v_F in` / `let l_x = Nil in` (`[]` only when a later scan loop
+appends a `term` to `x`). `tuple(x)` of a list local is `l_x`. `if xs: y = E` (with `y`
+bound above at the type of $E$) is `let l_y = (match l_xs with Nil -> l_y | _ -> E end)
+in`. A `while True:` loop with state $\vec s$ (the block locals it re-assigns or
+mutates, sorted; exactly one, `cur`, of type `term`; the others lists created by the
+block and not read since, otherwise decline) is
+
+    let rec f__scanK (s_x1: τ1) .. (s_xn: τn) : (τ1, .., τn) variant { s_cur } = ⟦body⟧ in
+    let (l_x1, .., l_xn) = f__scanK l_x1 .. l_xn in ⟦rest⟧
+
+where ⟦body⟧ is read statement by statement. `break` gives `(s_x1, .., s_xn)`.
+`continue` gives `(f__scanK s_x1 .. s_xn)`, and is accepted only after `cur = cur.G`.
+`acc.extend(e)` gives `let s_acc = (f__app s_acc ⟦e⟧) in`. `acc.append(e)` gives `let
+s_acc = (f__app s_acc (Cons ⟦e⟧ Nil)) in`. `w = e` (a term) gives `let s_w = ⟦e⟧ in`.
+`if isinstance(v, C) and a == b ..: B` (no `else`) followed by $R$ gives `(match s_v with
+C p.. -> if pystr_eq ⟦a⟧ ⟦b⟧ && .. then ⟦B; R⟧ else ⟦R⟧ | _ -> ⟦R⟧ end)`. In that, `v.F`
+is the pattern variable of $F$, `t.F` is the arm's `v_F`, and a local `x` is `s_x`. `while
+isinstance(w, C) and ..: w = w.G` gives a local `let rec f__scanK_skipJ (q: term) : term
+variant { q } = match q with C p.. -> if .. then f__scanK_skipJ p_G else q | _ -> q end in
+let s_w = f__scanK_skipJ s_w in`. `cur = cur.G` is accepted once per path, under a
+narrowing of `cur`. `f__app` is the defined structural append `let rec function f__app (a
+b: list 'a) : list 'a variant { a }` emitted before the group. A path that runs off the
+body declines, and so does any other statement. No new symbol is assumed, and the axiom
+ledger is unchanged.
 
 ### §T.6.200  Call binding, `super()` resolution, builtin cross-constraints, decorator sites (routes #448 / #449 / #450 / #455, run #3)
 
