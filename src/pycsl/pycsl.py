@@ -22680,6 +22680,65 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _res411.append(_l411)
             _k411 += 1
         _mlw = "\n".join(_res411)
+    # (#49) ROUTE #465 (red team 38; MEASURED PROVED on a9eac4a08: `def f(n): global n`, a
+    # late `from __future__`, `__debug__` as a target / parameter, `await` / `yield` outside
+    # their scope, a duplicate type parameter, 25 nested blocks, an `ascii` coding cookie over
+    # non-ASCII text -- CPython refuses to COMPILE each module). The file was only ever read
+    # with `ast.parse`, which stops before CPython's future / symtable / compiler passes, and
+    # decoded as UTF-8 whatever its PEP 263 cookie says. RULE (no claim gating: a module that
+    # does not compile runs nothing): the claimed file's BYTES are decoded by CPython's own
+    # `tokenize.detect_encoding` (the cookie and the BOM), the decoded text must be the text
+    # verified here, and CPython's own `compile(bytes, file, "exec", dont_inherit=True)` must
+    # succeed; any SyntaxError / ValueError is CPython's verdict. A SyntaxWarning is CPython's
+    # default (the module still runs) and is not refused. Inline; the mirror twin is `\trusted`.
+    _fp465 = str(args.file) if getattr(args, "file", None) else ""
+    _er465 = None
+    _fb465 = None
+    if _fp465 and os.path.isfile(_fp465):
+        try:
+            _fb465 = __import__("pathlib").Path(_fp465).read_bytes()
+        except OSError:
+            _fb465 = None
+    import tokenize as _tk465
+    import io as _io465
+    import warnings as _wn465
+    if _fb465 is not None:
+        try:
+            _en465 = _tk465.detect_encoding(_io465.BytesIO(_fb465).readline)[0]
+            _dc465 = _fb465.decode(_en465)
+        except (SyntaxError, LookupError, ValueError) as _x465:
+            _er465 = f"the source cannot be decoded as CPython decodes it ({type(_x465).__name__}: {_x465})"
+        else:
+            _nz465 = (lambda _s: _s.lstrip("﻿").replace("\r\n", "\n").replace("\r", "\n"))
+            if _nz465(_dc465) != _nz465(source_code):
+                _er465 = (f"CPython decodes this file as `{_en465}` (its PEP 263 coding cookie / "
+                          f"BOM), which is not the text verified here (read as UTF-8)")
+    if _er465 is None:
+        try:
+            with _wn465.catch_warnings():
+                _wn465.simplefilter("ignore")
+                compile(_fb465 if _fb465 is not None else source_code, _fp465 or "<pycsl>", "exec",
+                        dont_inherit=True, optimize=0)
+        except (SyntaxError, ValueError) as _x465:
+            _er465 = (f"CPython refuses to compile this module ({type(_x465).__name__}: "
+                      f"{getattr(_x465, 'msg', None) or _x465}"
+                      + (f", line {_x465.lineno}" if getattr(_x465, "lineno", None) else "") + ")")
+        except (RecursionError, MemoryError, OverflowError) as _x465:
+            _er465 = f"CPython's compiler fails on this module ({type(_x465).__name__}: {_x465})"
+    if _er465 is not None:
+        from errors import PyCSLSemanticError as _PyCSLSemErr465
+        raise _PyCSLSemErr465(
+            f"{_er465}, so the module never runs and none of its functions can be called as "
+            f"verified (route #465; measured: `def f(n): global n`, a late `from __future__`, a "
+            f"`__debug__` parameter, an `await` outside `async def` and an `ascii` coding cookie "
+            f"over non-ASCII text each PROVED `no_exception \\all` of a function of the module, "
+            f"CPython raises SyntaxError before any code runs). The verifier reads the file with "
+            f"`ast.parse`, which does not run CPython's symbol-table and compiler checks, so the "
+            f"file is also compiled by CPython itself. Fix the construct CPython names (drop the "
+            f"`global` of a parameter, move `from __future__` imports to the top, rename "
+            f"`__debug__`, keep `await` / `yield` inside their function, flatten deep nesting), "
+            f"or make the coding cookie match the file's real encoding.",
+            stage="ir-semantic", code="PYCSL-R465-COMPILE-ERROR")
     # (#49) gen #39, ROUTES #461 / #462 (red team 37; MEASURED PROVED on 370db7dc2 under `#@
     # no_exception \all`, CPython raises AT IMPORT / at construction). A claimed function of
     # a module whose IMPORT raises is never callable: class-creation errors (an instance
@@ -22792,10 +22851,50 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _opu461 = {_ast461.UAdd: _op461.pos, _ast461.USub: _op461.neg, _ast461.Not: _op461.not_,
                    _ast461.Invert: _op461.invert}
         _sy2461 = set()
+        # (#49) ROUTE #469 (red team 38; MEASURED PROVED: `X = 1 // (__name__ != '__main__')`,
+        # `__package__.upper()`, `C.__module__ != '__main__'`, `'__main__' not in repr(C)`):
+        # `__name__` / `__package__` / `__spec__` / `__loader__` used to be the IMPORTED view
+        # (the basename, '', None, None) while the file also runs as a script (`'__main__'`,
+        # None, None, a loader) or inside a package (`'pkg.m'`, 'pkg', a spec). They are
+        # UNKNOWN here (any statement whose value depends on them is refused), except the
+        # canonical `if __name__ == "__main__":` test, whose arm is not run at import and is
+        # not judged; a class's `__module__` (the private module name below) and any string
+        # that exposes it (`repr(C)`, `str(type(C()))`) are unknown as well.
+        # (the private module object keeps the imported-view values, which the Name read
+        # below never returns)
         _me461 = {"__name__": _os461.path.splitext(_os461.path.basename(_fp461))[0] or "m",
                   "__file__": _fp461, "__doc__": _ast461.get_docstring(_t461, clean=False),
                   "__package__": "", "__spec__": None, "__loader__": None,
                   "__builtins__": _bi461}
+        _du469 = ("__name__", "__package__", "__spec__", "__loader__")
+        # (#49) ROUTE #470 (red team 38; MEASURED PROVED: `def g(x: UndefZZ)` then `X =
+        # g.__annotations__`; CPython 3.14 evaluates the PEP 649 annotations on first access
+        # and raises NameError): a file def is a PLACEHOLDER and a file class is created on a
+        # synthesized namespace, so their dunders are not CPython's. A read (an attribute,
+        # `getattr` / `hasattr`) of `__annotations__` / `__annotate__` of anything, of any
+        # dunder but `__name__` / `__qualname__` (and a bound method's `__func__` / `__self__`,
+        # a wrapper's `__wrapped__`) of a placeholder or of an object wrapping one (a bound
+        # method, `property`, `staticmethod`, `classmethod`, a `functools` wrapper), and of
+        # `__doc__` / `__dict__` / `__firstlineno__` / `__static_attributes__` /
+        # `__type_params__` of a synthesized class or of its instance is REFUSED.
+        _isp470 = (lambda _o: isinstance(_o, _ty461.FunctionType) and "_ph461" in _o.__dict__)
+        _wsp470 = (lambda _o: _isp470(_o) or (
+            isinstance(_o, (_ty461.MethodType, staticmethod, classmethod))
+            and _isp470(_o.__func__)) or (isinstance(_o, property) and any(
+                _isp470(_x) for _x in (_o.fget, _o.fset, _o.fdel))) or (
+            not isinstance(_o, type) and _isp470(
+                __import__("inspect").getattr_static(_o, "__wrapped__", None))))
+        _dn470 = (lambda _o, _a: _a in ("__annotations__", "__annotate__", "__annotate_func__",
+                                        "__annotations_cache__") or (
+            _a.startswith("__") and _a.endswith("__") and _a not in (
+                "__name__", "__qualname__", "__func__", "__self__", "__wrapped__")
+            and _wsp470(_o)) or (
+            (_a in ("__doc__", "__firstlineno__", "__static_attributes__", "__type_params__")
+             or (_a == "__dict__" and isinstance(_o, type)))
+            and ((isinstance(_o, type) and id(_o) in _sy2461) or id(type(_o)) in _sy2461)))
+        # the module name CPython's frame-introspecting factories (`namedtuple`, the functional
+        # `Enum` / `TypedDict`, `NewType`) record as `__module__` when called from here
+        _pn461 = globals().get("__name__")
         _dirs461 = ([_os461.path.dirname(_fp461)] if _fp461 else []) + [str(_d) for _d in _ip461]
         # frames: [stmts, index, kind ("m" module / "c" class body / "a" arm), loc, ns, ann,
         #          class node, bases, keywords, decorators, parent loc, parent ns, parent ann,
@@ -22803,13 +22902,146 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _s461 = _t461
         _fr461 = [[list(_t461.body), 0, "m", None, None, None, None, None, None, None, None, None,
                    None, ""]]
+        # (#49) ROUTE #471 (red team 38; MEASURED PROVED: `class Z(bool): pass`, a `@dataclass`
+        # with a mutable default, a NamedTuple / Enum / `__slots__` error -- each in a claimed
+        # def, a nested def, an un-claimed callee, a method or an `if` arm; CPython raises each
+        # time the def runs). The creation check above reached only the module top level and the
+        # class bodies it runs. RULE: EVERY class statement whose nearest enclosing scope is a
+        # function is a JOB, run after the module top level (on its final bindings) through the
+        # same statements, with the class created by `types.new_class` and its decorators
+        # applied for real; a name the enclosing functions bind (parameters, locals, nested
+        # defs, imports, `nonlocal`), a name some function declares `global`, and a module value
+        # of a mutable type are UNKNOWN there, so a class whose bases / keywords / decorators /
+        # body values depend on run-time state is refused (unless only stored, as a bare name).
+        _pa471 = {}
+        for _z471 in _ast461.walk(_t461):
+            for _c471 in _ast461.iter_child_nodes(_z471):
+                _pa471[id(_c471)] = _z471
+        _gl471 = set()
+        _lo471 = {}
+        for _z471 in _ast461.walk(_t461):
+            if isinstance(_z471, _ast461.Global):
+                _gl471.update(_z471.names)
+            if not isinstance(_z471, (_ast461.FunctionDef, _ast461.AsyncFunctionDef)):
+                continue
+            _nm471 = set()
+            for _w471 in _ast461.walk(_z471):
+                if isinstance(_w471, _ast461.arg):
+                    _nm471.add(_w471.arg)
+                elif isinstance(_w471, _ast461.Name) and not isinstance(_w471.ctx, _ast461.Load):
+                    _nm471.add(_w471.id)
+                elif isinstance(_w471, (_ast461.FunctionDef, _ast461.AsyncFunctionDef,
+                                        _ast461.ClassDef)) and _w471 is not _z471:
+                    _nm471.add(_w471.name)
+                elif isinstance(_w471, _ast461.alias):
+                    _nm471.add((_w471.asname or _w471.name).split(".")[0])
+                elif isinstance(_w471, (_ast461.ExceptHandler, _ast461.MatchAs, _ast461.MatchStar)):
+                    if _w471.name:
+                        _nm471.add(_w471.name)
+                elif isinstance(_w471, _ast461.MatchMapping) and _w471.rest:
+                    _nm471.add(_w471.rest)
+                elif isinstance(_w471, (_ast461.Global, _ast461.Nonlocal)):
+                    _nm471.update(_w471.names)
+                elif isinstance(_w471, (_ast461.TypeVar, _ast461.ParamSpec, _ast461.TypeVarTuple)):
+                    _nm471.add(_w471.name)
+            _lo471[id(_z471)] = _nm471
+        # the binding occurrences of each name in each def's subtree (a class statement of a
+        # def that is the ONLY binding of its name there, directly in the def's body, is the
+        # one row by which a later class of the same def may use it: `class C(B)`)
+        _bc471 = {}
+        for _z471 in _ast461.walk(_t461):
+            if not isinstance(_z471, (_ast461.FunctionDef, _ast461.AsyncFunctionDef)):
+                continue
+            _cn471 = {}
+            for _w471 in _ast461.walk(_z471):
+                _ns471 = []
+                if isinstance(_w471, _ast461.arg):
+                    _ns471 = [_w471.arg]
+                elif isinstance(_w471, _ast461.Name) and not isinstance(_w471.ctx, _ast461.Load):
+                    _ns471 = [_w471.id]
+                elif isinstance(_w471, (_ast461.FunctionDef, _ast461.AsyncFunctionDef,
+                                        _ast461.ClassDef)) and _w471 is not _z471:
+                    _ns471 = [_w471.name]
+                elif isinstance(_w471, _ast461.alias):
+                    _ns471 = [(_w471.asname or _w471.name).split(".")[0]]
+                elif isinstance(_w471, (_ast461.ExceptHandler, _ast461.MatchAs,
+                                        _ast461.MatchStar)) and _w471.name:
+                    _ns471 = [_w471.name]
+                elif isinstance(_w471, _ast461.MatchMapping) and _w471.rest:
+                    _ns471 = [_w471.rest]
+                elif isinstance(_w471, (_ast461.Global, _ast461.Nonlocal)):
+                    _ns471 = list(_w471.names) * 2
+                elif isinstance(_w471, (_ast461.TypeVar, _ast461.ParamSpec,
+                                        _ast461.TypeVarTuple)):
+                    _ns471 = [_w471.name]
+                for _x471 in _ns471:
+                    _cn471[_x471] = _cn471.get(_x471, 0) + 1
+            _bc471[id(_z471)] = _cn471
+        # job frames: an arm frame holding the one class statement, `[14]` the unknown names,
+        # `[15]` the def it runs in (for the message), `[16]` where its class is recorded
+        # (def, index in its body) or None, `[17]` the recorded classes it may use (filled when
+        # the job starts), `[18]` its enclosing defs with the index of the body statement
+        # holding it, innermost first
+        _jb461 = []
+        _rs471 = {}
+        for _z471 in sorted((_z for _z in _ast461.walk(_t461) if isinstance(_z, _ast461.ClassDef)),
+                            key=lambda _z: (_z.lineno, _z.col_offset)):
+            _p471 = _pa471.get(id(_z471))
+            while _p471 is not None and not isinstance(_p471, (
+                    _ast461.FunctionDef, _ast461.AsyncFunctionDef, _ast461.ClassDef,
+                    _ast461.Module)):
+                _p471 = _pa471.get(id(_p471))
+            if not isinstance(_p471, (_ast461.FunctionDef, _ast461.AsyncFunctionDef)):
+                continue
+            _sh471 = set(_gl471)
+            _qp471 = []
+            _ch471 = []
+            _q471 = _p471
+            _k2471 = _z471
+            while _q471 is not None and not isinstance(_q471, _ast461.Module):
+                if isinstance(_q471, (_ast461.FunctionDef, _ast461.AsyncFunctionDef)):
+                    _sh471 |= _lo471.get(id(_q471), set())
+                    _qp471.append(_q471.name + ".<locals>")
+                    # the statement of `_q471`'s own body that holds the class
+                    _st471 = _k2471
+                    while _pa471.get(id(_st471)) is not _q471:
+                        _st471 = _pa471.get(id(_st471))
+                    _ch471.append((_q471, _q471.body.index(_st471) if _st471 in _q471.body
+                                   else -1))
+                elif isinstance(_q471, _ast461.ClassDef):
+                    _qp471.append(_q471.name)
+                _k2471 = _q471
+                _q471 = _pa471.get(id(_q471))
+            _rc471 = ((id(_p471), _p471.body.index(_z471))
+                      if _z471 in _p471.body and _z471.name not in _gl471
+                      and _bc471[id(_p471)].get(_z471.name, 0) == 1 else None)
+            _jb461.append([[_z471], 0, "a", {}, [], None, None, None, None, None, None, None, None,
+                           ".".join(reversed(_qp471)) + ".", frozenset(_sh471),
+                           f"`def {_p471.name}` (line {_p471.lineno})", _rc471, {}, _ch471])
+        _jn471 = None
         _sys_saved461 = _sy461.modules.get(_MN461)
         _sy461.modules[_MN461] = _md461
         try:
-            while _fr461 and _rf461 is None:
+            while (_fr461 or _jb461) and _rf461 is None:
+                if not _fr461:
+                    _fr461.append(_jb461.pop(0))
+                    _jn471 = _fr461[0][15]
+                    # the classes recorded by earlier jobs that this one may use: bound by the
+                    # only binding of their name in an enclosing def, in a body statement BEFORE
+                    # the one holding this class, and not re-bound by a def in between
+                    _bl471 = set()
+                    for _q471, _ix471 in _fr461[0][18]:
+                        for _x471, (_iy471, _v471) in _rs471.get(id(_q471), {}).items():
+                            if _x471 not in _bl471 and 0 <= _iy471 < _ix471:
+                                _fr461[0][17].setdefault(_x471, _v471)
+                        _bl471 |= _lo471.get(id(_q471), set())
                 _F461 = _fr461[-1]
                 if _F461[1] >= len(_F461[0]):
                     _fr461.pop()
+                    if len(_F461) > 16 and _F461[16] is not None and (
+                            _F461[0][0].name in _F461[3]):
+                        _rs471.setdefault(_F461[16][0], {})[_F461[0][0].name] = (
+                            _F461[16][1], _F461[3][_F461[0][0].name])
                     if _F461[2] != "c":
                         continue
                     # ---- class creation, by CPython's own machinery on the synthesized namespace
@@ -22876,6 +23108,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _s461 = _F461[0][_F461[1]]
                 _F461[1] += 1
                 _lc461 = _F461[3]
+                # #471: a function-body class statement runs in a JOB frame at the bottom of
+                # the stack, which carries the names its function binds (`[14]`)
+                _sh461 = _fr461[0][14] if len(_fr461[0]) > 14 else None
+                _rv471 = _fr461[0][17] if len(_fr461[0]) > 14 else {}
                 _why461 = ""
                 # ---- the expressions this statement evaluates when it runs (soft = an annotation:
                 # lazily evaluated in 3.14, a failure is recorded as its source string)
@@ -22912,6 +23148,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _ex461 = ([(_d, False) for _d in _s461.decorator_list]
                               + [(_d, False) for _d in _s461.bases]
                               + [(_d.value, False) for _d in _s461.keywords])
+                elif isinstance(_s461, _ast461.If) and _F461[2] != "c" and _sh461 is None and (
+                        isinstance(_s461.test, _ast461.Compare) and len(_s461.test.ops) == 1
+                        and isinstance(_s461.test.ops[0], _ast461.Eq)
+                        and sorted(_ast461.dump(_z) for _z in (_s461.test.left,
+                                                               _s461.test.comparators[0]))
+                        == sorted([_ast461.dump(_ast461.Name("__name__", _ast461.Load())),
+                                   _ast461.dump(_ast461.Constant("__main__"))])):
+                    # #469: the canonical `if __name__ == "__main__":` -- its arm runs only as
+                    # a script and is not judged; an `else` arm (run only when imported) would
+                    # bind names the script view lacks, so it is refused
+                    if _s461.orelse:
+                        _why461 = ("the `else` arm of `if __name__ == \"__main__\":` runs only "
+                                   "when the module is imported, not when it runs as a script")
+                    else:
+                        continue
                 elif isinstance(_s461, (_ast461.If, _ast461.Assert)):
                     _ex461 = [(_s461.test, False)]
                 elif isinstance(_s461, _ast461.Delete):
@@ -22975,6 +23226,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             elif isinstance(_n461, _ast461.Name):
                                 if _lc461 is not None and _n461.id in _lc461:
                                     _vv461[id(_n461)] = _lc461[_n461.id]
+                                elif _n461.id in _rv471:
+                                    _vv461[id(_n461)] = _rv471[_n461.id]
+                                elif _n461.id in _du469 or (_sh461 is not None and (
+                                        _n461.id in _sh461 or (_n461.id in _me461 and (
+                                            type(_me461[_n461.id]) in (list, dict, set, bytearray)
+                                            or id(type(_me461[_n461.id])) in _sy2461)))):
+                                    # #469: the module dunders; #471: in a class statement of a
+                                    # function body, a name the function binds (or one `global`
+                                    # in some function, or a mutable module value) is the
+                                    # function's run-time value
+                                    _vv461[id(_n461)] = _UK461
                                 elif _n461.id in _me461:
                                     _vv461[id(_n461)] = _me461[_n461.id]
                                 elif hasattr(_bi461, _n461.id):
@@ -23009,6 +23271,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     _bk461 = "soft"
                                     break
                                 if isinstance(_n461, _ast461.Attribute):
+                                    if _dn470(_V461(id(_n461.value)), _n461.attr):
+                                        _bad461 = (f"`{_ast461.unparse(_n461)[:60]}` reads "
+                                                   f"`{_n461.attr}` of an object of this file, "
+                                                   f"which the verifier does not synthesize as "
+                                                   f"CPython does (route #470: CPython 3.14 "
+                                                   f"evaluates annotations lazily on such a read)")
+                                        break
+                                    if _n461.attr == "__module__":
+                                        _vv461[id(_n461)] = _UK461
+                                        continue
                                     _z461 = getattr(_V461(id(_n461.value)), _n461.attr)
                                     _vv461[id(_n461)] = (_z461 if not isinstance(
                                         _V461(id(_n461.value)), _ty461.ModuleType) else (_z461 if (callable(_z461) or isinstance(_z461, (
@@ -23207,7 +23479,24 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         _bad461 = (f"`{_ast461.unparse(_n461)[:60]}` is too large to "
                                                    f"evaluate")
                                         break
+                                    if (_f461 is getattr or _f461 is hasattr) and len(_a461) >= 2 and (
+                                            isinstance(_a461[1], str)) and (
+                                            _dn470(_a461[0], _a461[1]) or _a461[1] == "__module__"):
+                                        _bad461 = (f"`{_ast461.unparse(_n461)[:60]}` reads "
+                                                   f"`{_a461[1]}` of an object of this file, which "
+                                                   f"the verifier does not synthesize as CPython "
+                                                   f"does (routes #469 / #470)")
+                                        break
                                     _vv461[id(_n461)] = _f461(*_a461, **_k461)
+                                    # #469: a factory that records its caller's module name
+                                    # (`namedtuple`, functional `Enum`, `NewType`) gets the
+                                    # private module's, which the string rule below hides
+                                    try:
+                                        if (_pn461 is not None and getattr(
+                                                _vv461[id(_n461)], "__module__", None) == _pn461):
+                                            setattr(_vv461[id(_n461)], "__module__", _MN461)
+                                    except Exception:
+                                        pass
                         except _SX461 as _x461:
                             _bad461 = (f"`{_ast461.unparse(_n461)[:60]}` runs code of this file at "
                                        f"import (`{_x461}`), which the verifier does not judge there")
@@ -23216,6 +23505,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _bad461 = (f"`{_ast461.unparse(_n461)[:60]}` raises "
                                        f"{type(_x461).__name__} in CPython ({str(_x461)[:80]})")
                             break
+                        # #469: a string exposing the private module name (`repr(C)`,
+                        # `str(type(C()))`, `C.__qualname__` is fine) is the module's real
+                        # `__name__`, which is unknown
+                        if isinstance(_vv461.get(id(_n461)), str) and _MN461 in _vv461[id(_n461)]:
+                            _vv461[id(_n461)] = _UK461
                     if _bad461:
                         if _soft461 and _bk461 == "soft":
                             _vv461[id(_r461)] = _ast461.unparse(_r461)
@@ -23533,6 +23827,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _rf462 = (getattr(_z462, "lineno", _d462.lineno), _k462.name, _d462)
                     _wk462.extend(_ast461.iter_child_nodes(_z462))
         from errors import PyCSLSemanticError as _PyCSLSemErr461
+        if _rf461 is not None and _jn471 is not None:
+            raise _PyCSLSemErr461(
+                f"line {_rf461[0]}: {_rf461[1]}, in a class statement that runs each time "
+                f"{_jn471} runs, while this file claims `#@ no_exception` (route #471; "
+                f"measured: `class Z(bool): pass` and a `@dataclass` with a mutable default "
+                f"inside a claimed def, a nested def, an un-claimed callee and an `if` arm each "
+                f"PROVED `no_exception \\all`, CPython raises TypeError / ValueError when the def "
+                f"runs). A class statement inside a function is created by CPython's own "
+                f"machinery on a synthesized namespace, like a module-level class; a value the "
+                f"function computes at run time (a parameter, a local, a name some function "
+                f"declares `global`, a mutable module value) cannot be judged there. Fix the "
+                f"class as CPython names it (a valid base such as `int` for `bool`, consistent "
+                f"fields), or move the class to module level, where a mutable dataclass "
+                f"default is written `field(default_factory=list)`, with bases / keywords / "
+                f"decorators that are module-level or builtin objects.",
+                stage="ir-semantic", code="PYCSL-R471-LOCAL-CLASS-RAISES")
         if _rf461 is not None:
             raise _PyCSLSemErr461(
                 f"line {_rf461[0]}: {_rf461[1]}, so IMPORTING this module raises before any "

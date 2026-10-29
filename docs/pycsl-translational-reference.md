@@ -5886,6 +5886,53 @@ v_t` (lv3). `S` is required to be a member of the file's `strmap_fns`, so `term_
 is already declared. Each recursive call appears in $f$'s own emitted body, so the #274
 check ("a writing call inside a generator vanishes") counts it as applied. No axiom is
 added.
+### §T.6.300  The CPython compile gate (route #465, run #3)
+
+_Corresponds to `annotations.md` §7.290._
+
+In `_run_pipeline`, after the WhyML text is final and before #461's block: $b$ = the bytes of
+`args.file`; $e$ = `tokenize.detect_encoding`($b$); refuse if $b$ does not decode under $e$ or if
+$\mathit{nz}(b.\mathrm{decode}(e)) \neq \mathit{nz}(\texttt{source\_code})$ ($\mathit{nz}$ strips a leading BOM
+and maps `\r\n` / `\r` to `\n`); else evaluate `compile(b, file, "exec", dont_inherit=True, optimize=0)`
+under `warnings.simplefilter("ignore")` and refuse on SyntaxError / ValueError / RecursionError /
+MemoryError / OverflowError. Code `PYCSL-R465-COMPILE-ERROR`. No gate on claims; no emission change.
+
+### §T.6.301  Module dunders and the private module name (route #469, run #3)
+
+_Corresponds to `annotations.md` §7.291._
+
+In #461's evaluator (§T.6.240): `Name` $x \in$ \{`__name__`, `__package__`, `__spec__`, `__loader__`\} not
+bound in the class scope $L$ evaluates to $\bot$; `Attribute(_, "__module__")` evaluates to $\bot$; a node
+whose value is a `str` containing the private module name $M$ is replaced by $\bot$; `getattr` / `hasattr`
+with a constant `"__module__"` refuses. After a call of $P$, a result whose `__module__` equals the
+verifier's own module name gets `__module__` $:= M$ (best effort). An `If` at module / arm scope whose test
+is `__name__ == "__main__"` (either order) pushes nothing when it has no `orelse`, and refuses otherwise.
+
+### §T.6.302  Unsynthesized dunders (route #470, run #3)
+
+_Corresponds to `annotations.md` §7.292._
+
+A predicate $\mathit{deny}(o, a)$ refuses `Attribute(o, a)` and `getattr` / `hasattr`$(o, a)$ for a constant
+string $a$: $a \in$ \{`__annotations__`, `__annotate__`, `__annotate_func__`, `__annotations_cache__`\}; or
+$a$ is a dunder $\notin$ \{`__name__`, `__qualname__`, `__func__`, `__self__`, `__wrapped__`\} and $o$ is a
+placeholder (a function carrying `_ph461`), a bound method / `staticmethod` / `classmethod` over one, a
+`property` with one as accessor, or a non-class object whose static `__wrapped__` is one; or $a \in$
+\{`__doc__`, `__firstlineno__`, `__static_attributes__`, `__type_params__`\} (or `__dict__` with $o$ a
+class) and $o$ or `type(o)` is a synthesized class.
+
+### §T.6.303  Function-body class statements as jobs (route #471, run #3)
+
+_Corresponds to `annotations.md` §7.293._
+
+Before #461's frame machine runs: $G$ = the names of every `Global` statement of the file; for each def
+$F$, $B(F)$ = every `arg`, non-`Load` `Name`, nested def / class name, `alias` (as bound), handler / match
+capture name, `Global` / `Nonlocal` name and type-parameter name in $F$'s subtree. Every `ClassDef` $K$
+whose nearest enclosing def / class / module is a def becomes a job frame (an arm frame holding $[K]$,
+an empty scope, qualified-name prefix `F.<locals>.` built from the enclosing scopes) carrying $U(K) = G \cup
+\bigcup B(F_i)$ over its enclosing defs $F_i$. Jobs run one at a time after the module frame empties, on
+the final module scope $E$; while a job frame is at the stack bottom, a `Name` not bound in $L$ is $\bot$ if
+it is in $U(K)$ or if $E$ binds it to a list / dict / set / bytearray / an instance of a synthesized class.
+A refusal raised while a job runs is reported as `PYCSL-R471-LOCAL-CLASS-RAISES`. No emission change.
 
 ### §T.6.200  Call binding, `super()` resolution, builtin cross-constraints, decorator sites (routes #448 / #449 / #450 / #455, run #3)
 

@@ -4124,6 +4124,63 @@ does any `ensures` other than `True` or any `raises` / `no_exception` claim.
 Witnesses: `7230` proves. Each of the following must NOT prove: `7231` (`ensures
 False`), `7232` (no `len` precondition), `7233` (a caller forwards an unconstrained
 counter), `7234` (the increment comes before the read, declined).
+### 7.290 A verified module must COMPILE under CPython, decoded as CPython decodes it (route #465, run #3)
+
+The file used to be read only with `ast.parse`, which stops before CPython's future / symbol-table /
+compiler passes, and decoded as UTF-8 whatever its PEP 263 coding cookie says, so red team 38 measured
+PROVED `no_exception \all` beside `def f(n): global n`, a `global x` of a parameter in an uncalled helper,
+a late `from __future__`, an assignment to / parameter named `__debug__`, `await` outside `async def`,
+`yield` in a comprehension or a type alias, `return <value>` in an async generator, a duplicate type
+parameter, 25 statically nested blocks, and an `ascii` / unknown coding cookie over non-ASCII text --
+modules CPython refuses with SyntaxError before any code runs. RULE (every file, no claim gating): the
+file's BYTES are decoded by CPython's own `tokenize.detect_encoding` (cookie, BOM); the decoded text must
+equal the verified text (newlines normalised); CPython's own `compile(bytes, file, "exec",
+dont_inherit=True)` must succeed. Any SyntaxError / ValueError (or a compiler RecursionError) is REFUSED
+(`PYCSL-R465-COMPILE-ERROR`, CPython's message and line). A SyntaxWarning is CPython's default behaviour
+(the module runs) and is not refused. Witnesses `7330`-`7341`; control `7369`.
+
+### 7.291 The module dunders are unknown at import (route #469, run #3)
+
+Route #461's top-level run bound `__name__` / `__package__` to the IMPORTED view (the file stem, `''`),
+while the file also runs as a script (`'__main__'`, `None`) or inside a package (`'pkg.m'`, `'pkg'`):
+`X = 1 // (__name__ != '__main__')`, `__package__.upper()`, `C.__module__ != '__main__'`, `'__main__' not
+in repr(C)` PROVED. RULE (inside #461's run): `__name__`, `__package__`, `__spec__`, `__loader__` read as a
+name are UNKNOWN (a statement whose value depends on one is refused), except the canonical `if __name__ ==
+"__main__":` test, whose arm is not run at import and is not judged (an `else` arm is refused: it binds
+names the script view lacks); a class's `__module__` is unknown, and so is any string that exposes the
+private module name a class is created under (`repr(C)`, `str(type(C()))`, `f"{C}"`); a factory that
+records its caller's module (`namedtuple`, functional `Enum`, `NewType`) is given that private name.
+`getattr(o, "__module__")` is refused. Witnesses `7342`-`7349`; control `7370` (`X = __name__` unused,
+`C.__name__` / `C.__qualname__`). Code `PYCSL-R461-IMPORT-RAISES`.
+
+### 7.292 A file def's or class's unsynthesized dunders are not read at import (route #470, run #3)
+
+A file def is a placeholder in #461's run and a file class is created on a synthesized namespace, so
+`g.__annotations__` (CPython 3.14 evaluates PEP 649 annotations on first access: NameError /
+AttributeError / ZeroDivisionError for an undefined / bad annotation) PROVED. RULE (inside #461's run, an
+attribute read or `getattr` / `hasattr` with a constant name): `__annotations__` / `__annotate__` /
+`__annotate_func__` / `__annotations_cache__` of anything; any dunder except `__name__` / `__qualname__` /
+`__func__` / `__self__` / `__wrapped__` of a placeholder def or of an object wrapping one (bound method,
+`staticmethod`, `classmethod`, `property`, an object whose static `__wrapped__` is one); `__doc__` /
+`__firstlineno__` / `__static_attributes__` / `__type_params__` of a synthesized class or its instance,
+and the class's `__dict__` -- are REFUSED (`PYCSL-R461-IMPORT-RAISES`). Witnesses `7350`-`7355`; control
+`7371` (`g.__name__`, `C.m.__qualname__`).
+
+### 7.293 Every class statement is created by CPython, wherever it is nested (route #471, run #3)
+
+#461's creation check reached only the module top level and the class bodies it runs; a class statement
+inside a claimed def, a nested def, an un-claimed callee, a method or an `if` arm (`class Z(bool)`, a
+`@dataclass` with a mutable default, a NamedTuple `_x` / misordered field, an Enum duplicate, `__slots__`
+vs a class variable, `metaclass=5`, an unknown class keyword) PROVED although CPython raises each time the
+def runs. RULE (gate: #461's): after the module top level, every class statement whose nearest enclosing
+scope is a function is a JOB run by #461's statement machine on the module's final bindings: its
+decorators / bases / keywords / body are evaluated, the class created by `types.new_class` and decorated
+for real. Unknown there: every name an enclosing function binds (parameters, locals, nested defs /
+classes, imports, handler / match names, `global` / `nonlocal` names), every name any function declares
+`global`, and a module value of a mutable type (list / dict / set / bytearray / an instance of a file
+class); a class whose creation depends on one is refused. Refusal: `PYCSL-R471-LOCAL-CLASS-RAISES` (names
+the def). Witnesses `7356`-`7368`; control `7372` (a plain local class, a local dataclass / Enum /
+NamedTuple / Exception subclass, a class in a method and in an `if` arm, `__slots__` without conflict).
 
 ### 7.190 A call BINDS its callee's signature; `super()` resolves through the file MRO; builtin rows carry cross-constraints; builtin decorators are admitted per definition site (routes #448 / #449 / #450 / #455, run #3)
 
