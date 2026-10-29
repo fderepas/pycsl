@@ -370,7 +370,6 @@ module6_whyml/types.py	TypeInferenceMixin._collect_array_var_assigns	unclassifie
 proof2why3/canonical.py	_alpha_rename	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/canonical.py	_ac_normalize	cost-scale:nested-closure-lift	the nested-closure lift
 proof2why3/canonical.py	_flatten_foralls	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
-proof2why3/canonical.py	_normalize_names	unclassified	-
 proof2why3/crosscheck.py	CrossCheckResult.diagnostic	unclassified	-
 proof2why3/crosscheck.py	_load_axiom_registry	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/crosscheck.py	crosscheck_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR

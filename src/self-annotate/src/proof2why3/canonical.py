@@ -191,12 +191,36 @@ def _camel_to_snake(name: str) -> str:
     s = _re.sub(r"([A-Z])([A-Z][a-z])", r"\1_\2", s)
     return s.lower()
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _normalize_names(t: Term) -> Term:
-    return None
+    if isinstance(t, Var):
+        return Var(_camel_to_snake(t.name))
+    if isinstance(t, (IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=_camel_to_snake(t.head),
+                   args=tuple(_normalize_names(a) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op, _normalize_names(t.lhs), _normalize_names(t.rhs))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _normalize_names(t.arg))
+    if isinstance(t, (Forall, Exists)):
+        # Normalize binder names too (consistent with Var refs in the
+        # body). Lean's `preEs` → `pre_es`, etc. Without this the body's
+        # Vars and the binders would have mismatched casing after
+        # alpha_normalize is skipped on the type string side.
+        new_binders = tuple(_camel_to_snake(b) for b in t.binders)
+        # Substitute the renamed binders into the body so Var refs match.
+        mapping = {old: new for old, new in zip(t.binders, new_binders)
+                   if old != new}
+        body_renamed = substitute(t.body, mapping) if mapping else t.body
+        ty_normalized = _normalize_type_string(t.ty)
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=new_binders, ty=ty_normalized,
+                     body=_normalize_names(body_renamed))
+    raise TypeError(f"_normalize_names: unknown {type(t)}")
 
 #@ requires True
 #@ ensures True
