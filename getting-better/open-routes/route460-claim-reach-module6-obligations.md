@@ -3,7 +3,8 @@
 driver-reproduced: `scratchpad/rt36/r460_factorial_unclaimed_callee.py` PROVES rc=0 (Verification SUCCESS) on main
 8fe7204c3 AND on the post-#444-#459 candidate, while CPython raises `ValueError: factorial() not defined for negative
 values` (`scratchpad/rt36/../` driver repro: `/tmp/.../scratchpad/rp36/r460.txt`, 2026-10-29T07:06Z).
-Witnesses `witnesses-r460/` (1): `r460_factorial_unclaimed_callee.py`.
+Witnesses `witnesses-r460/` (2): `r460_factorial_unclaimed_callee.py`, `e3_k002_property_getter_raises.py` (red team 37: an un-claimed
+`@property` getter's `self.d['k']` KeyError reaches the claimed reader `c.v`; driver-reproduced rc=0 on 370db7dc2).
 
 ```
 #460 CLAIM REACH: `#@ no_exception \all` on f; f calls an UN-claimed g; g's Module 6 obligations (#160 / #434 / #436 /

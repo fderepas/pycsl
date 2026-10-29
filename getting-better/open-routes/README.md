@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-29): #461 / #462 OPENED (red team 37 on 370db7dc2, driver-salvaged: 641 census rows / 27 proved / 22
+##   confirmed; rt36's 209 ALL closed): #461 a verified file whose IMPORT raises (20: class-creation errors, raising module
+##   statements; Severity 2, arguable); #462 `__init__` returning a value (1). k002 (property getter KeyError) joins #460.
+
 ## run #3 (2026-10-29): #460 OPENED (measured by executor r1, driver-reproduced on 8fe7204c3 and on the post-#444-#459
 ##   candidate): a caller's `no_exception` claim does not reach an UN-claimed callee's Module 6 obligations / #161
 ##   admission (`math.factorial(n)` in an un-claimed g called by a claimed f PROVES; CPython ValueError). Partial reach
