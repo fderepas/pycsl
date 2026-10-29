@@ -227,6 +227,137 @@ claims nothing about exceptions: `_term_contract_trivial` refuses any raises cla
 | `proof2why3/crosscheck.py::CrossCheckResult.diagnostic` | L3-tc `string` vs `int`: `for label, ok in self.pairwise.items()` (a property returning a dict literal) lowers to the 0-ary input-blind `self_pairwise_items_0 ()` with `label` / `ok` erased to `any int` | property-call + dict-items tuple loop (mirrored statements) |
 | `frontend/import_classifier.py::_stub_set` | FOUR ORACLES GREEN (L3-tc ok, untrusted-emitted 907, yield OK, shadowed 14, vacuity no new erasure) but HOLLOW: the emission is `if not (path_isdir_op stub_dir) then any int else set_comp 0` (mirror return placeholder `-> int`; `set()` -> `any int`; the comprehension over `Path.iterdir()` -> the input-blind `set_comp 0`). REJECTED by rule 5 (non-vacuity); the vacuity oracle passes it because `stub_dir` is read by the `is_dir` test. A screen false-green worth a ratchet. | hollow |
 
+## lv5 build record (`_alpha_rename`, driver run #3, 2026-10-29)
+
+Base `a9eac4a08` (main; `#@ \trusted` 437, trusted-reasons 409). Bases v13/ca + v13/ma.
+Scratch instruments under the session scratchpad `lv5/` (`survey.sh` = verbatim port +
+`--no-proof`, one stub at a time; `tc1.sh`; `emit.sh`; `wit*.sh`; `gate.sh`).
+
+### Survey (task 1): every `\trusted` stub of the files whose mirror emission is <= 47 KB
+
+115 stubs in 31 files (the proof2why3 files, audit_proof, audit_proof_reverify,
+exception_model, errors, ir_schema, proof_axiom_allowlist, frontend/{Module1_Ingestor,
+ConcurrencyChecker, import_classifier, desugar, exec_splice, ir_inline, module_collect},
+module6_whyml/{preamble, auto_trust, abstract_ops, identifiers, scc, struct_format,
+expr_ghost_*}). Full per-stub table: `lv5/survey.tsv`. First blocker, by class:
+
+| first blocker (verbatim port, `--no-proof`) | stubs |
+|---|---|
+| L3-tc type clash (int-erasure seam: `int` vs `string` / `array` / tuple / record / `option`) | 29 |
+| REFUSED in-place receiver mutator (`pop` / `extend` / `insert` / `add` / `setdefault` / `update`, expressions.py:8907) | 16 |
+| REFUSED R325 opaque-int fallback (`re`, `ast.walk`, getattr, `str` ops, `set()`) | 16 |
+| REFUSED erased value into a builtin-typed slot | 6 |
+| REFUSED nested closure capture (unfaithful lift) | 5 |
+| REFUSED definite assignment through `with` (`verify_rocq_file`, `verify_lean_file`, `extract_rocq_statements`, `extract_lean_statements`); MEASURED with the check disabled in a scratch tree: the next link is `with .. as tf` unmodelled (3) / a nested closure (1) | 4 |
+| REFUSED exception object read (route #233) / `sorted(key=)` / hash of an unknown class / append to an untracked list | 3 each |
+| REFUSED tuple-unpack alias / name rebound / parameter rebinding in a nested block | 2 each |
+| other refusals (one each) | 11 |
+| PORT-ABORT (no live def: `expr_ghost_*._e`, `_expr_to_whyml_string_ctx`) | 3 |
+| **TC-OK** | **7** |
+
+The 7 TC-OK stubs, each read against the conversion gate:
+
+| stub | verdict (measured) |
+|---|---|
+| `canonical._alpha_rename` | first blocker at base: R274 (a WRITING self-call inside `tuple(.. for ..)`); BUILT below, CONVERTED |
+| `errors.PyCSLError.__init__` | emits only the four `_check_class_inv_*` goals `forall l line. l = line -> l >= 0`, unprovable without `requires line >= 0`; WITH it errors.py proves 0 non-Valid (spike). USER-DECISION lever (route #226): 92 `PyCSL*Error(` construction sites in 13 mirror files, and no raise site constructs the record in the model, so the requires would never be checked. Mirror movers NOT measured (needs a sweep). Not landed (driver) |
+| `audit_proof_reverify._cache_root` | `root.mkdir(..)` -> the 0-ary input-blind `root_mkdir_0 ()`: HOLLOW (rule 5), rejected |
+| `identifiers.stable_hash` | body `pycsl_mod (int_2 (any int) 16) 2147483647`: input-blind (`any int`), rejected |
+| `import_classifier._stub_set` | hollow (lv4) |
+| `from_sexp._find_construct_idx` / `parser.lex` | termination only (census r3 / lv4) |
+| `sertop._sexp_tokens` | yield-erasure RED (generator model) |
+
+### Lever cost measured: `s[j].isdigit()` -> `py_isdigit_op` (task 2)
+
+The computed-receiver branch of the `is*` predicates (expressions.py ~12280) emits the
+polymorphic `val <pred>_1 (x0: 'a0) : int`. Retargeting it to the receiver-carrying
+`py_<pred>_op` for a string receiver moves EXACTLY the files whose current emission declares
+such a val (grep of the main emission, no sweep needed): mirror `proof2why3__canonical`,
+`module6_whyml__expressions`, `module6_whyml__statements`, `frontend__Module5_IREmitter`;
+corpus `0605`, `6820`; pyref none. Owed: three of the four longest whole-file mirror proofs
+(expressions.py alone ran > 3.5 h in run #3) for a yield of 0 conversions on its own: `lex`
+then still needs the `isalpha -> isalnum` relation (no carrier; a definitional char-class
+model is the honest route), `str_length_op op > 0` for the 14 operator literals, and the
+outer-loop variant. NOT BUILT.
+
+### B1 - the counter-cell arm of the term transform recognizer (generic_fold.py, not mirrored)
+
+`_recognize_term_transform_counter` / `_emit_term_transform_counter` (annotations 7.250,
+translational T.6.260), tried for a 2-parameter transform when the strmap path declines and
+the file is in size mode. Shape: identity / rebuild arms over `t.F`, `f(t.G, c)`,
+`tuple(f(a, c) for a in t.L)` and ONE exact binder block (`NN = []`, `MM: Dict[str,str] =
+{}`, `for O in t.L: NW = f"<lit>{c[0]}"; c[0] += 1; NN.append(NW); MM[O] = NW`, `R =
+S(t.G, MM)` with S a strmap transform, `R2 = f(R, c)`, `K = A if isinstance(t, A) else B`,
+`return K(..)`). Emitted as the transform ITSELF: a `let rec` that takes the cell as
+`array int`, `writes { v_c }`, each recursive call applied at its own point in source
+order (explicit `let`s), the binder loop a structural `let rec` that reads `v_c[0]`,
+increments it, then extends the list and the dict; the f-string / empty dict / dict store
+are uninterpreted `val function`s (no axiom); recursion on `S`'s result terminates by the
+file's `term__size` measure and `S`'s proved size postcondition (lv3).
+Fragment-by-fragment: (1) first emission as a PURE state-passing core + wrapper -> REFUSED
+by pycsl.py's #274 check (`'_alpha_rename' calls '_alpha_rename', which WRITES ... inside a
+generator`): it counts the callee's spellings in the function's own emitted body (0 < 5).
+The check is right (it cannot see a state-passing core), so the emission was rewritten
+imperatively: the 5 IR calls are now 5 emitted applications. (2) Still REFUSED: the
+recognizer never ran -- the route #420 central gate (`_rc420_gate`) declines any
+non-`True` requires; `recognize_term_isinstance_transform` is now listed in
+`_RC420_HONOURS` with `requires`, and EVERY other path of that recognizer still applies
+`_term_contract_trivial` (declines any non-`True` requires), while the counter path admits
+exactly `len(c) >= 1` and EMITS it. (3) TC-OK. (4) corpus 7230 TC FAIL: an unqualified
+`length` resolves to `String.length` in a file that opens the string theory -> emitted
+`Array.length`. (5) whole file canonical.py 311 Valid / 0 non-Valid (base 277).
+`--fun _alpha_rename` cannot run (pre-existing: `--fun` trusts `_ac_normalize`, whose
+generic lowering refuses `sorted(key=)`); the whole-file proof is the gate.
+
+**B2 - conversion `proof2why3/canonical.py::_alpha_rename`** (437 -> 436; trusted-reasons
+409 -> 408). CONTRACT CORRECTION (driver-approved): the stub's `#@ requires True` was an
+OVER-CLAIM -- the live body raises IndexError on an empty `counter` once a binder is
+reached. It is now `#@ requires len(counter) >= 1`, carried into the emission and
+discharged at the ONLY caller (`alpha_normalize`, `counter = [0]`; grep of src/ and
+test-suite: no other caller of canonical's `_alpha_rename`; `normalize.py` has its own,
+unrelated `_alpha_rename(s: str)`).
+
+Witnesses (IDs 7230-7234): 7230 PASS (121 Valid; base REFUSED, R274); 7231 `ensures
+False` -> declined -> REFUSED (base REFUSED); 7232 no `len` requires -> recognizer fires
+with `requires { true }`, 6 cell-read goals non-Valid (FAIL; base REFUSED); 7233 a caller
+forwarding an unconstrained counter -> its precondition goal times out (FAIL; base
+REFUSED); 7234 increment before the read -> declined -> REFUSED.
+FOUND WHILE BUILDING (pre-existing, reported to the driver, not repaired here): the first
+7233 (`counter = []; rename(t, counter)`) PROVED: a LOCAL empty list lowers to the
+placeholder `Array.make 1024 0`, which discharges a callee's `len(c) >= 1`. Minimal probe
+at base `a9eac4a08`: `def h(): c = []; return g(c)` with `g` requiring `len(c) >= 1`
+-> `Verification SUCCESS` (CPython: IndexError). Probe file `lv5/probe/p2_*.py`.
+
+Gate battery (B1+B2 tree, base `a9eac4a08`; bases v13/ca + v13/ma; logs `lv5/g2/`). A first
+run (`lv5/g1/`) went RED twice and both were fixed before this run: `check-claim-vacuity`
+(the controls carried literal `requires True` / `ensures True` lines: removed) and
+`check-trusted-frame-honesty` param-frame `not-lowered` 87 > 86 (the cell was emitted as
+`v_counter`, so the plane, which reads `writes` by PARAMETER name, no longer saw the frame
+reach the model: the cell now keeps the parameter's own name; measured 86 again).
+
+| gate | rc | result |
+|---|---|---|
+| fidelity `check-self-annotate-sync.sh` / `self-annotate-mirror-check.sh` | 0 / 0 | 939 verbatim / 53 mirrors in sync |
+| doc-coherency | 0 | in sync |
+| whole file `pycsl.py src/self-annotate/src/proof2why3/canonical.py` | 0 | 311 Valid / 0 non-Valid, SUCCESS (416 s; base 277) |
+| corpus root `byte-diff-compare.py v13/ca cand --new-source 7230..7234` | 0 | 2604 / 2607, 0 MOVED / 0 GONE / 0 APPEARED (7231, 7234 refused -> no .mlw) |
+| corpus pyref `--min-files 2000` | 0 | 2186 / 2186, 0 MOVED |
+| mirror sweep vs v13/ma `--expect-moved proof2why3__canonical` | 0 | 53 / 53, exactly 1 MOVED = canonical.mlw, byte-equal to the proved emission |
+| `run-soundness-planes.sh` | 0 | 61 / 61 green (incl. assigns-underdeclaration, claim-vacuity) |
+| trusted-reasons | 0 | 408 markers <-> 408 rows (unclassified 256, ratchet 257) |
+| assumed-facts `--emit-dir` | 0 | every fact reviewed; no axiom emitted (ledger unchanged) |
+| refusal-witness-coverage / advice-audited / dropped-mutation / getattr-erasure / open-route-carriers | 0 each | 363 demonstrated / 190 of 253 / 0 dropped / DECLARED 0 / carriers reproduce |
+| trusted-frame-honesty / trusted-raises-honesty / clause-survival `--emit-dir` | 0 / 0 / 0 | 0/1, 0/93 (param not-lowered 86) / 19 declared, 48 silent / 10 ledgered of 1551 |
+| screen oracles (untrusted-emitted / yield-erasure / shadowed-selfcalls / emitted-vacuity) | 0 / 0 / 0 / 0 | 909 definitions, 0 re-abstracted / 0 value-erasing / 14 = ratchet / no new erasure |
+| count | — | `#@ \trusted` lines 437 -> **436** |
+
+Residuals: (a) the f-string, empty dict and dict store are uninterpreted, so `_alpha_rename`
+proves type-safety, termination, the frame and IndexError-freedom under its precondition,
+not that the names are fresh or the renaming correct; (b) the recognizer admits exactly one
+binder-block shape (e.g. the increment-first variant 7234 declines); (c) `--fun
+_alpha_rename` does not run on canonical.py (pre-existing: `--fun` trusts `_ac_normalize`
+and lowers it generically, which refuses `sorted(key=)`).
+
 ## Residuals (honest)
 
 1. **Contract-dropping beyond the term family is UN-PROBED.** `generic_fold.py` has 399

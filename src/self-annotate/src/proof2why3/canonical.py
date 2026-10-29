@@ -61,12 +61,35 @@ def _expand_nat_to_int(t: Term) -> Term:
         return UnaryOp(t.op, _expand_nat_to_int(t.arg))
     return t
 
-#@ \trusted reviewer: pycsl-self-annotate
-#@ requires True
+#@ requires len(counter) >= 1
 #@ ensures True
 #@ assigns counter
 def _alpha_rename(t: Term, counter: List[int]) -> Term:
-    return None
+    if isinstance(t, (Var, IntLit, BoolLit, Unsupported)):
+        return t
+    if isinstance(t, App):
+        return App(head=t.head,
+                   args=tuple(_alpha_rename(a, counter) for a in t.args))
+    if isinstance(t, BinOp):
+        return BinOp(t.op,
+                     _alpha_rename(t.lhs, counter),
+                     _alpha_rename(t.rhs, counter))
+    if isinstance(t, UnaryOp):
+        return UnaryOp(t.op, _alpha_rename(t.arg, counter))
+    if isinstance(t, (Forall, Exists)):
+        # Assign fresh names to this binder group.
+        new_names = []
+        mapping: Dict[str, str] = {}
+        for old in t.binders:
+            new = f"v{counter[0]}"
+            counter[0] += 1
+            new_names.append(new)
+            mapping[old] = new
+        renamed_body = substitute(t.body, mapping)
+        renamed_body = _alpha_rename(renamed_body, counter)
+        kind = Forall if isinstance(t, Forall) else Exists
+        return kind(binders=tuple(new_names), ty=t.ty, body=renamed_body)
+    raise TypeError(f"_alpha_rename: unknown {type(t)}")
 
 #@ requires True
 #@ ensures True

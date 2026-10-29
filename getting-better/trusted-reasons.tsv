@@ -367,7 +367,6 @@ module6_whyml/struct_format.py	parse_format	cost-scale:in-place-mutator	THE IN-P
 module6_whyml/struct_format.py	calcsize	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 module6_whyml/types.py	TypeInferenceMixin._track_collection_metadata	unclassified	-
 module6_whyml/types.py	TypeInferenceMixin._collect_array_var_assigns	unclassified	-
-proof2why3/canonical.py	_alpha_rename	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/crosscheck.py	CrossCheckResult.diagnostic	unclassified	-
 proof2why3/crosscheck.py	_load_axiom_registry	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/crosscheck.py	crosscheck_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
