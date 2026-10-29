@@ -16,6 +16,20 @@
 ##   route #375: VERIFY-FAIL -> REFUSED by #454) / 0 APPEARED; pyref 2186 0/0/0; mirror 53/53 0/0/0 (no OWED proof);
 ##   planes 61/61; rwc 349 demonstrated / advice 176 audited / dropped-mutation / getattr / carriers / frame- / raises-honesty /
 ##   clause / assumed / trusted-reasons 413 / doc rc=0. Over-refusal cost: 0 PASS files (root, pyref, mirror).
+## run #3 (2026-10-29): #448 / #449 / #450 / #455 REPAIRED (executor r2 off db6c57253; CALL BINDING inline in `_run_pipeline`,
+##   in EVERY non-trusted function -- an unclaimed callee's TypeError reaches its caller's claim, measured; allow-list, refuse
+##   by default; no new def in a mirrored file, no axiom, no emission change; annotations 7.190 / translational T.6.200).
+##   #449 PYCSL-R449-CALL-SIGNATURE: calls of module defs bound once, own-scope defs, `C.m`, `self.m` (all file subclasses),
+##   `p.m` (file-class-annotated parameters) bind by CPython's algorithm. #450 PYCSL-R450-SUPER-UNRESOLVED: `super().a`
+##   resolved through every deriving class's file MRO (real `__mro__` for builtin / stdlib bases), call bound. #448: row
+##   cross-constraints `_XC448` (max / min `default=` => 1 positional, ...; audit: only that one slipped) + real
+##   `inspect.signature` of builtins (PYCSL-R448-BUILTIN-CROSS-CONSTRAINT). #455 PYCSL-R455-DECORATOR-SITE: property / accessors
+##   / cached_property / classmethod only in a class body, no trailing `@overload`, no builtin decorator on a class. All 35
+##   route witnesses refused; corpus 6950-6969 (20 witnesses, all PROVED at base; 3 found while repairing: `self.m(n, n)`,
+##   `c.m(n, n)`, mismatches in UNCLAIMED callees) + 6980-6984 controls (PROVED base + candidate). Gates: fidelity rc=0; root
+##   2569 -> 2574 0 MOVED / 0 GONE / 0 APPEARED; pyref 2186 0/0/0; mirrors 53/53 0/0/0 (no OWED proof); planes 61/61; rwc 348 /
+##   advice 175 / all ledgers rc=0. OVER-REFUSAL COST: 0 corpus / pyref / mirror / pycsl_lib files. Residual: class-code
+##   mismatches of builtins in unclaimed callees (#441's table is claim-keyed), unresolved receivers, `*` / `**` calls.
 
 ## run #3 (2026-10-29): #444-#459 OPENED (red team 36, SYSTEMATIC census of operators / dunders / scoping / call
 ##   binding / modules on 8fe7204c3: 1723 probes / 240 proved / 209 confirmed; rt35's 175 all closed): #444 unbound-name-opaque (9); #445 missing-attribute-opaque (21); #446 unknown-operator-matmul (7); #447 augmented-shift-obligation (13); #448 builtin-arity-keyword (6); #449 user-call-signature (17); #450 super-call-opaque (6); #451 field-default-annotation (5); #452 bytes-int-argument-range (13); #453 module-function-by-name (56); #454 starred-non-iterable (3); #455 decorator-misuse (6); #456 set-method-arg-hash (14); #457 isinstance-class-spec (5); #458 operator-operand-classes (19); #459 conditional-module-binding (9).
