@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-29): #460 OPENED (measured by executor r1, driver-reproduced on 8fe7204c3 and on the post-#444-#459
+##   candidate): a caller's `no_exception` claim does not reach an UN-claimed callee's Module 6 obligations / #161
+##   admission (`math.factorial(n)` in an un-claimed g called by a claimed f PROVES; CPython ValueError). Partial reach
+##   exists (#178 summaries, `_rc444`, `_xf440`); the structural repair is one reached-claim set read by every claim-gated check.
+
 ## run #3 (2026-10-29): #447 / #451 / #452 / #454 / #456 / #459 REPAIRED (executor r3 off db6c57253; the MISSING-OBLIGATION
 ##   families of red team 36; corpus 7000-7046 (38 witnesses + 9 controls), census +38 rows / 3 re-measured (5066 5071 5072),
 ##   advice audits R447 / R451 / R452 / R454 / R459, docs annotations 7.200-7.205 / translational T.6.210-T.6.215, REPAIR
