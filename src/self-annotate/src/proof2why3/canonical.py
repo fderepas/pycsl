@@ -198,12 +198,34 @@ def _camel_to_snake(name: str) -> str:
 def _normalize_names(t: Term) -> Term:
     return None
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _normalize_type_string(ty: str) -> str:
-    return ""
+    if ty in ("int", "nat", "Prop", "Type", "Bool", "bool"):
+        return ty  # base types stay as-is
+    low = ty.strip().lower()
+    # Integer-like base types unify to `int` (Rocq `Z`, Lean `Int`).
+    # `nat`/`Nat` is intentionally NOT mapped here — `_expand_nat_to_int`
+    # handles it earlier (adding `>= 0` side conditions).
+    if low in ("z", "integer"):
+        return "int"
+    # Sequence-like types unify to `seq` (Rocq `list T`, Lean `List T`,
+    # WhyML `array int`) — the element type is irrelevant to the
+    # round-trip statement's shape.
+    head = low.split()[0] if low.split() else low
+    if head in ("list", "array", "seq"):
+        return "seq"
+    import re as _re
+    # Walk the string, lowercasing each identifier token; preserve
+    # operator/paren punctuation.
+    out_parts = []
+    for token in _re.split(r"(\W+)", ty):
+        if token and token[0].isalpha():
+            out_parts.append(_camel_to_snake(token))
+        else:
+            out_parts.append(token)
+    return "".join(out_parts)
 
 #@ requires True
 #@ ensures True

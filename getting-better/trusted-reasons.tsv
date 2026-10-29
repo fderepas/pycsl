@@ -59,8 +59,8 @@ core_ir_semantic.py	_returns_literal_none.walk	cost-scale:nested-closure-lift	th
 core_ir_semantic.py	_typeddict_check_subscript	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 core_ir_semantic.py	_namedtuple_check_call	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 core_ir_semantic.py	_namedtuple_check_subscript	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-exception_model.py	bases_closure	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 errors.py	PyCSLError.__init__	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
+exception_model.py	bases_closure	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 frontend/ConcurrencyChecker.py	ConcurrencyChecker.check	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker._check_function	unclassified	-
 frontend/ConcurrencyChecker.py	ConcurrencyChecker._walk_stmt	unclassified	-
@@ -371,7 +371,6 @@ proof2why3/canonical.py	_alpha_rename	cost-scale:int-erasure-seam	THE INT-ERASUR
 proof2why3/canonical.py	_ac_normalize	cost-scale:nested-closure-lift	the nested-closure lift
 proof2why3/canonical.py	_flatten_foralls	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 proof2why3/canonical.py	_normalize_names	unclassified	-
-proof2why3/canonical.py	_normalize_type_string	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/crosscheck.py	CrossCheckResult.diagnostic	unclassified	-
 proof2why3/crosscheck.py	_load_axiom_registry	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/crosscheck.py	crosscheck_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
