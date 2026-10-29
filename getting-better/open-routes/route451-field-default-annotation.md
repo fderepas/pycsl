@@ -54,3 +54,8 @@ GATES (one candidate, one battery for #447 / #451 / #452 / #454 / #456 / #459; s
 ## RESIDUALS: a plain class's class-body `x: str = None` (a class attribute; usually shadowed by `__init__`); a non-`None`
 kind mismatch of a field default (route #236 judges dataclass defaults by value); a store whose value is computed
 (`self.s: str = f()`); a field never read by a claimed function (a claim-free ensures that relies on the field's class).
+A field read only through an UNCLAIMED helper (`def name(c): return c.name`, then `name(c).strip()` in the claimed
+function) is not seen. Widening the read set to every function of a claim-bearing module was MEASURED (AST screen
+`scratchpad/r3/screen451.py` over the corpus and the mirror): 100 class-body `None` defaults / Optional stores in
+claim-bearing files, almost all mirror mixin declarations (`_record_locals: Set[str] = None` in
+module6_whyml/statements.py / stmt_control_flow.py ...) -- not landable without a mirror rewrite.
