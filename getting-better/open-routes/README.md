@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-29): #474-#480 OPENED (red team 39 on d6abee90b: 918 probes + 1064 mode re-proofs / 141 confirmed;
+##   rt38's 142 counted all closed): #474 imported-constant-flow-insensitive (25); #475 dependency-encoding-cookie (10); #476 script-order-redefinition (8); #477 module-getattr-import (3); #478 typed-store-list-augassign (15); #479 ellipsis-ternary-test (7); #480 builtin-objects-as-ints (58).
+##   Diagnosis: dependency analysis by a second, weaker reader (F1 F2 F4: constants, encoding, __getattr__), script-order
+##   binding (F3), non-default memory models skipping a default-model refusal (F5), and opaque-int residues (F6 F7).
+
 ## run #3 (2026-10-29): #473 REPAIRED (executor e473 off 1f3aa3081; inline in `_run_pipeline`, mirror twin `\trusted`, no
 ##   new def in a mirrored file, no axiom, NO refusal): an empty list literal is the genuinely EMPTY `(Array.make 0 0)`
 ##   wherever the IR attributes the `(Array.make 1024 0)` text to it (a function with no real-1024-list producer: every
