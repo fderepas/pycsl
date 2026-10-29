@@ -3944,8 +3944,17 @@ it covers the exception CPython raises there:
   (route #252), several or underivable classes are not judged.
   `PYCSL-R458-OPERAND-CLASSES`.
 
-No emission changes; no axiom. Witnesses `6850`-`6867` (expected FAIL, refused); controls
-`6870`-`6874` (expected PASS). Census of the fallback sites:
+The same reach applies to §7.141's BUILTIN FUNCTION rows: in a function that claims nothing
+itself but is called by a claiming one, a call `f(..)` of an unshadowed builtin is judged by its row
+under the caller's claim (measured: `def g(n: int): return len(n)` called by a claimed `f` proved
+under `#@ no_exception \all` on main; witness `6868`, control `6875`). Method / receiver rows
+(§7.133 / §7.141 / §7.150) are NOT extended: measured, extending the whole claim test refused 10
+PASS corpus files (`super()` receivers and `list.pop` in reached constructors). Route #161's callee
+whitelist and the Module 6 obligations still read a function's OWN claim (residual:
+`math.factorial(n)` in an unclaimed callee proves).
+
+No emission changes; no axiom. Witnesses `6850`-`6868` (expected FAIL, refused); controls
+`6870`-`6875` (expected PASS). Census of the fallback sites:
 `getting-better/systematic-soundness-r3/r1-opaque/census-fallback-sites.tsv`.
 
 ### 7.17 Distinct names stay distinct; `is` is refused in every condition position (routes #327 / #329 / #333)

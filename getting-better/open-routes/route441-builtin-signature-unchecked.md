@@ -73,3 +73,16 @@ code admits any imported name (`isinstance(x, imported_function)`); (5) a TypeEr
 narrowing (only an AttributeError claim runs it), so a Union receiver narrowed by isinstance can be over-refused there
 (measured 0); (6) element-level checks only for sum (numbers), bytes / bytearray (ints), dict / update (pairs) and
 startswith / endswith (tuple components); other element classes are the hashing / #433 / #437 rows' business.
+
+## RESIDUAL CLOSED (executor r1, driver run #3, 2026-10-29; annotations §7.180, translational §T.6.190) -- the callee reach
+
+The signature table judged only the function that CLAIMS `no_exception`: an UNclaimed `def g(n: int): return len(n)`
+called by a claimed `f` PROVED `#@ no_exception \all` on main db6c57253 (CPython TypeError; the callee's opaque `val`
+carries no `raises`, so the caller's claim assumes it). With routes #444-#458's claim reach (`_rc444`: the claim of
+every claiming function that may call a function, transitively), the BUILTIN FUNCTION rows (`_FT440`) are judged in
+such a callee under the caller's claim (`_xf440`): witness 6868 REFUSED PYCSL-R441-BUILTIN-SIGNATURE (PROVED at base),
+control 6875 (`len(s)` on a `str` in the callee) PROVED at base and candidate. Method / receiver rows are NOT extended:
+measured on the 1096 claimed corpus files, extending the whole #432 / #440 claim refused 10 PASS files (`super()`
+receivers -- #443 -- and `list.pop` in reached constructors), so it was not landed. Residual: method rows in callees;
+route #161's whitelist and the Module 6 obligations still read the function's OWN claim (`math.factorial(n)` in an
+unclaimed callee still proves). The refusal text says "this function claims" also when the claim is the caller's.

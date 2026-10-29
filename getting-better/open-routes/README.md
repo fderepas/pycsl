@@ -45,6 +45,11 @@
 ##   `dataclasses.replace`). All 117 route witnesses refused. Cost: 0 PASS files, 0 mirror files; 5 expected-FAIL
 ##   witnesses (4491 / 4492 / 4494 / 4808 / 4815) now refused (GONE), 4 already-refused witnesses refused earlier.
 ##   Residual: non-stdlib modules, multi-class / underivable operands and receivers, non-file bases, dynamic attributes.
+##   INCREMENT 2 (same rule, callee reach): #441's BUILTIN FUNCTION rows are also judged in an UNclaimed function called
+##   by a claiming one (`def g(n: int): return len(n)` under a caller's `\all` PROVED on main: witness 6868, control 6875).
+##   Extending the whole #432 / #440 claim instead refused 10 PASS corpus files (`super()` receivers, `list.pop` in
+##   reached constructors) and was NOT landed. Open lead: #161 / Module 6 obligations still read a function's OWN
+##   claim (`math.factorial(n)` in an unclaimed callee proves under the caller's `\all`).
 
 ## run #3 (2026-10-29): #444-#459 OPENED (red team 36, SYSTEMATIC census of operators / dunders / scoping / call
 ##   binding / modules on 8fe7204c3: 1723 probes / 240 proved / 209 confirmed; rt35's 175 all closed): #444 unbound-name-opaque (9); #445 missing-attribute-opaque (21); #446 unknown-operator-matmul (7); #447 augmented-shift-obligation (13); #448 builtin-arity-keyword (6); #449 user-call-signature (17); #450 super-call-opaque (6); #451 field-default-annotation (5); #452 bytes-int-argument-range (13); #453 module-function-by-name (56); #454 starred-non-iterable (3); #455 decorator-misuse (6); #456 set-method-arg-hash (14); #457 isinstance-class-spec (5); #458 operator-operand-classes (19); #459 conditional-module-binding (9).

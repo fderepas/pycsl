@@ -5627,7 +5627,8 @@ $f$'s body holds a `Name` $g$ (any def of that name), an `Attribute` $.g$ ($g$ a
 a class of `_clo346`$[C]$, a nested def $g$, or $g$ any dunder method of a file class
 (`_rc444`). Write $\mathit{cov}(E) \iff \mathit{CL}^*(f) \cap \{$`\all`$, E,$ `Exception`$,$
 `BaseException`$\} \ne \emptyset$. No emission changes; each rule below is a refusal in
-`_run_pipeline`.
+`_run_pipeline`. In §T.6.152, a function with $\mathit{CL}(f) = \emptyset$ and $\mathit{CL}^*(f) \ne \emptyset$ has its
+`Name`-callee calls (the `_FT440` rows only, `_xf440`) judged under $\mathit{CL}^*(f)$.
 
 * (#444) If $\mathit{cov}$(NameError) and no `from M import *`: a `Name` load reached from
   $f$'s body (not entering nested `def` / `class` bodies, annotations, or a comprehension's

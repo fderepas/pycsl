@@ -10054,6 +10054,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             # builtin method without a row (`rindex`, `partition`, `format`, `to_bytes`,
             # `fromhex` ...: its exceptions are unmodelled, as #161 refuses an unlisted callee).
             _xc440 = set(_cx432) if _ok432 else set()
+            # (#49) gen #38 (r1, the callee reach of routes #444-#458): in a function that
+            # claims nothing itself but is called by a claiming one (`_rc444`), the BUILTIN
+            # FUNCTION rows (`_FT440`) are judged under the caller's claim (measured: `def
+            # g(n: int): return len(n)` called by a claimed `f` proved under `#@ no_exception
+            # \all`; CPython TypeError). Method / receiver rows are not extended: measured,
+            # extending the whole #432 / #440 claim refused 10 PASS corpus files (`super()`
+            # receivers and `list.pop` in reached constructors).
+            _xf440 = _ok432 and not _xc440 and bool(_rc444.get(id(_f346)))
+            if _xf440:
+                _xc440 = set(_rc444[id(_f346)])
             _ae440 = bool(_xc440 & {"\\all", "AttributeError", "Exception", "BaseException"})
             _te440 = bool(_xc440 & {"\\all", "TypeError", "Exception", "BaseException"})
             _NU440 = {"int", "bool", "float"}
@@ -10233,6 +10243,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         or id(_n440) in _am440):
                     continue
                 _fu440 = _n440.func
+                if _xf440 and not isinstance(_fu440, _ast341.Name):
+                    continue
                 _rk440 = None
                 _ow440 = _ast341.unparse(_fu440)
                 _ag440 = list(_n440.args)
