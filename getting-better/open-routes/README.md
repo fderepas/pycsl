@@ -1,5 +1,8 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-29): #473 OPENED (found by executor lv5, driver-reproduced on a9eac4a08): a LOCAL empty list passed to a
+##   callee is the 1024-element placeholder `Array.make 1024 0`, discharging the callee's `len(c) >= 1` (2 witnesses).
+
 ## run #3 (2026-10-29): #465-#472 OPENED (red team 38 on a9eac4a08: 688 probes / 155 proved / 142 confirmed; rt37's 83
 ##   all closed except #463 / #464): #465 compile-time-syntax-error (20); #466 imported-module-import-raises (18); #467 imported-callee-exceptions (17); #468 imported-callee-list-length (34); #469 module-dunders-script-view (16); #470 standin-lazy-annotations (7); #471 class-in-function-creation (18); #472 import-resolved-on-verifier-path (12).
 ##   Diagnosis: the FILE BOUNDARY (imported user modules not judged like local code: F2 F3 F4 F8) and #461's evaluation
