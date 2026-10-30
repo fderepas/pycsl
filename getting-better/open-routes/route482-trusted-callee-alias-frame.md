@@ -1,5 +1,5 @@
 # OPEN ROUTE #482 — CALLEE WRITE EFFECT (ROUTES #316/#317 FRAME ANALYSIS) MISSES WRITES REACHED THROUGH A FRESH CONTAINER, AN UNPACKING / with / match / comprehension BINDER, A NESTED def OR A CLASS BODY
-**Status: OPEN, Severity 1.** Red-team round 40 (2026-10-30, on dcf424f75 after #475-#480 repaired / #474 partial: 624 probes + 1009 mode re-proofs / 129 confirmed (probe, mode) pairs on 103 probes; rt39's 141 all closed). Census TSV `scratchpad/rt40/census.tsv`; the family block below is quoted from `scratchpad/rt40/FINDINGS.txt`.
+**Status: REPAIRED (executor y1, driver run #3, 2026-10-30, off e3b3711a2), Severity 1.** Red-team round 40 (2026-10-30, on dcf424f75 after #475-#480 repaired / #474 partial: 624 probes + 1009 mode re-proofs / 129 confirmed (probe, mode) pairs on 103 probes; rt39's 141 all closed). Census TSV `scratchpad/rt40/census.tsv`; the family block below is quoted from `scratchpad/rt40/FINDINGS.txt`.
 Witnesses `witnesses-r482/` (50): `g104_g10410_self_display_subscript.py`, `g104_g10411_self_container_depth2.py`, `g104_g10412_self_for_display.py`, `g104_g10413_self_nested_def.py`, `g104_g10414_self_unpack.py`, `g104_g10415_self_alias_display.py`, `g109_r10900_record_display_subscript.py`, `g109_r10901_record_unpack.py`, `g109_r10902_record_for_display.py`, `g109_r10903_record_nested_def.py`, `g109_r10905_record_field_list_display.py`, `g109_r10906_dict_param_display.py`, `g109_r10908_record_with_as.py`, `g109_r10909_record_dict_items.py`, `g87_t9102_container_capture_list.py`, `g87_t9103_container_capture_dict.py`, `g87_t9104_container_capture_tuple.py`, `g87_t9105_nested_def_late_read.py`, `g87_t9106_nested_def_default_capture.py`, `g87_t9107_iter_capture.py`, `g87_t9109_listcomp_capture.py`, `g87_t9111_class_attr_capture.py`, `g94_t9200_list_display_param.py`, `g94_t9201_dict_display_param.py`, `g94_t9202_tuple_display_param.py`, `g94_t9203_nested_def_closure_param.py`, `g94_t9204_nested_def_default_param.py`, `g94_t9205_for_over_display.py`, `g94_t9206_listcomp_param.py`, `g94_t9207_class_body_param.py`, `g94_t9209_list_append_then_index.py`, `g94_t9210_dict_values_loop.py`, `g94_t9211_zip_loop.py`, `g94_t9212_enumerate_loop.py`, `g94_t9214_nested_def_append.py`, `g94_t9215_list_display_append.py`, `g94_t9217_trusted_method_container.py`, `g95_t9300_tuple_display_subscript.py`, `g95_t9301_list_display_subscript.py`, `g95_t9302_dict_display_subscript.py`, `g95_t9304_next_iter_display.py`, `g95_t9305_unpack_single.py`, `g95_t9306_unpack_pair.py`, `g95_t9307_with_as.py`, `g95_t9311_display_pop.py`, `g95_t9312_concat_display_subscript.py`, `g95_t9313_list_ctor_subscript.py`, `g95_t9317_for_tuple_target.py`, `g95_t9318_except_as_cannot.py`, `g95_t9319_dict_items_loop.py`.
 
 Driver repro: `scratchpad/rp40/repro.sh` (session scratchpad) on dcf424f75, 2026-10-30T07:30Z: all 16 rt40 verify exemplars (2+ per family, F5 under --memory-model typed / store) rc=0 Verification SUCCESS and CPython breaches, reproduced by the driver.
@@ -13,3 +13,49 @@ F1 CALLEE WRITE EFFECT (ROUTES #316/#317 FRAME ANALYSIS) MISSES WRITES REACHED T
   PROPOSED SYSTEMATIC REPAIR: REFUSE BY DEFAULT what the analysis cannot follow (allow-list polarity): (1) a store / in-place mutator whose root is a local that is not PROVABLY FRESH (bound only by literals / comprehensions / constructors of immutable or freshly built values, through no display that MENTIONS a tainted name) is charged with the CONTAINMENT set (`_any316`) of that root at EVERY depth, not the identity set at depth <= 1; (2) any binder the edge collector does not model (with-as, match capture, comprehension target, except-as, nested def / lambda / class body reading a tainted name, default arguments) makes the bound name tainted by everything its source mentions (or refuses the frame: PYCSL-METHOD-FRAME / a new PYCSL-R316-UNTRACKED-ALIAS); (3) measure: every \trusted / imported / method body of the corpus, mirrors and pycsl_lib re-analysed, list the frames that grow. Witness: the F1 probes; control: cv6 7448 (`ys = xs; ys = [0]; ys[0] = 7` stays write-free).
   PROBES: g104/g10410_self_display_subscript.py g104/g10411_self_container_depth2.py g104/g10412_self_for_display.py g104/g10413_self_nested_def.py g104/g10414_self_unpack.py g104/g10415_self_alias_display.py g109/r10900_record_display_subscript.py g109/r10901_record_unpack.py g109/r10902_record_for_display.py g109/r10903_record_nested_def.py g109/r10905_record_field_list_display.py g109/r10906_dict_param_display.py g109/r10908_record_with_as.py g109/r10909_record_dict_items.py g87/t9102_container_capture_list.py g87/t9103_container_capture_dict.py g87/t9104_container_capture_tuple.py g87/t9105_nested_def_late_read.py g87/t9106_nested_def_default_capture.py g87/t9107_iter_capture.py g87/t9109_listcomp_capture.py g87/t9111_class_attr_capture.py g94/t9200_list_display_param.py g94/t9201_dict_display_param.py g94/t9202_tuple_display_param.py g94/t9203_nested_def_closure_param.py g94/t9204_nested_def_default_param.py g94/t9205_for_over_display.py g94/t9206_listcomp_param.py g94/t9207_class_body_param.py g94/t9209_list_append_then_index.py g94/t9210_dict_values_loop.py g94/t9211_zip_loop.py g94/t9212_enumerate_loop.py g94/t9214_nested_def_append.py g94/t9215_list_display_append.py g94/t9217_trusted_method_container.py g95/t9300_tuple_display_subscript.py g95/t9301_list_display_subscript.py g95/t9302_dict_display_subscript.py g95/t9304_next_iter_display.py g95/t9305_unpack_single.py g95/t9306_unpack_pair.py g95/t9307_with_as.py g95/t9311_display_pop.py g95/t9312_concat_display_subscript.py g95/t9313_list_ctor_subscript.py g95/t9317_for_tuple_target.py g95/t9318_except_as_cannot.py g95/t9319_dict_items_loop.py
 ```
+
+## REPAIR (executor y1, driver run #3, 2026-10-30; annotations §7.360)
+
+POLARITY: option (b), REFUSE BY DEFAULT, inline at the end of `_run_pipeline` (mirror twin `\trusted`; no
+Module 6 / mirror edit). Option (a) -- a conservative "writes every mutable parameter" frame -- was rejected
+on cost AND expressibility: a record / dict parameter or `self` cannot be named by a bodyless `val`'s `writes`
+(route #317 already refuses a written record parameter as PYCSL-VAL-ARG-UNFRAMED, and a method stub takes
+`writes` from `#@ assigns` only), so (a) degenerates to refusal there and to a lost caller fact for a list, and
+it needs a Module 6 edit with an OWED mirror proof. Measured population (source scan, `\trusted` defs with no
+`#@ assigns` whose body USES a mutable parameter or `self`): corpus 12 (of 100 trusted defs; 75 carry
+`assigns`), mirror 1 (of 394; 383 carry `assigns`; 9 trusted methods without `assigns` never touch `self`), the
+`pycsl_lib` 1 (`hlib.Sha256.update`, called by no program). Over-refusal of (b): 0 corpus files (no-proof pass
+over the 288 corpus files carrying `\trusted` / `\abstract` / a local import, and the full byte-diff below), 0
+of red teams 39 / 40's 79 `\trusted` probes other than the F1 witnesses.
+
+RULE (allow-list, on the def's SOURCE, because the IR of a `\trusted` body DROPS what it cannot lower -- a
+`with` statement vanished from witness t9307's IR): every mutable root (non-scalar parameter, `*args`, `self`
+of a non-`__init__` method) and every name bound from one may occur only in an access chain read into a scalar
+position, bound by `=` / `for` / tuple unpacking / walrus (checked in turn; through `a + b` / `s += y` the name
+is FRESH and read-only), as a store / delete target chain (a write the inference charges -- cross-checked: a
+parameter the source writes must be in the frame computed from the lowered IR, else refused), as the receiver
+of a list / dict mutator, a read-only method or a program method, or as the argument of `next` / `iter` /
+`reversed` / `enumerate` / `zip` / `min` / `max`. `self` and dict / set parameters are READ-ONLY roots (a dict
+parameter may be stored directly). Everything else is PYCSL-R482-TRUSTED-FRAME-UNTRACKED ("declare the frame
+with `#@ assigns`"; advice audited FOLLOWABLE: 7652). Judged: every def whose own `#@` block says `\trusted` /
+`\abstract` (here or in an imported module), with no `assigns`, that the verified code of the file reads (route
+#468's filter) -- or that a judged body forwards a root to (forwarding a root to a function / method of the
+program is admitted: the fixpoint charges the callee's frame, and the callee is judged in turn).
+
+RESIDUAL (#482-R1, named): a def the tool AUTO-trusts (a body it cannot lower; the IR marks it `trusted` with no
+source marker) or an un-marked imported def is NOT judged by this rule. A first candidate that judged every IR
+`trusted` def refused 6 honest mirror files (`core_ir_semantic`, `proof2why3/canonical`, `module6_whyml/
+{preamble, expressions, statements, stmt_control_flow}`: nested `walk` helpers, `hyps.append(cur)`, a
+comprehension over a parameter), so the scope was narrowed to explicit markers; route #468's length rule still
+judges those defs' list parameters. Red team 40 found the imported channels refused by routes #279 / #283 /
+#290 (t9340 / t9341); auto-trusted bodies were not probed.
+
+D3 PARITY (driver request, same commit): route #468 / #481's length rule and this rule now judge the body after
+the SAME statement-level SSA split as route #316's frame analysis (cv6 D3): a top-level `v = ...` of a
+non-parameter local starts a new version; a version bound by a top-level `v = x` of a judged list parameter is
+an alias judged by the same rows. So `ys = xs; ys = [0]; ys[0] = 7` (cv6 7448, expected PASS) is no longer
+refused by #481's length rule.
+
+NEW FINDING beyond the 50: a `\trusted` method with no `assigns` and a DIRECT `self.xs[0] = 7` (or a call to a
+`self` method that writes `self`) also PROVED the field unchanged (its call stub `c_m_0 ()` carries no
+`writes`): witness 7631, now refused.

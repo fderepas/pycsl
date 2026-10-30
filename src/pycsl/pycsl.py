@@ -25957,17 +25957,68 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _sd468 = [_q for _q in _sd468 if _q[0] == _mf468]
         _sd468 = [_q[1] for _q in _sd468]
         for _d468 in _sd468:
+            # (D3 parity, driver run #3) THE SAME STATEMENT-LEVEL SSA SPLIT AS ROUTE #316's
+            # FRAME ANALYSIS (cv6 D3, Module 6 `transpile`): a plain `v = ...` that is a statement
+            # of the def's OWN body (not nested in a block) starts a new version of a non-parameter
+            # local `v` (`v@1`, `v@2`, ...) for every later top-level statement; its right-hand
+            # side reads the previous version; a name read in a nested scope (lambda, def, class,
+            # comprehension) or declared `global` / `nonlocal` is never split. The body is judged
+            # on this copy, so `ys = xs; ys = [0]; ys[0] = 7` no longer charges `xs` here when the
+            # inferred frame does not (cv6 7448).
+            import copy as _cp468
+            _d468 = _cp468.deepcopy(_d468)
+            _ag468 = _d468.args
+            _pn468s = {_q.arg for _q in (list(_ag468.posonlyargs) + list(_ag468.args)
+                                         + list(_ag468.kwonlyargs) + [
+                                             _q for _q in (_ag468.vararg, _ag468.kwarg)
+                                             if _q is not None])}
+            _lt468 = set()
+            for _z468s in _a468.walk(_d468):
+                if isinstance(_z468s, (_a468.Global, _a468.Nonlocal)):
+                    _lt468.update(_z468s.names)
+                elif _z468s is not _d468 and isinstance(_z468s, (
+                        _a468.Lambda, _a468.FunctionDef, _a468.AsyncFunctionDef, _a468.ClassDef,
+                        _a468.GeneratorExp, _a468.ListComp, _a468.SetComp, _a468.DictComp)):
+                    _lt468.update(_q.id for _q in _a468.walk(_z468s) if isinstance(_q, _a468.Name))
+            _vr468 = {}
+            _vc468 = {}
+            for _s468s in _d468.body:
+                _tn468 = (_s468s.targets[0].id if isinstance(_s468s, _a468.Assign)
+                           and len(_s468s.targets) == 1
+                           and isinstance(_s468s.targets[0], _a468.Name) else None)
+                for _z468s in _a468.walk(_s468s):
+                    if isinstance(_z468s, _a468.Name) and _z468s.id in _vr468:
+                        _z468s.id = _vr468[_z468s.id]
+                if _tn468 is not None and _tn468 not in _pn468s and _tn468 not in _lt468:
+                    _vc468[_tn468] = _vc468.get(_tn468, 0) + 1
+                    _vr468[_tn468] = _tn468 + "@" + str(_vc468[_tn468])
+                    _s468s.targets[0].id = _vr468[_tn468]
+            # a VERSION bound by a top-level `v = x` of a judged list parameter (or of such a
+            # version) is an alias of it: judged by the same rows below
+            _le468 = set(_lp468)
+            for _s468s in _d468.body:
+                if (isinstance(_s468s, _a468.Assign) and len(_s468s.targets) == 1
+                        and isinstance(_s468s.targets[0], _a468.Name)
+                        and "@" in _s468s.targets[0].id
+                        and isinstance(_s468s.value, _a468.Name) and _s468s.value.id in _le468):
+                    _le468.add(_s468s.targets[0].id)
             _wk468 = [(_q, _d468, None) for _q in _d468.body]
             while _wk468 and _rf468 is None:
                 _x468, _pn468, _pk468 = _wk468.pop()
-                if isinstance(_x468, _a468.Name) and _x468.id in _lp468:
+                if isinstance(_x468, _a468.Name) and _x468.id in _le468:
                     # a READ that cannot change the length: an element (or a slice) read, an
                     # element store `x[i] = v`, the argument of a builtin that does not mutate
                     # its argument, an operand of a comparison or of a fresh-list `+` / `*`,
                     # the iterable of a loop, the returned value (the caller's aliasing of a
                     # returned argument is route #288's), or a length-keeping method
-                    _ok468 = isinstance(_x468.ctx, _a468.Load) and (
-                        (isinstance(_pn468, _a468.Subscript) and _pk468 == "value"
+                    # (a version is REBOUND, never written, by a store of its own name)
+                    _ok468 = ("@" in _x468.id and not isinstance(_x468.ctx, _a468.Load)) or (
+                        isinstance(_x468.ctx, _a468.Load) and (
+                        (isinstance(_pn468, _a468.Assign) and _pk468 == "value"
+                         and len(_pn468.targets) == 1
+                         and isinstance(_pn468.targets[0], _a468.Name)
+                         and "@" in _pn468.targets[0].id and _pn468.targets[0].id in _le468)
+                        or (isinstance(_pn468, _a468.Subscript) and _pk468 == "value"
                          and not isinstance(_pn468.ctx, _a468.Del)
                          and not (isinstance(_pn468.slice, _a468.Slice)
                                   and not isinstance(_pn468.ctx, _a468.Load)))
@@ -25993,7 +26044,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             and _pk468 == "iter")
                         or isinstance(_pn468, _a468.Return)
                         or (isinstance(_pn468, _a468.Attribute) and _pk468 == "value"
-                            and _pn468.attr in ("sort", "reverse", "copy", "count", "index")))
+                            and _pn468.attr in ("sort", "reverse", "copy", "count", "index"))))
                     if not _ok468:
                         _rf468 = (_f468, _x468.id, f"line {_x468.lineno}: "
                                                    f"`{_a468.unparse(_pn468)[:50]}`")
@@ -26061,6 +26112,468 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"same mutators on a list parameter of a verified body. Write only the list's "
             f"elements in the callee (`x[i] = v`), or drop the length change from it.",
             stage="ir-semantic", code="PYCSL-R468-VAL-LIST-LENGTH")
+    # (#49) gen #40, ROUTE #482 (red team 40, driver run #3, executor y1; driver-reproduced on
+    # dcf424f75): the caller-visible frame of a BODYLESS `val` with no `#@ assigns` (an
+    # explicit `\\trusted` or `\\abstract` def, here or in an imported module) is INFERRED
+    # from its body by routes #316 / #317's syntactic alias analysis
+    # (Module 6 `transpile`), which follows a reference only through a plain `=` / `for` /
+    # tuple unpacking / walrus and an access chain. Measured: a store reached through a fresh
+    # container (`ys = (xs,)[0]`, `ys, = [xs]`, `zs = [xs]; zs[0][0] = 7`, `for ys in [xs]`),
+    # a `with ... as` / `match` / comprehension binder, a nested `def` / lambda / class body
+    # (which the IR drops from a `\\trusted` body altogether), a record / dict parameter
+    # (`p = (o,)[0]; p.v = 7`), and EVERY write to `self` in a `\\trusted` method (whose call
+    # stub takes `writes` from `#@ assigns` only) PROVED `xs[0]` / `o.v` / `c.xs[0]`
+    # unchanged across the call while CPython changes it. The SAME bodies in a verified
+    # function or method are refused (routes #279 / #283 / #290): only the inferred frame of
+    # a body the tool never verifies leaked. RULE (allow-list polarity, refuse by default): in
+    # such a body every MUTABLE root -- a parameter whose annotation is not a scalar
+    # (unannotated, list, record, dict, tuple, `*args` ...) and `self` of a method -- and every
+    # name bound from one may occur only where the inference follows it EXACTLY: an access
+    # chain (`r.f`, `r[i]`) that is read into a scalar position (a comparison, a test, an
+    # index, a pure builtin such as `len`, a discarded or returned value), bound to a plain
+    # name by `=` / `for` / tuple unpacking / walrus (the name is then checked the same way),
+    # stored into (`r.f = v`, `r[i] += v`, `del r[k]`: a write the inference charges), or the
+    # receiver of a list / dict mutator, a read-only method or a method of this program, or
+    # an argument of a function / method of this program (which is then judged too).
+    # `self` and a dict / set parameter are READ-ONLY roots (no inferred frame can carry a
+    # write to them: `self` needs `#@ assigns self.<f>`; a dict parameter is written only
+    # directly, `d[k] = v`), except in `__init__`, whose `self` is a fresh object. Anything
+    # else -- a container display, an argument of a call the analysis does not model, a
+    # binder it does not see, a nested scope -- is REFUSED: declare the frame with `#@
+    # assigns`. Only a `val` the VERIFIED code of this file reads is judged (route #468's
+    # filter); a `\\trusted` caller that forwards a root to it is itself judged (a call
+    # argument is not on the allow-list). Inline; `_run_pipeline`'s mirror twin is `\\trusted`.
+    _rf482 = None
+    _fs482 = [_f482 for _f482 in ((getattr(transpiler, "ir", None) or {}).get(
+        "functions", []) or []) if isinstance(_f482, dict)
+        and (_f482.get("trusted") or _f482.get("abstract"))
+        and not ((_f482.get("contracts", {}) or {}).get("assigns"))]
+    if _fs482 and _t341 is not None:
+        import ast as _a482
+        import sys as _s482
+        from frontend.ir_resolve import _resolve_module_path as _rmp482
+        _mf482 = str(getattr(args, "file", "") or "")
+        _ix482 = {}         # IR name -> [(file, def node, class node or None)]
+        _ub482 = set()      # ids of defs whose own `#@` block says `\trusted` / `\abstract`
+        _fq482 = [(_mf482, _t341)]
+        _sl482 = {_mf482: source_code.splitlines()}
+        _sn482 = set()
+        while _fq482 and len(_sn482) < 200:
+            _ff482, _tt482 = _fq482.pop(0)
+            if _tt482 is None or _ff482 in _sn482:
+                continue
+            _sn482.add(_ff482)
+            for _z482 in _a482.walk(_tt482):
+                if isinstance(_z482, (_a482.FunctionDef, _a482.AsyncFunctionDef)):
+                    _ln482 = _sl482.get(_ff482, [])
+                    _li482 = min([_q.lineno for _q in _z482.decorator_list]
+                                 + [_z482.lineno]) - 2
+                    while 0 <= _li482 < len(_ln482) and (
+                            _ln482[_li482].lstrip().startswith("#@")
+                            or not _ln482[_li482].strip()):
+                        if _ln482[_li482].lstrip().startswith(("#@ \\trusted", "#@ \\abstract")):
+                            _ub482.add(id(_z482))
+                        _li482 -= 1
+                    _ix482.setdefault(_z482.name, []).append((_ff482, _z482, None))
+                if isinstance(_z482, _a482.ClassDef):
+                    for _m482 in _z482.body:
+                        if isinstance(_m482, (_a482.FunctionDef, _a482.AsyncFunctionDef)):
+                            _ix482.setdefault(_z482.name.lower() + "__" + _m482.name,
+                                              []).append((_ff482, _m482, _z482))
+                _mq482 = []
+                if isinstance(_z482, _a482.Import):
+                    _mq482 = [(_al.name, 0) for _al in _z482.names]
+                elif isinstance(_z482, _a482.ImportFrom):
+                    _mq482 = [(_z482.module or "", _z482.level or 0)] + [
+                        (((_z482.module + ".") if _z482.module else "") + _al.name,
+                         _z482.level or 0) for _al in _z482.names if _al.name != "*"]
+                for _mn482, _lv482 in _mq482:
+                    if _lv482 == 0 and (not _mn482 or _mn482.split(".")[0] in
+                                        _s482.stdlib_module_names):
+                        continue
+                    try:
+                        _rp482 = _rmp482(_mn482, _lv482, _ff482)
+                    except Exception:
+                        _rp482 = None
+                    if _rp482 and _rp482 not in _sn482:
+                        try:
+                            _rb482 = open(_rp482, "rb").read()
+                            _fq482.append((_rp482, _a482.parse(_rb482)))
+                            _sl482[_rp482] = _rb482.decode("utf-8", "replace").splitlines()
+                        except Exception:
+                            pass
+        # the names the VERIFIED code of this file reads (a call, a value, a method tail)
+        _rd482 = set()
+        for _z482 in _a482.walk(_t341):
+            if (isinstance(_z482, (_a482.FunctionDef, _a482.AsyncFunctionDef))
+                    and id(_z482) not in _ub482):
+                for _y482 in _a482.walk(_z482):
+                    if isinstance(_y482, _a482.Name):
+                        _rd482.add(_y482.id)
+                    elif isinstance(_y482, _a482.Attribute):
+                        _rd482.add(_y482.attr)
+        # method tails of this program (a call the fixpoint resolves to a callee's frame)
+        _mt482 = {str(_f482.get("name", "")).rsplit("__", 1)[-1] for _f482 in (
+            (getattr(transpiler, "ir", None) or {}).get("functions", []) or [])
+            if isinstance(_f482, dict) and "__" in str(_f482.get("name", ""))}
+        _SC482 = ("int", "float", "bool", "str", "bytes", "complex", "None", "string")
+        _MU482 = ("append", "extend", "insert", "remove", "pop", "clear", "sort", "reverse",
+                  "add", "discard", "update", "setdefault", "popitem", "difference_update",
+                  "intersection_update", "symmetric_difference_update", "__setitem__",
+                  "__delitem__", "__iadd__", "__imul__")
+        _RO482 = ("copy", "count", "index", "get", "keys", "values", "items", "startswith",
+                  "endswith", "find", "rfind", "lower", "upper", "strip", "lstrip", "rstrip",
+                  "split", "isdigit", "isalpha", "isalnum", "isspace", "bit_length",
+                  "__len__", "__contains__", "__getitem__", "issubset", "issuperset",
+                  "isdisjoint")
+        # a builtin whose result holds no reference into its argument
+        _PB482 = ("len", "str", "repr", "int", "float", "bool", "abs", "hash", "id",
+                  "isinstance", "issubclass", "print", "ord", "chr", "any", "all", "range",
+                  "format", "round", "divmod", "type", "callable", "hasattr", "bin", "hex",
+                  "oct", "ascii")
+        # a builtin whose result may BE (an element of) its argument: the inference follows it
+        _PD482 = ("next", "iter", "reversed", "enumerate", "zip", "min", "max")
+        # function names of this program (a call the fixpoint resolves to a callee's frame)
+        _pf482 = {str(_f482.get("name", "")) for _f482 in (
+            (getattr(transpiler, "ir", None) or {}).get("functions", []) or [])
+            if isinstance(_f482, dict)}
+        # the worklist grows: a judged body that forwards a root to a program function makes
+        # that function judged too (its frame is what the forwarding relies on)
+        _jd482 = set()
+        _wl482 = list(_fs482)
+        for _f482 in _wl482:
+            if _rf482 is not None:
+                break
+            _nm482 = str(_f482.get("name", ""))
+            if _nm482 not in _rd482 and _nm482.rsplit("__", 1)[-1] not in _rd482:
+                continue
+            if id(_f482) in _jd482:
+                continue
+            _jd482.add(id(_f482))
+            _sd482 = _ix482.get(_nm482, []) + [
+                _q for _z482 in _a482.walk(_t341) if isinstance(_z482, _a482.ImportFrom)
+                for _al482 in _z482.names if _al482.asname == _nm482 and _al482.name != _nm482
+                for _q in _ix482.get(_al482.name, [])]
+            if any(_q[0] == _mf482 for _q in _sd482):
+                _sd482 = [_q for _q in _sd482 if _q[0] == _mf482]
+            # SCOPE: a def whose own `#@` block says `\trusted` / `\abstract` (here or in an
+            # imported module). A def the tool AUTO-trusts (a body it cannot lower) or an
+            # un-marked imported one is not judged here (measured: 6 mirror files would be
+            # refused; route #482's named residual)
+            _sd482 = [_q for _q in _sd482 if id(_q[1]) in _ub482]
+            _st482 = _f482.get("symbol_table", {}) or {}
+            for _ff482, _d482, _c482 in _sd482:
+                if _rf482 is not None:
+                    break
+                # (D3 parity, driver run #3) THE SAME STATEMENT-LEVEL SSA SPLIT AS ROUTE #316's
+                # FRAME ANALYSIS (cv6 D3, Module 6 `transpile`): a plain `v = ...` that is a statement
+                # of the def's OWN body (not nested in a block) starts a new version of a non-parameter
+                # local `v` (`v@1`, `v@2`, ...) for every later top-level statement; its right-hand
+                # side reads the previous version; a name read in a nested scope (lambda, def, class,
+                # comprehension) or declared `global` / `nonlocal` is never split. The body is judged
+                # on this copy, so `ys = xs; ys = [0]; ys[0] = 7` no longer charges `xs` here when the
+                # inferred frame does not (cv6 7448).
+                import copy as _cp482
+                _d482 = _cp482.deepcopy(_d482)
+                _ag482 = _d482.args
+                _pn482s = {_q.arg for _q in (list(_ag482.posonlyargs) + list(_ag482.args)
+                                             + list(_ag482.kwonlyargs) + [
+                                                 _q for _q in (_ag482.vararg, _ag482.kwarg)
+                                                 if _q is not None])}
+                _lt482 = set()
+                for _z482s in _a482.walk(_d482):
+                    if isinstance(_z482s, (_a482.Global, _a482.Nonlocal)):
+                        _lt482.update(_z482s.names)
+                    elif _z482s is not _d482 and isinstance(_z482s, (
+                            _a482.Lambda, _a482.FunctionDef, _a482.AsyncFunctionDef, _a482.ClassDef,
+                            _a482.GeneratorExp, _a482.ListComp, _a482.SetComp, _a482.DictComp)):
+                        _lt482.update(_q.id for _q in _a482.walk(_z482s) if isinstance(_q, _a482.Name))
+                _vr482 = {}
+                _vc482 = {}
+                for _s482s in _d482.body:
+                    _tn482 = (_s482s.targets[0].id if isinstance(_s482s, _a482.Assign)
+                               and len(_s482s.targets) == 1
+                               and isinstance(_s482s.targets[0], _a482.Name) else None)
+                    for _z482s in _a482.walk(_s482s):
+                        if isinstance(_z482s, _a482.Name) and _z482s.id in _vr482:
+                            _z482s.id = _vr482[_z482s.id]
+                    if _tn482 is not None and _tn482 not in _pn482s and _tn482 not in _lt482:
+                        _vc482[_tn482] = _vc482.get(_tn482, 0) + 1
+                        _vr482[_tn482] = _tn482 + "@" + str(_vc482[_tn482])
+                        _s482s.targets[0].id = _vr482[_tn482]
+                _mth482 = _c482 is not None or _f482.get("kind") == "method"
+                _ini482 = _d482.name == "__init__"
+                # roots: name -> (read-only?, origin)
+                _T482 = {}
+                _ps482 = (list(_d482.args.posonlyargs) + list(_d482.args.args)
+                          + list(_d482.args.kwonlyargs))
+                for _i482, _p482 in enumerate(_ps482):
+                    if _mth482 and _i482 == 0 and not any(
+                            isinstance(_q, _a482.Name) and _q.id == "staticmethod"
+                            for _q in _d482.decorator_list):
+                        if not _ini482:
+                            _T482[_p482.arg] = (True, _p482.arg)
+                        continue
+                    _an482 = _p482.annotation
+                    while isinstance(_an482, _a482.Subscript) and isinstance(
+                            _an482.value, _a482.Name) and _an482.value.id == "Optional":
+                        _an482 = _an482.slice
+                    _as482 = (_an482.id if isinstance(_an482, _a482.Name)
+                              else _an482.value if isinstance(_an482, _a482.Constant)
+                              and isinstance(_an482.value, str)
+                              else _an482.attr if isinstance(_an482, _a482.Attribute)
+                              else _an482.value.id if isinstance(_an482, _a482.Subscript)
+                              and isinstance(_an482.value, _a482.Name)
+                              else None if _an482 is None else "?")
+                    if _as482 in _SC482 or (isinstance(_an482, _a482.Constant)
+                                            and _an482.value is None):
+                        continue
+                    _T482[_p482.arg] = (str(_as482).lower() in (
+                        "dict", "set", "frozenset", "defaultdict", "counter", "ordereddict",
+                        "mapping", "mutablemapping"), _p482.arg)
+                for _p482 in (_d482.args.vararg, _d482.args.kwarg):
+                    if _p482 is not None:
+                        _T482[_p482.arg] = (False, _p482.arg)
+                if not _T482:
+                    continue
+                _pa482 = {}
+                _ns482 = set()      # nodes inside a nested scope of the def
+                for _z482 in _a482.walk(_d482):
+                    for _y482 in _a482.iter_child_nodes(_z482):
+                        _pa482[_y482] = _z482
+                    if _z482 is not _d482 and isinstance(_z482, (
+                            _a482.FunctionDef, _a482.AsyncFunctionDef, _a482.Lambda,
+                            _a482.ClassDef, _a482.ListComp, _a482.SetComp, _a482.DictComp,
+                            _a482.GeneratorExp)):
+                        _ns482.update(id(_q) for _q in _a482.walk(_z482) if _q is not _z482)
+                _nd482 = [_z482 for _q482 in _d482.body for _z482 in _a482.walk(_q482)
+                          if isinstance(_z482, _a482.Name)]
+                _dn482 = set()
+                _F482 = set()       # names bound from a fresh-object operator (`a + b`)
+                _wr482 = {}         # root -> line of a write the inference must charge
+                _ch482 = True
+                while _ch482 and _rf482 is None:
+                    _ch482 = False
+                    for _x482 in _nd482:
+                        if _rf482 is not None:
+                            break
+                        if _x482.id not in _T482 or id(_x482) in _dn482 or not isinstance(
+                                _x482.ctx, _a482.Load):
+                            continue
+                        _dn482.add(id(_x482))
+                        _ro482, _or482 = _T482[_x482.id]
+                        _fr482 = _x482.id in _F482
+                        _ac482 = False      # the value went through an access / a call
+                        _why482 = None
+                        if id(_x482) in _ns482:
+                            _why482 = ("is read inside a nested def / lambda / class body / "
+                                       "comprehension, which the inference does not see")
+                        _cu482 = _x482
+                        _ni482 = False      # the value went through a fresh-object operator
+                        while _why482 is None:
+                            _pp482 = _pa482.get(_cu482)
+                            if isinstance(_cu482, (_a482.Attribute, _a482.Subscript)) and \
+                                    isinstance(_cu482.ctx, (_a482.Store, _a482.Del)):
+                                # a store / delete THROUGH the chain: a write the inference
+                                # charges -- except to a read-only root
+                                if _fr482:
+                                    _why482 = ("is written, and it is a fresh container "
+                                               "built from an operator whose elements the "
+                                               "inference does not follow")
+                                elif _ro482 and not (
+                                        _x482.id == _or482 and isinstance(_cu482, _a482.Subscript)
+                                        and _cu482.value is _x482 and _x482.id != (
+                                            _ps482[0].arg if _mth482 and _ps482 else None)):
+                                    _why482 = ("is written, and a write to `self` or through "
+                                               "an alias of a dict / set parameter is in no "
+                                               "inferred frame")
+                                elif not (isinstance(_pp482, (_a482.Assign, _a482.Delete))
+                                          or (isinstance(_pp482, (_a482.AugAssign,
+                                                                  _a482.AnnAssign))
+                                              and _pp482.target is _cu482)):
+                                    _why482 = "is written by a binder the inference does not see"
+                                elif not _ro482:
+                                    _wr482.setdefault(_or482, _x482.lineno)
+                                break
+                            if isinstance(_pp482, (_a482.Attribute, _a482.Subscript)) and \
+                                    _pp482.value is _cu482:
+                                if isinstance(_pp482, _a482.Attribute) and \
+                                        _pp482.attr.startswith("__"):
+                                    _why482 = ("is reflected through `." + _pp482.attr
+                                               + "`, which the inference does not model")
+                                    break
+                                _ac482 = True
+                                _cu482 = _pp482
+                                continue
+                            if isinstance(_pp482, _a482.Call) and _pp482.func is _cu482:
+                                _tl482 = (_cu482.attr if isinstance(_cu482, _a482.Attribute)
+                                          else None)
+                                _ac482 = True
+                                if _fr482 or _tl482 is None or _cu482.value is None or not (
+                                        _tl482 in _RO482 or (not _ro482 and (
+                                            _tl482 in _MU482 or _tl482 in _mt482))):
+                                    _why482 = ("is the receiver of `." + str(_tl482)
+                                               + "()`, a call whose effect the inference does "
+                                               "not model on this root")
+                                    break
+                                if not _ro482 and _tl482 in _MU482:
+                                    _wr482.setdefault(_or482, _x482.lineno)
+                                _cu482 = _pp482
+                                continue
+                            if isinstance(_pp482, _a482.BoolOp) or (
+                                    isinstance(_pp482, _a482.IfExp)
+                                    and _pp482.test is not _cu482):
+                                _cu482 = _pp482
+                                continue
+                            if isinstance(_pp482, _a482.NamedExpr) and _pp482.value is _cu482:
+                                if _ni482 or _fr482:
+                                    _why482 = "is bound by a walrus through a fresh object"
+                                    break
+                                if _pp482.target.id not in _T482:
+                                    _T482[_pp482.target.id] = (_ro482, _or482)
+                                    _ch482 = True
+                                _cu482 = _pp482
+                                continue
+                            if isinstance(_pp482, _a482.keyword):
+                                _cu482 = _pp482
+                                _pp482 = _pa482.get(_pp482)
+                            if isinstance(_pp482, _a482.Call) and _pp482.func is not _cu482:
+                                _cn482 = (_pp482.func.id if isinstance(_pp482.func, _a482.Name)
+                                          else None)
+                                if _cn482 in _PB482 and not isinstance(_cu482, _a482.keyword):
+                                    break
+                                if _cn482 in _PD482 and not _pp482.keywords:
+                                    _ac482 = True
+                                    _cu482 = _pp482
+                                    continue
+                                # forwarding to a function / method of this program: the
+                                # fixpoint charges the callee's frame to the argument, and the
+                                # callee is judged by this rule too (or verified)
+                                _tc482 = (_cn482 if _cn482 in _pf482 else
+                                          _pp482.func.attr if isinstance(
+                                              _pp482.func, _a482.Attribute)
+                                          and _pp482.func.attr in _mt482 else None)
+                                if _tc482 is not None and not _fr482:
+                                    if _tc482 not in _rd482:
+                                        _rd482.add(_tc482)
+                                        _wl482.extend(
+                                            _q for _q in _fs482 if id(_q) not in _jd482 and (
+                                                str(_q.get("name", "")) == _tc482
+                                                or str(_q.get("name", "")).rsplit(
+                                                    "__", 1)[-1] == _tc482))
+                                    _ac482 = True
+                                    _cu482 = _pp482
+                                    continue
+                                _why482 = ("is passed to `" + _a482.unparse(_pp482.func)[:40]
+                                           + "`, which may write it or keep a reference to it "
+                                           "where the inference does not look")
+                                break
+                            if isinstance(_pp482, (_a482.Compare, _a482.UnaryOp,
+                                                   _a482.FormattedValue, _a482.JoinedStr,
+                                                   _a482.Expr, _a482.Return, _a482.Slice)) or (
+                                    isinstance(_pp482, (_a482.If, _a482.While, _a482.IfExp,
+                                                        _a482.Assert))
+                                    and _cu482 is not getattr(_pp482, "body", None)) or (
+                                    isinstance(_pp482, _a482.Subscript)
+                                    and _pp482.slice is _cu482):
+                                break
+                            if isinstance(_pp482, _a482.BinOp):
+                                _ni482 = True
+                                _cu482 = _pp482
+                                continue
+                            if isinstance(_pp482, (_a482.Assign, _a482.AnnAssign,
+                                                   _a482.AugAssign)) and _pp482.value is _cu482:
+                                _tg482 = (list(_pp482.targets) if isinstance(_pp482, _a482.Assign)
+                                          else [_pp482.target])
+                                # a fresh-object result (`s = s + y`, `s += y`) binds a FRESH
+                                # name: it may hold references from the root but is not an
+                                # alias of it -- it may only be read into a scalar position
+                                _nl482 = (_ni482 or _fr482
+                                          or isinstance(_pp482, _a482.AugAssign))
+                                for _y482 in _tg482:
+                                    _ys482 = (list(_y482.elts) if isinstance(
+                                        _y482, (_a482.Tuple, _a482.List)) else [_y482])
+                                    for _w482 in _ys482:
+                                        if isinstance(_w482, _a482.Name) and (
+                                                str(_st482.get(_w482.id, "")) in _SC482):
+                                            continue
+                                        if isinstance(_w482, _a482.Name) and _nl482 and not (
+                                                _fr482 and _ac482) and (
+                                                _T482.get(_w482.id, (0, _or482))[1] == _or482):
+                                            if _w482.id not in _T482:
+                                                _T482[_w482.id] = (_ro482, _or482)
+                                            if _w482.id not in _F482:
+                                                _F482.add(_w482.id)
+                                                _dn482 = set()
+                                                _ch482 = True
+                                            continue
+                                        if isinstance(_w482, _a482.Name) and not _nl482:
+                                            if _w482.id not in _T482:
+                                                _T482[_w482.id] = (_ro482, _or482)
+                                                _ch482 = True
+                                            continue
+                                        if isinstance(_w482, (_a482.Attribute, _a482.Subscript)):
+                                            _rr482 = _w482
+                                            while isinstance(_rr482, (_a482.Attribute,
+                                                                      _a482.Subscript)):
+                                                _rr482 = _rr482.value
+                                            if isinstance(_rr482, _a482.Name) and (
+                                                    (_rr482.id in _T482
+                                                     and _T482[_rr482.id][1] == _or482
+                                                     and not _T482[_rr482.id][0])
+                                                    or (_ini482 and _ps482
+                                                        and _rr482.id == _ps482[0].arg)):
+                                                continue
+                                        _why482 = ("is stored where the inference does not "
+                                                   "follow it (`"
+                                                   + _a482.unparse(_w482)[:40] + "`)")
+                                        break
+                                    if _why482 is not None:
+                                        break
+                                break
+                            if isinstance(_pp482, _a482.For) and _pp482.iter is _cu482 \
+                                    and not _ni482 and not _fr482:
+                                _ys482 = (list(_pp482.target.elts) if isinstance(
+                                    _pp482.target, (_a482.Tuple, _a482.List))
+                                    else [_pp482.target])
+                                if all(isinstance(_w482, _a482.Name) for _w482 in _ys482):
+                                    for _w482 in _ys482:
+                                        if _w482.id not in _T482 and str(
+                                                _st482.get(_w482.id, "")) not in _SC482:
+                                            _T482[_w482.id] = (_ro482, _or482)
+                                            _ch482 = True
+                                    break
+                            _why482 = ("is used as `" + (_a482.unparse(_pp482)[:50]
+                                                        if _pp482 is not None else "?")
+                                       + "`, a position the inference does not follow (a "
+                                       "container display, a `with` / `match` / comprehension "
+                                       "binder, a `yield` ...)")
+                        if _why482 is not None:
+                            _rf482 = (_f482, _x482.id, _or482, _ff482, _x482.lineno, _why482)
+                # every write the source shows on a parameter must be in the frame the inference
+                # computed from the IR (a statement the IR drops or skips -- a string-keyed store,
+                # an attribute `del` -- is not charged); a dict / set parameter is framed by
+                # WL-05 / route #244 instead and is not seeded here
+                _fw482 = set((_f482.get("_r316_frame") or {}).get("written", []) or [])
+                for _o482, _l482 in sorted(_wr482.items(), key=lambda _q: _q[1]):
+                    if _rf482 is None and _o482 not in _fw482:
+                        _rf482 = (_f482, _o482, _o482, _ff482, _l482,
+                                  "is written, but the frame inferred from the lowered body "
+                                  "does not charge it")
+    if _rf482 is not None:
+        from errors import PyCSLSemanticError as _PyCSLSemErr482
+        raise _PyCSLSemErr482(
+            f"PYCSL-R482-TRUSTED-FRAME-UNTRACKED: `{_rf482[0].get('name')}` is emitted as a "
+            f"bodyless `val` (`\\trusted`, `\\abstract` or imported) with no `#@ assigns`, so "
+            f"its caller-visible frame is INFERRED from its body (routes #316 / #317), and "
+            f"`{_rf482[1]}` (from `{_rf482[2]}`, line {_rf482[4]}) {_rf482[5]}. Every caller "
+            f"would assume `{_rf482[2]}` UNCHANGED across the call (route #482; measured: "
+            f"`ys = (xs,)[0]; ys[0] = 7`, `zs = [xs]; zs[0][0] = 7`, `with nullcontext(o) as "
+            f"p`, a nested def, and `self.xs[0] = 7` in a `\\trusted` method each PROVED the "
+            f"argument unchanged, CPython changed it). Declare the frame with `#@ assigns` "
+            f"(`#@ assigns self.<field>` for a method), or verify the function instead of "
+            f"trusting it.",
+            stage="ir-semantic", code="PYCSL-R482-TRUSTED-FRAME-UNTRACKED")
     return _mlw
 
 

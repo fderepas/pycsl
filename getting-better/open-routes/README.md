@@ -1,5 +1,15 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #482 REPAIRED (executor y1 off e3b3711a2; inline in `_run_pipeline`, mirror twin `\trusted`, no
+##   Module 6 / mirror edit, no axiom). A bodyless `val` with no `#@ assigns` (explicit `\trusted` / `\abstract`) gets its
+##   frame INFERRED; its body must keep every mutable root (non-scalar parameter, `self`) on the inference's allow-list
+##   (access chain into a scalar position, `=` / `for` / unpack / walrus, store target cross-checked against the IR frame,
+##   mutator / read-only / program-method receiver); `self` and dict / set parameters are read-only -- else
+##   PYCSL-R482-TRUSTED-FRAME-UNTRACKED ("declare `#@ assigns`"). 34 list-parameter witnesses were already refused by
+##   #468/#481 at base, the 16 others now are; new: a DIRECT `self` write in a `\trusted` method (7631). Over-refusal 0
+##   (corpus, red-team controls, mirror). Residual #482-R1: AUTO-trusted / un-marked imported defs not judged. Plus D3 parity for #481's length rule (same SSA split as route #316: 7448 PASSES again).
+##   Corpus 7630-7639 / 7653 (FAIL), controls 7650-7652 / 7654 / 7655. annotations 7.360.
+
 ## run #3 (2026-10-30): #485 / #486 / #487 REPAIRED (executor y3 off 0c61bfc3f; inline in `_run_pipeline` + `_handle_binop` /
 ##   `_to_bool`, all mirror twins `\trusted`, no new def / lambda in a mirrored file, no axiom). #485: a name LOADED but bound
 ##   nowhere in the file (implicit module globals `__file__` / `__cached__` / `__builtins__` ..., class implicit names) is an R325

@@ -4104,6 +4104,53 @@ FUNCTION that writes `h.K` after the importer bound `K` drops the fold although 
 `1` (NOT PROVED, honest). Not covered: a module OUTSIDE the program's import closure (one that imports this
 file as a library) -- the same modular assumption as this file's own constants.
 
+### 7.360 A bodyless `val`'s INFERRED frame must follow every alias of a mutable root (route #482, run #3)
+
+A `#@ \trusted` / `#@ \abstract` def (here or in an imported module) with NO `#@ assigns` gets
+its caller-visible frame from routes #316 / #317's syntactic alias analysis of a body the tool never verifies.
+That analysis follows a reference only through `=`, `for`, tuple unpacking, walrus and an access chain, and a
+`\trusted` method's call stub takes `writes` from `#@ assigns` ONLY. Red team 40 measured PROVED `xs[0]` /
+`o.v` / `c.xs[0]` unchanged across the call, CPython changed it, for a store reached through a fresh container
+(`ys = (xs,)[0]`, `ys, = [xs]`, `zs = [o.xs]; zs[0][0] = 7`, `for p in [o]`), a `with ... as` / `match` /
+comprehension binder, a nested def / lambda / class body (dropped from the IR of a `\trusted` body), a record,
+dict or set parameter, and `self` in a `\trusted` method -- where even a DIRECT `self.xs[0] = 7` was invisible.
+RULE (allow-list, refuse by default; `_run_pipeline`, on the source of the def): every MUTABLE root -- a
+parameter whose annotation is not a scalar (`int`, `float`, `bool`, `str`, `bytes`, `complex`, `None`,
+`Optional` of one), `*args` / `**kw`, and `self` of a method other than `__init__` -- and every name bound from
+one may occur only (1) in an access chain read into a scalar position (comparison, test, index, `len`-like pure
+builtin, f-string, discarded or returned value); (2) bound to a plain name by `=` / `for` / tuple unpacking /
+walrus (the name is checked the same way) -- through `a + b` / `s += y` the name is FRESH and may only be read
+into a scalar position; (3) as the target chain of a store `r.f = v` / `r[i] += v` / `del r[k]`, a write the
+inference charges; (4) as the receiver of a list / dict mutator, a read-only method (`get`, `count`, `items`,
+...) or a method of the program; (5) as the argument of `next` / `iter` / `reversed` / `enumerate` / `zip` /
+`min` / `max`, or of a function / method of the program (then judged by this rule too, or verified); a store the
+source shows on a parameter must also be in the frame the inference computed from the lowered IR. `self` and a dict / set parameter are READ-ONLY roots (no inferred frame carries a write to them;
+a dict parameter may be stored directly, `d[k] = v`). Anything else -- a container display, an argument of
+another call, a `with` / `match` / comprehension / `except` binder, a nested scope, a `yield` -- is refused
+with `PYCSL-R482-TRUSTED-FRAME-UNTRACKED`: declare the frame with `#@ assigns` (`#@ assigns self.<f>` for a
+method) or verify the function. Only a `val` the verified code of the file reads is judged (route #468's
+filter); a `\trusted` caller forwarding a root to it is itself judged (a call argument is not admitted). A
+list parameter is also under §7.340's length rule, which refuses most of the same spellings first.
+Judged: defs whose own `#@` block says `\trusted` / `\abstract`; a def the tool AUTO-trusts (a body it cannot
+lower) or an un-marked imported def is NOT judged by this rule (measured: 6 mirror files would be refused --
+route #482's named residual). Witnesses `7630`-`7638` (PROVED at base, REFUSED), `7639` (route #468 at base and candidate), `7653` (the advice
+followed: NOT PROVED); controls `7650`-`7652`, `7654`, `7655`. Not covered: a user-WRITTEN `#@ assigns` on a
+trusted def is assumed, never compared with its body (only the mirror's `bin/check-trusted-frame-honesty.py`
+ledger compares `self.<f>` stores of mirror stubs).
+
+### 7.361 Bodyless-`val` judgements see route #316's statement-level SSA split (D3 parity, run #3)
+
+§7.340's length rule (routes #468 / #481) and §7.360's frame rule judge a `\trusted` / `\abstract` / imported
+body on the SAME statement-level SSA copy as route #316's frame analysis (cv6 D3, §Module 6 `transpile`): a plain
+`v = ...` that is a statement of the def's own body (not nested in a block) starts a new version of a
+non-parameter local `v` for every later top-level statement, its right-hand side reading the previous version;
+a name read in a nested scope (lambda, def, class, comprehension) or declared `global` / `nonlocal` is never
+split. A version bound by a top-level `v = x` of a judged list parameter is an ALIAS judged by the same rows as
+`x`; a store of the version's own name rebinds it (never writes `x`). So cv6 7448 (`ys = xs; ys = [0]; ys[0] =
+7`, expected PASS) is accepted again, while 7442 (`ys.append` after a conditional rebind) and 7446 (walrus) stay
+refused, and 7444 / 7445 (a second alias / an alias after a fresh binding) emit and are NOT PROVED (the frame
+charges `xs`).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
