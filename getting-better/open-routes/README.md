@@ -9,7 +9,8 @@
 ##   typing (PYCSL-R486-NONSCALAR-AUGASSIGN-TARGET; 28/28 typed+store REFUSED, default 10 REFUSED + 4 Why3 type errors). #487:
 ##   an `and` / `or` over a non-bool / non-int operand is lowered inside a truth-only marker that every truth test strips; a
 ##   value use is refused (PYCSL-M6-BOOLOP-VALUE; 7/7 REFUSED). Corpus 7590-7596, 7600-7616, 7620-7629; annotations.md
-##   7.350-7.352. Over-refusal: see the route docs (byte-diff root / pyref, mirror, rt40 controls).
+##   7.350-7.352. Over-refusal 0: root 0 MOVED / 0 GONE (1 APPEARED: 1723, load-dependent, identical at base), pyref
+##   2186/2186 and mirror 53/53 byte-inert; rt40 PASS controls 5/5 kept.
 
 ## run #3 (2026-10-30): #481 REPAIRED + #474 RESIDUAL closed (executor f2 off 8855b6b10; inline in `_run_pipeline`, mirror twin
 ##   `\trusted`, no new def, no axiom). #481: route #468's bodyless-`val` length allow-list now judges an EXPLICIT `\trusted` def

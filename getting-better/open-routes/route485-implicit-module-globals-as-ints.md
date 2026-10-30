@@ -28,4 +28,13 @@ star rule). This subsumes #480's `dir(builtins)` set and needs no list of CPytho
 the emitter-internal pattern variables of corpus 0534 / 0546 are BOUND Python names there, and both files are byte-inert.
 
 Witnesses (10/10 REFUSED, PYCSL-R325-OPAQUE-INT-FALLBACK, all PROVED at base): b9005, b9007, d9400, d9401, d9404, d9405,
-d9406, d9407, d9412, d9413. Corpus 7590-7595 (expected FAIL), control 7596 (`len(__file__)`), with #480's 7517 / 7521.
+d9406, d9407, d9412, d9413. Corpus 7590-7595 (expected FAIL), control 7596 (`__version__ = 3; __version__ + n`: a BOUND dunder name keeps its int
+model), with #480's 7517 / 7521.
+
+OVER-REFUSAL / INERTNESS (measured on HEAD d92f4c97d vs base 0c61bfc3f, one battery for #485-#487): byte-diff root
+2673 base / 2684 candidate .mlw, 0 MOVED, 0 GONE, 1 APPEARED (1723, an expected-PASS `--verify-imports` control whose
+emission is load/timeout-dependent: re-emitted in one job at base AND candidate, identical `.mlw`, identical to the
+sweep's -- not a repair effect), 10 new = this route set's controls; pyref 2186 / 2186, 0 MOVED / GONE / APPEARED;
+mirror 53 / 53 byte-inert (an earlier candidate moved 4 mirror files -- nested `and` / `or` in truth positions -- and was
+fixed to select a nested marked operand raw before the gate). So 0 previously-proved corpus / pyref / mirror files are
+refused. Red-team rt40 PASS controls (e8761, s8839, b9032, t9314, w9715): 5/5 PROVED at base and at the repair.

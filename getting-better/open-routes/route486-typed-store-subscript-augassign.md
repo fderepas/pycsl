@@ -39,3 +39,11 @@ Witnesses x {default, typed, store} (42 runs): typed 14/14 and store 14/14 REFUS
 local list element / str local; PASS at base and now). Advice ("a local with a scalar annotation `x: int = len(a); x *=
 2`, or an int element through the element store `a[i] = a[i] - 1`") followed: both VERIFY under default, typed, store.
 RESIDUAL (named): the hoare-family judgement leaves unknown-type targets to Why3 typing rather than refusing them.
+
+OVER-REFUSAL / INERTNESS (measured on HEAD d92f4c97d vs base 0c61bfc3f, one battery for #485-#487): byte-diff root
+2673 base / 2684 candidate .mlw, 0 MOVED, 0 GONE, 1 APPEARED (1723, an expected-PASS `--verify-imports` control whose
+emission is load/timeout-dependent: re-emitted in one job at base AND candidate, identical `.mlw`, identical to the
+sweep's -- not a repair effect), 10 new = this route set's controls; pyref 2186 / 2186, 0 MOVED / GONE / APPEARED;
+mirror 53 / 53 byte-inert (an earlier candidate moved 4 mirror files -- nested `and` / `or` in truth positions -- and was
+fixed to select a nested marked operand raw before the gate). So 0 previously-proved corpus / pyref / mirror files are
+refused. Red-team rt40 PASS controls (e8761, s8839, b9032, t9314, w9715): 5/5 PROVED at base and at the repair.

@@ -134,3 +134,11 @@ Witnesses 7/7 REFUSED (all PROVED at base): z10000, z10002, z10009, z10012, k103
 (expected FAIL); controls 7626-7629 (`if a or b`, `if not (a and b)`, `x = n or 5`, `if (a or b) and n == n`: PASS).
 Advice ("test the operand and use each one in its own branch: `if a: return len(a)` / `return len(c)`") followed:
 VERIFIES (default model).
+
+OVER-REFUSAL / INERTNESS (measured on HEAD d92f4c97d vs base 0c61bfc3f, one battery for #485-#487): byte-diff root
+2673 base / 2684 candidate .mlw, 0 MOVED, 0 GONE, 1 APPEARED (1723, an expected-PASS `--verify-imports` control whose
+emission is load/timeout-dependent: re-emitted in one job at base AND candidate, identical `.mlw`, identical to the
+sweep's -- not a repair effect), 10 new = this route set's controls; pyref 2186 / 2186, 0 MOVED / GONE / APPEARED;
+mirror 53 / 53 byte-inert (an earlier candidate moved 4 mirror files -- nested `and` / `or` in truth positions -- and was
+fixed to select a nested marked operand raw before the gate). So 0 previously-proved corpus / pyref / mirror files are
+refused. Red-team rt40 PASS controls (e8761, s8839, b9032, t9314, w9715): 5/5 PROVED at base and at the repair.

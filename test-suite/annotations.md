@@ -3950,8 +3950,8 @@ assignment, augmented / annotated / walrus / for / with / except / match / del t
 parameter, def, class, import, `global` / `nonlocal`, in any scope -- is resolved by CPython in the
 module's own namespace or in builtins, never computed by the file, so its fallback is an origin:
 any int operation on it is refused (PYCSL-R325-OPAQUE-INT-FALLBACK). Only the known-int `__debug__`
-keeps its int model; documented int calls over such a name (`len(__file__)`) are unchanged.
-Witnesses `7590`-`7595`; control `7596` (and route #480's `7517`, `7521`).
+keeps its int model, and a dunder-style name the file itself binds (`__version__ = 3`) keeps
+#325 / #328's classification. Witnesses `7590`-`7595`; control `7596` (and route #480's `7517`, `7521`).
 
 ### 7.351 An augmented assignment is judged by the static type of its target (route #486, run #3)
 
