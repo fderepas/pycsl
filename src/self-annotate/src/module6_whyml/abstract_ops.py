@@ -1,8 +1,16 @@
 from __future__ import annotations
-from typing import List, Optional, Set
+from typing import Dict, List, Optional, Set
+from dataclasses import dataclass
 ""  # pycsl
+@dataclass
 class AbstractOpsMixin:
     'Registry of abstract `val` declarations and the late-emission block.\n\n    During expression / statement emission the transpiler accumulates abstract\n    val declarations for Python operations with no native WhyML equivalent\n    (e.g. `pow_int`, `stmt_get`, generic iterator helpers). Deduplication is by\n    name; same-name different-arity collisions are disambiguated by suffixing\n    `_N`. The final block is inserted by `_insert_abstract_val_block`\n    immediately after the last `type` declaration so that abstract vals\n    referencing record types resolve correctly.\n    '
+    # Run #3 (z1): state fields named in this class's `#@ assigns` clauses, declared so the
+    # emitted `writes` carries them (check-assigns-writes-survival TRAP-NMS). Annotations COPIED
+    # from StatementEmissionMixin's / ExpressionEmissionMixin's declarations of the same live
+    # fields (live: `self._abstract_ops: Dict[str, str] = {}`, `self._obj_state_written = False`).
+    _abstract_ops: Dict[str, str] = None
+    _obj_state_written: bool = False
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
