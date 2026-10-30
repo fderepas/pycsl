@@ -39,12 +39,21 @@ version of this plane would have reported drops that were not drops:
      so the second member is introduced by `with`, not by `let` (0534, 0966). Without it,
      two NON-DUNDER drops appeared, which is exactly the signal this plane refuses on, and
      the plane would have opened with a false alarm.
+  4. `let c___C__m` — (#49) route #464 (2bda4ba5d) made the weaver rewrite a private name
+     `__m` written inside class C to CPython's `_C__m` before any table is built, so the
+     method is emitted under the MANGLED name. The matcher still looked for `__m` only and
+     reported corpus 7207's `__m` — emitted, contracted and proved as `c___C__m` — as a
+     NON-DUNDER drop (driver run #3, slow tier RED at dcf424f75). The fix teaches the matcher
+     the weaver's own mangling rule (`mangled()`); it does NOT widen the dunder family and
+     does NOT touch a ceiling. `--selftest-mangled-drop` deletes every mangled spelling from
+     the emission before matching and the plane must then REFUSE and name `__m` — the repair
+     cannot have made the plane blind to a real drop of a private method.
 
 SOUND IN ONE DIRECTION, like its siblings: a name that MATCHES does not prove the body is
 faithful; a name that is ABSENT proves the function is not there.
 
 Usage:  bin/check-emitted-function-coverage.py --emit-dir <dir> [--verbose]
-        [--selftest-unknown-drop]
+        [--selftest-unknown-drop] [--selftest-mangled-drop]
 '''
 import argparse
 import ast
@@ -97,9 +106,53 @@ def is_dunder(name):
     return name.startswith("__") and name.endswith("__") and len(name) > 4
 
 
-def present(d, idents):
-    """Does source `def d` appear in the emission under any of its emitted spellings?"""
+def mangled(d, cls):
+    """CPython's private-name mangling of `def d` written lexically inside class `cls`.
+
+    (#49) route #464 (2bda4ba5d) made the weaver rewrite `__x` inside the body of class C to
+    `_C__x` BEFORE any table is built — the name CPython actually binds — so a private method
+    `__m` of C is emitted as `c___C__m`, not `c____m`. Same rule as `Module3_Weaver`: two
+    leading underscores, not ending in `__`, C stripped of leading underscores, no mangling
+    when C is all underscores (or outside every class). None when the name is not mangled.
+    """
+    if (cls and cls.lstrip("_") and d.startswith("__") and not d.endswith("__")
+            and "." not in d):
+        return "_" + cls.lstrip("_") + d
+    return None
+
+
+def source_defs(tree):
+    """-> [(def name, its mangled spelling or None)] for every non-`__init__` def.
+
+    The mangling class is the INNERMOST class whose BODY lexically encloses the def (a def
+    nested in a method of C mangles by C; a nested class mangles by its own name), which is
+    exactly the scope the weaver's route #464 rewrite walks.
+    """
+    out = []
+    stack = [(tree, None)]
+    while stack:
+        node, cls = stack.pop()
+        for ch in ast.iter_child_nodes(node):
+            if isinstance(ch, ast.ClassDef):
+                stack.append((ch, ch.name))
+                continue
+            if isinstance(ch, ast.FunctionDef) and ch.name != "__init__":
+                out.append((ch.name, mangled(ch.name, cls)))
+            stack.append((ch, cls))
+    return out
+
+
+def present(d, idents, mangled_name=None):
+    """Does source `def d` appear in the emission under any of its emitted spellings?
+
+    A private method is ALSO looked for under its CPython-mangled name (`_C__m`), the only
+    spelling route #464's weaver lets reach the emission. The match stays a whole-suffix
+    match after a `__` separator, so the 0-ary call facade `self__C__m_0` does NOT count as
+    the method: only a `let`/`val`/`with` whose name ENDS in the method's name does.
+    """
     cands = {d, "py_" + d}
+    if mangled_name:
+        cands |= {mangled_name, "py_" + mangled_name}
     return any(i in cands or any(i.endswith("__" + c) for c in cands) for i in idents)
 
 
@@ -111,6 +164,10 @@ def main():
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--selftest-unknown-drop", action="store_true",
                     help="treat `__enter__` as a non-dunder; the plane must REFUSE (rc=1)")
+    ap.add_argument("--selftest-mangled-drop", action="store_true",
+                    help="delete every emitted symbol spelling a MANGLED private method "
+                         "(`<cls>___C__m`) before matching, i.e. simulate the emitter dropping "
+                         "them; the plane must REFUSE (rc=1) and name each one (corpus 7207 `__m`)")
     args = ap.parse_args()
 
     def _dunder(n):
@@ -138,13 +195,16 @@ def main():
                 tree = ast.parse(src)
         except SyntaxError:
             continue
-        defs = [n.name for n in ast.walk(tree)
-                if isinstance(n, ast.FunctionDef) and n.name != "__init__"]
+        defs = source_defs(tree)
         if not defs:
             continue
         compared += 1
         idents = emitted_idents(open(mlw, encoding="utf-8", errors="replace").read())
-        missing = [d for d in defs if not present(d, idents)]
+        if args.selftest_mangled_drop:
+            _mgs = {mg for _d, mg in defs if mg}
+            idents = {i for i in idents
+                      if not any(i == mg or i.endswith("__" + mg) for mg in _mgs)}
+        missing = [d for d, mg in defs if not present(d, idents, mg)]
         if not missing:
             continue
         for d in missing:
