@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #479 / #480 REPAIRED (executor o1 off 8aaa864ca; `_expr_to_whyml` + inline in `_run_pipeline`,
+##   both mirror twins `\trusted`, no new def in a mirrored file, no axiom, no new diagnostic code). #479: route #40's
+##   `py_ellipsis` marker is read on the `OpaqueExpr` carrier `expr_from_dict` makes of it inside a typed parent (ternary
+##   test / `not` / `or` operand / arm), which the generic dispatch re-read as `NumberExpr(0)`: `...` is `pycsl_ellipsis`
+##   in every position (7/7 witnesses NOT-PROVED). #480: a builtin name the file does not bind, `NotImplemented` and `...`
+##   are R325 ORIGINS (only `__debug__` known int); an uncalled non-data attribute of an int value is an origin; bitwise /
+##   shift / pow model ops are int uses; NotImplemented's truth value is refused; builtin-object identity stays reflexive;
+##   #445 judges a chain rooted at a builtin name on the real object (58/58 witnesses REFUSED). Corpus 7490-7510
+##   (FAIL), controls 7515-7522. Over-refusal: root 0 MOVED / 1 GONE (1039, an expected-FAIL route #40 witness, now
+##   refused), pyref 2186/2186 and mirror 53/53 byte-inert; the stronger "every 0-ary fallback" polarity was measured
+##   and dropped (it refused honest 0534 / 0546: emitter-internal pattern names).
+
 ## run #3 (2026-10-30): #476 / #478 REPAIRED (executor m2 off 8aaa864ca; inline in `_run_pipeline`, mirror twin `\trusted`, no
 ##   new def in a mirrored file, no axiom). #478: an augmented assignment on a formal parameter of a verified function is admitted
 ##   only when the DECLARED type is an immutable scalar (int / float / bool / complex / str / bytes / tuple / unannotated) -- judged
