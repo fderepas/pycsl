@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #488 OPENED (dx1, Gate S of the cross-mixin-declaration-stubs wall; runtime-witnessed): ghost-handler-false-frames:
+##   30 verified mirror ghost handlers prove `assigns \nothing` only because the trusted `_e` declarations they call understate
+##   their definitions' frames; the live `_handle_has_key_expr` writes `self._abstract_ops`. Severity 2 (no consuming proof known).
+
 ## run #3 (2026-10-30): #482-#487 OPENED (red team 40 on dcf424f75: 624 probes + 1009 mode re-proofs / 129 confirmed;
 ##   rt39's 141 all closed): #482 trusted-callee-alias-frame (50); #483 dependency-builtins-mapping (12); #484 dependency-writes-main-or-peer (10); #485 implicit-module-globals-as-ints (10); #486 typed-store-subscript-augassign (14); #487 boolop-collection-truth-value (7).
 ##   Diagnosis: inferred frames of trusted callees (F1, with #481), dependency writes under ensures-only claims (F2 F3, #474's
