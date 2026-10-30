@@ -1,5 +1,15 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #489 REPAIRED (executor u1 off 394a1654a; inline in `_run_pipeline` after route #482's rule, mirror twin
+##   `\trusted`, no new def, no axiom; new code PYCSL-R489-IMPLICIT-DUNDER; annotations §7.380). An implicit dunder position
+##   (`len(o)`, truth test, `==` / order with reflection, `in`, BinOp / AugAssign, `str` / f-string / `%`, index, `o[0]`,
+##   attribute fallback, iteration, `next`, `with`, container elements) of a non-scalar root in a bodyless `val` with no
+##   `#@ assigns` (`\trusted` / `\abstract` / imported marked AND un-marked) is a CALL of the program dunder: admitted only when
+##   the dunders reached on the value are `#@ assigns \nothing` (and, as an argument, verified self-only), else REFUSED.
+##   100 witnesses x 3 models = 300 runs REFUSED; corpus 7730-7744 / controls 7750-7754; over-refusal 0 (corpus, pyref,
+##   mirror byte-inert; rt41's 142 dunder probes: 98 refused, all CPython violations, d13006 / d13007 controls kept).
+##   Verified callers probed: fail closed (Why3 typing). Residuals: class-attribute / metaclass dunders, auto-trusted bodies.
+
 ## run #3 (2026-10-30): #490 REPAIRED (executor u2 off 394a1654a; inline in `_run_pipeline` after route #486, mirror twin
 ##   `\trusted`, no new def, no axiom, emitter untouched; new code PYCSL-R490-LITERAL-INT-HASH; annotations.md 7.390). A
 ##   literal-kind judgement (number / str / None / tuple / containers, joined over ternary arms, and/or, local bindings and
