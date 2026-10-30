@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #482-#487 OPENED (red team 40 on dcf424f75: 624 probes + 1009 mode re-proofs / 129 confirmed;
+##   rt39's 141 all closed): #482 trusted-callee-alias-frame (50); #483 dependency-builtins-mapping (12); #484 dependency-writes-main-or-peer (10); #485 implicit-module-globals-as-ints (10); #486 typed-store-subscript-augassign (14); #487 boolop-collection-truth-value (7).
+##   Diagnosis: inferred frames of trusted callees (F1, with #481), dependency writes under ensures-only claims (F2 F3, #474's
+##   residual class), and residues of #480 (F4), #478 (F5) and truth-value lowering of `or` / `and` (F6).
+
 ## run #3 (2026-10-30): #475 / #477 REPAIRED, #474 PARTIAL (executor x3 off 8aaa864ca; the FILE-BOUNDARY dependency reader:
 ##   every fact taken from a dependency comes from CPython's own reading of it; inline, mirror twins `\trusted`, no new def
 ##   in a mirrored file, no axiom). #475: route #465's decode gate at `_resolve_module_path` (the one place every frontend
