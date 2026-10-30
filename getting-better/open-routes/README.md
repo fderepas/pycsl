@@ -1,5 +1,15 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #490 REPAIRED (executor u2 off 394a1654a; inline in `_run_pipeline` after route #486, mirror twin
+##   `\trusted`, no new def, no axiom, emitter untouched; new code PYCSL-R490-LITERAL-INT-HASH; annotations.md 7.390). A
+##   literal-kind judgement (number / str / None / tuple / containers, joined over ternary arms, and/or, local bindings and
+##   container elements) refuses a value that may be a number AND a non-number at every arithmetic / ordering / augmented /
+##   unary use, and a number-or-hashed-str/tuple at every other observation; numeric slot check for annotated bindings,
+##   parameters (incl. omitted defaults), returns; a number-annotated function returning None is number-or-None at its
+##   callers. 53/53 witnesses REFUSED; corpus 7770-7787 (FAIL) / 7790-7797 (PASS); siblings 7784 (truth test of a hashed '')
+##   and 7787 (None from `-> int`) closed. Residuals named in route490-*.md (str-and-None join: Why3 type error; a mixed dict
+##   passed whole).
+
 ## run #3 (2026-10-30): #489-#490 OPENED (red team 41 on 973a2755d: 634 probes + 556 re-runs + 2533 mode re-proofs / 237 confirmed;
 ##   rt40's 129 all closed): #489 implicit-dunder-callee-frame (100); #490 literal-int-hash-value-slot (53).
 ##   Diagnosis: implicit dunder calls are not calls for the callee frame (F1), and the int-hash coercion of str / None literals
