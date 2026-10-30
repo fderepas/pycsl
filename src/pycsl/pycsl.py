@@ -15997,6 +15997,420 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"(`a[i] = a[i] * 2`, under every memory model), or build the result in a "
                 f"LOCAL list (`b = [x * 2 for x in a]`, default memory model) and return it.",
                 stage="ir-semantic", code="PYCSL-R478-COLLECTION-PARAM-AUGASSIGN")
+    # (#49) driver run #3, ROUTE #486 (red team 40 F5; MEASURED PROVED on dcf424f75 under
+    # `--memory-model typed` AND `store`) -- AN AUGMENTED ASSIGNMENT IS JUDGED BY THE STATIC
+    # TYPE OF ITS TARGET EXPRESSION, NOT BY THE PARAMETER LIST. #478 above reads only a bare
+    # formal-parameter target; under typed / store every list element is an `int_mem` cell
+    # and a nested list / str / tuple / dict / set element is itself a `loc` (`type loc = int`),
+    # so `a[0] -= 1` on `a: List[List[int]]` became `int_mem[a+0] := int_mem[a+0] - 1`, `t[0]
+    # *= 2` on `t: Tuple[List[int], int]` (a tuple is not item-assignable at all) and `(b :=
+    # a); b *= 2` / `b = a if c else a; b *= 2` (a local alias of a list parameter) were
+    # integer arithmetic on a location and PROVED (14 witnesses x typed / store,
+    # `witnesses-r486/`). RULE (allow-list on the TARGET's source type, judged on the Python
+    # AST of every verified function, in every scope): the target's static type is derived
+    # from the parameter annotations, the bindings of each local (assignment / annotated /
+    # walrus / for / ternary / BoolOp / display / arithmetic, to a 3-round fixpoint), the
+    # element type of a subscripted container (`List[E]` / `Sequence[E]` / `Dict[K, V]`),
+    # user-function return annotations and class field annotations. A target whose type is
+    # a modelled scalar (int / float / bool / complex; str / bytes for `+=` / `*=` / `%=`,
+    # and only as a NAME under typed / store, where a str cell is an int) is admitted.
+    # Under typed / store (`loc = int`: any heap value is an int to Why3) EVERY other target
+    # -- known non-scalar or of unknown type -- is REFUSED. Under the hoare-family models a
+    # list / dict / record value is not a Why3 `int` (integer arithmetic on it fails Why3
+    # typing: fail closed, measured on the witnesses), so there only the statements CPython
+    # itself rejects on the known target type are refused: an item store into a tuple / str
+    # / set, and an operator the type lacks (`list -= ..`, `dict += ..`, `str -= ..`); the
+    # in-place operators a type has (`list +=` / `*=`, `dict |=`, set `|= &= -= ^=`) stay
+    # with the emitter. A bare formal-parameter target is #478's (above). Inline;
+    # `_run_pipeline`'s mirror twin is `\trusted`.
+    import ast as _ast486
+    try:
+        import warnings as _w486
+        with _w486.catch_warnings():
+            _w486.simplefilter("ignore")
+            _tr486 = _ast486.parse(source_code)
+    except SyntaxError:
+        _tr486 = None
+    _ver486 = {str(_x486.get("name") or "")
+               for _x486 in ((getattr(transpiler, "ir", None) or {}).get("functions", []) or [])
+               if isinstance(_x486, dict) and not (_x486.get("trusted")
+                                                   or _x486.get("abstract"))}
+    _strict486 = memory_model in ("typed", "store")
+    if _tr486 is not None and _ver486:
+        # types: ("scalar",) ("str",) ("unknown",) ("list", E) ("dict", V) ("set",)
+        # ("tuple", [T..]) ("other",) -- `other` is a KNOWN non-scalar (None, Optional, a
+        # union, a class instance, an iterator); a JOIN is the first non-scalar member, else
+        # scalar / str when all agree, else unknown.
+        _SC486, _ST486, _UN486, _OT486 = ("scalar",), ("str",), ("unknown",), ("other",)
+        _SU486 = ("scalar", "str", "unknown")
+        _HD486 = {**{_k: "scalar" for _k in ("int", "float", "bool", "complex")},
+                  **{_k: "str" for _k in ("str", "bytes")},
+                  **{_k: "list" for _k in ("List", "list", "Sequence", "MutableSequence",
+                                           "Deque", "deque")},
+                  **{_k: "dict" for _k in ("Dict", "dict", "Mapping", "MutableMapping",
+                                           "DefaultDict", "defaultdict", "OrderedDict",
+                                           "Counter")},
+                  **{_k: "set" for _k in ("Set", "set", "FrozenSet", "frozenset",
+                                          "AbstractSet", "MutableSet")},
+                  **{_k: "tuple" for _k in ("Tuple", "tuple")},
+                  **{_k: "other" for _k in ("Optional", "Union", "Iterator", "Iterable",
+                                            "Generator", "Callable", "bytearray", "object",
+                                            "None")}}
+        _cls486 = {_x486.name for _x486 in _ast486.walk(_tr486)
+                   if isinstance(_x486, _ast486.ClassDef)}
+        _HD486.update({_k: "other" for _k in _cls486})
+        # 1. the meaning of every node read AS AN ANNOTATION (children first: reversed BFS)
+        _am486 = {}
+        for _n486 in reversed(list(_ast486.walk(_tr486))):
+            _h486 = (_n486.value if isinstance(_n486, _ast486.Subscript) else _n486)
+            _h486 = (_h486.id if isinstance(_h486, _ast486.Name) else _h486.attr
+                     if isinstance(_h486, _ast486.Attribute) else None)
+            _k486 = _HD486.get(_h486) if _h486 else None
+            _ar486 = []
+            if isinstance(_n486, _ast486.Subscript):
+                _ar486 = [_am486.get(id(_y486), _UN486) for _y486 in (
+                    _n486.slice.elts if isinstance(_n486.slice, _ast486.Tuple)
+                    else [_n486.slice])]
+            if isinstance(_n486, _ast486.Constant) and _n486.value is None:
+                _am486[id(_n486)] = _OT486
+            elif isinstance(_n486, _ast486.Constant) and isinstance(_n486.value, str):
+                # a string annotation: its head name decides, its arguments stay unknown
+                _sh486 = _n486.value.strip().split("[", 1)
+                _k486 = _HD486.get(_sh486[0].strip().split(".")[-1])
+                _am486[id(_n486)] = (
+                    _UN486 if _k486 is None or (len(_sh486) > 1 and _k486 in ("scalar", "str"))
+                    else (_k486,) if _k486 in ("scalar", "str", "set", "other")
+                    else (_k486, []) if _k486 == "tuple" else (_k486, _UN486))
+            elif isinstance(_n486, _ast486.BinOp) and isinstance(_n486.op, _ast486.BitOr):
+                _am486[id(_n486)] = _OT486
+            elif _k486 in ("scalar", "str", "set", "other"):
+                _am486[id(_n486)] = (_k486,)
+            elif _k486 == "list":
+                _am486[id(_n486)] = ("list", _ar486[0] if _ar486 else _UN486)
+            elif _k486 == "dict":
+                _am486[id(_n486)] = ("dict", _ar486[-1] if len(_ar486) >= 2 else _UN486)
+            elif _k486 == "tuple":
+                _am486[id(_n486)] = ("tuple", [] if any(
+                    isinstance(_y486, _ast486.Constant) and _y486.value is Ellipsis
+                    for _y486 in (_n486.slice.elts if isinstance(_n486, _ast486.Subscript)
+                                  and isinstance(_n486.slice, _ast486.Tuple) else []))
+                    else _ar486)
+        # 2. user-function return types, class field types, module-level names
+        _fn486 = {}
+        _fld486 = {}
+        for _x486 in _ast486.walk(_tr486):
+            if isinstance(_x486, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
+                _fn486.setdefault(_x486.name, []).append(
+                    _am486.get(id(_x486.returns), _UN486) if _x486.returns is not None
+                    else _UN486)
+            if isinstance(_x486, _ast486.ClassDef):
+                for _y486 in _ast486.walk(_x486):
+                    if (isinstance(_y486, _ast486.AnnAssign)
+                            and isinstance(_y486.target, (_ast486.Name, _ast486.Attribute))):
+                        _fld486.setdefault(
+                            _y486.target.id if isinstance(_y486.target, _ast486.Name)
+                            else _y486.target.attr, []).append(
+                                _am486.get(id(_y486.annotation), _UN486))
+        for _k486 in list(_fld486):
+            _js486 = _fld486[_k486]
+            _fld486[_k486] = next((t for t in _js486 if t[0] not in _SU486), None) or (
+                _UN486 if not _js486 else _SC486 if all(t == _SC486 for t in _js486)
+                else _ST486 if all(t == _ST486 for t in _js486) else _UN486)
+        for _k486 in list(_fn486):
+            _js486 = _fn486[_k486]
+            _fn486[_k486] = next((t for t in _js486 if t[0] not in _SU486), None) or (
+                _UN486 if not _js486 else _SC486 if all(t == _SC486 for t in _js486)
+                else _ST486 if all(t == _ST486 for t in _js486) else _UN486)
+        _menv486 = {}
+        for _x486 in _tr486.body:
+            if isinstance(_x486, _ast486.AnnAssign) and isinstance(_x486.target, _ast486.Name):
+                _menv486[_x486.target.id] = _am486.get(id(_x486.annotation), _UN486)
+            elif isinstance(_x486, _ast486.Assign):
+                for _y486 in _x486.targets:
+                    if isinstance(_y486, _ast486.Name):
+                        _v486 = _x486.value
+                        _menv486[_y486.id] = (
+                            _UN486 if _y486.id in _menv486 else
+                            _SC486 if isinstance(_v486, _ast486.Constant) and isinstance(
+                                _v486.value, (bool, int, float, complex)) else
+                            _ST486 if isinstance(_v486, _ast486.Constant) and isinstance(
+                                _v486.value, (str, bytes)) else
+                            ("list", _UN486) if isinstance(_v486, (_ast486.List,
+                                                                   _ast486.ListComp)) else
+                            ("dict", _UN486) if isinstance(_v486, (_ast486.Dict,
+                                                                   _ast486.DictComp)) else
+                            ("set",) if isinstance(_v486, (_ast486.Set, _ast486.SetComp)) else
+                            ("tuple", []) if isinstance(_v486, _ast486.Tuple) else _UN486)
+        # 3. every function / method body this run VERIFIES
+        _fds486 = []
+        for _x486 in _ast486.walk(_tr486):
+            if isinstance(_x486, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
+                _cn486 = next((_c.name for _c in _ast486.walk(_tr486)
+                               if isinstance(_c, _ast486.ClassDef) and _x486 in _c.body), "")
+                if any(_v == _x486.name or _v.endswith("." + _x486.name)
+                       or _v.endswith("__" + _x486.name)
+                       or (_cn486 and _v == f"{_cn486}_{_x486.name}") for _v in _ver486):
+                    _fds486.append((_x486, _cn486))
+        for _fd486, _cn486 in _fds486:
+            _aa486 = _fd486.args
+            _prm486 = {_p486.arg: (_am486.get(id(_p486.annotation), _UN486)
+                                   if _p486.annotation is not None else _UN486)
+                       for _p486 in (_aa486.posonlyargs + _aa486.args + _aa486.kwonlyargs)}
+            if _aa486.vararg is not None:
+                _prm486[_aa486.vararg.arg] = ("tuple", [])
+            if _aa486.kwarg is not None:
+                _prm486[_aa486.kwarg.arg] = ("dict", _UN486)
+            if _cn486 and (_aa486.posonlyargs + _aa486.args):
+                _prm486[(_aa486.posonlyargs + _aa486.args)[0].arg] = _OT486
+            # bindings: (name, kind, node) -- v: value, a: annotation, e: element of an
+            # iterable, u: unknown, o: other (an exception object). Nested scopes are
+            # folded in (an over-approximation: more bindings only widen the join).
+            _bd486 = []
+            for _n486 in _ast486.walk(_fd486):
+                if isinstance(_n486, _ast486.Assign):
+                    for _t486 in _n486.targets:
+                        if isinstance(_t486, _ast486.Name):
+                            _bd486.append((_t486.id, "v", _n486.value))
+                        elif (isinstance(_t486, (_ast486.Tuple, _ast486.List))
+                              and isinstance(_n486.value, (_ast486.Tuple, _ast486.List))
+                              and len(_t486.elts) == len(_n486.value.elts)
+                              and all(isinstance(_a486, _ast486.Name)
+                                      for _a486 in _t486.elts)):
+                            _bd486.extend((_a486.id, "v", _b486) for _a486, _b486 in zip(
+                                _t486.elts, _n486.value.elts))
+                        else:
+                            _bd486.extend((_a486.id, "u", None)
+                                          for _a486 in _ast486.walk(_t486)
+                                          if isinstance(_a486, _ast486.Name)
+                                          and isinstance(_a486.ctx, _ast486.Store))
+                elif (isinstance(_n486, _ast486.AnnAssign)
+                      and isinstance(_n486.target, _ast486.Name)):
+                    _bd486.append((_n486.target.id, "a", _n486.annotation))
+                elif isinstance(_n486, _ast486.NamedExpr):
+                    _bd486.append((_n486.target.id, "v", _n486.value))
+                elif isinstance(_n486, (_ast486.For, _ast486.AsyncFor, _ast486.comprehension)):
+                    if isinstance(_n486.target, _ast486.Name):
+                        _bd486.append((_n486.target.id, "e", _n486.iter))
+                    else:
+                        _bd486.extend((_a486.id, "u", None)
+                                      for _a486 in _ast486.walk(_n486.target)
+                                      if isinstance(_a486, _ast486.Name))
+                elif isinstance(_n486, _ast486.withitem) and _n486.optional_vars is not None:
+                    _bd486.extend((_a486.id, "u", None)
+                                  for _a486 in _ast486.walk(_n486.optional_vars)
+                                  if isinstance(_a486, _ast486.Name))
+                elif isinstance(_n486, _ast486.ExceptHandler) and _n486.name:
+                    _bd486.append((_n486.name, "o", None))
+                elif isinstance(_n486, (_ast486.Global, _ast486.Nonlocal)):
+                    _bd486.extend((_a486, "u", None) for _a486 in _n486.names)
+            _loc486 = {_b[0] for _b in _bd486}
+            _aug486 = [_n486 for _n486 in _ast486.walk(_fd486)
+                       if isinstance(_n486, _ast486.AugAssign)]
+            if not _aug486:
+                continue
+            # the expressions to type: binding values / iterables, subscript-target containers
+            _jobs486 = ([_b[2] for _b in _bd486 if _b[1] in ("v", "e")]
+                        + [_g.target.value for _g in _aug486
+                           if isinstance(_g.target, _ast486.Subscript)])
+            _env486 = dict(_menv486)
+            _env486.update(_prm486)
+            _ty486 = {}
+            for _it486 in range(4):
+                _ty486 = {}
+                for _e486 in _jobs486:
+                    _m486 = {}
+                    for _n486 in reversed(list(_ast486.walk(_e486))):
+                        _r486 = _UN486
+                        if isinstance(_n486, _ast486.Constant):
+                            _r486 = (_SC486 if isinstance(_n486.value, (bool, int, float,
+                                                                        complex))
+                                     else _ST486 if isinstance(_n486.value, (str, bytes))
+                                     else _OT486)
+                        elif isinstance(_n486, (_ast486.List, _ast486.Set, _ast486.Tuple,
+                                                _ast486.BoolOp, _ast486.IfExp)):
+                            _js486 = [_m486.get(id(_y), _UN486) for _y in (
+                                [_n486.body, _n486.orelse] if isinstance(_n486, _ast486.IfExp)
+                                else _n486.values if isinstance(_n486, _ast486.BoolOp)
+                                else _n486.elts)]
+                            _j486 = next((t for t in _js486 if t[0] not in _SU486), None) or (
+                                _UN486 if not _js486 else _SC486
+                                if all(t == _SC486 for t in _js486) else _ST486
+                                if all(t == _ST486 for t in _js486) else _UN486)
+                            _r486 = (("list", _j486) if isinstance(_n486, _ast486.List)
+                                     else ("set",) if isinstance(_n486, _ast486.Set)
+                                     else ("tuple", _js486) if isinstance(_n486, _ast486.Tuple)
+                                     else _j486)
+                        elif isinstance(_n486, _ast486.ListComp):
+                            _r486 = ("list", _m486.get(id(_n486.elt), _UN486))
+                        elif isinstance(_n486, (_ast486.Dict, _ast486.DictComp)):
+                            _r486 = ("dict", _UN486)
+                        elif isinstance(_n486, _ast486.SetComp):
+                            _r486 = ("set",)
+                        elif isinstance(_n486, _ast486.JoinedStr):
+                            _r486 = _ST486
+                        elif isinstance(_n486, _ast486.Compare):
+                            _r486 = _SC486
+                        elif isinstance(_n486, _ast486.UnaryOp):
+                            _r486 = (_SC486 if isinstance(_n486.op, _ast486.Not)
+                                     or _m486.get(id(_n486.operand)) == _SC486 else _UN486)
+                        elif isinstance(_n486, _ast486.BinOp):
+                            _l486 = _m486.get(id(_n486.left), _UN486)
+                            _q486 = _m486.get(id(_n486.right), _UN486)
+                            _r486 = next((t for t in (_l486, _q486) if t[0] not in (
+                                "scalar", "unknown")), None) or (
+                                _SC486 if _l486 == _SC486 and _q486 == _SC486 else _UN486)
+                        elif isinstance(_n486, _ast486.NamedExpr):
+                            _r486 = _m486.get(id(_n486.value), _UN486)
+                        elif isinstance(_n486, _ast486.Name):
+                            _r486 = _env486.get(_n486.id, _UN486)
+                        elif isinstance(_n486, _ast486.Attribute):
+                            _r486 = _fld486.get(_n486.attr, _UN486)
+                        elif isinstance(_n486, _ast486.Subscript):
+                            _c486 = _m486.get(id(_n486.value), _UN486)
+                            _ix486 = _n486.slice
+                            _r486 = (
+                                _c486 if _c486[0] in ("list", "tuple", "str")
+                                and isinstance(_ix486, _ast486.Slice) else
+                                _c486[1] if _c486[0] in ("list", "dict") else
+                                _ST486 if _c486[0] == "str" else
+                                _c486[1][_ix486.value] if _c486[0] == "tuple"
+                                and isinstance(_ix486, _ast486.Constant)
+                                and type(_ix486.value) is int
+                                and -len(_c486[1]) <= _ix486.value < len(_c486[1]) else
+                                (next((t for t in _c486[1] if t[0] not in _SU486), None)
+                                 or (_SC486 if _c486[1] and all(t == _SC486 for t in _c486[1])
+                                     else _UN486)) if _c486[0] == "tuple" else _UN486)
+                        elif isinstance(_n486, _ast486.Call) and isinstance(_n486.func,
+                                                                            _ast486.Name):
+                            _f486 = _n486.func.id
+                            _a0486 = (_m486.get(id(_n486.args[0]), _UN486) if _n486.args
+                                      else _UN486)
+                            _r486 = (
+                                _fn486[_f486] if _f486 in _fn486 else
+                                _OT486 if _f486 in _cls486 else
+                                _SC486 if _f486 in ("len", "int", "abs", "ord", "round", "hash",
+                                                    "id", "float", "bool", "pow", "sum",
+                                                    "complex") else
+                                _ST486 if _f486 in ("str", "repr", "chr", "format", "bytes",
+                                                    "hex", "oct", "bin") else
+                                ("list", _UN486) if _f486 in ("list", "sorted") else
+                                ("dict", _UN486) if _f486 == "dict" else
+                                ("set",) if _f486 in ("set", "frozenset") else
+                                ("tuple", []) if _f486 == "tuple" else
+                                (_a0486[1] if _a0486[0] == "list" else _ST486
+                                 if _a0486[0] == "str" else _UN486)
+                                if _f486 in ("min", "max") and len(_n486.args) == 1 else
+                                (next((t for t in [_m486.get(id(_y), _UN486)
+                                                   for _y in _n486.args]
+                                       if t[0] not in _SU486), None)
+                                 or (_SC486 if all(_m486.get(id(_y)) == _SC486
+                                                   for _y in _n486.args) else _UN486))
+                                if _f486 in ("min", "max") and _n486.args else _UN486)
+                        _m486[id(_n486)] = _r486
+                    _ty486[id(_e486)] = _m486.get(id(_e486), _UN486)
+                _new486 = {}
+                for _nm486, _k486, _v486 in _bd486:
+                    if _k486 == "v":
+                        _t486 = _ty486.get(id(_v486), _UN486)
+                    elif _k486 == "a":
+                        _t486 = _am486.get(id(_v486), _UN486)
+                    elif _k486 == "e":
+                        _c486 = _ty486.get(id(_v486), _UN486)
+                        _t486 = (_SC486 if isinstance(_v486, _ast486.Call)
+                                 and isinstance(_v486.func, _ast486.Name)
+                                 and _v486.func.id == "range" and "range" not in _fn486 else
+                                 _c486[1] if _c486[0] == "list" else
+                                 _ST486 if _c486[0] == "str" else _UN486)
+                    elif _k486 == "o":
+                        _t486 = _OT486
+                    else:
+                        _t486 = _UN486
+                    _js486 = [_new486[_nm486], _t486] if _nm486 in _new486 else [_t486]
+                    _new486[_nm486] = next((t for t in _js486 if t[0] not in _SU486), None) or (
+                        _SC486 if all(t == _SC486 for t in _js486) else _ST486
+                        if all(t == _ST486 for t in _js486) else _UN486)
+                _env486 = dict(_menv486)
+                _env486.update(_new486)
+                for _p486 in _prm486:
+                    _env486[_p486] = (_prm486[_p486] if _p486 not in _new486 else
+                                      next((t for t in (_prm486[_p486], _new486[_p486])
+                                            if t[0] not in _SU486), None)
+                                      or (_prm486[_p486] if _prm486[_p486] == _new486[_p486]
+                                          else _UN486))
+            for _n486 in _aug486:
+                _tg486 = _n486.target
+                if isinstance(_tg486, _ast486.Name):
+                    if _tg486.id in _prm486 and _tg486.id not in _loc486:
+                        continue        # a bare formal parameter: route #478 (above)
+                    _tt486 = _env486.get(_tg486.id, _UN486)
+                    _why486 = f"the local '{_tg486.id}'"
+                elif isinstance(_tg486, _ast486.Subscript):
+                    _c486 = _ty486.get(id(_tg486.value), _UN486)
+                    _ix486 = _tg486.slice
+                    _tt486 = (
+                        ("immutable " + _c486[0],) if _c486[0] in ("tuple", "str", "set") else
+                        _c486 if _c486[0] == "list" and isinstance(_ix486, _ast486.Slice) else
+                        _c486[1] if _c486[0] in ("list", "dict") else
+                        _OT486 if _c486[0] == "other" else _UN486)
+                    _why486 = "an element of a container"
+                elif isinstance(_tg486, _ast486.Attribute):
+                    _tt486 = _fld486.get(_tg486.attr, _UN486)
+                    _why486 = f"the attribute '{_tg486.attr}'"
+                else:
+                    _tt486, _why486 = _UN486, "a target"
+                # a str / bytes target: only `+=` / `*=` / `%=` exist on it (anything else is
+                # a TypeError), and under typed / store a str ELEMENT / field is an int cell
+                if _tt486[0] == "str" and not isinstance(_n486.op, (
+                        _ast486.Add, _ast486.Mult, _ast486.Mod)):
+                    _tt486 = ("str operand of `" + type(_n486.op).__name__ + "`",)
+                elif _tt486[0] == "str" and _strict486 and not isinstance(_tg486,
+                                                                          _ast486.Name):
+                    _tt486 = ("str cell",)
+                if _tt486[0] in ("scalar", "str"):
+                    continue
+                # hoare-family models: a list / dict / record value is not a Why3 `int`, so
+                # an operator the emitter does not model faithfully fails Why3 typing there;
+                # only an augmented assignment CPython itself REJECTS on the known target type
+                # (an item store into a tuple / str / set, `list -= ..`, `dict += ..`, ...) is
+                # refused. Under typed / store every non-scalar target is refused.
+                if not _strict486 and (
+                        _tt486 == _UN486 or _tt486[0] == "other"
+                        or (_tt486[0] == "list" and isinstance(_n486.op, (
+                            _ast486.Add, _ast486.Mult)))
+                        or (_tt486[0] == "tuple" and isinstance(_tg486, _ast486.Name)
+                            and isinstance(_n486.op, (_ast486.Add, _ast486.Mult)))
+                        or (_tt486[0] == "dict" and isinstance(_n486.op, _ast486.BitOr))
+                        or (_tt486[0] == "set" and isinstance(_n486.op, (
+                            _ast486.BitOr, _ast486.BitAnd, _ast486.Sub, _ast486.BitXor)))):
+                    continue
+                _tn486 = (f"an item of a {_tt486[0][len('immutable '):]}"
+                          if _tt486[0].startswith("immutable ") else
+                          "a str / bytes, on which this operator raises TypeError"
+                          if _tt486[0].startswith("str operand") else
+                          "a str / bytes element or field, which `--memory-model typed` / "
+                          "`store` stores as an int cell" if _tt486[0] == "str cell" else
+                          {"unknown": "not established as a scalar (int / float / bool / "
+                                      "complex / str / bytes)",
+                           "list": "a list", "dict": "a dict", "set": "a set",
+                           "tuple": "a tuple"}.get(
+                              _tt486[0], "a non-scalar value (None, Optional, a union, a "
+                                         "class instance or an iterator)"))
+                from errors import PyCSLSemanticError as _PyCSLSemErr486
+                raise _PyCSLSemErr486(
+                    f"line {_n486.lineno}: '{_fd486.name}': the augmented assignment "
+                    f"`{_ast486.unparse(_n486).strip()}` targets {_why486}, whose static type "
+                    f"is {_tn486}. An augmented assignment is lowered as arithmetic on a "
+                    f"scalar; on a list / dict / set / tuple value Python's operator is an "
+                    f"IN-PLACE update the caller sees or a TypeError (an item store into a "
+                    f"tuple / str / set is a TypeError), while under `--memory-model typed` / "
+                    f"`store` a heap value is a location (`type loc = int`) and the statement "
+                    f"became integer arithmetic on it (route #486; measured: `a[0] -= 1` on "
+                    f"`a: List[List[int]]` proved `no_exception \\all`, CPython TypeError; "
+                    f"`(b := a); b *= 2; return len(a)` proved `\\result == 2`, CPython 4). "
+                    f"Update a scalar instead: a local with a scalar annotation "
+                    f"(`x: int = len(a); x *= 2`), or an int element through the element store "
+                    f"(`a[i] = a[i] - 1` on a `List[int]`).",
+                    stage="ir-semantic", code="PYCSL-R486-NONSCALAR-AUGASSIGN-TARGET")
     # (#49) driver run #3, ROUTE #476 (red team 39 F3; MEASURED PROVED on d6abee90b) -- THE
     # BINDING LIVE AT THE CALL FRONTIER. The model resolves a module name to its textually LAST
     # binding (the IMPORT view), while a file run as a script executes its call frontier -- the
@@ -20919,6 +21333,28 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"`#@ \\variant`, whose `let rec` termination Why3 checks.",
                 filename=args.file, stage="ir-semantic",
                 code="PYCSL-SEM-METHOD-RECURSION-UNCHECKED")
+    # ROUTE #487 (red team 40) — A BoolOp USED AS A VALUE SELECTS AN OPERAND. Module 6 emits
+    # `x or y` / `x and y` over an operand that is not a Python bool / int (a list, str,
+    # dict, set, float, Optional, record) as the int encoding of the selected operand's
+    # TRUTH VALUE inside the `pycsl_r487_truth_only` marker, which every truth test strips
+    # (`_to_bool`). A marker left in the emitted WhyML is such a BoolOp in a VALUE position
+    # (bound, returned, an operand of arithmetic / ordering / `-`, an argument): Python's
+    # value there is the OPERAND (`b = a or a; b *= 2` extends `a` in place; `(a or a) < 3`
+    # raises TypeError), not 0 / 1, so it is refused (fail closed).
+    if "pycsl_r487_truth_only" in _mlw:
+        raise _PyCSLSemanticError(
+            "an `and` / `or` expression whose operand is not a bool or an int (a list, str, "
+            "dict, set, float, Optional or object) is used as a VALUE. Python's `x or y` / "
+            "`x and y` returns one of its OPERANDS (the list, the string, ...), not True / "
+            "False; PyCSL models such an expression only as a truth test (an `if` / `while` "
+            "/ `assert` condition, `not`, a nested `and` / `or` in a condition), where its "
+            "truth value is exact. Bound to a name, returned, passed, compared or used in "
+            "arithmetic, the model would compute on 0 / 1 where CPython computes on the "
+            "selected object (measured: `b = a or a; b *= 2` proved `len(a) == 2` while "
+            "CPython extends `a` to 4 elements). Test the operand and use each one in its "
+            "own branch instead: `if a: return len(a)` / `return len(c)` for "
+            "`return len(a or c)`.",
+            filename=args.file, stage="whyml", code="PYCSL-M6-BOOLOP-VALUE")
     # (#49) ROUTE #325 — AN UNMODELLED VALUE IS NOT AN INT. Every value Module 6 cannot model
     # falls back to an OPAQUE INT — `val constant F : int` for a module-level name, `get_X`
     # over a module / class object, `getattr_<cls>` for a class attribute, `subscript_get`,
@@ -21331,6 +21767,47 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     _bio480 = {"pycsl_ellipsis"} | {_wid325(_x480) for _x480 in dir(_bi325)
                                     if _x480 not in _bind325 and _x480 not in _imod325
                                     and _x480 not in _inam325 and not _star325}
+    # ROUTE #485 (red team 40) — ORIGIN = EVERY NAME THIS FILE NEVER BINDS. #480 keyed the
+    # builtin-object set on `dir(builtins)`, so the module-instance globals CPython inserts
+    # into every module namespace (`__file__` a str, `__cached__` None, `__builtins__` a
+    # module, `__annotations__`, `__path__`, ...) and the class-body / method implicit names
+    # (`__module__`, `__qualname__`, `__class__`) kept `val constant __file__ : int` with
+    # no origin: `__file__ + n`, `__file__ < n`, `-__file__`, `__file__ * 0 == 0` PROVED
+    # (10 witnesses, `witnesses-r485/`). ALLOW-LIST POLARITY: a Python name that is LOADED
+    # but bound NOWHERE in this file (no assignment / augmented / annotated / walrus /
+    # for / with / except / match / del target, parameter, def, class, import, global /
+    # nonlocal, in ANY scope) is resolved by CPython in the module's own namespace (its
+    # implicit globals) or in builtins -- never a value this file computed, so never a
+    # known int; its fallback is an origin. Only the known-int `__debug__` (above) keeps
+    # its int model. Names the file binds keep #325 / #328's classification, and the
+    # emitter-internal pattern variables #480 measured (0534 / 0546) are bound Python names
+    # there, so they stay non-origins.
+    if _tree325 is not None:
+        _bnd485 = set(_imod325) | set(_inam325)
+        _ld485 = set()
+        for _x485 in _ast325.walk(_tree325):
+            if isinstance(_x485, _ast325.Name):
+                if isinstance(_x485.ctx, _ast325.Load):
+                    _ld485.add(_x485.id)
+                else:
+                    _bnd485.add(_x485.id)
+            elif isinstance(_x485, _ast325.arg):
+                _bnd485.add(_x485.arg)
+            elif isinstance(_x485, (_ast325.FunctionDef, _ast325.AsyncFunctionDef,
+                                    _ast325.ClassDef)):
+                _bnd485.add(_x485.name)
+            elif isinstance(_x485, (_ast325.Global, _ast325.Nonlocal)):
+                _bnd485.update(_x485.names)
+            elif isinstance(_x485, _ast325.alias):
+                _bnd485.add(_x485.asname or _x485.name.split(".")[0])
+            for _y485 in ("name", "rest"):
+                if isinstance(getattr(_x485, _y485, None), str) and isinstance(
+                        _x485, (_ast325.ExceptHandler, _ast325.MatchAs, _ast325.MatchStar,
+                                _ast325.MatchMapping)):
+                    _bnd485.add(getattr(_x485, _y485))
+        if not _star325:
+            _origin325.update(_wid325(_x485) for _x485 in _ld485
+                              if _x485 not in _bnd485 and _x485 != "__debug__")
     _mattr480 = set()
     if _tree325 is not None:
         _cfun480 = {id(_x480.func) for _x480 in _ast325.walk(_tree325)

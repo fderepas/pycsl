@@ -3937,6 +3937,62 @@ top-level statement before the frontier and by the frontier statement or one aft
 last one is live there, and is the model's). Census at 8aaa864ca: 0 corpus, mirror or stdlib
 files rebind such a name across a frontier. Witnesses `7540`-`7545`; controls `7547`, `7548`.
 
+### 7.350 A name the file never binds is never a known int (route #485, run #3)
+
+Route #480 made every builtin object an origin of route #325's opaque-int rule, keyed on
+`dir(builtins)`; the module-instance globals CPython inserts into every namespace (`__file__` a str,
+`__cached__` None in a script, `__builtins__` a module, `__annotations__`, `__path__`) and the
+class-body / method implicit names (`__module__`, `__qualname__`, `__class__`) are not attributes
+of `builtins`, so `__file__ + n`, `__file__ < n`, `-__file__`, `x = __file__; x += n` proved
+`no_exception \all` and `__file__ * 0` proved `\result == 0` (CPython TypeError / `''`). RULE
+(allow-list polarity): a Python name that is LOADED but bound NOWHERE in the file -- no
+assignment, augmented / annotated / walrus / for / with / except / match / del target,
+parameter, def, class, import, `global` / `nonlocal`, in any scope -- is resolved by CPython in the
+module's own namespace or in builtins, never computed by the file, so its fallback is an origin:
+any int operation on it is refused (PYCSL-R325-OPAQUE-INT-FALLBACK). Only the known-int `__debug__`
+keeps its int model; documented int calls over such a name (`len(__file__)`) are unchanged.
+Witnesses `7590`-`7595`; control `7596` (and route #480's `7517`, `7521`).
+
+### 7.351 An augmented assignment is judged by the static type of its target (route #486, run #3)
+
+Route #478 judged only a bare formal-parameter target. Under `--memory-model typed` / `store` a
+list element is an `int_mem` cell and a nested list / str / tuple / dict / set element is itself a
+location (`type loc = int`), so `a[0] -= 1` on `a: List[List[int]]`, `t[0] *= 2` on a tuple slot
+and `(b := a); b *= 2` / `b = a if c else a; b *= 2` (a local alias of a list parameter) were
+integer arithmetic on a heap cell and PROVED (CPython TypeError, or `a` extended in place). RULE
+(allow-list on the TARGET's source type, judged on the Python AST of every verified function):
+the type of a name / subscript / attribute target is derived from the parameter annotations, the
+bindings of each local (assignment, annotated, walrus, `for`, ternary, `and` / `or`, displays,
+arithmetic; fixpoint), container element types (`List[E]`, `Sequence[E]`, `Dict[K, V]`, tuple
+slots), user-function return annotations and class field annotations. A target of a modelled
+scalar type (`int`, `float`, `bool`, `complex`; `str` / `bytes` only for `+=`, `*=`, `%=`, and
+only as a name under typed / store, where a str cell is an int) is admitted. Under typed /
+store every other target -- a list, dict, set, tuple, Optional / None, class instance, or a type
+the judgement cannot establish -- is REFUSED (PYCSL-R486-NONSCALAR-AUGASSIGN-TARGET). Under the
+hoare-family models (a list / dict / record is not a Why3 `int` there, so integer arithmetic on
+it fails Why3 typing -- fail closed) only what CPython itself rejects on the known target type is
+refused: an item store into a tuple / str / set, and an operator the type lacks (`list -= ..`,
+`dict += ..`, `str -= ..`); a type's own in-place operators (`list +=` / `*=`, `dict |=`, set
+`|=` / `&=` / `-=` / `^=`) stay with the emitter. A bare formal-parameter target stays route
+#478's (7.330). Update a scalar instead: a local with a
+scalar annotation (`x: int = len(a); x *= 2`), or an int element through the element store
+(`a[i] = a[i] - 1` on a `List[int]`). Witnesses `7600`-`7610`;
+controls `7612`-`7616`.
+
+### 7.352 `x or y` / `x and y` over a non-bool operand is a truth test only (route #487, run #3)
+
+Python's `a or b` returns one of its OPERANDS. For an operand that is neither a Python bool nor an
+int selected raw (a list, str, dict, set, float, Optional, record), the body lowering selected the
+int encoding of its TRUTH VALUE (`if Array.length a <> 0 then 1 else 0`), so `b = a or a; b *= 2`
+was int arithmetic (CPython extends `a` in place), and `(a or a) < 3`, `-(a or a)`, `b -= 1` proved
+`no_exception \all` (CPython TypeError). RULE (refuse by default): such a BoolOp is lowered only
+in a TRUTH position -- an `if` / `while` / `assert` condition, `not`, a nested `and` / `or` operand
+of one -- where its truth value is exact; used as a VALUE (bound, returned, passed, compared,
+arithmetic) it is REFUSED (PYCSL-M6-BOOLOP-VALUE). Pure-bool operands (`a == b or c == d`), int
+operands (`n or 5`), two str operands and two IR-node operands keep their value-preserving
+lowerings. Spec context (`and` / `or` as connectives) is unchanged. Test the operand and use each
+one in its own branch (`if a: return len(a)` / `return len(c)` for `return len(a or c)`). Witnesses `7620`-`7624`; controls `7626`-`7629`.
+
 ### 7.300 An empty list is EMPTY across a call boundary (route #473, run #3)
 
 `c = []` (also `c: List[int] = []`, `c = list([])`) used to lower to the fixed-size placeholder

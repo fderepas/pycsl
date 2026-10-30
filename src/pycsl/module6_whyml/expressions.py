@@ -542,6 +542,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Comparison operators and bool literals are already bool.
         Calls to isinstance_check, hasattr_check are already bool.
         Other expressions (int) need `<> 0` coercion."""
+        # ROUTE #487: a BoolOp over a non-bool / non-int operand is emitted inside the
+        # `pycsl_r487_truth_only` marker (`_handle_binop`); its int form's truthiness IS the
+        # selected operand's, so a TRUTH test strips the marker. Any other use leaves it.
+        if (isinstance(whyml_str, str) and whyml_str.startswith("(pycsl_r487_truth_only ")
+                and whyml_str.endswith(")") and isinstance(ir_expr, dict)
+                and ir_expr.get("type") == "BinOp" and ir_expr.get("op") in ("and", "or")):
+            return f"({whyml_str[len('(pycsl_r487_truth_only '):-1]} <> 0)"
         # (#49) ROUTE #358 — THE TRUTH TEST OF AN ERASED VALUE RUNS ITS `__bool__` /
         #   `__len__`. `if self:` / `not self` on a field-less class lowered to `self <> 0`,
         #   so `no_exception \all` PROVED them for a `__len__` returning -1 (CPython
@@ -7282,6 +7289,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return f"(if {left_b} {op} {right_b} then 1 else 0)"
             _l_val = left if left_b == f"({left} <> 0)" else f"(if {left_b} then 1 else 0)"
             _r_val = right if right_b == f"({right} <> 0)" else f"(if {right_b} then 1 else 0)"
+            # ROUTE #487 (red team 40) — THE `1`/`0` WRAP ABOVE IS THE OPERAND'S TRUTH VALUE,
+            # NOT THE OPERAND. It is faithful as a VALUE only for an operand that IS a Python
+            # bool (`_pybool`, or a Why3-bool expression `_to_bool` hands back unchanged) or
+            # an int selected raw; for a list / str / dict / set / float / Optional / record
+            # operand (`Array.length a <> 0`, `x <> 0.0`, `hval_truthy ..`) Python's `a or b`
+            # returns the OPERAND, so `b = a or a; b *= 2`, `(a or a) < 3`, `-(a or a)` were
+            # int arithmetic on 0/1 and PROVED (7 witnesses, `witnesses-r487/`). The wrapped
+            # form stays exact in a TRUTH position (its truthiness is the selected operand's),
+            # so it is emitted inside the `pycsl_r487_truth_only` marker: `_to_bool` (every
+            # truth test: `if` / `while` / `assert` / `not` / a nested `and` / `or` operand)
+            # strips it, and a marker that survives into the emitted WhyML -- the BoolOp was
+            # used as a VALUE -- is refused (PYCSL-M6-BOOLOP-VALUE, pycsl.py); an undeclared
+            # symbol, it also fails Why3 typing on any other entry point (fail closed).
+            _tv487 = ((not _pybool[0] and _l_val != left and left_b != left)
+                      or (not _pybool[1] and _r_val != right and right_b != right))
             # (#49) gen #31 — THE FALSY-DEFAULT `or {}` ARM, whose two arms DISAGREE ON THE
             # VALUE MODEL and which therefore DID NOT TYPE-CHECK AT ALL.
             #
@@ -7346,10 +7368,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     and right == "(const (None: option int))" and _r_empty_map):
                 _r_val = "0"
             if op == "||":
-                return (f"(let __or_l = {_l_val} in "
-                        f"if __or_l <> 0 then __or_l else {_r_val})")
-            return (f"(let __and_l = {_l_val} in "
-                    f"if __and_l <> 0 then {_r_val} else __and_l)")
+                _bv487 = (f"(let __or_l = {_l_val} in "
+                          f"if __or_l <> 0 then __or_l else {_r_val})")
+            else:
+                _bv487 = (f"(let __and_l = {_l_val} in "
+                          f"if __and_l <> 0 then {_r_val} else __and_l)")
+            if _tv487:
+                return f"(pycsl_r487_truth_only {_bv487})"
+            return _bv487
         if raw_op in ("in", "not in"):
             return self._emit_membership(raw_op, expr, left, right, local_refs,
                                           invariant_ctx, subst)
