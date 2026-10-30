@@ -20,6 +20,7 @@ class Sha256:
         return [0] * 64
 
     #@ \trusted reviewer: field-append-has-no-certified-lowering
+    #@ assigns self._input
     def update(self, data):
         """MEASURED IN GEN #30 — THIS MARKER IS FORCED, NOT LAZY.
 
