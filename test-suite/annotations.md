@@ -4078,6 +4078,47 @@ operand of a comparison or of a fresh-list `+` / `*`, the iterable of a loop, th
 call, a store to the name) is REFUSED, as route #49 refuses the same mutators on a list parameter of a verified
 body. Refusal: `PYCSL-R468-VAL-LIST-LENGTH`. Witnesses `7275`-`7281`; control `7287` (`x[0] = 1` only).
 
+### 7.310 An imported constant is folded only when the dependency binds it exactly once (route #474, run #3)
+
+The importer used to fold a dependency's module constant from `collect_module_constants`, a scan of
+TOP-LEVEL single-Name `Assign` / `AnnAssign` statements only, so a `K = 1` the dependency rebinds by an
+augmented assignment (`K -= 1`, `K *= 0`, `S += 'b'`), an unpacking target (`K, = (0,)`, `[K, J] = [0,
+1]`) or inside an `if` / `else` / `try` / `finally` arm was folded to its FIRST value: `n // K` PROVED
+`no_exception \all` and `len(S) == 1` PROVED, while CPython raises ZeroDivisionError / returns 2 (the
+in-file twin is refused by the Weaver's binding-site guard, which fires only for a name the module itself
+reads). RULE (allow-list the export): a dependency constant is folded into the importer only when
+CPython's own parse of the dependency binds that name at EXACTLY ONE site of any form anywhere in the file
+(a name stored or deleted at any depth -- augmented, annotated, unpacking, `for`, `with`, walrus,
+`except`, `match` targets --, a `def` / `class` name, an import alias, a `global` / `nonlocal`), and the
+file has no namespace writer the table cannot see (`from M import *`, `globals()`, `vars()`, `locals()`,
+`exec`, `eval`, `setattr`, `delattr`, `__import__`, `.__dict__`, `.modules`). Otherwise the name stays an
+opaque `val constant`, and the claim must hold for every value. No new refusal. Witnesses `7450`-`7455`
+(PROVED at base, NOT PROVED now); controls `7457` / `7458` (a constant bound once still folds).
+
+### 7.311 Every resolved module is read as CPython decodes it (route #475, run #3)
+
+The frontend read every resolved dependency with `open(path).read()` (UTF-8) while CPython decodes a source
+file by its PEP 263 coding cookie / BOM, so a `latin-1` / `cp1252` / vim-style / post-shebang cookie over
+non-ASCII bytes gave the verifier other string constants than CPython (`len(S) == 1` PROVED, CPython 2),
+and a `utf-7` dependency hid the statement `K = 0` in the comment `# +AAo-K = 0` (CPython decodes `+AAo-`
+to a newline). RULE (route #465's gate applied to every resolved module, at `_resolve_module_path`, the one
+place every frontend reader obtains a dependency's path): the file's BYTES are decoded by CPython's own
+`tokenize.detect_encoding`, and that text must equal its UTF-8 reading (newlines and BOM normalised);
+otherwise the import is REFUSED (`PYCSL-R475-DEPENDENCY-ENCODING`), as is a file CPython cannot decode.
+A `utf-8` cookie, or any cookie over ASCII-only text that decodes identically, is accepted. Witnesses
+`7460`-`7462`; controls `7463` (`utf-8` cookie, non-ASCII text), `7464` (`latin-1` cookie, ASCII text).
+
+### 7.312 A module-level `__getattr__` is not run by the import check (route #477, run #3)
+
+Under a `no_exception` claim, route #466 bound `from h import g` to UNKNOWN as soon as the program module
+`h` defines a PEP 562 `__getattr__`, without calling it; CPython's from-import first probes `h.__path__`
+through it (only AttributeError is suppressed), then reads an unbound `g` through it, so a `__getattr__`
+raising KeyError, or AttributeError for `g`, fails the import -- even next to a real `def g`. RULE (refuse
+by default, inside #466's run): a from-import (any name, `*` included) of a program module whose namespace
+holds `__getattr__` is REFUSED, and so is a claimed function's read `h.g` of a name such a module does not
+bind (`PYCSL-R466-IMPORTED-MODULE-RAISES`). Witnesses `7470`-`7473`; control `7474` (a module without
+`__getattr__`).
+
 ### 7.220 A term transform's binder arm may run a `while True:` scan loop down the spine (lv4, run #3)
 
 A one-parameter Term->Term transform (§7.160's shape, e.g. the mirror's

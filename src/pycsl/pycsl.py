@@ -24576,6 +24576,24 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                 f"cannot be imported")
                                 break
                             _td466 = _tm466["mo"].__dict__
+                            # (#49) gen #40, ROUTE #477 (red team 39; MEASURED PROVED on
+                            # d6abee90b: `from h import g` of a program module defining a PEP 562
+                            # `__getattr__` was bound to UNKNOWN without calling it, while
+                            # CPython's from-import first probes `h.__path__` through it -- only
+                            # AttributeError is suppressed -- then reads `g` through it: a
+                            # `__getattr__` raising KeyError, or AttributeError for `g`, fails the
+                            # import, even next to a real `def g`). RULE (refuse by default): a
+                            # from-import (any name, `*` included) of a program module whose
+                            # namespace holds `__getattr__` is REFUSED -- the verifier does not
+                            # run that function. Inline; the mirror twin is `\trusted`.
+                            if _tm466["role"] in ("J", "M") and "__getattr__" in _td466:
+                                _why466 = ("X", f"`{_a466.unparse(_s466x)}`: the module "
+                                                f"`{_need466[0]}` defines a module-level "
+                                                f"`__getattr__` (PEP 562), which CPython's "
+                                                f"from-import calls (for `__path__`, then for "
+                                                f"any name it does not bind) and the verifier "
+                                                f"does not run (route #477)")
+                                break
                             if _al466.name == "*":
                                 if _tm466["role"] in ("L", "I"):
                                     _why466 = ("U", f"`{_a466.unparse(_s466x)}` binds names of a "
@@ -24977,6 +24995,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     break
                                 _om466 = _ov466
                                 _ov466 = _ov466.__dict__.get(_at466, _UK466)
+                                # (#49) gen #40, ROUTE #477: an attribute a program module does
+                                # not bind, read through its PEP 562 `__getattr__` (which CPython
+                                # calls here and the verifier does not run), is REFUSED.
+                                if (_ov466 is _UK466 and "__getattr__" in _om466.__dict__
+                                        and any(_r["mo"] is _om466 and _r["role"] in ("J", "M")
+                                                for _r in _mods466.values())):
+                                    _rf466 = ("A", f"{_fp466}: `{_d466.name}` (line "
+                                                   f"{_d466.lineno}) reads `{_a466.unparse(_y466)[:50]}`"
+                                                   f", but the module `{_om466.__name__}` binds no "
+                                                   f"`{_at466}`, so CPython calls its module-level "
+                                                   f"`__getattr__` (PEP 562), which the verifier "
+                                                   f"does not run (route #477)")
+                                    break
                                 if (_ov466 is _UK466 and "__getattr__" not in _om466.__dict__
                                         and any(_r["mo"] is _om466 and _r["role"] in ("J", "S")
                                                 for _r in _mods466.values())

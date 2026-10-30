@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #475 / #477 REPAIRED, #474 PARTIAL (executor x3 off 8aaa864ca; the FILE-BOUNDARY dependency reader:
+##   every fact taken from a dependency comes from CPython's own reading of it; inline, mirror twins `\trusted`, no new def
+##   in a mirrored file, no axiom). #475: route #465's decode gate at `_resolve_module_path` (the one place every frontend
+##   reader gets a dependency path): bytes decoded by `tokenize.detect_encoding` must equal the UTF-8 text read, else
+##   REFUSED (new code PYCSL-R475-DEPENDENCY-ENCODING). #474: a dependency constant folds into the importer only when
+##   CPython's `ast.parse` of the dependency binds it at exactly ONE site of any form anywhere and the file has no
+##   namespace writer, else opaque (no new refusal). #477: a from-import (any name, `*`) of a program module holding
+##   `__getattr__`, and a claimed read `h.g` of a name it does not bind, are REFUSED inside route #466's run.
+##   Witnesses 38/38 PROVED at base -> 34 REFUSED + 4 NOT PROVED; corpus 7450-7455, 7460-7462, 7470-7473 (FAIL),
+##   controls 7457 7458 7463 7464 7474. #474 RESIDUAL: a constant mutated from ANOTHER program module (`h.K = 0` in a
+##   peer, a package `__init__` writing `sub.K`) under an ensures-only claim still folds (PROVED at base and repair).
+
 ## run #3 (2026-10-30): #479 / #480 REPAIRED (executor o1 off 8aaa864ca; `_expr_to_whyml` + inline in `_run_pipeline`,
 ##   both mirror twins `\trusted`, no new def in a mirrored file, no axiom, no new diagnostic code). #479: route #40's
 ##   `py_ellipsis` marker is read on the `OpaqueExpr` carrier `expr_from_dict` makes of it inside a typed parent (ternary

@@ -94,72 +94,111 @@ def _resolve_module_path(module_dotted: str, level: int, main_file: str) -> Opti
         # with both present it loads the package. The old order (module first) verified the
         # module's contracts against a program that runs the package's code.
         pkg_init = os.path.join(base, *parts, "__init__.py")
-        if os.path.isfile(pkg_init):
-            return pkg_init
-        candidate = os.path.join(base, *parts) + ".py"
-        if os.path.isfile(candidate):
-            return candidate
-        return None
-
-    # Absolute import: try main file's directory, CWD, the repo `src/` (so the
-    # promoted standard library `pycsl_lib.X` resolves to `src/pycsl_lib/X`
-    # regardless of cwd), then built-in Lib/ stubs
-    script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    lib_dir = os.path.join(script_dir, "Lib")
-    src_dir = os.path.dirname(script_dir)  # …/pycsl/src
-    for base in [os.path.dirname(os.path.abspath(main_file)), os.getcwd(),
-                 src_dir, lib_dir, *_EXTRA_IMPORT_PATHS]:
-        # (#49) ROUTE #326 — package before module (see the relative branch above).
-        pkg_init = os.path.join(base, *parts, "__init__.py")
         candidate = os.path.join(base, *parts) + ".py"
         hit = pkg_init if os.path.isfile(pkg_init) else (
             candidate if os.path.isfile(candidate) else None)
-        if hit is None:
-            continue
-        # (#49) ROUTE #326 — A LOCAL FILE NAMED LIKE A STANDARD-LIBRARY MODULE IS NOT THE
-        # STANDARD-LIBRARY MODULE. CPython never loads `./math.py` for `import math` (a
-        # built-in / frozen / startup-loaded module is found before any path entry), and
-        # whether it loads `./json.py` depends on the path entry it sits in and on what
-        # the interpreter happened to import at startup. pycsl resolved the local file and
-        # verified ITS contracts (`math.floor(3) == 4` PROVED; CPython 3). The only local
-        # copy that may stand in for a standard-library module is one that IS that
-        # module: byte-identical to the running interpreter's own source (the repo-root
-        # `json/` package is CPython's `Lib/json`, file for file). Anything else is
-        # REFUSED — which of the two modules runs is not something pycsl can know.
-        if parts[0] in sys.stdlib_module_names or parts[0] in sys.builtin_module_names:
-            std_root = os.path.join(sysconfig.get_paths()["stdlib"], parts[0])
-            loc_root = os.path.join(base, parts[0])
-            same = False
-            if len(parts) == 1 and hit == candidate:
-                same = (os.path.isfile(std_root + ".py")
-                        and filecmp.cmp(candidate, std_root + ".py", shallow=False))
-            elif os.path.isdir(std_root):
-                same = True
-                for dp, dns, fns in os.walk(loc_root):
-                    dns[:] = sorted(d for d in dns if d != "__pycache__")
-                    for fn in sorted(fns):
-                        if not fn.endswith(".py"):
-                            continue
-                        lf = os.path.join(dp, fn)
-                        sf = os.path.join(std_root, os.path.relpath(lf, loc_root))
-                        if not (os.path.isfile(sf) and filecmp.cmp(lf, sf, shallow=False)):
-                            same = False
-            if not same:
-                from errors import PyCSLSemanticError
-                raise PyCSLSemanticError(
-                    f"`import {module_dotted}` names a standard-library "
-                    f"module, but pycsl's import resolution found a LOCAL file for it "
-                    f"({hit}) that is not the interpreter's own '{parts[0]}' source. "
-                    f"CPython does not load such a file in place of a built-in, frozen or "
-                    f"startup-loaded module, and for any other standard-library module "
-                    f"which one runs depends on sys.path order and interpreter startup, "
-                    f"so the local file's contracts may not be believed here (route #326: "
-                    f"a local `math.py` made `math.floor(3) == 4` PROVE; CPython 3). "
-                    f"FIX: rename the local module so it does not shadow the standard "
-                    f"library.",
-                    filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-SHADOWS-STDLIB")
-        return hit
-    return None
+
+    else:
+        hit = None
+        # Absolute import: try main file's directory, CWD, the repo `src/` (so the
+        # promoted standard library `pycsl_lib.X` resolves to `src/pycsl_lib/X`
+        # regardless of cwd), then built-in Lib/ stubs
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        lib_dir = os.path.join(script_dir, "Lib")
+        src_dir = os.path.dirname(script_dir)  # …/pycsl/src
+        for base in [os.path.dirname(os.path.abspath(main_file)), os.getcwd(),
+                     src_dir, lib_dir, *_EXTRA_IMPORT_PATHS]:
+            # (#49) ROUTE #326 — package before module (see the relative branch above).
+            pkg_init = os.path.join(base, *parts, "__init__.py")
+            candidate = os.path.join(base, *parts) + ".py"
+            hit = pkg_init if os.path.isfile(pkg_init) else (
+                candidate if os.path.isfile(candidate) else None)
+            if hit is None:
+                continue
+            # (#49) ROUTE #326 — A LOCAL FILE NAMED LIKE A STANDARD-LIBRARY MODULE IS NOT THE
+            # STANDARD-LIBRARY MODULE. CPython never loads `./math.py` for `import math` (a
+            # built-in / frozen / startup-loaded module is found before any path entry), and
+            # whether it loads `./json.py` depends on the path entry it sits in and on what
+            # the interpreter happened to import at startup. pycsl resolved the local file and
+            # verified ITS contracts (`math.floor(3) == 4` PROVED; CPython 3). The only local
+            # copy that may stand in for a standard-library module is one that IS that
+            # module: byte-identical to the running interpreter's own source (the repo-root
+            # `json/` package is CPython's `Lib/json`, file for file). Anything else is
+            # REFUSED — which of the two modules runs is not something pycsl can know.
+            if parts[0] in sys.stdlib_module_names or parts[0] in sys.builtin_module_names:
+                std_root = os.path.join(sysconfig.get_paths()["stdlib"], parts[0])
+                loc_root = os.path.join(base, parts[0])
+                same = False
+                if len(parts) == 1 and hit == candidate:
+                    same = (os.path.isfile(std_root + ".py")
+                            and filecmp.cmp(candidate, std_root + ".py", shallow=False))
+                elif os.path.isdir(std_root):
+                    same = True
+                    for dp, dns, fns in os.walk(loc_root):
+                        dns[:] = sorted(d for d in dns if d != "__pycache__")
+                        for fn in sorted(fns):
+                            if not fn.endswith(".py"):
+                                continue
+                            lf = os.path.join(dp, fn)
+                            sf = os.path.join(std_root, os.path.relpath(lf, loc_root))
+                            if not (os.path.isfile(sf) and filecmp.cmp(lf, sf, shallow=False)):
+                                same = False
+                if not same:
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"`import {module_dotted}` names a standard-library "
+                        f"module, but pycsl's import resolution found a LOCAL file for it "
+                        f"({hit}) that is not the interpreter's own '{parts[0]}' source. "
+                        f"CPython does not load such a file in place of a built-in, frozen or "
+                        f"startup-loaded module, and for any other standard-library module "
+                        f"which one runs depends on sys.path order and interpreter startup, "
+                        f"so the local file's contracts may not be believed here (route #326: "
+                        f"a local `math.py` made `math.floor(3) == 4` PROVE; CPython 3). "
+                        f"FIX: rename the local module so it does not shadow the standard "
+                        f"library.",
+                        filename=main_file, stage="imports", code="PYCSL-SEM-IMPORT-SHADOWS-STDLIB")
+            break
+    # (#49) gen #40, ROUTE #475 (red team 39; MEASURED PROVED on d6abee90b: a dependency with
+    # a `latin-1` / `cp1252` / vim-style / post-shebang coding cookie over non-ASCII bytes,
+    # and a `utf-7` dependency whose comment `# +AAo-K = 0` CPython decodes to a NEWLINE and
+    # the statement `K = 0`). Every frontend reader of a resolved module (`_process_dependency`,
+    # `_get_module_exports`, the structural / route #143 / #326 passes) reads it with
+    # `open(path).read()` -- UTF-8 -- while CPython decodes it by its PEP 263 cookie / BOM.
+    # RULE (one decoder, allow-list polarity; route #465's gate applied to every resolved
+    # module, at the ONE place every reader obtains its path): the file's BYTES are decoded
+    # exactly as CPython decodes a source file (`tokenize.detect_encoding`), and that text
+    # must be the text the readers see (its UTF-8 reading, newlines and BOM normalised);
+    # otherwise the module is REFUSED. Inline; the mirror twin is `\trusted`.
+    if hit is not None:
+        _er475 = None
+        try:
+            _fb475 = __import__("pathlib").Path(hit).read_bytes()
+            _en475 = __import__("tokenize").detect_encoding(
+                __import__("io").BytesIO(_fb475).readline)[0]
+            _dc475 = _fb475.decode(_en475)
+            _u8475 = _fb475.decode("utf-8")
+        except (OSError, SyntaxError, LookupError, ValueError) as _x475:
+            _er475 = (f"CPython cannot decode it as this verifier reads it "
+                      f"({type(_x475).__name__}: {str(_x475)[:80]})")
+        else:
+            if (_dc475.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")
+                    != _u8475.lstrip("\ufeff").replace("\r\n", "\n").replace("\r", "\n")):
+                _er475 = (f"CPython decodes it as `{_en475}` (its PEP 263 coding cookie / BOM), "
+                          f"which is not the UTF-8 text this verifier reads")
+        if _er475 is not None:
+            from errors import PyCSLSemanticError
+            raise PyCSLSemanticError(
+                f"the module `{'.' * level}{module_dotted}` resolves to {hit}, but {_er475}, "
+                f"so the module CPython runs is not the module verified here (route #475; "
+                f"measured: a dependency with a `latin-1` / `cp1252` / vim-style coding cookie "
+                f"over non-ASCII text folded its string constants with the wrong length, and a "
+                f"`utf-7` dependency hid the statement `K = 0` inside a comment, each PROVED, "
+                f"CPython returns another value / raises ZeroDivisionError). The program's "
+                f"modules are read as UTF-8, exactly as CPython reads them only when their "
+                f"cookie agrees. FIX: save the module as UTF-8 and drop (or correct) its coding "
+                f"cookie.",
+                filename=main_file, stage="imports", code="PYCSL-R475-DEPENDENCY-ENCODING")
+    return hit
 
 
 def _get_module_exports(filepath: str) -> Optional[Set[str]]:
@@ -1824,9 +1863,58 @@ def _resolve_direct_imports(direct_imports: List[Any], all_calls: Set[str], main
         # name clash (only fill names the importer does not already define).
         dep_consts = (cache.get(os.path.abspath(resolved), {}) or {}).get("module_constants", {})
         if dep_consts:
+            # (#49) gen #40, ROUTE #474 (red team 39; MEASURED PROVED on d6abee90b: the
+            # dependency's `K = 1` rebound by `K -= 1`, `K *= 0`, `K, = (0,)`, `[K, J] = [0, 1]`
+            # or inside an `if` / `else` / `try` / `finally` arm was folded to `1` here, and
+            # `n // K` PROVED `no_exception`, CPython ZeroDivisionError). The dependency's
+            # `module_constants` come from `collect_module_constants`, a scan of TOP-LEVEL
+            # single-Name `Assign` / `AnnAssign` statements only; the in-file twin is refused by
+            # Module3_Weaver's binding-site guard, which fires only when the module READS the
+            # name itself. RULE (allow-list the export): a dependency constant is folded into the
+            # importer only when CPython's own parse of the dependency binds the name at EXACTLY
+            # ONE site of ANY form anywhere in the file (a `Name` stored or deleted at any depth,
+            # augmented / annotated / unpacking / `for` / `with` / walrus / `except` / `match`
+            # targets, `def` / `class` names, import aliases, `global` / `nonlocal`), and the
+            # file has no namespace writer the table cannot see (`from M import *`, `globals()`,
+            # `vars()`, `locals()`, `exec`, `eval`, `setattr`, `delattr`, `__import__`,
+            # `.__dict__`, `.modules`). Otherwise the name stays an opaque `val constant` (sound).
+            # Inline; the mirror twin is `\trusted`.
+            import ast as _a474
+            _bs474: Dict[str, int] = {}
+            _dy474 = False
+            try:
+                _t474 = _a474.parse(__import__("pathlib").Path(resolved).read_bytes())
+            except (OSError, SyntaxError, ValueError):
+                _t474 = None
+                _dy474 = True
+            for _y474 in (_a474.walk(_t474) if _t474 is not None else []):
+                _nm474: List[str] = []
+                if isinstance(_y474, _a474.Name) and not isinstance(_y474.ctx, _a474.Load):
+                    _nm474 = [_y474.id]
+                elif isinstance(_y474, (_a474.FunctionDef, _a474.AsyncFunctionDef, _a474.ClassDef)):
+                    _nm474 = [_y474.name]
+                elif isinstance(_y474, (_a474.Import, _a474.ImportFrom)):
+                    for _al474 in _y474.names:
+                        _dy474 = _dy474 or _al474.name == "*"
+                        _nm474.append(_al474.asname or _al474.name.split(".")[0])
+                elif isinstance(_y474, (_a474.Global, _a474.Nonlocal)):
+                    _nm474 = list(_y474.names)
+                elif isinstance(_y474, (_a474.ExceptHandler, _a474.MatchAs, _a474.MatchStar)):
+                    _nm474 = [_y474.name] if isinstance(_y474.name, str) else []
+                elif isinstance(_y474, _a474.MatchMapping):
+                    _nm474 = [_y474.rest] if isinstance(_y474.rest, str) else []
+                elif isinstance(_y474, _a474.Call) and isinstance(_y474.func, _a474.Name):
+                    _dy474 = _dy474 or _y474.func.id in (
+                        "globals", "vars", "locals", "exec", "eval", "setattr", "delattr",
+                        "__import__")
+                elif isinstance(_y474, _a474.Attribute):
+                    _dy474 = _dy474 or _y474.attr in ("__dict__", "modules")
+                for _n474 in _nm474:
+                    _bs474[_n474] = _bs474.get(_n474, 0) + 1
             own = ir_data.setdefault("module_constants", {})
             for local, orig in names:
-                if orig in dep_consts and local not in own:
+                if (orig in dep_consts and local not in own and not _dy474
+                        and _bs474.get(orig, 0) == 1):
                     own[local] = dep_consts[orig]
         # 11-0632-spec-8 Part 1 (carry a contract-referenced LOGIC symbol across the
         # import boundary): an injected stub's `#@ ensures` may apply a module-level
