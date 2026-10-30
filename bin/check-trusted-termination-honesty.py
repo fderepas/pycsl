@@ -118,6 +118,10 @@ KNOWN_CORPUS = {
     "1254_route93_total_target_trusted_evades.py::parse",
     "1255_route93_total_target_abstract_evades.py::parse",
     "1711_route206_total_target_calls_trusted_stub.py::spin",
+    # route #482 witnesses (y1, driver run #3): the `for` over a one-element display IS the
+    # alias channel; both are REFUSED (PYCSL-R482-TRUSTED-FRAME-UNTRACKED)
+    "7634_y1_r482_record_dict_items.py::k",
+    "7638_y1_r482_record_for_display.py::k",
 }
 
 

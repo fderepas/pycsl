@@ -1,4 +1,4 @@
-r"""Test 7651 -- route #482 CONTROL (expected PASS: PROVED at base and candidate): a `\trusted` method with no `assigns` only READS `self` (a field into a test, `len`, a loop over a field), so it writes nothing and the caller keeps `c.xs[0]`.
+r"""Test 7651 -- route #482 CONTROL (expected PASS: PROVED at base and candidate): a `\trusted` method with no `assigns` only READS `self` (a field bound to a local by `=`, then `len` and an element read into a test; no loop, so no assumed termination), so it writes nothing and the caller keeps `c.xs[0]`.
 """
 # pycsl-expected: PASS
 from typing import List
@@ -10,11 +10,9 @@ class C:
 
     #@ \trusted
     def m(self) -> int:
-        s = 0
-        for y in self.xs:
-            s = s + y
-        if len(self.xs) > 0:
-            return s
+        ys = self.xs
+        if len(ys) > 0 and ys[0] > 5:
+            return ys[0]
         return 0
 
 

@@ -59,3 +59,22 @@ refused by #481's length rule.
 NEW FINDING beyond the 50: a `\trusted` method with no `assigns` and a DIRECT `self.xs[0] = 7` (or a call to a
 `self` method that writes `self`) also PROVED the field unchanged (its call stub `c_m_0 ()` carries no
 `writes`): witness 7631, now refused.
+
+VERDICTS (base e3b3711a2 -> candidate; proofs and `--no-proof` passes in the y1 session scratchpad):
+
+| set | base | candidate |
+|---|---|---|
+| 34 list-parameter witnesses (g87 t9102-t9111, g94 t9200-t9215 except t9203, g95 t9300-t9319) | REFUSED #468/#481 (length rule) | REFUSED #468/#481 |
+| 16 others: g104 g10410-g10415 (self), g109 r10900-r10909 (record / dict), g94 t9203 (closure), t9217 (record field list) | PROVED (false; CPython 7) | REFUSED PYCSL-R482 |
+| corpus 7630-7638 (self display / direct store / unpack, record display / dict-items / nested def / field list / for-display, dict display) | PROVED | REFUSED PYCSL-R482 |
+| 7639 (list container capture) | REFUSED #468 | REFUSED #468 |
+| 7653 (advice followed, caller reads the declared field) | NOT PROVED | NOT PROVED |
+| controls 7650, 7651, 7652, 7654, 7655 | PROVED | PROVED |
+| cv6 7442 / 7446 | REFUSED #481 | REFUSED #481 (census rows re-measured: were VERIFY-FAIL) |
+| cv6 7444 / 7445 | REFUSED #481 | NOT PROVED (emission byte-identical to pre-#481 dcf424f75) |
+| cv6 7447 | REFUSED #290 | REFUSED #290 |
+| cv6 7448 (expected PASS) | REFUSED #481 (over-refusal) | PROVED |
+
+Gates (candidate 2fea5ddc1 + the 7634 / 7651 respelling): fidelity sync rc=0 (939) / mirror-check rc=0 (53);
+doc-coherency rc=0; byte-diff root 2677 -> 2686: 0 MOVED / 0 GONE / 3 APPEARED (7444, 7445, 7448: the D3
+parity, intended) + new sources; pyref 2186/2186 inert; mirror 53/53 inert (no OWED proof); ledgers green.

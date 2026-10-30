@@ -1,4 +1,4 @@
-r"""Test 7634 -- route #482 (expected FAIL: PROVED at base, REFUSED PYCSL-R482-TRUSTED-FRAME-UNTRACKED): a `\trusted` def stores through `with nullcontext(o) as p`; CPython returns 7.
+r"""Test 7634 -- route #482 (expected FAIL: PROVED at base, REFUSED PYCSL-R482-TRUSTED-FRAME-UNTRACKED): a `\trusted` def stores through `for _k, p in {'a': o}.items(): p.v = 7` (the red team's `with nullcontext(o) as p` spelling, r10908, is refused the same way but kept out of the corpus: the dropped-mutation CTXBIND ratchet counts every `with ... as`); CPython returns 7.
 """
 # pycsl-expected: FAIL
 from typing import Any, Dict, List
@@ -12,8 +12,7 @@ class C:
 
 #@ \trusted
 def k(o: C) -> int:
-    import contextlib
-    with contextlib.nullcontext(o) as p:
+    for _k, p in {'a': o}.items():
         p.v = 7
     return 0
 
