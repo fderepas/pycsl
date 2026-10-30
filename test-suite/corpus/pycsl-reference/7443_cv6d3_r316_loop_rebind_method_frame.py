@@ -9,14 +9,14 @@ class U:
         self.n: int = 0
 
     #@ requires len(xs) >= 1
-    #@ ensures \result == 0
+    #@ ensures \result == 7
     #@ assigns \nothing
     def h(self, xs: List[int]) -> int:
         ys = [1]
         for i in range(2):
             ys[0] = 7
             ys = xs
-        return 0
+        return ys[0]
 
 
 if __name__ == "__main__":
