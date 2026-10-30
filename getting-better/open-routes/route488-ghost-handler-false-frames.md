@@ -1,6 +1,6 @@
 # OPEN ROUTE #488 — mirror ghost handlers prove `assigns \nothing` through narrow trusted `_e` declarations
 
-**Status: OPEN, Severity 2 (a false proved FRAME clause in the self-annotation mirror; no consuming proof known).**
+**Status: REPAIRED in the mirror (executor z1, driver run #3, 2026-10-30) — see §Repair record at the end. Was: OPEN, Severity 2 (a false proved FRAME clause in the self-annotation mirror; no consuming proof known).**
 Found by executor dx1 (driver run #3, 2026-10-30) at Gate S of `getting-better/cross-mixin-declaration-stubs-impl.md`
 (§5 Gate S record); see also the wall report `cross-mixin-declaration-stubs.md` and its review.
 
@@ -23,3 +23,25 @@ clause, not yet a false proof of a relied-on fact.
 REPAIR (measured in scratch): R1 on rows 1-3 TOGETHER with honest caller frames: the collections file then proves
 166 Valid / 0 non-Valid (199 s). `_handle_mktuple_expr` (spec_ops) stays refused after widening -> re-trust it (+1
 marker, honest) or model a writing call inside a comprehension. Then the declaration-conformance plane (R2a) keeps it fixed.
+
+## Repair record (executor z1, 2026-10-30)
+
+* The 3 local `\trusted` declarations (`GhostCollectionOpsMixin._e`, `GhostSpecOpsMixin._e`,
+  `GhostSpecOpsMixin._expr_to_whyml_string_ctx`) WIDENED from `assigns \nothing` to their definitions'
+  22-field frame (expressions.py `_e` / `_expr_to_whyml_string_ctx`). Nothing narrowed.
+* The 30 callers carry that frame: 21 in `expr_ghost_collections.py`, 8 verified in
+  `expr_ghost_spec_ops.py` + `_handle_mktuple_expr`, which stays REFUSED after widening (writing
+  `self._e` inside an opaquely-lowered list comprehension) and is RE-TRUSTED with the honest contract
+  (`assigns` = `_e`'s 22 fields; stub body). +1 `\trusted` marker (436 -> 437);
+  `trusted-reasons.tsv` row `cost-scale:writing-call-in-comprehension`, cite driver-backlog
+  "ROUTE #488 REPAIR".
+* Whole-file proofs (HEAVY_LOW=1): `expr_ghost_collections.py` 166 Valid / 0 non-Valid (215 s);
+  `expr_ghost_spec_ops.py` 122 Valid / 0 non-Valid (98 s).
+* Witnesses / controls: `witnesses-r488/repair_witness.sh <tree> <scratch>` (run via heavy.sh):
+  C1/C2 repaired files type-check (PASS); W1 (`_handle_has_key_expr` re-narrowed to `\nothing`) and W2
+  (`_handle_fst_expr` re-narrowed) FAIL Why3 typing (`depends on variable _pyobj_state, which is left
+  out in the specification`); W3 (`_handle_mktuple_expr` un-trusted with its live body) is REFUSED
+  (ir-semantic, writing call inside an opaque comprehension). All 5 AS-EXPECTED.
+* Residual: the R2a declaration-conformance plane (keep local declarations' frames equal to their
+  definitions') is NOT built here; `_handle_mktuple_expr` reopens on a modelled lowering of a writing
+  call inside a comprehension.

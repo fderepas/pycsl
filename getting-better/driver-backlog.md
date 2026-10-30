@@ -68,6 +68,20 @@ foreground-only sub-agents (lesson n). A checkpoint (commit + one line to
     re-derives it.**
 
 
+### ROUTE #488 REPAIR (run #3, executor z1, 2026-10-30) — `_handle_mktuple_expr` RE-TRUSTED: a writing `_e` call inside an opaque comprehension
+
+The 30 verified ghost handlers of `expr_ghost_collections.py` (21) / `expr_ghost_spec_ops.py` (9) proved
+`#@ assigns \nothing` only because their local `\trusted` cross-mixin declarations `_e` /
+`_expr_to_whyml_string_ctx` declared `assigns \nothing` while the definitions (expressions.py) declare
+22 fields (runtime-witnessed false frame, dx1 `witnesses-r488/`). Repair: the 3 declarations are widened
+to the definitions' 22-field frame and the callers carry the same frame. 29 of the 30 then re-prove.
+`_handle_mktuple_expr` does NOT: its live body is `", ".join([self._e(e, lr) for e in node.elts])`, a
+WRITING self-call inside a list comprehension, which PyCSL lowers opaquely and therefore REFUSES
+(ir-semantic; the refusal is the sound outcome — the write would vanish from the model). It is
+re-trusted with the honest contract (`assigns` = `_e`'s 22 fields), +1 marker. Reopening = a modelled
+lowering of a writing call inside a comprehension (or an explicit-loop live rewrite, which is an
+emitter edit). `trusted-reasons.tsv` tag: `cost-scale:writing-call-in-comprehension`.
+
 ### #74 gen #34 — THE BESPOKE LOWERINGS DISCARD THE DECLARED CONTRACT (**5 of 7 rows REPAIRED**)
 
 Module 6 has **25** `*_bespoke` emitters in `functions.py`. Every one wrote its contract as the two
