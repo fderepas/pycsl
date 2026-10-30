@@ -28459,8 +28459,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"len(o)` with a `__len__` writing `self.v` PROVED `o.v == 0` after `k(o)`, CPython "
             f"returns 7; the same for `o == 1`, `if o:`, `o + 1`, `str(o)`, `o[0]`, `next(o)`, "
             f"and through an imported un-marked def). Declare the callee's frame with `#@ "
-            f"assigns`, declare the dunder `#@ assigns \\nothing` if it writes nothing, or "
-            f"verify the function instead of trusting it.",
+            f"assigns` naming what the dunder writes (`#@ assigns {_rf489[1]}.<field>`), or "
+            f"declare the dunder `#@ assigns \\nothing` if it writes nothing.",
             stage="ir-semantic", code="PYCSL-R489-IMPLICIT-DUNDER")
     return _mlw
 

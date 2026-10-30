@@ -4277,7 +4277,7 @@ of those classes that defines it, `#@ assigns \nothing`, and each A dunder is, i
 `#@ assigns \nothing` or a VERIFIED method whose frame names only `self` (it cannot write its argument: rt41's
 `max(o, C())` control, where only the other item's `__gt__` runs). Otherwise REFUSED with
 `PYCSL-R489-IMPLICIT-DUNDER`: declare the callee's frame with `#@ assigns` (then the user's trusted frame is
-read, as for any `\trusted` def), declare the dunder `#@ assigns \nothing`, or verify the callee. Charging the
+read, as for any `\trusted` def), or declare the dunder `#@ assigns \nothing` (verifying such a callee fails Why3 typing). Charging the
 dunder's declared frame to the argument instead of refusing is not implemented (an over-refusal, not a gap).
 
 Witnesses `7730`-`7742` (PROVED at base, REFUSED; incl. typed `7736`, store `7737`, imported un-marked `7737`
