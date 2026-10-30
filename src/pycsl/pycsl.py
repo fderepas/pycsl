@@ -26147,7 +26147,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                        "ForwardRef", "evaluate_forward_ref", "get_annotations",
                        "call_annotate_function"}
             _DNL483 = {"__name__", "__file__", "__doc__", "__debug__", "__all__",
-                       "__annotations__", "__slots__", "__class__", "__qualname__", "__module__"}
+                       "__annotations__", "__slots__", "__class__", "__qualname__", "__module__",
+                       "__author__", "__version__", "__version_info__", "__copyright__",
+                       "__license__", "__credits__", "__email__", "__status__", "__date__"}
             _DAL483 = {"__init__", "__new__", "__call__", "__name__", "__qualname__", "__doc__",
                        "__class__", "__module__", "__eq__", "__ne__", "__lt__", "__le__",
                        "__gt__", "__ge__", "__hash__", "__repr__", "__str__", "__format__",
