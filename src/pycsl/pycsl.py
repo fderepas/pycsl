@@ -15815,7 +15815,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"heap location and the statement became integer arithmetic on that location "
                 f"(route #478; measured: `a *= 2; return len(a)` on `a: List[int]` proved "
                 f"`\\result == 2`, CPython 4; `a -= 1` proved `no_exception \\all`, CPython "
-                f"TypeError). Mutate the elements through the modelled element store "
+                f"TypeError). Rewrite it: mutate the elements through the modelled element store "
                 f"(`a[i] = a[i] * 2`, under every memory model), or build the result in a "
                 f"LOCAL list (`b = [x * 2 for x in a]`, default memory model) and return it.",
                 stage="ir-semantic", code="PYCSL-R478-COLLECTION-PARAM-AUGASSIGN")

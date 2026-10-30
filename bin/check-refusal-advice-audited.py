@@ -835,7 +835,7 @@ AUDITED = {
         "Route #466 (module attribute). 'Bind the name unconditionally at the module's top level, or read a name it binds': witness 7267's helper with `g` bound outside the `if False:` (a466_attr_bound_unconditionally) VERIFIES."),
     # (#49) driver run #3 -- routes #476 / #478 (m2, red team 39), audited the day they landed. Probes in scratchpad/m2/adv.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr478(f"\'{_f478.get(\'name\')}\': the augmented assignment `{_tg478} {_n478.get(\'op\')}= ...` applies to the parameter \'{_tg478}\' of t'): (FOLLOWABLE,
-        "Route #478. 'Mutate the elements through the modelled element store (`a[i] = a[i] * 2`, under every memory model), or build the result in a LOCAL list (`b = [x * 2 for x in a]`, default memory model)': witness 7532's `a *= 2` rewritten `a[0] = a[0] * 2` (a478_elem_store, `assigns a[0]`, `\\result == 2`) VERIFIES under default, typed and store; rewritten `b = [x * 2 for x in a]; return len(b)` (a478_local_comp) VERIFIES under default (typed / store: Why3 error, hence the message names the model). Controls 7538 / 7539 / 7546."),
+        "Route #478. 'Rewrite it: mutate the elements through the modelled element store (`a[i] = a[i] * 2`, under every memory model), or build the result in a LOCAL list (`b = [x * 2 for x in a]`, default memory model)': witness 7532's `a *= 2` rewritten `a[0] = a[0] * 2` (a478_elem_store, `assigns a[0]`, `\\result == 2`) VERIFIES under default, typed and store; rewritten `b = [x * 2 for x in a]; return len(b)` (a478_local_comp) VERIFIES under default (typed / store: Why3 error, hence the message names the model). Controls 7538 / 7539 / 7546."),
     ('src/pycsl/pycsl.py', "_PyCSLSemErr476(f'the module name `{_n476}` (read by a verified function, line {_rd476[_n476]}) is bound before the call frontier (line {_tr"): (FOLLOWABLE,
         "Route #476. 'Bind `g` once, before the frontier (move the later definition up, or give it its own name)': witness 7540 with the later `def g` moved above the `__main__` block (both defs before the frontier, control 7548) VERIFIES `no_exception \\all` and `\\result == n`; a def after the guard that no verified function reads (control 7547) VERIFIES."),
 }
@@ -1170,7 +1170,7 @@ AUDITED_HASH = {
     # (#49) driver run #3 -- route #465 (x2)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr465(f"{_er465}, so the module never runs and none of its functions can be called as verified (route #465; measured: `def f(n): g'): 'af209af0e63c',
     # (#49) driver run #3 -- routes #476 / #478 (m2)
-    ('src/pycsl/pycsl.py', '_PyCSLSemErr478(f"\'{_f478.get(\'name\')}\': the augmented assignment `{_tg478} {_n478.get(\'op\')}= ...` applies to the parameter \'{_tg478}\' of t'): '5ca2d2aa1e98',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr478(f"\'{_f478.get(\'name\')}\': the augmented assignment `{_tg478} {_n478.get(\'op\')}= ...` applies to the parameter \'{_tg478}\' of t'): '0c0861c6b5d3',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr476(f'the module name `{_n476}` (read by a verified function, line {_rd476[_n476]}) is bound before the call frontier (line {_tr"): '130aae8d6257',
 }
 
