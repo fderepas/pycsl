@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #476 / #478 REPAIRED (executor m2 off 8aaa864ca; inline in `_run_pipeline`, mirror twin `\trusted`, no
+##   new def in a mirrored file, no axiom). #478: an augmented assignment on a formal parameter of a verified function is admitted
+##   only when the DECLARED type is an immutable scalar (int / float / bool / complex / str / bytes / tuple / unannotated) -- judged
+##   on the IR once for EVERY memory model (PYCSL-R478-COLLECTION-PARAM-AUGASSIGN); 15 witnesses x 3 models REFUSED (45/45).
+##   #476: a module name a verified function reads (transitively through every def / class of the name), or its own name, bound
+##   both before the call frontier and at / after it, is REFUSED (PYCSL-R476-REBOUND-AFTER-FRONTIER); 8/8 REFUSED. Over-refusal:
+##   0 corpus / mirror / stdlib files by census; rt39 honest probe x2010 (typed / store) now refused. Model-gated refusal census:
+##   of 2014 refusal witnesses 12 emit under typed / store only; 11 do not prove there, `0849` proves (route #289's gate keys on
+##   the `subscript_set` emission; typed / store lower `a[i][k] = v` on `List[Dict]` to an effectful heap store) -- RESIDUAL: no
+##   false proof found by 5 breach probes (len / frame / KeyError / read-back / neighbour), dict-as-heap-array left unrefused.
+##   Witnesses 7530-7537, 7540-7545; controls 7538 7539 7546 7547 7548. annotations.md 7.330 / 7.331.
+
 ## run #3 (2026-10-30): #481 OPENED (executor d1's residual, driver-reproduced on d6abee90b): trusted-default-frame-list-length (1 +
 ##   control): a same-file `\trusted` function without `assigns` that appends to a list argument gets the inferred `writes { xs }`,
 ##   which keeps `Array.length xs`; the caller proves `\result == \old(len(xs))` while CPython returns 1 (route #49 / #468 class).

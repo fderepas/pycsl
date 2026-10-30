@@ -15763,6 +15763,228 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         f"`requires len(str(p)) == 1` proved, CPython TypeError). Convert it "
                         f"first (`ord(str(p)[0])`), or drop `\\all` from the context.",
                         stage="whyml", code="PYCSL-R434-ORD-PATH")
+    # (#49) driver run #3, ROUTE #478 (red team 39 F5; MEASURED PROVED on d6abee90b under
+    # `--memory-model typed` AND `store`) -- AN AUGMENTED ASSIGNMENT ON A COLLECTION-TYPED
+    # PARAMETER, JUDGED ONCE FOR EVERY MEMORY MODEL. Route #49's refusal in
+    # `_handle_augassign_stmt` is keyed on the HOARE model's local tables (`_seq_locals` /
+    # `_array_locals`); under typed / store a list parameter is a heap location `a: loc` (`type
+    # loc = int`) plus an immutable `a_len`, is in neither table, and `a *= 2` / `a -= 1` /
+    # `a &= 1` / `a **= 2` .. fell through to the INT lowering: `a := !a * 2` is arithmetic on the
+    # LOCATION, `len(a)` read the untouched `a_len`, `assigns \nothing` held (measured: `a *= 2;
+    # return len(a)` proved `\result == 2`, CPython 4; `a -= 1` proved `no_exception \all`,
+    # CPython TypeError). RULE (allow-list, keyed on the parameter's DECLARED SOURCE TYPE, not on
+    # any model's table): an augmented assignment whose target is a formal parameter of a
+    # function whose body is verified (not `\trusted` / `\abstract`) is ADMITTED only when the
+    # parameter's type is an immutable scalar (int / float / bool / complex / str / bytes, a
+    # tuple, or unannotated `Any`, which every model types as a scalar), where the statement is a
+    # faithful LOCAL rebinding; any other type (list / List[..] / dict / set / bytearray / a
+    # class ..) is REFUSED (PYCSL-R478-COLLECTION-PARAM-AUGASSIGN) under every memory model. It
+    # runs after emission so that route #49's own default-model message keeps answering first
+    # where it fires. Inline; `_run_pipeline`'s mirror twin is `\trusted`.
+    _ok478 = {"int", "float", "bool", "complex", "str", "bytes", "Any", "", "None"}
+    for _f478 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
+        if not isinstance(_f478, dict) or _f478.get("trusted") or _f478.get("abstract"):
+            continue
+        _fp478 = set(_f478.get("formal_params") or [])
+        _st478 = _f478.get("symbol_table") or {}
+        _wk478 = [_f478.get("body") or []]
+        while _wk478:
+            _n478 = _wk478.pop()
+            if isinstance(_n478, list):
+                _wk478.extend(_n478)
+                continue
+            if not isinstance(_n478, dict):
+                continue
+            _wk478.extend(_v for _v in _n478.values() if isinstance(_v, (list, dict)))
+            if _n478.get("stmt") != "AugAssign":
+                continue
+            _tg478 = _n478.get("target")
+            if not isinstance(_tg478, str) or _tg478 not in _fp478:
+                continue
+            _ty478 = str(_st478.get(_tg478) or "")
+            if (_ty478 in _ok478 or _ty478.startswith("pytuple")
+                    or _ty478.split("[", 1)[0] in ("tuple", "Tuple")):
+                continue
+            from errors import PyCSLSemanticError as _PyCSLSemErr478
+            raise _PyCSLSemErr478(
+                f"'{_f478.get('name')}': the augmented assignment `{_tg478} "
+                f"{_n478.get('op')}= ...` applies to the parameter '{_tg478}' of type "
+                f"`{_ty478}`. On a mutable collection Python's `{_n478.get('op')}=` is an "
+                f"IN-PLACE update the caller sees (or a TypeError), and no memory model "
+                f"lowers it as one: under `--memory-model typed` / `store` the parameter is a "
+                f"heap location and the statement became integer arithmetic on that location "
+                f"(route #478; measured: `a *= 2; return len(a)` on `a: List[int]` proved "
+                f"`\\result == 2`, CPython 4; `a -= 1` proved `no_exception \\all`, CPython "
+                f"TypeError). Mutate the elements through the modelled element store "
+                f"(`a[i] = a[i] * 2`, under every memory model), or build the result in a "
+                f"LOCAL list (`b = [x * 2 for x in a]`, default memory model) and return it.",
+                stage="ir-semantic", code="PYCSL-R478-COLLECTION-PARAM-AUGASSIGN")
+    # (#49) driver run #3, ROUTE #476 (red team 39 F3; MEASURED PROVED on d6abee90b) -- THE
+    # BINDING LIVE AT THE CALL FRONTIER. The model resolves a module name to its textually LAST
+    # binding (the IMPORT view), while a file run as a script executes its call frontier -- the
+    # first `if __name__ == ...` statement or module-level call of a verified function (or of a
+    # file function / class that transitively calls one) -- with the bindings made SO FAR: `def
+    # g(x): return 1 // (x - x)`, a verified `f` returning `g(n)`, the `__main__` driver calling
+    # `f(1)`, and a second `def g(x): return x` AFTER the guard proved `no_exception \all`, CPython
+    # ZeroDivisionError (also `\result == n` broken, KeyError, IndexError, a transitive callee,
+    # the reversed guard `'__main__' == __name__`, three defs). Route #459 asks only that a name
+    # be bound before the frontier, not WHICH binding is live there. RULE: when the module has a
+    # call frontier, a module name that a verified function (not `\trusted` / `\abstract`) reads
+    # -- directly or through the bodies of every file def / class of that name, transitively --
+    # or the verified function's own name, and that is bound BOTH by a top-level statement
+    # before the frontier AND by the frontier statement or one after it, is REFUSED
+    # (PYCSL-R476-REBOUND-AFTER-FRONTIER): the model's binding is not the one the script runs.
+    # A `from m import *` stops the judgement (#459). Census at 8aaa864ca: 0 of 6952 corpus
+    # files and 0 of 157 mirror / stdlib files rebind such a name across a frontier. Inline;
+    # `_run_pipeline`'s mirror twin is `\trusted`.
+    import ast as _ast476
+    import builtins as _bi476
+    _vf476 = set()
+    for _f476 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
+        if isinstance(_f476, dict) and not (_f476.get("trusted") or _f476.get("abstract")):
+            _vf476.add(str(_f476.get("name", "")).rsplit("__", 1)[-1])
+    try:
+        _tr476 = _ast476.parse(source_code) if _vf476 else None
+    except SyntaxError:
+        _tr476 = None
+    if _tr476 is not None and not any(
+            isinstance(_z, _ast476.ImportFrom) and any(_a.name == "*" for _a in _z.names)
+            for _z in _tr476.body):
+        # the verified functions and every file def / class that (transitively) calls one
+        _fd476 = set(_vf476)
+        _cg476 = {}
+        for _z476 in _ast476.walk(_tr476):
+            if isinstance(_z476, (_ast476.FunctionDef, _ast476.AsyncFunctionDef,
+                                  _ast476.ClassDef)):
+                _cg476.setdefault(_z476.name, set())
+                for _w476 in _ast476.walk(_z476):
+                    if isinstance(_w476, _ast476.Call):
+                        _cg476[_z476.name].add(
+                            _w476.func.id if isinstance(_w476.func, _ast476.Name) else
+                            _w476.func.attr if isinstance(_w476.func, _ast476.Attribute)
+                            else "")
+        _ch476 = True
+        while _ch476:
+            _ch476 = False
+            for _k476, _v476 in _cg476.items():
+                if _k476 not in _fd476 and _v476 & _fd476:
+                    _fd476.add(_k476)
+                    _ch476 = True
+        # the call frontier: index of the first top-level statement that is (or holds, outside
+        # a def / lambda / class body) an `if` testing `__name__` or a call of a name in _fd476
+        _fx476 = None
+        for _i476, _s476 in enumerate(_tr476.body):
+            _ex476 = [_s476]
+            if isinstance(_s476, (_ast476.FunctionDef, _ast476.AsyncFunctionDef)):
+                _ex476 = list(_s476.decorator_list) + [
+                    _d for _d in (_s476.args.defaults + _s476.args.kw_defaults) if _d]
+            elif isinstance(_s476, _ast476.ClassDef):
+                _ex476 = list(_s476.decorator_list) + list(_s476.bases) + [
+                    _k.value for _k in _s476.keywords]
+            _wk476 = list(_ex476)
+            while _wk476 and _fx476 is None:
+                _z476 = _wk476.pop()
+                if isinstance(_z476, (_ast476.FunctionDef, _ast476.AsyncFunctionDef,
+                                      _ast476.Lambda, _ast476.ClassDef)):
+                    continue
+                if isinstance(_z476, _ast476.If) and "__name__" in _ast476.unparse(_z476.test):
+                    _fx476 = _i476
+                elif isinstance(_z476, _ast476.Call):
+                    _cf476 = _z476.func
+                    if (_cf476.id if isinstance(_cf476, _ast476.Name) else _cf476.attr
+                            if isinstance(_cf476, _ast476.Attribute) else "") in _fd476:
+                        _fx476 = _i476
+                _wk476.extend(_ast476.iter_child_nodes(_z476))
+            if _fx476 is not None:
+                break
+        if _fx476 is not None:
+            # names bound by top-level statements before / at-or-after the frontier (inner
+            # def / class / lambda bodies bind locals, not module names)
+            _bb476 = set()
+            _ba476 = set()
+            _top476 = {}
+            for _i476, _s476 in enumerate(_tr476.body):
+                if isinstance(_s476, (_ast476.FunctionDef, _ast476.AsyncFunctionDef,
+                                      _ast476.ClassDef)):
+                    _top476.setdefault(_s476.name, []).append(_s476)
+                _bs476 = _bb476 if _i476 < _fx476 else _ba476
+                _wk476 = [_s476]
+                while _wk476:
+                    _z476 = _wk476.pop()
+                    if isinstance(_z476, (_ast476.FunctionDef, _ast476.AsyncFunctionDef,
+                                          _ast476.ClassDef)):
+                        _bs476.add(_z476.name)
+                        _wk476.extend(_z476.decorator_list)
+                        if isinstance(_z476, _ast476.ClassDef):
+                            _wk476.extend(_z476.bases)
+                        else:
+                            _wk476.extend([_d for _d in (_z476.args.defaults
+                                                         + _z476.args.kw_defaults) if _d])
+                        continue
+                    if isinstance(_z476, _ast476.Lambda):
+                        continue
+                    if isinstance(_z476, _ast476.Name) and isinstance(
+                            _z476.ctx, (_ast476.Store, _ast476.Del)):
+                        _bs476.add(_z476.id)
+                    elif isinstance(_z476, (_ast476.Import, _ast476.ImportFrom)):
+                        _bs476 |= {(_a.asname or _a.name).split(".")[0] for _a in _z476.names}
+                    elif isinstance(_z476, _ast476.ExceptHandler) and _z476.name:
+                        _bs476.add(_z476.name)
+                    _wk476.extend(_ast476.iter_child_nodes(_z476))
+            # the module names the verified functions read, transitively through every top-level
+            # def / class of a read name (all of its bindings, before and after the frontier)
+            _sd476 = [_z for _z in _ast476.walk(_tr476)
+                      if isinstance(_z, (_ast476.FunctionDef, _ast476.AsyncFunctionDef))
+                      and _z.name in _vf476]
+            _rd476 = {_z.name: _z.lineno for _z in _sd476 if _z in _tr476.body}
+            _sn476 = set()
+            _wk476 = list(_sd476)
+            while _wk476:
+                _fn476 = _wk476.pop()
+                if id(_fn476) in _sn476:
+                    continue
+                _sn476.add(id(_fn476))
+                _lo476 = set()
+                _gl476 = set()
+                _ld476 = []
+                for _z476 in _ast476.walk(_fn476):
+                    if isinstance(_z476, _ast476.arg):
+                        _lo476.add(_z476.arg)
+                    elif isinstance(_z476, (_ast476.Global, _ast476.Nonlocal)):
+                        _gl476 |= set(_z476.names)
+                    elif isinstance(_z476, _ast476.Name):
+                        if isinstance(_z476.ctx, _ast476.Load):
+                            _ld476.append(_z476)
+                        else:
+                            _lo476.add(_z476.id)
+                    elif (isinstance(_z476, (_ast476.FunctionDef, _ast476.AsyncFunctionDef,
+                                             _ast476.ClassDef)) and _z476 is not _fn476):
+                        _lo476.add(_z476.name)
+                    elif isinstance(_z476, (_ast476.Import, _ast476.ImportFrom)):
+                        _lo476 |= {(_a.asname or _a.name).split(".")[0] for _a in _z476.names}
+                _lo476 -= _gl476
+                for _z476 in _ld476:
+                    if _z476.id in _lo476 or hasattr(_bi476, _z476.id):
+                        continue
+                    _rd476.setdefault(_z476.id, getattr(_z476, "lineno", 0))
+                    _wk476.extend(_top476.get(_z476.id, []))
+            for _n476 in sorted(_rd476):
+                if _n476 in _bb476 and _n476 in _ba476:
+                    from errors import PyCSLSemanticError as _PyCSLSemErr476
+                    raise _PyCSLSemErr476(
+                        f"the module name `{_n476}` (read by a verified function, line "
+                        f"{_rd476[_n476]}) is bound before the call frontier (line "
+                        f"{_tr476.body[_fx476].lineno}: the `if __name__ == ...` statement or "
+                        f"the first module-level call that runs a verified function) AND bound "
+                        f"again at or after it. The proof uses the textually LAST binding (the "
+                        f"import view), but run as a script the frontier calls through the "
+                        f"binding live at that point, so the verified body is not the one that "
+                        f"runs (route #476; measured: `def g(x): return 1 // (x - x)`, `f` "
+                        f"returning `g(n)` called from the `__main__` block, and a second `def "
+                        f"g(x): return x` after it proved `no_exception \\all`, CPython "
+                        f"ZeroDivisionError). Bind `{_n476}` once, before the frontier (move "
+                        f"the later definition up, or give it its own name).",
+                        stage="ir-semantic", code="PYCSL-R476-REBOUND-AFTER-FRONTIER")
     # (#49) gen #38, ROUTE #459 (red team 36; MEASURED PROVED on 8fe7204c3 under `#@
     # no_exception \all`, CPython NameError) -- A CONDITIONAL MODULE-LEVEL BINDING. Module names
     # are collected from every top-level binding whatever its control flow, so `G` bound only

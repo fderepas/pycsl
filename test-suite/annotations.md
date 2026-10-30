@@ -3906,6 +3906,37 @@ a subclass `D` of `C` is `self._D__x` (not `C`'s field; under `no_exception` rou
 and a claim over its value FAILS), `C.__K` outside any class reads `__K` (not `C`'s `_C__K`), and
 `self._C__x` in `D` reads `C`'s field. Witnesses `7200`-`7204`; controls `7205`-`7207`.
 
+### 7.330 An augmented assignment on a collection-typed parameter is refused under every memory model (route #478, run #3)
+
+Route #49's refusal of `a += ...` on a list parameter was keyed on the default model's local
+tables. Under `--memory-model typed` / `store` a list parameter is a heap location (`type loc =
+int`) plus an immutable `a_len`, so `a *= 2`, `a -= 1`, `a &= 1`, `a **= 2` ... lowered to integer
+arithmetic on the LOCATION: `a *= 2; return len(a)` proved `\result == 2` (CPython 4), and `a -= 1`
+proved `no_exception \all` (CPython TypeError). RULE (allow-list on the parameter's DECLARED type,
+judged on the IR once for every memory model): an augmented assignment whose target is a formal
+parameter of a verified function is admitted only when the parameter is an immutable scalar
+(`int`, `float`, `bool`, `complex`, `str`, `bytes`, a tuple, or unannotated); any other type
+(`list`, `List[..]`, `Dict`, `Set`, `bytearray`, a class ...) is REFUSED
+(PYCSL-R478-COLLECTION-PARAM-AUGASSIGN). Mutate the elements through the modelled element store
+(`a[i] = a[i] * 2`, every model), or build a local list (`[x * 2 for x in a]`, default model). Census at 8aaa864ca: no corpus, mirror or stdlib file
+augments a non-scalar parameter outside route #49's own witness. Witnesses `7530`-`7537` (PROVED
+under typed / store at base, refused now); controls `7538`, `7539`, `7546`.
+
+### 7.331 A module name rebound after the call frontier is refused (route #476, run #3)
+
+The model resolves a module name to its textually LAST binding (the import view); a file run as a
+script executes its call frontier -- the first `if __name__ == ...` statement (either operand
+order) or module-level call of a verified function (or of a file function / class that reaches
+one) -- with the bindings made so far. `def g(x): return 1 // (x - x)`, a verified `f` returning
+`g(n)` called from the `__main__` block, and a second `def g(x): return x` after it proved
+`no_exception \all` (CPython ZeroDivisionError). RULE: when the module has a call frontier, a
+module name read by a verified function -- directly, or through the bodies of every file def /
+class of that name, transitively -- or the verified function's own name, that is bound both by a
+top-level statement before the frontier and by the frontier statement or one after it, is REFUSED
+(PYCSL-R476-REBOUND-AFTER-FRONTIER). Two bindings both before the frontier stay admitted (the
+last one is live there, and is the model's). Census at 8aaa864ca: 0 corpus, mirror or stdlib
+files rebind such a name across a frontier. Witnesses `7540`-`7545`; controls `7547`, `7548`.
+
 ### 7.300 An empty list is EMPTY across a call boundary (route #473, run #3)
 
 `c = []` (also `c: List[int] = []`, `c = list([])`) used to lower to the fixed-size placeholder
