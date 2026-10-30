@@ -25847,8 +25847,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # RULE (allow-list, refuse by default): over the program's import closure (this file and
     # every module its imports resolve to, transitively, at any depth, package `__init__`s
     # included), the code that RUNS AT IMPORT TIME -- every module's statements outside `def`
-    # bodies (this file's `if __name__ == "__main__":` block excepted: it runs after every
-    # import), decorators, defaults, annotations, class bodies, lambdas, and, closed by NAME,
+    # bodies (an `if __name__ == "__main__":` block excepted: in this file it runs after every
+    # import, in an imported module never), decorators, defaults, annotations, class bodies, lambdas, and, closed by NAME,
     # the body of every `def` named in that code (all its methods for a metaclass; the dunder
     # methods of a class it names; `__init_subclass__` / `__set_name__` / `__mro_entries__` /
     # `__class_getitem__` of a class it names as a base) -- must, in every module but this
@@ -25860,11 +25860,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     #     `locals`, `setattr`, `delattr`, `getattr`, `__import__`, `breakpoint`, `help`,
     #     `input`, any dunder name outside a small allow-list (`__builtins__` ...), the
     #     annotation evaluators -- except `getattr(x, "<literal, not dunder>")`, `setattr` /
-    #     `delattr` on the enclosing method's own `self`, and `g = globals()` bound once at
-    #     the top level to a name no import-time code reads;
+    #     `delattr` on the enclosing method's own `self`, `g = globals()` bound once at the
+    #     top level to a name no import-time code reads, and a top-level `F(globals())` whose
+    #     `def F` only STORES through that parameter (a write-only sink of its own namespace;
+    #     never under a literal key naming a program binding -- a COMPUTED key is a named
+    #     residual: it may overwrite one of the module's own names);
     #   * no dunder attribute outside a small read-only allow-list, no frame / code attribute
     #     (`f_*`, `gi_*`, `cr_*`, `ag_*`, `tb_*`, `co_*`), no `.modules`;
-    #   * an imported MODULE name only as the receiver of an attribute read (it never escapes);
+    #   * an imported MODULE (plain-imported, a from-imported submodule, `h.sub`) only as the
+    #     receiver of an attribute read (it never escapes into a value);
     #   * no attribute store / delete whose NAME is bound at the top level of any module of
     #     the closure or in the body of any of its classes (any receiver, at any depth).
     # Otherwise this file is REFUSED. (Route #466 runs the same modules for real under
@@ -25968,9 +25972,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _rc483 = {_f: [] for _f in _tr483}
             for _f483, _tt483 in _tr483.items():
                 _st483 = list(_tt483.body)
+                # an imported module's `if __name__ == "__main__":` block never runs (its
+                # `__name__` is its module name) unless the module rebinds `__name__`
+                _nmg483 = _f483 == _mf483 or not any(
+                    isinstance(_q, _a483.Name) and _q.id == "__name__"
+                    and not isinstance(_q.ctx, _a483.Load) for _q in _a483.walk(_tt483))
                 while _st483:
                     _z483 = _st483.pop()
-                    if (_f483 == _mf483 and isinstance(_z483, _a483.If)
+                    if (_nmg483 and isinstance(_z483, _a483.If)
                             and _par483.get(id(_z483)) is _tt483
                             and _a483.unparse(_z483.test).replace(" ", "").replace('"', "'") in (
                                 "__name__=='__main__'", "'__main__'==__name__")):
@@ -25988,18 +25997,53 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                       + ([_z483.returns] if _z483.returns is not None else []))
                     else:
                         _st483.extend(_a483.iter_child_nodes(_z483))
-            # closed by NAME, to a fixpoint: a FUNCTION (a `def` not directly in a class body)
-            # named in reached code runs; a class named there is LIVE (so are its bases): its
-            # dunder methods run, and so does each of its methods named in reached code (an
+            # closed by NAME, to a fixpoint. A TOP-LEVEL function (a `def` outside any class
+            # body or function) runs when reached code names it: by a bare name in its own
+            # module or in a module that from-imports that name (or `*`), or as the attribute
+            # of an imported name (this file: of any receiver). A nested `def` runs only inside
+            # its reached parent. A class named in reached code is LIVE (so are its bases): its
+            # dunder methods run, and so does each method whose name reached code uses (an
             # instance of a class no reached code names cannot exist at import time); a class
-            # named as a base runs its subclass hooks; a live metaclass runs every method
-            _nf483 = set()          # names read in reached code
+            # named as a base runs its subclass hooks; a live metaclass runs every method.
+            _nf483 = set()          # every name / attribute name read in reached code
+            _nn483 = set()          # (file, bare name) read in reached code
+            _na483 = set()          # attribute names read on an imported receiver
             _nb483 = set()          # names in the bases of a reached class
             _lv483 = set()          # live class names
-            _sc483 = {}             # id(node) -> scanned length of _rc483[file]
+            _sc483 = {}             # file -> scanned length of _rc483[file]
             _rd483 = set()          # id(def) already reached
             _HK483 = ("__init_subclass__", "__set_name__", "__mro_entries__",
                       "__class_getitem__")
+            _ib483 = {}             # file -> names bound by its imports (any form)
+            _fi483 = {}             # file -> {local name: imported name} of its from-imports
+            _st483f = set()         # files with a `from M import *`
+            for _f483, _tt483 in _tr483.items():
+                _ib483[_f483] = set()
+                _fi483[_f483] = {}
+                for _z483 in _a483.walk(_tt483):
+                    if isinstance(_z483, _a483.Import):
+                        _ib483[_f483].update(_al.asname or _al.name.split(".")[0]
+                                             for _al in _z483.names)
+                    elif isinstance(_z483, _a483.ImportFrom):
+                        for _al in _z483.names:
+                            if _al.name == "*":
+                                _st483f.add(_f483)
+                            else:
+                                _ib483[_f483].add(_al.asname or _al.name)
+                                _fi483[_f483][_al.asname or _al.name] = _al.name
+            # the names a program MODULE object can be reached by (file stems, package names)
+            _ms483 = {(_o483.path.basename(_o483.path.dirname(_k))
+                       if _o483.path.basename(_k) == "__init__.py"
+                       else _o483.path.basename(_k)[:-3]) for _k in _tr483}
+            # this file handing a module object around at import time: any attribute read
+            # may then reach a top-level function of any module
+            _esc483 = any(
+                isinstance(_z, _a483.Name) and isinstance(_z.ctx, _a483.Load)
+                and (_z.id in _ib483[_mf483] and (_z.id not in _fi483[_mf483]
+                                                 or _fi483[_mf483][_z.id] in _ms483))
+                and not (isinstance(_par483.get(id(_z)), _a483.Attribute)
+                         and _par483[id(_z)].value is _z)
+                for _z in _rc483[_mf483])
             _ch483 = True
             while _ch483:
                 _ch483 = False
@@ -26012,8 +26056,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     for _z483 in _nw483:
                         if isinstance(_z483, _a483.Name):
                             (_nb483 if id(_z483) in _bs483 else _nf483).add(_z483.id)
+                            _nn483.add((_f483, _z483.id))
+                            if _z483.id in _fi483[_f483]:
+                                _nn483.add(("*", _fi483[_f483][_z483.id]))
+                            elif _f483 in _st483f:
+                                _nn483.add(("*", _z483.id))
                         elif isinstance(_z483, _a483.Attribute):
                             (_nb483 if id(_z483) in _bs483 else _nf483).add(_z483.attr)
+                            _rt483 = _z483.value
+                            while isinstance(_rt483, _a483.Attribute):
+                                _rt483 = _rt483.value
+                            if _esc483 or _f483 == _mf483 or (isinstance(_rt483, _a483.Name)
+                                                              and _rt483.id in _ib483[_f483]):
+                                _na483.add(_z483.attr)
                         elif isinstance(_z483, _a483.ClassDef):
                             _nf483.update(_k.value.id for _k in _z483.keywords
                                           if _k.arg == "metaclass"
@@ -26025,11 +26080,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                               and isinstance(_z483.args[1], _a483.Constant)
                               and isinstance(_z483.args[1].value, str)):
                             _nf483.add(_z483.args[1].value)
+                            _na483.add(_z483.args[1].value)
                         elif (isinstance(_z483, (_a483.FunctionDef, _a483.AsyncFunctionDef))
                               and _z483.name in ("__getattr__", "__dir__")
-                              and not isinstance(_par483.get(id(_z483)), _a483.ClassDef)):
+                              and _par483.get(id(_z483)) is _tr483[_f483]):
                             # a module-level `__getattr__` runs when an importer reads a name
-                            _nf483.add(_z483.name)
+                            _na483.add(_z483.name)
                 # live classes: named in reached code, and every base of a live class
                 for _cn483 in list(_nf483 & set(_cbn483)):
                     if _cn483 not in _lv483:
@@ -26049,6 +26105,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if id(_d483) in _rd483 or isinstance(_d483, _a483.ClassDef):
                             continue
                         _ow483 = _par483.get(id(_d483))
+                        while _ow483 is not None and not isinstance(_ow483, (
+                                _a483.ClassDef, _a483.FunctionDef, _a483.AsyncFunctionDef,
+                                _a483.Lambda, _a483.Module)):
+                            _ow483 = _par483.get(id(_ow483))
                         if isinstance(_ow483, _a483.ClassDef):
                             _mt483 = any(isinstance(_q, _a483.Name) and _q.id == "type"
                                          for _b in _ow483.bases for _q in _a483.walk(_b))
@@ -26056,8 +26116,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _go483 = ((_ow483.name in _lv483
                                        and (_dun483 or _nm483 in _nf483 or _mt483))
                                       or (_ow483.name in _nb483 and _nm483 in _HK483))
+                        elif isinstance(_ow483, _a483.Module):
+                            _go483 = ((_f483, _nm483) in _nn483 or ("*", _nm483) in _nn483
+                                      or _nm483 in _na483)
                         else:
-                            _go483 = _nm483 in _nf483
+                            _go483 = False      # nested: runs only inside its reached parent
                         if _go483:
                             _rd483.add(id(_d483))
                             _rc483[_f483].extend(_a483.walk(_d483))
@@ -26143,6 +26206,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     _ok483 = (len(_a0) in (2, 3) and not _p483.keywords
                                               and isinstance(_a0[1], _a483.Constant)
                                               and isinstance(_a0[1].value, str)
+                                              and _a0[1].value not in _ms483
                                               and not _a0[1].value.startswith("__")
                                               and not _a0[1].value.startswith(_FP483)
                                               and _a0[1].value not in _BAD483
@@ -26167,6 +26231,45 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                           for _q in _a483.walk(_fn483)))
                                 elif _n483 == "globals" and not _a0 and not _p483.keywords:
                                     _gp483 = _par483.get(id(_p483))
+                                    # a WRITE-ONLY sink of this module's own namespace: a
+                                    # top-level `F(.., globals(), ..)` statement whose `def F`
+                                    # (top level, bound once) only ever stores `P[k] = v`
+                                    # through that parameter -- never reads it (a read could
+                                    # reach `__builtins__`), never with a literal key naming
+                                    # a binding of the program
+                                    if (isinstance(_gp483, _a483.Call)
+                                            and isinstance(_gp483.func, _a483.Name)
+                                            and _p483 in _gp483.args
+                                            and isinstance(_par483.get(id(_gp483)), _a483.Expr)
+                                            and _par483.get(id(_par483[id(_gp483)])) is _tt483
+                                            and _gl483.get(_gp483.func.id) is None):
+                                        _ws483 = [_d for _ff, _d in _dfs483.get(_gp483.func.id, [])
+                                                  if _ff == _f483 and isinstance(
+                                                      _d, (_a483.FunctionDef,
+                                                           _a483.AsyncFunctionDef))
+                                                  and _par483.get(id(_d)) is _tt483]
+                                        _ix483 = _gp483.args.index(_p483)
+                                        if (len(_ws483) == 1
+                                                and len([_ff for _ff, _d in _dfs483.get(
+                                                    _gp483.func.id, []) if _ff == _f483]) == 1
+                                                and _ix483 < len(_ws483[0].args.args)
+                                                and not _ws483[0].args.posonlyargs):
+                                            _pn483 = _ws483[0].args.args[_ix483].arg
+                                            _ok483 = all(
+                                                (isinstance(_q, _a483.Name)
+                                                 and isinstance(_q.ctx, _a483.Load)
+                                                 and isinstance(_par483.get(id(_q)),
+                                                                _a483.Subscript)
+                                                 and _par483[id(_q)].value is _q
+                                                 and isinstance(_par483[id(_q)].ctx, _a483.Store)
+                                                 and not (isinstance(_par483[id(_q)].slice,
+                                                                     _a483.Constant)
+                                                          and _par483[id(_q)].slice.value
+                                                          in _N483))
+                                                for _q in _a483.walk(_ws483[0])
+                                                if (isinstance(_q, _a483.Name) and _q.id == _pn483)
+                                                or (isinstance(_q, _a483.arg) and _q.arg == _pn483
+                                                    and _q is not _ws483[0].args.args[_ix483]))
                                     if (isinstance(_gp483, _a483.Assign)
                                           and _par483.get(id(_gp483)) is _tt483
                                           and len(_gp483.targets) == 1
@@ -26182,7 +26285,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                             for _q in _rc483[_f483])
                             if not _ok483:
                                 _w483 = f"`{_n483}`"
-                        elif (_n483 in _im483 and isinstance(_z483.ctx, _a483.Load)
+                        elif ((_n483 in _im483 or _fi483[_f483].get(_n483) in _ms483)
+                              and isinstance(_z483.ctx, _a483.Load)
                               and not (isinstance(_p483, _a483.Attribute) and _p483.value is _z483)):
                             _w483 = f"the module `{_n483}` used as a value"
                         elif (_n483 in _sy483 and isinstance(_p483, _a483.Attribute)
@@ -26195,6 +26299,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _w483 = f"the attribute `.{_n483}`"
                         elif _n483.startswith(_FP483) or _n483 in _BAT483:
                             _w483 = f"the attribute `.{_n483}`"
+                        elif (_n483 in _ms483 and isinstance(_z483.ctx, _a483.Load)
+                              and isinstance(_z483.value, _a483.Name)
+                              and _z483.value.id in _ib483[_f483]
+                              and not (isinstance(_p483, _a483.Attribute) and _p483.value is _z483)
+                              and not (isinstance(_p483, _a483.Call) and _p483.func is _z483)):
+                            # `x = h.sub`: a submodule escapes into a value
+                            _w483 = f"the attribute `.{_n483}` (a program module) used as a value"
                         elif not isinstance(_z483.ctx, _a483.Load) and _n483 in _N483:
                             # on the enclosing method's own `self` (first parameter, a plain
                             # `def` of a class body, never rebound) only the name of a method

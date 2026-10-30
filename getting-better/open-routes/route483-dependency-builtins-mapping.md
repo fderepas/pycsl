@@ -28,21 +28,49 @@ whose effect on other namespaces is understood: imports only of program modules,
 allow-listed standard library (never `__main__` / the claimed file; `sys` only through allow-listed attributes); no
 `exec` / `eval` / `compile` / `globals` / `vars` / `locals` / `setattr` / `delattr` / `getattr` / `__import__` /
 annotation evaluators / dunder names outside a small allow-list (`__builtins__` ...) -- except `getattr(x,
-"<literal, not dunder>")`, `setattr` / `delattr` on the enclosing method's own `self`, and `g = globals()` bound once
-to a name no import-time code reads; no dunder attribute outside a read-only allow-list, no frame / code attribute,
+"<literal, not dunder, not a program module>")`, `setattr` / `delattr` on the enclosing method's own `self`, `g =
+globals()` bound once to a name no import-time code reads, and a write-only own-namespace sink (`F(globals())` whose
+`def F` only stores `P[k] = v`, never under a literal key naming a program binding); no dunder attribute outside a read-only allow-list, no frame / code attribute,
 no `.modules` / `._getframe` / `.meta_path` / `.builtins` on any receiver; a plain-imported module name only as an
-attribute-read receiver; no attribute store / delete whose NAME is bound at a module top level or in a class body of
-the closure (on the method's own `self`: only a method name of that class's family). Otherwise REFUSED.
+attribute-read receiver (no module object -- plain-imported, from-imported submodule, `h.sub` -- used as a value); no
+attribute store / delete whose NAME is bound at a module top level or in a class body of the closure (on the method's
+own `self`: only a method name of that class's family). Reachability is import-resolved for top-level functions, and
+an imported module's `if __name__ == "__main__":` block is not run unless it rebinds `__name__`. Otherwise REFUSED.
 
-Why this and not route #466's real run claim-free (the brief's two candidates, both measured on the 195 corpus /
-mirror / red-team-control files whose closure holds a program module, base e3b3711a2): the #466 runner, run
-claim-free, refused the mirror's `pycsl.py` (an attribute store in `frontend/pure_ast.py`) and
-`Module6_WhyMLTranspiler.py` (a mixin decorator it does not admit) and 3 corpus files with a relative import, and
-executes the program's code inside the verifier; the allow-list above refuses 0 honest corpus files, 0 mirror files and
-0 red-team PASS controls (only route #474's own NOT PROVED witnesses 7570-7572 move to REFUSED).
+Why this and not route #466's real run claim-free (the brief's two candidates, base e3b3711a2): the #466 runner, run
+claim-free over the 195 corpus / mirror / red-team-control files whose closure holds a program module, refused 3
+corpus files with a relative import, and in the mirror sweep's own conditions (`--import-path src/pycsl`) it cannot
+admit the verifier's own `frontend/pure_ast.py` top level (`_build_nodes(globals())`, a call of program code), which
+14 of the 53 mirror files reach -- and it executes the program's code inside the verifier. The allow-list above
+refuses 0 honest files over the full byte-diff (root corpus, python-reference) and the 53-file mirror sweep, and 0
+red-team PASS controls (only route #474's own NOT PROVED witnesses 7570-7572 move to REFUSED). Its first cut
+refused those same 14 mirror files; import-resolved reachability, the dependency `__main__`-guard rule and the
+write-only own-namespace sink brought that to 0.
 
 Residuals (named, not closed): a dependency function the claimed code calls at RUN time (its effects are its
 contract's, route #119 / the Weaver's rebinding rules); a dependency method invoked unbound with a CLASS as `self`
 (`C.m(D)`) storing a data attribute of `D`; file-system writes at import (`os` / `pathlib` / `subprocess` are on the
-allow-list) changing a module the verifier already read; an installed library's own import-time code (a declared
-library, as under route #466).
+allow-list) changing a module the verifier already read; the write-only own-namespace sink with a COMPUTED key
+(`pure_ast._build_nodes`'s shape) may overwrite one of that module's own names; an installed library's own
+import-time code (a declared library, as under route #466).
+
+Per-witness verdicts on y2 HEAD (`pycsl.py <witness>` with cwd = the witness dir; typed / store where the family lists them; all PROVED at dcf424f75 per the driver repro):
+
+| witness | mode | verdict |
+|---|---|---|
+| g80_a8109_ens_builtins_dict_exec.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g82_c8851_ens_bdict_get_exec.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g82_c8854_ens_bdict_setattr_selfimport.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the module `_s` used as a value) |
+| g82_c8855_ens_bdict_exec_in_func.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g82_c8856_ens_bdict_exec_alias.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g82_c8857_ens_bdict_eval_walrus.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g93_v9700_bdict_setattr_func_ens.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the module `_s` used as a value) |
+| g93_v9700_bdict_setattr_func_ens.py | typed | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the module `_s` used as a value) |
+| g93_v9700_bdict_setattr_func_ens.py | store | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the module `_s` used as a value) |
+| g93_v9701_bdict_exec_redef_ens.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g93_v9701_bdict_exec_redef_ens.py | typed | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g93_v9701_bdict_exec_redef_ens.py | store | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g93_v9705_bdict_two_step_alias_ens.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g93_v9706_bdict_items_loop_ens.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g93_v9707_bdict_exec_str_const_ens.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |
+| g93_v9708_bdict_exec_requires_discharge.py | default | REFUSED (PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER: the name `__builtins__`) |

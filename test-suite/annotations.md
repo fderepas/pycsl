@@ -4174,26 +4174,33 @@ imports only of program modules, installed libraries and the allow-listed standa
 `__main__`, never this file; `sys` only through allow-listed attributes); no `exec`, `eval`, `compile`,
 `globals`, `vars`, `locals`, `setattr`, `delattr`, `getattr`, `__import__`, `breakpoint`, `help`, `input`,
 annotation evaluators, or dunder name outside a small allow-list (`__builtins__` ...) -- except
-`getattr(x, "<literal, not dunder>")`, `setattr` / `delattr` on the enclosing method's own `self`, and a
-`g = globals()` bound once at the top level that no import-time code reads; no dunder attribute outside a small read-only allow-list, no frame /
+`getattr(x, "<literal, not dunder, not a program module>")`, `setattr` / `delattr` on the enclosing
+method's own `self`, a `g = globals()` bound once at the top level that no import-time code reads, and a
+WRITE-ONLY sink of the module's own namespace (a top-level `F(globals())` whose top-level `def F` only ever
+stores `P[k] = v` through that parameter, never with a literal key naming a program binding); no dunder attribute outside a small read-only allow-list, no frame /
 code attribute (`f_*`, `gi_*`, `cr_*`, `ag_*`, `tb_*`, `co_*`), no `.modules` / `._getframe` / `.meta_path` /
 `.builtins` on any receiver; a plain-`import`ed module name only as the receiver of an attribute read; and no
 attribute store / delete whose NAME is bound at a module's top level or in a class body anywhere in the
-closure (on the enclosing method's own `self`: only a method name of that class's family). Otherwise the file
+closure (on the enclosing method's own `self`: only a method name of that class's family); a program module
+never used as a value (a plain-imported name, a from-imported submodule, `h.sub`). The closure by name is
+import-resolved for top-level functions (a bare name in its own module or a module from-importing it, an
+attribute of an imported receiver; this file: any receiver), and an imported module's `if __name__ ==
+"__main__":` block is not run unless the module rebinds `__name__`. Otherwise the file
 is REFUSED (`PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER`), judged after route #466 (whose own refusal keeps
 precedence under `no_exception`). Code: `_run_pipeline`, after route #466; inline, mirror twin `\trusted`.
 
-Over-refusal, measured on the 195 corpus / mirror / red-team-control files whose closure holds a program module
-(base `e3b3711a2`): 0 honest corpus files, 0 mirror files, 0 red-team PASS controls; the only files it newly
-refuses are route #474's NOT PROVED witnesses `7570`-`7572` (now REFUSED). The alternative (running route
-#466's import claim-free for ensures-only files too) refused the mirror's `pycsl.py` and
-`Module6_WhyMLTranspiler.py` (an attribute store and a decorator its runner does not admit) and 3 corpus
-files with a relative import. Witnesses `7670`-`7678` (PROVED at base, REFUSED); controls `7680`-`7682`.
+Over-refusal (byte-diff vs base `e3b3711a2`, root corpus + python-reference + the 53-file mirror sweep, and the
+red team's PASS controls): 0 honest files; the only files it newly refuses are route #474's NOT PROVED witnesses
+`7570`-`7572` (now REFUSED). The alternative (route #466's real import run claim-free for ensures-only files too)
+refuses at least the 14 mirror files whose closure reaches the verifier's own `frontend/pure_ast.py` (its
+top-level `_build_nodes(globals())` is a call its runner does not admit) and 3 corpus files with a relative
+import, and runs the program's code inside the verifier. Witnesses `7670`-`7678` (PROVED at base, REFUSED); controls `7680`-`7682`.
 Not covered (named residuals): a dependency function the claimed code calls at RUN time (its effects are its
 contract's -- route #119 / the Weaver's rebinding rules); a dependency method invoked unbound with a CLASS
 as `self` (`C.m(D)`) storing a data attribute of `D`; file-system writes at import (`os` / `pathlib` /
-`subprocess` are allow-listed) that change a module the verifier already read; `sys.path` / import hooks
-reached through modules outside the allow-list's names.
+`subprocess` are allow-listed) that change a module the verifier already read; the write-only own-namespace
+sink with a COMPUTED key (the verifier's own `pure_ast._build_nodes` shape) may overwrite one of that module's
+own names; an installed library's own import-time code.
 
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
