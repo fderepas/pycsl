@@ -199,6 +199,10 @@ def sig(node):
 
 # (file, sig(message)) -> (verdict, what was written and what happened)
 AUDITED = {
+    # (#49) driver run #3 (o1) -- routes #479 / #480: #445 on a BUILTIN-NAME receiver.
+    ("src/pycsl/pycsl.py", '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n444, \'lineno\', 0)}: `{_ast341.unparse(_n444)}` reads `{_a480}` on a receiver derived as `{t'): (
+        "FOLLOWABLE",
+        "Route #480 (o1). 'Fix the attribute name, or drop the claim': corpus witness 7508 (`return len.zz` under `no_exception \\all`) with the name fixed to one the real builtin has (getting-better/systematic-soundness-r3/o1-r479-480/advice/a480_fix_attribute_name.py, `s = len.__name__`) VERIFIES under the claim; with the claim dropped (a480_drop_claim.py) VERIFIES."),
     # (#49) driver run #3 (c226) — route #226 polarity flip. The advice ("store such a value
     # directly, at the top level of `__init__`, with no later call or alias of `self`") was
     # followed by the controls: 5890 (a bool literal), 5891 (`[0] * 4` read by an element
@@ -853,6 +857,8 @@ AUDITED = {
 # refuses a truncated census: a stale verdict about prose is indistinguishable from a
 # fresh one from the outside.
 AUDITED_HASH = {
+    # (#49) driver run #3 (o1) -- routes #479 / #480
+    ("src/pycsl/pycsl.py", '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n444, \'lineno\', 0)}: `{_ast341.unparse(_n444)}` reads `{_a480}` on a receiver derived as `{t'): 'a1eaec1eb65e',
     # (#49) driver run #3 -- route #463 (cc1)
     ('src/pycsl/frontend/Module1_Ingestor.py', 'PyCSLParseError(\'line \' + str(_c.lineno) + ": this `#@` directive follows code on the same line, where it is a plain comment and would be SI'): '31f0c53155cb',
     ('src/pycsl/frontend/Module1_Ingestor.py', 'PyCSLParseError(\'line \' + str(_c.lineno) + \': `\' + _c.text.strip()[:60] + "` is a near-miss spelling of a `#@` directive: the tokenizer read'): '588cbe0604b8',
