@@ -37,6 +37,13 @@ marker, honest) or model a writing call inside a comprehension. Then the declara
   "ROUTE #488 REPAIR".
 * Whole-file proofs (HEAVY_LOW=1): `expr_ghost_collections.py` 166 Valid / 0 non-Valid (215 s);
   `expr_ghost_spec_ops.py` 122 Valid / 0 non-Valid (98 s).
+* FOLLOW-UP (same day): the honest frames on 33 functions of these two opaque-int `@mutable_state`
+  classes raised `check-assigns-writes-survival` TRAP 1443 -> 2169 (+726 = 33 x 22 dropped fields). Paid
+  by DECLARING the 22 fields on both mixins (`@dataclass`; annotations copied from the
+  Expression/StatementEmissionMixin declarations; the 8 declared nowhere else — `_late_content_ops`,
+  `_last_hval_get_raw/_str`, `_uses_*_cache` x5 — typed from their live initialisers, emitted erased as
+  `int` / `array int`; no handler reads them). TRAP -> 1399. Re-proved: collections 254 Valid / 0,
+  spec_ops 144 Valid / 0 (whole-file, HEAVY_LOW=1). `expressions.mlw` byte-identical.
 * Witnesses / controls: `witnesses-r488/repair_witness.sh <tree> <scratch>` (run via heavy.sh):
   C1/C2 repaired files type-check (PASS); W1 (`_handle_has_key_expr` re-narrowed to `\nothing`) and W2
   (`_handle_fst_expr` re-narrowed) FAIL Why3 typing (`depends on variable _pyobj_state, which is left
