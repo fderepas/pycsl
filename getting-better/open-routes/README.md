@@ -1,5 +1,16 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #485 / #486 / #487 REPAIRED (executor y3 off 0c61bfc3f; inline in `_run_pipeline` + `_handle_binop` /
+##   `_to_bool`, all mirror twins `\trusted`, no new def / lambda in a mirrored file, no axiom). #485: a name LOADED but bound
+##   nowhere in the file (implicit module globals `__file__` / `__cached__` / `__builtins__` ..., class implicit names) is an R325
+##   origin; only `__debug__` stays a known int (10/10 REFUSED). #486: every augmented assignment of a verified function is
+##   judged on its TARGET's static type (params, local-binding fixpoint, element / slot / field / return types): typed / store
+##   admit only scalar targets, hoare-family models refuse what CPython rejects on the known type and leave the rest to Why3
+##   typing (PYCSL-R486-NONSCALAR-AUGASSIGN-TARGET; 28/28 typed+store REFUSED, default 10 REFUSED + 4 Why3 type errors). #487:
+##   an `and` / `or` over a non-bool / non-int operand is lowered inside a truth-only marker that every truth test strips; a
+##   value use is refused (PYCSL-M6-BOOLOP-VALUE; 7/7 REFUSED). Corpus 7590-7596, 7600-7616, 7620-7629; annotations.md
+##   7.350-7.352. Over-refusal: see the route docs (byte-diff root / pyref, mirror, rt40 controls).
+
 ## run #3 (2026-10-30): #481 REPAIRED + #474 RESIDUAL closed (executor f2 off 8855b6b10; inline in `_run_pipeline`, mirror twin
 ##   `\trusted`, no new def, no axiom). #481: route #468's bodyless-`val` length allow-list now judges an EXPLICIT `\trusted` def
 ##   too (inferred or declared frame alike; one rule for imported / `\trusted` / `\abstract` / methods; verified callees stay

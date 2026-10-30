@@ -1,5 +1,5 @@
 # OPEN ROUTE #486 — TYPED / STORE MEMORY MODELS: AN AUGMENTED ASSIGNMENT WHOSE TARGET IS A NON-INT VALUE REACHED THROUGH A SUBSCRIPT (A LIST / str / tuple / dict / set ELEMENT, A TUPLE SLOT) OR THROUGH A WALRUS / TERNARY ALIAS IS INT ARITHMETIC ON A HEAP CELL (ROUTE #478 RESIDUE)
-**Status: OPEN, Severity 1.** Red-team round 40 (2026-10-30, on dcf424f75 after #475-#480 repaired / #474 partial: 624 probes + 1009 mode re-proofs / 129 confirmed (probe, mode) pairs on 103 probes; rt39's 141 all closed). Census TSV `scratchpad/rt40/census.tsv`; the family block below is quoted from `scratchpad/rt40/FINDINGS.txt`.
+**Status: REPAIRED (executor y3, driver run #3; see REPAIR below), Severity 1.** Red-team round 40 (2026-10-30, on dcf424f75 after #475-#480 repaired / #474 partial: 624 probes + 1009 mode re-proofs / 129 confirmed (probe, mode) pairs on 103 probes; rt39's 141 all closed). Census TSV `scratchpad/rt40/census.tsv`; the family block below is quoted from `scratchpad/rt40/FINDINGS.txt`.
 Witnesses `witnesses-r486/` (14): `g107_e10701_str_elem_isub.py`, `g107_e10702_tuple_elem_isub.py`, `g107_e10703_dict_elem_isub.py`, `g107_e10708_set_elem_isub_int.py`, `g85_m8907_tuple_elem_imul.py`, `g85_m8908_nested_elem_isub.py`, `g85_m8923_walrus_alias_imul.py`, `g97_w9700_nested_isub_i.py`, `g97_w9701_nested_iand.py`, `g97_w9702_nested_ipow.py`, `g97_w9710_tuple_list_elem_isub.py`, `g97_w9714_nested_ior.py`, `g98_y9801_walrus_in_if_imul.py`, `g98_y9804_ternary_alias_imul.py`.
 
 Driver repro: `scratchpad/rp40/repro.sh` (session scratchpad) on dcf424f75, 2026-10-30T07:30Z: all 16 rt40 verify exemplars (2+ per family, F5 under --memory-model typed / store) rc=0 Verification SUCCESS and CPython breaches, reproduced by the driver.
@@ -13,3 +13,29 @@ F5 TYPED / STORE MEMORY MODELS: AN AUGMENTED ASSIGNMENT WHOSE TARGET IS A NON-IN
   PROPOSED SYSTEMATIC REPAIR: TYPE-KEYED ON THE TARGET EXPRESSION, NOT ON THE PARAMETER LIST: judge every augmented store (name, subscript, attribute target) by the SOURCE TYPE of the target expression (`a[0]` of `List[List[int]]` is a list, a tuple slot is not assignable at all) and admit only int / float / bool / str / bytes targets of a MUTABLE container (refuse any item store into a tuple / str / bytes); extend route #279's alias refusal to every binder (walrus, unpacking, for, with) or, better, make `loc` abstract in the typed / store preambles so no arithmetic applies to a location (route #478 measured this is load-bearing for `Map.get !int_mem (a + i)`: introduce `loc_offset : loc -> int -> loc` instead). Witness: the F5 (probe, model) pairs; control: `a[0][0] -= 1` on `List[List[int]]` (an int element) keeps proving.
   PROBES: g107@typed/e10701_str_elem_isub.py g107@store/e10701_str_elem_isub.py g107@typed/e10702_tuple_elem_isub.py g107@store/e10702_tuple_elem_isub.py g107@typed/e10703_dict_elem_isub.py g107@store/e10703_dict_elem_isub.py g107@typed/e10708_set_elem_isub_int.py g107@store/e10708_set_elem_isub_int.py g85@typed/m8907_tuple_elem_imul.py g85@store/m8907_tuple_elem_imul.py g85@typed/m8908_nested_elem_isub.py g85@store/m8908_nested_elem_isub.py g85@typed/m8923_walrus_alias_imul.py g85@store/m8923_walrus_alias_imul.py g97@typed/w9700_nested_isub_i.py g97@store/w9700_nested_isub_i.py g97@typed/w9701_nested_iand.py g97@store/w9701_nested_iand.py g97@typed/w9702_nested_ipow.py g97@store/w9702_nested_ipow.py g97@typed/w9710_tuple_list_elem_isub.py g97@store/w9710_tuple_list_elem_isub.py g97@typed/w9714_nested_ior.py g97@store/w9714_nested_ior.py g98@typed/y9801_walrus_in_if_imul.py g98@store/y9801_walrus_in_if_imul.py g98@typed/y9804_ternary_alias_imul.py g98@store/y9804_ternary_alias_imul.py
 ```
+
+## REPAIR (executor y3, driver run #3, 2026-10-30, off main 0c61bfc3f)
+
+**Every augmented assignment is judged by the static type of its TARGET expression.** Inline in `_run_pipeline`
+(`src/pycsl/pycsl.py`, right after route #478's parameter check; mirror twin `\trusted`, no new def / lambda, no axiom;
+new code PYCSL-R486-NONSCALAR-AUGASSIGN-TARGET). On the Python AST of every verified function (IR functions not
+`\trusted` / `\abstract`) a def-free judgement types the target: parameter annotations; each local's bindings
+(assignment, tuple unpacking, annotated, walrus, `for` element, `with` / `except` targets) joined to a 4-round fixpoint;
+displays, arithmetic, ternary, `and` / `or`; container element types (`List[E]` / `Sequence[E]` / `Dict[K, V]` /
+tuple slots / str items); user-function return annotations; class field annotations. Decision:
+- a scalar target (int / float / bool / complex) is admitted; a str / bytes target only for `+=` / `*=` / `%=` and,
+  under typed / store, only as a NAME (a str element / field is an int cell there);
+- `--memory-model typed` / `store` (`loc = int`): EVERY other target -- known non-scalar OR of unknown type -- is REFUSED
+  (allow-list);
+- hoare-family models: a list / dict / record value is not a Why3 `int`, so integer arithmetic on it fails Why3 typing
+  (fail closed, re-measured on every witness); there only what CPython itself rejects on the known type is refused --
+  an item store into a tuple / str / set, an operator the type lacks (`list -= ..`, `dict += ..`, `str -= ..`); a type's
+  own in-place operators (`list +=` / `*=`, `dict |=`, set `|= &= -= ^=`) stay with the emitter.
+A bare formal-parameter target stays #478's.
+
+Witnesses x {default, typed, store} (42 runs): typed 14/14 and store 14/14 REFUSED (all 28 PROVED at base); default
+10 REFUSED + 4 NOT-PROVED (Why3 type error: e10708 set `-=`, m8923 / y9801 / y9804 alias `*=`) -- 0 PROVED. Corpus
+7600-7610 (expected FAIL; 7610 = the default-model refusal), controls 7612-7616 (int element / nested int element /
+local list element / str local; PASS at base and now). Advice ("a local with a scalar annotation `x: int = len(a); x *=
+2`, or an int element through the element store `a[i] = a[i] - 1`") followed: both VERIFY under default, typed, store.
+RESIDUAL (named): the hoare-family judgement leaves unknown-type targets to Why3 typing rather than refusing them.
