@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #489-#490 OPENED (red team 41 on 973a2755d: 634 probes + 556 re-runs + 2533 mode re-proofs / 237 confirmed;
+##   rt40's 129 all closed): #489 implicit-dunder-callee-frame (100); #490 literal-int-hash-value-slot (53).
+##   Diagnosis: implicit dunder calls are not calls for the callee frame (F1), and the int-hash coercion of str / None literals
+##   in int value slots (F2).
+
 ## run #3 (2026-10-30): #483 / #484 REPAIRED (executor y2 off e3b3711a2; one rule, inline in `_run_pipeline` after route #466,
 ##   mirror twin `\trusted`, no new def, no axiom; new code PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER). Every module of the
 ##   import closure but the claimed one must run, AT IMPORT TIME (top level, decorators, defaults, class bodies, closed by name
