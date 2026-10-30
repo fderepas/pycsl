@@ -1,5 +1,20 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #483 / #484 REPAIRED (executor y2 off e3b3711a2; one rule, inline in `_run_pipeline` after route #466,
+##   mirror twin `\trusted`, no new def, no axiom; new code PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER). Every module of the
+##   import closure but the claimed one must run, AT IMPORT TIME (top level, decorators, defaults, class bodies, closed by name
+##   through called functions / live classes' dunders and named methods / base hooks / metaclasses), only an allow-listed
+##   fragment: allow-listed imports (never `__main__` / the claimed file), no exec / eval / compile / globals / vars / setattr /
+##   getattr-of-a-computed-name / `__builtins__` / dunder or frame attributes / `.modules`, an imported module only as an
+##   attribute-read receiver, no attribute store to a name bound at a module top level or in a class body (a write-only
+##   `F(globals())` sink admitted: named residual for a computed key); else REFUSED.
+##   Witnesses 22/22 (34 probe-mode pairs) REFUSED; corpus 7670-7678 (FAIL), controls 7680-7682. Over-refusal: 0 honest
+##   corpus / pyref / mirror / red-team-control files (#474's NOT PROVED 7570-7572 move to REFUSED); route #466's run
+##   claim-free (the alternative) refuses 14 mirror (pure_ast's `_build_nodes(globals())`) + 3 corpus files.
+##   annotations 7.370. Gates (16d9d9d30): fidelity 0/0; byte-diff root 2677/2677 0 MOVED, 3 declared GONE (7570-7572,
+##   NOT PROVED -> REFUSED), pyref 2186/2186 0/0/0; mirror 53/53 0/0/0; planes 61/61; ledgers green except
+##   stdlib-modules-verify (json/__main__ refused: fixed in f3406e052, re-gated there); \trusted 436 unchanged.
+
 ## run #3 (2026-10-30): #482 REPAIRED (executor y1 off e3b3711a2; inline in `_run_pipeline`, mirror twin `\trusted`, no
 ##   Module 6 / mirror edit, no axiom). A bodyless `val` with no `#@ assigns` (explicit `\trusted` / `\abstract`) gets its
 ##   frame INFERRED; its body must keep every mutable root (non-scalar parameter, `self`) on the inference's allow-list
