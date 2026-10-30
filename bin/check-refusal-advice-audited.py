@@ -842,6 +842,11 @@ AUDITED = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}, while it claims `#@ no_exception` (route #466; measured: `import h; h.g(n)` with `g` bound only under `if Fal'): (FOLLOWABLE,
         "Route #466 (module attribute). 'Bind the name unconditionally at the module's top level, or read a name it binds': witness 7267's helper with `g` bound outside the `if False:` (a466_attr_bound_unconditionally) VERIFIES."),
     # (#49) driver run #3 -- routes #476 / #478 (m2, red team 39), audited the day they landed. Probes in scratchpad/m2/adv.
+    # (#49) driver run #3 -- routes #486 / #487 (y3, red team 40), audited the day they landed. Probes in scratchpad/y3/adv.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr486(f"line {_n486.lineno}: \'{_fd486.name}\': the augmented assignment `{_ast486.unparse(_n486).strip()}` targets {_why486}, whose'): (FOLLOWABLE,
+        "Route #486. 'Update a scalar instead: a local with a scalar annotation (`x: int = len(a); x *= 2`), or an int element through the element store (`a[i] = a[i] - 1` on a `List[int]`)': a486_local_ann (`b: int = len(a); b *= 2; return b`, `\\result == 4`, `assigns \\nothing`) and a486_elem_store (`a[0] = a[0] - 1`, `assigns a[0]`, `ensures a[0] == \\old(a[0]) - 1`) both VERIFY under default, typed and store. Controls 7612-7616."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemanticError("an `and` / `or` expression whose operand is not a bool or an int (a list, str, dict, set, float, Optional or object) is'): (FOLLOWABLE,
+        "Route #487. 'Test the operand and use each one in its own branch instead: `if a: return len(a)` / `return len(c)` for `return len(a or c)`': a487_test VERIFIES `\\result == 2` under the default model (the ternary spelling `b = a if a else c` was tried first and does NOT verify, so the message does not advise it). Controls 7626-7629."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr478(f"\'{_f478.get(\'name\')}\': the augmented assignment `{_tg478} {_n478.get(\'op\')}= ...` applies to the parameter \'{_tg478}\' of t'): (FOLLOWABLE,
         "Route #478. 'Rewrite it: mutate the elements through the modelled element store (`a[i] = a[i] * 2`, under every memory model), or build the result in a LOCAL list (`b = [x * 2 for x in a]`, default memory model)': witness 7532's `a *= 2` rewritten `a[0] = a[0] * 2` (a478_elem_store, `assigns a[0]`, `\\result == 2`) VERIFIES under default, typed and store; rewritten `b = [x * 2 for x in a]; return len(b)` (a478_local_comp) VERIFIES under default (typed / store: Why3 error, hence the message names the model). Controls 7538 / 7539 / 7546."),
     ('src/pycsl/pycsl.py', "_PyCSLSemErr476(f'the module name `{_n476}` (read by a verified function, line {_rd476[_n476]}) is bound before the call frontier (line {_tr"): (FOLLOWABLE,
@@ -1181,6 +1186,9 @@ AUDITED_HASH = {
     ('src/pycsl/frontend/ir_resolve.py', 'PyCSLSemanticError(f"the module `{\'.\' * level}{module_dotted}` resolves to {hit}, but {_er475}, so the module CPython runs is not the module'): '82c6c543f5fe',
     # (#49) driver run #3 -- route #465 (x2)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr465(f"{_er465}, so the module never runs and none of its functions can be called as verified (route #465; measured: `def f(n): g'): 'af209af0e63c',
+    # (#49) driver run #3 -- routes #486 / #487 (y3)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr486(f"line {_n486.lineno}: \'{_fd486.name}\': the augmented assignment `{_ast486.unparse(_n486).strip()}` targets {_why486}, whose'): '31933a7d4459',
+    ('src/pycsl/pycsl.py', '_PyCSLSemanticError("an `and` / `or` expression whose operand is not a bool or an int (a list, str, dict, set, float, Optional or object) is'): '48a45f8c5e70',
     # (#49) driver run #3 -- routes #476 / #478 (m2)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr478(f"\'{_f478.get(\'name\')}\': the augmented assignment `{_tg478} {_n478.get(\'op\')}= ...` applies to the parameter \'{_tg478}\' of t'): '0c0861c6b5d3',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr476(f'the module name `{_n476}` (read by a verified function, line {_rd476[_n476]}) is bound before the call frontier (line {_tr"): '130aae8d6257',

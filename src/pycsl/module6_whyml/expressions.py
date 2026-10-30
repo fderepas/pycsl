@@ -7305,6 +7305,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # symbol, it also fails Why3 typing on any other entry point (fail closed).
             _tv487 = ((not _pybool[0] and _l_val != left and left_b != left)
                       or (not _pybool[1] and _r_val != right and right_b != right))
+            # A NESTED marked BoolOp operand (`(s and t) and u` with a str `s`) is selected
+            # RAW, exactly as before the marker existed (its int form, tested `<> 0`), and the
+            # enclosing BoolOp is itself marked: it selects that non-bool operand's value.
+            _lraw487, _rraw487 = left, right
+            if (left.startswith("(pycsl_r487_truth_only ") and left.endswith(")")
+                    and left_b == f"({left[len('(pycsl_r487_truth_only '):-1]} <> 0)"):
+                _lraw487 = left[len("(pycsl_r487_truth_only "):-1]
+                _l_val = _lraw487
+                _tv487 = True
+            if (right.startswith("(pycsl_r487_truth_only ") and right.endswith(")")
+                    and right_b == f"({right[len('(pycsl_r487_truth_only '):-1]} <> 0)"):
+                _rraw487 = right[len("(pycsl_r487_truth_only "):-1]
+                _r_val = _rraw487
+                _tv487 = True
             # (#49) gen #31 — THE FALSY-DEFAULT `or {}` ARM, whose two arms DISAGREE ON THE
             # VALUE MODEL and which therefore DID NOT TYPE-CHECK AT ALL.
             #
@@ -7365,7 +7379,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                      or (_r_ir.get("type") == "Call"
                          and _r_ir.get("func") in ("set", "frozenset", "dict")
                          and not _r_ir.get("args"))))
-            if (op == "||" and _l_val == left and _r_val == right
+            if (op == "||" and _l_val == _lraw487 and _r_val == _rraw487
                     and right == "(const (None: option int))" and _r_empty_map):
                 _r_val = "0"
             if op == "||":
