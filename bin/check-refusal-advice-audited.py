@@ -849,6 +849,9 @@ AUDITED = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}, while it claims `#@ no_exception` (route #466; measured: `import h; h.g(n)` with `g` bound only under `if Fal'): (FOLLOWABLE,
         "Route #466 (module attribute). 'Bind the name unconditionally at the module's top level, or read a name it binds': witness 7267's helper with `g` bound outside the `if False:` (a466_attr_bound_unconditionally) VERIFIES."),
     # (#49) driver run #3 -- routes #476 / #478 (m2, red team 39), audited the day they landed. Probes in scratchpad/m2/adv.
+    # (#49) driver run #3 -- route #490 (u2, red team 41), audited the day it landed: the advice IS the controls.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr490(f"line {getattr(_rv490, \'lineno\', getattr(_rn490, \'lineno\', 0))}: \'{_fd490.name}\': `{_ast486.unparse(_rv490).strip()[:80]}` '): (FOLLOWABLE,
+        "Route #490. 'Give the value ONE type: use the same kind of value in every arm, element and binding (`y = 1 if n > 0 else 0`, `{'a': 1, 'b': 2}`), or keep the None case apart and test it before use (`if y is not None: z = y + 1`)': witness 7770 rewritten with an int-only ternary (control 7790, `\\result >= 2`), witness 7774 rewritten with an int-valued dict (control 7791), witness 7772 with the None case tested first (controls 7792 `if y is not None`, 7794 early return, 7797 for a None-returning call) all VERIFY `no_exception \\all` under the default model."),
     # (#49) driver run #3 -- routes #486 / #487 (y3, red team 40), audited the day they landed. Probes in scratchpad/y3/adv.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr486(f"line {_n486.lineno}: \'{_fd486.name}\': the augmented assignment `{_ast486.unparse(_n486).strip()}` targets {_why486}, whose'): (FOLLOWABLE,
         "Route #486. 'Update a scalar instead: a local with a scalar annotation (`x: int = len(a); x *= 2`), or an int element through the element store (`a[i] = a[i] - 1` on a `List[int]`)': a486_local_ann (`b: int = len(a); b *= 2; return b`, `\\result == 4`, `assigns \\nothing`) and a486_elem_store (`a[0] = a[0] - 1`, `assigns a[0]`, `ensures a[0] == \\old(a[0]) - 1`) both VERIFY under default, typed and store. Controls 7612-7616."),
@@ -1196,6 +1199,8 @@ AUDITED_HASH = {
     ('src/pycsl/frontend/ir_resolve.py', 'PyCSLSemanticError(f"the module `{\'.\' * level}{module_dotted}` resolves to {hit}, but {_er475}, so the module CPython runs is not the module'): '82c6c543f5fe',
     # (#49) driver run #3 -- route #465 (x2)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr465(f"{_er465}, so the module never runs and none of its functions can be called as verified (route #465; measured: `def f(n): g'): 'af209af0e63c',
+    # (#49) driver run #3 -- route #490 (u2)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr490(f"line {getattr(_rv490, \'lineno\', getattr(_rn490, \'lineno\', 0))}: \'{_fd490.name}\': `{_ast486.unparse(_rv490).strip()[:80]}` '): 'f8a0a5b307b3',
     # (#49) driver run #3 -- routes #486 / #487 (y3)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr486(f"line {_n486.lineno}: \'{_fd486.name}\': the augmented assignment `{_ast486.unparse(_n486).strip()}` targets {_why486}, whose'): '31933a7d4459',
     ('src/pycsl/pycsl.py', '_PyCSLSemanticError("an `and` / `or` expression whose operand is not a bool or an int (a list, str, dict, set, float, Optional or object) is'): '48a45f8c5e70',

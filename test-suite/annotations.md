@@ -4104,6 +4104,49 @@ FUNCTION that writes `h.K` after the importer bound `K` drops the fold although 
 `1` (NOT PROVED, honest). Not covered: a module OUTSIDE the program's import closure (one that imports this
 file as a library) -- the same modular assumption as this file's own constants.
 
+### 7.390 A value that may be a number or a hashed literal is never used as either (route #490, run #3)
+
+The model has one Why3 type per value. A value that is SOMETIMES an int and sometimes a str / bytes / tuple
+literal is lowered as an `int` in which the literal is its integer HASH (`_coerce_to_int`), and a `None`
+literal the opaque int `pycsl_none`: `y = 1 if n > 0 else 'a'; z = y + 1`, `d = {'a': 1, 'b': 'x'};
+d['b'] + 1`, `d.get('b', 0) += 1`, `-{'a': 1, 'b': None}['b']`, `for v in {1: 1, 2: 'x'}.values(): s += v`,
+`g(None)` for `g(x: int)`, `x: int = 'a'` and a helper `-> int` returning `1 if n > 0 else 'a'` were integer
+arithmetic and PROVED `no_exception \all` (CPython TypeError); `1 if n else ''` was a non-zero int in a
+truth test (CPython falsy). Route #486 left a value of unknown type to Why3 typing, which does not catch a
+hashed literal (it IS an int).
+
+RULE (judged on the Python AST of every verified function, in every memory model; the emitter is unchanged,
+so a file without such a value emits byte-identically). Every expression gets the set of LITERAL KINDS it
+may evaluate to -- number, str / bytes / f-string, None, tuple / list / dict / set display, object; unknown
+for anything else (parameters, calls, attributes) -- joined over ternary arms, `and` / `or` operands, every
+binding of a local (assignment, walrus, `for` / comprehension targets, `.items()` / `enumerate` pairs;
+flow-insensitive, all scopes, fixpoint) and the ELEMENTS of a local container (displays, comprehensions,
+item stores, `append` / `add` / `insert` / `extend` / `update` / `setdefault`, read back through `[..]`,
+`.get(k, d)`, `.pop`, `.values()`, a constant tuple index). A use is REFUSED (PYCSL-R490-LITERAL-INT-HASH)
+when the operand may be a NUMBER and also:
+- any non-number (str, None, tuple, list, dict, set, object) -- for an operand of a binary operator, an
+  ordering comparison (`<` `<=` `>` `>=`) or an augmented assignment (target or value), and of a unary
+  `-` / `+` / `~`;
+- a hashed str / bytes / tuple -- for an equality / membership comparison, a truth test (`if`, `while`,
+  ternary test, `assert`, `not`, an `and` / `or` operand), a subscript receiver or index, an attribute
+  receiver, an iterable, an f-string field, a call argument (or its elements), a return value of an
+  unannotated function, a value stored into an attribute / nested item / global.
+
+ALLOW-LIST (no observation as a number): binding and storing the value, `is` / `is not` and `== None` /
+`!= None`, `print(..)`, the container mutators above, the return of a function annotated `Optional[..]` /
+`Union[..]` / non-scalar. A None is removed where a guard proves it absent and the guarded region does not
+rebind the name (`if v is not None:` / `if v:` body, the `else` of `if v is None`, a later `and` / `or`
+operand, the statements after `if v is None: return` or `assert v is not None`). A container's DIRECT `None`
+element read straight off a local stays route #230's value fence (`d[k] - d[k]` is NOT PROVED there); under
+a unary operator it is refused here. SLOT CHECK: a str / None / tuple literal kind in a NUMERIC slot -- an
+annotated binding `x: int = ..`, the argument for (or the omitted default of) an `int` / `float` / `bool` /
+`complex` / `Optional[int]` parameter of a file function or class constructor, the return value of a function
+so annotated -- is refused (a bare `return None` and a dataclass field default stay routes #227 / #236's).
+Give the value ONE type (`y = 1 if n > 0 else 0`, `{'a': 1, 'b': 2}`), or test the None case before use
+(`if y is not None: z = y + 1`). Witnesses `7770`-`7786`; controls `7790`-`7796` (an int-only ternary, an
+int-valued dict, a guarded and an early-returned None arm, a str-only ternary, a constant tuple index, int
+slots).
+
 ### 7.360 A bodyless `val`'s INFERRED frame must follow every alias of a mutable root (route #482, run #3)
 
 A `#@ \trusted` / `#@ \abstract` def (here or in an imported module) with NO `#@ assigns` gets

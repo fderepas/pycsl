@@ -16411,6 +16411,737 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"(`x: int = len(a); x *= 2`), or an int element through the element store "
                     f"(`a[i] = a[i] - 1` on a `List[int]`).",
                     stage="ir-semantic", code="PYCSL-R486-NONSCALAR-AUGASSIGN-TARGET")
+    # (#49) driver run #3, ROUTE #490 (red team 41 F2; MEASURED PROVED on 2223318e5 in the
+    # default model, 53 witnesses `witnesses-r490/`) -- A str / None / tuple LITERAL IN AN
+    # INT-TYPED VALUE SLOT. The emitter lowers a value that is SOMETIMES an int and sometimes a
+    # str / bytes / None / tuple literal as one Why3 `int`: `_coerce_to_int` hashes a string
+    # (or tuple) literal to `stable_hash(..)` (module6_whyml/expressions.py, both arms of every
+    # ternary outside a string context, dict-display values, call arguments in an int slot)
+    # and a `None` becomes the opaque int `pycsl_none`; in a string context a `None` arm
+    # becomes `""`. So `y = 1 if n > 0 else 'a'; y + 1`, `{'a': 1, 'b': 'x'}['b'] + 1`,
+    # `-{'a': 1, 'b': None}['b']`, `g(None)` for `g(x: int)`, `x: int = 'a'` and a helper
+    # `-> int` returning `1 if n > 0 else 'a'` were integer arithmetic and PROVED
+    # `no_exception \all` where CPython raises TypeError. Route #486 left a value of unknown
+    # type to Why3 typing in the hoare-family models, which does not hold for a HASHED
+    # literal (it IS a Why3 int). RULE (judged on the Python AST of every verified function,
+    # in every model; the emitter is untouched, so every file without such a value is
+    # byte-inert): every expression gets the set of LITERAL KINDS it may evaluate to (num:
+    # int / bool / float / complex; str: str / bytes / f-string; none; tuple / list / dict /
+    # set displays; other: a lambda / generator / range; unk: anything not established --
+    # parameters, calls, attributes), joined over ternary arms, BoolOp operands, every binding
+    # of a local (assignment, walrus, for / comprehension target, `.items()` / `enumerate`
+    # pairs; flow-insensitive over all scopes, to a fixpoint), and the ELEMENTS of a container
+    # local (displays, comprehensions, item stores, `append` / `add` / `insert` / `extend` /
+    # `update` / `setdefault`, read back through `[..]`, `.get(k, d)`, `.pop`, `.values()`, a
+    # constant tuple index). A use of a value that may be a NUMBER is REFUSED when it may also
+    # be: any non-number (str / None / tuple / list / dict / set / other) for an operand of a
+    # binary operator, of an ordering comparison or of an augmented assignment (target or
+    # value), and of a unary `-` / `+` / `~`; a HASHED str / bytes / tuple for every other
+    # observation -- an equality / membership operand, a truth test, a subscript receiver or
+    # index, an attribute receiver, an iterable, an f-string field, a call argument (or its
+    # elements), the return value of an unannotated function, a store into an attribute /
+    # nested item / global. ALLOW-LIST: binding and storing the value, `is` / `is not` /
+    # `== None` / `!= None`, `print(..)`, the container mutators above, a return from a
+    # function annotated `Optional[..]` / `Union[..]` / non-scalar. A None is removed where a
+    # guard proves it absent and the guarded region does not rebind the name (`if v is not
+    # None:` / `if v:` body, the `else` of `if v is None`, a later `and` / `or` operand, the
+    # statements after `if v is None: return` / `assert v is not None`). A container's DIRECT
+    # `None` element (`d[k] = None`, `{'b': None}`, `.get(k, None)`) read straight off a local
+    # stays route #230's value fence (arithmetic / ordering on it is an unprovable assertion)
+    # and is refused here only under a unary operator, which #230 does not fence; a bare
+    # `x = None` binding is the None-local routes' (#44 / #46 / #227 / #239). SLOT CHECK: a
+    # str / None / tuple kind in a NUMERIC slot -- an annotated binding, the argument for (or
+    # the omitted default of) an `int` / `float` / `bool` / `complex` / `Optional[int]`
+    # parameter of a file function or class constructor, the return value of a function so
+    # annotated -- is refused (a dataclass field default stays route #236's; a bare `return
+    # None` from a function annotated as a number makes each CALL of it number-or-None, judged
+    # at the caller). NOT JUDGED (named residuals): a str-and-None join (the `""` substitute in
+    # a string context), a mixed dict display passed / returned whole, an attribute's own
+    # flow. Inline; `_run_pipeline`'s mirror twin is `\trusted`.
+    if _tr486 is not None and _ver486:
+        _MX490 = ("str", "none", "tuple", "list", "dict", "set", "other")
+        _SCK490 = {"int": "num", "float": "num", "bool": "num", "complex": "num",
+                   "str": "str", "bytes": "str", "None": "none", "NoneType": "none"}
+        # allowed kinds of every scalar annotation node in the file (absent: no slot check)
+        _al490 = {}
+        for _n490 in _ast486.walk(_tr486):
+            _an490 = []
+            if isinstance(_n490, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
+                _an490 = [_p.annotation for _p in (
+                    _n490.args.posonlyargs + _n490.args.args + _n490.args.kwonlyargs)
+                    if _p.annotation is not None] + (
+                    [_n490.returns] if _n490.returns is not None else [])
+            elif isinstance(_n490, _ast486.AnnAssign):
+                _an490 = [_n490.annotation]
+            for _a490 in _an490:
+                try:
+                    _s490 = _ast486.unparse(_a490).replace(" ", "").strip("'\"")
+                except Exception:
+                    continue
+                _s490 = _s490.replace("typing.", "")
+                _pt490 = (_s490[len("Optional["):-1].split(",") + ["None"]
+                          if _s490.startswith("Optional[") and _s490.endswith("]") else
+                          _s490[len("Union["):-1].split(",")
+                          if _s490.startswith("Union[") and _s490.endswith("]") else
+                          _s490.split("|"))
+                if _pt490 and all(_p in _SCK490 for _p in _pt490):
+                    _al490[id(_a490)] = frozenset(_SCK490[_p] for _p in _pt490)
+        # file functions / classes: name -> [(param, allowed-or-None, default-or-None)]
+        _sig490 = {}
+        for _n490 in _tr486.body:
+            if isinstance(_n490, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
+                _ps490 = _n490.args.posonlyargs + _n490.args.args
+                _df490 = [None] * (len(_ps490) - len(_n490.args.defaults)) + list(
+                    _n490.args.defaults)
+                _sig490[_n490.name] = (
+                    [(_p.arg, _al490.get(id(_p.annotation)) if _p.annotation is not None
+                      else None, _d) for _p, _d in zip(_ps490, _df490)],
+                    [(_p.arg, _al490.get(id(_p.annotation)) if _p.annotation is not None
+                      else None, _d) for _p, _d in zip(_n490.args.kwonlyargs,
+                                                       _n490.args.kw_defaults)],
+                    _n490.args.vararg is not None)
+            elif isinstance(_n490, _ast486.ClassDef):
+                _in490 = next((_m for _m in _n490.body
+                               if isinstance(_m, _ast486.FunctionDef)
+                               and _m.name == "__init__"), None)
+                if _in490 is not None:
+                    _ps490 = (_in490.args.posonlyargs + _in490.args.args)[1:]
+                    _df490 = [None] * (len(_ps490) - len(_in490.args.defaults)) + list(
+                        _in490.args.defaults)
+                    _df490 = _df490[-len(_ps490):] if _ps490 else []
+                    _sig490[_n490.name] = (
+                        [(_p.arg, _al490.get(id(_p.annotation)) if _p.annotation is not None
+                          else None, _d) for _p, _d in zip(_ps490, _df490)],
+                        [(_p.arg, _al490.get(id(_p.annotation))
+                          if _p.annotation is not None else None, _d)
+                         for _p, _d in zip(_in490.args.kwonlyargs, _in490.args.kw_defaults)],
+                        _in490.args.vararg is not None)
+                elif any("dataclass" in _ast486.unparse(_d) for _d in _n490.decorator_list):
+                    _sig490[_n490.name] = (
+                        [(_m.target.id, _al490.get(id(_m.annotation)), _m.value)
+                         for _m in _n490.body if isinstance(_m, _ast486.AnnAssign)
+                         and isinstance(_m.target, _ast486.Name)
+                         and "ClassVar" not in _ast486.unparse(_m.annotation)], [], None)
+        # a file function annotated as a number that RETURNS None (`return None` / `return`)
+        # yields a number-or-None at every call (its own bare `return None` is the None
+        # routes', so the use is judged at the caller, where `is None` can guard it)
+        _rn490 = set()
+        for _n490 in _tr486.body:
+            if (isinstance(_n490, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                    and _n490.returns is not None
+                    and _al490.get(id(_n490.returns)) == frozenset(["num"])):
+                _st490 = list(_n490.body)
+                while _st490:
+                    _x490 = _st490.pop()
+                    if isinstance(_x490, (_ast486.FunctionDef, _ast486.AsyncFunctionDef,
+                                          _ast486.ClassDef, _ast486.Lambda)):
+                        continue
+                    if isinstance(_x490, _ast486.Return) and (
+                            _x490.value is None or (isinstance(_x490.value, _ast486.Constant)
+                                                    and _x490.value.value is None)):
+                        _rn490.add(_n490.name)
+                        break
+                    _st490.extend(_ast486.iter_child_nodes(_x490))
+        _fds490 = []
+        for _x490 in _ast486.walk(_tr486):
+            if isinstance(_x490, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
+                _cn490 = next((_c.name for _c in _ast486.walk(_tr486)
+                               if isinstance(_c, _ast486.ClassDef) and _x490 in _c.body), "")
+                if any(_v == _x490.name or _v.endswith("." + _x490.name)
+                       or _v.endswith("__" + _x490.name)
+                       or (_cn490 and _v == f"{_cn490}_{_x490.name}") for _v in _ver486):
+                    _fds490.append(_x490)
+        _UNK490 = frozenset(["unk"])
+        for _fd490 in _fds490:
+            # bindings: (name, "v" value | "e" element-of | "u" unknown, node)
+            # element bindings of a container local: (name, "v" value | "e" elements-of, node)
+            _bd490, _eb490 = [], []
+            for _n490 in _ast486.walk(_fd490):
+                if isinstance(_n490, _ast486.Assign):
+                    for _t490 in _n490.targets:
+                        if isinstance(_t490, _ast486.Name):
+                            _bd490.append((_t490.id, "u" if isinstance(
+                                _n490.value, _ast486.Constant) and _n490.value.value is None
+                                else "v", _n490.value))
+                            _eb490.append((_t490.id, "e", _n490.value))
+                        elif (isinstance(_t490, (_ast486.Tuple, _ast486.List))
+                              and isinstance(_n490.value, (_ast486.Tuple, _ast486.List))
+                              and len(_t490.elts) == len(_n490.value.elts)
+                              and all(isinstance(_a, _ast486.Name) for _a in _t490.elts)):
+                            for _a490, _b490 in zip(_t490.elts, _n490.value.elts):
+                                _bd490.append((_a490.id, "v", _b490))
+                                _eb490.append((_a490.id, "e", _b490))
+                        elif (isinstance(_t490, _ast486.Subscript)
+                              and isinstance(_t490.value, _ast486.Name)):
+                            _eb490.append((_t490.value.id, "e" if isinstance(
+                                _t490.slice, _ast486.Slice) else "v", _n490.value))
+                        else:
+                            for _a490 in _ast486.walk(_t490):
+                                if (isinstance(_a490, _ast486.Name)
+                                        and isinstance(_a490.ctx, _ast486.Store)):
+                                    _bd490.append((_a490.id, "u", None))
+                                    _eb490.append((_a490.id, "u", None))
+                elif isinstance(_n490, _ast486.AnnAssign) and _n490.value is not None:
+                    if isinstance(_n490.target, _ast486.Name):
+                        _bd490.append((_n490.target.id, "u" if isinstance(
+                            _n490.value, _ast486.Constant) and _n490.value.value is None
+                            else "v", _n490.value))
+                        _eb490.append((_n490.target.id, "e", _n490.value))
+                    elif (isinstance(_n490.target, _ast486.Subscript)
+                          and isinstance(_n490.target.value, _ast486.Name)):
+                        _eb490.append((_n490.target.value.id, "v", _n490.value))
+                elif isinstance(_n490, _ast486.NamedExpr):
+                    _bd490.append((_n490.target.id, "v", _n490.value))
+                    _eb490.append((_n490.target.id, "e", _n490.value))
+                elif isinstance(_n490, (_ast486.For, _ast486.AsyncFor,
+                                        _ast486.comprehension)):
+                    _it490 = _n490.iter
+                    if isinstance(_n490.target, _ast486.Name):
+                        _bd490.append((_n490.target.id, "e", _it490))
+                        _eb490.append((_n490.target.id, "u", None))
+                    else:
+                        _pair490 = (isinstance(_n490.target, _ast486.Tuple)
+                                    and len(_n490.target.elts) == 2
+                                    and isinstance(_it490, _ast486.Call)
+                                    and isinstance(_it490.func, (_ast486.Attribute,
+                                                                 _ast486.Name)))
+                        _src490 = None
+                        if _pair490 and isinstance(_it490.func, _ast486.Attribute) and (
+                                _it490.func.attr == "items" and not _it490.args):
+                            _src490 = _it490.func.value
+                        elif _pair490 and isinstance(_it490.func, _ast486.Name) and (
+                                _it490.func.id == "enumerate" and _it490.args):
+                            _src490 = _it490.args[0]
+                        for _i490, _a490 in enumerate(
+                                _n490.target.elts if _pair490 else []):
+                            if isinstance(_a490, _ast486.Name):
+                                _bd490.append((_a490.id, "e", _src490) if (
+                                    _i490 == 1 and _src490 is not None) else
+                                    (_a490.id, "u", None))
+                        for _a490 in _ast486.walk(_n490.target):
+                            if isinstance(_a490, _ast486.Name):
+                                if not _pair490:
+                                    _bd490.append((_a490.id, "u", None))
+                                _eb490.append((_a490.id, "u", None))
+                elif isinstance(_n490, _ast486.AugAssign):
+                    if isinstance(_n490.target, _ast486.Name):
+                        _bd490.append((_n490.target.id, "aug", _n490))
+                        _eb490.append((_n490.target.id, "e", _n490.value))
+                    elif (isinstance(_n490.target, _ast486.Subscript)
+                          and isinstance(_n490.target.value, _ast486.Name)):
+                        _eb490.append((_n490.target.value.id, "aug", _n490))
+                elif (isinstance(_n490, _ast486.Call)
+                      and isinstance(_n490.func, _ast486.Attribute)
+                      and isinstance(_n490.func.value, _ast486.Name)):
+                    _rc490, _md490 = _n490.func.value.id, _n490.func.attr
+                    if _md490 in ("append", "add") and len(_n490.args) == 1:
+                        _eb490.append((_rc490, "v", _n490.args[0]))
+                    elif _md490 in ("insert", "setdefault") and len(_n490.args) == 2:
+                        _eb490.append((_rc490, "v", _n490.args[1]))
+                    elif _md490 in ("extend", "update") and len(_n490.args) == 1:
+                        _eb490.append((_rc490, "e", _n490.args[0]))
+                elif isinstance(_n490, (_ast486.withitem,)) and _n490.optional_vars is not None:
+                    for _a490 in _ast486.walk(_n490.optional_vars):
+                        if isinstance(_a490, _ast486.Name):
+                            _bd490.append((_a490.id, "u", None))
+                            _eb490.append((_a490.id, "u", None))
+                elif isinstance(_n490, _ast486.ExceptHandler) and _n490.name:
+                    _bd490.append((_n490.name, "u", None))
+                    _eb490.append((_n490.name, "u", None))
+                elif isinstance(_n490, (_ast486.Global, _ast486.Nonlocal)):
+                    for _a490 in _n490.names:
+                        _bd490.append((_a490, "u", None))
+                        _eb490.append((_a490, "u", None))
+            _env490, _el490, _tp490 = {}, {}, {}
+            # a local bound exactly once, to a tuple display: its positional kinds
+            _cnt490 = {}
+            for _b490 in _bd490:
+                _cnt490[_b490[0]] = _cnt490.get(_b490[0], 0) + 1
+            _K490 = {}
+            _E490 = {}
+            for _round490 in range(6):
+                # kinds (_K490) and element kinds (_E490) of every expression node, bottom-up
+                _K490, _E490 = {}, {}
+                for _n490 in reversed(list(_ast486.walk(_fd490))):
+                    _k490, _e490 = _UNK490, _UNK490
+                    if isinstance(_n490, _ast486.Constant):
+                        _v490 = _n490.value
+                        _k490 = frozenset(["num"] if isinstance(_v490, (bool, int, float,
+                                                                         complex))
+                                          else ["str"] if isinstance(_v490, (str, bytes))
+                                          else ["none"] if _v490 is None else ["unk"])
+                        if isinstance(_v490, (str, bytes)):
+                            _e490 = frozenset(["str"]) if isinstance(_v490, str) else frozenset(
+                                ["num"])
+                    elif isinstance(_n490, _ast486.JoinedStr):
+                        _k490 = frozenset(["str"])
+                        _e490 = frozenset(["str"])
+                    elif isinstance(_n490, (_ast486.List, _ast486.Tuple, _ast486.Set)):
+                        _k490 = frozenset([{_ast486.List: "list", _ast486.Tuple: "tuple",
+                                            _ast486.Set: "set"}[type(_n490)]])
+                        _e490 = frozenset().union(*[
+                            _UNK490 if isinstance(_y, _ast486.Starred)
+                            else frozenset(["cnone"]) if isinstance(_y, _ast486.Constant)
+                            and _y.value is None
+                            else _K490.get(id(_y), _UNK490) for _y in _n490.elts])
+                    elif isinstance(_n490, _ast486.Dict):
+                        _k490 = frozenset(["dict"])
+                        _e490 = frozenset().union(*[
+                            frozenset(["cnone"]) if isinstance(_y, _ast486.Constant)
+                            and _y.value is None
+                            else _K490.get(id(_y), _UNK490) for _y in _n490.values]) | (
+                            _UNK490 if any(_kk is None for _kk in _n490.keys)
+                            else frozenset())
+                    elif isinstance(_n490, (_ast486.ListComp, _ast486.SetComp,
+                                            _ast486.GeneratorExp)):
+                        _k490 = frozenset(["list" if isinstance(_n490, _ast486.ListComp)
+                                           else "set" if isinstance(_n490, _ast486.SetComp)
+                                           else "other"])
+                        _e490 = _K490.get(id(_n490.elt), _UNK490)
+                    elif isinstance(_n490, _ast486.DictComp):
+                        _k490 = frozenset(["dict"])
+                        _e490 = _K490.get(id(_n490.value), _UNK490)
+                    elif isinstance(_n490, _ast486.Lambda):
+                        _k490 = frozenset(["other"])
+                    elif isinstance(_n490, _ast486.IfExp):
+                        _k490 = _K490.get(id(_n490.body), _UNK490) | _K490.get(
+                            id(_n490.orelse), _UNK490)
+                        _e490 = _E490.get(id(_n490.body), _UNK490) | _E490.get(
+                            id(_n490.orelse), _UNK490)
+                    elif isinstance(_n490, _ast486.BoolOp):
+                        _k490 = frozenset().union(*[_K490.get(id(_y), _UNK490)
+                                                    for _y in _n490.values])
+                        _e490 = frozenset().union(*[_E490.get(id(_y), _UNK490)
+                                                    for _y in _n490.values])
+                    elif isinstance(_n490, _ast486.NamedExpr):
+                        _k490 = _K490.get(id(_n490.value), _UNK490)
+                        _e490 = _E490.get(id(_n490.value), _UNK490)
+                    elif isinstance(_n490, _ast486.Compare):
+                        _k490 = frozenset(["num"])
+                    elif isinstance(_n490, _ast486.UnaryOp):
+                        _k490 = (frozenset(["num"]) if isinstance(_n490.op, _ast486.Not)
+                                 or _K490.get(id(_n490.operand)) == frozenset(["num"])
+                                 else _UNK490)
+                    elif isinstance(_n490, _ast486.BinOp):
+                        _k490 = (frozenset(["num"])
+                                 if _K490.get(id(_n490.left)) == frozenset(["num"])
+                                 and _K490.get(id(_n490.right)) == frozenset(["num"])
+                                 else _UNK490)
+                    elif isinstance(_n490, _ast486.Name):
+                        _k490 = _env490.get(_n490.id, _UNK490)
+                        _e490 = _el490.get(_n490.id, _UNK490)
+                    elif isinstance(_n490, _ast486.Subscript):
+                        _s490 = _n490.slice
+                        if isinstance(_s490, _ast486.Slice):
+                            _k490 = _K490.get(id(_n490.value), _UNK490)
+                            _e490 = _E490.get(id(_n490.value), _UNK490)
+                        elif (isinstance(_n490.value, _ast486.Name)
+                              and _n490.value.id in _tp490
+                              and isinstance(_s490, _ast486.Constant)
+                              and type(_s490.value) is int
+                              and -len(_tp490[_n490.value.id]) <= _s490.value
+                              < len(_tp490[_n490.value.id])):
+                            _k490 = _tp490[_n490.value.id][_s490.value]
+                        else:
+                            _k490 = _E490.get(id(_n490.value), _UNK490)
+                    elif isinstance(_n490, _ast486.Call):
+                        _f490 = _n490.func
+                        _a0490 = _n490.args[0] if _n490.args else None
+                        if isinstance(_f490, _ast486.Name):
+                            _fi490 = _f490.id
+                            if _fi490 in _rn490:
+                                _k490 = frozenset(["num", "none"])
+                            elif _fi490 in ("len", "int", "abs", "ord", "round", "hash", "id",
+                                          "float", "bool", "pow", "sum", "complex",
+                                          "isinstance", "divmod"):
+                                _k490 = frozenset(["num"])
+                            elif _fi490 in ("str", "repr", "chr", "format", "hex", "oct",
+                                            "bin", "ascii"):
+                                _k490 = frozenset(["str"])
+                            elif _fi490 in ("list", "sorted", "set", "frozenset", "tuple",
+                                            "reversed", "iter"):
+                                _k490 = frozenset([{"list": "list", "sorted": "list",
+                                                    "set": "set", "frozenset": "set",
+                                                    "tuple": "tuple"}.get(_fi490, "other")])
+                                _e490 = (_E490.get(id(_a0490), _UNK490) if _a0490 is not None
+                                         else frozenset())
+                            elif _fi490 == "range":
+                                _k490, _e490 = frozenset(["other"]), frozenset(["num"])
+                            elif _fi490 in ("enumerate", "zip"):
+                                _k490, _e490 = frozenset(["other"]), frozenset(["tuple"])
+                            elif _fi490 in ("min", "max") and len(_n490.args) == 1:
+                                _k490 = _E490.get(id(_a0490), _UNK490)
+                            elif _fi490 in ("min", "max") and len(_n490.args) > 1:
+                                _k490 = frozenset().union(*[_K490.get(id(_y), _UNK490)
+                                                            for _y in _n490.args])
+                            elif _fi490 == "next" and _a0490 is not None:
+                                _k490 = _E490.get(id(_a0490), _UNK490) | (
+                                    _K490.get(id(_n490.args[1]), _UNK490)
+                                    if len(_n490.args) > 1 else frozenset())
+                        elif isinstance(_f490, _ast486.Attribute):
+                            _rv490 = _E490.get(id(_f490.value), _UNK490)
+                            _md490 = _f490.attr
+                            if _md490 == "get" and _n490.args:
+                                _k490 = _rv490 | (
+                                    frozenset(["cnone"]) if len(_n490.args) > 1
+                                    and isinstance(_n490.args[1], _ast486.Constant)
+                                    and _n490.args[1].value is None else
+                                    _K490.get(id(_n490.args[1]), _UNK490)
+                                    if len(_n490.args) > 1 else frozenset())
+                            elif _md490 in ("pop", "setdefault") and _n490.args:
+                                _k490 = _rv490 | (_K490.get(id(_n490.args[-1]), _UNK490)
+                                                  if len(_n490.args) > 1 and _md490 == "pop"
+                                                  else frozenset())
+                            elif _md490 == "pop" and not _n490.args:
+                                _k490 = _rv490
+                            elif _md490 == "values" and not _n490.args:
+                                _k490, _e490 = frozenset(["other"]), _rv490
+                            elif _md490 in ("items", "keys") and not _n490.args:
+                                _k490 = frozenset(["other"])
+                                _e490 = (frozenset(["tuple"]) if _md490 == "items"
+                                         else _UNK490)
+                            elif _md490 == "copy" and not _n490.args:
+                                _k490 = _K490.get(id(_f490.value), _UNK490)
+                                _e490 = _rv490
+                    # a container's direct None stays route #230's only on a read straight
+                    # off a local container; any other composition makes it a plain None
+                    if "cnone" in _k490 and not (
+                            isinstance(_n490, _ast486.Name)
+                            or (isinstance(_n490, (_ast486.Subscript, _ast486.Call))
+                                and isinstance(getattr(_n490, "value", None) if isinstance(
+                                    _n490, _ast486.Subscript) else getattr(
+                                    _n490.func, "value", None), _ast486.Name))):
+                        _k490 = (_k490 - frozenset(["cnone"])) | frozenset(["none"])
+                    _K490[id(_n490)] = _k490 if _k490 else _UNK490
+                    _E490[id(_n490)] = _e490
+                _nenv490, _nel490, _ntp490 = {}, {}, {}
+                for _nm490, _kd490, _vn490 in _bd490:
+                    if _kd490 == "v":
+                        _t490 = _K490.get(id(_vn490), _UNK490)
+                    elif _kd490 == "e":
+                        _t490 = (_E490.get(id(_vn490), _UNK490) if _vn490 is not None
+                                 else _UNK490)
+                        if "cnone" in _t490:
+                            _t490 = (_t490 - frozenset(["cnone"])) | frozenset(["none"])
+                    elif _kd490 == "aug":
+                        _t490 = (frozenset(["num"]) if _K490.get(id(_vn490.value)) ==
+                                 frozenset(["num"]) and _env490.get(_nm490) == frozenset(
+                                     ["num"]) else _UNK490)
+                    else:
+                        _t490 = _UNK490
+                    _nenv490[_nm490] = _nenv490.get(_nm490, frozenset()) | _t490
+                    if (_kd490 == "v" and _cnt490.get(_nm490) == 1
+                            and isinstance(_vn490, _ast486.Tuple)
+                            and not any(isinstance(_y, _ast486.Starred)
+                                        for _y in _vn490.elts)):
+                        _ntp490[_nm490] = [_K490.get(id(_y), _UNK490) for _y in _vn490.elts]
+                for _nm490, _kd490, _vn490 in _eb490:
+                    if _kd490 == "v":
+                        _t490 = (frozenset(["cnone"]) if isinstance(_vn490, _ast486.Constant)
+                                 and _vn490.value is None else _K490.get(id(_vn490), _UNK490))
+                    elif _kd490 == "e":
+                        _t490 = _E490.get(id(_vn490), _UNK490)
+                    elif _kd490 == "aug":
+                        _t490 = (frozenset(["num"]) if _K490.get(id(_vn490.value)) ==
+                                 frozenset(["num"]) and _el490.get(_nm490) == frozenset(
+                                     ["num"]) else _UNK490)
+                    else:
+                        _t490 = _UNK490
+                    _nel490[_nm490] = _nel490.get(_nm490, frozenset()) | _t490
+                if (_nenv490, _nel490, _ntp490) == (_env490, _el490, _tp490):
+                    break
+                _env490, _el490, _tp490 = _nenv490, _nel490, _ntp490
+            # parameters are not literal-derived: unknown (their slot is checked at the call)
+            _aa490 = _fd490.args
+            for _p490 in (_aa490.posonlyargs + _aa490.args + _aa490.kwonlyargs
+                          + [_x for _x in (_aa490.vararg, _aa490.kwarg) if _x is not None]):
+                if _p490.arg not in _env490:
+                    _env490[_p490.arg] = _UNK490
+            # parent links, for guards
+            _par490 = {}
+            for _n490 in _ast486.walk(_fd490):
+                for _c490 in _ast486.iter_child_nodes(_n490):
+                    _par490[id(_c490)] = _n490
+            # the returns of THIS function (a nested def is judged on its own)
+            _own490 = set()
+            for _n490 in _ast486.walk(_fd490):
+                if isinstance(_n490, _ast486.Return):
+                    _a490 = _par490.get(id(_n490))
+                    while _a490 is not None and not isinstance(_a490, (
+                            _ast486.FunctionDef, _ast486.AsyncFunctionDef, _ast486.Lambda)):
+                        _a490 = _par490.get(id(_a490))
+                    if _a490 is _fd490:
+                        _own490.add(id(_n490))
+            _rep490 = None
+            for _n490 in _ast486.walk(_fd490):
+                # (use node, the operand, the use's description, truth-test?) to judge
+                _uses490 = []
+                if isinstance(_n490, _ast486.BinOp):
+                    _uses490 = [(_n490.left, "an operand of `" + type(_n490.op).__name__
+                                 + "`", "arith"),
+                                (_n490.right, "an operand of `" + type(_n490.op).__name__
+                                 + "`", "arith")]
+                elif isinstance(_n490, _ast486.UnaryOp):
+                    _uses490 = [(_n490.operand, "a truth test" if isinstance(
+                        _n490.op, _ast486.Not) else "the operand of a unary operator",
+                        "truth" if isinstance(_n490.op, _ast486.Not) else "unary")]
+                elif isinstance(_n490, _ast486.Compare):
+                    _ops490 = [_n490.left] + list(_n490.comparators)
+                    for _i490, _o490 in enumerate(_n490.ops):
+                        _l490, _r490 = _ops490[_i490], _ops490[_i490 + 1]
+                        if isinstance(_o490, (_ast486.Is, _ast486.IsNot)):
+                            continue
+                        if isinstance(_o490, (_ast486.Eq, _ast486.NotEq)) and any(
+                                isinstance(_y, _ast486.Constant) and _y.value is None
+                                for _y in (_l490, _r490)):
+                            continue
+                        _cm490 = ("arith" if isinstance(_o490, (_ast486.Lt, _ast486.LtE,
+                                                                _ast486.Gt, _ast486.GtE))
+                                  else "hash")
+                        _uses490 += [(_l490, "an operand of a comparison", _cm490),
+                                     (_r490, "an operand of a comparison", _cm490)]
+                        if isinstance(_o490, (_ast486.In, _ast486.NotIn)):
+                            _uses490.append((_r490, "the elements of a membership test",
+                                             "elems"))
+                elif isinstance(_n490, _ast486.AugAssign):
+                    _uses490 = [(_n490.target, "the target of an augmented assignment",
+                                 "arith"),
+                                (_n490.value, "the value of an augmented assignment", "arith")]
+                elif isinstance(_n490, (_ast486.If, _ast486.While, _ast486.IfExp,
+                                        _ast486.Assert)):
+                    _uses490 = [(_n490.test, "a truth test", "truth")]
+                elif isinstance(_n490, _ast486.BoolOp):
+                    _uses490 = [(_y, "a truth test (an `and` / `or` operand)", "truth")
+                                for _y in _n490.values]
+                elif isinstance(_n490, _ast486.comprehension):
+                    _uses490 = ([(_y, "a truth test", "truth") for _y in _n490.ifs]
+                                + [(_n490.iter, "an iterable", "hash")])
+                elif isinstance(_n490, (_ast486.For, _ast486.AsyncFor)):
+                    _uses490 = [(_n490.iter, "an iterable", "hash")]
+                elif isinstance(_n490, _ast486.Subscript):
+                    _uses490 = [(_n490.value, "the receiver of a subscript", "hash")]
+                    if not isinstance(_n490.slice, _ast486.Slice):
+                        _uses490.append((_n490.slice, "a subscript index", "hash"))
+                elif isinstance(_n490, _ast486.Attribute):
+                    _uses490 = [(_n490.value, "the receiver of `." + _n490.attr + "`", "hash")]
+                elif isinstance(_n490, _ast486.FormattedValue):
+                    _uses490 = [(_n490.value, "an f-string field", "hash")]
+                elif isinstance(_n490, _ast486.Call):
+                    _f490 = _n490.func
+                    _store490 = (isinstance(_f490, _ast486.Attribute)
+                                 and isinstance(_f490.value, _ast486.Name)
+                                 and _f490.attr in ("append", "add", "insert", "setdefault"))
+                    if not (isinstance(_f490, _ast486.Name) and _f490.id == "print") and not (
+                            _store490):
+                        _uses490 = [(_y.value if isinstance(_y, (_ast486.Starred,
+                                                                 _ast486.keyword)) else _y,
+                                     "a call argument", _m490)
+                                    for _y in list(_n490.args) + list(_n490.keywords)
+                                    for _m490 in ("hash", "esc")]
+                    # slot check: an annotated scalar parameter of a file function / class
+                    if isinstance(_f490, _ast486.Name) and _f490.id in _sig490:
+                        _pp490, _kw490, _va490 = _sig490[_f490.id]
+                        _dc490 = _va490 is None
+                        _given490 = {}
+                        for _i490, _y490 in enumerate(_n490.args):
+                            if isinstance(_y490, _ast486.Starred):
+                                _given490 = None
+                                break
+                            if _i490 < len(_pp490):
+                                _given490[_pp490[_i490][0]] = _y490
+                        if _given490 is not None and not any(
+                                _y.arg is None for _y in _n490.keywords):
+                            for _y490 in _n490.keywords:
+                                _given490[_y490.arg] = _y490.value
+                            for _pn490, _pa490, _pd490 in _pp490 + _kw490:
+                                _pv490 = _given490.get(_pn490, _pd490)
+                                if _pa490 is None or _pv490 is None or (
+                                        _dc490 and _pn490 not in _given490):
+                                    continue    # a dataclass field default: route #236
+                                _pk490 = (_K490.get(id(_pv490)) if _pn490 in _given490
+                                          else (frozenset(["num"]) if isinstance(
+                                              _pv490, _ast486.Constant) and isinstance(
+                                              _pv490.value, (bool, int, float, complex))
+                                              else frozenset(["str"]) if isinstance(
+                                              _pv490, _ast486.Constant) and isinstance(
+                                              _pv490.value, (str, bytes))
+                                              else frozenset(["none"]) if isinstance(
+                                              _pv490, _ast486.Constant) and _pv490.value
+                                              is None else _UNK490)) or _UNK490
+                                if _pa490 <= frozenset(["num", "none"]) and (
+                                        _pk490 - _pa490) & frozenset(["str", "none", "tuple"]):
+                                    _rep490 = (_n490, _pv490 if _pn490 in _given490 else _n490,
+                                               f"the argument for parameter '{_pn490}' of "
+                                               f"'{_f490.id}' (a slot of type "
+                                               + " / ".join(
+                                                   {"num": "int / float / bool / complex",
+                                                    "str": "str / bytes", "none": "None"}[_x]
+                                                   for _x in sorted(_pa490)) + ")"
+                                               + ("" if _pn490 in _given490 else
+                                                  ", supplied by its default"),
+                                               _pk490)
+                                    break
+                elif (isinstance(_n490, _ast486.Return) and _n490.value is not None
+                      and id(_n490) in _own490):
+                    _ra490 = (_al490.get(id(_fd490.returns))
+                              if _fd490.returns is not None else None)
+                    _rk490 = _K490.get(id(_n490.value), _UNK490)
+                    if (_ra490 is not None and _ra490 <= frozenset(["num", "none"])
+                            and (_rk490 - _ra490) & frozenset(["str", "none", "tuple"])
+                            and not (isinstance(_n490.value, _ast486.Constant)
+                                     and _n490.value.value is None)):
+                        _rep490 = (_n490, _n490.value, "the return value of a function "
+                                   f"annotated {_ast486.unparse(_fd490.returns)}", _rk490)
+                    elif _fd490.returns is None:
+                        _uses490 = [(_n490.value, "the return value of an unannotated "
+                                     "function", "hash")]
+                    _uses490.append((_n490.value, "the elements of a return value", "esc"))
+                elif isinstance(_n490, (_ast486.Assign, _ast486.AnnAssign)) and any(
+                        not isinstance(_t, (_ast486.Name, _ast486.Tuple, _ast486.List))
+                        and not (isinstance(_t, _ast486.Subscript)
+                                 and isinstance(_t.value, _ast486.Name))
+                        for _t in (_n490.targets if isinstance(_n490, _ast486.Assign)
+                                   else [_n490.target])) and _n490.value is not None:
+                    # a store the judgement does not follow (an attribute, a nested item)
+                    _uses490 = [(_n490.value, "a value stored into an attribute / nested "
+                                 "item", _m) for _m in ("hash", "esc")]
+                if isinstance(_n490, (_ast486.Assign, _ast486.AugAssign)) and any(
+                        isinstance(_y, (_ast486.Global, _ast486.Nonlocal))
+                        and any(isinstance(_t, _ast486.Name) and _t.id in _y.names
+                                for _t in (_n490.targets if isinstance(_n490, _ast486.Assign)
+                                           else [_n490.target]))
+                        for _y in _ast486.walk(_fd490)):
+                    _uses490 = list(_uses490) + [
+                        (_n490.value, "a value stored into a global / nonlocal name", _m)
+                        for _m in ("hash", "esc")]
+                if isinstance(_n490, _ast486.AnnAssign) and _n490.value is not None:
+                    _ra490 = _al490.get(id(_n490.annotation))
+                    _rk490 = _K490.get(id(_n490.value), _UNK490)
+                    if (_ra490 is not None and _ra490 <= frozenset(["num", "none"])
+                            and (_rk490 - _ra490) & frozenset(["str", "none", "tuple"])):
+                        _rep490 = (_n490, _n490.value, "the value of a binding annotated "
+                                   f"{_ast486.unparse(_n490.annotation)}", _rk490)
+                if _rep490 is not None:
+                    break
+                for _u490, _why490, _truth490 in _uses490:
+                    if _truth490 == "esc" and (_K490.get(id(_u490), _UNK490)
+                                               & frozenset(["tuple", "dict"])):
+                        continue        # a tuple's positions / a record-like dict's keys
+                        #                 are read one by one (residual: see route #490)
+                    if _truth490 == "elems" and "dict" in _K490.get(id(_u490), _UNK490):
+                        continue        # membership in a dict reads its KEYS
+                    _uk490 = (_E490.get(id(_u490), _UNK490) if _truth490 in ("elems", "esc")
+                              else _K490.get(id(_u490), _UNK490))
+                    if _uk490 & frozenset(["none", "cnone"]) and isinstance(_u490, _ast486.Name):
+                        # a guard proving the local is not None, between the use and the def
+                        _vn490 = _u490.id
+                        _c490, _a490 = _u490, _par490.get(id(_u490))
+                        _nar490 = False
+                        while _a490 is not None and not _nar490:
+                            _region490, _tests490, _pos490 = [], [], True
+                            if isinstance(_a490, (_ast486.If, _ast486.While)) and (
+                                    _c490 in _a490.body or _c490 in _a490.orelse):
+                                _pos490 = _c490 in _a490.body
+                                _tests490 = [_a490.test]
+                                _region490 = _a490.body if _pos490 else _a490.orelse
+                            elif isinstance(_a490, _ast486.IfExp) and _c490 is not _a490.test:
+                                _pos490 = _c490 is _a490.body
+                                _tests490 = [_a490.test]
+                                _region490 = [_c490]
+                            elif isinstance(_a490, _ast486.BoolOp) and _c490 in _a490.values:
+                                _pos490 = isinstance(_a490.op, _ast486.And)
+                                _tests490 = _a490.values[:_a490.values.index(_c490)]
+                                _region490 = _a490.values[_a490.values.index(_c490):]
+                            for _fl490 in ("body", "orelse", "finalbody"):
+                                _blk490 = getattr(_a490, _fl490, None)
+                                if isinstance(_blk490, list) and _c490 in _blk490:
+                                    _region490 = _blk490[_blk490.index(_c490):]
+                                    for _st490 in _blk490[:_blk490.index(_c490)]:
+                                        if isinstance(_st490, _ast486.Assert):
+                                            _tests490.append(_st490.test)
+                                        elif (isinstance(_st490, _ast486.If)
+                                              and not _st490.orelse and _st490.body
+                                              and isinstance(_st490.body[-1], (
+                                                  _ast486.Return, _ast486.Raise,
+                                                  _ast486.Continue, _ast486.Break))):
+                                            _tests490.append(_ast486.UnaryOp(
+                                                op=_ast486.Not(), operand=_st490.test))
+                            # does a test (taken true when _pos490, false otherwise) prove
+                            # `_vn490 is not None`?
+                            for _ts490 in _tests490:
+                                _want490 = _pos490
+                                _cands490 = [(_ts490, _want490)]
+                                while _cands490 and not _nar490:
+                                    _tt490, _w490 = _cands490.pop()
+                                    if (isinstance(_tt490, _ast486.UnaryOp)
+                                            and isinstance(_tt490.op, _ast486.Not)):
+                                        _cands490.append((_tt490.operand, not _w490))
+                                    elif isinstance(_tt490, _ast486.BoolOp) and (
+                                            isinstance(_tt490.op, _ast486.And) == _w490):
+                                        _cands490 += [(_y, _w490) for _y in _tt490.values]
+                                    elif (isinstance(_tt490, _ast486.Name)
+                                          and _tt490.id == _vn490 and _w490):
+                                        _nar490 = True
+                                    elif (isinstance(_tt490, _ast486.Compare)
+                                          and len(_tt490.ops) == 1
+                                          and isinstance(_tt490.left, _ast486.Name)
+                                          and _tt490.left.id == _vn490
+                                          and isinstance(_tt490.comparators[0],
+                                                         _ast486.Constant)
+                                          and _tt490.comparators[0].value is None):
+                                        _nar490 = (isinstance(_tt490.ops[0], (
+                                            _ast486.IsNot, _ast486.NotEq)) == _w490)
+                            if _nar490 and any(
+                                    isinstance(_y, (_ast486.Name,)) and _y.id == _vn490
+                                    and isinstance(_y.ctx, _ast486.Store)
+                                    for _r in _region490 for _y in _ast486.walk(_r)):
+                                _nar490 = False
+                            if isinstance(_a490, (_ast486.FunctionDef, _ast486.AsyncFunctionDef,
+                                                  _ast486.Lambda)):
+                                break
+                            _c490, _a490 = _a490, _par490.get(id(_a490))
+                        if _nar490:
+                            _uk490 = _uk490 - frozenset(["none", "cnone"])
+                    # arith: a TypeError on every non-number (a container's direct `None` is
+                    # route #230's value fence, except under a unary operator); otherwise only
+                    # a HASHED str / tuple is wrong (a None is the opaque `pycsl_none`, a list
+                    # / dict / set / object is not a Why3 int)
+                    _mix490 = "num" in _uk490 and bool(_uk490 & (
+                        frozenset(_MX490) if _truth490 == "arith" else
+                        frozenset(_MX490) | frozenset(["cnone"]) if _truth490 == "unary"
+                        else frozenset(["str", "tuple"])))
+                    if _truth490 == "truth":
+                        if isinstance(_u490, _ast486.BoolOp) or (
+                                isinstance(_u490, _ast486.UnaryOp)
+                                and isinstance(_u490.op, _ast486.Not)):
+                            continue    # its operands are judged one by one
+                    if _mix490:
+                        _rep490 = (_n490, _u490, _why490, _uk490)
+                        break
+                if _rep490 is not None:
+                    break
+            if _rep490 is not None:
+                _rn490, _rv490, _rw490, _rk490 = _rep490
+                _kn490 = ", ".join(
+                    {"num": "a number", "str": "a str / bytes", "none": "None", "cnone": "None",
+                     "tuple": "a tuple", "list": "a list", "dict": "a dict", "set": "a set",
+                     "other": "an object"}[_x] for _x in sorted(_rk490 - _UNK490))
+                from errors import PyCSLSemanticError as _PyCSLSemErr490
+                raise _PyCSLSemErr490(
+                    f"line {getattr(_rv490, 'lineno', getattr(_rn490, 'lineno', 0))}: "
+                    f"'{_fd490.name}': `{_ast486.unparse(_rv490).strip()[:80]}` is "
+                    f"{_rw490}, and it may be {_kn490}. PyCSL lowers such a value as one Why3 "
+                    f"`int`: a str / bytes / tuple literal becomes its integer HASH and a "
+                    f"`None` the opaque int `pycsl_none`, so arithmetic, ordering, equality, "
+                    f"truth tests and calls on it are integer operations that cannot raise, "
+                    f"while CPython raises TypeError or computes something else (route #490; "
+                    f"measured: `y = 1 if n > 0 else 'a'; z = y + 1` and `d = {{'a': 1, 'b': "
+                    f"'x'}}; d['b'] + 1` proved `no_exception \\all`, CPython TypeError). "
+                    f"Give the value ONE type: use the same kind of value in every arm, "
+                    f"element and binding (`y = 1 if n > 0 else 0`, `{{'a': 1, 'b': 2}}`), "
+                    f"or keep the None case apart and test it before use (`if y is not None:"
+                    f" z = y + 1`).",
+                    stage="ir-semantic", code="PYCSL-R490-LITERAL-INT-HASH")
     # (#49) driver run #3, ROUTE #476 (red team 39 F3; MEASURED PROVED on d6abee90b) -- THE
     # BINDING LIVE AT THE CALL FRONTIER. The model resolves a module name to its textually LAST
     # binding (the IMPORT view), while a file run as a script executes its call frontier -- the
