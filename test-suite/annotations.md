@@ -4245,6 +4245,49 @@ as `self` (`C.m(D)`) storing an attribute of `D`; file-system writes at import (
 sink with a COMPUTED key (the verifier's own `pure_ast._build_nodes` shape) may overwrite one of that module's
 own names; an installed library's own import-time code.
 
+### 7.380 An implicit dunder position on a user-class value is a CALL of that class's dunder (route #489, run #3)
+
+`len(o)`, `bool(o)` / `if o:` / `not o` / `o and x`, `o == 1` / `o < 1` (with reflection), `1 in o`, `o in xs`,
+`-o`, `o + 1` / `1 + o` / `o += 1`, `str(o)` / `repr(o)` / `print(o)` / `format(o)` / `f"{o}"` / `'%s' % o`,
+`int(o)` / `float(o)` / `abs(o)` / `round(o)` / `divmod(o, 2)`, `[5][o]` / `range(o)` (`__index__`), `o[0]`,
+`o.missing` (`__getattr__`), `next(o)`, `for _ in o` / `x, = o` / `any(o)`, `with o:` ... run a PROGRAM method
+of `o`'s class when that class (or a base / subclass) defines the dunder. The lowered IR has no call there, so
+the frame route #316 infers for a bodyless `val` (a `\trusted` / `\abstract` def with no `#@ assigns`, a
+`\trusted` method, an imported marked or UN-marked def) and §7.360's source rule (which reads these positions
+as scalar reads) charged nothing to `o`. Red team 41 measured 184 (probe, mode) pairs in the default, typed and
+store models PROVED `o.v == 0` after `k(o)`, CPython returns 7 (route #489). A VERIFIED body with the same
+positions fails closed (Why3 typing: a record is not an `int`; measured on 13 more probes, incl. element
+dunders `1 in [o]`, `[o].count(1)`, `str([o])`).
+
+RULE (allow-list, refuse by default; `_run_pipeline`, after §7.360, on the source of the def): when some class
+of the program (this file and every module its imports resolve to) defines a dunder NOT declared `#@ assigns
+\nothing`, every bodyless `val` with no `#@ assigns` that the verified code reads (transitively through the
+judged bodies) is judged. Each occurrence of a non-scalar root -- a parameter whose annotation is not a scalar
+(a container of scalars, `List[int]`, is no root), `*args` / `**kw`, `self` of a method other than `__init__`,
+and every name bound from one -- is classified by the dunders its POSITION dispatches to: on the value itself
+(S) and on another object that receives it as an argument (A: the other operand's `__eq__(o)` / `__radd__(o)`,
+an element's `__eq__` in `1 in [o]`). A container root (`xs: List[C]`, a display `[o]`) dispatches to its
+ELEMENTS' dunders (`str(xs)` -> `__repr__`, `xs.count(1)` / `in` -> `__eq__`, `sorted` -> `__lt__`). The
+value's classes are the annotated class with every subclass of it and their bases (`self`: the enclosing
+class), else every class of the program (an unannotated / `Union` / `Any` root, a field that is not
+scalar-typed, a container element). An explicit method call (`o.m()`) and an argument of a program function
+are left to routes #316 / #317 / §7.360; an `is` / `is not` / `isinstance` / `id` / `type` is no dunder; any
+UNLISTED position counts as every dunder. The occurrence is ADMITTED only when each S dunder is, in every one
+of those classes that defines it, `#@ assigns \nothing`, and each A dunder is, in every class of the program,
+`#@ assigns \nothing` or a VERIFIED method whose frame names only `self` (it cannot write its argument: rt41's
+`max(o, C())` control, where only the other item's `__gt__` runs). Otherwise REFUSED with
+`PYCSL-R489-IMPLICIT-DUNDER`: declare the callee's frame with `#@ assigns` (then the user's trusted frame is
+read, as for any `\trusted` def), declare the dunder `#@ assigns \nothing`, or verify the callee. Charging the
+dunder's declared frame to the argument instead of refusing is not implemented (an over-refusal, not a gap).
+
+Witnesses `7730`-`7744` (PROVED at base, REFUSED; incl. typed `7736`, store `7737`, imported un-marked `7737`
+and marked `7738`, `self` `7735`, alias `7741`, `__getattr__` fallback `7742`, unannotated `7743`, list
+elements `7744`); controls `7750`-`7754` (a `#@ assigns \nothing` dunder, an int field read with another
+class's writing `__eq__`, `max(o, C())`, `o is None`, an imported pure `__len__`). Not covered (named
+residuals): a dunder bound as a class attribute (`__len__ = f`) or installed by a metaclass / decorator; a
+function the tool AUTO-trusts (a body it cannot lower: not a `val` with an inferred frame here); a `\trusted`
+callee WITH a user-written `#@ assigns` (its frame is the user's claim, as in §7.360).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

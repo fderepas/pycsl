@@ -27838,6 +27838,628 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"(`#@ assigns self.<field>` for a method), or verify the function instead of "
             f"trusting it.",
             stage="ir-semantic", code="PYCSL-R482-TRUSTED-FRAME-UNTRACKED")
+    # (#49) gen #41, ROUTE #489 (red team 41, driver run #3, executor u1): an IMPLICIT DUNDER
+    # call is a CALL. `len(o)`, `o == 1`, `if o:`, `o + 1`, `str(o)`, `f"{o}"`, `o[0]`,
+    # `next(o)`, `for _ in o`, `1 in o`, `o.missing` (the `__getattr__` fallback) ... run a
+    # PROGRAM method of `o`'s class when that class defines the dunder; the lowered IR has
+    # no call there, so the frame route #316 infers for a bodyless `val` (a `\\trusted` /
+    # `\\abstract` def with no `#@ assigns`, an imported marked or UN-marked def) and route
+    # #482's source rule (which reads these positions as scalar reads) charged nothing, and
+    # the caller kept `o.v` (measured: rt41 F1, 100 probes / 184 (probe, mode) pairs in the
+    # default, typed and store models; CPython returns 7). RULE (allow-list polarity, refuse
+    # by default): in such a body every occurrence of a non-scalar root (a parameter, `self`
+    # of a method, a name bound from one) is classified by the implicit dunders its POSITION
+    # dispatches to -- on the value itself (S: `len` -> `__len__`, a truth test ->
+    # `__bool__` / `__len__`, `==` -> `__eq__` / `__ne__` with reflection, `x in o` ->
+    # `__contains__` / `__iter__` / `__getitem__`, a BinOp -> the operator and its reflected
+    # twin, `str` / `print` / f-string -> `__str__` / `__repr__` / `__format__`, a subscript
+    # -> `__getitem__`, an index -> `__index__` / `__hash__`, an attribute -> `__getattr__` /
+    # `__getattribute__` ...; an unlisted position -> EVERY dunder) and on another object
+    # that receives it as an argument (A: the other operand's `__eq__(o)`, `__radd__(o)`,
+    # an element's `__eq__` in `1 in [o]` ...); a list / tuple / set / dict root dispatches
+    # to its ELEMENTS' dunders (`str(xs)` -> each element's `__repr__`, `xs.count(1)` ->
+    # `__eq__`). The value's classes are the annotated class with its bases and every
+    # subclass of it in the program (`self`: the enclosing class), else EVERY class of the
+    # program (an unannotated / Union / Any root, a field read, a container element). The
+    # occurrence is ADMITTED only when, for each S dunder, every one of those classes that
+    # defines it declares it `#@ assigns \\nothing`, and, for each A dunder, every class of
+    # the program that defines it declares `#@ assigns \\nothing` or is a VERIFIED method
+    # whose frame names only `self` (it cannot write its argument). Otherwise REFUSED
+    # (PYCSL-R489-IMPLICIT-DUNDER): declare the callee's frame with `#@ assigns`, or the
+    # dunder `#@ assigns \\nothing`. A program defining no dunder outside `#@ assigns
+    # \\nothing` is untouched. Judged: every such `val` the verified code of this file reads
+    # (transitively through the judged bodies). Inline; `_run_pipeline`'s mirror twin is
+    # `\\trusted`.
+    _rf489 = None
+    _ir489 = getattr(transpiler, "ir", None) or {}
+    _fn489 = [_f489 for _f489 in (_ir489.get("functions", []) or []) if isinstance(_f489, dict)]
+    _vl489 = [_f489 for _f489 in _fn489 if (_f489.get("trusted") or _f489.get("abstract"))
+              and not ((_f489.get("contracts", {}) or {}).get("assigns"))]
+    if _vl489:
+        import ast as _a489
+        import sys as _s489
+        from frontend.ir_resolve import _resolve_module_path as _rmp489
+        try:
+            _t489 = _a489.parse(source_code)
+        except Exception:
+            _t489 = None
+        _mf489 = str(getattr(args, "file", "") or "")
+        _cl489 = {}         # class name -> [(file, ClassDef)]
+        _dx489 = {}         # IR name -> [(file, def, ClassDef or None)]
+        _bk489 = {}         # id(def) -> its own `#@` block (text)
+        _fq489 = [(_mf489, _t489)]
+        _sl489 = {_mf489: source_code.splitlines()}
+        _sn489 = set()
+        while _fq489 and len(_sn489) < 200:
+            _ff489, _tt489 = _fq489.pop(0)
+            if _tt489 is None or _ff489 in _sn489:
+                continue
+            _sn489.add(_ff489)
+            for _z489 in _a489.walk(_tt489):
+                if isinstance(_z489, (_a489.FunctionDef, _a489.AsyncFunctionDef)):
+                    _ln489 = _sl489.get(_ff489, [])
+                    _li489 = min([_q.lineno for _q in _z489.decorator_list]
+                                 + [_z489.lineno]) - 2
+                    _bt489 = []
+                    while 0 <= _li489 < len(_ln489) and (
+                            _ln489[_li489].lstrip().startswith("#@")
+                            or not _ln489[_li489].strip()):
+                        _bt489.append(_ln489[_li489].strip())
+                        _li489 -= 1
+                    _bk489[id(_z489)] = " ".join(_bt489)
+                    _dx489.setdefault(_z489.name, []).append((_ff489, _z489, None))
+                if isinstance(_z489, _a489.ClassDef):
+                    _cl489.setdefault(_z489.name, []).append((_ff489, _z489))
+                    for _m489 in _z489.body:
+                        if isinstance(_m489, (_a489.FunctionDef, _a489.AsyncFunctionDef)):
+                            _dx489.setdefault(_z489.name.lower() + "__" + _m489.name,
+                                              []).append((_ff489, _m489, _z489))
+                _mq489 = []
+                if isinstance(_z489, _a489.Import):
+                    _mq489 = [(_al.name, 0) for _al in _z489.names]
+                elif isinstance(_z489, _a489.ImportFrom):
+                    _mq489 = [(_z489.module or "", _z489.level or 0)] + [
+                        (((_z489.module + ".") if _z489.module else "") + _al.name,
+                         _z489.level or 0) for _al in _z489.names if _al.name != "*"]
+                for _mn489, _lv489 in _mq489:
+                    if _lv489 == 0 and (not _mn489 or _mn489.split(".")[0] in
+                                        _s489.stdlib_module_names):
+                        continue
+                    try:
+                        _rp489 = _rmp489(_mn489, _lv489, _ff489)
+                    except Exception:
+                        _rp489 = None
+                    if _rp489 and _rp489 not in _sn489:
+                        try:
+                            _rb489 = open(_rp489, "rb").read()
+                            _fq489.append((_rp489, _a489.parse(_rb489)))
+                            _sl489[_rp489] = _rb489.decode("utf-8", "replace").splitlines()
+                        except Exception:
+                            pass
+        _irn489 = {str(_f489.get("name", "")): _f489 for _f489 in _fn489}
+        _NOT489 = ("__init__", "__new__", "__init_subclass__", "__post_init__", "__del__",
+                   "__class_getitem__", "__set_name__", "__subclasshook__")
+        # every program dunder: class -> {dunder: "pure" | "self" | "other"}
+        _du489 = {}
+        for _cn489, _cs489 in _cl489.items():
+            for _ff489, _c489 in _cs489:
+                for _m489 in _c489.body:
+                    if not (isinstance(_m489, (_a489.FunctionDef, _a489.AsyncFunctionDef))
+                            and _m489.name.startswith("__") and _m489.name.endswith("__")
+                            and len(_m489.name) > 4 and _m489.name not in _NOT489):
+                        continue
+                    _tx489 = _bk489.get(id(_m489), "")
+                    _ir1489 = _irn489.get(_cn489.lower() + "__" + _m489.name)
+                    if "assigns \\nothing" in _tx489:
+                        _k489 = "pure"
+                    elif (_ff489 == _mf489 and "\\trusted" not in _tx489
+                          and "\\abstract" not in _tx489 and _ir1489 is not None
+                          and not _ir1489.get("trusted") and not _ir1489.get("abstract")
+                          and set((_ir1489.get("_r316_frame") or {}).get("written", []) or [])
+                          <= {(_m489.args.args[0].arg if _m489.args.args else "self")}
+                          and not (_ir1489.get("_r316_frame") or {}).get("global")):
+                        _k489 = "self"
+                    else:
+                        _k489 = "other"
+                    _du489.setdefault(_cn489, {})[_m489.name] = (
+                        "other" if "other" in (_k489, _du489.get(_cn489, {}).get(
+                            _m489.name, _k489)) else _k489)
+        if any(_k489 != "pure" for _d489 in _du489.values() for _k489 in _d489.values()):
+            # class -> its program bases (by name)
+            _bs489 = {_cn489: {(_b.id if isinstance(_b, _a489.Name) else _b.attr
+                                if isinstance(_b, _a489.Attribute) else
+                                _b.value.id if isinstance(_b, _a489.Subscript)
+                                and isinstance(_b.value, _a489.Name) else "")
+                               for _ff489, _c489 in _cs489 for _b in _c489.bases}
+                      for _cn489, _cs489 in _cl489.items()}
+            _ALL489 = frozenset(_cl489)
+            _SC489 = ("int", "float", "bool", "str", "bytes", "complex", "None", "string",
+                      "real", "bytearray")
+            _CT489 = ("list", "List", "dict", "Dict", "set", "Set", "frozenset", "FrozenSet",
+                      "tuple", "Tuple", "Sequence", "MutableSequence", "Iterable", "Iterator",
+                      "Mapping", "MutableMapping", "deque", "defaultdict", "OrderedDict",
+                      "Counter", "Collection", "AbstractSet", "MutableSet", "Generator")
+            _IT489 = ("__iter__", "__next__", "__getitem__", "__len__", "__length_hint__")
+            _OR489 = ("__lt__", "__gt__", "__le__", "__ge__")
+            _EQ489 = ("__eq__", "__ne__")
+            _ST489 = ("__str__", "__repr__", "__format__")
+            # builtin -> (S on a value, A on the other objects, S on a container's elements)
+            _BT489 = {
+                "len": (("__len__",), (), ()), "bool": (("__bool__", "__len__"), (), ()),
+                "str": (("__str__", "__repr__"), (), ("__repr__",)),
+                "repr": (("__repr__",), (), ("__repr__",)),
+                "ascii": (("__repr__",), (), ("__repr__",)),
+                "print": (("__str__", "__repr__"), (), ("__repr__",)),
+                "format": (_ST489, (), ("__repr__", "__format__")),
+                "int": (("__int__", "__index__", "__trunc__"), (), ()),
+                "float": (("__float__", "__index__"), (), ()),
+                "complex": (("__complex__", "__float__", "__index__"), (), ()),
+                "abs": (("__abs__",), (), ()), "round": (("__round__",), (), ()),
+                "divmod": (("__divmod__", "__rdivmod__"), ("__divmod__", "__rdivmod__"), ()),
+                "pow": (("__pow__", "__rpow__"), ("__pow__", "__rpow__"), ()),
+                "hash": (("__hash__",), (), ("__hash__",)),
+                "bin": (("__index__",), (), ()), "hex": (("__index__",), (), ()),
+                "oct": (("__index__",), (), ()), "chr": (("__index__",), (), ()),
+                "range": (("__index__",), (), ()),
+                "hasattr": (("__getattr__", "__getattribute__"), (), ()),
+                "getattr": (("__getattr__", "__getattribute__"), (), ()),
+                "setattr": (("__setattr__",), (), ()), "delattr": (("__delattr__",), (), ()),
+                "iter": (_IT489, (), ()), "next": (("__next__",), (), ()),
+                "reversed": (("__reversed__", "__len__", "__getitem__"), (), ()),
+                "enumerate": (_IT489, (), ()), "zip": (_IT489, (), ()),
+                "list": (_IT489, (), ()), "tuple": (_IT489, (), ()),
+                "sorted": (_IT489 + _OR489, _OR489, _OR489),
+                "min": (_IT489 + _OR489, _OR489, _OR489),
+                "max": (_IT489 + _OR489, _OR489, _OR489),
+                "sum": (_IT489 + ("__add__", "__radd__"), ("__add__", "__radd__"),
+                        ("__add__", "__radd__")),
+                "any": (_IT489 + ("__bool__",), ("__bool__", "__len__"), ("__bool__", "__len__")),
+                "all": (_IT489 + ("__bool__",), ("__bool__", "__len__"), ("__bool__", "__len__")),
+                "set": (_IT489 + ("__hash__",) + _EQ489, ("__hash__",) + _EQ489,
+                        ("__hash__",) + _EQ489),
+                "frozenset": (_IT489 + ("__hash__",) + _EQ489, ("__hash__",) + _EQ489,
+                              ("__hash__",) + _EQ489),
+                "dict": (_IT489 + ("__hash__", "keys") + _EQ489, ("__hash__",) + _EQ489,
+                         ("__hash__",) + _EQ489),
+                "isinstance": ((), (), ()), "issubclass": ((), (), ()), "id": ((), (), ()),
+                "type": ((), (), ()), "callable": ((), (), ()),
+            }
+            _BO489 = {"Add": "add", "Sub": "sub", "Mult": "mul", "MatMult": "matmul",
+                      "Div": "truediv", "FloorDiv": "floordiv", "Mod": "mod", "Pow": "pow",
+                      "LShift": "lshift", "RShift": "rshift", "BitOr": "or", "BitXor": "xor",
+                      "BitAnd": "and"}
+            _UO489 = {"Not": ("__bool__", "__len__"), "USub": ("__neg__",),
+                      "UAdd": ("__pos__",), "Invert": ("__invert__",)}
+            # the names the VERIFIED code of this file reads; the judged set grows with the
+            # names a judged body reads
+            _rd489 = set()
+            if _t489 is not None:
+                for _z489 in _a489.walk(_t489):
+                    if isinstance(_z489, (_a489.FunctionDef, _a489.AsyncFunctionDef)) and not (
+                            "\\trusted" in _bk489.get(id(_z489), "")
+                            or "\\abstract" in _bk489.get(id(_z489), "")):
+                        for _y489 in _a489.walk(_z489):
+                            if isinstance(_y489, _a489.Name):
+                                _rd489.add(_y489.id)
+                            elif isinstance(_y489, _a489.Attribute):
+                                _rd489.add(_y489.attr)
+            _jd489 = set()
+            _ch489 = True
+            while _ch489 and _rf489 is None:
+                _ch489 = False
+                for _f489 in _vl489:
+                    if _rf489 is not None:
+                        break
+                    _nm489 = str(_f489.get("name", ""))
+                    if id(_f489) in _jd489 or (_nm489 not in _rd489
+                                               and _nm489.rsplit("__", 1)[-1] not in _rd489):
+                        continue
+                    _jd489.add(id(_f489))
+                    _ch489 = True
+                    _sd489 = _dx489.get(_nm489, []) + [
+                        _q for _z489 in (_a489.walk(_t489) if _t489 is not None else [])
+                        if isinstance(_z489, _a489.ImportFrom)
+                        for _al489 in _z489.names if _al489.asname == _nm489
+                        and _al489.name != _nm489 for _q in _dx489.get(_al489.name, [])]
+                    if any(_q[0] == _mf489 for _q in _sd489):
+                        _sd489 = [_q for _q in _sd489 if _q[0] == _mf489]
+                    _st489 = _f489.get("symbol_table", {}) or {}
+                    for _ff489, _d489, _c489 in _sd489:
+                        if _rf489 is not None:
+                            break
+                        for _y489 in _a489.walk(_d489):
+                            if isinstance(_y489, _a489.Name):
+                                _rd489.add(_y489.id)
+                            elif isinstance(_y489, _a489.Attribute):
+                                _rd489.add(_y489.attr)
+                        # roots: name -> carrier ("c", classes) | ("k", None) a container
+                        _T489 = {}
+                        _ps489 = (list(_d489.args.posonlyargs) + list(_d489.args.args)
+                                  + list(_d489.args.kwonlyargs))
+                        _mt489 = _c489 is not None or _f489.get("kind") == "method"
+                        for _i489, _p489 in enumerate(_ps489):
+                            if _mt489 and _i489 == 0 and not any(
+                                    isinstance(_q, _a489.Name) and _q.id == "staticmethod"
+                                    for _q in _d489.decorator_list):
+                                if _d489.name != "__init__":
+                                    _T489[_p489.arg] = ("c", frozenset(
+                                        [_c489.name] if _c489 is not None else _ALL489))
+                                continue
+                            _an489 = _p489.annotation
+                            while isinstance(_an489, _a489.Subscript) and isinstance(
+                                    _an489.value, _a489.Name) and _an489.value.id == "Optional":
+                                _an489 = _an489.slice
+                            if isinstance(_an489, _a489.Constant) and isinstance(
+                                    _an489.value, str):
+                                try:
+                                    _an489 = _a489.parse(_an489.value, mode="eval").body
+                                except Exception:
+                                    _an489 = None
+                            _as489 = (_an489.id if isinstance(_an489, _a489.Name)
+                                      else _an489.attr if isinstance(_an489, _a489.Attribute)
+                                      else _an489.value.id if isinstance(_an489, _a489.Subscript)
+                                      and isinstance(_an489.value, _a489.Name)
+                                      else None)
+                            if _as489 in _SC489 or (isinstance(_an489, _a489.Constant)
+                                                    and _an489.value is None):
+                                continue
+                            if _as489 in _CT489:
+                                # a container of scalars dispatches to no program dunder
+                                _ea489 = (list(_an489.slice.elts) if isinstance(
+                                    _an489, _a489.Subscript) and isinstance(
+                                    _an489.slice, _a489.Tuple) else [_an489.slice]
+                                    if isinstance(_an489, _a489.Subscript) else [None])
+                                if all(isinstance(_q, _a489.Name) and _q.id in _SC489
+                                       or isinstance(_q, _a489.Constant) and _q.value is Ellipsis
+                                       for _q in _ea489):
+                                    continue
+                                _T489[_p489.arg] = ("k", None)
+                            elif _as489 in _cl489 and not isinstance(_an489, _a489.Subscript):
+                                _T489[_p489.arg] = ("c", frozenset([_as489]))
+                            else:
+                                _T489[_p489.arg] = ("c", _ALL489)
+                        for _p489 in (_d489.args.vararg, _d489.args.kwarg):
+                            if _p489 is not None:
+                                _T489[_p489.arg] = ("k", None)
+                        if not _T489:
+                            continue
+                        _pa489 = {}
+                        for _z489 in _a489.walk(_d489):
+                            for _y489 in _a489.iter_child_nodes(_z489):
+                                _pa489[_y489] = _z489
+                        # names bound from a root (an alias keeps the carrier, anything else
+                        # is a value of unknown class); a scalar-typed local is no root
+                        _ch2489 = True
+                        while _ch2489:
+                            _ch2489 = False
+                            for _z489 in _a489.walk(_d489):
+                                _vv489 = None
+                                _tg489 = []
+                                if isinstance(_z489, (_a489.Assign, _a489.AnnAssign,
+                                                      _a489.AugAssign)) and _z489.value is not None:
+                                    _vv489 = _z489.value
+                                    _tg489 = (list(_z489.targets) if isinstance(
+                                        _z489, _a489.Assign) else [_z489.target])
+                                elif isinstance(_z489, _a489.NamedExpr):
+                                    _vv489, _tg489 = _z489.value, [_z489.target]
+                                elif isinstance(_z489, (_a489.For, _a489.AsyncFor,
+                                                        _a489.comprehension)):
+                                    _vv489, _tg489 = _z489.iter, [_z489.target]
+                                elif isinstance(_z489, _a489.withitem) and \
+                                        _z489.optional_vars is not None:
+                                    _vv489, _tg489 = _z489.context_expr, [_z489.optional_vars]
+                                if _vv489 is None or not any(
+                                        isinstance(_q, _a489.Name) and _q.id in _T489
+                                        for _q in _a489.walk(_vv489)):
+                                    continue
+                                _cr489 = (_T489[_vv489.id] if isinstance(_vv489, _a489.Name)
+                                          and isinstance(_z489, (_a489.Assign, _a489.AnnAssign,
+                                                                 _a489.NamedExpr))
+                                          else ("c", _ALL489))
+                                for _y489 in _tg489:
+                                    for _w489 in _a489.walk(_y489):
+                                        if not isinstance(_w489, _a489.Name) or str(
+                                                _st489.get(_w489.id, "")) in _SC489:
+                                            continue
+                                        _o489 = _T489.get(_w489.id)
+                                        _n489 = (_cr489 if _o489 is None or _o489 == _cr489
+                                                 else ("c", _ALL489))
+                                        if _o489 != _n489:
+                                            _T489[_w489.id] = _n489
+                                            _ch2489 = True
+                        for _x489 in _a489.walk(_d489):
+                            if _rf489 is not None:
+                                break
+                            if not (isinstance(_x489, _a489.Name) and _x489.id in _T489):
+                                continue
+                            if not isinstance(_x489.ctx, _a489.Load) and not (
+                                    isinstance(_pa489.get(_x489), _a489.AugAssign)
+                                    and _pa489[_x489].target is _x489):
+                                continue
+                            _kd489, _cs2489 = _T489[_x489.id]
+                            _S489 = set()       # dunders run on the value (its classes)
+                            _A489 = set()       # dunders of another object run with it
+                            _E489 = _kd489 == "k"   # a container: S -> its elements
+                            _cu489 = _x489
+                            _why489 = None
+                            while True:
+                                _pp489 = _pa489.get(_cu489)
+                                if isinstance(_cu489, _a489.Name) and isinstance(
+                                        _pp489, _a489.AugAssign) and _pp489.target is _cu489:
+                                    _on489 = _BO489.get(type(_pp489.op).__name__, "")
+                                    if not _E489:
+                                        _S489.update(("__i" + _on489 + "__", "__" + _on489 + "__",
+                                                      "__r" + _on489 + "__"))
+                                        _A489.update(("__r" + _on489 + "__",))
+                                    break
+                                if isinstance(_pp489, _a489.Attribute) and _pp489.value is _cu489:
+                                    if isinstance(_pa489.get(_pp489), _a489.Call) and \
+                                            _pa489[_pp489].func is _pp489:
+                                        # an explicit method call: a lowered call (routes
+                                        # #316 / #317), except a container's comparing method
+                                        if _E489 and _pp489.attr in ("index", "count", "remove"):
+                                            _S489.update(_EQ489)
+                                            _A489.update(_EQ489)
+                                        elif _E489 and _pp489.attr == "sort":
+                                            _S489.update(_OR489)
+                                            _A489.update(_OR489)
+                                        _cs2489 = _ALL489
+                                        break
+                                    if not _E489:
+                                        _S489.update(("__getattr__", "__getattribute__") if
+                                                     isinstance(_pp489.ctx, _a489.Load) else
+                                                     ("__setattr__",) if isinstance(
+                                                         _pp489.ctx, _a489.Store)
+                                                     else ("__delattr__",))
+                                    if not isinstance(_pp489.ctx, _a489.Load):
+                                        break
+                                    # a field of a known class whose IR type is a scalar
+                                    _ft489 = {str(_q.get("type", "")) for _cn489 in (
+                                        _cs2489 if _cs2489 != _ALL489 else ())
+                                        for _td489 in (_ir489.get("type_decls", []) or [])
+                                        if isinstance(_td489, dict)
+                                        and _td489.get("name") == _cn489
+                                        for _q in (_td489.get("fields", []) or [])
+                                        if isinstance(_q, dict) and _q.get("name") == _pp489.attr}
+                                    if _ft489 and all(_q in _SC489 for _q in _ft489):
+                                        break
+                                    _cs2489 = _ALL489
+                                    _E489 = False
+                                    _cu489 = _pp489
+                                    continue
+                                if isinstance(_pp489, _a489.Subscript) and _pp489.value is _cu489:
+                                    if not _E489:
+                                        _S489.update(("__getitem__",) if isinstance(
+                                            _pp489.ctx, _a489.Load) else ("__setitem__",)
+                                            if isinstance(_pp489.ctx, _a489.Store)
+                                            else ("__delitem__",))
+                                    if not isinstance(_pp489.ctx, _a489.Load):
+                                        break
+                                    _cs2489 = _ALL489
+                                    _E489 = False
+                                    _cu489 = _pp489
+                                    continue
+                                if isinstance(_pp489, (_a489.keyword, _a489.Starred)):
+                                    if isinstance(_pp489, _a489.Starred) and not _E489:
+                                        _S489.update(_IT489)
+                                    _cu489 = _pp489
+                                    continue
+                                if isinstance(_pp489, _a489.Call) and _pp489.func is not _cu489:
+                                    _cn489 = (_pp489.func.id if isinstance(
+                                        _pp489.func, _a489.Name) else None)
+                                    if _cn489 in _irn489 or (_cn489 in _dx489 and _cn489 not in
+                                                             _BT489) or _cn489 in _cl489:
+                                        # a program function / class: its own frame (judged
+                                        # here when it is a `val`, or verified)
+                                        break
+                                    if _cn489 is None and isinstance(
+                                            _pp489.func, _a489.Attribute) and (
+                                            _pp489.func.attr in {_q.rsplit("__", 1)[-1]
+                                                                 for _q in _irn489}):
+                                        break
+                                    if _cn489 in _BT489:
+                                        _b489 = _BT489[_cn489]
+                                        if _cn489 in ("max", "min") and len(_pp489.args) >= 2 \
+                                                and _pp489.args[0] is _cu489 and not _E489:
+                                            # the first item: only the OTHER item's dunder is
+                                            # called with it (the reflected one on it)
+                                            _S489.update(("__lt__",) if _cn489 == "max"
+                                                         else ("__gt__",))
+                                            _A489.update(("__gt__",) if _cn489 == "max"
+                                                         else ("__lt__",))
+                                        elif _cn489 in ("max", "min") and len(_pp489.args) >= 2 \
+                                                and not _E489:
+                                            _S489.update(_OR489)
+                                            _A489.update(_OR489)
+                                        elif _E489:
+                                            _S489.update(_b489[2])
+                                            _A489.update(_b489[2])
+                                        else:
+                                            _S489.update(_b489[0])
+                                            _A489.update(_b489[1])
+                                        break
+                                    if _cn489 is None and isinstance(
+                                            _pp489.func, _a489.Attribute) and _pp489.func.attr in (
+                                            "append", "extend", "insert", "add", "appendleft",
+                                            "update", "setdefault", "get", "pop", "discard",
+                                            "remove", "index", "count", "copy", "join",
+                                            "format", "startswith", "endswith", "find"):
+                                        # an argument of a builtin container / str method:
+                                        # stored, looked up (hash / eq) or formatted
+                                        _S489.update(("__hash__",) + _EQ489 + _ST489
+                                                     + ("__index__",) + _IT489)
+                                        _A489.update(("__hash__",) + _EQ489)
+                                        break
+                                    _why489 = "an argument of `" + _a489.unparse(
+                                        _pp489.func)[:40] + "`"
+                                    break
+                                if isinstance(_pp489, _a489.Compare):
+                                    _ix489 = ([_pp489.left] + list(_pp489.comparators)).index(
+                                        _cu489)
+                                    for _j489, _op489 in enumerate(_pp489.ops):
+                                        if _j489 not in (_ix489 - 1, _ix489):
+                                            continue
+                                        _on489 = type(_op489).__name__
+                                        if _on489 in ("Is", "IsNot"):
+                                            continue
+                                        if _on489 in ("In", "NotIn") and _j489 == _ix489 - 1:
+                                            if _E489:
+                                                _S489.update(_EQ489)
+                                                _A489.update(_EQ489 + ("__hash__",))
+                                            else:
+                                                _S489.update(("__contains__",) + _IT489)
+                                                _A489.update(_EQ489)
+                                        elif _on489 in ("In", "NotIn"):
+                                            _S489.update(_EQ489 + ("__hash__",))
+                                            _A489.update(_EQ489 + ("__contains__",))
+                                        else:
+                                            _S489.update(_EQ489 if _on489 in ("Eq", "NotEq")
+                                                         else _OR489)
+                                            _A489.update(_EQ489 if _on489 in ("Eq", "NotEq")
+                                                         else _OR489)
+                                    break
+                                if isinstance(_pp489, _a489.UnaryOp):
+                                    if not _E489:
+                                        _S489.update(_UO489.get(type(_pp489.op).__name__, ()))
+                                    break
+                                if isinstance(_pp489, _a489.BinOp):
+                                    _on489 = _BO489.get(type(_pp489.op).__name__, "")
+                                    if not _E489:
+                                        _S489.update(("__" + _on489 + "__", "__r" + _on489 + "__"))
+                                        _A489.update(("__" + _on489 + "__", "__r" + _on489 + "__"))
+                                    if _on489 == "mod":
+                                        _S489.update(_ST489 + ("__index__", "__int__",
+                                                               "__float__"))
+                                    _cs2489 = _ALL489
+                                    _cu489 = _pp489
+                                    continue
+                                if isinstance(_pp489, _a489.BoolOp):
+                                    if not _E489:
+                                        _S489.update(("__bool__", "__len__"))
+                                    _cu489 = _pp489
+                                    continue
+                                if isinstance(_pp489, _a489.IfExp) and _pp489.test is not _cu489:
+                                    _cu489 = _pp489
+                                    continue
+                                if isinstance(_pp489, (_a489.If, _a489.While, _a489.IfExp,
+                                                       _a489.Assert)) or (
+                                        isinstance(_pp489, _a489.comprehension)
+                                        and _cu489 in _pp489.ifs):
+                                    if not _E489:
+                                        _S489.update(("__bool__", "__len__"))
+                                    break
+                                if isinstance(_pp489, _a489.FormattedValue):
+                                    _S489.update(("__repr__", "__format__") if _E489 else _ST489)
+                                    break
+                                if isinstance(_pp489, _a489.Subscript) and \
+                                        _pp489.slice is _cu489 or isinstance(_pp489, _a489.Slice):
+                                    _S489.update(("__index__", "__hash__") + _EQ489)
+                                    _A489.update(_EQ489)
+                                    break
+                                if isinstance(_pp489, (_a489.For, _a489.AsyncFor,
+                                                       _a489.comprehension)) and \
+                                        _pp489.iter is _cu489:
+                                    if not _E489:
+                                        _S489.update(_IT489)
+                                    break
+                                if isinstance(_pp489, (_a489.Assign, _a489.AnnAssign,
+                                                       _a489.NamedExpr)) and \
+                                        _pp489.value is _cu489:
+                                    if not _E489 and any(isinstance(_q, (_a489.Tuple, _a489.List,
+                                                                         _a489.Starred))
+                                                         for _q in (_pp489.targets if isinstance(
+                                                             _pp489, _a489.Assign)
+                                                             else [_pp489.target])):
+                                        _S489.update(_IT489)
+                                    break
+                                if isinstance(_pp489, _a489.AugAssign) and _pp489.value is _cu489:
+                                    _on489 = _BO489.get(type(_pp489.op).__name__, "")
+                                    if not _E489:
+                                        _S489.update(("__r" + _on489 + "__",))
+                                    _A489.update(("__i" + _on489 + "__", "__" + _on489 + "__"))
+                                    break
+                                if isinstance(_pp489, _a489.withitem):
+                                    if not _E489:
+                                        _S489.update(("__enter__", "__exit__", "__aenter__",
+                                                      "__aexit__"))
+                                    break
+                                if isinstance(_pp489, (_a489.Set, _a489.SetComp)) or (
+                                        isinstance(_pp489, _a489.Dict) and _cu489 in _pp489.keys) \
+                                        or (isinstance(_pp489, _a489.DictComp)
+                                            and _pp489.key is _cu489):
+                                    _S489.update(("__hash__",) + _EQ489)
+                                    _A489.update(("__hash__",) + _EQ489)
+                                    _cs2489 = _ALL489
+                                    _E489 = True
+                                    _cu489 = _pp489
+                                    continue
+                                if isinstance(_pp489, (_a489.List, _a489.Tuple, _a489.Dict,
+                                                       _a489.ListComp, _a489.GeneratorExp,
+                                                       _a489.DictComp)):
+                                    _cs2489 = _ALL489
+                                    _E489 = True
+                                    _cu489 = _pp489
+                                    continue
+                                if isinstance(_pp489, (_a489.Return, _a489.Expr, _a489.Delete,
+                                                       _a489.Yield, _a489.YieldFrom,
+                                                       _a489.Lambda)) or _pp489 is None:
+                                    if isinstance(_pp489, _a489.YieldFrom) and not _E489:
+                                        _S489.update(_IT489)
+                                    break
+                                if isinstance(_pp489, _a489.Await):
+                                    _S489.update(("__await__",))
+                                    break
+                                _why489 = "used as `" + _a489.unparse(_pp489)[:50] + "`"
+                                break
+                            # an unlisted position may run any dunder
+                            _dn489 = sorted({_q for _d in _du489.values() for _q in _d}
+                                            if _why489 is not None else _S489)
+                            _dA489 = sorted({_q for _d in _du489.values() for _q in _d}
+                                            if _why489 is not None else _A489)
+                            # the value's classes: the carrier, every subclass of it in
+                            # the program, and their program bases (the MRO a dunder is
+                            # resolved through)
+                            _cv489 = set(_cs2489)
+                            _gw489 = True
+                            while _gw489:
+                                _gw489 = False
+                                for _cn489 in _cl489:
+                                    if _cn489 not in _cv489 and _bs489.get(_cn489, set()) & _cv489:
+                                        _cv489.add(_cn489)
+                                        _gw489 = True
+                            _gw489 = True
+                            while _gw489:
+                                _gw489 = False
+                                for _cn489 in list(_cv489):
+                                    _nb489 = _bs489.get(_cn489, set()) & set(_cl489)
+                                    if not _nb489 <= _cv489:
+                                        _cv489 |= _nb489
+                                        _gw489 = True
+                            _hit489 = [(_cn489, _q) for _q in _dn489 for _cn489 in sorted(_cv489)
+                                       if _du489.get(_cn489, {}).get(_q, "pure") != "pure"] + [
+                                (_cn489, _q) for _q in _dA489 for _cn489 in sorted(_cl489)
+                                if _du489.get(_cn489, {}).get(_q, "pure") == "other"]
+                            if _hit489:
+                                _rf489 = (_f489, _x489.id, _ff489, _x489.lineno,
+                                          _hit489[0][0] + "." + _hit489[0][1],
+                                          _why489 or "`" + _a489.unparse(
+                                              _pa489.get(_cu489) or _cu489)[:50] + "`")
+    if _rf489 is not None:
+        from errors import PyCSLSemanticError as _PyCSLSemErr489
+        raise _PyCSLSemErr489(
+            f"PYCSL-R489-IMPLICIT-DUNDER: `{_rf489[0].get('name')}` is emitted as a bodyless "
+            f"`val` (`\\trusted`, `\\abstract` or imported) with no `#@ assigns`, so its "
+            f"caller-visible frame is INFERRED from its body, and `{_rf489[1]}` (line "
+            f"{_rf489[3]}) is used in {_rf489[5]}, which Python dispatches to the PROGRAM "
+            f"method `{_rf489[4]}` -- an implicit call the inferred frame does not see (that "
+            f"method is not `#@ assigns \\nothing`). Every caller would assume the argument "
+            f"UNCHANGED across the call (route #489; measured: `\\trusted def k(o): return "
+            f"len(o)` with a `__len__` writing `self.v` PROVED `o.v == 0` after `k(o)`, CPython "
+            f"returns 7; the same for `o == 1`, `if o:`, `o + 1`, `str(o)`, `o[0]`, `next(o)`, "
+            f"and through an imported un-marked def). Declare the callee's frame with `#@ "
+            f"assigns`, declare the dunder `#@ assigns \\nothing` if it writes nothing, or "
+            f"verify the function instead of trusting it.",
+            stage="ir-semantic", code="PYCSL-R489-IMPLICIT-DUNDER")
     return _mlw
 
 
