@@ -2886,6 +2886,101 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             elif isinstance(_r200_n, (list, tuple)):
                 _r200_stack.extend(_r200_n)
 
+    # (#49) gen #40, ROUTE #474 RESIDUAL (driver run #3, executor f2; MEASURED PROVED on
+    # 8855b6b10: `from h import K` folded `K = 1` into `#@ ensures \\result == 1` while a PEER
+    # module of the program did `import h; h.K = 0` -- or a package `__init__` did `from .
+    # import sub; sub.K = 0`, or `setattr(h, "K", 0)` -- and CPython returned 0; route #466's
+    # real import run, which sees it, only runs under `no_exception`). A dependency constant
+    # copied into this file's `module_constants` (frontend/ir_resolve.py's propagation, which
+    # reads only the DEPENDENCY's own bindings) is a WHOLE-PROGRAM fact: RULE (allow-list,
+    # flow-insensitive): it stays folded only when NO module of the program -- this file, the
+    # modules its imports resolve to, transitively, and every package `__init__` on their
+    # dotted paths -- stores or deletes an attribute of that name (any receiver, at any depth;
+    # the names of a `from M import K as J` alias chain are one name) or holds a namespace
+    # writer (`setattr`, `delattr`, `vars`, `globals`, `exec`, `eval`, `__import__`,
+    # `.__dict__`, `.modules`). Otherwise the fold is DROPPED: the importer sees the opaque
+    # `val constant` (sound; a claim that needs the value is NOT PROVED, route #325 refuses an
+    # opaque int under `no_exception`). Inline; `_run_pipeline`'s mirror twin is `\\trusted`.
+    if (ir_data.get("module_constants") or {}):
+        import ast as _a474w
+        import sys as _s474w
+        from frontend.ir_resolve import _resolve_module_path as _rmp474w
+        try:
+            _t474w = _a474w.parse(source_code)
+        except SyntaxError:
+            _t474w = None
+        _dep474w = {}           # local name -> {names of its alias chain}
+        for _z474w in (_a474w.walk(_t474w) if _t474w is not None else []):
+            if isinstance(_z474w, _a474w.ImportFrom):
+                for _al474w in _z474w.names:
+                    if _al474w.name != "*" and (_al474w.asname or _al474w.name) in ir_data[
+                            "module_constants"]:
+                        _dep474w.setdefault(_al474w.asname or _al474w.name, set()).update(
+                            {_al474w.name, _al474w.asname or _al474w.name})
+        if _dep474w:
+            _mf474w = str(getattr(args, "file", "") or "")
+            _fq474w = [(_mf474w, _t474w)]
+            _sn474w = set()
+            _wa474w = set()     # attribute names stored / deleted anywhere in the program
+            _ed474w = []        # alias edges (asname, name) of every from-import of the program
+            _nw474w = None      # the first namespace writer seen
+            while _fq474w and len(_sn474w) < 200:
+                _ff474w, _tt474w = _fq474w.pop(0)
+                if _ff474w in _sn474w:
+                    continue
+                _sn474w.add(_ff474w)
+                if _tt474w is None:
+                    try:
+                        _tt474w = _a474w.parse(open(_ff474w, "rb").read())
+                    except Exception:
+                        # a program module the verifier cannot read: no fact about it
+                        _nw474w = _nw474w or f"{_ff474w} (unreadable)"
+                        continue
+                for _z474w in _a474w.walk(_tt474w):
+                    if (isinstance(_z474w, _a474w.Attribute)
+                            and isinstance(_z474w.ctx, (_a474w.Store, _a474w.Del))):
+                        _wa474w.add(_z474w.attr)
+                    elif (isinstance(_z474w, _a474w.Attribute)
+                          and _z474w.attr in ("__dict__", "modules")):
+                        _nw474w = _nw474w or f"{_ff474w}: `.{_z474w.attr}`"
+                    elif (isinstance(_z474w, _a474w.Name) and _z474w.id in (
+                            "setattr", "delattr", "vars", "globals", "exec", "eval",
+                            "__import__")):
+                        _nw474w = _nw474w or f"{_ff474w}: `{_z474w.id}`"
+                    _mq474w = []
+                    if isinstance(_z474w, _a474w.Import):
+                        _mq474w = [(_al.name, 0) for _al in _z474w.names]
+                    elif isinstance(_z474w, _a474w.ImportFrom):
+                        _ed474w.extend((_al.asname or _al.name, _al.name)
+                                       for _al in _z474w.names)
+                        _mq474w = [(_z474w.module or "", _z474w.level or 0)] + [
+                            (((_z474w.module + ".") if _z474w.module else "") + _al.name,
+                             _z474w.level or 0) for _al in _z474w.names if _al.name != "*"]
+                    # every package on a dotted path runs its `__init__` first
+                    _mq474w = _mq474w + [(".".join(_mn.split(".")[:_i]), _lv)
+                                         for _mn, _lv in _mq474w
+                                         for _i in range(1, _mn.count(".") + 1)]
+                    for _mn474w, _lv474w in _mq474w:
+                        if _lv474w == 0 and (not _mn474w or _mn474w.split(".")[0] in
+                                             _s474w.stdlib_module_names):
+                            continue
+                        try:
+                            _rp474w = _rmp474w(_mn474w, _lv474w, _ff474w)
+                        except Exception:
+                            _rp474w = None
+                        if _rp474w and _rp474w not in _sn474w:
+                            _fq474w.append((_rp474w, None))
+            for _lc474w, _ns474w in sorted(_dep474w.items()):
+                # the alias chain, both directions, by name (flow- and module-insensitive)
+                _ch474w = True
+                while _ch474w:
+                    _ch474w = False
+                    for _a1, _a2 in _ed474w:
+                        if (_a1 in _ns474w) != (_a2 in _ns474w):
+                            _ns474w.update((_a1, _a2))
+                            _ch474w = True
+                if _nw474w is not None or (_ns474w & _wa474w):
+                    ir_data["module_constants"].pop(_lc474w, None)
     # 07-1143 R4: the Soundness Ledger is a provenance view of the fully-resolved IR
     # (after imports/inheritance/composition), so it runs here and short-circuits before
     # WhyML emission / proving.
@@ -25352,9 +25447,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _sl468[_rp468] = _rb468.decode("utf-8", "replace").splitlines()
                             except Exception:
                                 pass
-        # an EXPLICIT `#@ \\trusted` def (its own `#@` block; here or in its module) is a
-        # declared assumption, like its contract (the trusted surface's frames are
-        # route #316 / check-trusted-frame-honesty's ledger): not judged here
+        # ROUTE #481 (driver run #3): an EXPLICIT `#@ \\trusted` def is judged like every other
+        # bodyless `val`. Its user trusts the CONTRACT; the length-keeping frame is the TOOL's
+        # (route #317's inferred `writes { x }`, or a declared `#@ assigns x`, which Why3's
+        # immutable `array` length turns into "the length is kept" just the same) -- measured:
+        # a same-file `\\trusted` `k(xs)` doing `xs.append(1)` with `k(xs); return len(xs)`
+        # PROVED `\\result == \\old(len(xs))`, CPython 1. One rule for every bodyless boundary
+        # (imported, `\\trusted` here or in its module, `\\abstract`, a method): the body must
+        # keep each list parameter's length (verified callees: route #49, in Module 6)
         # the names the VERIFIED code of this file reads (a call, a value, a method tail):
         # a `val` nothing verified here calls cannot make a caller's length wrong
         if _rd468 is None:
@@ -25379,7 +25479,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         if any(_q[0] == _mf468 for _q in _sd468):
             _sd468 = [_q for _q in _sd468 if _q[0] == _mf468]
         _sd468 = [_q[1] for _q in _sd468]
-        for _d468 in [_q for _q in _sd468 if id(_q) not in _tr468]:
+        for _d468 in _sd468:
             _wk468 = [(_q, _d468, None) for _q in _d468.body]
             while _wk468 and _rf468 is None:
                 _x468, _pn468, _pk468 = _wk468.pop()
@@ -25478,7 +25578,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"not mutable, so every caller would keep `len({_rf468[1]})` unchanged across the "
             f"call (route #468; measured: an imported un-contracted `def g(x): x.append(1)` "
             f"with `g(a); return len(a)` PROVED `\\result == 2`, CPython returns 3; the same "
-            f"with `#@ assigns x` and through a same-file `\\abstract`). Route #49 refuses the "
+            f"with `#@ assigns x` and through a same-file `\\abstract`; route #481: a same-file "
+            f"`\\trusted` def is no exception -- its user trusts the contract, not a length the "
+            f"tool infers). Route #49 refuses the "
             f"same mutators on a list parameter of a verified body. Write only the list's "
             f"elements in the callee (`x[i] = v`), or drop the length change from it.",
             stage="ir-semantic", code="PYCSL-R468-VAL-LIST-LENGTH")

@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #481 REPAIRED + #474 RESIDUAL closed (executor f2 off 8855b6b10; inline in `_run_pipeline`, mirror twin
+##   `\trusted`, no new def, no axiom). #481: route #468's bodyless-`val` length allow-list now judges an EXPLICIT `\trusted` def
+##   too (inferred or declared frame alike; one rule for imported / `\trusted` / `\abstract` / methods; verified callees stay
+##   route #49's) -- PYCSL-R468-VAL-LIST-LENGTH; boundary-kind table in route481; corpus 7560-7564 (FAIL), controls 7565-7567.
+##   #474 residual: a dependency constant stays folded only if NO module of the program's import closure (package `__init__`s
+##   included) stores / deletes an attribute of its name or holds a namespace writer; else the fold is dropped (opaque, no
+##   refusal); composes with x3's per-dependency guard. Corpus 7570-7572 (FAIL), controls 7573 / 7574. annotations 7.340 / 7.341.
+##   Byte-diff root / pyref / mirror 0 MOVED / 0 GONE.
+
 ## run #3 (2026-10-30): #488 OPENED (dx1, Gate S of the cross-mixin-declaration-stubs wall; runtime-witnessed): ghost-handler-false-frames:
 ##   30 verified mirror ghost handlers prove `assigns \nothing` only because the trusted `_e` declarations they call understate
 ##   their definitions' frames; the live `_handle_has_key_expr` writes `self._abstract_ops`. Severity 2 (no consuming proof known).

@@ -4013,6 +4013,41 @@ whose body is itself admitted, `del` of a bound name, `type X = ..`. Anything el
 `__init__` with a `return <expr>` other than `None`, a `yield`, or `async` is REFUSED under any claim in
 the file (`PYCSL-R462-INIT-RETURNS-VALUE`). Witnesses `7130`-`7150`; controls `7151`, `7152`.
 
+### 7.340 A `\trusted` def's list parameter keeps its length only if its body does (route #481, run #3)
+
+A same-file (or imported) `#@ \trusted` function is emitted as a bodyless `val`; with no `#@ assigns` its
+frame is route #317's INFERRED `writes { xs }`, and a Why3 `array`'s length is immutable under `writes`, so
+`k(xs); return len(xs)` kept the entry length while the trusted body appended (`\result == \old(len(xs))`
+PROVED, CPython 1 for `f([])`). The user trusts the CONTRACT, not a length the tool infers; a declared
+`#@ assigns xs` lowers to the same length-keeping `writes { xs }`. RULE: §7.282's allow-list now judges an
+explicit `#@ \trusted` def too, exactly as an imported or `\abstract` one -- one rule for every bodyless
+boundary. Boundary kinds checked (witness REFUSED or not proved, store-only control still PROVED): same-file
+`\trusted` with no `assigns`, with `assigns xs`, with `assigns \nothing`, with no `ensures`; a `\trusted`
+METHOD's list parameter; an imported `\trusted` def; a `\trusted` def returning its argument after `+=`;
+`\abstract` (already §7.282); verified callees -- plain, recursive, `#@ interface`, `#@ no_inline` -- (route
+#49's Module 6 refusal); `heapq` / `bisect` mutators (route #162). Refusal: `PYCSL-R468-VAL-LIST-LENGTH`.
+Witnesses `7560`-`7564` (PROVED at base, REFUSED); controls `7565`-`7567`. Not covered: a list FIELD written
+by a bodyless method (`self.xs.append`), §7.282's residual.
+
+### 7.341 A dependency constant folds only if no module of the program writes it (route #474 residual, run #3)
+
+`from h import K` copies the dependency's `K = 1` into the importer's `module_constants`, and the importer
+folds `K` to `1` -- a fact about `h` alone. Under an `ensures`-only claim (route #466's real import run only
+happens under `no_exception`) a PEER module of the program doing `import h; h.K = 0`, a package `__init__`
+doing `from . import sub; sub.K = 0`, or `setattr(h, "K", 0)` left the fold in place: `\result == 1`
+PROVED, CPython 0. RULE (allow-list, flow-insensitive, no refusal): a folded dependency constant stays folded
+only when NO module of the program -- this file, every module its imports resolve to, transitively, and every
+package `__init__` on their dotted paths -- stores or deletes an attribute of that name (any receiver, any
+depth; the names of a `from M import K as J` alias chain count as one) or holds a namespace writer (`setattr`,
+`delattr`, `vars`, `globals`, `exec`, `eval`, `__import__`, `.__dict__`, `.modules`). Otherwise the fold is
+dropped and the importer sees the opaque `val constant` (a claim that needs the value is NOT PROVED; route
+#325 refuses an opaque int under `no_exception`). Code: `_run_pipeline`, before the IR is serialized;
+it composes with route #474's per-dependency binding-site guard in `frontend/ir_resolve.py` (both must
+pass). Witnesses `7570`-`7572` (PROVED at base, NOT PROVED); controls `7573` / `7574`. Conservative: a peer
+FUNCTION that writes `h.K` after the importer bound `K` drops the fold although CPython's from-import read
+`1` (NOT PROVED, honest). Not covered: a module OUTSIDE the program's import closure (one that imports this
+file as a library) -- the same modular assumption as this file's own constants.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
@@ -4069,8 +4104,8 @@ and a Why3 `array`'s length is immutable: `len(a)` after `g(a)` kept the entry l
 popped / cleared / `+=` / sliced / `heappush`-ed / `insort`-ed / aliased / closed over the list (34 spellings
 PROVED `\result == 2`, CPython 3 or 1). RULE (allow-list, refuse by default, no claim needed): each list
 (or `bytearray`) parameter of such a `val` that the VERIFIED code of this file references (a call, a value, a
-method tail) and that is not itself declared `#@ \trusted` (an explicit trust, like its contract: the trusted
-surface's frames are check-trusted-frame-honesty's ledger) must be LENGTH-PRESERVED by the function's SOURCE body (this file and the modules it
+method tail) -- an explicit `#@ \trusted` def included since route #481 (§7.340) --
+must be LENGTH-PRESERVED by the function's SOURCE body (this file and the modules it
 imports): it occurs only as an element store `x[i] = v` / element or slice read, the argument of a builtin that
 does not mutate it (`len`, `sorted`, `sum`, `min`, `max`, `list`, `tuple`, `set`, `enumerate`, `zip`, ...), an
 operand of a comparison or of a fresh-list `+` / `*`, the iterable of a loop, the returned value, or the receiver of `sort()` /

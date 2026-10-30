@@ -1,5 +1,5 @@
 # OPEN ROUTE #474 — IMPORTED MODULE CONSTANT FOLDED FROM A FLOW-INSENSITIVE, ASSIGN-ONLY SCAN OF THE DEPENDENCY
-**Status: PARTIAL (executor x3, driver run #3, 2026-10-30): all 25 witnesses closed; residual named below), Severity 1.** Red-team round 39 (2026-10-29, on d6abee90b after #463-#473: 918 probes + 1064 mode re-proofs / 141 confirmed (probe, mode) pairs; rt38's 142 counted all closed). Census TSV `scratchpad/rt39/census.tsv`; the family block below is quoted from `scratchpad/rt39/FINDINGS.txt`.
+**Status: REPAIRED (executor x3 + residual by executor f2, driver run #3, 2026-10-30; rt40 found further dependency-write channels, opened as #483 / #484), Severity 1.** Red-team round 39 (2026-10-29, on d6abee90b after #463-#473: 918 probes + 1064 mode re-proofs / 141 confirmed (probe, mode) pairs; rt38's 142 counted all closed). Census TSV `scratchpad/rt39/census.tsv`; the family block below is quoted from `scratchpad/rt39/FINDINGS.txt`.
 Witnesses `witnesses-r474/` (25): `g42_c950_aug_mul_zero.py`, `g42_c954_tuple_unpack.py`, `g42_c962_if_rebind.py`, `g42_c963_try_rebind.py`, `g46_k1300_x_floordiv_aug.py`, `g46_k1301_x_and_aug.py`, `g46_k1302_x_rshift_aug.py`, `g46_k1303_x_xor_aug.py`, `g46_k1304_x_sub_aug.py`, `g46_k1305_x_mod_aug.py`, `g46_k1307_x_single_unpack.py`, `g46_k1308_x_list_unpack.py`, `g46_k1310_x_if_else_arm.py`, `g46_k1315_x_try_finally.py`, `g46_k1316_x_try_else.py`, `g46_k1317_x_nested_if.py`, `g46_k1318_x_mul_aug_expr.py`, `g49_j1703_str_const_aug.py`, `g49_j1704_str_const_if.py`, `g49_j1705_str_const_index.py`, `g49_j1708_const_requires_discharge.py`, `g51_e1901_const_in_ensures.py`, `g51_e1906_const_aliased_import.py`, `g51_e1908_const_in_pkg_init.py`, `g51_e1909_const_in_submodule.py`.
 
 Driver repro: `scratchpad/rp39/repro.sh` (session scratchpad) on d6abee90b, 2026-10-29T23:41Z: all 16 rt39 verify exemplars (2+ per family) rc=0 Verification SUCCESS and CPython breaches, reproduced by the driver.
@@ -35,3 +35,31 @@ from ANOTHER program module -- `import h; h.K = 0` in a peer module the importer
 `no_exception` both are refused by #466 (the attribute store is not on its allow-list). Probes
 `scratchpad/x3/res/rx5_peer_mutates_ens.py`, `rx6_init_mutates_sub_ens.py` (executor scratchpad). Closing it
 needs a whole-program fact (no module of the program writes `h.K`), e.g. #466's real import run claim-free.
+
+## Residual repair (executor f2, driver run #3, 2026-10-30, off 8855b6b10; annotations §7.341)
+
+The residual x3 named (cross-module mutation under an `ensures`-only claim) is closed by a WHOLE-PROGRAM fact, in a
+different place from x3's per-dependency guard so the two compose: inline in `_run_pipeline` (pycsl.py, just
+before the resolved IR is serialized; mirror twin `\trusted`, no new def, no axiom, NO refusal), every constant
+the importer received from a `from M import K [as J]` (frontend/ir_resolve.py's `module_constants` propagation --
+where x3's binding-site guard lives) is DROPPED from `module_constants` unless no module of the program -- this
+file, every module its imports resolve to, transitively, and every package `__init__` on their dotted paths --
+stores or deletes an attribute named K (any receiver, any depth; an alias chain `from M import K as J` counts as
+one name) or holds a namespace writer (`setattr`, `delattr`, `vars`, `globals`, `exec`, `eval`, `__import__`,
+`.__dict__`, `.modules`). A dropped fold leaves the opaque `val constant` (NOT PROVED for a claim needing the
+value; route #325 refuses an opaque int under `no_exception`). Composition with x3's 8452f83ce: x3 decides
+whether the DEPENDENCY's own text binds K once (ir_resolve.py, at the copy); this block decides whether the rest
+of the PROGRAM writes it (pycsl.py, after the copy); a fold survives only when both pass. No textual overlap
+(x3's pycsl.py hunks are inside route #466's run, ~line 24241 / 24642; this block is at ~line 2889).
+
+Probes (`scratchpad/f2/p474/`, session scratchpad): `rx5_peer_mutates_ens` / `rx6_init_mutates_sub_ens` (x3's,
+copied with their helpers) and `rx9_peer_setattr`: PROVED at base 8855b6b10 (the same fold, `K = 1`, since x3's
+guard is not on main and would not catch them anyway), NOT PROVED now. `rx7` (`import h; h.K` read: not folded at
+base) and `rx10` (alias chain through a second module: not folded at base) NOT PROVED at both. Controls `cx1`
+(no writer) / `cx2` (package `__init__` that only imports `sub`) PROVED at both. Corpus `7570`-`7572` (PROVED at
+base, NOT PROVED), controls `7573` / `7574`.
+RESIDUALS: flow-insensitive -- a peer FUNCTION writing `h.K` that runs after the importer's from-import bound `K`
+drops the fold although CPython read 1 (`rx8`; refused at base by an older rebinding guard anyway); a module
+OUTSIDE the program's import closure that writes `h.K` (e.g. one that imports this file as a library) is not
+seen -- the same modular assumption as this file's own constants; the folds inside a `--deep` dependency's own IR were not examined.
+
