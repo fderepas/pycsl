@@ -54,3 +54,67 @@ B2: one to two days of careful work in the reviewer's estimate -- this run attem
 box ends first, B0 + B1 land alone (soundness hygiene, \trusted unchanged) and B2-B4 are the recorded next step.
 Expected verdict: BROKEN (narrow): -24 (or -18 after B3) markers gross, -3 TCB net, ONLY with B2 green; otherwise
 CERTIFIED-BOUNDARY for B4 with B0 + B1 landed.
+
+## 5. Gate S result (executor dx1, 2026-10-30) — REFUTED for the opaque-`self` rows; NO BUILD
+
+Tree `a9e1f2e13`. R1 applied in the executor tree with dc1's `sync_decl_frames.py` (each declaration's `#@ assigns`
+replaced by / given its definition's line verbatim) for the 12 STRONGER rows 1, 2, 3, 7, 9, 10, 11, 12, 13, 20, 23, 24.
+Emit (`--no-proof --keep-mlw`, through heavy.sh) base vs candidate of the five files:
+
+| file | candidate | `.mlw` diff vs base | verdict |
+|---|---|---|---|
+| `expr_ghost_collections.py` (row 1) | **L3-tc ✗** | — | **REFUTED**: `let ghostcollectionopsmixin___handle_append_expr ... writes { }` applies `self__e_2`, which now `writes { _pyobj_state }` -> Why3 "this expression depends on variable _pyobj_state, which is left out in the specification" |
+| `expr_ghost_spec_ops.py` (rows 2, 3) | **PIPELINE ERROR [ir-semantic]** | — | **REFUTED**: `'ghostspecopsmixin___handle_mktuple_expr' calls 'self._e', which WRITES ..., inside a comprehension ... PyCSL lowers OPAQUELY` |
+| `stmt_control_flow.py` (rows 20, 23, 24) | L3-tc ✓ | 10 lines (`self__match_pattern_cond_3` gains a receiver + 12-field `writes`; `self__expr_to_whyml_2` +3 fields; 2 dependent `writes`; 1 call site) | whole-file proof (HEAVY_LOW, candidate): rc=0, **14817 Valid / 0 non-Valid**, `Verification SUCCESS` (13546 s incl. the non-vacuity gate; 2 vacuity call-site probes `could not be checked` for `_handle_if_stmt` / `_handle_return_stmt`, a warning, not compared to a base run) -> **PASS** |
+| `statements.py` (rows 7, 9-13) | L3-tc ✓ | 3 lines, all a `writes` added to an UNAPPLIED bodyless `val` (`statementemissionmixin___e`, `___expr_to_whyml_string_ctx`, `___track_collection_metadata`; each symbol occurs once in the `.mlw`) | whole-file proof NOT run: the ~2 h 20 m+ LOW-slot proof could not finish inside the box after the 3 h 46 m `stmt_control_flow` run. The emission change touches no applied symbol, so no VC is expected to change — an expectation, NOT a proof |
+| `expressions.py` | L3-tc ✓ | 0 lines | unchanged |
+
+**What depended on the narrow frame (rows 1-3).** Not a VC: the *frame* of 30 VERIFIED handlers. In both ghost files
+`self` is opaque (`type ghost*mixin = int`); every `_handle_*` handler that calls `self._e` / `self._expr_to_whyml_string_ctx`
+is verified with `#@ assigns \nothing` (21 in `expr_ghost_collections.py`, 9 in `expr_ghost_spec_ops.py`). Their emitted
+`writes { }` type-checks ONLY because the declaration `assigns \nothing` makes the avatar frameless. With the definition's
+frame the avatar writes the coarse `_pyobj_state` and Why3 rejects the callers' empty `writes`. So today the mirror
+certifies 30 `assigns \nothing` frames that rest on an understated `\trusted` declaration.
+
+**Runtime witness (live code, not the over-approximated definition frame).** `/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/dx1/witness/frame_witness.py` (programs `w1`-`w8`, `x1`-`x6` beside it)
+wraps every live `GhostCollectionOpsMixin` / `GhostSpecOpsMixin` `_handle_*` method, fingerprints `vars(self)` before and
+after each call, and runs the live pipeline (`--no-proof`) on a small program. With
+`#@ ensures \has_key(\result, abs(a[0])) ==> \has_key(\result, abs(a[0]))` (also `max(a)`, `sum(a)`), the live
+`_handle_has_key_expr` WRITES `self._abstract_ops`; with `int(s)` it writes `self._uses_const_reflect_cache`. The mirror's
+verified `_handle_has_key_expr` claims `assigns \nothing`. (The witness programs themselves fail L3-tc —
+`unbound ... 'abs_conv'` — which is a separate, uninvestigated observation: an abstract op registered while a ghost
+handler emits a spec operand does not reach the module. The write itself is what the witness shows.)
+Controls: on corpus 0295 / 0312 / 0785 / 0786 the wrapped handlers run and write nothing (hits=0).
+
+**Model-visibility.** The handlers are dispatched by name (`Module6_WhyMLTranspiler.py` dispatch table), not through an
+avatar, so no other mirror proof is known to consume these 30 frames: a FALSE PROVED CONTRACT CLAUSE, not (yet) a false
+proof of a consumed fact. Escalated as an open route (below).
+
+**Repair cost, spiked (scratch copies, `--no-proof`).** (i) `expr_ghost_collections.py`: also widening the 21 callers'
+`assigns \nothing` to the definition's frame -> L3-tc ✓ (23 `writes { _pyobj_state }`); honest, but it WEAKENS 21
+verified contracts to their true frame and owes a whole-file proof. (ii) `expr_ghost_spec_ops.py`: widening the callers
+does not help — `_handle_mktuple_expr` (`", ".join([self._e(e, lr) for e in node.elts])`, verbatim live) is refused
+by the opaque-comprehension write rule; it needs either a re-trust (+1 marker) or a comprehension lowering that applies
+the call per element.
+
+**Correction to the report (§5.1) / review (§5.3).** On this tree the `requires_method _seq_operand` window is NOT
+understated: the mirror definition `statements.py:_seq_operand` is VERIFIED (not `\trusted`), declares 21 fields, all
+inside the window's 22, and has NO `raises` clause. There is nothing to widen. (Also: the Weaver's window accepts only
+`requires` / `ensures` / `assigns`; a `raises` line closes the window and becomes the enclosing method's own clause.)
+
+**Open route (escalated), replaces B1 for rows 1-3:** "ghost-handler false frames": 30 verified `_handle_*` methods in
+the two opaque-`self` ghost files prove `assigns \nothing` only via the understated `_e` / `_expr_to_whyml_string_ctx`
+declarations; the live `_handle_has_key_expr` writes `self._abstract_ops` (witness). Fix = R1 for rows 1-3 TOGETHER with
+honest caller frames (collections: spiked L3-tc ✓) and a decision for `_handle_mktuple_expr` (re-trust, or a modelled
+comprehension). Then B0-B4 as planned.
+
+**Gate S verdict: REFUTED** (refutation exit taken; B0-B4 NOT built, no mirror file changed, `\trusted` 436 lines /
+408 markers unchanged). Of the four files whose emission R1 changes: `expr_ghost_collections.py` and
+`expr_ghost_spec_ops.py` no longer type-check / pass semantics (the narrow `_e` / `_expr_to_whyml_string_ctx` frames are
+load-bearing for 30 verified frames, runtime-witnessed false for `_handle_has_key_expr`); `stmt_control_flow.py` PASSES
+(rows 20, 23, 24: the four verified control-flow callers are unaffected, as O9 predicted); `statements.py` not proved.
+Candidate patches: `/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-ab54-21d812c2f0f2/scratchpad/dx1/gateS_full_R1.patch`
+(all 12 rows) and `.../dx1/gateS_R1_nonghost.patch` (rows 7, 9-13, 20, 23, 24 only). A coordinator MAY re-scope B1 to the
+non-ghost rows (Gate-S-green for `stmt_control_flow.py`; `statements.py` proof owed); that is a plan change, not taken here.
+Next step after the ghost route: R0/B0 as planned, then R2a, with R2b (generated Why3 clone-refinement units) recorded as
+the step after.
