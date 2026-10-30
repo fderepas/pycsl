@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-30): #481 OPENED (executor d1's residual, driver-reproduced on d6abee90b): trusted-default-frame-list-length (1 +
+##   control): a same-file `\trusted` function without `assigns` that appends to a list argument gets the inferred `writes { xs }`,
+##   which keeps `Array.length xs`; the caller proves `\result == \old(len(xs))` while CPython returns 1 (route #49 / #468 class).
+
 ## run #3 (2026-10-29): #474-#480 OPENED (red team 39 on d6abee90b: 918 probes + 1064 mode re-proofs / 141 confirmed;
 ##   rt38's 142 counted all closed): #474 imported-constant-flow-insensitive (25); #475 dependency-encoding-cookie (10); #476 script-order-redefinition (8); #477 module-getattr-import (3); #478 typed-store-list-augassign (15); #479 ellipsis-ternary-test (7); #480 builtin-objects-as-ints (58).
 ##   Diagnosis: dependency analysis by a second, weaker reader (F1 F2 F4: constants, encoding, __getattr__), script-order
