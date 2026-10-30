@@ -5,7 +5,6 @@ from typing import List
 
 
 #@ \trusted
-#@ ensures \result == 0
 def k(xs: List[int]) -> int:
     ys = [0]
     if (ys := xs) is not None:

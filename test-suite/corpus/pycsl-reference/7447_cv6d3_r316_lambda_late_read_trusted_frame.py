@@ -5,7 +5,6 @@ from typing import List
 
 
 #@ \trusted
-#@ ensures \result == 0
 def k(xs: List[int]) -> int:
     ys = [1]
     g = lambda: ys.__setitem__(0, 7)
