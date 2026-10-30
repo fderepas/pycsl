@@ -805,6 +805,10 @@ AUDITED = {
         "Route #461. 'Rewrite the statement so that it cannot raise (use a non-zero divisor ... `field(default_factory=list)` for a mutable dataclass default ...), or move the computation into a function of the module, where it is verified with the rest': witness 7137's `X = 1 // 0` rewritten `X = 1 // 1` (a461_made_exception_free) VERIFIES under `no_exception \\all`; the computation moved into `compute_x(d)` with `#@ requires d != 0` (a461_moved_into_function) VERIFIES; witness 7147's `xs: List[int] = []` rewritten `field(default_factory=list)` (a461_class_made_exception_free) VERIFIES."),
     ('src/pycsl/pycsl.py', '_PyCSLSemErr461(f"\'{_rf462[1]}.__init__\' line {_rf462[0]}: `__init__` can return a value other than None (a `return <expr>`, a `yield`, an `'): (FOLLOWABLE,
         "Route #462. 'Drop the returned value from `__init__` (use a bare `return` or `return None`)': witness 7150 with `return n` dropped (a462_return_nothing) VERIFIES under `no_exception \\all`; control 7152 (a bare `return` and `return None`) VERIFIES."),
+    # (#49) driver run #3 -- route #475 (x3, red team 39). Probe in
+    # getting-better/open-routes/witnesses-r475/advice/.
+    ('src/pycsl/frontend/ir_resolve.py', 'PyCSLSemanticError(f"the module `{\'.\' * level}{module_dotted}` resolves to {hit}, but {_er475}, so the module CPython runs is not the module'): (FOLLOWABLE,
+        "Route #475. 'Save the module as UTF-8 and drop (or correct) its coding cookie': witness 7461's latin-1 helper re-saved as UTF-8 with a `utf-8` cookie (getting-better/open-routes/witnesses-r475/advice/a475_saved_as_utf8.py + x3_ha475.py) VERIFIES `ensures \\result == 1`; controls 7463 (utf-8 cookie, non-ASCII) and 7464 (latin-1 cookie over ASCII text) VERIFY."),
     # (#49) driver run #3 -- route #465 (x2, red team 38). Probes in
     # getting-better/open-routes/witnesses-r465/advice/.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr465(f"{_er465}, so the module never runs and none of its functions can be called as verified (route #465; measured: `def f(n): g'): (FOLLOWABLE,
@@ -1173,6 +1177,8 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}, so IMPORTING this module raises (or runs code the verifier does not judge) before any of its functions can ru'): '1af5865820ca',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}. An imported function is a bodyless stub whose body is never verified here, so a claim reaching it would be pr'): '56d160fd38ce',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr466(f"{_rf466[1]}, while it claims `#@ no_exception` (route #466; measured: `import h; h.g(n)` with `g` bound only under `if Fal'): 'a2c8af7db38d',
+    # (#49) driver run #3 -- route #475 (x3)
+    ('src/pycsl/frontend/ir_resolve.py', 'PyCSLSemanticError(f"the module `{\'.\' * level}{module_dotted}` resolves to {hit}, but {_er475}, so the module CPython runs is not the module'): '82c6c543f5fe',
     # (#49) driver run #3 -- route #465 (x2)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr465(f"{_er465}, so the module never runs and none of its functions can be called as verified (route #465; measured: `def f(n): g'): 'af209af0e63c',
     # (#49) driver run #3 -- routes #476 / #478 (m2)
