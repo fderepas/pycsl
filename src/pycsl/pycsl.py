@@ -28177,6 +28177,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     and _pa489[_x489].target is _x489):
                                 continue
                             _kd489, _cs2489 = _T489[_x489.id]
+                            if _cs2489 is None:
+                                _cs2489 = _ALL489
                             _S489 = set()       # dunders run on the value (its classes)
                             _A489 = set()       # dunders of another object run with it
                             _E489 = _kd489 == "k"   # a container: S -> its elements
