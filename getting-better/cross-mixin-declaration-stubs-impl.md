@@ -91,7 +91,8 @@ avatar, so no other mirror proof is known to consume these 30 frames: a FALSE PR
 proof of a consumed fact. Escalated as an open route (below).
 
 **Repair cost, spiked (scratch copies, `--no-proof`).** (i) `expr_ghost_collections.py`: also widening the 21 callers'
-`assigns \nothing` to the definition's frame -> L3-tc ✓ (23 `writes { _pyobj_state }`); honest, but it WEAKENS 21
+`assigns \nothing` to the definition's frame -> L3-tc ✓ (23 `writes { _pyobj_state }`) and the scratch copy's whole-file proof is rc=0, **166 Valid / 0 non-Valid**,
+`Verification SUCCESS` (199 s, non-vacuity gate included); honest, but it WEAKENS 21
 verified contracts to their true frame and owes a whole-file proof. (ii) `expr_ghost_spec_ops.py`: widening the callers
 does not help — `_handle_mktuple_expr` (`", ".join([self._e(e, lr) for e in node.elts])`, verbatim live) is refused
 by the opaque-comprehension write rule; it needs either a re-trust (+1 marker) or a comprehension lowering that applies
