@@ -1,4 +1,4 @@
-r"""Test 7743 -- route #489 (expected FAIL: PROVED at base, REFUSED PYCSL-R489-IMPLICIT-DUNDER): a `\trusted` k with an UNANNOTATED parameter computes `-o`; `C.__neg__` writes `self.v`; CPython returns 7
+r"""Test 7743 -- route #489 (expected FAIL: a Why3 type error at base -- fail closed --, REFUSED PYCSL-R489-IMPLICIT-DUNDER at the repair; the rule's arm, not a false proof): a `\trusted` k with an UNANNOTATED parameter computes `-o`; `C.__neg__` writes `self.v`; CPython returns 7
 """
 # pycsl-expected: FAIL
 from typing import Any, Dict, List, Optional

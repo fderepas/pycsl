@@ -4280,9 +4280,9 @@ of those classes that defines it, `#@ assigns \nothing`, and each A dunder is, i
 read, as for any `\trusted` def), declare the dunder `#@ assigns \nothing`, or verify the callee. Charging the
 dunder's declared frame to the argument instead of refusing is not implemented (an over-refusal, not a gap).
 
-Witnesses `7730`-`7744` (PROVED at base, REFUSED; incl. typed `7736`, store `7737`, imported un-marked `7737`
-and marked `7738`, `self` `7735`, alias `7741`, `__getattr__` fallback `7742`, unannotated `7743`, list
-elements `7744`); controls `7750`-`7754` (a `#@ assigns \nothing` dunder, an int field read with another
+Witnesses `7730`-`7742` (PROVED at base, REFUSED; incl. typed `7736`, store `7737`, imported un-marked `7737`
+and marked `7738`, `self` `7735`, alias `7741`, `__getattr__` fallback `7742`) and `7743` (unannotated) / `7744`
+(list elements): a Why3 type error at base (fail closed), REFUSED by the rule's arms; controls `7750`-`7754` (a `#@ assigns \nothing` dunder, an int field read with another
 class's writing `__eq__`, `max(o, C())`, `o is None`, an imported pure `__len__`). Not covered (named
 residuals): a dunder bound as a class attribute (`__len__ = f`) or installed by a metaclass / decorator; a
 function the tool AUTO-trusts (a body it cannot lower: not a `val` with an inferred frame here); a `\trusted`
