@@ -33,8 +33,8 @@ globals()` bound once to a name no import-time code reads, and a write-only own-
 `def F` only stores `P[k] = v`, never under a literal key naming a program binding); no dunder attribute outside a read-only allow-list, no frame / code attribute,
 no `.modules` / `._getframe` / `.meta_path` / `.builtins` on any receiver; a plain-imported module name only as an
 attribute-read receiver (no module object -- plain-imported, from-imported submodule, `h.sub` -- used as a value); no
-attribute store / delete whose NAME is bound at a module top level or in a class body of the closure (on the method's
-own `self`: only a method name of that class's family). Reachability is import-resolved for top-level functions, and
+attribute store / delete whose NAME is bound at a module top level or in a class body of the closure (except on the method's
+own `self`: an instance field). Reachability is import-resolved for top-level functions, and
 an imported module's `if __name__ == "__main__":` block is not run unless it rebinds `__name__`. Otherwise REFUSED.
 
 Why this and not route #466's real run claim-free (the brief's two candidates, base e3b3711a2): the #466 runner, run
@@ -49,7 +49,7 @@ write-only own-namespace sink brought that to 0.
 
 Residuals (named, not closed): a dependency function the claimed code calls at RUN time (its effects are its
 contract's, route #119 / the Weaver's rebinding rules); a dependency method invoked unbound with a CLASS as `self`
-(`C.m(D)`) storing a data attribute of `D`; file-system writes at import (`os` / `pathlib` / `subprocess` are on the
+(`C.m(D)`) storing an attribute of `D`; file-system writes at import (`os` / `pathlib` / `subprocess` are on the
 allow-list) changing a module the verifier already read; the write-only own-namespace sink with a COMPUTED key
 (`pure_ast._build_nodes`'s shape) may overwrite one of that module's own names; an installed library's own
 import-time code (a declared library, as under route #466).

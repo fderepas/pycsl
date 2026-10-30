@@ -25927,7 +25927,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             # the names a fact may be about: bound at a module's top level (any nesting outside
             # a `def` / `lambda`), in a class body, or declared `global`
             _N483 = set()
-            _cm483 = {}             # class name -> the `def` / `class` names of its body
             _cbn483 = {}            # class name -> the names in its bases
             _dfs483 = {}            # def / class name -> [(path, node)]
             _par483 = {}            # id(node) -> parent node, every tree
@@ -25939,10 +25938,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                           _a483.ClassDef)):
                         _dfs483.setdefault(_z483.name, []).append((_f483, _z483))
                     if isinstance(_z483, _a483.ClassDef):
-                        _cm483.setdefault(_z483.name, set()).update(
-                            _b.name for _b in _z483.body
-                            if isinstance(_b, (_a483.FunctionDef, _a483.AsyncFunctionDef,
-                                               _a483.ClassDef)))
                         _cbn483.setdefault(_z483.name, set()).update(
                             _q.id if isinstance(_q, _a483.Name) else _q.attr
                             for _b in _z483.bases for _q in _a483.walk(_b)
@@ -26135,7 +26130,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                        "sys", "filecmp", "sysconfig", "argparse", "difflib",
                        "fnmatch", "glob", "errno", "platform", "locale", "codecs", "base64",
                        "binascii", "zlib", "logging", "traceback", "pprint", "uuid", "secrets",
-                       "csv", "shlex", "signal", "threading", "queue", "concurrent", "weakref"}
+                       "csv", "shlex", "signal", "threading", "queue", "concurrent", "weakref",
+                       "_colorize"}
             _SYS483 = {"argv", "exit", "stdin", "stdout", "stderr", "version_info",
                        "version", "platform", "maxsize", "float_info", "int_info", "byteorder",
                        "getrecursionlimit", "setrecursionlimit", "executable", "hexversion",
@@ -26309,10 +26305,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             # `x = h.sub`: a submodule escapes into a value
                             _w483 = f"the attribute `.{_n483}` (a program module) used as a value"
                         elif not isinstance(_z483.ctx, _a483.Load) and _n483 in _N483:
-                            # on the enclosing method's own `self` (first parameter, a plain
-                            # `def` of a class body, never rebound) only the name of a method
-                            # of that class's family (its bases and subclasses, by name,
-                            # transitively) counts: an instance field shadows nothing else
+                            # not on the enclosing method's own `self` (first parameter, a
+                            # plain `def` of a class body, never rebound): an instance field
+                            # writes no module or class namespace (an instance attribute
+                            # shadowing a method is route #119's; a method called unbound
+                            # with a class as `self` is a named residual)
                             _fn483 = _p483
                             while _fn483 is not None and not isinstance(_fn483, (
                                     _a483.FunctionDef, _a483.AsyncFunctionDef, _a483.Lambda,
@@ -26329,20 +26326,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                   and _q.id == _z483.value.id
                                                   and not isinstance(_q.ctx, _a483.Load)
                                                   for _q in _a483.walk(_fn483)))
-                            _fm483 = set()
-                            if _sf483:
-                                _fy483 = {_par483[id(_fn483)].name}
-                                _ch483 = True
-                                while _ch483:
-                                    _ch483 = False
-                                    for _cn483, _bn483 in _cbn483.items():
-                                        if ((_cn483 in _fy483) or (_bn483 & _fy483)) and not (
-                                                ({_cn483} | (_bn483 & set(_cbn483))) <= _fy483):
-                                            _fy483 |= {_cn483} | (_bn483 & set(_cbn483))
-                                            _ch483 = True
-                                for _cn483 in _fy483:
-                                    _fm483 |= _cm483.get(_cn483, set())
-                            if not _sf483 or _n483 in _fm483:
+                            if not _sf483:
                                 _w483 = (f"a store to the attribute `.{_n483}`, a name bound at "
                                          f"the top level or in a class body of the program")
                     elif isinstance(_z483, (_a483.Import, _a483.ImportFrom)):

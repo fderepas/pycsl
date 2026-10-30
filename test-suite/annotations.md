@@ -4181,7 +4181,7 @@ stores `P[k] = v` through that parameter, never with a literal key naming a prog
 code attribute (`f_*`, `gi_*`, `cr_*`, `ag_*`, `tb_*`, `co_*`), no `.modules` / `._getframe` / `.meta_path` /
 `.builtins` on any receiver; a plain-`import`ed module name only as the receiver of an attribute read; and no
 attribute store / delete whose NAME is bound at a module's top level or in a class body anywhere in the
-closure (on the enclosing method's own `self`: only a method name of that class's family); a program module
+closure (except on the enclosing method's own `self`: an instance field); a program module
 never used as a value (a plain-imported name, a from-imported submodule, `h.sub`). The closure by name is
 import-resolved for top-level functions (a bare name in its own module or a module from-importing it, an
 attribute of an imported receiver; this file: any receiver), and an imported module's `if __name__ ==
@@ -4197,7 +4197,7 @@ top-level `_build_nodes(globals())` is a call its runner does not admit) and 3 c
 import, and runs the program's code inside the verifier. Witnesses `7670`-`7678` (PROVED at base, REFUSED); controls `7680`-`7682`.
 Not covered (named residuals): a dependency function the claimed code calls at RUN time (its effects are its
 contract's -- route #119 / the Weaver's rebinding rules); a dependency method invoked unbound with a CLASS
-as `self` (`C.m(D)`) storing a data attribute of `D`; file-system writes at import (`os` / `pathlib` /
+as `self` (`C.m(D)`) storing an attribute of `D`; file-system writes at import (`os` / `pathlib` /
 `subprocess` are allow-listed) that change a module the verifier already read; the write-only own-namespace
 sink with a COMPUTED key (the verifier's own `pure_ast._build_nodes` shape) may overwrite one of that module's
 own names; an installed library's own import-time code.
