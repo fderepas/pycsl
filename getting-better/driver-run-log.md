@@ -576,3 +576,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 - Slow planes: emitted-function-coverage GREEN (0 non-dunder drops); assigns-writes-survival key guard 119/119 + HOLE 0, still RED only on TRAP-NMS 1503 > 1501 (pre-existing since cc8306ff5, fail-closed, z1 paying it).
 - 73/73 new corpus files match expectations; base sample 9/9 PROVED on dcf424f75 (false proofs then).
 - Routes #474 #481 #482 #483 #484 #485 #486 #487 REPAIRED. \trusted 436. Pruned int9, f2, y1, y2, y3, s1, y1-base, y2-base; baselines rotated to v17. |
+2026-10-30T16:41Z | 323 | LAUNCHED rt41 (red team 41 on 973a2755d: convergence on rt40's 129 pairs with their mode flags + complements of #474 #481-#487 + new surfaces: numeric / unicode / bytes / slicing / math domain / parsing / mutual recursion / exceptions inside contracts / \old with aliasing / empty quantifiers, also under typed / store; box 22:30Z). z1 (mirror frame hygiene) running. |
