@@ -137,7 +137,7 @@ MAX_TRAP = 3070
 #   repair — `PyCSLToJSONEmitter._cur_func_name: str` (live type, Module5 line 80) declared in
 #   ITS `\trusted` `__init__` stub, so the four clauses naming it emit it. 1447 -> **1443**;
 #   HOLE 0, underdeclaration HOLE/HOLE-T/HOLE-D 0, mover set {Module5_IREmitter}, type-only clean.
-MAX_TRAP = 1443
+MAX_TRAP = 1399
 MAX_TRAP_NMS = 1501
 #   (#49) gen #35, backlog #75 — THE ARM THAT LOOKS AT THE SKIPPED SET. A symbol with NO `writes`
 #   clause whose source `#@ assigns` names a field its class's record emits as MUTABLE is a
