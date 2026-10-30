@@ -21670,7 +21670,20 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         #   `expr.value is ...` guard is recognized upstream of here, as
         #   `(is_pvellipsis <pyconst_val>)`, by the `==`/`!=` recognizer that keys on
         #   the DICT shape — it never calls this method on the marker node.
-        if isinstance(expr, dict) and expr.get("py_ellipsis"):
+        #
+        #   ROUTE #479 (red team 39) — THE MARKER MUST SURVIVE THE TYPED RE-READ. A child
+        #   of a typed node (`IfExprExpr.test`, `UnaryOpExpr.expr`, a `BoolOp` operand, a
+        #   ternary arm) reaches here as the `OpaqueExpr` that `expr_from_dict` makes of the
+        #   marker dict (its key set differs from `NumberExpr`'s), NOT as the dict: the
+        #   dict-only test above missed it, the generic dispatch below re-read `raw` through
+        #   `_expr_from_dict_inner` — which DROPS the marker — and `...` was the integer 0
+        #   again: `1 // (n - n) if ... else 1` lowered to `(if (0 <> 0) ..)` and PROVED
+        #   `no_exception` (CPython: ZeroDivisionError; witnesses `witnesses-r479/`). The
+        #   test is now on the NODE'S PAYLOAD, whichever carrier (dict or opaque) holds it,
+        #   so no route through this choke point can lower the marker to `0`.
+        if (isinstance(expr, dict) and expr.get("py_ellipsis")) or (
+                isinstance(expr, OpaqueExpr) and isinstance(expr.raw, dict)
+                and expr.raw.get("py_ellipsis")):
             self._add_abstract_op("val function pycsl_ellipsis : int")
             return "pycsl_ellipsis"
         # (#49) ROUTE #231 — THE FORMATTED f-STRING PART. `f"{v!c:spec}"` is by definition

@@ -11787,6 +11787,32 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"reaches this function too).",
                             stage="ir-semantic", code="PYCSL-R453-MODULE-FUNCTION-NOT-ADMITTED")
                     continue
+                # (#445) ROUTE #480 (red team 39): a chain rooted at a BUILTIN NAME this file
+                # does not bind (`len.zz`, `int.zz`, `NotImplemented.zz`) is judged on the
+                # REAL builtin object, as #453 judges a module chain: it lowered to an opaque
+                # `get_zz len` with nothing owed, while CPython raises AttributeError.
+                if (_ae444 and isinstance(_z444, _ast341.Name)
+                        and _z444.id not in _im444 and _z444.id not in _imp341
+                        and _z444.id not in _lb383 and _z444.id not in _ln394
+                        and _z444.id not in _bound341 and _z444.id not in _cls341
+                        and not (_z444.id.startswith("__") and _z444.id.endswith("__"))
+                        and hasattr(_bt444, _z444.id)):
+                    _ob480 = getattr(_bt444, _z444.id)
+                    for _a480 in _ch444:
+                        if not hasattr(_ob480, _a480):
+                            raise _PyCSLSemErr341(
+                                f"'{_f346.name}' line {getattr(_n444, 'lineno', 0)}: "
+                                f"`{_ast341.unparse(_n444)}` reads `{_a480}` on a receiver "
+                                f"derived as `{type(_ob480).__name__}`, which has no such "
+                                f"attribute: CPython raises AttributeError, while the function "
+                                f"(or a function that calls it) claims `#@ no_exception` "
+                                f"covering AttributeError and the access lowers to an opaque "
+                                f"`getattr` (route #445; measured: `n: int; n.zz` and "
+                                f"`n.bit_lenght` proved under `#@ no_exception \\all`). "
+                                f"Admitted: an attribute of every builtin class the receiver "
+                                f"may have. Fix the attribute name, or drop the claim.",
+                                stage="ir-semantic", code="PYCSL-R445-ATTRIBUTE-NOT-DEFINED")
+                        _ob480 = getattr(_ob480, _a480)
                 # (#445) a receiver derived only as builtin classes: the real class has it
                 _kr444 = _kz444.get(id(_n444.value), {"?"}) - {"None"}
                 _nw444 = _nr440.get(id(_n444))
@@ -20873,8 +20899,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         if (_toks325[_a325] == "val" and _rt325 == ["int"]
                 and "ensures" not in _toks325[_k325:_z325]
                 and "returns" not in _toks325[_k325:_z325]):
-            if _nm325.startswith("pycsl_") and "getattr" not in _nm325:
-                _fam325 = None      # an internal encoding (None, Ellipsis), not a fallback
+            if _nm325 == "pycsl_ellipsis":
+                # ROUTE #480: `...` / `Ellipsis` is a Python OBJECT with no int model (route
+                # #40 made it opaque): a constant fallback like any other (`... + n`)
+                _fam325 = "constant"
+            elif _nm325.startswith("pycsl_") and "getattr" not in _nm325:
+                _fam325 = None      # an internal encoding (None), not a fallback
             elif _ar325 == 0 or "constant" in _mods325:
                 _fam325 = "constant"
             elif _nm325.startswith("get_"):
@@ -20919,7 +20949,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                    ("math", "isqrt"), ("math", "factorial"), ("math", "comb"),
                    ("math", "perm"), ("", "range")}
     _TYPES325 = {"int", "str", "bool", "float", "dict", "list", "set", "frozenset", "tuple",
-                 "bytes", "bytearray", "object", "type", "complex", "notImplemented"}
+                 "bytes", "bytearray", "object", "type", "complex"}
     if _tree325 is not None:
         for _a325 in _ast325.walk(_tree325):
             if isinstance(_a325, _ast325.Import):
@@ -21125,13 +21155,63 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         else:
                             _clsok325.add(_t2325.id)
                 _clsw325.update({_wid325(_a325.name), "_class_" + _wid325(_a325.name)})
+    # ROUTE #480 (red team 39) — ORIGIN = EVERY CONSTANT FALLBACK. A 0-ary fallback was
+    # an origin only when it named a MODULE-LEVEL value of this file, so a builtin NAME
+    # used as a value (`max + n`, `int < n`, `x = len; x += 1`), `NotImplemented` and
+    # `...` / `Ellipsis` (`val constant max : int`, `notImplemented`, `pycsl_ellipsis`)
+    # kept int theory and `+ - * % & < -x +=` PROVED under `no_exception` while CPython
+    # raises TypeError (58 witnesses, `witnesses-r480/`). A builtin name this file does not
+    # bind IS that builtin object (a function, a type, a singleton), never an int, so its
+    # fallback is now an origin like a module-level value's, as is `...`; only `__debug__`
+    # (a bool) is KNOWN int. (MEASURED: making EVERY 0-ary fallback an origin also refused
+    # corpus 0534 / 0546, where the free name is an emitter-internal pattern variable the
+    # binder scan does not see -- `size_forest (f: forest)` of a `with` group, an or-pattern
+    # `| Some n | Wrapped n ->` -- not a Python value; those stay non-origins.) And an UNCALLED attribute of an int (`n.bit_length`,
+    # `n.__add__`, `n.__class__`) is a method / type object, not an int: of `int`'s
+    # attributes only the data attributes `real` / `imag` / `numerator` / `denominator`
+    # are ints, so the getter of any other attribute of `int` is an origin too (unless a
+    # class of this file defines that name: its getter then reads a field of that class).
+    _known325.add("__debug__")
+    # the BUILTIN OBJECTS among them (a builtin name this file does not bind, `...`): one
+    # fixed object each (a function, a type, a singleton), equal to itself by identity, so
+    # a reflexive `=` / `<>` (`x is ...`, `r is NotImplemented`) is faithful for them (the
+    # NaN reason W5 refuses reflexivity for any other origin does not arise)
+    _bio480 = {"pycsl_ellipsis"} | {_wid325(_x480) for _x480 in dir(_bi325)
+                                    if _x480 not in _bind325 and _x480 not in _imod325
+                                    and _x480 not in _inam325 and not _star325}
+    _mattr480 = set()
+    if _tree325 is not None:
+        _cfun480 = {id(_x480.func) for _x480 in _ast325.walk(_tree325)
+                    if isinstance(_x480, _ast325.Call)}
+        _cnm480 = set()
+        for _x480 in _ast325.walk(_tree325):
+            if isinstance(_x480, _ast325.ClassDef):
+                for _y480 in _ast325.walk(_x480):
+                    if isinstance(_y480, (_ast325.FunctionDef, _ast325.AsyncFunctionDef)):
+                        _cnm480.add(_y480.name)
+                    elif isinstance(_y480, _ast325.Name) and isinstance(_y480.ctx,
+                                                                        _ast325.Store):
+                        _cnm480.add(_y480.id)
+                    elif isinstance(_y480, _ast325.Attribute) and isinstance(
+                            _y480.ctx, _ast325.Store):
+                        _cnm480.add(_y480.attr)
+        for _x480 in _ast325.walk(_tree325):
+            if (isinstance(_x480, _ast325.Attribute)
+                    and isinstance(_x480.ctx, _ast325.Load)
+                    and id(_x480) not in _cfun480 and hasattr(0, _x480.attr)
+                    and _x480.attr not in ("real", "imag", "numerator", "denominator")
+                    and _x480.attr not in _cnm480):
+                _mattr480.add("get_" + _wid325(_x480.attr))
     for _nm325 in list(_S325):
         _fam325 = _S325[_nm325][0]
         if _fam325 == "constant" and _nm325 in _known325:
             del _S325[_nm325]
         elif _fam325 == "call" and _re325.sub(r"_\d+$", "", _nm325) in _kicall325:
             del _S325[_nm325]
-        elif ((_fam325 == "constant" and _nm325 not in _origin325 and not _star325)
+        elif _fam325 == "attribute" and _nm325 in _mattr480:
+            _S325[_nm325] = ("method attribute of an int", _S325[_nm325][1])
+        elif ((_fam325 == "constant" and _nm325 not in _origin325 and not _star325
+               and _nm325 not in _bio480)
               or _fam325 in ("attribute", "subscript")
               or (_fam325 == "call"
                   and _re325.sub(r"_\d+$", "", _nm325) not in _mcall325)):
@@ -22239,7 +22319,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # a call stub `<recv>_<meth>_<n>` (Module 6 drops the receiver) whose receiver
         # carries a fallback, or whose user method returns one, carries it too
         _rv325 = {x[1] for x in _tl325} | {n for n, f in _S325.items()
-                                           if f[0] == "constant" and n not in _clsw325}
+                                           if f[0] == "constant" and n not in _clsw325
+                                           and (n in _origin325 or _star325)}
         for _x325 in list(_other325):
             if not _re325.search(r"_\d+$", _x325) or _x325 in _S325:
                 continue
@@ -22361,6 +22442,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             # climb through value-transparent wrappers: `( u )`, `begin ...; u end`,
             # `try u with ... end`, and through opaque operations applied to u
             _w1ok325 = False
+            _nit480 = False
             _drv325 = False
             _prev325 = ""
             _tix325 = None
@@ -22464,6 +22546,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             and _toks325[_h325] not in _KW325)):
                     _h325 = _mt325[_h325] - 1 if _toks325[_h325] in (")", "]") else _h325 - 1
                 _hn325 = _toks325[_h325 + 1] if _h325 + 1 < _ua325 else ""
+                # ROUTE #480: `any` / `all` take the TRUTH VALUE of each element
+                if (_org325 == "notImplemented" and "notImplemented" not in _bound325
+                        and _re325.match(r"(any|all)_\d+$", _hn325)):
+                    _nit480 = True
+                    break
+                # ROUTE #480: the bitwise / shift / power model operations (`bit_and`, ..,
+                # `py_pow`) are INT operators like `+`: an operand of one gets int theory
+                # (and CPython raises TypeError on a non-int: `len & 1`)
+                if _hn325 in ("bit_and", "bit_or", "bit_xor", "bit_lshift", "bit_rshift",
+                              "py_pow"):
+                    _nit480 = True
+                    break
                 # ROUTE #334: an argument at a POLYMORPHIC (`'a`) parameter of a `val`
                 # (`str_mod_op "fmt" (a, u)`) gets no int theory there: a sink (string
                 # literal arguments, `"s"` once stripped, are skipped to find the head)
@@ -22576,12 +22670,31 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _enc325 = _e325 if (_e325 >= 0 and _decl325[_e325] == _dd325
                                 and _toks325[_e325] in ("(", "[", "{")) else None
             _hd325 = _toks325[_enc325 + 1] if _enc325 is not None else ""
+            # ROUTE #480: the TRUTH VALUE of `NotImplemented` raises TypeError (CPython
+            # 3.14: "NotImplemented should not be used in a boolean context"); Module 6
+            # lowers every truth test to `(u <> 0)` (`if`, ternary, `not`, `and` / `or`,
+            # `bool(..)`), and `any` / `all` take it of each element: refused, never the
+            # opaque `<> 0` the identity rule (W5) admits for every other origin. (Also:
+            # an operand of a bitwise / shift / power model operation, `_nit480` above.)
+            if _nit480 or (_org325 == "notImplemented" and "notImplemented" not in _bound325
+                           and (_nx325 == "<>" and _toks325[_ub325 + 2:_ub325 + 3] == ["0"]
+                                and _toks325[_ub325 + 3:_ub325 + 4] and _toks325[_ub325 + 3]
+                                in (")", "then", "else", "in", "&&", "||", "/\\", "\\/",
+                                    "}", ";", "do", "end"))):
+                _viol325.append((_org325, _S325.get(_org325, ("?",))[0], _nm325,
+                                 " ".join(_toks325[max(_ua325 - 4, _dstart325[_dd325]):
+                                                   min(_ub325 + 5, _N325)]),
+                                 _dname325.get(_dd325, "?")))
+                continue
             # builtin type objects are compared by identity only (the isinstance tags);
             # a WhyML type of the same spelling is not a use at all
             if (_org325 == _nm325 and _S325.get(_nm325, ("",))[0] == "constant"
                     and _nm325 in _TYPES325 and _nm325 not in _bound325
                     and not (_pv325 in _INTOP325 or _nx325 in _INTOP325
-                             or _hd325 in _INTOP325)):
+                             or _hd325 in _INTOP325)
+                    # ROUTE #480: a VALUE bound to a local (`x = int`, `x := int`) is not a
+                    # type position: it is tracked like any other origin
+                    and _pv325 not in (":=", "=")):
                 continue
             if _w1ok325:
                 continue
@@ -22711,7 +22824,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _org325.startswith("pycsl_getattr_default_") and "result" not in (
                         _toks325[max(_oa325, 0):_ob325 + 1]):
                     _same325 = False    # one DEFAULT EXPRESSION, one value (route #47)
-                if not _inspec325 and not _same325:
+                if not _inspec325 and (not _same325 or _org325 in _bio480):
                     continue
                 if _org325 in _strorg325:
                     continue    # a string is equal to itself (no NaN): `=` / `<>` admitted

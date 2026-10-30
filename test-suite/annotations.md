@@ -3955,6 +3955,34 @@ placeholder can still occupy (a direct field store beside a 1024-default constru
 fail-closed. Length obligations only get harder; CPython's own `\result == 0` now proves.
 Witnesses `7380`-`7389`, `7396` (PROVED at base, FAIL now); controls `7391`-`7395`.
 
+### 7.320 Builtin objects are not ints; `...` stays opaque in every position (routes #479 / #480, run #3)
+
+A Python value Module 6 does not model falls back to an OPAQUE INT. Route #325 restricted such a
+fallback to identity uses (bind, pass, return, discard, `=` / `<>` against a different value) only when
+it stood for a module-level value of THIS file, so the fallbacks with no such origin kept int theory:
+a builtin NAME used as a value (`max + n`, `int < n`, `x = len; x += 1`, `len & 1`), the
+`NotImplemented` singleton (`NotImplemented + n`, `NotImplemented ** 2`, and its truth value, a
+TypeError since CPython 3.14), `...` / `Ellipsis` as an operand, an attribute of a builtin type
+(`int.real + n`, `str.upper + n`), and an UNCALLED attribute of an int (`n.bit_length + 1`,
+`n.__add__`, `n.__class__`) all PROVED under `#@ no_exception \all` while CPython raises TypeError;
+`len.zz` / `NotImplemented.zz` proved while CPython raises AttributeError. Separately (#479), `...` in
+a conditional-expression test, a `not` / `or` operand inside it or a ternary arm reached the emitter
+as the opaque carrier of route #40's marker, was re-read as the literal `0`, and was FALSY:
+`1 // (n - n) if ... else 1` proved `no_exception`.
+RULE: a builtin name the file does not bind IS that builtin object (a function, a type, a singleton),
+never an int, so its fallback is an origin exactly like a module-level value's (only `__debug__`, a
+bool, is known int); `...` is one too; of an int VALUE's attributes only `real` / `imag` / `numerator` /
+`denominator` are ints, so an uncalled attribute of any other `int` attribute name is an origin (unless
+a class of this file defines that name). An operand of the bitwise / shift / power model operations
+(`&` `|` `^` `<<` `>>` `**`) is an int use like `+`. The truth value of `NotImplemented` (`if`,
+ternary, `not`, `and` / `or`, `bool(..)`, `any` / `all`) is refused. A builtin object (a builtin name
+the file does not bind, `...`) is one fixed object, so a reflexive identity (`x is ...`,
+`r is NotImplemented`) stays admitted. Under a `no_exception` claim covering AttributeError, an
+attribute chain rooted at a builtin name is judged on the REAL builtin object (route #445). `...` is
+recognised by its marker whichever carrier (dict or typed opaque node) reaches the emitter, so it is
+`pycsl_ellipsis` (opaque) in every position and a truth test of it no longer decides.
+Witnesses `7490`-`7510` (PROVED at base, FAIL / refused now); controls `7515`-`7522`.
+
 ### 7.230 A claimed module must IMPORT without raising; `__init__` returns None (routes #461 / #462, run #3)
 
 A claimed function of a module whose import raises is never callable, yet red team 37 measured PROVED
