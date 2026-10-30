@@ -1,10 +1,43 @@
 from __future__ import annotations
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
+from dataclasses import dataclass
 def mutable_state(cls): return cls
 ""  # pycsl
 @mutable_state
+@dataclass
 class GhostSpecOpsMixin:
     "Ghost spec-operator leaf handlers for tuples, strings, and ghost arrays —\n    the non-collection counterpart of `GhostCollectionOpsMixin`:\n\n      * tuples:       `\\mktuple` / `\\fst` / `\\snd` / `\\proj`\n      * strings:      `\\strconcat` (`^`) / `\\str_length` / `\\str_sub`\n      * ghost arrays: `\\copy` / `\\copy_range` / `\\make`\n\n    Extracted verbatim from `ExpressionEmissionMixin` (Part B move 3d).\n    `ExpressionEmissionMixin` inherits this mixin, so the handlers resolve via\n    MRO through the facade's `_EXPR_DISPATCH` and call back into `self._e`,\n    `self._deref`, `self._expr_to_whyml_string_ctx`, and `self._ghost_tuple_vars`\n    (which stay in `ExpressionEmissionMixin`)."
+
+    # Run #3 (z1), route #488 follow-up: the state fields named in this mixin's (now honest)
+    # `#@ assigns` clauses, DECLARED so the emitted `writes` carries them instead of dropping them
+    # (check-assigns-writes-survival TRAP). Annotations COPIED from ExpressionEmissionMixin's /
+    # StatementEmissionMixin's declarations of the same live fields where one exists; the other
+    # eight are typed from their LIVE initialisers/writes: `_late_content_ops: List[Any] = []`
+    # appended `(op, decl, using)` with `using = getattr(self, "_current_emitting_func", None)`;
+    # `_last_hval_get_raw/_str` assigned f-strings, read `getattr(self, ..., None)`;
+    # `_uses_*_cache` assigned a bool `result`, read `getattr(self, ..., None)`.
+    _abstract_ops: Dict[str, str] = None
+    _comp_content_counter: int = 0
+    _current_params: Set[str] = None
+    _current_self_type: str = ""
+    _dict_locals: Set[str] = None
+    _frame_trigger_active: bool = False
+    _func_return_type: str = ""
+    _in_spec: int = 0
+    _last_hval_get_raw: Optional[str] = None
+    _last_hval_get_str: Optional[str] = None
+    _late_content_ops: List[Tuple[str, str, Optional[str]]] = None
+    _needs_array_init: bool = False
+    _obj_state_written: bool = False
+    _quant_record_binders: Dict[str, str] = None
+    _quant_scalar_binders: Set[str] = None
+    _string_local_vars: Set[str] = None
+    _todict_arg_wants_pymap: bool = False
+    _uses_build_param_list_cache: Optional[bool] = None
+    _uses_compute_return_type_cache: Optional[bool] = None
+    _uses_const_reflect_cache: Optional[bool] = None
+    _uses_pyast_parser_cache: Optional[bool] = None
+    _uses_refine_tuple_return_type_cache: Optional[bool] = None
 
     # item34.md CF0.3 pattern (mirrored from stmt_control_flow.py): cross-file
     # recursion-leaf / bridge sibling stubs for `_e`/`_expr_to_whyml_string_ctx`
