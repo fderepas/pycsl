@@ -542,13 +542,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         Comparison operators and bool literals are already bool.
         Calls to isinstance_check, hasattr_check are already bool.
         Other expressions (int) need `<> 0` coercion."""
-        # ROUTE #487: a BoolOp over a non-bool / non-int operand is emitted inside the
-        # `pycsl_r487_truth_only` marker (`_handle_binop`); its int form's truthiness IS the
-        # selected operand's, so a TRUTH test strips the marker. Any other use leaves it.
-        if (isinstance(whyml_str, str) and whyml_str.startswith("(pycsl_r487_truth_only ")
-                and whyml_str.endswith(")") and isinstance(ir_expr, dict)
-                and ir_expr.get("type") == "BinOp" and ir_expr.get("op") in ("and", "or")):
-            return f"({whyml_str[len('(pycsl_r487_truth_only '):-1]} <> 0)"
         # (#49) ROUTE #358 — THE TRUTH TEST OF AN ERASED VALUE RUNS ITS `__bool__` /
         #   `__len__`. `if self:` / `not self` on a field-less class lowered to `self <> 0`,
         #   so `no_exception \all` PROVED them for a `__len__` returning -1 (CPython
@@ -573,6 +566,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     "object / field-less class) value runs a user __bool__ or __len__ that "
                     "may raise] false }; %s end)"
                     % self._to_bool(whyml_str, dict(ir_expr, _pycsl_r358n=True)))
+        # ROUTE #487: a BoolOp over a non-bool / non-int operand is emitted inside the
+        # `pycsl_r487_truth_only` marker (`_handle_binop`); its int form's truthiness IS the
+        # selected operand's, so a TRUTH test strips the marker (after route #358's erased-value guard above,
+        # which still wraps the whole test). Any other use leaves it.
+        if (isinstance(whyml_str, str) and whyml_str.startswith("(pycsl_r487_truth_only ")
+                and whyml_str.endswith(")") and isinstance(ir_expr, dict)
+                and ir_expr.get("type") == "BinOp" and ir_expr.get("op") in ("and", "or")):
+            return f"({whyml_str[len('(pycsl_r487_truth_only '):-1]} <> 0)"
         t = ir_expr.get("type", "")
         op = ir_expr.get("op", "")
         # lv3: the truth test of a whole-list no-arg `<string>.split()` (the receiver-
