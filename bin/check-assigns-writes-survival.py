@@ -44,6 +44,7 @@ enforce it rather than to have observed it once.
 Usage:
     bin/check-assigns-writes-survival.py --emit-dir <dir>     # <dir> from bin/mirror-emit-sweep.sh
     bin/check-assigns-writes-survival.py --emit-dir <dir> --self-test
+    bin/check-assigns-writes-survival.py --emit-dir <dir> --self-test-keys
     bin/check-assigns-writes-survival.py --emit-dir <dir> --verbose
 """
 import argparse
@@ -168,7 +169,18 @@ MIN_FUNCS_WITH_WRITES = 500
 #   Protocol / `*View` classes that never produce a declaration at all. A RISE means either the key
 #   drifted from the emitter's rule again or methods stopped being emitted, and BOTH narrow this
 #   plane's population silently, which is the failure this constant exists to make loud.
-MAX_UNRESOLVED_KEYS = 134
+#   (#49) driver run #3 — TIGHTENED 134 -> **119**, not loosened. The slow tier found 135 > 134 at
+#   dcf424f75; bisected with the emission held fixed (HEAD mirror emission): source at abfca1dc2^ ->
+#   134, source at abfca1dc2 -> 135. abfca1dc2 (route #226) wrote `#@ assigns self.filename, ...` on
+#   the `\trusted` `PyCSLError.__init__`, and a constructor key can NEVER match a symbol (Module 5
+#   inlines `__init__` into the class record; no `<cls>____init__` is emitted anywhere — measured, 0
+#   in the 53-file emission). Nothing was emitted differently: a measurement artefact that grew the
+#   guard's population with every constructor frame written. `unresolved_keys` now resolves a
+#   constructor key against its class's emitted RECORD, which takes 16 constructor keys out of the
+#   residue (135 -> 119), and the ceiling follows the measurement DOWN so the freed slack cannot hide
+#   16 real drops. `--self-test-keys` drops one resolved method symbol and one resolved constructor
+#   record and requires both reported (measured 119 -> 121, both REPORTED).
+MAX_UNRESOLVED_KEYS = 119
 
 
 def _bare(raw):
@@ -232,6 +244,7 @@ def unresolved_keys(emit_dir, src_assigns):
     number.
     """
     present = set()
+    records = set()
     for f in sorted(os.listdir(emit_dir)):
         if not f.endswith(".mlw"):
             continue
@@ -239,10 +252,24 @@ def unresolved_keys(emit_dir, src_assigns):
         for m in re.finditer(r"^\s*(?:let|val|with)\s+(?:function\s+|rec\s+|partial\s+|ghost\s+)*(\w+)\s*\(",
                              text, re.M):
             present.add(m.group(1))
+        for m in re.finditer(r"^\s*type\s+(\w+)\s*=\s*\{", text, re.M):
+            records.add(m.group(1))
     out = []
     for (cls, fnname) in sorted(src_assigns):
-        if f"{cls.lower()}__{fnname}" not in present:
-            out.append((cls, fnname))
+        if f"{cls.lower()}__{fnname}" in present:
+            continue
+        # (#49) driver run #3 — THE CONSTRUCTOR KEY. Module 5 never emits `<cls>____init__`:
+        # `_should_skip_method` skips the constructor hooks and `__init__` is INLINED into the
+        # class's RECORD (`type <cls> = { ... } by { ... }` — the field set and the
+        # construction witness), so `(C, __init__)` could not match a symbol under ANY key and
+        # was counted here as residue. That made the guard's population grow with every
+        # `#@ assigns` written on a constructor: abfca1dc2 (route #226) added one to the
+        # `\trusted` `PyCSLError.__init__` and the guard went 134 -> 135 RED with nothing
+        # emitted differently. The constructor's emitted home is the record, so it RESOLVES
+        # iff `type <cls>` is emitted; a class whose record disappears is still reported.
+        if fnname == "__init__" and cls.lower() in records:
+            continue
+        out.append((cls, fnname))
     return out
 
 
@@ -309,7 +336,20 @@ def measure(emit_dir, src_assigns, want_trap_rows=False):
             stop = re.search(r"^\s*(?:let|val)\s", seg, re.M)
             if stop:
                 seg = seg[:stop.start()]
-            w = re.search(r"writes\s*\{([^}]*)\}", seg)
+            # (#49) driver run #3 — EVERY `writes` CLAUSE OF THE HEADER, not the first one.
+            # Route #401 (cc8306ff5) gave 61 trusted + 7 converted mirror methods an honest
+            # PARAMETER frame (`#@ assigns ..., args`), which Module 6 emits as its OWN clause
+            # `writes   { args }` BEFORE the `writes { self._f, ... }` clause. Why3 accumulates
+            # every `writes` clause of a spec, so the frame reaching the model is the UNION;
+            # reading only the first match made this plane see `{ args }` alone and report
+            # every `self` field of those methods as dropped (HOLE 201, TRAP-NMS 1501 -> 1503)
+            # while each one was in the emitted frame. Only the HEADER counts (up to the body's
+            # `=`): a nested function's `writes` in the body is not this function's frame.
+            hdr = re.search(r"^\s*=\s*$", seg, re.M)
+            if hdr:
+                seg = seg[:hdr.start()]
+            ws = re.findall(r"writes\s*\{([^}]*)\}", seg)
+            w = ws[0] if ws else None
             if not w:
                 # (#49) gen #35: the skipped set is no longer unexamined. A declared field
                 # that the record emits as MUTABLE, on a BODYLESS `val` with NO frame at all,
@@ -324,7 +364,7 @@ def measure(emit_dir, src_assigns, want_trap_rows=False):
                         nowrites_holes.append((f, name, fld))
                 continue
             n_writes += 1
-            emitted = {_bare(x.group(1)) for x in re.finditer(r"self\.(\w+)", w.group(1))}
+            emitted = {_bare(x.group(1)) for x in re.finditer(r"self\.(\w+)", " ".join(ws))}
             for cls, fields in by_name[name]:
                 rec = recs.get(cls.lower(), set())
                 for fld in sorted({x.lstrip("_") for x in fields} - emitted):
@@ -390,6 +430,57 @@ def self_test(emit_dir, src_assigns):
         shutil.rmtree(tmp, ignore_errors=True)
 
 
+def self_test_keys(emit_dir, src_assigns):
+    """Negative-test the KEY guard after the constructor-key repair: it must still fire on a
+    real drop. In a copy of the emission, (a) one RESOLVED method symbol is renamed away (the
+    emitter dropping a method) and (b) one RESOLVED constructor's class RECORD is renamed away
+    (the emitter dropping the class the `__init__` is inlined into). Both keys must become
+    unresolved and the count must rise by exactly 2; otherwise the repair blinded the guard.
+    """
+    base = unresolved_keys(emit_dir, src_assigns)
+    bset = set(base)
+    resolved = [k for k in sorted(src_assigns) if k not in bset]
+    meth = next((k for k in resolved if k[1] != "__init__"), None)
+    ctor = next((k for k in resolved if k[1] == "__init__"), None)
+    if meth is None or ctor is None:
+        print("[!] assigns-writes-survival --self-test-keys: no resolved method / constructor key "
+              "to drop; INCONCLUSIVE, and that is a failure.", file=sys.stderr)
+        return 1
+    tmp = tempfile.mkdtemp(prefix="awsurv_keytest_")
+    try:
+        for f in os.listdir(emit_dir):
+            if f.endswith(".mlw"):
+                shutil.copy2(os.path.join(emit_dir, f), os.path.join(tmp, f))
+        sym = f"{meth[0].lower()}__{meth[1]}"
+        rec = ctor[0].lower()
+        hit_sym = hit_rec = 0
+        for f in os.listdir(tmp):
+            if not f.endswith(".mlw"):
+                continue
+            p = os.path.join(tmp, f)
+            t = open(p, encoding="utf-8").read()
+            t2, n1 = re.subn(r"^(\s*(?:let|val|with)\s+(?:function\s+|rec\s+|partial\s+|ghost\s+)*)"
+                             + re.escape(sym) + r"(\s*\()", r"\1" + sym + r"_selftest_dropped\2",
+                             t, flags=re.M)
+            t2, n2 = re.subn(r"^(\s*type\s+)" + re.escape(rec) + r"(\s*=\s*\{)",
+                             r"\1" + rec + r"_selftest_dropped\2", t2, flags=re.M)
+            hit_sym += n1
+            hit_rec += n2
+            if n1 or n2:
+                open(p, "w", encoding="utf-8").write(t2)
+        after = unresolved_keys(tmp, src_assigns)
+        ok = (meth in after and ctor in after and len(after) == len(base) + 2)
+        print("[%s] assigns-writes-survival --self-test-keys: dropped method symbol `%s` (%d def "
+              "site(s)) and constructor record `type %s` (%d site(s)) -> unresolved %d -> %d, "
+              "%s.%s %s, %s.__init__ %s."
+              % ("+" if ok else "!", sym, hit_sym, rec, hit_rec, len(base), len(after),
+                 meth[0], meth[1], "REPORTED" if meth in after else "MISSED",
+                 ctor[0], "REPORTED" if ctor in after else "MISSED"))
+        return 0 if ok else 1
+    finally:
+        shutil.rmtree(tmp, ignore_errors=True)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--emit-dir", required=True,
@@ -397,6 +488,9 @@ def main():
     ap.add_argument("--verbose", action="store_true")
     ap.add_argument("--self-test", action="store_true",
                     help="negative-test the HOLE arm by injecting a field into a record")
+    ap.add_argument("--self-test-keys", action="store_true",
+                    help="negative-test the KEY guard: drop one resolved method symbol and one "
+                         "resolved constructor's record; both must be reported unresolved")
     args = ap.parse_args()
 
     if not os.path.isdir(args.emit_dir):
@@ -407,6 +501,8 @@ def main():
     src = source_assigns()
     if args.self_test:
         return self_test(args.emit_dir, src)
+    if args.self_test_keys:
+        return self_test_keys(args.emit_dir, src)
 
     trap, holes, n_writes = measure(args.emit_dir, src)
 
@@ -414,6 +510,9 @@ def main():
     print("[*] assigns-writes-survival: %d source (class, def) key(s) match NO emitted symbol "
           "(ceiling %d) — the guard on the KEY, added after the old key silently missed 346 of "
           "1066." % (len(unres), MAX_UNRESOLVED_KEYS))
+    if args.verbose:
+        for cls, fn in unres:
+            print("    UNRESOLVED  %s.%s" % (cls, fn))
     if len(unres) > MAX_UNRESOLVED_KEYS:
         print("[!] assigns-writes-survival: %d unresolved key(s) > %d. Either the name key drifted "
               "from the emitter's `f\"{cls.lower()}__{node.name}\"` rule, or these methods stopped "
