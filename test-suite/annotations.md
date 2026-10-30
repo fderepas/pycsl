@@ -4151,6 +4151,50 @@ split. A version bound by a top-level `v = x` of a judged list parameter is an A
 refused, and 7444 / 7445 (a second alias / an alias after a fresh binding) emit and are NOT PROVED (the frame
 charges `xs`).
 
+### 7.370 Every module of the import closure runs only allow-listed code at import time (routes #483 / #484, run #3)
+
+A cross-module fact -- a folded dependency constant (`from h import K`, §7.310 / §7.341), the binding of a
+function this file calls (its own `g`, an imported `g`, `h.g`), this file's own globals -- is a WHOLE-PROGRAM
+fact: any module of the program can rewrite another's namespace while it is imported. Red team 40 measured
+PROVED `ensures \result == n` (no `no_exception`, so route #466's real import run never ran; CPython returns 0)
+for a dependency reaching `exec` / `setattr` through its `__builtins__` MAPPING (`__builtins__['exec']('K =
+0')`, `.get('exec')`, an alias, a `for` over `.items()`, inside a function it calls; #483), a dependency doing
+`import __main__; __main__.K = 0` (an alias, a package `__init__`, `__main__.g = lambda x: 0` on the callee;
+#484) and a PEER module rebinding another dependency's FUNCTION (`h.g = ...`, `setattr(m, 'g', ...)`, inside
+a function it calls; #484). Route #474's writer list and the Weaver's rules key on spellings.
+
+RULE (allow-list, refuse by default; every claim kind): over the program's import closure (this file and every
+module its imports resolve to, at any depth, package `__init__`s included), the code that RUNS AT IMPORT TIME --
+each module's statements outside `def` bodies (this file's `if __name__ == "__main__":` block excepted: it runs
+after every import), decorators, defaults, annotations, class bodies, lambdas, and, closed BY NAME, the body of
+every `def` named in that code (a class named there: its dunder methods; named as a base: its
+`__init_subclass__` / `__set_name__` / `__mro_entries__` / `__class_getitem__`; a metaclass: every method) --
+must, in every module but this file, stay in the fragment whose effects on other namespaces are understood:
+imports only of program modules, installed libraries and the allow-listed standard library (never
+`__main__`, never this file; `sys` only through allow-listed attributes); no `exec`, `eval`, `compile`,
+`globals`, `vars`, `locals`, `setattr`, `delattr`, `getattr`, `__import__`, `breakpoint`, `help`, `input`,
+annotation evaluators, or dunder name outside a small allow-list (`__builtins__` ...) -- except
+`getattr(x, "<literal, not dunder>")`, `setattr` / `delattr` on the enclosing method's own `self`, and a
+`g = globals()` bound once at the top level that no import-time code reads; no dunder attribute outside a small read-only allow-list, no frame /
+code attribute (`f_*`, `gi_*`, `cr_*`, `ag_*`, `tb_*`, `co_*`), no `.modules` / `._getframe` / `.meta_path` /
+`.builtins` on any receiver; a plain-`import`ed module name only as the receiver of an attribute read; and no
+attribute store / delete whose NAME is bound at a module's top level or in a class body anywhere in the
+closure (on the enclosing method's own `self`: only a method name of that class's family). Otherwise the file
+is REFUSED (`PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER`), judged after route #466 (whose own refusal keeps
+precedence under `no_exception`). Code: `_run_pipeline`, after route #466; inline, mirror twin `\trusted`.
+
+Over-refusal, measured on the 195 corpus / mirror / red-team-control files whose closure holds a program module
+(base `e3b3711a2`): 0 honest corpus files, 0 mirror files, 0 red-team PASS controls; the only files it newly
+refuses are route #474's NOT PROVED witnesses `7570`-`7572` (now REFUSED). The alternative (running route
+#466's import claim-free for ensures-only files too) refused the mirror's `pycsl.py` and
+`Module6_WhyMLTranspiler.py` (an attribute store and a decorator its runner does not admit) and 3 corpus
+files with a relative import. Witnesses `7670`-`7678` (PROVED at base, REFUSED); controls `7680`-`7682`.
+Not covered (named residuals): a dependency function the claimed code calls at RUN time (its effects are its
+contract's -- route #119 / the Weaver's rebinding rules); a dependency method invoked unbound with a CLASS
+as `self` (`C.m(D)`) storing a data attribute of `D`; file-system writes at import (`os` / `pathlib` /
+`subprocess` are allow-listed) that change a module the verifier already read; `sys.path` / import hooks
+reached through modules outside the allow-list's names.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

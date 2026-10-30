@@ -25833,6 +25833,442 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"cannot raise, import only names it binds unconditionally, or move the "
                 f"computation into a function.",
                 stage="ir-semantic", code="PYCSL-R466-IMPORTED-MODULE-RAISES")
+    # (#49) gen #40, ROUTES #483 / #484 (red team 40, driver-reproduced on dcf424f75; driver run
+    # #3, executor y2). MEASURED PROVED (ensures-only claims; no `no_exception`, so route #466's
+    # real import run never ran): a dependency rebinding its constant through its `__builtins__`
+    # MAPPING (`__builtins__['exec']('K = 0')`, `.get('exec')`, an alias, a `for` over
+    # `.items()`, inside a function it calls) while the importer folded `from h import K` to 1
+    # (#483); a dependency writing the CLAIMED module (`import __main__; __main__.K = 0`, an
+    # alias, a package `__init__`, `__main__.g = lambda x: 0`) or a PEER rebinding another
+    # dependency's FUNCTION (`h.g = ...`, `setattr(m, 'g', ...)`, inside a function it calls)
+    # at import time (#484). Route #474's writer list and the Weaver's rules are DENY-lists of
+    # spellings; every cross-module fact the importer relies on (a folded dependency constant,
+    # the binding of a function it calls, its own globals) is a WHOLE-PROGRAM fact.
+    # RULE (allow-list, refuse by default): over the program's import closure (this file and
+    # every module its imports resolve to, transitively, at any depth, package `__init__`s
+    # included), the code that RUNS AT IMPORT TIME -- every module's statements outside `def`
+    # bodies (this file's `if __name__ == "__main__":` block excepted: it runs after every
+    # import), decorators, defaults, annotations, class bodies, lambdas, and, closed by NAME,
+    # the body of every `def` named in that code (all its methods for a metaclass; the dunder
+    # methods of a class it names; `__init_subclass__` / `__set_name__` / `__mro_entries__` /
+    # `__class_getitem__` of a class it names as a base) -- must, in every module but this
+    # one, stay in the fragment whose effect on other namespaces is fully understood:
+    #   * imports of program modules, installed libraries, and the allow-listed standard
+    #     library (`sys` only through its allow-listed attributes); never `__main__`, never
+    #     the claimed file itself;
+    #   * no dynamic-code / reflection name: `exec`, `eval`, `compile`, `globals`, `vars`,
+    #     `locals`, `setattr`, `delattr`, `getattr`, `__import__`, `breakpoint`, `help`,
+    #     `input`, any dunder name outside a small allow-list (`__builtins__` ...), the
+    #     annotation evaluators -- except `getattr(x, "<literal, not dunder>")`, `setattr` /
+    #     `delattr` on the enclosing method's own `self`, and `g = globals()` bound once at
+    #     the top level to a name no import-time code reads;
+    #   * no dunder attribute outside a small read-only allow-list, no frame / code attribute
+    #     (`f_*`, `gi_*`, `cr_*`, `ag_*`, `tb_*`, `co_*`), no `.modules`;
+    #   * an imported MODULE name only as the receiver of an attribute read (it never escapes);
+    #   * no attribute store / delete whose NAME is bound at the top level of any module of
+    #     the closure or in the body of any of its classes (any receiver, at any depth).
+    # Otherwise this file is REFUSED. (Route #466 runs the same modules for real under
+    # `no_exception` and keeps its own refusal; this one is judged after it.) Inline (no
+    # nested def: check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+    _rf483 = None
+    if _t341 is not None:
+        import ast as _a483
+        import os as _o483
+        import sys as _s483
+        from frontend.ir_resolve import _resolve_module_path as _rmp483
+        _mf483 = _o483.path.abspath(str(getattr(args, "file", "") or "<main>"))
+        _std483 = set(_s483.stdlib_module_names) | set(_s483.builtin_module_names)
+        _tr483 = {_mf483: _t341}    # program module path -> its tree
+        _q483 = [_mf483]
+        while _q483 and _rf483 is None:
+            _f483 = _q483.pop(0)
+            for _z483 in _a483.walk(_tr483[_f483]):
+                _mq483 = []
+                if isinstance(_z483, _a483.Import):
+                    _mq483 = [(_al.name, 0) for _al in _z483.names]
+                elif isinstance(_z483, _a483.ImportFrom):
+                    _mq483 = [(_z483.module or "", _z483.level or 0)] + [
+                        (((_z483.module + ".") if _z483.module else "") + _al.name,
+                         _z483.level or 0) for _al in _z483.names if _al.name != "*"]
+                # every package on a dotted path runs its `__init__` first
+                _mq483 = _mq483 + [(".".join(_mn.split(".")[:_i]), _lv)
+                                   for _mn, _lv in _mq483 for _i in range(1, _mn.count(".") + 1)]
+                for _mn483, _lv483 in _mq483:
+                    if _lv483 == 0 and (not _mn483 or _mn483.split(".")[0] in _std483):
+                        continue
+                    try:
+                        _rp483 = _rmp483(_mn483, _lv483, _f483)
+                    except Exception:
+                        _rp483 = None
+                    if not _rp483:
+                        continue    # an installed library (or nothing): not program code
+                    _rp483 = _o483.path.abspath(_rp483)
+                    if _rp483 == _mf483:
+                        if _f483 != _mf483:
+                            _rf483 = (f"{_f483} (line {_z483.lineno}) imports the claimed file "
+                                      f"itself (`{_mn483}`)")
+                    elif _rp483 not in _tr483:
+                        try:
+                            _tr483[_rp483] = _a483.parse(open(_rp483, "rb").read())
+                        except Exception:
+                            _rf483 = f"{_rp483} cannot be read or parsed"
+                            break
+                        _q483.append(_rp483)
+                        if len(_tr483) > 400:
+                            _rf483 = "the import closure has more than 400 program modules"
+                            break
+                if _rf483 is not None:
+                    break
+        if _rf483 is None and len(_tr483) > 1:
+            # the names a fact may be about: bound at a module's top level (any nesting outside
+            # a `def` / `lambda`), in a class body, or declared `global`
+            _N483 = set()
+            _cm483 = {}             # class name -> the `def` / `class` names of its body
+            _cbn483 = {}            # class name -> the names in its bases
+            _dfs483 = {}            # def / class name -> [(path, node)]
+            _par483 = {}            # id(node) -> parent node, every tree
+            for _f483, _tt483 in _tr483.items():
+                for _z483 in _a483.walk(_tt483):
+                    for _c483 in _a483.iter_child_nodes(_z483):
+                        _par483[id(_c483)] = _z483
+                    if isinstance(_z483, (_a483.FunctionDef, _a483.AsyncFunctionDef,
+                                          _a483.ClassDef)):
+                        _dfs483.setdefault(_z483.name, []).append((_f483, _z483))
+                    if isinstance(_z483, _a483.ClassDef):
+                        _cm483.setdefault(_z483.name, set()).update(
+                            _b.name for _b in _z483.body
+                            if isinstance(_b, (_a483.FunctionDef, _a483.AsyncFunctionDef,
+                                               _a483.ClassDef)))
+                        _cbn483.setdefault(_z483.name, set()).update(
+                            _q.id if isinstance(_q, _a483.Name) else _q.attr
+                            for _b in _z483.bases for _q in _a483.walk(_b)
+                            if isinstance(_q, (_a483.Name, _a483.Attribute)))
+                    elif isinstance(_z483, _a483.Global):
+                        _N483.update(_z483.names)
+                _st483 = list(_tt483.body)
+                while _st483:
+                    _z483 = _st483.pop()
+                    if isinstance(_z483, (_a483.FunctionDef, _a483.AsyncFunctionDef)):
+                        _N483.add(_z483.name)
+                    elif isinstance(_z483, _a483.ClassDef):
+                        _N483.add(_z483.name)
+                        _st483.extend(_z483.body)
+                    elif isinstance(_z483, _a483.Lambda):
+                        pass
+                    elif isinstance(_z483, _a483.AnnAssign) and _z483.value is None:
+                        pass        # a declaration binds nothing
+                    else:
+                        if isinstance(_z483, _a483.Name) and not isinstance(_z483.ctx, _a483.Load):
+                            _N483.add(_z483.id)
+                        elif isinstance(_z483, (_a483.Import, _a483.ImportFrom)):
+                            _N483.update(_al.asname or _al.name.split(".")[0]
+                                         for _al in _z483.names)
+                        _st483.extend(_a483.iter_child_nodes(_z483))
+            # the code that runs at import time, per module
+            _rc483 = {_f: [] for _f in _tr483}
+            for _f483, _tt483 in _tr483.items():
+                _st483 = list(_tt483.body)
+                while _st483:
+                    _z483 = _st483.pop()
+                    if (_f483 == _mf483 and isinstance(_z483, _a483.If)
+                            and _par483.get(id(_z483)) is _tt483
+                            and _a483.unparse(_z483.test).replace(" ", "").replace('"', "'") in (
+                                "__name__=='__main__'", "'__main__'==__name__")):
+                        _st483.extend(_z483.orelse)
+                        continue
+                    _rc483[_f483].append(_z483)
+                    if isinstance(_z483, (_a483.FunctionDef, _a483.AsyncFunctionDef)):
+                        _ar483 = _z483.args
+                        _st483.extend(list(_z483.decorator_list) + list(_ar483.defaults)
+                                      + [_d for _d in _ar483.kw_defaults if _d is not None]
+                                      + [_q.annotation for _q in (
+                                          _ar483.posonlyargs + _ar483.args + _ar483.kwonlyargs
+                                          + [_ar483.vararg, _ar483.kwarg])
+                                         if _q is not None and _q.annotation is not None]
+                                      + ([_z483.returns] if _z483.returns is not None else []))
+                    else:
+                        _st483.extend(_a483.iter_child_nodes(_z483))
+            # closed by NAME, to a fixpoint: a FUNCTION (a `def` not directly in a class body)
+            # named in reached code runs; a class named there is LIVE (so are its bases): its
+            # dunder methods run, and so does each of its methods named in reached code (an
+            # instance of a class no reached code names cannot exist at import time); a class
+            # named as a base runs its subclass hooks; a live metaclass runs every method
+            _nf483 = set()          # names read in reached code
+            _nb483 = set()          # names in the bases of a reached class
+            _lv483 = set()          # live class names
+            _sc483 = {}             # id(node) -> scanned length of _rc483[file]
+            _rd483 = set()          # id(def) already reached
+            _HK483 = ("__init_subclass__", "__set_name__", "__mro_entries__",
+                      "__class_getitem__")
+            _ch483 = True
+            while _ch483:
+                _ch483 = False
+                for _f483 in _rc483:
+                    _lo483 = _sc483.get(_f483, 0)
+                    _nw483 = _rc483[_f483][_lo483:]
+                    _sc483[_f483] = len(_rc483[_f483])
+                    _bs483 = {id(_b) for _z in _nw483 if isinstance(_z, _a483.ClassDef)
+                              for _b in _z.bases}
+                    for _z483 in _nw483:
+                        if isinstance(_z483, _a483.Name):
+                            (_nb483 if id(_z483) in _bs483 else _nf483).add(_z483.id)
+                        elif isinstance(_z483, _a483.Attribute):
+                            (_nb483 if id(_z483) in _bs483 else _nf483).add(_z483.attr)
+                        elif isinstance(_z483, _a483.ClassDef):
+                            _nf483.update(_k.value.id for _k in _z483.keywords
+                                          if _k.arg == "metaclass"
+                                          and isinstance(_k.value, _a483.Name))
+                        elif (isinstance(_z483, _a483.Call)
+                              and isinstance(_z483.func, _a483.Name)
+                              and _z483.func.id in ("getattr", "hasattr")
+                              and len(_z483.args) >= 2
+                              and isinstance(_z483.args[1], _a483.Constant)
+                              and isinstance(_z483.args[1].value, str)):
+                            _nf483.add(_z483.args[1].value)
+                        elif (isinstance(_z483, (_a483.FunctionDef, _a483.AsyncFunctionDef))
+                              and _z483.name in ("__getattr__", "__dir__")
+                              and not isinstance(_par483.get(id(_z483)), _a483.ClassDef)):
+                            # a module-level `__getattr__` runs when an importer reads a name
+                            _nf483.add(_z483.name)
+                # live classes: named in reached code, and every base of a live class
+                for _cn483 in list(_nf483 & set(_cbn483)):
+                    if _cn483 not in _lv483:
+                        _lv483.add(_cn483)
+                        _ch483 = True
+                _gr483 = True
+                while _gr483:
+                    _gr483 = False
+                    for _cn483 in list(_lv483):
+                        for _bn483 in _cbn483.get(_cn483, set()) & set(_cbn483):
+                            if _bn483 not in _lv483:
+                                _lv483.add(_bn483)
+                                _gr483 = True
+                                _ch483 = True
+                for _nm483, _ds483 in _dfs483.items():
+                    for _f483, _d483 in _ds483:
+                        if id(_d483) in _rd483 or isinstance(_d483, _a483.ClassDef):
+                            continue
+                        _ow483 = _par483.get(id(_d483))
+                        if isinstance(_ow483, _a483.ClassDef):
+                            _mt483 = any(isinstance(_q, _a483.Name) and _q.id == "type"
+                                         for _b in _ow483.bases for _q in _a483.walk(_b))
+                            _dun483 = _nm483.startswith("__") and _nm483.endswith("__")
+                            _go483 = ((_ow483.name in _lv483
+                                       and (_dun483 or _nm483 in _nf483 or _mt483))
+                                      or (_ow483.name in _nb483 and _nm483 in _HK483))
+                        else:
+                            _go483 = _nm483 in _nf483
+                        if _go483:
+                            _rd483.add(id(_d483))
+                            _rc483[_f483].extend(_a483.walk(_d483))
+                            _ch483 = True
+            # the fragment, judged on every module of the closure but this one
+            _OKS483 = {"__future__", "typing", "typing_extensions", "dataclasses", "enum", "abc",
+                       "math", "cmath", "numbers", "decimal", "fractions", "collections",
+                       "itertools", "functools", "re", "json", "heapq", "bisect", "copy",
+                       "random", "statistics", "datetime", "time", "textwrap", "array", "struct",
+                       "contextlib", "os", "pathlib", "hashlib", "unicodedata", "warnings",
+                       "shutil", "subprocess", "tempfile", "keyword", "io", "tokenize", "ast",
+                       "sys", "filecmp", "sysconfig", "argparse", "difflib",
+                       "fnmatch", "glob", "errno", "platform", "locale", "codecs", "base64",
+                       "binascii", "zlib", "logging", "traceback", "pprint", "uuid", "secrets",
+                       "csv", "shlex", "signal", "threading", "queue", "concurrent", "weakref"}
+            _SYS483 = {"argv", "exit", "stdin", "stdout", "stderr", "version_info",
+                       "version", "platform", "maxsize", "float_info", "int_info", "byteorder",
+                       "getrecursionlimit", "setrecursionlimit", "executable", "hexversion",
+                       "implementation", "flags", "getsizeof", "intern", "stdlib_module_names",
+                       "builtin_module_names", "maxunicode", "getdefaultencoding",
+                       "getfilesystemencoding"}
+            _BAD483 = {"exec", "eval", "compile", "globals", "vars", "locals", "setattr",
+                       "delattr", "getattr", "breakpoint", "help", "input", "get_type_hints",
+                       "ForwardRef", "evaluate_forward_ref", "get_annotations",
+                       "call_annotate_function"}
+            _DNL483 = {"__name__", "__file__", "__doc__", "__debug__", "__all__",
+                       "__annotations__", "__slots__", "__class__", "__qualname__", "__module__"}
+            _DAL483 = {"__init__", "__new__", "__call__", "__name__", "__qualname__", "__doc__",
+                       "__class__", "__module__", "__eq__", "__ne__", "__lt__", "__le__",
+                       "__gt__", "__ge__", "__hash__", "__repr__", "__str__", "__format__",
+                       "__len__", "__iter__", "__next__", "__reversed__", "__contains__",
+                       "__getitem__", "__missing__", "__bool__", "__int__", "__float__",
+                       "__index__", "__abs__", "__neg__", "__pos__", "__add__", "__radd__",
+                       "__sub__", "__rsub__", "__mul__", "__rmul__", "__truediv__",
+                       "__floordiv__", "__mod__", "__pow__", "__and__", "__or__", "__xor__",
+                       "__invert__", "__lshift__", "__rshift__", "__enter__", "__exit__",
+                       "__post_init__", "__instancecheck__", "__subclasscheck__"}
+            _FP483 = ("f_", "gi_", "cr_", "ag_", "tb_", "co_")
+            # attribute names that reach frames, the module table or the import machinery
+            # through ANY receiver (`typing.sys.modules`, `os.sys._getframe`), or evaluate
+            # annotation strings
+            _BAT483 = {"modules", "_getframe", "_current_frames", "settrace", "setprofile",
+                       "meta_path", "path_hooks", "path_importer_cache", "builtins",
+                       "get_type_hints", "ForwardRef", "evaluate_forward_ref", "get_annotations",
+                       "call_annotate_function", "_eval_type", "_evaluate"}
+            for _f483, _tt483 in _tr483.items():
+                if _f483 == _mf483 or _rf483 is not None:
+                    continue
+                _im483 = set()      # names a plain `import` binds (module objects)
+                _sy483 = set()      # names bound to `sys`
+                _gl483 = {}         # `name = globals()` bound at the top level -> count
+                for _z483 in _a483.walk(_tt483):
+                    if isinstance(_z483, _a483.Import):
+                        _im483 |= {_al.asname or _al.name.split(".")[0] for _al in _z483.names}
+                        _sy483 |= {_al.asname or "sys" for _al in _z483.names if _al.name == "sys"}
+                    if isinstance(_z483, _a483.Name) and not isinstance(_z483.ctx, _a483.Load):
+                        _gl483[_z483.id] = _gl483.get(_z483.id, 0) + 1
+                _seen483 = set()
+                for _z483 in _rc483[_f483]:
+                    if id(_z483) in _seen483:
+                        continue
+                    _seen483.add(id(_z483))
+                    _p483 = _par483.get(id(_z483))
+                    _w483 = None
+                    if isinstance(_z483, _a483.Name):
+                        _n483 = _z483.id
+                        if _n483.startswith("__") and _n483.endswith("__"):
+                            _cb483 = _p483
+                            while _cb483 is not None and not isinstance(_cb483, (
+                                    _a483.ClassDef, _a483.FunctionDef, _a483.AsyncFunctionDef,
+                                    _a483.Lambda, _a483.Module)):
+                                _cb483 = _par483.get(id(_cb483))
+                            if _n483 not in _DNL483 and not (
+                                    not isinstance(_z483.ctx, _a483.Load)
+                                    and isinstance(_cb483, _a483.ClassDef)
+                                    and _n483 not in ("__builtins__", "__class__")):
+                                _w483 = f"the name `{_n483}`"
+                        elif _n483 in _BAD483:
+                            _ok483 = False
+                            if isinstance(_p483, _a483.Call) and _p483.func is _z483:
+                                _a0 = _p483.args
+                                if _n483 == "getattr":
+                                    _ok483 = (len(_a0) in (2, 3) and not _p483.keywords
+                                              and isinstance(_a0[1], _a483.Constant)
+                                              and isinstance(_a0[1].value, str)
+                                              and not _a0[1].value.startswith("__")
+                                              and not _a0[1].value.startswith(_FP483)
+                                              and _a0[1].value not in _BAD483
+                                              and _a0[1].value not in _BAT483)
+                                elif _n483 in ("setattr", "delattr"):
+                                    _fn483 = _p483
+                                    while _fn483 is not None and not isinstance(_fn483, (
+                                            _a483.FunctionDef, _a483.AsyncFunctionDef,
+                                            _a483.Lambda, _a483.ClassDef, _a483.Module)):
+                                        _fn483 = _par483.get(id(_fn483))
+                                    _ok483 = (bool(_a0) and isinstance(_a0[0], _a483.Name)
+                                              and isinstance(_fn483, (_a483.FunctionDef,
+                                                                      _a483.AsyncFunctionDef))
+                                              and isinstance(_par483.get(id(_fn483)),
+                                                             _a483.ClassDef)
+                                              and bool(_fn483.args.args)
+                                              and _fn483.args.args[0].arg == _a0[0].id
+                                              and not _fn483.decorator_list
+                                              and not any(isinstance(_q, _a483.Name)
+                                                          and _q.id == _a0[0].id
+                                                          and not isinstance(_q.ctx, _a483.Load)
+                                                          for _q in _a483.walk(_fn483)))
+                                elif _n483 == "globals" and not _a0 and not _p483.keywords:
+                                    _gp483 = _par483.get(id(_p483))
+                                    if (isinstance(_gp483, _a483.Assign)
+                                          and _par483.get(id(_gp483)) is _tt483
+                                          and len(_gp483.targets) == 1
+                                          and isinstance(_gp483.targets[0], _a483.Name)
+                                          and _gl483.get(_gp483.targets[0].id) == 1):
+                                        # bound to a name no import-time code reads
+                                        # (binding the dict has no effect; a read can
+                                        # reach `__builtins__`)
+                                        _gn483 = _gp483.targets[0].id
+                                        _ok483 = not any(
+                                            isinstance(_q, _a483.Name) and _q.id == _gn483
+                                            and isinstance(_q.ctx, _a483.Load)
+                                            for _q in _rc483[_f483])
+                            if not _ok483:
+                                _w483 = f"`{_n483}`"
+                        elif (_n483 in _im483 and isinstance(_z483.ctx, _a483.Load)
+                              and not (isinstance(_p483, _a483.Attribute) and _p483.value is _z483)):
+                            _w483 = f"the module `{_n483}` used as a value"
+                        elif (_n483 in _sy483 and isinstance(_p483, _a483.Attribute)
+                              and _p483.attr not in _SYS483):
+                            _w483 = f"`{_n483}.{_p483.attr}`"
+                    elif isinstance(_z483, _a483.Attribute):
+                        _n483 = _z483.attr
+                        if _n483.startswith("__") and _n483.endswith("__") and (
+                                _n483 not in _DAL483 or not isinstance(_z483.ctx, _a483.Load)):
+                            _w483 = f"the attribute `.{_n483}`"
+                        elif _n483.startswith(_FP483) or _n483 in _BAT483:
+                            _w483 = f"the attribute `.{_n483}`"
+                        elif not isinstance(_z483.ctx, _a483.Load) and _n483 in _N483:
+                            # on the enclosing method's own `self` (first parameter, a plain
+                            # `def` of a class body, never rebound) only the name of a method
+                            # of that class's family (its bases and subclasses, by name,
+                            # transitively) counts: an instance field shadows nothing else
+                            _fn483 = _p483
+                            while _fn483 is not None and not isinstance(_fn483, (
+                                    _a483.FunctionDef, _a483.AsyncFunctionDef, _a483.Lambda,
+                                    _a483.ClassDef, _a483.Module)):
+                                _fn483 = _par483.get(id(_fn483))
+                            _sf483 = (isinstance(_z483.value, _a483.Name)
+                                      and isinstance(_fn483, (_a483.FunctionDef,
+                                                              _a483.AsyncFunctionDef))
+                                      and isinstance(_par483.get(id(_fn483)), _a483.ClassDef)
+                                      and bool(_fn483.args.args)
+                                      and _fn483.args.args[0].arg == _z483.value.id
+                                      and not _fn483.decorator_list
+                                      and not any(isinstance(_q, _a483.Name)
+                                                  and _q.id == _z483.value.id
+                                                  and not isinstance(_q.ctx, _a483.Load)
+                                                  for _q in _a483.walk(_fn483)))
+                            _fm483 = set()
+                            if _sf483:
+                                _fy483 = {_par483[id(_fn483)].name}
+                                _ch483 = True
+                                while _ch483:
+                                    _ch483 = False
+                                    for _cn483, _bn483 in _cbn483.items():
+                                        if ((_cn483 in _fy483) or (_bn483 & _fy483)) and not (
+                                                ({_cn483} | (_bn483 & set(_cbn483))) <= _fy483):
+                                            _fy483 |= {_cn483} | (_bn483 & set(_cbn483))
+                                            _ch483 = True
+                                for _cn483 in _fy483:
+                                    _fm483 |= _cm483.get(_cn483, set())
+                            if not _sf483 or _n483 in _fm483:
+                                _w483 = (f"a store to the attribute `.{_n483}`, a name bound at "
+                                         f"the top level or in a class body of the program")
+                    elif isinstance(_z483, (_a483.Import, _a483.ImportFrom)):
+                        _ms483 = ([_al.name for _al in _z483.names]
+                                  if isinstance(_z483, _a483.Import) else
+                                  ([_z483.module or ""] if not _z483.level else []))
+                        for _mn483 in _ms483:
+                            if _mn483 == "__main__" or (
+                                    _mn483.split(".")[0] in _std483
+                                    and _mn483.split(".")[0] not in _OKS483):
+                                _w483 = f"`import {_mn483}`"
+                        if (isinstance(_z483, _a483.ImportFrom) and not _z483.level
+                                and _z483.module == "sys"):
+                            _w483 = _w483 or next((f"`from sys import {_al.name}`"
+                                                   for _al in _z483.names
+                                                   if _al.name not in _SYS483), None)
+                    if _w483 is not None:
+                        _rf483 = (f"{_f483} (line {getattr(_z483, 'lineno', '?')}) runs, at "
+                                  f"import time, {_w483}")
+                        break
+    if _rf483 is not None:
+        from errors import PyCSLSemanticError as _PyCSLSemErr483
+        raise _PyCSLSemErr483(
+            f"{_rf483}. A module of this program's import closure that runs dynamic code at "
+            f"import time can rewrite ANY module's namespace -- this file's own globals, a "
+            f"constant this file imports, a function it calls -- so no cross-module fact "
+            f"may be believed (routes #483 / #484; measured: a dependency's "
+            f"`__builtins__['exec']('K = 0')` under a folded `from h import K`, a "
+            f"dependency's `import __main__; __main__.K = 0`, and a peer's `h.g = lambda x: 0` "
+            f"each PROVED `ensures \\result == n`, CPython returns 0). The program modules "
+            f"(this file's directory and `--import-path`) are judged on an allow-list: imports "
+            f"of program modules, installed libraries and the allow-listed standard library; "
+            f"no `exec` / `eval` / `compile` / `globals` / `vars` / `setattr` / `getattr` of a "
+            f"computed name / `__builtins__` / `__main__` / `sys.modules` / dunder attributes; "
+            f"an imported module only read through its attributes; and no attribute store "
+            f"to a name the program binds at a module's top level or in a class body. Move "
+            f"the dynamic code into a function the program does not call at import time, or "
+            f"write the binding in the module that owns the name.",
+            stage="ir-semantic", code="PYCSL-R483-IMPORT-TIME-NAMESPACE-WRITER")
     # (#49) gen #39, ROUTE #468 (red team 38, driver-reproduced on a9eac4a08): a BODYLESS
     # `val` (an imported function, `\trusted`, `\abstract`) with a LIST parameter its body
     # writes is emitted `val g (x: array int) : unit writes { x }` (route #317's default
