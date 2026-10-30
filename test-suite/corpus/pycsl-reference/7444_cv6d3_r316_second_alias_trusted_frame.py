@@ -5,7 +5,7 @@ from typing import List
 
 
 #@ \trusted
-#@ ensures True
+#@ ensures \result == 0
 def k(xs: List[int]) -> int:
     ys = xs
     zs = ys

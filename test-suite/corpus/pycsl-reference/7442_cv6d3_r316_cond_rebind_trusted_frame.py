@@ -5,7 +5,7 @@ from typing import List
 
 
 #@ \trusted
-#@ ensures True
+#@ ensures \result >= 1
 def k(c: bool, xs: List[int]) -> int:
     ys = xs
     if c:
