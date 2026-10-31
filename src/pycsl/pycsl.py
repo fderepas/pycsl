@@ -3813,7 +3813,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     for _i423 in range(len(_pt423), 0, -1):
                         try:
                             _o423 = _il423.import_module(".".join(_pt423[:_i423]))
-                        except Exception:
+                        except ImportError:
                             continue
                         try:
                             for _q423 in _pt423[_i423:]:

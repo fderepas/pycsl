@@ -94,6 +94,25 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 BASELINE = os.path.join(ROOT, "getting-better", "swallowed-exceptions-baseline.json")
 
 
+TRIES = {}          # relpath -> [(body_first_line, body_last_line, [(names|None, handler_line)])]
+BROAD_LINES = set() # {(relpath, handler_line)} of every broad SWALLOWING handler
+
+
+def catching_handler(rel, line, mro):
+    """The handler line of the innermost `try` whose BODY contains `line` and one of whose
+    handlers matches an exception with MRO names `mro` (None if it cannot be located)."""
+    best = None
+    for lo, hi, hs in TRIES.get(rel, []):
+        if not (lo <= line <= hi):
+            continue
+        for names, hl in hs:
+            if names is None or any(n in mro for n in names):
+                if best is None or lo > best[0]:
+                    best = (lo, hl)
+                break
+    return None if best is None else best[1]
+
+
 def static_broad_swallows():
     """{(relpath, enclosing function name)} for every broad swallowing handler."""
     out = set()
@@ -109,6 +128,22 @@ def static_broad_swallows():
                 tree = ast.parse(open(path, errors="replace").read())
             except (OSError, SyntaxError, UnicodeDecodeError):
                 continue
+            # (run #4) HANDLER GRANULARITY: every `try` body's line range with its handlers,
+            # so a firing is attributed to the handler that CAUGHT it, not to the function.
+            _rel = os.path.relpath(path, ROOT)
+            for _t in ast.walk(tree):
+                if isinstance(_t, ast.Try) and _t.body:
+                    _hs = []
+                    for _h in _t.handlers:
+                        _ht = _h.type
+                        _nm = (None if _ht is None else
+                               [e.id if isinstance(e, ast.Name) else
+                                (e.attr if isinstance(e, ast.Attribute) else "?")
+                                for e in (_ht.elts if isinstance(_ht, ast.Tuple) else [_ht])])
+                        _hs.append((_nm, _h.lineno))
+                    TRIES.setdefault(_rel, []).append(
+                        (_t.body[0].lineno,
+                         max(getattr(b, "end_lineno", b.lineno) for b in _t.body), _hs))
             # map each handler to its enclosing function
             for func in ast.walk(tree):
                 if not isinstance(func, (ast.FunctionDef, ast.AsyncFunctionDef)):
@@ -144,6 +179,7 @@ def static_broad_swallows():
                         rel = os.path.relpath(path, ROOT)
                         out.add((rel, func.name))
                         detail.append((rel, h.lineno, func.name, kind))
+                        BROAD_LINES.add((rel, h.lineno))
     return out, detail
 
 
@@ -157,7 +193,9 @@ hits = collections.Counter()
 def on_handled(code, offset, exc):
     fn = code.co_filename
     if fn.startswith(SRC):
-        hits[(os.path.relpath(fn, ROOT), code.co_name, type(exc).__name__)] += 1
+        hits[(os.path.relpath(fn, ROOT), code.co_name, type(exc).__name__,
+              sys._getframe(1).f_lineno,
+              ",".join(c.__name__ for c in type(exc).__mro__))] += 1
 mon = sys.monitoring
 mon.use_tool_id(TOOL, "swallow-probe")
 mon.set_events(TOOL, mon.events.EXCEPTION_HANDLED)
@@ -172,8 +210,8 @@ except SystemExit:
 except Exception:
     pass
 mon.set_events(TOOL, 0); mon.free_tool_id(TOOL)
-for (f, fn, exc), n in sorted(hits.items()):
-    sys.stderr.write("SWALLOW\t%d\t%s\t%s\t%s\n" % (n, f, fn, exc))
+for (f, fn, exc, ln, mro), n in sorted(hits.items()):
+    sys.stderr.write("SWALLOW\t%d\t%s\t%s\t%s\t%s\t%s\n" % (n, f, fn, exc, ln, mro))
 '''
 
 
@@ -198,8 +236,8 @@ def dynamic_firing():
                 if not line.startswith("SWALLOW\t"):
                     continue
                 parts = line.split("\t")
-                if len(parts) >= 5:
-                    hits[(parts[2], parts[3], parts[4])] += int(parts[1])
+                if len(parts) >= 7:
+                    hits[(parts[2], parts[3], parts[4], int(parts[5]), parts[6])] += int(parts[1])
     return hits
 
 
@@ -224,11 +262,22 @@ def main():
     hits = dynamic_firing()
     print(f"[*] swallowed-exceptions: {len(hits)} (file, function, exception) pair(s) "
           f"actually CAUGHT during a full 53-mirror emission.")
-    for (f, fname, exc), n in sorted(hits.items(), key=lambda kv: -kv[1]):
-        mark = "  <-- BROAD" if (f, fname) in broad else ""
-        print(f"    FIRED   {n:8d}x  {f}::{fname}  {exc}{mark}")
-
-    firing_broad = sorted(f"{f}::{fn}::{e}" for (f, fn, e) in hits if (f, fn) in broad)
+    # A firing is BROAD iff the handler that CAUGHT it is a broad swallowing handler. Until
+    # run #4 the intersection was by (file, FUNCTION), so in a 27k-line function such as
+    # `pycsl.py::_run_pipeline` a NARROW `except (SyntaxError, ValueError)` firing was
+    # reported as a broad swallow because some OTHER handler of the function was broad
+    # (measured on cd93786d9: 2 of the 4 reported firings were narrow handlers). A firing
+    # whose catching handler cannot be located keeps the old, conservative function rule.
+    _fb = set()
+    for (f, fname, exc, ln, mro), n in sorted(hits.items(), key=lambda kv: -kv[1]):
+        hl = catching_handler(f, ln, mro.split(","))
+        isb = ((f, hl) in BROAD_LINES) if hl is not None else ((f, fname) in broad)
+        mark = "  <-- BROAD" if isb else ""
+        where = f"handler line {hl}" if hl is not None else "handler not located"
+        print(f"    FIRED   {n:8d}x  {f}::{fname}  {exc} (line {ln}, {where}){mark}")
+        if isb:
+            _fb.add(f"{f}::{fname}::{exc}")
+    firing_broad = sorted(_fb)
 
     # THE #44 RULE, APPLIED TO THE BASELINE ITSELF (gen #4). This branch used to read
     # `if args.update or not os.path.exists(BASELINE)`, so a MISSING ratchet file made the
