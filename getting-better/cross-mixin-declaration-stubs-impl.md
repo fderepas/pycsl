@@ -147,7 +147,7 @@ field, or a TRAP-ratchet decision by the driver.
 |---|---|---|
 | `module6_whyml/stmt_control_flow.py` | 10 lines (`_match_pattern_cond` avatar gains receiver + 12-field `writes`, `_expr_to_whyml` +3) | `.mlw` BYTE-IDENTICAL to dx1's candidate (`scratchpad/dx1/cand_mlw/stmt_control_flow.mlw`), whose whole-file proof is rc=0, 14817 Valid / 0 non-Valid, `Verification SUCCESS` (13546 s, `scratchpad/dx1/proof_cand_stmt_control_flow.log`) — transferred, not re-run |
 | `module6_whyml/statements.py` | 3 lines: a `writes` on the UNAPPLIED vals `_e` / `_expr_to_whyml_string_ctx` / `_track_collection_metadata` (each symbol occurs once) | L3-tc ✓; whole-file proof **OWED**. (A whole-file run of the withdrawn field variant reached 25211 Valid / 0 non-Valid in the VC stage and was killed in the non-vacuity stage at 5 h 38 m; it is NOT evidence for this emission.) |
-| `Module6_WhyMLTranspiler.py` | `writes` on 4 unapplied vals (3 imported, 1 composite) | L3-tc ✓; whole-file proof **OWED** |
+| `Module6_WhyMLTranspiler.py` | `writes` on 4 unapplied vals (3 imported, 1 composite) | L3-tc ✓; whole-file proof at HEAD `d2675cb4a` (HEAVY_LOW): rc=0, **1764 Valid / 0 non-Valid**, `Verification SUCCESS` (1688 s, non-vacuity included; `scratchpad/dc2/proof_final_transpiler.log`) |
 
 **B0 (R0)** `bin/check-trusted-frame-honesty.py`: a DECLARATION arm (population and live-MRO resolution in the
 new shared `bin/lib_declarations.py`: 24 `\trusted` stubs + 2 `requires_method` windows, every one resolving
@@ -176,7 +176,7 @@ a non-trivial `ensures` (R2b); a result type changed; a ledgered residual repair
 
 **B4 (R4) NOT BUILT.** B2 certifies 20 `\trusted` declaration stubs (conforming, other-mixin), so
 `#@ declared_in` could carry at most 20 markers (gross -20; net TCB -2: only the two `_coerce_to_int`
-declarations have a VERIFIED definition; row 16 is excluded). Not started because (i) B1's proofs are OWED;
+declarations have a VERIFIED definition; row 16 is excluded). Not started because (i) B1's statements.py proof is OWED;
 (ii) it is a language change the pycsl-audit-pycsl-language discipline wires through parser, five doc
 surfaces and the reference corpus, and this executor had no corpus ID block (brief rule 4); (iii) every plane
 keyed on the `\trusted` marker must learn the new class or silently lose population:
@@ -189,6 +189,16 @@ report, else it is `\trusted` under another name). Design for the next executor:
 (emission identical by construction; verify mirror emit-diff 0), teach the walks above, and make B2 require
 the named target to equal the live-MRO resolution.
 
-**Next steps:** the OWED whole-file proofs (statements.py ~5 h+ at LOW incl. non-vacuity, Transpiler); the
+**Next steps:** the OWED whole-file proof of statements.py (~5 h+ at LOW incl. non-vacuity); the
 `_rebound_collections` repair (3 frames + field); R2b (generated Why3 clone-refinement units — no declaration
 has a non-trivial pre/post today); then B4.
+
+**Gate battery (HEAD `d2675cb4a`, every rc 0):** fidelity sync (938 functions) / mirror-check (53) / doc-coherency;
+corpus byte-diff root 2696/2696 0 MOVED / 0 GONE / 0 APPEARED and pyref 2186/2186 0/0/0 (candidate swept at
+`12ca6cf63`, src/pycsl identical; baseline = `scratchpad/v18/ca`, the emission of `909ecae97`, whose src/pycsl and
+corpus are identical to `8fdfce794`); mirror sweep 53/53, MOVED exactly statements / stmt_control_flow /
+Module6_WhyMLTranspiler (the base mirror emission equals v18's proved one byte for byte); soundness planes 62/62
+(fast incl. the new plane + the conversion tier); slow planes check-assigns-writes-survival (TRAP 1399, HOLE 0)
+and check-emitted-function-coverage OK; check-trusted-frame-honesty --emit-dir OK; check-assigns-underdeclaration
+--transitive OK (TRAP 3, HOLE 0); check-trusted-reasons 409 <-> 409; count-trusted-directives markers 409 / grep 437;
+check-assumed-facts OK. `\trusted` 437 lines / 409 markers before and after (gross 0, net 0).
