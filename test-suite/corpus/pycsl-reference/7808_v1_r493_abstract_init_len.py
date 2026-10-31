@@ -25,7 +25,7 @@ class C:
 
 
 class K:
-    #@ ensures True
+    #@ ensures self.r >= 0
     #@ \abstract
     def __init__(self, x: C) -> None:
         self.r = len(x)

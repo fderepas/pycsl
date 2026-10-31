@@ -1,4 +1,4 @@
-r"""Test 7826 -- route #495 (control, expected PASS; the advice followed): witness 7815 with the `assigns \nothing` clause deleted (`__len__` declares only `#@ assigns self.v`), the `\trusted` k declares `#@ assigns o.v`, and the caller no longer claims `o.v` unchanged; CPython returns 0
+r"""Test 7826 -- route #495 (control, expected PASS; the advice followed): witness 7815 with the `assigns \nothing` clause deleted (`__len__` declares only `#@ assigns self.v`), the `\trusted` k declares `#@ assigns o.v`, and the caller returns the value of `o.v` read BEFORE the call (no claim on `o.v` after it); CPython returns 0
 """
 # pycsl-expected: PASS
 from typing import Any, Dict, List, Optional
@@ -23,8 +23,9 @@ def k(o: C) -> int:
 #@ ensures \result == 0
 def f(n: int) -> int:
     o = C()
+    w = o.v
     k(o)
-    return 0
+    return w
 
 
 if __name__ == "__main__":
