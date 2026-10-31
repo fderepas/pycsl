@@ -119,3 +119,71 @@ Candidate patches: `/tmp/claude-1000/-home-fabrice-git-pycsl/0119d6ca-595a-4b95-
 non-ghost rows (Gate-S-green for `stmt_control_flow.py`; `statements.py` proof owed); that is a plan change, not taken here.
 Next step after the ghost route: R0/B0 as planned, then R2a, with R2b (generated Why3 clone-refinement units) recorded as
 the step after.
+
+## 6. Execution record (executor dc2, driver run #3, 2026-10-30) — B1 + B0 + B2 landed; B4 NOT built
+
+Base `8fdfce794` (z1 had already repaired the 3 ghost rows, route #488). Order actually run: B1, B0, B2.
+
+**B1 (R1) — and why it is NOT the verbatim sync of §5.** The verbatim definition frames (dx1's
+`gateS_R1_nonghost.patch`, re-derived on this tree: identical) raise `check-assigns-writes-survival`
+TRAP 1399 -> 1484 (+85): a declaration's `writes` is the frame INTERSECTED WITH THE DECLARING CLASS'S
+RECORD, so naming the definition's fields the record does not carry emits nothing and reads as a
+guarantee (the plane's TRAP). Paying it the z1 way (declare ~40 fields on two mixins) re-opens the
+statements / stmt_control_flow / Transpiler records (~7 h of whole-file proofs). Taken instead: each of
+the 9 understated declarations is widened MONOTONICALLY (nothing removed from any clause) by every
+definition field its reachable records carry; one field (`_rebound_collections`) is DECLARED on
+`StatementEmissionMixin` because the `_track_collection_metadata` declaration is MRO-SELECTED in the
+mirror composite (`Module6_WhyMLTranspiler` lists StatementEmissionMixin before TypeInferenceMixin, so
+its composite val is minted from this declaration onto the 132-field union record — measured: a
+record-projected frame dropped `_rebound_collections` there). Result: emitted WhyML equals the full
+verbatim sync on every reachable record (stmt_control_flow.mlw BYTE-IDENTICAL to dx1's proved
+candidate; statements.mlw / Transpiler.mlw differ from it only by the declared field), TRAP 1399
+(unchanged), HOLE 0.
+
+| file | emission vs base | proof |
+|---|---|---|
+| `module6_whyml/stmt_control_flow.py` | 10 lines (`_match_pattern_cond` avatar gains receiver + 12-field `writes`, `_expr_to_whyml` +3) | `.mlw` BYTE-IDENTICAL to dx1's candidate (`scratchpad/dx1/cand_mlw/stmt_control_flow.mlw`), whose whole-file proof is rc=0, 14817 Valid / 0 non-Valid, `Verification SUCCESS` (13546 s, `scratchpad/dx1/proof_cand_stmt_control_flow.log`) — transferred, not re-run |
+| `module6_whyml/statements.py` | record + `_rebound_collections`; `writes` added to the 3 UNAPPLIED vals `_e` / `_expr_to_whyml_string_ctx` / `_track_collection_metadata`; frame `ensures` for the new field | whole-file proof (HEAVY_LOW): VC stage COMPLETE, **25211 Valid / 0 non-Valid** (0 Timeout / Unknown / Failed lines); the non-vacuity stage (per-function probes done, call-site probes started) was KILLED at 5 h 38 m to leave the box for the gate battery, so the final `Verification SUCCESS` verdict is **OWED** (log `scratchpad/dc2/proof_candB1m_statements.log`) |
+| `Module6_WhyMLTranspiler.py` | the same record field in the imported and composite records; `writes` on 4 unapplied vals | L3-tc ✓; whole-file proof **OWED** (not run: box) |
+
+**B0 (R0)** `bin/check-trusted-frame-honesty.py`: a DECLARATION arm (population and live-MRO resolution in the
+new shared `bin/lib_declarations.py`: 24 `\trusted` stubs + 2 `requires_method` windows, every one resolving
+to exactly one definition), and the `\nothing` arms now resolve a declaration through the MRO too. Negative
+test = the base tree: OWN 9 (5 MODEL-VISIBLE) RED, trusted `\nothing` total 3 > 1 and model-visible 2 > 0 RED.
+After B1: OWN model-visible 0 (hard ratchet), OWN 6 (all unmodelled, ratchet 6), INHERITED 13 (ratchet 13: the
+DEFINITIONS' own frames omit live writes `_r188_stub_names` / `_r55_subsumed_name` / `r417_obls` / `r434_ok` /
+`ir` — a residual of the trusted definitions, not of the declarations), GREEN.
+
+**B2 (R2a)** `bin/check-declaration-conformance.py`, pure AST, wired as fast plane #57 (MIN_PLANES 56 -> 57):
+frame ⊇ definition projected onto every record the declaration reaches (declaring class + mirror composites
+whose unit MRO-selects it — import visibility is resolved as pycsl does: relative to the importing file),
+no frameless declaration of a writing definition, raises ⊇, pre/post trivial (else R2b, RED), signature
+refinement with every accepted type-layer mapping printed (`ExprIR ~ Dict`, `set ~ Set[str]`, ERASED
+`int` parameters of the definition). Base tree: 11 FAIL (7 unnamed) RED. HEAD: 22/26 conform; 4 NAMED
+signature residuals (`KNOWN_NONCONFORMING`, FAIL_RATCHET 4): window `_field_type_of` (`-> str` over
+`Optional[str]`), `_resolve_dotted_signature` (declares a tuple result over an unannotated definition),
+statements `_expr_to_whyml` (`subst: int` over `Optional[Dict[str, str]]`), row 16 `_handle_return_stmt`
+(`ExprIR` over `ReturnStmt`; base/override — routes #277/#278 do NOT reach it: no `refines` goal is
+emitted, the base is imported from the un-annotated live tree). Negative tests on scratch copies
+(`scratchpad/dc2/neg/b2_neg.sh`): control GREEN; frame narrowed to `\nothing`; one in-record field dropped;
+`_rebound_collections` dropped from the MRO-selected declaration; a `raises` the definition gains; a
+non-trivial `ensures` (R2b); a result type changed; a ledgered residual repaired without un-ledgering it
+— all 7 RED.
+
+**B4 (R4) NOT BUILT.** B2 certifies 21 `\trusted` declaration stubs (conforming, other-mixin), so
+`#@ declared_in` could carry at most 21 markers (gross -21; net TCB -2: only the two `_coerce_to_int`
+declarations have a VERIFIED definition, row 16 being excluded). It was not started because (i) the box was
+consumed by the `statements.py` whole-file proof; (ii) it is a language change the
+pycsl-audit-pycsl-language discipline wires through parser, five doc surfaces and the reference corpus, and
+this executor has no corpus ID block (brief rule 4); (iii) every plane keyed on the `\trusted` marker must
+learn the new class or it silently loses population: `count-trusted-directives` / `trusted_markers`,
+`check-trusted-reasons` (21 rows), `check-untrusted-emitted` (a `declared_in` stub is emitted as a `val`),
+`check-self-annotate-mirror-sync`, `check-trusted-frame-honesty`'s trusted `\nothing` arm,
+`check-directive-enforcement` (a user-facing `declared_in` is enforced only by this repo plane, not by
+pycsl — it must be refused outside the mirror, or counted as trusted by pycsl's own TCB report, or it is
+`\trusted` under another name). Design for the next executor: parse `declared_in <file>::<Class.m>` in
+`Module2_Parser._parse_contract` (not mirrored) to the SAME `Trusted` node (emission identical by
+construction; verify mirror emit-diff 0), add the class to the walks above, and make B2 require the named
+target to equal the live-MRO resolution.
+
+**Next step: R2b** (generated Why3 clone-refinement units for non-trivial pre/post; none exist today), then B4.

@@ -403,6 +403,11 @@ PLANES=(
     # times (~2 min): a plane that only runs with `--slow` would not have protected the
     # increments that needed it most.
     check-directive-enforcement.py
+    # (driver run #3, wall `cross-mixin-declaration-stubs`, R2a): every cross-mixin
+    # DECLARATION (a `\trusted` stub with no live def in its class, or a `requires_method`
+    # window) must conform to the MIRROR definition the live MRO dispatches to: frame and
+    # raises inclusion, trivial pre/post (else R2b), signature refinement. Pure AST.
+    check-declaration-conformance.py
 )
 # (#49) gen #30: TIGHTENED to the EXACT fast-plane count. It had been carrying slack —
 # 20 when 22 planes were listed — so a plane could have been deleted from the array and
@@ -422,7 +427,8 @@ PLANES=(
 # battery until now — lesson (u6)).
 # (#49) gen #35: 55 -> 56 with `check-mirror-clause-survival.py` (backlog #74 generalised:
 # requires/ensures survival keyed on the EMISSION, not on the emitter's dispatch keys).
-MIN_PLANES=56
+# (driver run #3) 56 -> 57 with `check-declaration-conformance.py` (R2a).
+MIN_PLANES=57
 
 # THE SLOW SET, opt-in with `--slow` (or PYCSL_SOUNDNESS_PLANES_SLOW=1).
 #
