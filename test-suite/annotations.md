@@ -4288,6 +4288,48 @@ residuals): a dunder bound as a class attribute (`__len__ = f`) or installed by 
 function the tool AUTO-trusts (a body it cannot lower: not a `val` with an inferred frame here); a `\trusted`
 callee WITH a user-written `#@ assigns` (its frame is the user's claim, as in §7.360).
 
+### 7.400 Route #489's judge, refuse by default: every position, every binding, every bodyless val, every returning call, the woven frame (routes #491-#495, run #3)
+
+Red team 42 measured 139 (probe, mode) pairs PROVED `o.v == 0` across a `\trusted` / `\abstract` / imported
+callee that runs a writing dunder of `o` (CPython returns 7), each a gap of §7.380's judge: (#491) its
+position table omitted the dunders a position runs -- sequence repetition `[1] * o` / `'ab' * o` / `s *= o`
+and `round(x, o)` run `__index__`, `isinstance(1, o)` / `issubclass(int, o)` run `__instancecheck__` /
+`__subclasscheck__`, `iter(o, s)` runs `__call__`; (#492) the program-dunder table read only top-level `def
+__x__` members (`__len__ = _l`, a chain `_m = _l; __len__ = _m`, a `def` nested in a class-body `if True:`);
+(#493) a val was judged only when the verified code spelled its name or the suffix `name.rsplit('__', 1)[-1]`
+(`''` for `k____init__` / `k____call__`, `it` for `c__do__it`), and a `\trusted` / `\abstract` / imported
+`__init__` is no IR function at all; (#494) the upward walk stopped at a program call / method call / listed
+builtin, so `len(ident(o))`, `o.me() == 1`, `len(max(o, o))` were never classified; (#495) a dunder was
+`pure` when the TEXT `assigns \nothing` occurred in its `#@` lines, while the verifier proves it against the
+UNION of its clauses (`#@ assigns \nothing` + `#@ assigns self.v`: 13 probes x hoare / typed / store).
+
+RULE (`_run_pipeline`, §7.380 rewritten in place): (a) on a RECORD value every implicit position counts as
+EVERY dunder of the value's classes -- the position table no longer bounds soundness; only an attribute read
+/ store (`__getattr__` / `__getattribute__` / `__setattr__` / `__delattr__`, then the field), an `is` / `is
+not`, a binding to a name (tracked as an alias), a `return` / expression statement, an argument of a program
+call, and the first item of a two-item `max` / `min` stay precise; a field read stops the walk only when the
+field is scalar-typed in EVERY class the value may have (the carrier and its program subclasses; also when
+the carrier is every class of the program); (b) the class's dunders are every binding of the class NAMESPACE,
+at any depth of the class body (`def`, `__x__ = name` resolved through alias chains to the def(s) of the same
+class body, anything else -- a lambda, a call, a loop / `with` / walrus / import binding, a nested class --
+`other`), inherited through the program bases; (c) EVERY bodyless val with no `#@ assigns` is judged by its
+own identity, plus each `\trusted` / `\abstract` or imported `__init__` / `__new__` / `__post_init__` ... (no
+`#@ assigns`) of a program class; (d) a call of a program def / class / method whose return annotation is
+not a scalar, a builtin that may return its argument (`max`, `min`, `next`, `iter`, `abs`, `round`, ...), an
+operator, a unary `-` / `+` / `~`, a rich comparison and a subscript continue the walk from that node with a
+value of unknown class (every program class); (e) a dunder is `pure` iff its WOVEN frame (the IR's parsed
+`assigns`) is `\nothing` alone (the `#@` clauses one by one only for a def with no IR entry), and a function
+of the woven IR whose `assigns` mixes `\nothing` with another clause is REFUSED with
+`PYCSL-CONTRADICTORY-ASSIGNS` (the bodyless-val emitter already refused it for a val, route #103; the frame is
+self-contradictory, and the fix is to delete `assigns \nothing`).
+
+Witnesses `7800`-`7817` (PROVED at base, REFUSED; `7816` typed, `7817` store); controls `7820`-`7826` (an int
+field as repetition count -- REFUSED at base by the single-class field quirk, now PROVED; an alias to a pure
+def; a judged `\trusted` `__init__` over a pure `__len__`; a scalar-returning program def and method; a
+`\nothing`-alone dunder; the advice followed: `\nothing` deleted and the callee's frame declared). The cost is
+an over-refusal: a `\trusted` body that uses a record in any implicit position is refused as soon as the
+record's class has ANY dunder not declared `#@ assigns \nothing`, even one that position never runs.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
