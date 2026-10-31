@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-31): #491-#495 OPENED (red team 42 on 77a3818d0: 818 probes + 715 mode re-proofs / 139 confirmed;
+##   rt41's 237 all closed; #490 complements and new object-model surfaces held): #491 r489-dunder-position-table (23); #492 r489-dunder-alias-binding (21); #493 r489-bodyless-dunder-name-key (27); #494 r489-record-through-returning-call (29); #495 r489-contradictory-frame-text (13).
+##   Diagnosis: all five are gaps of route #489's implicit-dunder judge (position table, alias-bound dunders, bodyless-name key,
+##   record through a returning call, purity read from comment text).
+
 ## run #3 (2026-10-30): #489 REPAIRED (executor u1 off 394a1654a; inline in `_run_pipeline` after route #482's rule, mirror twin
 ##   `\trusted`, no new def, no axiom; new code PYCSL-R489-IMPLICIT-DUNDER; annotations §7.380). An implicit dunder position
 ##   (`len(o)`, truth test, `==` / order with reflection, `in`, BinOp / AugAssign, `str` / f-string / `%`, index, `o[0]`,
