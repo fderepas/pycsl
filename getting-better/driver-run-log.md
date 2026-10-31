@@ -606,3 +606,4 @@ Deadline epoch in `getting-better/.driver-deadline`. Logs/rc files for long gate
 - Slow planes green (v1 had not run them): emitted-function-coverage 0 non-dunder drops; assigns-writes-survival HOLE 0, TRAP 1399, TRAP-NMS 1501.
 - 25/25 new corpus files match expectations; base sample 5/5 PROVED on ddd542f97 (false proofs then).
 - Routes #491 #492 #493 #494 #495 REPAIRED (113 witnesses; #495 in all three models). \trusted 437. Pruned int12, v1. |
+2026-10-31T07:02Z | 335 | FINAL CONVERGENCE CHECK (driver, heavy.sh): rt42's 139 confirmed probes re-proved on the final main cd93786d9 -> 139/139 REFUSED. Final report written: getting-better/driver-run3-final-report.md (iterations, landings, 13 conversions / 2 honest re-trusts, \trusted 448 -> 437 (markers 420 -> 409), walls, routes #402-#495, user-decision items, leftover worktrees: pycsl-dc2 kept with an owed statements.py proof). |
