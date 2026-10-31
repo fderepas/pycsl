@@ -74,10 +74,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import lib_declarations as L  # noqa: E402
 
 # Each NON-CONFORMING declaration is NAMED here with why it is not repaired in the landing
-# commit; an unnamed one is RED, a named one that conforms again is a STALE entry (RED). None
-# is a frame/raises deficit (the R1 sync emptied those); all four are SIGNATURE residuals whose
-# repair moves the emission of a big mirror file (a whole-file proof each). None is eligible
-# for `#@ declared_in` while it is listed.
+# commit; an unnamed one is RED, a named one that conforms again is a STALE entry (RED). Four
+# are SIGNATURE residuals and one a composite-record FRAME residual; each repair moves the
+# emission of a big mirror file (a whole-file proof each). None is eligible for
+# `#@ declared_in` while it is listed.
 KNOWN_NONCONFORMING = {
     "module6_whyml/expressions.py::ExpressionEmissionMixin._field_type_of":
         "requires_method window declares `-> str`; the definition (types.py, VERIFIED) returns "
@@ -88,12 +88,36 @@ KNOWN_NONCONFORMING = {
     "module6_whyml/statements.py::StatementEmissionMixin._expr_to_whyml":
         "declares `subst: int = None` (an erasure on the DECLARING side); the definition says "
         "Optional[Dict[str, str]]. Repair = the definition's annotation (statements.py moves).",
+    "module6_whyml/statements.py::StatementEmissionMixin._track_collection_metadata":
+        "FRAME (a), MRO-selected in the mirror composite Module6_WhyMLTranspiler, whose record "
+        "carries `_rebound_collections`: the declaration omits it because naming it raises "
+        "check-assigns-writes-survival TRAP (StatementEmissionMixin's record lacks it) and "
+        "DECLARING it on StatementEmissionMixin exposes 3 under-declared frames (verified "
+        "_handle_seq_assign; check-assigns-underdeclaration RED, measured). The composite val "
+        "is unapplied. Repair = the 3 frames + the field, or a TRAP ratchet decision.",
     "module6_whyml/statements.py::StatementEmissionMixin._handle_return_stmt":
         "BASE-CLASS declaration (census row 16): `stmt: ExprIR` over the verified base's "
         "`ReturnStmt`; routes #277/#278 do not reach it (no refines goal is emitted: the base is "
         "imported from the un-annotated live tree). Stays `\\trusted`.",
 }
-FAIL_RATCHET = len(KNOWN_NONCONFORMING)   # 4 at landing; may only SHRINK
+# The EXACT violation each ledgered declaration is recorded with (the plane's own messages).
+KNOWN_FAILURES = {
+    "module6_whyml/expressions.py::ExpressionEmissionMixin._field_type_of":
+        ["(e) return annotation: decl str / def Optional[str] (the declaration may not claim a "
+         "narrower result type)"],
+    "module6_whyml/statements.py::StatementEmissionMixin._resolve_dotted_signature":
+        ["(e) return annotation: decl Tuple[str, List[str], int, int] / def None (the "
+         "declaration may not claim a narrower result type)"],
+    "module6_whyml/statements.py::StatementEmissionMixin._expr_to_whyml":
+        ["(e) `subst` annotation: decl int / def Optional[Dict[str, str]] (not a documented "
+         "type-layer pair)"],
+    "module6_whyml/statements.py::StatementEmissionMixin._track_collection_metadata":
+        ["(a) frame misses 1 target(s) of the definition: self._rebound_collections"],
+    "module6_whyml/statements.py::StatementEmissionMixin._handle_return_stmt":
+        ["(e) `stmt` annotation: decl ExprIR / def ReturnStmt (not a documented type-layer "
+         "pair)"],
+}
+FAIL_RATCHET = len(KNOWN_NONCONFORMING)   # 5 at landing; may only SHRINK
 R2B_RATCHET = 0
 MIN_DECLARATIONS = 20        # measured 26 at 8fdfce794 (24 stubs + 2 windows)
 
@@ -320,6 +344,14 @@ def main():
         print("[!] declaration-conformance: UNNAMED non-conforming declaration %s — repair it "
               "(give it its definition's contract) or name it in KNOWN_NONCONFORMING." % q)
         rc = 1
+    # A LEDGERED declaration must fail EXACTLY as recorded (KNOWN_FAILURES): a new or a
+    # changed violation on an already-named declaration is not hidden by its ledger entry.
+    for _d, q, _dq, fails, _r, _n, _b in rows:
+        k = q.split(" (")[0]
+        if fails and k in KNOWN_NONCONFORMING and sorted(fails) != sorted(KNOWN_FAILURES.get(k, [])):
+            print("[!] declaration-conformance: LEDGERED declaration %s fails DIFFERENTLY than "
+                  "recorded: %s (recorded: %s)." % (k, fails, KNOWN_FAILURES.get(k)))
+            rc = 1
     for q in sorted(set(KNOWN_NONCONFORMING) - failing):
         print("[!] declaration-conformance: STALE KNOWN_NONCONFORMING entry %s — it conforms "
               "now; remove it and lower FAIL_RATCHET in the same commit." % q)

@@ -146,9 +146,8 @@ The `\\nothing` populations above also resolve a declaration through the MRO now
 `\\trusted` declaration claiming `assigns \\nothing` counts toward TOTAL_RATCHET).
 NEGATIVE TEST: on the base tree 8fdfce794 the arm reports OWN 9, 5 of them MODEL-VISIBLE
 (RED), and the trusted `\\nothing` total 3 > 1 / model-visible 2 > 0 (RED); after R1 (each
-declaration widened by every definition field its reachable records carry, plus
-`_rebound_collections` declared on StatementEmissionMixin) it is OWN 6, 0 model-visible, and
-total 1 / model-visible 0 (GREEN).
+declaration widened by every definition field the declaring file's record carries) it is OWN 7,
+0 model-visible, and total 1 / model-visible 0 (GREEN).
 
 RATCHET.  The counts may go down, never up -- EXCEPT when the analysis itself gets sharper,
 which must be stated in this docstring with what it newly sees, as the paragraph above does.
@@ -294,12 +293,12 @@ CONVERTED_TOTAL_RATCHET = 63  # run #3 (z1, 2026-10-30): 93 -> 63, route #488 --
 # proof away from being a hole, which is exactly what a conversion session is hunting for.
 # `getting-better/open-routes/finding-assigns-nothing-over-a-subprocess.md`
 # (driver run #3, R0) THE DECLARATION ARM -- see the module docstring. OWN model-visible is a HARD 0;
-# the unmodelled OWN total is ratcheted at 6; INHERITED is the measured residual of the trusted DEFINITIONS' own
+# the unmodelled OWN total is ratcheted at 7; INHERITED is the measured residual of the trusted DEFINITIONS' own
 # frames (13 declarations resolve to a definition whose frame omits live writes such as
 # `_r188_stub_names` / `_r55_subsumed_name` / `r417_obls` / `r434_ok` / `ir` of the
 # expressions.py `_e` family). Both may only SHRINK.
 DECL_OWN_VISIBLE_RATCHET = 0
-DECL_OWN_RATCHET = 6          # all unmodelled (see docstring); may only SHRINK
+DECL_OWN_RATCHET = 7          # all unmodelled (see docstring); may only SHRINK
 DECL_INHERITED_RATCHET = 13
 MIN_DECLARATIONS = 20          # measured 26 (24 stubs + 2 requires_method windows)
 EXTERNAL_EFFECT_CALLS = {

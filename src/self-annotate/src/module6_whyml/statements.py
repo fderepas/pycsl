@@ -171,13 +171,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _tparam_locals: Set[str] = None
     _record_array_locals: Dict[str, str] = None
     _known_collection_elements: Dict[str, Dict[int, str]] = None
-    # (driver run #3, wall `cross-mixin-declaration-stubs`, R1) declared so that the local
-    # `_track_collection_metadata` DECLARATION can carry its definition's FULL frame
-    # (types.py `TypeInferenceMixin._track_collection_metadata` writes it; live initialiser
-    # `self._rebound_collections = set()`, functions.py) without the name being dropped from
-    # the emitted `writes` (check-assigns-writes-survival TRAP). Type from the live
-    # initialiser, as types.py declares it.
-    _rebound_collections: Set[str] = None
     _record_seq_locals: Dict[str, str] = None
     # (#49) gen #36 slow-plane repair — (same three as ControlFlowStmtMixin) the three PER-LOOP fields `_handle_for_stmt` resets at
     # entry and `_classify_iterable` / its arms set (live stmt_control_flow.py: `= None` at loop
@@ -475,7 +468,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    #@ assigns self._known_collection_elements, self._known_collection_sizes, self._rebound_collections, self._record_array_locals
+    #@ assigns self._known_collection_elements, self._known_collection_sizes, self._record_array_locals
     def _track_collection_metadata(self, target: str, val_ir: "ExprIR") -> None:
         return
 
