@@ -117,6 +117,39 @@ name, each residual NAMED in a ledger with its reason.  A third count measures h
 declared parameter frames actually reach the emitted `writes` (only list parameters do).
 See the constants block `PARAM_*`.
 
+THE DECLARATION ARM (added driver run #3, wall `cross-mixin-declaration-stubs`, R0).
+Every arm above looks a mirror method up in its LIVE TWIN: `(live file, class, name)`.  A
+cross-mixin DECLARATION has no live twin -- it is a local bodyless stand-in (a `\\trusted`
+stub, or a `#@ requires_method` window) for a method the composite's MRO resolves in ANOTHER
+class -- so `trans.get(live_key)` was None and the plane passed all 26 of them unseen.  At
+8fdfce794 nine of them declared a frame NARROWER than their definition's (e.g.
+`ControlFlowStmtMixin._match_pattern_cond` `assigns \\nothing` over a 22-field definition), and
+three more (the ghost `_e` / `_expr_to_whyml_string_ctx`) had been load-bearing for 30
+verified frames (route #488).  The census and the MRO resolution live in
+`bin/lib_declarations.py`, shared with `bin/check-declaration-conformance.py` so the two
+planes cannot disagree about the population.  For each declaration, with LIVE = the resolved
+definition's transitive `self` writes, DEF = its mirror twin's declared frame, DECL = the
+declaration's own frame:
+  OWN deficit       (LIVE & DEF) - DECL   the declaration understates a write its definition
+                                          already declares. MODEL-VISIBLE (the field is in the
+                                          declaring file's emitted record): HARD 0
+                                          (`DECL_OWN_VISIBLE_RATCHET`). Unmodelled (no record
+                                          in any unit that sees the declaration carries it, so
+                                          naming it would only raise the assigns-writes-survival
+                                          TRAP): ratcheted (`DECL_OWN_RATCHET`), and
+                                          `bin/check-declaration-conformance.py` checks the
+                                          projection is exact, composites included.
+  INHERITED deficit LIVE - DEF - DECL     the DEFINITION's own frame understates its live
+                                          closure; copying it cannot fix this: ratcheted
+                                          separately (`DECL_INHERITED_RATCHET`).
+The `\\nothing` populations above also resolve a declaration through the MRO now (a
+`\\trusted` declaration claiming `assigns \\nothing` counts toward TOTAL_RATCHET).
+NEGATIVE TEST: on the base tree 8fdfce794 the arm reports OWN 9, 5 of them MODEL-VISIBLE
+(RED), and the trusted `\\nothing` total 3 > 1 / model-visible 2 > 0 (RED); after R1 (each
+declaration widened by every definition field its reachable records carry, plus
+`_rebound_collections` declared on StatementEmissionMixin) it is OWN 6, 0 model-visible, and
+total 1 / model-visible 0 (GREEN).
+
 RATCHET.  The counts may go down, never up -- EXCEPT when the analysis itself gets sharper,
 which must be stated in this docstring with what it newly sees, as the paragraph above does.
 Lower them deliberately when a stub is converted or its `#@ assigns` is corrected.
@@ -260,6 +293,15 @@ CONVERTED_TOTAL_RATCHET = 63  # run #3 (z1, 2026-10-30): 93 -> 63, route #488 --
 # proof leans on a false frame. It is a TRAP, not a HOLE — and it is one green whole-file
 # proof away from being a hole, which is exactly what a conversion session is hunting for.
 # `getting-better/open-routes/finding-assigns-nothing-over-a-subprocess.md`
+# (driver run #3, R0) THE DECLARATION ARM -- see the module docstring. OWN model-visible is a HARD 0;
+# the unmodelled OWN total is ratcheted at 6; INHERITED is the measured residual of the trusted DEFINITIONS' own
+# frames (13 declarations resolve to a definition whose frame omits live writes such as
+# `_r188_stub_names` / `_r55_subsumed_name` / `r417_obls` / `r434_ok` / `ir` of the
+# expressions.py `_e` family). Both may only SHRINK.
+DECL_OWN_VISIBLE_RATCHET = 0
+DECL_OWN_RATCHET = 6          # all unmodelled (see docstring); may only SHRINK
+DECL_INHERITED_RATCHET = 13
+MIN_DECLARATIONS = 20          # measured 26 (24 stubs + 2 requires_method windows)
 EXTERNAL_EFFECT_CALLS = {
     ("subprocess", "run"), ("subprocess", "Popen"), ("subprocess", "check_output"),
     ("subprocess", "call"), ("subprocess", "check_call"),
@@ -878,6 +920,9 @@ def main():
 
     classes, bases, funcs, tables = _parse_tree(LIVE_ROOT)
     direct, trans = _self_write_fixpoint(classes, bases, funcs, tables)
+    import lib_declarations as _ld
+    _lclasses = _ld.live_graph(LIVE_ROOT)
+    _lmros = {c: _ld.c3_mro(c, _lclasses) for c in _lclasses}
 
     ms_classes = _mutable_state_classes(MIRROR_ROOT)
     modelled = _mirror_modelled_fields(MIRROR_ROOT)
@@ -943,6 +988,11 @@ def main():
         offenders = []
         for path, cls, name in stubs:
             live_key = (LIVE_ROOT + path[len(MIRROR_ROOT):], cls, name)
+            if live_key not in funcs and cls:
+                # (R0) a DECLARATION: resolve it to its definition through the live MRO.
+                _defs = _ld.resolve(cls, name, _lclasses, _lmros)
+                if len(_defs) == 1:
+                    live_key = (os.path.relpath(_defs[0][1]), _defs[0][0], name)
             writes = trans.get(live_key)
             if writes:
                 offenders.append((path, cls, name, sorted(writes),
@@ -1053,6 +1103,62 @@ def main():
              "which is an ERASURE of the live one — and every OTHER file's caller-side "
              "abstract `val` is minted from the same declared `assigns`, so it inherits "
              "the false frame UNCHECKED.")
+
+    # (driver run #3, R0) THE DECLARATION ARM (see the module docstring).
+    _decls = _ld.declarations(".", _lclasses)
+    _own, _inh, _unres = [], [], []
+    for _d in _decls:
+        if len(_d["defs"]) != 1:
+            _unres.append(_d)
+            continue
+        _dcls, _dpath = _d["defs"][0]
+        _live = trans.get((os.path.relpath(_dpath), _dcls, _d["name"]))
+        _decl = {t[5:] for t in _ld.frame(_d["clauses"])[0] if t.startswith("self.")}
+        _md = _ld.mirror_def(".", _dpath, _dcls, _d["name"])
+        _dfr = ({t[5:] for t in _ld.frame(_md[2])[0] if t.startswith("self.")}
+                if _md else None)
+        _lw = set(_live or ())
+        _o = (_lw & _dfr if _dfr is not None else _lw) - _decl
+        _i = (_lw - _dfr - _decl) if _dfr is not None else set()
+        _q = "%s::%s.%s%s" % (_d["rel"], _d["cls"], _d["name"],
+                              " (requires_method window on %s)" % _d["host"]
+                              if _d["kind"] == "window" else "")
+        if _o:
+            _vis = _visible(_d["cls"], os.path.join(MIRROR_ROOT, _d["rel"]), sorted(_o),
+                            _sym_of(_d["cls"], _d["name"]) if _d["kind"] == "stub" else None)
+            _own.append((_q, sorted(_o), _vis, "%s.%s" % (_dcls, _d["name"])))
+        if _i:
+            _inh.append((_q, sorted(_i), "%s.%s" % (_dcls, _d["name"])))
+    print("[*] declaration-frame-honesty: %d declaration(s) (%d `\\trusted` stubs, %d "
+          "`requires_method` windows) resolved through the live MRO; %d understate their "
+          "DEFINITION's live writes that the definition itself declares (OWN, %d "
+          "model-visible); %d inherit a definition frame that understates its live closure "
+          "(INHERITED); %d unresolved."
+          % (len(_decls), sum(1 for d in _decls if d["kind"] == "stub"),
+             sum(1 for d in _decls if d["kind"] == "window"), len(_own),
+             sum(1 for o in _own if o[2]), len(_inh), len(_unres)))
+    for _q, _o, _vis, _def in _own:
+        print("    OWN %-13s %-70s def %-44s missing %d: %s"
+              % ("MODEL-VISIBLE" if _vis else "unmodelled", _q, _def, len(_o), _o[:6]))
+    if args.verbose:
+        for _q, _i, _def in _inh:
+            print("    INHERITED %-70s def %-44s missing %s" % (_q, _def, _i))
+    for _d in _unres:
+        print("[!] declaration-frame-honesty: UNRESOLVED declaration %s::%s.%s -> %s (dead or "
+              "ambiguous: no single live definition to check it against)."
+              % (_d["rel"], _d["cls"], _d["name"], _d["defs"]))
+        rc = 1
+    if len(_decls) < MIN_DECLARATIONS:
+        print("[!] declaration-frame-honesty: REFUSING — only %d declaration(s) found, "
+              "expected at least %d. THIS IS A REFUSAL, NOT A PASS."
+              % (len(_decls), MIN_DECLARATIONS), file=sys.stderr)
+        return 2
+    _ratchet("declaration-frame-honesty",
+             (("own-model-visible", sum(1 for o in _own if o[2]), DECL_OWN_VISIBLE_RATCHET),
+              ("own", len(_own), DECL_OWN_RATCHET),
+              ("inherited", len(_inh), DECL_INHERITED_RATCHET)),
+             "A declaration's frame is what every caller in its file ASSUMES; one narrower "
+             "than its definition's lets a verified caller prove a false frame (route #488).")
 
     # (#49) ROUTE #401 — THE PARAMETER-WRITE ARM (see the constants' note).
     import lib_param_write_closure as _lpw
