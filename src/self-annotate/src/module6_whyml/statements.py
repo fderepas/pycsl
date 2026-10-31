@@ -171,6 +171,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _tparam_locals: Set[str] = None
     _record_array_locals: Dict[str, str] = None
     _known_collection_elements: Dict[str, Dict[int, str]] = None
+    # (driver run #3, wall `cross-mixin-declaration-stubs`, R1) declared so that the local
+    # `_track_collection_metadata` DECLARATION can carry its definition's FULL frame
+    # (types.py `TypeInferenceMixin._track_collection_metadata` writes it; live initialiser
+    # `self._rebound_collections = set()`, functions.py) without the name being dropped from
+    # the emitted `writes` (check-assigns-writes-survival TRAP). Type from the live
+    # initialiser, as types.py declares it.
+    _rebound_collections: Set[str] = None
     _record_seq_locals: Dict[str, str] = None
     # (#49) gen #36 slow-plane repair — (same three as ControlFlowStmtMixin) the three PER-LOOP fields `_handle_for_stmt` resets at
     # entry and `_classify_iterable` / its arms set (live stmt_control_flow.py: `= None` at loop
@@ -315,6 +322,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # here so the reflecting mirror type-checks the call.
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._uses_pyast_parser_cache
     def _is_emit_ir_expr(self, ir: "ExprIR") -> bool:
         return False
 
@@ -455,17 +463,19 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap
     def _expr_to_whyml_string_ctx(self, ir: "ExprIR", local_refs: Set[str]) -> str:
         return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache
     def _is_string_expr(self, ir: "ExprIR") -> bool:
         return True
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
-    #@ assigns \nothing
+    #@ assigns self._known_collection_elements, self._known_collection_sizes, self._rebound_collections, self._record_array_locals
     def _track_collection_metadata(self, target: str, val_ir: "ExprIR") -> None:
         return
 
@@ -683,6 +693,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
+    #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap
     def _e(self, ir: "ExprIR", local_refs: Set[str]) -> str:
         return ""
 
