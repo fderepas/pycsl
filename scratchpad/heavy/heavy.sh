@@ -29,7 +29,7 @@ while true; do
     exec {fd}>"$D/slot$s.lock"
     if flock -n "$fd"; then
       [ "$CLASS" = NORMAL ] && flock -u "$g"; exec {g}>&-
-      systemd-run --user --scope -q -p MemoryMax=6G -- "$@"
+      systemd-run --user --scope -q --slice=pycsl-heavy.slice -p MemoryMax=6G -p OOMPolicy=continue -- "$@"
       rc=$?
       flock -u "$fd"; exec {fd}>&-
       exit $rc
