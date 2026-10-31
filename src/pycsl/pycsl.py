@@ -28120,12 +28120,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                for _ff489, _c489 in _cs489 for _b in _c489.bases}
                       for _cn489, _cs489 in _cl489.items()}
             _ALL489 = frozenset(_cl489)
+            import re as _re489
             _SC489 = ("int", "float", "bool", "str", "bytes", "complex", "None", "string",
                       "real", "bytearray")
             _CT489 = ("list", "List", "dict", "Dict", "set", "Set", "frozenset", "FrozenSet",
                       "tuple", "Tuple", "Sequence", "MutableSequence", "Iterable", "Iterator",
                       "Mapping", "MutableMapping", "deque", "defaultdict", "OrderedDict",
                       "Counter", "Collection", "AbstractSet", "MutableSet", "Generator")
+            # a type whose every name is a scalar / builtin container / typing glue holds no
+            # program record (route #494 v1: such a field or call result ends the walk)
+            _OK489 = set(_SC489) | set(_CT489) | {"Optional", "Union", "None", "Literal",
+                                                   "typing", "NoneType", "int", "str", "bool"}
             _IT489 = ("__iter__", "__next__", "__getitem__", "__len__", "__length_hint__")
             _OR489 = ("__lt__", "__gt__", "__le__", "__ge__")
             _EQ489 = ("__eq__", "__ne__")
@@ -28177,11 +28182,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                       "BitAnd": "and"}
             _UO489 = {"Not": ("__bool__", "__len__"), "USub": ("__neg__",),
                       "UAdd": ("__pos__",), "Invert": ("__invert__",)}
-            # (#49) route #493 (run #3, v1): EVERY bodyless val of the program is judged, by
-            # its own identity -- not only those whose name (or a `rsplit("__")` suffix of
-            # it: `''` for `k____init__`, `it` for `c__do__it`) the verified code spells; a
-            # constructor `K(o)`, a call of an instance `K()(o)` or a dunder name reach a
-            # val the text never names, and a val never reached costs one AST walk.
+            # (#49) route #493 (run #3, v1): a bodyless val is judged when the verified code
+            # (or a judged body) reads its name, its method name or its CLASS -- the old key
+            # `rsplit("__")[-1]` was `''` for `k____init__` and `it` for `c__do__it`.
             # program method names (a call `x.m(...)` of one is a program call) and the
             # program defs whose return annotation is a scalar (their result is no record)
             _pm489 = {_m489.name for _cs489 in _cl489.values() for _ff489, _c489 in _cs489
@@ -28191,9 +28194,40 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             for _q489 in _dx489.values():
                 for _ff489, _d489, _c489 in _q489:
                     _an489 = _d489.returns
+                    if isinstance(_an489, _a489.Constant) and isinstance(_an489.value, str):
+                        try:
+                            _an489 = _a489.parse(_an489.value, mode="eval").body
+                        except Exception:
+                            _an489 = None
                     _sr489.setdefault(_d489.name, []).append(
-                        (isinstance(_an489, _a489.Name) and _an489.id in _SC489)
-                        or (isinstance(_an489, _a489.Constant) and _an489.value is None))
+                        _an489 is not None and (
+                            (isinstance(_an489, _a489.Constant) and _an489.value is None)
+                            or bool({_w.id for _w in _a489.walk(_an489)
+                                     if isinstance(_w, _a489.Name)} | {
+                                _w.attr for _w in _a489.walk(_an489)
+                                if isinstance(_w, _a489.Attribute)})
+                            and ({_w.id for _w in _a489.walk(_an489)
+                                  if isinstance(_w, _a489.Name)} | {
+                                _w.attr for _w in _a489.walk(_an489)
+                                if isinstance(_w, _a489.Attribute)}) <= _OK489))
+            # the names the VERIFIED code of this file reads; the judged set grows with the
+            # names a judged body reads
+            _rd489 = set()
+            _cc489 = set()      # the names the verified code / a judged body CALLS
+            if _t489 is not None:
+                for _z489 in _a489.walk(_t489):
+                    if isinstance(_z489, (_a489.FunctionDef, _a489.AsyncFunctionDef)) and not (
+                            "\\trusted" in _bk489.get(id(_z489), "")
+                            or "\\abstract" in _bk489.get(id(_z489), "")):
+                        for _y489 in _a489.walk(_z489):
+                            if isinstance(_y489, _a489.Name):
+                                _rd489.add(_y489.id)
+                            elif isinstance(_y489, _a489.Attribute):
+                                _rd489.add(_y489.attr)
+                            if isinstance(_y489, _a489.Call):
+                                _cc489.add(_y489.func.id if isinstance(_y489.func, _a489.Name)
+                                           else _y489.func.attr if isinstance(
+                                               _y489.func, _a489.Attribute) else "")
             _jd489 = set()
             _ch489 = True
             while _ch489 and _rf489 is None:
@@ -28202,7 +28236,31 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if _rf489 is not None:
                         break
                     _nm489 = str(_f489.get("name", ""))
-                    if id(_f489) in _jd489:
+                    # reached: its name, its METHOD name (after the class prefix: `do__it`,
+                    # `__init__`), or a CALL of its class (a constructor `K(o)` reaches
+                    # `__init__` / `__new__`, an instance call `K()(o)` reaches `__call__`)
+                    _pf489, _sp489, _sx489 = _nm489.partition("__")
+                    # a constructor-side method: reached when its class (or a program
+                    # subclass of it) is CALLED, or when its own name is read (`super().
+                    # __init__(...)`, `K.__new__(...)`)
+                    _kc489 = {_q.lower() for _q in _cc489}
+                    _gw489 = True
+                    while _gw489:
+                        _gw489 = False
+                        for _cn489 in _cl489:
+                            if _cn489.lower() in _kc489:
+                                for _b in _bs489.get(_cn489, set()):
+                                    if _b.lower() not in _kc489:
+                                        _kc489.add(_b.lower())
+                                        _gw489 = True
+                    # (any other dunder of a class is reached only through an implicit
+                    # position, which the position judge below refuses unless the dunder is
+                    # `#@ assigns \\nothing`)
+                    if id(_f489) in _jd489 or not (
+                            _nm489 in _rd489 or (_sp489 and (
+                                _sx489 in _rd489 or (
+                                    _sx489 in _NOT489 + ("__call__",)
+                                    and _pf489 in _kc489)))):
                         continue
                     _jd489.add(id(_f489))
                     _ch489 = True
@@ -28217,6 +28275,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     for _ff489, _d489, _c489 in _sd489:
                         if _rf489 is not None:
                             break
+                        for _y489 in _a489.walk(_d489):
+                            if isinstance(_y489, _a489.Name):
+                                _rd489.add(_y489.id)
+                            elif isinstance(_y489, _a489.Attribute):
+                                _rd489.add(_y489.attr)
+                            if isinstance(_y489, _a489.Call):
+                                _cc489.add(_y489.func.id if isinstance(_y489.func, _a489.Name)
+                                           else _y489.func.attr if isinstance(
+                                               _y489.func, _a489.Attribute) else "")
                         # roots: name -> carrier ("c", classes) | ("k", None) a container
                         _T489 = {}
                         _ps489 = (list(_d489.args.posonlyargs) + list(_d489.args.args)
@@ -28350,7 +28417,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         _pp489, _a489.AugAssign) and _pp489.target is _cu489:
                                     _on489 = _BO489.get(type(_pp489.op).__name__, "")
                                     if not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(("__i" + _on489 + "__", "__" + _on489 + "__", "__r" + _on489 + "__", "__index__", "__int__", "__float__"))
                                         _A489.update(("__r" + _on489 + "__",))
                                     break
                                 if isinstance(_pp489, _a489.Attribute) and _pp489.value is _cu489:
@@ -28383,15 +28453,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                     "update", "join", "format")):
                                             break
                                         _cs2489 = _ALL489
-                                        _E489 = False
+                                        # a builtin container's view / copy holds its elements
+                                        _E489 = _E489 and _pp489.attr in (
+                                            "items", "keys", "values", "copy", "most_common")
                                         _bp489 = _pp489 if _bp489 is None else _bp489
                                         _cu489 = _pa489[_pp489]
                                         continue
                                     if not isinstance(_pp489.ctx, _a489.Load):
                                         break
-                                    # a field whose IR type is a scalar in EVERY class the
-                                    # value may have (the carrier and its program subclasses;
-                                    # route #491 v1: also when the carrier is every class)
+                                    # a field whose IR type is a scalar in every class of the
+                                    # value (the carrier and its program subclasses) that
+                                    # declares it (route #491 v1: also when the carrier is
+                                    # every class)
                                     _cv2489 = set(_cs2489)
                                     _gw489 = True
                                     while _gw489:
@@ -28401,17 +28474,71 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                     _bs489.get(_cn489, set()) & _cv2489:
                                                 _cv2489.add(_cn489)
                                                 _gw489 = True
-                                    _ft489 = {_cn489: {str(_q.get("type", ""))
-                                                       for _td489 in (_ir489.get("type_decls", [])
-                                                                      or [])
-                                                       if isinstance(_td489, dict)
-                                                       and _td489.get("name") == _cn489
-                                                       for _q in (_td489.get("fields", []) or [])
-                                                       if isinstance(_q, dict)
-                                                       and _q.get("name") == _pp489.attr}
-                                              for _cn489 in _cv2489}
-                                    if _ft489 and all(_q and _q <= set(_SC489)
-                                                      for _q in _ft489.values()):
+                                    # its types: the IR's field types, else the class source
+                                    # (`self.f: T = ...`, `f: T` in the class body, `self.f =
+                                    # p` with `p: T` a parameter, a scalar literal); any
+                                    # other store of the field makes it unknown
+                                    _ft489, _fu489 = [], False
+                                    for _cn489 in _cv2489:
+                                        _fi489 = [str(_q.get("type", ""))
+                                                  for _td489 in (_ir489.get("type_decls", []) or [])
+                                                  if isinstance(_td489, dict)
+                                                  and _td489.get("name") == _cn489
+                                                  for _q in (_td489.get("fields", []) or [])
+                                                  if isinstance(_q, dict)
+                                                  and _q.get("name") == _pp489.attr]
+                                        _ft489 += [set(_re489.findall(r"[A-Za-z_][A-Za-z0-9_]*",
+                                                                      _q)) for _q in _fi489]
+                                        if _fi489:
+                                            continue
+                                        for _ff2489, _c2489 in _cl489.get(_cn489, []):
+                                            for _q in _c2489.body:
+                                                if isinstance(_q, _a489.AnnAssign) and isinstance(
+                                                        _q.target, _a489.Name) and \
+                                                        _q.target.id == _pp489.attr:
+                                                    _ft489.append({_w.id for _w in _a489.walk(
+                                                        _q.annotation) if isinstance(
+                                                        _w, _a489.Name)} | {_w.attr for _w in
+                                                        _a489.walk(_q.annotation) if isinstance(
+                                                            _w, _a489.Attribute)} or {"?"})
+                                            for _m489 in _a489.walk(_c2489):
+                                                if not isinstance(_m489, (_a489.FunctionDef,
+                                                                          _a489.AsyncFunctionDef)):
+                                                    continue
+                                                _pr489 = {_w.arg: _w.annotation for _w in (
+                                                    list(_m489.args.posonlyargs)
+                                                    + list(_m489.args.args)
+                                                    + list(_m489.args.kwonlyargs))}
+                                                for _q in _a489.walk(_m489):
+                                                    _tq489 = (list(_q.targets) if isinstance(
+                                                        _q, _a489.Assign) else [_q.target]
+                                                        if isinstance(_q, _a489.AnnAssign)
+                                                        else [])
+                                                    if not any(isinstance(_w, _a489.Attribute)
+                                                               and _w.attr == _pp489.attr
+                                                               for _t in _tq489
+                                                               for _w in _a489.walk(_t)):
+                                                        continue
+                                                    _an2489 = (_q.annotation if isinstance(
+                                                        _q, _a489.AnnAssign) else
+                                                        _pr489.get(_q.value.id) if isinstance(
+                                                            _q.value, _a489.Name) else None)
+                                                    if _an2489 is not None:
+                                                        _ft489.append({_w.id for _w in _a489.walk(
+                                                            _an2489) if isinstance(
+                                                            _w, _a489.Name)} | {
+                                                            _w.attr for _w in _a489.walk(_an2489)
+                                                            if isinstance(_w, _a489.Attribute)}
+                                                            or {"?"})
+                                                    elif isinstance(_q.value, _a489.Constant) and (
+                                                            _q.value.value is None or isinstance(
+                                                                _q.value.value,
+                                                                (int, float, str, bytes, bool))):
+                                                        _ft489.append({"int"})
+                                                    else:
+                                                        _fu489 = True
+                                    if _ft489 and not _fu489 and all(
+                                            _q and _q <= _OK489 for _q in _ft489):
                                         break
                                     _cs2489 = _ALL489
                                     _E489 = False
@@ -28419,7 +28546,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     continue
                                 if isinstance(_pp489, _a489.Subscript) and _pp489.value is _cu489:
                                     if not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(("__getitem__",) if isinstance(_pp489.ctx, _a489.Load) else ("__setitem__",) if isinstance(_pp489.ctx, _a489.Store) else ("__delitem__",))
                                     if not isinstance(_pp489.ctx, _a489.Load):
                                         break
                                     _cs2489 = _ALL489
@@ -28428,7 +28558,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     continue
                                 if isinstance(_pp489, (_a489.keyword, _a489.Starred)):
                                     if isinstance(_pp489, _a489.Starred) and not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(_IT489)
                                     _cu489 = _pp489
                                     continue
                                 if isinstance(_pp489, _a489.Call) and _pp489.func is not _cu489:
@@ -28466,8 +28599,36 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         elif _E489:
                                             _S489.update(_b489[2])
                                             _A489.update(_b489[2])
+                                        elif _cn489 in ("id", "type", "callable") and len(
+                                                _pp489.args) == 1 and _pp489.args[0] is _cu489:
+                                            pass    # identity / type slot: no dunder of it
+                                        elif _cn489 in ("isinstance", "issubclass", "hasattr",
+                                                        "getattr", "setattr", "delattr") and (
+                                                _cu489 in _pp489.args[1:]
+                                                if _cn489 in ("isinstance", "issubclass")
+                                                else False):
+                                            # a record of a KNOWN class: every dunder of it; a value of unknown
+                                            # class (every program class): the position's own dunders   # the class argument: its type's
+                                            _SA489 = _SA489 or _cs2489 is not _ALL489
+                                            _S489.update(("__instancecheck__", "__subclasscheck__"))
+                                            # `__instancecheck__` / `__subclasscheck__`
+                                        elif _cn489 in ("isinstance", "issubclass", "hasattr",
+                                                        "getattr", "setattr", "delattr") and \
+                                                _cu489 in _pp489.args:
+                                            # the object (its `__class__` / attribute
+                                            # lookup) or the name / value (a str, stored)
+                                            if _pp489.args[0] is _cu489:
+                                                _S489.update(
+                                                    ("__setattr__",) if _cn489 == "setattr" else
+                                                    ("__delattr__",) if _cn489 == "delattr" else
+                                                    ("__getattr__", "__getattribute__"))
+                                            _A489.update(("__setattr__",) if _cn489 == "setattr"
+                                                         else ())
                                         else:
-                                            _SA489 = True
+                                            # a record of a KNOWN class: every dunder of it; a value of unknown
+                                            # class (every program class): the position's own dunders
+                                            _SA489 = _SA489 or _cs2489 is not _ALL489
+                                            _S489.update(_b489[0] + (("__index__",) if _cn489 == "round" else ("__call__",) if _cn489 == "iter" else ()))
                                             _A489.update(_b489[1] + (
                                                 ("__round__",) if _cn489 == "round" else
                                                 _EQ489 if _cn489 == "iter" else
@@ -28523,12 +28684,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         if _on489 in ("Is", "IsNot"):
                                             continue
                                         if not _E489:
-                                            _SA489 = True
+                                            # a record of a KNOWN class: every dunder of it; a value of unknown
+                                            # class (every program class): the position's own dunders
+                                            _SA489 = _SA489 or _cs2489 is not _ALL489
+                                            _S489.update(())
                                         if _on489 in ("In", "NotIn") and _j489 == _ix489 - 1:
                                             if _E489:
                                                 _S489.update(_EQ489)
                                                 _A489.update(_EQ489 + ("__hash__",))
                                             else:
+                                                _S489.update(("__contains__",) + _IT489)
                                                 _A489.update(_EQ489)
                                         elif _on489 in ("In", "NotIn"):
                                             _S489.update(_EQ489 + ("__hash__",))
@@ -28549,7 +28714,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     break
                                 if isinstance(_pp489, _a489.UnaryOp):
                                     if not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(_UO489.get(type(_pp489.op).__name__, ()))
                                     if isinstance(_pp489.op, _a489.Not):
                                         break
                                     _cs2489 = _ALL489
@@ -28560,7 +28728,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 if isinstance(_pp489, _a489.BinOp):
                                     _on489 = _BO489.get(type(_pp489.op).__name__, "")
                                     if not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(("__" + _on489 + "__", "__r" + _on489 + "__", "__i" + _on489 + "__", "__index__", "__int__", "__float__"))
                                         _A489.update(("__" + _on489 + "__", "__r" + _on489 + "__"))
                                     if _on489 == "mod":
                                         _S489.update(_ST489 + ("__index__", "__int__",
@@ -28570,7 +28741,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     continue
                                 if isinstance(_pp489, _a489.BoolOp):
                                     if not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(("__bool__", "__len__"))
                                     _cu489 = _pp489
                                     continue
                                 if isinstance(_pp489, _a489.IfExp) and _pp489.test is not _cu489:
@@ -28581,20 +28755,29 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         isinstance(_pp489, _a489.comprehension)
                                         and _cu489 in _pp489.ifs):
                                     if not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(("__bool__", "__len__"))
                                     break
                                 if isinstance(_pp489, _a489.FormattedValue):
                                     if _E489:
                                         _S489.update(("__repr__", "__format__"))
                                     else:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(_ST489)
                                     break
                                 if isinstance(_pp489, _a489.Subscript) and \
                                         _pp489.slice is _cu489 or isinstance(_pp489, _a489.Slice):
                                     if _E489:
                                         _S489.update(("__index__", "__hash__") + _EQ489)
                                     else:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(("__index__", "__hash__") + _EQ489)
                                     _A489.update(_EQ489 + ("__getitem__", "__setitem__",
                                                            "__delitem__"))
                                     if isinstance(_pp489, _a489.Slice) or isinstance(
@@ -28609,7 +28792,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                        _a489.comprehension)) and \
                                         _pp489.iter is _cu489:
                                     if not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(_IT489)
                                     break
                                 if isinstance(_pp489, _a489.NamedExpr) and _pp489.value is _cu489:
                                     # `(q := o)` binds q (an alias, tracked) and IS o
@@ -28623,17 +28809,26 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                          for _q in (_pp489.targets if isinstance(
                                                              _pp489, _a489.Assign)
                                                              else [_pp489.target])):
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(_IT489)
                                     break
                                 if isinstance(_pp489, _a489.AugAssign) and _pp489.value is _cu489:
                                     _on489 = _BO489.get(type(_pp489.op).__name__, "")
                                     if not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(("__r" + _on489 + "__", "__index__", "__int__", "__float__"))
                                     _A489.update(("__i" + _on489 + "__", "__" + _on489 + "__"))
                                     break
                                 if isinstance(_pp489, _a489.withitem):
                                     if not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(("__enter__", "__exit__", "__aenter__", "__aexit__"))
                                     break
                                 if isinstance(_pp489, (_a489.Set, _a489.SetComp)) or (
                                         isinstance(_pp489, _a489.Dict) and _cu489 in _pp489.keys) \
@@ -28656,10 +28851,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                        _a489.Yield, _a489.YieldFrom,
                                                        _a489.Lambda)) or _pp489 is None:
                                     if isinstance(_pp489, _a489.YieldFrom) and not _E489:
-                                        _SA489 = True
+                                        # a record of a KNOWN class: every dunder of it; a value of unknown
+                                        # class (every program class): the position's own dunders
+                                        _SA489 = _SA489 or _cs2489 is not _ALL489
+                                        _S489.update(_IT489)
                                     break
                                 if isinstance(_pp489, _a489.Await):
-                                    _SA489 = True
+                                    # a record of a KNOWN class: every dunder of it; a value of unknown
+                                    # class (every program class): the position's own dunders
+                                    _SA489 = _SA489 or _cs2489 is not _ALL489
+                                    _S489.update(("__await__",))
                                     break
                                 _why489 = "used as `" + _a489.unparse(_pp489)[:50] + "`"
                                 break

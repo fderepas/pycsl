@@ -4303,32 +4303,44 @@ builtin, so `len(ident(o))`, `o.me() == 1`, `len(max(o, o))` were never classifi
 `pure` when the TEXT `assigns \nothing` occurred in its `#@` lines, while the verifier proves it against the
 UNION of its clauses (`#@ assigns \nothing` + `#@ assigns self.v`: 13 probes x hoare / typed / store).
 
-RULE (`_run_pipeline`, §7.380 rewritten in place): (a) on a RECORD value every implicit position counts as
-EVERY dunder of the value's classes -- the position table no longer bounds soundness; only an attribute read
-/ store (`__getattr__` / `__getattribute__` / `__setattr__` / `__delattr__`, then the field), an `is` / `is
-not`, a binding to a name (tracked as an alias), a `return` / expression statement, an argument of a program
-call, and the first item of a two-item `max` / `min` stay precise; a field read stops the walk only when the
-field is scalar-typed in EVERY class the value may have (the carrier and its program subclasses; also when
-the carrier is every class of the program); (b) the class's dunders are every binding of the class NAMESPACE,
-at any depth of the class body (`def`, `__x__ = name` resolved through alias chains to the def(s) of the same
-class body, anything else -- a lambda, a call, a loop / `with` / walrus / import binding, a nested class --
-`other`), inherited through the program bases; (c) EVERY bodyless val with no `#@ assigns` is judged by its
-own identity, plus each `\trusted` / `\abstract` or imported `__init__` / `__new__` / `__post_init__` ... (no
-`#@ assigns`) of a program class; (d) a call of a program def / class / method whose return annotation is
-not a scalar, a builtin that may return its argument (`max`, `min`, `next`, `iter`, `abs`, `round`, ...), an
-operator, a unary `-` / `+` / `~`, a rich comparison and a subscript continue the walk from that node with a
-value of unknown class (every program class); (e) a dunder is `pure` iff its WOVEN frame (the IR's parsed
-`assigns`) is `\nothing` alone (the `#@` clauses one by one only for a def with no IR entry), and a function
-of the woven IR whose `assigns` mixes `\nothing` with another clause is REFUSED with
-`PYCSL-CONTRADICTORY-ASSIGNS` (the bodyless-val emitter already refused it for a val, route #103; the frame is
-self-contradictory, and the fix is to delete `assigns \nothing`).
+RULE (`_run_pipeline`, §7.380 rewritten in place): (a) on a record of a KNOWN class (an annotated program
+class, `self`) every implicit position counts as EVERY dunder of the value's classes (with its subclasses and
+bases) -- the position table no longer bounds soundness there; on a value of UNKNOWN class (unannotated / `Any`
+/ a field or call result: every program class) a position counts as its own dunders, the table completed for
+the rt42 spellings (a BinOp / AugAssign runs `__op__` / `__rop__` / `__iop__` / `__index__` / `__int__` /
+`__float__`; `round` arg 2 `__index__`; `iter(o, s)` `__call__`; `x in o` `__contains__` + iteration); only an
+attribute read / store (`__getattr__` / `__getattribute__` / `__setattr__` / `__delattr__`, then the field),
+`is` / `is not`, `id` / `type` / `callable` of it, the object / name / value arguments of `isinstance` /
+`issubclass` (arg 1) / `hasattr` / `getattr` / `setattr` / `delattr`, a binding to a name (tracked as an
+alias), a `return` / expression statement, a program-call argument and the first item of a two-item `max` /
+`min` are precise; the class argument of `isinstance` / `issubclass` is every dunder; a field read stops the
+walk only when the field's type -- the IR's, else the class source (`self.f: T`, `f: T`, `self.f = p` with
+`p: T`, a scalar literal; any other store: unknown) -- names only scalars / builtin containers in every class of
+the value that declares it; (b) the class's dunders are every binding of the class NAMESPACE, at any depth of
+the class body (`def`, `__x__ = name` resolved through alias chains to the def(s) of the same class body,
+anything else -- a lambda, a call, a loop / `with` / walrus / import binding, a nested class -- `other`),
+inherited through the program bases; (c) a bodyless val with no `#@ assigns` is judged when the verified code
+(or a judged body) reads its name or its METHOD name (`do__it`), and a constructor-side one (`__init__` /
+`__new__` / `__post_init__` ...) or `__call__` when its class (or a program subclass) is CALLED -- incl. each
+`\trusted` / `\abstract` / imported `__init__`, which is no IR function; (d) a call of a program def / class /
+method whose return annotation names more than scalars / builtin containers, a builtin that may return its
+argument (`max`, `min`, `next`, `iter`, `abs`, `round`, `getattr`, ...), a container method that may return an
+element, an operator, a unary `-` / `+` / `~`, a rich comparison, a subscript and a walrus continue the walk
+from that node with a value of unknown class (a builtin container's `items` / `keys` / `values` / `copy` keeps
+the element view); (e) a dunder is `pure` iff its WOVEN frame (the IR's parsed `assigns`) is `\nothing` alone
+(the `#@` clauses one by one only for a def with no IR entry), and a function of the woven IR whose `assigns`
+mixes `\nothing` with another clause is REFUSED with `PYCSL-CONTRADICTORY-ASSIGNS` (the bodyless-val emitter
+already refused it for a val, route #103; the frame is self-contradictory, and the fix is to delete `assigns
+\nothing`). The message names the position route #489's walk ended at.
 
 Witnesses `7800`-`7817` (PROVED at base, REFUSED; `7816` typed, `7817` store); controls `7820`-`7826` (an int
 field as repetition count -- REFUSED at base by the single-class field quirk, now PROVED; an alias to a pure
 def; a judged `\trusted` `__init__` over a pure `__len__`; a scalar-returning program def and method; a
 `\nothing`-alone dunder; the advice followed: `\nothing` deleted and the callee's frame declared). The cost is
-an over-refusal: a `\trusted` body that uses a record in any implicit position is refused as soon as the
-record's class has ANY dunder not declared `#@ assigns \nothing`, even one that position never runs.
+an over-refusal: a `\trusted` body that uses a record of a known class in any implicit position is refused as
+soon as that class has ANY dunder not declared `#@ assigns \nothing`, even one that position never runs.
+Residuals (named): a value of unknown class is judged by the (completed) position table, not every dunder; a
+dunder val is reached only through an implicit position or an explicit name read.
 
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 

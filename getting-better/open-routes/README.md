@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #3 (2026-10-31): #491-#495 REPAIRED (executor v1 off 0a6f9c153; one rewrite of route #489's judge, inline in `_run_pipeline`,
+##   mirror twin `\trusted`, no new def, no axiom; annotations §7.400). Refuse by default: (a) every implicit position on a record of
+##   a KNOWN class is EVERY dunder of its classes (unknown class: the position table, completed) (#491: `[1] * o`, `round(x, o)`, `isinstance(1, o)`, `iter(o, s)` need no table entry);
+##   (b) the dunder set is the class NAMESPACE, aliases / chains / nested-block defs included (#492); (c) a bodyless val is
+##   judged when its name / method name is read or its class is called, incl. `\trusted` / `\abstract` / imported `__init__` (no IR function) (#493); (d) a program / method /
+##   builtin call, operator or rich comparison that may return the record continues the walk (#494); (e) purity is the woven
+##   `assigns` and `\nothing` beside another clause is refused PYCSL-CONTRADICTORY-ASSIGNS for every function (#495).
+##   113 witnesses (+ #495 x typed / store = 139 runs) REFUSED; corpus 7800-7817 / controls 7820-7826; over-refusal 0
+##   (corpus / pyref / mirror byte-inert vs v19; rt41 17 + rt42 16 PASS controls and 7750-7754 not refused by the judge).
+##   Residual by design: any non-pure dunder of a known record class refuses every implicit position of it in a bodyless
+##   callee; named: unknown-class values use the completed table; dunder vals are reached via positions / name reads.
+
 ## run #3 (2026-10-31): #491-#495 OPENED (red team 42 on 77a3818d0: 818 probes + 715 mode re-proofs / 139 confirmed;
 ##   rt41's 237 all closed; #490 complements and new object-model surfaces held): #491 r489-dunder-position-table (23); #492 r489-dunder-alias-binding (21); #493 r489-bodyless-dunder-name-key (27); #494 r489-record-through-returning-call (29); #495 r489-contradictory-frame-text (13).
 ##   Diagnosis: all five are gaps of route #489's implicit-dunder judge (position table, alias-bound dunders, bodyless-name key,
