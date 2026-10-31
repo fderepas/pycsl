@@ -28341,6 +28341,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _E489 = _kd489 == "k"   # a container: S -> its elements
                             _cu489 = _x489
                             _why489 = None
+                            # the position named in the message: the first node the walk
+                            # goes on past where route #489's walk ended
+                            _bp489 = None
                             while True:
                                 _pp489 = _pa489.get(_cu489)
                                 if isinstance(_cu489, _a489.Name) and isinstance(
@@ -28381,6 +28384,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                             break
                                         _cs2489 = _ALL489
                                         _E489 = False
+                                        _bp489 = _pp489 if _bp489 is None else _bp489
                                         _cu489 = _pa489[_pp489]
                                         continue
                                     if not isinstance(_pp489.ctx, _a489.Load):
@@ -28446,6 +28450,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                             break
                                         _cs2489 = _ALL489
                                         _E489 = False
+                                        _bp489 = _pp489 if _bp489 is None else _bp489
                                         _cu489 = _pp489
                                         continue
                                     if _cn489 in _BT489:
@@ -28482,6 +28487,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         _E489 = _cn489 in ("list", "tuple", "sorted", "set",
                                                            "frozenset", "dict", "zip",
                                                            "enumerate", "reversed", "iter")
+                                        _bp489 = _pp489 if _bp489 is None else _bp489
                                         _cu489 = _pp489
                                         continue
                                     if _cn489 is None and isinstance(
@@ -28499,6 +28505,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                                 "copy"):
                                             _cs2489 = _ALL489
                                             _E489 = False
+                                            _bp489 = _pp489 if _bp489 is None else _bp489
                                             _cu489 = _pp489
                                             continue
                                         break
@@ -28536,6 +28543,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         # a rich comparison returns its dunder's result
                                         _cs2489 = _ALL489
                                         _E489 = False
+                                        _bp489 = _pp489 if _bp489 is None else _bp489
                                         _cu489 = _pp489
                                         continue
                                     break
@@ -28546,6 +28554,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                         break
                                     _cs2489 = _ALL489
                                     _E489 = False
+                                    _bp489 = _pp489 if _bp489 is None else _bp489
                                     _cu489 = _pp489
                                     continue
                                 if isinstance(_pp489, _a489.BinOp):
@@ -28592,6 +28601,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                             _pp489.ctx, _a489.Load):
                                         _cs2489 = _ALL489
                                         _E489 = False
+                                        _bp489 = _pp489 if _bp489 is None else _bp489
                                         _cu489 = _pp489
                                         continue
                                     break
@@ -28603,6 +28613,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     break
                                 if isinstance(_pp489, _a489.NamedExpr) and _pp489.value is _cu489:
                                     # `(q := o)` binds q (an alias, tracked) and IS o
+                                    _bp489 = _pp489 if _bp489 is None else _bp489
                                     _cu489 = _pp489
                                     continue
                                 if isinstance(_pp489, (_a489.Assign, _a489.AnnAssign)) and \
@@ -28684,6 +28695,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 _rf489 = (_f489, _x489.id, _ff489, _x489.lineno,
                                           _hit489[0][0] + "." + _hit489[0][1],
                                           _why489 or "`" + _a489.unparse(
+                                              _bp489 if _bp489 is not None else
                                               _pa489.get(_cu489) or _cu489)[:50] + "`")
     if _rf489 is not None:
         from errors import PyCSLSemanticError as _PyCSLSemErr489
