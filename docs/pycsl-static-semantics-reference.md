@@ -1341,6 +1341,33 @@ an entry for reviewer-related violations.
 
 _Corresponds to `annotations.md` §2.1.7._
 
+#### §2.1.30 Declared in (`declared_in <relpath>.py::<Class>.<method>`)
+
+```
+   file(f) ∈ src/self-annotate/src/
+   ────────────────────────────────────────────────────────────
+    Γ_f ⊢ declared_in(T) : ok     (node = Trusted(reviewer = "declared_in:" ^ T))
+
+   file(f) ∉ src/self-annotate/src/
+   ────────────────────────────────────────────────────────────
+    Γ_f ⊢ declared_in(T) : REFUSED (PyCSLSemanticError)
+```
+
+**Rule.** The target must match `<relpath>.py::<Class>.<method>` (else a parse error). The
+directive yields the SAME function flags as `\trusted` (`csl_trusted = True`,
+`csl_reviewer = "declared_in:<T>"`), so every downstream static check treats the method as a
+trusted, bodyless stub. `_run_pipeline` refuses it in any file outside the self-annotation mirror
+(witness `7827`, control `7828`): there no plane certifies it, and it would be an anonymous
+`\trusted`. Inside the mirror its well-formedness beyond the grammar is the REPO plane
+`bin/check-declaration-conformance.py`: the stub's class must lack a live `def` of the method;
+`T` must EQUAL the live-MRO resolution; the declaration's frame ⊇ the definition's (projected on
+the reachable records), raises ⊇, requires / ensures trivial, every other clause also on the
+definition, the signature a refinement; no `\trusted` marker beside it; not a ledgered
+non-conforming or base-override declaration. Any violation is RED. The near-miss spelling
+`# @declared_in` is refused by the ingestor (`7830`, control `7831`).
+
+_Corresponds to `annotations.md` §2.1.30._
+
 #### §2.1.14 Abstract (`\abstract`)
 
 ```

@@ -50,6 +50,7 @@ Python construct they annotate (function, class, loop, or statement).
 | 27 | Propagate frame | `#@ propagate_frame` | Method | **Opt-in quantified-frame propagation across the call/import boundary (os-roadmap M4).** A method's `#@ assigns self.f` only frames `self.f` as a WHOLE on the abstract boundary `val` — so a caller sees the whole field havoced (only the result-pinned cell survives). With `#@ propagate_frame`, THIS method's QUANTIFIED single-cell self-field FRAME `ensures` (`\forall k. guard -> self.f[k] == \old(self.f[k])`) is carried onto its boundary `val`, letting a caller prove every *other* cell is preserved by the call. Two frame shapes are propagated: param-referencing frames (e.g. the os `_zero_entry` slot frame, trigger pinned on the post-state decode application) and `\result`-referencing single-cell frames (`\forall k != \result. self.f[k] == \old(self.f[k])`, where `\result` lowers to the val's `result` keyword = the call's return value — e.g. the os `sys_open`/`sys_dup` `fd_open` allocator frame, letting "the table is not full" survive a prior open). Opt-in ON PURPOSE: a broad frame trigger can E-match-poison term-rich sibling callers, so mark ONLY methods whose callers need *and* can absorb the frame. Default off → byte-identical emission. Sound: the propagated `\forall` is the SAME frame the callee's body verifies, never a fabricated or broadened one. |
 | 28 | Fresh globals | `#@ fresh_globals` | Top-level driver (NOT a method, NOT a callee) | **Opt-in, CONFINED constructor-post-state surfacing for a standalone formal-test driver (fresh-globals.md).** Why3 verifies every importer function with each shared mutable module-global in an ARBITRARY (havoc'd) state — so an internals-blind driver cannot establish the global's freshly-imported initial state (e.g. the os `_filesystem` fd table being ALL-FREE at entry). `#@ fresh_globals` re-establishes, at the driver's body entry, each module-global singleton's CONSTRUCTOR post-state — the class `__init__`'s `#@ ensures` with `self` rewritten to the global — as an ASSUMED fact (`assume { \forall k. (0<=k<64) -> g.fd_open[k] == 0 }`). The assumed fact is NOT an arbitrary literal: it is the constructor's `#@ ensures`, which the transpiler ALSO emits as a checked function (`let g_fresh_init () : C ensures { … } = <constructor literal>`) PROVING the post-state holds of the freshly constructed global — so the assume is proof-backed. **SOUNDNESS (Module4-enforced):** sound ONLY for an independent entry point that runs on a freshly-imported global and is NEVER entered with a pre-mutated one. Module4 REJECTS `#@ fresh_globals` on a method (`self`-receiver) and on any function CALLED by another (a callee inherits its caller's possibly-mutated global) — error `PYCSL-SEM-FRESH-GLOBALS`. It RETIRES a reviewer trust (the os `fd-resolution-fidelity` unconditioned no-ENFILE `\result>=3` — FALSE at table-full) by replacing the false unconditioned body theorem with a free-slot-conditioned one whose side-condition this sound, confined, constructor-backed entry fact establishes. |
 | 29 | Verify module | `#@ verify_module <name>` | Method | **Opt-in axiom isolation via separate Why3 modules (module-emission.md).** A method tagged `#@ verify_module <name>` is emitted into its OWN top-level Why3 `module` (shared infra — record type, val-functions, predicates, witness/class-invariant axioms — re-declared per module, the concrete record type shared via a common base `module` `use`d everywhere), so that ONLY the `#@ proof` axioms cited by the functions in that group are in scope for its goals. Methods sharing the same `<name>` co-reside in one module. A cross-module `self.<m>(...)` call (a sibling in a different `verify_module` group, or the flat default module) is lowered to the **proven** contract of the callee via Why3 module **`clone`-refinement** (the interface `module` declares the callee's contract; the owning provider `module` proves the real `let` *implements* it — Why3's synthetic `<fn>'refn'vc`, validated non-vacuous), i.e. a PROVEN cross-module interface, **never** an assumed-`val` boundary, a new `\trusted`, or a new axiom (the net TCB is unchanged — every function proved once, against a proven contract). Resolves the os read+write `field_to_str`/`dir_blit_marker` axiom co-residence that OOMs `_zero_entry` at ~9.5 M steps and blocks the `_dir_lookup` read-side de-trust. Default (untagged) → the single flat `module PyCSL_Program` is emitted unchanged → corpus byte-identical. (Why3 `scope` does NOT isolate axioms — a scope is a namespace; only separate `module`s do.) See §2.1.29 below.  **`<name>` must be a CAPITALIZED identifier** — it is lowered to a Why3 `module <name>` (plus a synthesized `<name>Sig` interface module) and Why3 requires module names to be capitalized; a lowercase name is refused with `PYCSL-SEM-VERIFY-MODULE-NAME-NOT-CAPITALIZED` rather than left to produce a Why3 syntax error naming the synthesized `<name>Sig` (witness `1842`, control `1843`). Cross-group calls: every `<G>Sig` is emitted BEFORE every provider module and each provider `use`s every other group's `Sig`, so two groups may call each other freely (`1844` cross-group, `1845` its negative twin — the boundary conveys the CONTRACT and not the body, `1846` mutually-recursive groups). |
+| 30 | Declared in | `#@ declared_in <relpath>.py::<Class>.<method>` | Method (self-annotation mirror ONLY) | **A certified cross-mixin DECLARATION (cross-mixin-declaration-stubs B4).** Parses to the SAME node as `\trusted` (the method is emitted as the identical bodyless WhyML `val`; the target rides in the IR `reviewer` field as `declared_in:<target>`, so pycsl's own trust accounting still counts it as trusted). It may stand only on a bodyless stub, in a self-annotation mirror class, of a method the live class does NOT define (the live MRO dispatches it to `<Class>.<method>` in `<relpath>`); `bin/check-declaration-conformance.py` certifies that the named target EQUALS the live-MRO resolution and that the declaration claims no more than that definition (frame ⊇, raises ⊇, trivial pre/post, signature) and is RED otherwise. Outside `src/self-annotate/src/` it is REFUSED (nothing would check it: it would be an unreviewed `\trusted`; witness `7827`, control `7828`); a malformed target is a parse refusal (`7829`); the near-miss `# @declared_in` is refused (`7830`, control `7831`). Counted by `bin/count-trusted-directives.py` as its OWN class, apart from the `\trusted` markers. See §2.1.30 below. |
 
 Multiple `requires`/`ensures` lines are conjuncted (all must hold).
 
@@ -129,6 +130,51 @@ reference §T.2.6 records the no-emission rule.
 the bare `\trusted` form;
 `test-suite/corpus/pycsl-reference/0397.py` exercises the
 `reviewer:` clause via the UB-7.4 escape-annotation flow.
+
+#### §2.1.30 Declared in (`declared_in <relpath>.py::<Class>.<method>`)
+
+```python
+class ControlFlowStmtMixin:
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._coerce_to_int
+    #@ ensures True
+    def _coerce_to_int(self, val: str) -> str:
+        return ""
+```
+
+A **cross-mixin declaration** in the self-annotation mirror. Each mirror file is transpiled on
+its own, so a mixin that calls a SIBLING mixin's method carries a local bodyless stub of it;
+until B4 that stub was marked `#@ \trusted`, indistinguishable from an unverified body. The
+directive names the definition the live composite's MRO dispatches the call to.
+
+Grammar (concrete-syntax reference §2.1.30):
+
+```
+declared_in_decl ::= "declared_in" DECL_TARGET ;
+DECL_TARGET      ::= /[A-Za-z0-9_][A-Za-z0-9_.\/-]*\.py::[A-Za-z_]\w*\.[A-Za-z_]\w*/
+```
+
+**Semantics.** `declared_in` parses to the SAME `Trusted` node as `\trusted`, with
+`reviewer = "declared_in:<target>"`: the emitted WhyML is byte-identical to the `\trusted`
+stub's (a bodyless `val` carrying the declaration's own contract), and pycsl's own TCB report
+counts it as trusted. What changes is WHO vouches for it: not a reviewer but the repo plane
+`bin/check-declaration-conformance.py`, which requires (g) the named target to EQUAL the
+live-MRO resolution of the declaration, and (a)-(f) frame ⊇ the definition's (projected onto the
+records the declaration reaches), raises ⊇, requires/ensures trivial on both sides, every other
+clause also on the definition, and a refining signature. A `declared_in` that does not conform,
+names another target, sits on a ledgered non-conforming or base-override declaration, carries a
+`\trusted` marker too, or governs a def that is not a cross-mixin declaration of the census is
+RED.
+
+**Refusal outside the mirror.** `_run_pipeline` refuses any `declared_in` in a file outside
+`src/self-annotate/src/` (`7827`, control `7828`): nothing checks it there, so it would be a
+`\trusted` under another name. A malformed target is a parse error (`7829`). `# @declared_in`
+(the near-miss spelling) is refused by the ingestor like every other directive keyword (`7830`,
+control `7831`).
+
+**TCB accounting.** A `declared_in` stub removes a `\trusted` MARKER (gross) but reduces the
+trusted base only when its definition is itself VERIFIED (net); otherwise the trust moves to the
+definition, which stays counted. `bin/count-trusted-directives.py` reports `declared_in` as a
+separate column; `getting-better/trusted-reasons.tsv` does not list it.
 
 #### §2.1.12 Proof Citation (`proof`) — Rocq + Lean as Cross-Validated Spec Sources
 
@@ -1230,7 +1276,7 @@ Extracted from `Module2_Parser.py` — this is the canonical grammar:
 ?contract: precondition | postcondition | assigns
          | loop_invariant | loop_variant | class_invariant | label_decl
          | function_variant | function_variant_structural
-         | diverges_decl | trusted_decl | abstract_decl | preserves_decl
+         | diverges_decl | trusted_decl | declared_in_decl | abstract_decl | preserves_decl
          | assert_decl | check_decl | act_block | complete_decl | disjoint_decl
          | happy_decl
 
@@ -1252,6 +1298,7 @@ function_variant:            "\variant" expr
 function_variant_structural: "\variant" "(" expr "," CNAME ")"
 diverges_decl:   "\diverges"
 trusted_decl:    "\trusted"
+declared_in_decl: "declared_in" /[A-Za-z0-9_][A-Za-z0-9_.\/-]*\.py::[A-Za-z_]\w*\.[A-Za-z_]\w*/
 
 ?assigns_target: assigns_region_list | expr_list | "\nothing"
 

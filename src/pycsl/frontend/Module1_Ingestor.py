@@ -205,6 +205,7 @@ class Module1_Ingestor:
                   "compose_from", "conforms_to", "allow_finalizer",
                   "allow_iteration_mutation", "thread_entry", "verify_module",
                   "propagate_frame", "fresh_globals", "sibling_concrete", "no_inline",
+                  "declared_in",
                   "bounded_int", "invariant", "variant", "trusted", "abstract", "diverges",
                   "preserves")
         for _c in ast.comments(self.source_code):

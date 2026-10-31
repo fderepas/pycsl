@@ -209,6 +209,15 @@ convention, recursive-ADT encoding (mutual-cons, not `seq`/`list`), and the conf
 boundaries — see **`emit-ir-conversion-lessons.md`** (next to this file). HEED IT before any Module5/
 emit_ir work; it overrides optimism about "walls" and about `--fun`.
 
+**Cross-mixin declaration stubs (`#@ declared_in`, B4, 2026-10-31).** A mirror stub whose class has no
+live `def` of the method (a local declaration of a sibling mixin's method) is marked
+`#@ declared_in <relpath>.py::<Class>.<method>` instead of `#@ \trusted` ONLY when
+`bin/check-declaration-conformance.py` certifies it (named target == live-MRO resolution; frame ⊇,
+raises ⊇, trivial pre/post, refining signature). Same `val` emission (mirror emit-diff 0 by
+construction). Report such a change GROSS (markers removed) vs NET (only declarations whose
+definition is VERIFIED shrink the TCB); `count-trusted-directives` prints `declared_in` as its own
+column and the `\trusted` headline keeps its meaning. A `declared_in` stub is not a conversion.
+
 ## 10. Hard-won lessons (2026-07 tier-1/2/3 campaign — HEED THESE; they OVERRIDE optimism)
 
 Plan of record: **`triage-ranked-tcb.md`** (this file is the loop procedure + the `self-tcb-reduction.md`

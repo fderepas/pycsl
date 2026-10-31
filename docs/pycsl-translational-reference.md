@@ -576,6 +576,21 @@ known reviewer; that audit lives outside the translation rule.
 
 _Corresponds to `annotations.md` §2.1.7._
 
+### §T.2.6d  Declared-in Stubs (`declared_in <relpath>.py::<Class>.<method>`)
+
+$$\mathcal{T}_f\llbracket \texttt{def m(...): \#@ declared\_in T ...} \rrbracket
+= \mathcal{T}_f\llbracket \texttt{def m(...): \#@ \\trusted ...} \rrbracket
+= \texttt{val m (...) : R requires \{...\} ensures \{...\}}$$
+
+No emission of its own: `declared_in` parses to the `Trusted` node (reviewer
+`declared_in:<T>`, which, like every reviewer, is never emitted), so the WhyML is byte-identical
+to the `\trusted` stub it replaces (measured: the mirror emit sweep after converting the 20
+B2-certified declaration stubs is 0 MOVED). Its meaning is carried out of band by
+`bin/check-declaration-conformance.py` (the `val`'s contract is no stronger than the definition
+`T` names). Outside `src/self-annotate/src/` there is no translation: the file is refused.
+
+_Corresponds to `annotations.md` §2.1.30._
+
 ### §T.2.7  Abstract Functions (`\abstract`)
 
 $$\mathcal{T}_f\llbracket \texttt{def f(...): \#@ \\abstract ...} \rrbracket

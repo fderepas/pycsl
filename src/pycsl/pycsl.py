@@ -1136,6 +1136,30 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     weaver = Module3_Weaver(source_code, extracted_data, parser_mod)
     unified_ast = weaver.process()
 
+    # cross-mixin-declaration-stubs B4: `#@ declared_in <relpath>::<Class.m>` parses to the
+    # SAME `Trusted` node as `\trusted` (reviewer `declared_in:<target>`), so pycsl itself
+    # counts it as trusted. Its only checker is the REPO plane
+    # `bin/check-declaration-conformance.py` (declaration ⊑ the live-MRO definition), which
+    # walks the self-annotation mirror and nothing else. Anywhere else it would be `\trusted`
+    # under another name, so it is REFUSED outside `src/self-annotate/src/`. Inline here
+    # (`_run_pipeline`'s mirror twin is `\trusted` and already raises: the choke-point rule).
+    _mir_di = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
+        os.path.abspath(__file__)))), "src", "self-annotate", "src") + os.sep
+    _file_di = os.path.realpath(os.path.abspath(str(getattr(args, "file", "") or "")))
+    if not _file_di.startswith(os.path.realpath(_mir_di.rstrip(os.sep)) + os.sep):
+        for _n_di in _ast.walk(unified_ast):
+            _rv_di = getattr(_n_di, "csl_reviewer", "") or ""
+            if isinstance(_rv_di, str) and _rv_di.startswith("declared_in:"):
+                from errors import PyCSLSemanticError as _PyCSLSemErrDI
+                raise _PyCSLSemErrDI(
+                    f"{args.file} (function '{getattr(_n_di, 'name', '?')}', line "
+                    f"{getattr(_n_di, 'lineno', '?')}): `#@ {_rv_di.replace(':', ' ', 1)}` "
+                    f"is reserved for the self-annotation mirror (src/self-annotate/src/), "
+                    f"where bin/check-declaration-conformance.py certifies the declaration "
+                    f"against its definition. Outside it nothing checks the declaration, so "
+                    f"it would be an unreviewed `\\trusted`: write `#@ \\trusted reviewer: "
+                    f"<id>` instead (counted in the trusted base).")
+
     # [07-1839 P5b] Constant-`exec("…")` straight-line splice: replace a constant exec with
     # its parsed body (verification-equivalent to inline source; whitelist bars control flow).
     # No-op for files without a constant exec. Dynamic exec is handled downstream (P5a/P5a').
@@ -7476,7 +7500,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _li444 = min([_d.lineno for _d in _f444.decorator_list] + [_f444.lineno]) - 2
             while 0 <= _li444 < len(_sl430) and _sl430[_li444].lstrip().startswith("#@"):
                 _lt444 = _sl430[_li444].strip()
-                if _lt444.startswith("#@ \\trusted") or _lt444.startswith("#@ \\abstract"):
+                if (_lt444.startswith("#@ \\trusted") or _lt444.startswith("#@ \\abstract")
+                        or _lt444.startswith("#@ declared_in")):   # B4: same Trusted node
                     _tr444.add(id(_f444))
                 if _lt444.startswith("#@ no_exception"):
                     if "\\all" in _lt444:
@@ -11123,7 +11148,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _tr449 = False
             _li449 = min([_d.lineno for _d in _f346.decorator_list] + [_f346.lineno]) - 2
             while 0 <= _li449 < len(_sl430) and _sl430[_li449].lstrip().startswith("#@"):
-                if _sl430[_li449].strip().split()[1:2] in (["\\trusted"], ["\\abstract"]):
+                if _sl430[_li449].strip().split()[1:2] in (["\\trusted"], ["\\abstract"],
+                                                           ["declared_in"]):   # B4
                     _tr449 = True
                 _li449 -= 1
             if _ok432 and not _tr449:
@@ -15440,7 +15466,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _tr226 = False
             _ln226 = min([_m226.lineno] + [_d.lineno for _d in _m226.decorator_list]) - 2
             while 0 <= _ln226 < len(_src226) and _src226[_ln226].strip().startswith("#"):
-                if _src226[_ln226].strip().startswith("#@ \\trusted"):
+                if (_src226[_ln226].strip().startswith("#@ \\trusted")
+                        or _src226[_ln226].strip().startswith("#@ declared_in")):   # B4
                     _tr226 = True
                 _ln226 -= 1
             _par226 = {}
@@ -27154,7 +27181,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         while 0 <= _li468 < len(_ln468) and (
                                 _ln468[_li468].lstrip().startswith("#@")
                                 or not _ln468[_li468].strip()):
-                            if _ln468[_li468].lstrip().startswith("#@ \\trusted"):
+                            if (_ln468[_li468].lstrip().startswith("#@ \\trusted")
+                                    or _ln468[_li468].lstrip().startswith("#@ declared_in")):
                                 _tr468.add(id(_z468))
                             if _ln468[_li468].lstrip().startswith("#@ \\abstract"):
                                 _ab468.add(id(_z468))
@@ -27906,6 +27934,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # (route #493: a bodyless constructor is no IR function -- the gate also opens on a
     # `\\trusted` / `\\abstract` marker or an import of the source)
     if _vl489 or "\\trusted" in source_code or "\\abstract" in source_code or (
+            "#@ declared_in" in source_code) or (
             "import" in source_code):
         import ast as _a489
         import sys as _s489
@@ -27985,6 +28014,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _nm489 = _cn489.lower() + "__" + _m489.name
                     if _nm489 in _irn489 or "assigns" in _tx489 or not (
                             _ff489 != _mf489 or "\\trusted" in _tx489
+                            or "#@ declared_in" in _tx489
                             or "\\abstract" in _tx489):
                         continue
                     if not any(_q[1] is _m489 for _q in _dx489.get(_nm489, [])):
@@ -28218,6 +28248,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 for _z489 in _a489.walk(_t489):
                     if isinstance(_z489, (_a489.FunctionDef, _a489.AsyncFunctionDef)) and not (
                             "\\trusted" in _bk489.get(id(_z489), "")
+                            or "#@ declared_in" in _bk489.get(id(_z489), "")
                             or "\\abstract" in _bk489.get(id(_z489), "")):
                         for _y489 in _a489.walk(_z489):
                             if isinstance(_y489, _a489.Name):

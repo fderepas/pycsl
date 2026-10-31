@@ -1336,6 +1336,28 @@ class _ContractParser:
             if kw == "check":    self.advance(); return CheckPoint("check", self._parse_expr())
             if kw == "no_inline": self.advance(); return NoInline()
             if kw == "sibling_concrete": self.advance(); return SiblingConcrete()
+            # `#@ declared_in <relpath>::<Class.method>` (cross-mixin-declaration-stubs B4):
+            # a bodyless cross-mixin DECLARATION in the self-annotation mirror, whose
+            # conformance to the named definition is certified OUT OF BAND by
+            # `bin/check-declaration-conformance.py`. It parses to THE SAME `Trusted` node as
+            # `\trusted` (emission identical by construction; the target rides in `reviewer`
+            # as `declared_in:<target>`), so pycsl's own TCB accounting still counts it as
+            # trusted, and `_run_pipeline` REFUSES it outside `src/self-annotate/src/`.
+            # SPELLED INLINE: `_parse_contract`'s mirror twin is `\trusted` (lesson a4: a new
+            # helper would be a new `val` in the mirror's emission).
+            if kw == "declared_in":
+                self.advance()
+                _tok_di = self.cur()
+                _m_di = _re.match(
+                    r"([A-Za-z0-9_][A-Za-z0-9_./-]*\.py)::([A-Za-z_][A-Za-z0-9_]*)"
+                    r"\.([A-Za-z_][A-Za-z0-9_]*)", self.source[_tok_di.start:])
+                if _tok_di.type == "EOF" or _m_di is None:
+                    self._err("expected `<relpath>.py::<Class>.<method>` after `declared_in`")
+                _end_di = _tok_di.start + len(_m_di.group(0))
+                while self.i < len(self.toks) and self.toks[self.i].type != "EOF" \
+                        and self.toks[self.i].start < _end_di:
+                    self.i += 1
+                return Trusted(reviewer="declared_in:" + _m_di.group(0))
             if kw == "verify_module": self.advance(); return VerifyModule(self.expect_name())
             if kw == "propagate_frame": self.advance(); return PropagateFrame()
             if kw == "fresh_globals": self.advance(); return FreshGlobals()

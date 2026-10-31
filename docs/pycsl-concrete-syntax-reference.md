@@ -116,6 +116,7 @@ _Corresponds to `annotations.md` §2.1._
 | 2.1.6g | Fresh globals | `fresh_globals_decl ::= "fresh_globals" ;` (`#@ fresh_globals` — opt-in, confined: re-establish each module-global singleton's constructor post-state as an assumed fact at a standalone driver's body entry; rejected on methods/callees by Module4; see static §2.1.6g, translational §T.2.7g) |
 | 2.1.6m | Verify module | `verify_module_decl ::= "verify_module" CNAME ;` (`#@ verify_module <name>` — opt-in axiom isolation: emit the tagged method into its own top-level Why3 `module <name>` so only its group's `#@ proof` axioms are in scope; cross-module calls go by the callee's proven contract via Why3 `clone`-refinement; default off → byte-identical; see static §2.1.6m, translational §T.2.7m) |
 | 2.1.7 | Trusted | `trusted_decl ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;` where `REVIEWER_ID ::= /[A-Za-z0-9._@-]+/` |
+| 2.1.30 | Declared in | `declared_in_decl ::= "declared_in" DECL_TARGET ;` where `DECL_TARGET ::= /[A-Za-z0-9_][A-Za-z0-9_.\/-]*\.py::[A-Za-z_]\w*\.[A-Za-z_]\w*/` (`#@ declared_in <relpath>.py::<Class>.<method>` — a certified cross-mixin declaration; parses to the `Trusted` node with `reviewer = "declared_in:<target>"`; self-annotation mirror only, refused elsewhere; see static semantics §2.1.30, translational §T.2.6d) |
 | 2.1.14 | Abstract | `abstract_decl ::= "\abstract" ;` — bodyless `val` defined by its contract; sound, not `\trusted` |
 | 2.1.16 | Lemma | `lemma_decl ::= "lemma" ;` — a `-> None` proved fact; lowers to `let [rec] lemma … = <body>` |
 | 2.1.17 | Uses | `uses_decl ::= "uses" CNAME ;` — cite a lemma for ordering (its fact must be in scope); emits no WhyML |
@@ -966,6 +967,7 @@ contract ::= precondition
            | function_variant_structural
            | diverges_decl
            | trusted_decl
+           | declared_in_decl
            | abstract_decl
            | lemma_decl
            | uses_decl
@@ -1046,6 +1048,8 @@ function_variant            ::= "\variant" expr ;
 function_variant_structural ::= "\variant" "(" expr "," CNAME ")" ;
 diverges_decl               ::= "\diverges" ;
 trusted_decl                ::= "\trusted" ( "reviewer" ":" REVIEWER_ID )? ;
+declared_in_decl            ::= "declared_in" DECL_TARGET ;
+DECL_TARGET                 ::= /[A-Za-z0-9_][A-Za-z0-9_.\/-]*\.py::[A-Za-z_]\w*\.[A-Za-z_]\w*/ ;
 abstract_decl               ::= "\abstract" ;
 lemma_decl                  ::= "lemma" ;                      (* §2.1.16, a proved `-> None` fact *)
 uses_decl                   ::= "uses" CNAME ;                 (* §2.1.17, ordering citation of a lemma *)
@@ -1569,7 +1573,7 @@ CSLNode (base)
 ├── Label                 (§2.4.1)
 ├── FunctionVariant       (§2.1.4, §2.1.5)
 ├── Diverges              (§2.1.6)
-├── Trusted               (§2.1.7)
+├── Trusted               (§2.1.7; also `declared_in`, §2.1.30)
 ├── GhostAssignDecl       (§2.4.2, §2.4.3)
 ├── RaisesDecl            (§2.1.9)
 ├── BoundedIntDecl        (§2.1.8)
@@ -1599,6 +1603,7 @@ Every grammar production must have at least one test in
 | `function_variant_structural` | §2.1.5 | 0050 | ⚠️ XFAIL |
 | `diverges_decl` | §2.1.6 | 0051, 0158, 0159 | ✅ PASS |
 | `trusted_decl` | §2.1.7 | 0052, 0160, 0161 | ✅ PASS |
+| `declared_in_decl` | §2.1.30 | 7827 (refused outside the mirror), 7828 (control), 7829 (malformed target), 7830 / 7831 (near-miss + control); positive: the 20 mirror declaration stubs | ✅ |
 | `bounded_int_decl` | §2.1.8 | 0202, 0203, 0204 | ✅ PASS |
 | `raises_decl` | §2.1.9 | 0205, 0206 | ✅ PASS |
 | `thread_entry_decl` | §2.1.10 | 0250–0253, 0277 | ✅ PASS |
