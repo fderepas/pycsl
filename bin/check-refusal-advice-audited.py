@@ -876,6 +876,14 @@ AUDITED = {
     # driver run #4 (u5) -- route #502. Probe in getting-better/open-routes/witnesses-r502/advice/.
     ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _c496 + '` reaches code that holds ' + (_wh496.get(_gn178) or 'an operation') + ', in a function that does not declare `#"): (FOLLOWABLE,
         "Route #502. 'Remove the handler, or drop these exceptions from this function's `#@ no_exception` claim': witness 7956 with the handler removed (getting-better/open-routes/witnesses-r502/advice/a502_remove_handler) VERIFIES `\\result == 1` on the normal path. (Keeping the handler with the comprehension rewritten as a guarded explicit loop, with or without `#@ no_exception ZeroDivisionError` on the callee, is rejected by Why3 `raises unlisted exception ZeroDivisionError` -- so the message does not advise it.)"),
+    # driver run #4 -- routes #503 / #504 / #505 (u6, red team 45). Probes in
+    # getting-better/open-routes/witnesses-r50{3,4,5}/advice/.
+    ('src/pycsl/pycsl.py', '_R503Err("%s (function \'%s\'): an IDENTITY test (`is` / `is not`) between a name and an alias of `%s` is refused: `%s` is rebound (or is a re'): (FOLLOWABLE,
+        "Route #503. 'Write `==` if you mean equality; or give the rebound value its own name, so that the alias's root is bound once': witness 7980 with `is` -> `==` (getting-better/open-routes/witnesses-r503/advice/a503_write_eq) VERIFIES `\\result == True`; with the second binding renamed `a2` (a503_own_name) VERIFIES (default model)."),
+    ('src/pycsl/pycsl.py', '_R504Err("%s (function \'%s\'): an IDENTITY test (`is` / `is not`) on a value read from a FIELD is refused: %s (route #504). PyCSL lowers `is`'): (FOLLOWABLE,
+        "Route #504. 'Write `==` if you mean equality; compare identity ... between two reads of the same field (`k.a is k.a`)': witness 7984 with `is` -> `==` (getting-better/open-routes/witnesses-r504/advice/a504_write_eq) VERIFIES `\\result == True`; `k.a is k.a` (a504_same_field, = control 7992) VERIFIES (default model)."),
+    ('src/pycsl/frontend/ir_inline.py', 'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': the method {_bare505} outside a field access / `self.m(...)` call (route #505). S'): (FOLLOWABLE,
+        "Route #505. 'Pass the fields the method needs instead of `self`, or call the method on a LOCAL instance, verified by its contract': witness 7987's method passing `self.v` (getting-better/open-routes/witnesses-r505/advice/a505_pass_field, = control 7993) VERIFIES; `getv(self)` on a local instance (a505_local_instance, = control 7994) VERIFIES (default model)."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1230,6 +1238,10 @@ AUDITED_HASH = {
     ('src/pycsl/frontend/ir_inline.py', 'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': a `return` is nested inside a branch / loop / `with` / `try` / `match` of the met'): 'a32a8a247e8c',
     # driver run #4 (u5) -- route #502
     ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _c496 + '` reaches code that holds ' + (_wh496.get(_gn178) or 'an operation') + ', in a function that does not declare `#"): 'e7d5f7812221',
+    # driver run #4 (u6) -- routes #503 / #504 / #505
+    ('src/pycsl/pycsl.py', '_R503Err("%s (function \'%s\'): an IDENTITY test (`is` / `is not`) between a name and an alias of `%s` is refused: `%s` is rebound (or is a re'): '678fb8ae04f3',
+    ('src/pycsl/pycsl.py', '_R504Err("%s (function \'%s\'): an IDENTITY test (`is` / `is not`) on a value read from a FIELD is refused: %s (route #504). PyCSL lowers `is`'): '2ca0549b1dac',
+    ('src/pycsl/frontend/ir_inline.py', 'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': the method {_bare505} outside a field access / `self.m(...)` call (route #505). S'): 'f218b1075bc6',
 }
 
 

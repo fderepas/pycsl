@@ -18,6 +18,18 @@
 ##   set / tuple display, `len([..])`, `assert` test lose their ZeroDivisionError obligation even under the function's own
 ##   claim (witnesses-r502/residual/, 8 probes PROVED).
 
+## run #4 (2026-11-01): #503 / #504 / #505 REPAIRED (executor u6 off e5237469f, 15b5b3e37 + fc3e8512f; inline, mirror twins `\trusted`
+##   (`_run_pipeline`, `ir_inline._expand`), no new def, no axiom, route #498's message byte-identical; annotations §7.503-§7.505).
+##   #503 PYCSL-R503-IS-ALIAS-ROOT-REBOUND: an alias chain's common root exempts an `is` only when bound once for the whole call
+##   (unrebound parameter / outer name / one plain assignment); `a is a` stays exempt. #504 PYCSL-R504-IS-ON-STORED-VALUE: a field
+##   operand is an object only as a class constant / enum member or when every declaration of the field names a program class;
+##   two reads of one stored path (`c.a is c.a`) and a once-bound `object()` sentinel are exempt; an outer name is not (`k.a is G`,
+##   G = 1000, PROVED at base: corpus 7989). #505 PYCSL-R505-INLINE-BARE-SELF: a spliced method using `self` outside a field /
+##   `self.m(...)` head is refused (renaming it would alias the global, Phase 3). Witnesses 5 x default / typed / store = 15/15
+##   REFUSED; corpus 7980-7982 / 7984-7989 (FAIL), controls 7990-7994 (PROVED). Over-refusal: corpus root 0/0/0 (+5 new), pyref
+##   2186/2186 0/0/0, mirror 53/53 0/0/0 (first draft refused pure_ast + statements via #504: fixed in fc3e8512f); rt43 / rt44 /
+##   rt45 honest controls (345): 0 refused. Residuals: module global / computed class constant holding a computed int (opaque).
+
 ## run #4 (2026-11-01): #501-#505 OPENED (red team 45 on 0d561a23b = main + #496 / #498-#500 repairs: 332 probes / 303 breaching /
 ##   15 confirmed, all default mode; rt44's 139 pairs: 127 refused, #497's 12 = user decision): #501 r496-admission-by-bare-name (5);
 ##   #502 division-in-lambda-comprehension-of-callee (5); #503 r498-alias-exemption-ignores-rebinding (2); #504 r498-computed-field-identity

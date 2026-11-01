@@ -4555,6 +4555,66 @@ comprehension `%` at depth 2), `7964` (a method's list comprehension reached thr
 `7972` (literal divisors / non-negative literal power in comprehensions, a key lambda without division, under a
 ZeroDivisionError handler), `7973` (a dividing comprehension under an unrelated KeyError handler).
 
+### 7.503 An alias's identity exemption needs a root bound once (route #503, run #4)
+
+Route #498 (§7.498) exempts an `is` between a name and a chain of single plain assignments `b = a` of it.
+The chain was followed to the NAME `a`, not to the object `a` held when `b = a` ran: red team 45 measured
+`a = n + 1000; b = a; a = n + 1000; return a is b` (and the `is not` twin) PROVED (CPython False / True; 2
+witnesses); a rebound parameter (`b = a; a = b + 0`) is the same class.
+
+RULE (refuse by default; in route #498's pass in `_run_pipeline`): one name with ITSELF (`a is a`) stays
+exempt; a common root of the two alias chains exempts the site only when the root is bound once for the
+whole call -- a parameter never rebound, an outer name the function never binds, or a local with exactly one
+plain assignment. Otherwise the site is judged by route #498's freshness walk and, when an operand may be
+fresh, REFUSED with `PYCSL-R503-IS-ALIAS-ROOT-REBOUND`. (A root bound once inside a loop needs no extra arm:
+an alias read in a later iteration is bound twice or not definitely assigned, route #264.) Write `==`, or
+give the rebound value its own name.
+
+Witnesses `7980`, `7981` (PROVED at base, REFUSED), `7982` (a rebound unannotated parameter: NOT PROVED at
+base, refused by name); controls `7990` (a root bound once, an unrelated name rebound), `7991` (`a is a` on a
+rebound name).
+
+### 7.504 An identity test on a value read from a field is judged by the field's declared type (route #504, run #4)
+
+Route #498 (§7.498) read every attribute / field as an existing object (its named residual): red team 45
+measured `self.a = n + 1000; self.b = n + 1000` then `k = K(n); return k.a is k.b` PROVED `\result == True`
+(CPython False), and on a class-typed parameter whose int fields are equal (`k.b = int("1000")`; 2
+witnesses).
+
+RULE (refuse by default; in route #498's freshness walk): two reads of ONE stored location (the same path
+of names and attribute reads, no call: `c.a is c.a`) are one object and exempt. Any other field / attribute
+operand -- directly or through the locals bound to it -- is an existing object only when it is a class
+constant / enum member (`Color.RED`: an attribute of a program class name; a class-body binding read through
+an instance) or when EVERY declaration of that field in the program's classes (the receiver's class when its
+type is known) names a program class or `Optional` of one. A value-typed, container-typed, unannotated or
+undeclared field (a module attribute too) may store a freshly computed value: REFUSED with
+`PYCSL-R504-IS-ON-STORED-VALUE`. The other operand being an outer name is no exemption (`k.a is G` with `G =
+1000` PROVED at base, CPython False), except a module-level name bound once to `object()` -- in this file or
+imported by `from M import X`, M on the program's path -- and never rebound or named `global`: a sentinel
+whose `__eq__` is identity is a singleton operand. Write `==`.
+
+Witnesses `7984`, `7985`, `7986` (locals bound to the two field reads), `7989` (a field against a module-global
+literal) (PROVED at base, REFUSED); control
+`7992` (`k.a is k.a` on a local instance; `7916` keeps `c.a is c.a` on a parameter). Named residual: a
+module global holding a computed int / str (measured opaque, NOT PROVED, at e5237469f); a computed class
+constant is likewise opaque.
+
+### 7.505 A method spliced by `ir_inline` may use `self` only as a field receiver or a `self.m(...)` head (route #505, run #4)
+
+`ir_inline._substitute` renames the receiver only in `FieldGet` / `FieldAssign` / `FieldAugAssign` objects
+and in `self.X(...)` call heads; any other `self` kept its spelling and, spliced into a caller METHOD, named
+the caller's receiver: red team 45 measured `m(self): return getv(self)` spliced into `run(self): return
+g.m()` PROVED `c.run() == 2` on `c = C(2)` (CPython 1, `g.v`; 1 witness). Renaming it to the global would
+pass the global as a value, which inline.md Phase 3 (`_check_no_aliasing`) forbids.
+
+RULE (`ir_inline._expand`, refuse by default, Phase 3's polarity): a spliced method that reads `self` as a
+value, calls `self`, rebinds `self`, or holds `self` in any node the renaming does not cover is REFUSED with
+`PYCSL-R505-INLINE-BARE-SELF`. Pass the fields the method needs, or call the method on a LOCAL instance.
+
+Witnesses `7987` (PROVED at base, REFUSED), `7988` (`x = self; return x.v`: a Why3 type error at base, now
+refused by name); controls `7993` (the field passed, `getv(self.v)`), `7994` (`getv(self)` on a LOCAL
+instance, by contract).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
