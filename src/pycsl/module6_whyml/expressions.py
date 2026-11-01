@@ -12262,9 +12262,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                          or _rhead in set(getattr(self, "_current_params", []) or [])
                          or _rhead in (getattr(self, "_current_symbol_table", {}) or {}))):
                 _pn = f"py_{_rtail}_op"
+                # wall lex-char-class step 3 (DETERMINISM, review C1/C5): a `val` alone is
+                # a NON-DETERMINISTIC program function -- two calls on the same string
+                # were unrelated. The op is now pinned to a LOGIC symbol `py_<pred>_f`,
+                # defined as the 0/1 indicator of an uninterpreted predicate
+                # `py_<pred>_p` (so the kept 0/1 clause is a theorem of the definition,
+                # not an extra assumption; nothing is claimed about WHICH strings satisfy
+                # it). Equal receivers now give equal answers. One bundle per predicate
+                # (keyed by the predicate name, so the three declarations stay in order
+                # in the sorted abstract-op block); the computed-receiver arm below
+                # registers the SAME bundle.
                 self._add_abstract_op(
-                    f"val {_pn} (s: string) : int\n"
-                    "    ensures { ((result = 0) || (result = 1)) }")
+                    f"predicate py_{_rtail}_p (s: string)\n"
+                    f"  function py_{_rtail}_f (s: string) : int = "
+                    f"if py_{_rtail}_p s then 1 else 0\n"
+                    f"  val {_pn} (s: string) : int\n"
+                    f"    ensures {{ result = py_{_rtail}_f s /\\ "
+                    "((result = 0) || (result = 1)) }")
                 _rw = self._expr_to_whyml({"type": "Var", "name": _rhead},
                                           local_refs, invariant_ctx, subst)
                 return f"({_pn} {_rw})"
@@ -12324,6 +12338,23 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "isidentifier", "startswith", "endswith")
                 and expr.get("receiver") is not None):
             recv = self._expr_to_whyml(expr["receiver"], local_refs, invariant_ctx, subst)
+            # wall lex-char-class step 3 (review C1/C5): an argument-less `is*` predicate
+            # on a COMPUTED receiver that is a STRING expression (`s[j].isdigit()`) calls
+            # the SAME deterministic `py_<pred>_op` the named-receiver arm above uses
+            # (same bundle text), instead of a separate polymorphic `<pred>_1` -- so
+            # `c.isdigit()` with `c = s[i]` and `s[j].isdigit()` at `j = i` are the same
+            # logic value. Non-string receivers keep the polymorphic arm.
+            if (func_name in _IS_PREDS and not args
+                    and self._is_string_expr(expr["receiver"])):
+                _pn = f"py_{func_name}_op"
+                self._add_abstract_op(
+                    f"predicate py_{func_name}_p (s: string)\n"
+                    f"  function py_{func_name}_f (s: string) : int = "
+                    f"if py_{func_name}_p s then 1 else 0\n"
+                    f"  val {_pn} (s: string) : int\n"
+                    f"    ensures {{ result = py_{func_name}_f s /\\ "
+                    "((result = 0) || (result = 1)) }")
+                return f"({_pn} ({recv}))"
             # `args` are ALREADY lowered WhyML strings (set by `_handle_call_expr`); re-lowering
             # them via `_expr_to_whyml` crashes on the string (`'str' has no attribute
             # to_dict`). Exposed by self-annotating `<computed>.endswith(...)` (e.g.
