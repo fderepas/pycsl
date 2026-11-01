@@ -4424,8 +4424,8 @@ Witnesses `7847`-`7864` (PROVED at base, REFUSED; `7860` typed, `7861` store, `7
 builtins, a program chain with a constructor, a callee declaring `#@ no_exception ValueError` over `chr(n)` under a
 range `requires`, a handler around a never-raising helper, an explicit `raise ValueError(..)` caught). Residuals
 (named): an int-to-decimal-string conversion (`str(x)`, `print(x)`, f-string) past 4300 digits (route #281's
-`int_str` row) and `round` of a NaN in a callee are not summarised; a method call whose tail names any program
-method is admitted as that method (#161's own convention).
+`int_str` row) and `round` of a NaN in a callee are not summarised. (The former residual "a method call whose
+tail names any program method is admitted as that method" is closed by §7.501: the callee is resolved.)
 
 ### 7.498 An identity test whose operand may be a freshly computed value is refused (route #498, run #4)
 
@@ -4502,6 +4502,58 @@ Call the method on a LOCAL instance (its contract is used) or write one tail `re
 Witnesses `7940`, `7941`, `7943` (PROVED at base, REFUSED) and `7942` (a `return` in a `for`: a prover
 Timeout at base, now refused by name); controls `7946` (one tail `return`, a result variable
 assigned in each branch), `7947` (the nested-return method on a LOCAL instance, by contract).
+
+### 7.501 Route #496's admission resolves the callee: a bare name shared with a program def / method / class admits nothing (route #501, run #4)
+
+Route #496 (§7.410) admits a call in a callee body when it is a function, method or class of the program. The
+test matched the call BY NAME against every program name, its `__` / `.` tail and the lower-cased class names,
+so a benign program name equal to a raising builtin's admitted it: red team 45 measured PROVED (CPython 2) a
+callee's free `divmod(5, n)` next to a method `K.divmod` or a class `Divmod`, `math.sqrt(n)` next to a free
+`def sqrt`, `s.index("z")` on a `str` next to a method `K.index`, and `"{x}".format(n)` next to a method
+`K.format`, each inside a caller's `try ... except` of the raised exception.
+
+RULE (inline in the route #178 / #496 summary, refuse by default): a call is a program call only when the callee
+is RESOLVED. A free call `n(...)` is admitted only if `n` is exactly a module-level (non-method) def or a class of
+the program. A method call `r.m(...)` (or `C.m(...)`, or `e.m(...)` on an expression receiver) is admitted only
+if its receiver resolves to a program class `C` -- a class name (not shadowed by a local), `self` in a method of
+`C`, a parameter or local whose declared type is `C` / `Optional[C]`, a local bound ONLY by `= C(...)` or `=
+d(...)` of a def annotated `-> C` (any other binding of the name, a loop / unpack / `with` / walrus target,
+leaves it unresolved), or a `C(...)` / `d(...)` receiver -- and `C` defines `m` or inherits it from a program
+base; `super().m(..)` in a method of `C` resolves to a program base of `C` (transitively) defining `m`. Anything else is judged by #496's never-raises lists (and otherwise carries every modelled exception,
+refused as `PYCSL-R496-CALLEE-UNLISTED-CALL`). The transitive join of program summaries keeps its
+over-approximating tail match (every override of `m` is joined). This closes #496's named residual "a method
+call whose tail names any program method is admitted".
+
+Witnesses `7950`-`7954` (PROVED at base, REFUSED), `7960` (a local `k: str` calling `k.index` beside a class `K`:
+the `k__index` spelling), `7961` (a local rebound from `K()` to a `str`); controls `7970` (program methods named
+`index` / `format` on a `K` parameter and on `K()`, under ValueError / KeyError handlers), `7971` (`self` calls and
+a free `def sqrt` called by name under a ValueError handler).
+
+### 7.502 A callee's lambda / comprehension / generator expression joins its implicit raise summary (route #502, run #4)
+
+Routes #177 / #285 / #287 refuse a lambda or comprehension whose element operations may raise only when the
+function ITSELF claims the exception: those bodies are lowered WITHOUT per-element obligations. Route #178's
+callee summary assumed a same-file callee's divisions are checked in its own body (true of a plain `10 // n`),
+so a division inside a callee's lambda / list / set / dict comprehension / generator expression was neither
+checked there nor summarised: red team 45 measured PROVED (CPython 2) `g(xs): ys = [10 // v for v in xs];
+return 1` inside `try: return g(xs) except ZeroDivisionError: return 2`, and the `sorted` key lambda, `sum` of a
+generator expression, `%` and dict-comprehension forms.
+
+RULE (inline in the route #178 summary, driven by `exception_model.TRIGGERS` / `TRIGGER_EXPR_SHAPES` exactly as
+#285): for every `Lambda` / `ListComp` / `SetComp` / `DictComp` / `GenExp` node of ANY callee, every row whose
+shape occurs anywhere under it adds its exceptions to the callee's summary, a tuple generator target adds
+`ValueError`, and a row with no census shape adds its exceptions to every such node (fail-closed for a row added
+later). Only `/` `//` `%` (`div` / `mod`) by a non-zero numeric literal and `**` of a non-negative int literal
+are exempt (they cannot raise `ZeroDivisionError`). Minus what the callee declares `#@ no_exception` for (#177
+then judges the node there), a caller whose claim or handler meets the set is REFUSED with
+`PYCSL-R502-CALLEE-COMPREHENSION-OBLIGATION`, naming the operation and the chain. Repair: remove the handler or
+drop the exception from the claim (a ZeroDivisionError handler around a same-file callee that divides is
+rejected by Why3 anyway: "raises unlisted exception", measured on a guarded explicit loop).
+
+Witnesses `7955`-`7959` (PROVED at base, REFUSED), `7962` (`map` of a dividing lambda), `7963` (a set
+comprehension `%` at depth 2), `7964` (a method's list comprehension reached through a `C` parameter); controls
+`7972` (literal divisors / non-negative literal power in comprehensions, a key lambda without division, under a
+ZeroDivisionError handler), `7973` (a dividing comprehension under an unrelated KeyError handler).
 
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 

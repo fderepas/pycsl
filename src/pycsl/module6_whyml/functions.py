@@ -1772,6 +1772,71 @@ class FunctionEmissionMixin:
                     "issuperset", "strip", "lstrip", "rstrip", "lower", "upper",
                     "startswith", "endswith", "replace", "join", "find", "rfind", "split",
                     "isdigit", "isalpha", "isalnum", "isspace", "bit_length"))
+                # (run #4) ROUTE #501 -- THE ADMISSION ABOVE MATCHED A CALL BY BARE NAME
+                # against `_pg496` (every program name, its `__` / `.` tail, the lower-cased
+                # class names), so a benign program method / function / class sharing a name
+                # with a raising builtin admitted it. MEASURED PROVED at 0d561a23b (CPython
+                # 2): `class K: def divmod(self)` made a callee's `divmod(5, n)` a program
+                # call (also `s.index` vs a method `index`, `.format` vs a method `format`,
+                # class `Divmod` vs `divmod`, `def sqrt` vs `math.sqrt`; red team 45). The
+                # callee is now RESOLVED: a free call is a program call only if it names a
+                # module-level (non-method) def or a class exactly; a method call only if its
+                # receiver resolves to a program class C (a class name, `self` in a method
+                # of C, a parameter / local declared or bound only to C, a `C(...)` or a
+                # call of a def annotated to return C) that defines (or inherits from a
+                # program base) the method; `super().m()` in a method of C resolves to a
+                # program base of C defining m. Anything else falls to the never-raises lists.
+                # `_pg496` is kept only for the transitive join (an over-approximation).
+                _pn501: Set[str] = set()
+                _pf501: Set[str] = set()
+                _pc501: Set[str] = (set(getattr(self, "_record_types", {}) or {})
+                                    | set(getattr(self, "class_bases_r304", None) or {}))
+                _pm501: Dict[str, Set[str]] = {}
+                for _q501 in (self.ir.get("functions", []) or []):
+                    if not isinstance(_q501, dict):
+                        continue
+                    _nq501 = str(_q501.get("name", ""))
+                    _pn501.add(_nq501)
+                    _st501 = str(_q501.get("self_type") or "")
+                    if _q501.get("kind") == "method" and _st501:
+                        _pc501.add(_st501)
+                        if _nq501.lower().startswith(_st501.lower() + "__"):
+                            _pm501.setdefault(_st501, set()).add(_nq501[len(_st501) + 2:])
+                    else:
+                        _pf501.add(_nq501)
+                _pc501.discard("")
+                _ch501 = True
+                while _ch501:
+                    _ch501 = False
+                    for _cq501, _bq501 in (getattr(self, "class_bases_r304", None) or {}).items():
+                        for _bb501 in (_bq501 or []):
+                            _ad501 = _pm501.get(str(_bb501), set()) - _pm501.get(str(_cq501), set())
+                            if _ad501:
+                                _pm501.setdefault(str(_cq501), set()).update(_ad501)
+                                _ch501 = True
+                _ra501: Dict[str, str] = {}
+                for _q501 in (self.ir.get("functions", []) or []):
+                    if (isinstance(_q501, dict) and str(_q501.get("name", "")) in _pf501
+                            and str(_q501.get("return_annotation") or "") in _pc501):
+                        _ra501[str(_q501.get("name", ""))] = str(_q501.get("return_annotation"))
+                # (run #4) ROUTE #502 -- the per-element operations of a lambda / list / set /
+                # dict comprehension / generator expression are lowered WITHOUT their
+                # obligations (routes #177 / #285 / #287 refuse them only when the function
+                # ITSELF claims the exception), so in an un-claimed callee a `10 // v` there
+                # is never checked, while the summary assumed a same-file callee's divisions
+                # are. MEASURED PROVED at 0d561a23b (CPython 2): `g(xs): ys = [10 // v for v
+                # in xs]; return 1` inside `try: return g(xs) except ZeroDivisionError:
+                # return 2` (also a `sorted` key lambda, `sum` of a genexp, `%`, a dict
+                # comprehension; red team 45). Every row of `exception_model.TRIGGERS` whose
+                # shape occurs under such a node (and a tuple target's unpack, and every
+                # row with no census shape) joins the callee's summary; only a division /
+                # modulo by a non-zero numeric literal and `**` of a non-negative int
+                # literal are exempt (they cannot raise ZeroDivisionError).
+                from exception_model import TRIGGERS as _trg502, TRIGGER_EXPR_SHAPES as _shp502
+                _ms502: Set[str] = set()
+                for _k502, _rw502 in _trg502.items():
+                    if _k502 not in _shp502:
+                        _ms502 |= {str(_e502) for _e502, _t502 in _rw502}
                 for _f178 in (self.ir.get("functions", []) or []):
                     _fn178 = str(_f178.get("name", ""))
                     _cc178 = _f178.get("contracts", {}) or {}
@@ -1779,10 +1844,110 @@ class FunctionEmissionMixin:
                                         else set(_cc178.get("no_exception", []) or []))
                     _r178: Set[str] = set()
                     _c178: Set[str] = set()
+                    # (run #4) route #501: the locals bound ONLY to a program class value
+                    # (`k = C(...)`, `k = mk()` with `def mk() -> C`); any other binding of
+                    # the name (another assignment, a loop / unpack / `with` / walrus target)
+                    # leaves it unresolved.
+                    _lb501: Dict[str, Set[str]] = {}
+                    _w501: List[Any] = [_f178.get("body", [])]
+                    while _w501:
+                        _x501 = _w501.pop()
+                        if isinstance(_x501, list):
+                            _w501.extend(_x501)
+                            continue
+                        if not isinstance(_x501, dict):
+                            continue
+                        _w501.extend(v for v in _x501.values() if isinstance(v, (dict, list)))
+                        _tg501 = [_x501.get("target")] + list(
+                            _x501.get("targets") if isinstance(_x501.get("targets"), list) else [])
+                        for _tn501 in _tg501:
+                            if not isinstance(_tn501, str) or not _tn501:
+                                continue
+                            _vl501 = _x501.get("value")
+                            _cv501 = ""
+                            if (_x501.get("stmt") == "Assign" and _x501.get("target") == _tn501
+                                    and isinstance(_vl501, dict) and _vl501.get("type") == "Call"
+                                    and _vl501.get("receiver") is None
+                                    and isinstance(_vl501.get("func"), str)):
+                                _cv501 = (_vl501["func"] if _vl501["func"] in _pc501
+                                          else _ra501.get(_vl501["func"], ""))
+                            _lb501.setdefault(_tn501, set()).add(_cv501)
+                    _lv501: Dict[str, str] = {_n501: next(iter(_s501)) for _n501, _s501 in
+                                              _lb501.items() if len(_s501) == 1 and "" not in _s501}
                     _w178: List[Any] = [_f178.get("body", [])]
                     while _w178:
                         _x178 = _w178.pop()
                         if isinstance(_x178, dict):
+                            # (run #4) ROUTE #502 -- a lambda / comprehension's per-element
+                            # operations (see above) join the summary.
+                            if _x178.get("type") in ("ListComp", "SetComp", "DictComp", "GenExp",
+                                                     "GeneratorExp", "Lambda"):
+                                _e502: Set[str] = set(_ms502)
+                                _o502 = ""
+                                _s502: List[Any] = [_x178]
+                                while _s502:
+                                    _y502 = _s502.pop()
+                                    if isinstance(_y502, list):
+                                        _s502.extend(_y502)
+                                        continue
+                                    if not isinstance(_y502, dict):
+                                        continue
+                                    _s502.extend(v for v in _y502.values() if isinstance(v, (dict, list)))
+                                    if _y502.get("target") == "_comp_var":
+                                        _e502.add("ValueError")
+                                        _o502 = _o502 or "a tuple target"
+                                    for _g502 in (_y502.get("generators") or []):
+                                        if isinstance(_g502, dict) and _g502.get("target") == "_comp_var":
+                                            _e502.add("ValueError")
+                                            _o502 = _o502 or "a tuple target"
+                                    _ty502 = _y502.get("type")
+                                    _fn502 = _y502.get("func")
+                                    _fn502 = _fn502 if isinstance(_fn502, str) else ""
+                                    _rt502 = _y502.get("right")
+                                    _lit502 = (isinstance(_rt502, dict) and _rt502.get("type") == "Number"
+                                               and isinstance(_rt502.get("value"), (int, float))
+                                               and not isinstance(_rt502.get("value"), bool))
+                                    for _k502, _sh502 in _shp502.items():
+                                        _ex502 = {str(_e502b) for _e502b, _t502 in _trg502.get(_k502, [])}
+                                        if not _ex502 or _ex502 <= _e502:
+                                            continue
+                                        for _st502, _sa502 in _sh502:
+                                            _hit502 = (
+                                                (_st502 == "BinOp" and _ty502 == "BinOp"
+                                                 and _y502.get("op") == _sa502)
+                                                or (_st502 == "Subscript" and _ty502 == "Subscript")
+                                                or (_st502 == "Call" and _ty502 == "Call"
+                                                    and _y502.get("receiver") is None
+                                                    and _fn502 == _sa502)
+                                                or (_st502 == "Method" and _ty502 == "Call"
+                                                    and ((_y502.get("receiver") is not None
+                                                          and _fn502 == _sa502)
+                                                         or _fn502.endswith("." + _sa502)))
+                                                or (_st502 == "FString" and _ty502 == "FString"
+                                                    and any(not (isinstance(_pp502, dict)
+                                                                 and _pp502.get("type") in ("String", "Str"))
+                                                            for _pp502 in (_y502.get("parts") or [])))
+                                                or (_st502 == "FormattedValue"
+                                                    and _ty502 == "FormattedValue"))
+                                            if (_hit502 and _st502 == "BinOp"
+                                                    and _ex502 == {"ZeroDivisionError"}
+                                                    and _lit502
+                                                    and (_rt502.get("value") != 0 if _sa502 != "**"
+                                                         else (isinstance(_rt502.get("value"), int)
+                                                               and _rt502.get("value") >= 0))):
+                                                _hit502 = False
+                                            if _hit502:
+                                                _e502 |= _ex502
+                                                _o502 = _o502 or ("`" + str(_sa502 or _st502) + "`")
+                                                break
+                                _e502 -= _decl178[_fn178]
+                                if _e502 - _raw496.get(_fn178, set()):
+                                    _raw496.setdefault(_fn178, set())
+                                    _raw496[_fn178] |= _e502
+                                    _wh496.setdefault(
+                                        _fn178, (_o502 or "an operation") + " inside a lambda / "
+                                        "comprehension / generator expression, whose per-element "
+                                        "obligation is not checked in the callee (route #502)")
                             if _x178.get("type") == "Subscript":
                                 _r178 |= {"KeyError", "IndexError"}
                             if (_x178.get("type") == "BinOp"
@@ -1840,8 +2005,57 @@ class FunctionEmissionMixin:
                                             _v496 = -_a496["expr"]["value"]
                                         _nm496.append(_v496)
                                     _bx496 = getattr(_bi496, _fx496, None) if not _mt496 else None
-                                    if (_fx496 in _pg496 or _fx496.replace(".", "__") in _pg496
-                                            or (_mt496 and _tl496 in _pg496)):
+                                    # (run #4) route #501: resolve the callee (see above).
+                                    _ok501 = False
+                                    if not _mt496:
+                                        _ok501 = _fx496 in _pf501 or _fx496 in _pc501
+                                    else:
+                                        _rn501 = _x178.get("receiver")
+                                        _hd501 = ""
+                                        _cl501 = ""
+                                        _sy501 = _f178.get("symbol_table") or {}
+                                        if _rn501 is None:
+                                            _hd501 = _fx496.rsplit(".", 1)[0]
+                                        elif isinstance(_rn501, dict) and _rn501.get("type") == "Var":
+                                            _hd501 = str(_rn501.get("name", ""))
+                                        elif (isinstance(_rn501, dict) and _rn501.get("type") == "Call"
+                                              and _rn501.get("receiver") is None
+                                              and isinstance(_rn501.get("func"), str)):
+                                            _cl501 = (_rn501["func"] if _rn501["func"] in _pc501
+                                                      else _ra501.get(_rn501["func"], ""))
+                                            # `super().m(..)` in a method of C: a program base
+                                            # of C (transitively) defining m.
+                                            if (_rn501["func"] == "super" and not _rn501.get("args")
+                                                    and _f178.get("kind") == "method"):
+                                                _sb501 = list((getattr(self, "class_bases_r304", None)
+                                                               or {}).get(str(_f178.get("self_type") or ""), []))
+                                                _sn501: Set[str] = set()
+                                                while _sb501:
+                                                    _b501 = str(_sb501.pop())
+                                                    if _b501 in _sn501:
+                                                        continue
+                                                    _sn501.add(_b501)
+                                                    if _tl496 in _pm501.get(_b501, set()):
+                                                        _cl501 = _b501
+                                                    _sb501.extend((getattr(self, "class_bases_r304", None)
+                                                                   or {}).get(_b501, []))
+                                        if _hd501:
+                                            _ty501 = str(_sy501.get(_hd501, "") or "")
+                                            if _ty501.startswith("option:"):
+                                                _ty501 = _ty501[len("option:"):]
+                                            if (_hd501 in _pc501 and _hd501 not in _sy501
+                                                    and _hd501 not in _lb501):
+                                                _cl501 = _hd501
+                                            elif (_hd501 == "self" and _f178.get("kind") == "method"
+                                                  and _hd501 not in _lb501):
+                                                _cl501 = str(_f178.get("self_type") or "")
+                                            elif _ty501 in _pc501 and _hd501 not in _lb501:
+                                                _cl501 = _ty501
+                                            else:
+                                                _cl501 = _lv501.get(_hd501, "")
+                                        _ok501 = ((bool(_cl501) and _tl496 in _pm501.get(_cl501, set()))
+                                                  or _fx496 in _pn501)
+                                    if _ok501:
                                         pass
                                     elif (isinstance(_bx496, type)
                                           and issubclass(_bx496, BaseException)):
@@ -2016,6 +2230,24 @@ class FunctionEmissionMixin:
                                                 and _gn178.endswith("__" + _t496))):
                                         continue
                                     _hit496 = sorted(_gr178 & _act178)
+                                    if _hit496 and "(route #502)" in (_wh496.get(_gn178) or ""):
+                                        raise PyCSLIRError(
+                                            "`" + _c496 + "` reaches code that holds "
+                                            + (_wh496.get(_gn178) or "an operation") + ", in a "
+                                            "function that does not declare `#@ no_exception` "
+                                            "for `" + "`/`".join(_hit496) + "`; the lambda / "
+                                            "comprehension is lowered without per-element "
+                                            "obligations, and this function claims (or, through "
+                                            "an exception handler, relies on) freedom from `"
+                                            + "`/`".join(_hit496) + "`, so a handler would be "
+                                            "dead in the model (route #502; measured: `g(xs): ys "
+                                            "= [10 // v for v in xs]; return 1` inside `try: "
+                                            "return g(xs) except ZeroDivisionError: return 2` "
+                                            "proved `\\result == 1`, CPython 2). Remove the "
+                                            "handler, or drop these exceptions from this "
+                                            "function's `#@ no_exception` claim (the call is "
+                                            "then verified on its normal path only).",
+                                            code="PYCSL-R502-CALLEE-COMPREHENSION-OBLIGATION")
                                     if _hit496:
                                         raise PyCSLIRError(
                                             "`" + _c496 + "` reaches code that holds "

@@ -873,6 +873,9 @@ AUDITED = {
         "Route #499. 'Write the statement inline instead of in `exec(...)`, or move the exec to module level': witness 7920 with `x = 2` written inline (getting-better/open-routes/witnesses-r499/advice/a499_write_inline) VERIFIES `\\result == 2`; witness 7924 with the exec moved to module level (a499_exec_at_module_level, = control 7931) VERIFIES `\\result == 6`."),
     ('src/pycsl/frontend/ir_inline.py', 'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': a `return` is nested inside a branch / loop / `with` / `try` / `match` of the met'): (FOLLOWABLE,
         "Route #500. 'Call the method on a LOCAL instance, or restructure the method so its only `return` is its last statement': witness 7940's method on a local instance with a contract (getting-better/open-routes/witnesses-r500/advice/a500_local_instance, = control 7947) VERIFIES; the method with one tail `return` and a result variable (a500_one_tail_return, = control 7946) VERIFIES `\\result == 11`."),
+    # driver run #4 (u5) -- route #502. Probe in getting-better/open-routes/witnesses-r502/advice/.
+    ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _c496 + '` reaches code that holds ' + (_wh496.get(_gn178) or 'an operation') + ', in a function that does not declare `#"): (FOLLOWABLE,
+        "Route #502. 'Remove the handler, or drop these exceptions from this function's `#@ no_exception` claim': witness 7956 with the handler removed (getting-better/open-routes/witnesses-r502/advice/a502_remove_handler) VERIFIES `\\result == 1` on the normal path. (Keeping the handler with the comprehension rewritten as a guarded explicit loop, with or without `#@ no_exception ZeroDivisionError` on the callee, is rejected by Why3 `raises unlisted exception ZeroDivisionError` -- so the message does not advise it.)"),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1225,6 +1228,8 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_R498Err("%s (function \'%s\'): an IDENTITY test (`is` / `is not`) whose operand may be a FRESHLY COMPUTED value is refused: %s (route #498). '): '85a754d524ac',
     ('src/pycsl/pycsl.py', "_R499Err('a constant `exec(...)` here cannot be spliced as source: %s (route #499). CPython (PEP 667) runs exec in a function against a snap"): '90c477a9b5a5',
     ('src/pycsl/frontend/ir_inline.py', 'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': a `return` is nested inside a branch / loop / `with` / `try` / `match` of the met'): 'a32a8a247e8c',
+    # driver run #4 (u5) -- route #502
+    ('src/pycsl/module6_whyml/functions.py', "PyCSLIRError('`' + _c496 + '` reaches code that holds ' + (_wh496.get(_gn178) or 'an operation') + ', in a function that does not declare `#"): 'e7d5f7812221',
 }
 
 
