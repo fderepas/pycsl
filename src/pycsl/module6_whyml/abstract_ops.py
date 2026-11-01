@@ -375,6 +375,39 @@ class AbstractOpsMixin:
         shared_skip: Set[str] = getattr(self, "_shared_op_skip", set())
         insert_idx = self._find_abstract_val_insert_idx(out)
         abs_lines = ["", "  (* Abstract operations for unsupported Python patterns *)"]
+        # wall lex-char-class step 4 (review C6): DEFINITIONAL `isalnum`, axiom-free.
+        # CPython: `s.isX()` for X in alpha/decimal/digit/numeric/alnum is True iff `s` is
+        # non-empty and EVERY character satisfies the character class, and at the
+        # character level `isalnum c = isalpha c or isdecimal c or isdigit c or isnumeric c`
+        # (`Py_UNICODE_ISALNUM`; checked on all 1,114,112 code points). So when `isalnum`
+        # co-occurs with one of its four parts, the uninterpreted string predicates of
+        # those bundles (registered by the `is*` lowering, `py_<pred>_p`) are replaced by
+        # their char-quantified DEFINITIONS over four uninterpreted CHARACTER predicates
+        # `py_<part>_c` (declared in the isalnum bundle, which sorts first). Nothing is
+        # claimed about which characters are alphabetic / numeric; the link
+        # isalpha => isalnum is then a THEOREM of the definitions. Applied only on
+        # co-occurrence, so every other emission is byte-identical.
+        _cc_parts = ("isalpha", "isdecimal", "isdigit", "isnumeric")
+        if ("py_isalnum_p" in self._abstract_ops
+                and any(f"py_{_cp}_p" in self._abstract_ops for _cp in _cc_parts)):
+            _cc_sub = "(String.substring s k 1)"
+            _cc_q = ("String.length s >= 1 /\\ (forall k:int. 0 <= k < String.length s -> "
+                     "{body})")
+            for _cp in ("isalnum",) + _cc_parts:
+                _ck = f"py_{_cp}_p"
+                _cdecl = self._abstract_ops.get(_ck)
+                _chead = f"predicate {_ck} (s: string)\n"
+                if _cdecl is None or not _cdecl.startswith(_chead):
+                    continue
+                if _cp == "isalnum":
+                    _cbody = "(" + " \\/ ".join(f"py_{_x}_c {_cc_sub}" for _x in _cc_parts) + ")"
+                    _cpre = "".join(f"predicate py_{_x}_c (c: string)\n  " for _x in _cc_parts)
+                else:
+                    _cbody = f"py_{_cp}_c {_cc_sub}"
+                    _cpre = ""
+                self._abstract_ops[_ck] = (
+                    _cpre + f"predicate {_ck} (s: string) =\n    "
+                    + _cc_q.format(body=_cbody) + "\n" + _cdecl[len(_chead):])
         for name, decl in sorted(self._abstract_ops.items()):
             if name in axiom_decl_names:
                 continue
