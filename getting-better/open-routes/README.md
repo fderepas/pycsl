@@ -1,5 +1,18 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-01): #506 REPAIRED (executor u7 off cc65d3ba6, 1c22383ad + its ledger / docs commit; inline in `_run_pipeline` around
+##   `transpiler.transpile()`, mirror twin `\trusted`, no new def, no axiom, emission byte-identical; new code
+##   PYCSL-R506-TRIGGER-SITE-UNLOWERED; annotations §7.506). Refuse by default, position-free: the four expression handlers that
+##   attach every TRIGGERS obligation (+ `_maybe_emit_no_exception_assert`, `_emit_function_block`) are observed; every
+##   TRIGGER_EXPR_SHAPES site of a verified body whose exception is claimed (declared / reached) or catchable (a verified `try`
+##   reaching the def through its protected body's call graph) must have a kept program-context lowering in its def's block (or a
+##   kept ancestor that consulted its row / a kept 2-D subscript). Class measured: 12 rows x 42 positions + 82 positions x 2 claims
+##   (156 lost cells: displays, `len(<display>)`, `isinstance`, named-claim `assert`, tuple index, display in a `try`, method-call
+##   RECEIVERS) -> all REFUSED, 0/455 kept cells refused. Witnesses 12 (8 u5 + 4 u7 twins) x default / typed / store = 36 runs:
+##   32 REFUSED, 4 NOT PROVED (typed / store keep the receiver). Corpus 8000-8019 (FAIL) / controls 8020-8029 (PASS). Over-refusal:
+##   corpus root 0 MOVED / 5 GONE declared (5044 6024 6025 6783 6785, honest only through guards the model never checks; flipped
+##   to FAIL) / 0 APPEARED; pyref 2186/2186 0/0/0; mirror 53/53 0/0/0 (no movers, nothing owed); rt43 / rt44 honest controls 0/36.
+
 ## run #4 (2026-11-01): #506 OPENED (found by executor u5 while repairing #502; driver repro 8/8 on main): trigger-lost-in-display-len-assert
 ##   (a division inside a set / tuple display, `len([...])` or an `assert ... or True` test loses its ZeroDivisionError obligation, even
 ##   in the claimed function under `#@ no_exception ZeroDivisionError`).

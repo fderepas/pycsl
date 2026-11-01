@@ -884,6 +884,12 @@ AUDITED = {
         "Route #504. 'Write `==` if you mean equality; compare identity ... between two reads of the same field (`k.a is k.a`)': witness 7984 with `is` -> `==` (getting-better/open-routes/witnesses-r504/advice/a504_write_eq) VERIFIES `\\result == True`; `k.a is k.a` (a504_same_field, = control 7992) VERIFIES (default model)."),
     ('src/pycsl/frontend/ir_inline.py', 'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': the method {_bare505} outside a field access / `self.m(...)` call (route #505). S'): (FOLLOWABLE,
         "Route #505. 'Pass the fields the method needs instead of `self`, or call the method on a LOCAL instance, verified by its contract': witness 7987's method passing `self.v` (getting-better/open-routes/witnesses-r505/advice/a505_pass_field, = control 7993) VERIFIES; `getv(self)` on a local instance (a505_local_instance, = control 7994) VERIFIES (default model)."),
+    # driver run #4 -- route #506 (u7, found by u5): the advice IS controls 8020 / 8027 / 8028 / 8029.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr506(f\'PYCSL-R506-TRIGGER-SITE-UNLOWERED: in `{_bad506[0]}`\' + (f" (line {_n506.get(\'lineno\')})" if _n506.get(\'lineno\') else \'\') '): (FOLLOWABLE,
+        "Route #506. 'Bind the operation to a local in a plain statement first (`q = 10 // n` then `s = {q}`)': witness 8000 "
+        "with the division bound first is control 8020 (`q = 10 // n; s = {q}` under `#@ no_exception ZeroDivisionError`, `requires n != 0`) "
+        "and VERIFIES `\\result == 10 // n + 1`; 8001's tuple bound first (8027) VERIFIES; 5044's / 6783's subscripts bound first "
+        "(8028 / 8029) VERIFY under `no_exception \\all`."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1242,6 +1248,8 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', '_R503Err("%s (function \'%s\'): an IDENTITY test (`is` / `is not`) between a name and an alias of `%s` is refused: `%s` is rebound (or is a re'): '678fb8ae04f3',
     ('src/pycsl/pycsl.py', '_R504Err("%s (function \'%s\'): an IDENTITY test (`is` / `is not`) on a value read from a FIELD is refused: %s (route #504). PyCSL lowers `is`'): '2ca0549b1dac',
     ('src/pycsl/frontend/ir_inline.py', 'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': the method {_bare505} outside a field access / `self.m(...)` call (route #505). S'): 'f218b1075bc6',
+    # driver run #4 (u7) -- route #506
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr506(f\'PYCSL-R506-TRIGGER-SITE-UNLOWERED: in `{_bad506[0]}`\' + (f" (line {_n506.get(\'lineno\')})" if _n506.get(\'lineno\') else \'\') '): 'e5a1915d7002',
 }
 
 

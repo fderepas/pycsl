@@ -4615,6 +4615,49 @@ Witnesses `7987` (PROVED at base, REFUSED), `7988` (`x = self; return x.v`: a Wh
 refused by name); controls `7993` (the field passed, `getv(self.v)`), `7994` (`getv(self)` on a LOCAL
 instance, by contract).
 
+### 7.506 A trigger site must reach its own lowering, whatever expression surrounds it (route #506, run #4)
+
+Every implicit-exception obligation of `exception_model.TRIGGERS` (§ the `pycsl-exception-model` skill) is
+attached by the expression HANDLER of the operation -- `_handle_binop` (`/` `//` `%` `<<` `>>` `**`),
+`_handle_subscript` (list / str index, dict read), `_handle_call_expr` (`divmod`, `chr`, `str` / `repr` /
+`format` / `print` of an int, `.pop`, `.index`, `.format`), `_handle_fstring_expr` (int parts, format specs) --
+and, in a body with no claim, the raising `pycsl_div` / bounds-checked access that makes a caller's handler
+live comes from the same handler. A surrounding expression modelled by size or truth only, or not at all,
+never asks that handler, or asks it and discards the text. Executors u5 / u7 measured at cc65d3ba6, PROVED
+while CPython raises: under `#@ no_exception ZeroDivisionError` / `\all`, `s = {10 // n}`, `t = (1, 10 // n)`,
+`(10 // n,)`, `((10 // n, 1), 2)`, `[*xs, 10 // n]`, `(*xs, 10 // n)`, `len([10 // n])`, `len((10 // n, 1))`,
+`isinstance(10 // n, int)`, a dict display inside a `try`, the receiver of a method call (`d["b"].upper()`,
+`xs[3].size()`), and -- under a NAMED claim, where a Python `assert` is a no-op -- `assert 10 // n >= 0 or
+True`; the same for `%`, `/`, `<<`, `**`, `xs[i]`, `d[k]`, `'ab'[i]`, `str(<big int>)`, `f"{n:s}"` (12 rows x
+42 positions: 156 lost cells); and with no claim the same callee made a caller's `except ZeroDivisionError`
+arm dead (`f` proved `\result == 1`, CPython 2 / 0).
+
+RULE (refuse by default; inline in `_run_pipeline` around `transpiler.transpile()`, mirror twin `\trusted`, no
+new def, no axiom, emission byte-identical): the four handlers, `_maybe_emit_no_exception_assert` and
+`_emit_function_block` are observed through instance attributes; every PROGRAM-context lowering (not
+`_in_spec`, not an invariant) is recorded with its IR site key (the node's canonical dict without the
+emitter's `_`-prefixed annotations) and the trigger rows its handler consulted itself. After emission, every
+SITE -- an expression of a `TRIGGER_EXPR_SHAPES` shape in an executable position of a verified def's body
+(the last def of a name; not a loop invariant / variant, ghost or `#@ assert` code; not the receiver of an
+element store / `del` / slice store, which the statement lowers; a comprehension / lambda body is route
+#177 / #285 / #287's census) -- that is RELEVANT must be lowered: its own lowering's text occurs in the def's
+emitted block at least as often as the site occurs, or its nearest kept handler ancestor consulted one of
+its rows (`ord(s[i])`: the call states the index bound), or it is the receiver of a kept 2-D subscript that
+names it. RELEVANT: one of its exceptions is claimed by the def (declared or REACHED, route #460), or may be
+caught -- a `try` of a VERIFIED def catches it (`handler_catches`; a bare / dotted / non-builtin class or a
+`finally` that returns / breaks / continues catches everything) and the def holds that `try` or is called
+(transitively, by last name component) from its protected body. Else `PYCSL-R506-TRIGGER-SITE-UNLOWERED`.
+Repair: bind the operation to a local in a plain statement (`q = 10 // n` then `s = {q}`).
+
+Witnesses `8000`-`8019` (PROVED at base, REFUSED; `8016` typed / `8017` store: a Why3 error of the mode at
+base, now refused by name); controls `8020`-`8029` (bound first, dict / list displays and an `\all` assert
+that keep their elements, a bound division in a `try`, a size-only display without trigger, a dropped
+element no handler can observe, a tuple of names, the advice applied to 5044 / 6783). Refused by design
+(honest only through guards / data the model never checks; expected PASS -> FAIL): `5044`, `6024`, `6025`,
+`6783`, `6785`. Residuals (named): a site whose lowered text also occurs because an identical site of the same
+def is lowered twice is counted kept; a callee reached only through an implicit dunder call is not on the
+handler's call graph.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
