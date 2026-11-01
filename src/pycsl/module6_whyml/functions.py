@@ -1642,7 +1642,7 @@ class FunctionEmissionMixin:
             # `div(0)` under `#@ no_exception ZeroDivisionError` PROVED, and inside `except
             # ZeroDivisionError: return 9` PROVED `\result == 0` (CPython raises / 9).
             _act178 = (set(_r65_named) | (set(_ph178()) if _r65_all else set())) & {
-                "KeyError", "IndexError", "ValueError", "ZeroDivisionError"}
+                "KeyError", "IndexError", "ValueError", "ZeroDivisionError", "StopIteration"}
             # (#49) ROUTE #430 — TypeError BY HASHING AN UNDERIVABLE VALUE. A callee that
             # hashes a value whose class the #349-#383 pass cannot derive (`#UND` / no
             # source: `{m.get("a")}` on `m: Dict[str, Any]`) may raise TypeError, and an
@@ -1730,6 +1730,48 @@ class FunctionEmissionMixin:
                 _raw178: Dict[str, Set[str]] = {}
                 _cl178: Dict[str, Set[str]] = {}
                 _decl178: Dict[str, Set[str]] = {}
+                # (#49) ROUTE #496 -- THE SUMMARY ABOVE IS AN ALLOW-LIST OF RAISING OPERATIONS
+                # (subscript, int()/float(), unpack, shifts, trusted division), so every OTHER
+                # builtin or library call in a callee -- `s.index("z")`, `chr(-1)`,
+                # `math.sqrt(-1)`, `"{k}".format()`, `divmod(a, 0)`, `next(it)`, ... -- lowers
+                # to a `val` with no `raises` and the caller's handler is dead in the model.
+                # MEASURED PROVED at 1c30f94b3 (CPython 2): `#@ ensures \result == 1`
+                # `f(s): try: return g(s) except ValueError: return 2` with `g(s): y =
+                # s.index("z"); return 1` (red team 44: 76 probes, same-file / nested /
+                # depth 3 / `\trusted` / imported, all three memory models). Inverted to
+                # route #161's polarity: a callee call is admitted only if it is a function
+                # or class of the program (its own summary is joined transitively below), a
+                # builtin exception constructor or `super()`, or on #161's never-raises list
+                # with the partial cases of #66 / #72 / #160 (`chr`, `range` step,
+                # `pow`, `min`/`max` of one iterable, `bytes`/`bytearray`/`dict` of an
+                # argument, `zip(strict=)`, `split(sep)`, `update(...)`) syntactically
+                # excluded; any other call carries EVERY modelled implicit exception
+                # (`_raw496`, refused below as PYCSL-R496-CALLEE-UNLISTED-CALL).
+                import builtins as _bi496
+                _raw496: Dict[str, Set[str]] = {}
+                _wh496: Dict[str, str] = {}
+                _pg496: Set[str] = set()
+                for _q496 in (list(self.ir.get("functions", []) or [])
+                              + list(getattr(self, "_module_method_formal_params", {}) or {})
+                              + list(getattr(self, "_record_types", {}) or {})
+                              + list(getattr(self, "class_bases_r304", None) or {})):
+                    _nq496 = str(_q496.get("name", "")) if isinstance(_q496, dict) else str(_q496)
+                    _pg496 |= {_nq496, _nq496.rsplit("__", 1)[-1], _nq496.rsplit(".", 1)[-1],
+                               _nq496.lower()}
+                _pg496.discard("")
+                _sf496 = frozenset((
+                    "len", "abs", "bool", "str", "repr", "sorted", "reversed", "list",
+                    "tuple", "set", "frozenset", "enumerate", "range", "min", "max", "sum",
+                    "any", "all", "isinstance", "chr", "ord", "int", "float", "print", "hash",
+                    "id", "type", "iter", "map", "filter", "round", "bytearray", "bytes",
+                    "pow", "dict", "zip", "super"))
+                _sm496 = frozenset((
+                    "append", "extend", "insert", "copy", "clear", "reverse", "sort",
+                    "count", "get", "keys", "values", "items", "setdefault", "update", "add",
+                    "discard", "union", "intersection", "difference", "issubset",
+                    "issuperset", "strip", "lstrip", "rstrip", "lower", "upper",
+                    "startswith", "endswith", "replace", "join", "find", "rfind", "split",
+                    "isdigit", "isalpha", "isalnum", "isspace", "bit_length"))
                 for _f178 in (self.ir.get("functions", []) or []):
                     _fn178 = str(_f178.get("name", ""))
                     _cc178 = _f178.get("contracts", {}) or {}
@@ -1760,6 +1802,108 @@ class FunctionEmissionMixin:
                                 if _x178["func"] in ("int", "float"):
                                     _r178.add("ValueError")
                                 _c178.add(_x178["func"].rsplit(".", 1)[-1])
+                            # (#49) ROUTE #496 -- the unlisted-call summary (see above). A
+                            # program function NAMED as an argument (`map(g, xs)`) is a call.
+                            if _x178.get("type") == "Call":
+                                for _ag496 in (list(_x178.get("args") or [])
+                                               + [(_k496 or {}).get("value") for _k496 in
+                                                  (_x178.get("keywords") or [])
+                                                  if isinstance(_k496, dict)]):
+                                    if (isinstance(_ag496, dict) and _ag496.get("type") == "Var"
+                                            and str(_ag496.get("name", "")) in _pg496):
+                                        _c178.add(str(_ag496.get("name", "")))
+                                _fx496 = _x178.get("func")
+                                _u496 = ""
+                                _e496: Set[str] = set()
+                                if not isinstance(_fx496, str) or not _fx496:
+                                    _u496 = "a call of a computed callable"
+                                else:
+                                    _tl496 = _fx496.rsplit(".", 1)[-1]
+                                    _mt496 = "." in _fx496 or _x178.get("receiver") is not None
+                                    _as496 = list(_x178.get("args") or [])
+                                    _kw496 = [(_k496 or {}).get("arg") for _k496 in
+                                              (_x178.get("keywords") or [])
+                                              if isinstance(_k496, dict)]
+                                    _nm496 = []
+                                    for _a496 in _as496:
+                                        _v496 = None
+                                        if (isinstance(_a496, dict) and _a496.get("type") == "Number"
+                                                and isinstance(_a496.get("value"), int)
+                                                and not isinstance(_a496.get("value"), bool)):
+                                            _v496 = _a496["value"]
+                                        elif (isinstance(_a496, dict)
+                                              and _a496.get("type") == "UnaryOp"
+                                              and _a496.get("op") == "-"
+                                              and isinstance(_a496.get("expr"), dict)
+                                              and _a496["expr"].get("type") == "Number"
+                                              and isinstance(_a496["expr"].get("value"), int)):
+                                            _v496 = -_a496["expr"]["value"]
+                                        _nm496.append(_v496)
+                                    _bx496 = getattr(_bi496, _fx496, None) if not _mt496 else None
+                                    if (_fx496 in _pg496 or _fx496.replace(".", "__") in _pg496
+                                            or (_mt496 and _tl496 in _pg496)):
+                                        pass
+                                    elif (isinstance(_bx496, type)
+                                          and issubclass(_bx496, BaseException)):
+                                        pass
+                                    elif not _mt496 and _fx496 in _sf496:
+                                        if _fx496 == "chr" and not (
+                                                len(_as496) == 1 and _nm496[0] is not None
+                                                and 0 <= _nm496[0] < 1114112):
+                                            _e496.add("ValueError")
+                                        if (_fx496 == "range" and len(_as496) == 3
+                                                and _nm496[2] in (None, 0)):
+                                            _e496.add("ValueError")
+                                        if _fx496 == "pow" and (
+                                                _kw496 or len(_as496) != 2
+                                                or not ((_nm496[1] is not None and _nm496[1] >= 0)
+                                                        or _nm496[0] not in (None, 0))):
+                                            _e496 |= {"ZeroDivisionError", "ValueError"}
+                                        if (_fx496 in ("min", "max") and len(_as496) == 1
+                                                and "default" not in _kw496
+                                                and not (isinstance(_as496[0], dict)
+                                                         and _as496[0].get("type") in (
+                                                             "ArrayLit", "Tuple", "List")
+                                                         and (_as496[0].get("elts") or []))):
+                                            _e496.add("ValueError")
+                                        if (_fx496 in ("bytes", "bytearray") and _as496
+                                                and not (_nm496[0] is not None and _nm496[0] >= 0
+                                                         and len(_as496) == 1)):
+                                            _e496.add("ValueError")
+                                        if (_fx496 == "dict" and _as496
+                                                and not (isinstance(_as496[0], dict)
+                                                         and _as496[0].get("type") in (
+                                                             "Dict", "DictLit", "DictComp"))):
+                                            _e496.add("ValueError")
+                                        if _fx496 == "zip" and "strict" in _kw496:
+                                            _e496.add("ValueError")
+                                        if _e496:
+                                            _u496 = "`" + _fx496 + "(...)` (a partial case)"
+                                    elif _mt496 and _tl496 in _sm496:
+                                        if _tl496 == "split" and (
+                                                (_kw496 and "maxsplit" not in _kw496)
+                                                or (_as496 and not (
+                                                    isinstance(_as496[0], dict)
+                                                    and _as496[0].get("type") == "String"
+                                                    and isinstance(_as496[0].get("value"), str)
+                                                    and _as496[0]["value"] != ""))):
+                                            _e496.add("ValueError")
+                                        if _tl496 == "update" and _as496 and not (
+                                                isinstance(_as496[0], dict)
+                                                and _as496[0].get("type") in (
+                                                    "Var", "Dict", "DictLit", "DictComp")):
+                                            _e496.add("ValueError")
+                                        if _e496:
+                                            _u496 = "`" + _fx496 + "(...)` (a partial case)"
+                                    else:
+                                        _u496 = "`" + _fx496 + "(...)`"
+                                        _e496 = set(_ph178())
+                                if _u496 and not _e496:
+                                    _e496 = set(_ph178())
+                                if _e496 - _decl178[_fn178] - _raw496.get(_fn178, set()):
+                                    _raw496.setdefault(_fn178, set())
+                                    _raw496[_fn178] |= _e496 - _decl178[_fn178]
+                                    _wh496.setdefault(_fn178, _u496)
                             _w178.extend(v for v in _x178.values() if isinstance(v, (dict, list)))
                         elif isinstance(_x178, list):
                             _w178.extend(_x178)
@@ -1778,6 +1922,17 @@ class FunctionEmissionMixin:
                                 _add178 = (_gr178 - _decl178[_fn178]) - _raw178[_fn178]
                                 if _add178:
                                     _raw178[_fn178] |= _add178
+                                    _ch178 = True
+                        for _gn178, _gr178 in list(_raw496.items()):
+                            if (_gn178 != _fn178
+                                    and (_gn178 in _cs178 or _gn178.rsplit("__", 1)[-1] in _cs178)):
+                                _add178 = ((_gr178 - _decl178[_fn178])
+                                           - _raw496.get(_fn178, set()))
+                                if _add178:
+                                    _raw496.setdefault(_fn178, set())
+                                    _raw496[_fn178] |= _add178
+                                    _wh496.setdefault(_fn178, _wh496.get(_gn178, "")
+                                                      + " in `" + _gn178 + "`")
                                     _ch178 = True
                 _me178 = str(func.get("name", ""))
                 _w178 = list(func.get("body", []) or [])
@@ -1839,6 +1994,49 @@ class FunctionEmissionMixin:
                                         "caller's `#@ no_exception KeyError`). Add `#@ "
                                         "no_exception` to the callee, or drop the exception from "
                                         "this context.")
+                        # (#49) ROUTE #496 -- the callee holds a call not known never to raise
+                        # (the unlisted-call summary above); a program function named as an
+                        # argument (`map(g, xs)`) is reached too.
+                        if _x178.get("type") == "Call":
+                            _cn496 = [_x178["func"]] if isinstance(_x178.get("func"), str) else []
+                            _cn496 += [str(_a496.get("name", "")) for _a496 in
+                                       (list(_x178.get("args") or [])
+                                        + [(_k496 or {}).get("value") for _k496 in
+                                           (_x178.get("keywords") or [])
+                                           if isinstance(_k496, dict)])
+                                       if isinstance(_a496, dict) and _a496.get("type") == "Var"]
+                            for _c496 in _cn496:
+                                _t496 = _c496.rsplit(".", 1)[-1]
+                                for _gn178, _gr178 in sorted(_raw496.items()):
+                                    if _gn178 == _me178 or not _c496:
+                                        continue
+                                    if not (_gn178 == _c496 or _gn178 == _t496
+                                            or ("." in _c496 and _gn178.endswith("__" + _t496))
+                                            or (_x178.get("receiver") is not None
+                                                and _gn178.endswith("__" + _t496))):
+                                        continue
+                                    _hit496 = sorted(_gr178 & _act178)
+                                    if _hit496:
+                                        raise PyCSLIRError(
+                                            "`" + _c496 + "` reaches code that holds "
+                                            + (_wh496.get(_gn178) or "a call")
+                                            + ", which is not a function of the verified "
+                                            "program and not on the list of operations known "
+                                            "never to raise, in a function that does not "
+                                            "declare `#@ no_exception` for `"
+                                            + "`/`".join(_hit496) + "`; such a call lowers to "
+                                            "an abstract `val` with no `raises`, and this "
+                                            "function claims (or, through an exception "
+                                            "handler, relies on) freedom from `"
+                                            + "`/`".join(_hit496) + "`, so a handler would be "
+                                            "dead in the model (route #496; measured: `g(s): y "
+                                            "= s.index(\"z\"); return 1` inside `try: return "
+                                            "g(s) except ValueError: return 2` proved "
+                                            "`\\result == 1`, CPython 2). Add `#@ no_exception` "
+                                            "for these exceptions to the callee (its calls are "
+                                            "then checked there), or drop them from this "
+                                            "context (remove the handler).",
+                                            code="PYCSL-R496-CALLEE-UNLISTED-CALL")
                         _w178.extend(v for v in _x178.values() if isinstance(v, (dict, list)))
                     elif isinstance(_x178, list):
                         _w178.extend(_x178)

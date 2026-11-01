@@ -4389,6 +4389,44 @@ soon as that class has ANY dunder not declared `#@ assigns \nothing`, even one t
 Residuals (named): a value of unknown class is judged by the (completed) position table, not every dunder; a
 dunder val is reached only through an implicit position or an explicit name read.
 
+### 7.410 A callee's implicit raise summary is refuse-by-default: any call not known never to raise carries every modelled exception (route #496, run #4)
+
+Route #178 (§ its comment in `module6_whyml/functions.py`) gives each same-file / `\trusted` / imported function a
+summary of the implicit exceptions its body may raise where its own context does not check them, and refuses a
+caller whose `#@ no_exception` claim -- or whose exception HANDLER (route #171's widening) -- relies on freedom
+from one. That summary was an ALLOW-LIST of raising operations (subscript, `int()` / `float()`, an unpack, `<<` /
+`>>`, division in a bodyless callee), so every other builtin or library call in a callee lowered to a `val` with
+no `raises` and the caller's handler was dead in the model. Red team 44 measured 96 (probe, mode) pairs PROVED
+(76 probes; hoare / typed / store): `#@ ensures \result == 1` `f(s): try: return g(s) except ValueError: return
+2` with `g(s): y = s.index("z"); return 1` (CPython 2), and the same through `str` / `list` / `tuple` / `range`
+`.index`, `chr`, `split("")`, `partition("")`, `math.*`, `divmod`, `pow(_, _, 0)`, `str.format`, `encode` /
+`decode`, `operator.*`, `statistics`, `random.choice`, `datetime`, `next`, an un-contracted void callee, depth 3,
+`\trusted` and imported callees, a keyword call, a call in a condition, `try ... else`, nested handlers.
+
+RULE (route #161's polarity, inline in the route #178 summary): a call in a callee body is admitted (adds nothing
+to the summary) only if it is (i) a function, method or class of the program (its own summary is joined
+transitively; a program function NAMED as an argument -- `map(g, xs)` -- counts as a call of it, at the callee
+and at the caller), (ii) a builtin exception constructor (`raise ValueError(..)`) or `super()`, or (iii) on #161's
+never-raises list with the partial cases of #66 / #72 / #160 syntactically excluded: `chr` of a literal in
+`[0, 0x110000)`, `range` with a nonzero literal step (or fewer than three arguments), `pow(b, e)` with a literal
+`e >= 0` or nonzero literal base and no keywords, one-iterable `min` / `max` only with `default=` or a non-empty
+display, `bytes` / `bytearray` of nothing or one non-negative literal, `dict` of nothing or a dict display,
+`zip` without `strict=`, `split` with no separator or a non-empty literal one, `update` of a name or dict display.
+Any other call (incl. a call of a computed callable) carries EVERY modelled implicit exception (`KeyError`,
+`IndexError`, `ValueError`, `ZeroDivisionError`, `StopIteration`) minus what the callee itself declares
+`#@ no_exception` for; a caller whose active context meets that set is REFUSED with
+`PYCSL-R496-CALLEE-UNLISTED-CALL`, the message naming the call and the chain. `StopIteration` joins route #178's
+active set. Repair: declare `#@ no_exception` for the exceptions on the callee (its calls are then judged by #161
+there), or remove the handler / the claim.
+
+Witnesses `7847`-`7864` (PROVED at base, REFUSED; `7860` typed, `7861` store, `7859` / `7860` imported through
+`multi_file_lib/u3_h496a.py` / `u3_h496b.py`); controls `7870`-`7875` (never-raising methods, literal partial
+builtins, a program chain with a constructor, a callee declaring `#@ no_exception ValueError` over `chr(n)` under a
+range `requires`, a handler around a never-raising helper, an explicit `raise ValueError(..)` caught). Residuals
+(named): an int-to-decimal-string conversion (`str(x)`, `print(x)`, f-string) past 4300 digits (route #281's
+`int_str` row) and `round` of a NaN in a callee are not summarised; a method call whose tail names any program
+method is admitted as that method (#161's own convention).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
