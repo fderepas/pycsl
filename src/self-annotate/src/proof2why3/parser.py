@@ -37,7 +37,70 @@ _OP_TOKENS = ['->', '>=', '<=', '<>', '==', '!=', '\\/', '/\\\\', '=', '>', '<',
 #@ ensures True
 #@ assigns \nothing
 def lex(s: str) -> List[Token]:
-    return []
+    toks: List[Token] = []
+    i = 0
+    n = len(s)
+    #@ loop invariant 0 <= i
+    #@ loop variant n - i
+    while i < n:
+        c = s[i]
+        if c.isspace():
+            i += 1
+            continue
+        if c == "(":
+            toks.append(Token("LPAREN", "("))
+            i += 1
+            continue
+        if c == ")":
+            toks.append(Token("RPAREN", ")"))
+            i += 1
+            continue
+        if c == ",":
+            toks.append(Token("COMMA", ","))
+            i += 1
+            continue
+        if c == ":":
+            toks.append(Token("COLON", ":"))
+            i += 1
+            continue
+        # Try multi-char operators (longest first).
+        matched = False
+        #@ label OPS
+        #@ loop invariant i == \at(i, OPS)
+        #@ loop invariant not matched
+        for op in _OP_TOKENS:
+            if s.startswith(op, i):
+                toks.append(Token("OP", op))
+                i += len(op)
+                matched = True
+                break
+        if matched:
+            continue
+        # Integer literal.
+        if c.isdigit():
+            j = i
+            #@ loop invariant i <= j
+            #@ loop variant n - j
+            while j < n and s[j].isdigit():
+                j += 1
+            toks.append(Token("INT", s[i:j]))
+            i = j
+            continue
+        # Identifier (alphanumeric, underscore, dot for dotted names like
+        # leftover library refs; we treat them as opaque idents).
+        if c.isalpha() or c == "_":
+            j = i
+            #@ loop invariant i <= j
+            #@ loop variant n - j
+            while j < n and (s[j].isalnum() or s[j] in "_'"):
+                j += 1
+            toks.append(Token("IDENT", s[i:j]))
+            i = j
+            continue
+        # Unknown char — skip with a warning.
+        toks.append(Token("OP", c))
+        i += 1
+    return toks
 
 _LOGICAL_DISJ_OPS = {'\\/'}
 _LOGICAL_CONJ_OPS = {'/\\\\'}
