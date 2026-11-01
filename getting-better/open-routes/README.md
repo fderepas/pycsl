@@ -1,5 +1,9 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-01): #506 OPENED (found by executor u5 while repairing #502; driver repro 8/8 on main): trigger-lost-in-display-len-assert
+##   (a division inside a set / tuple display, `len([...])` or an `assert ... or True` test loses its ZeroDivisionError obligation, even
+##   in the claimed function under `#@ no_exception ZeroDivisionError`).
+
 ## run #4 (2026-11-01): #501-#505 OPENED (red team 45 on 0d561a23b = main + #496 / #498-#500 repairs: 332 probes / 303 breaching /
 ##   15 confirmed, all default mode; rt44's 139 pairs: 127 refused, #497's 12 = user decision): #501 r496-admission-by-bare-name (5);
 ##   #502 division-in-lambda-comprehension-of-callee (5); #503 r498-alias-exemption-ignores-rebinding (2); #504 r498-computed-field-identity
