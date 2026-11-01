@@ -32,7 +32,6 @@ class Token:
 
 
 _OP_TOKENS = ['->', '>=', '<=', '<>', '==', '!=', '\\/', '/\\\\', '=', '>', '<', '+', '-', '*']
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
