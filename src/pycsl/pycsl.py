@@ -1163,6 +1163,141 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # [07-1839 P5b] Constant-`exec("…")` straight-line splice: replace a constant exec with
     # its parsed body (verification-equivalent to inline source; whitelist bars control flow).
     # No-op for files without a constant exec. Dynamic exec is handled downstream (P5a/P5a').
+    # (run #4) ROUTE #499 — THE SPLICE IS INLINE-EQUIVALENT ONLY WHERE `exec` RUNS AGAINST THE
+    # REAL NAMESPACE (module top level, a class body that is not inside a function). Inside a
+    # FUNCTION, CPython (PEP 667) runs `exec(src)` against a SNAPSHOT of `locals()`: a name the
+    # text binds goes into that snapshot and is NEVER seen by the function, so
+    # `x = 1; exec("x = 2"); return x` returns 1 — the splice PROVED `\result == 2`, and
+    # `d = 0; exec("d = 5"); return 10 // d` PROVED `no_exception \all` (ZeroDivisionError);
+    # red team 44, witnesses-r499 (11). A name it binds and the function never binds is not
+    # a local either (`exec("y = 6"); return y` is NameError, corpus 0642). A nested scope
+    # (lambda / comprehension) in the text resolves free names in the GLOBALS, not the
+    # function, and a `yield` / `await` would change the function's kind. In a class body
+    # nested in a function, exec does not see the enclosing function's names at all.
+    # RULE (refuse by default, inline: the mirror twin of `_run_pipeline` is `\trusted`):
+    # a constant exec in a function scope whose text parses and passes the splice whitelist
+    # is admitted only when every name it binds (assignment / augmented / annotated / unpacking
+    # target, walrus) is named NOWHERE else in the function (then the binding is unobservable)
+    # and the function reads no namespace (`locals` / `vars` / `dir` / `globals` / `eval` /
+    # another `exec`), and it contains no lambda / comprehension / yield / await; one in a class
+    # body inside a function is refused; so is one passing `globals=` / `locals=` by keyword
+    # at ANY scope (the splicer reads only the positional text, CPython runs it in that other
+    # namespace). Element / attribute stores and calls run against
+    # the same objects in CPython and stay spliced. A text the whitelist rejects (or that
+    # does not parse) is left to the splicer's own refusal.
+    from frontend import pure_ast as _ast499
+    _r499_stack: List[Any] = [(unified_ast, "module", None)]
+    while _r499_stack:
+        _r499_n, _r499_sc, _r499_fn = _r499_stack.pop()
+        _r499_k = type(_r499_n).__name__
+        _r499_cfn = _r499_fn
+        if _r499_k in ("FunctionDef", "AsyncFunctionDef", "Lambda"):
+            _r499_csc = "function"
+            _r499_cfn = _r499_n
+        elif _r499_k == "ClassDef":
+            _r499_csc = "class-in-function" if _r499_sc != "module" else "module"
+        else:
+            _r499_csc = _r499_sc
+        _r499_v = getattr(_r499_n, "value", None) if _r499_k == "Expr" else None
+        if (type(_r499_v).__name__ == "Call"
+                and type(getattr(_r499_v, "func", None)).__name__ == "Name"
+                and getattr(_r499_v.func, "id", None) == "exec"
+                and len(getattr(_r499_v, "args", None) or []) == 1
+                and type(_r499_v.args[0]).__name__ == "Constant"
+                and isinstance(_r499_v.args[0].value, str)
+                and (_r499_sc != "module" or (getattr(_r499_v, "keywords", None) or []))):
+            try:
+                _r499_body = list(_ast499.parse(_r499_v.args[0].value).body)
+            except Exception:  # noqa: BLE001 — the splicer refuses an unparsable literal
+                _r499_body = None
+            if _r499_body is not None and all(
+                    type(_r499_s).__name__ in ("Assign", "AnnAssign", "AugAssign", "Expr")
+                    for _r499_s in _r499_body):
+                _r499_why = None
+                _r499_bound: List[str] = []
+                if getattr(_r499_v, "keywords", None) or []:
+                    # the splicer reads only the positional text: `exec(src, globals=d)`
+                    # / `locals=d` runs it in ANOTHER namespace, at any scope.
+                    _r499_why = ("it passes `globals=` / `locals=` by keyword, so CPython "
+                                 "runs the text in another namespace")
+                elif _r499_sc == "class-in-function":
+                    _r499_why = ("it sits in a class body nested in a function: exec there "
+                                 "reads the class namespace and the globals, never the "
+                                 "enclosing function's names")
+                for _r499_s in _r499_body:
+                    if _r499_why:
+                        break
+                    _r499_tg = list(getattr(_r499_s, "targets", None) or [])
+                    if getattr(_r499_s, "target", None) is not None:
+                        _r499_tg.append(_r499_s.target)
+                    while _r499_tg and not _r499_why:
+                        _r499_t = _r499_tg.pop()
+                        _r499_tk = type(_r499_t).__name__
+                        if _r499_tk == "Name":
+                            _r499_bound.append(str(getattr(_r499_t, "id", "?")))
+                        elif _r499_tk in ("Tuple", "List"):
+                            _r499_tg.extend(getattr(_r499_t, "elts", None) or [])
+                        elif _r499_tk == "Starred":
+                            _r499_tg.append(getattr(_r499_t, "value", None))
+                    for _r499_d in (_ast499.walk(_r499_s) if not _r499_why else ()):
+                        _r499_dk = type(_r499_d).__name__
+                        if _r499_dk == "NamedExpr":
+                            _r499_bound.append(str(getattr(getattr(_r499_d, "target", None),
+                                                           "id", "?")))
+                        elif _r499_dk in ("Lambda", "ListComp", "SetComp", "DictComp",
+                                          "GeneratorExp"):
+                            _r499_why = ("it contains a nested scope (`%s`), whose free names "
+                                         "CPython resolves in the globals, not the function"
+                                         % _r499_dk)
+                        elif _r499_dk in ("Yield", "YieldFrom", "Await"):
+                            _r499_why = ("it contains `%s`, which is a SyntaxError in exec'd "
+                                         "text but would change the function's kind once "
+                                         "spliced" % _r499_dk)
+                        if _r499_why:
+                            break
+                if _r499_bound and not _r499_why:
+                    # A name the text binds lands in the discarded snapshot. That is
+                    # unobservable -- and the splice harmless -- only when the function
+                    # never names it elsewhere (no read, no other binding, no nested def
+                    # reading it) and reads no namespace (`locals` / `vars` / `dir` /
+                    # `globals` / `eval` / another `exec`, whose snapshot never sees it).
+                    _r499_used: Set[str] = set()
+                    _r499_ns = False
+                    _r499_fs: List[Any] = [_r499_fn]
+                    while _r499_fs:
+                        _r499_x = _r499_fs.pop()
+                        if _r499_x is _r499_n or _r499_x is None:
+                            continue
+                        if type(_r499_x).__name__ == "Name":
+                            _r499_used.add(str(getattr(_r499_x, "id", "")))
+                            if getattr(_r499_x, "id", "") in ("locals", "vars", "dir",
+                                                              "globals", "eval", "exec"):
+                                _r499_ns = True
+                        elif type(_r499_x).__name__ in ("arg", "Global", "Nonlocal"):
+                            _r499_used.add(str(getattr(_r499_x, "arg", "")))
+                            _r499_used.update(getattr(_r499_x, "names", None) or [])
+                        _r499_fs.extend(_ast499.iter_child_nodes(_r499_x))
+                    _r499_hit = sorted(set(_r499_bound) & _r499_used)
+                    if _r499_hit or _r499_ns:
+                        _r499_why = ("it binds the name `%s`, which CPython stores in a "
+                                     "SNAPSHOT of locals(), never in the function, and the "
+                                     "function %s"
+                                     % ((_r499_hit or _r499_bound)[0],
+                                        "names it outside the exec" if _r499_hit else
+                                        "reads a namespace (`locals` / `vars` / `dir` / "
+                                        "`globals` / `eval` / `exec`)"))
+                if _r499_why:
+                    from errors import PyCSLSemanticError as _R499Err
+                    raise _R499Err(
+                        "a constant `exec(...)` here cannot be spliced as "
+                        "source: %s (route #499). CPython (PEP 667) runs exec in a function "
+                        "against a snapshot of locals(), so `x = 1; exec(\"x = 2\"); "
+                        "return x` returns 1. Write the statement inline instead of in "
+                        "`exec(...)`, or move the exec to module level." % (_r499_why,),
+                        stage="exec-splice", line=getattr(_r499_n, "lineno", 0) or 0,
+                        code="PYCSL-R499-EXEC-IN-FUNCTION-SCOPE")
+        for _r499_c in _ast499.iter_child_nodes(_r499_n):
+            _r499_stack.append((_r499_c, _r499_csc, _r499_cfn))
     from frontend.exec_splice import splice_constant_exec
     unified_ast = splice_constant_exec(unified_ast)
 
