@@ -14928,6 +14928,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # never named by a `global` statement. `object.__eq__` is identity, so VALUE equality
     # against it is identity; it is a singleton operand, like `None`.
     import ast as _ast504
+    import pathlib as _pl504
     _sent504: Set[str] = set()
     try:
         _mod504 = _ast504.parse(source_code)
@@ -14943,10 +14944,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         os.path.join(_r504, _rel504 + ".py"),
                         os.path.join(_r504, _rel504, "__init__.py")) if os.path.isfile(_c504)), None)
                     if _hit504:
-                        with open(_hit504, encoding="utf-8", errors="replace") as _fh504:
-                            _wl504.append((_ast504.parse(_fh504.read()),
-                                           {_al504.name: (_al504.asname or _al504.name)
-                                            for _al504 in _st504.names}))
+                        _wl504.append((_ast504.parse(_pl504.Path(_hit504).read_text(
+                                           encoding="utf-8", errors="replace")),
+                                       {_al504.name: (_al504.asname or _al504.name)
+                                        for _al504 in _st504.names}))
                         break
         for _m504, _map504 in _wl504:
             _cnt504: Dict[str, int] = {}
