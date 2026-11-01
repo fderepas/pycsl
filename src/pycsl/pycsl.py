@@ -1635,6 +1635,173 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     filename=args.file, line=getattr(_n215, "lineno", 0) or 0,
                     stage="ir-semantic", code="PYCSL-SEM-GENERIC-SUBSCRIPT-CALL")
 
+    # (run #4) ROUTES #510 / #517 — A PEP 695 `type X = ...` STATEMENT AND A PEP 695 TYPE-PARAMETER
+    # LIST ARE BINDINGS, AND NO BINDING WALK SAW THEM. `pure_ast` builds the `TypeAlias` target with
+    # Load context and the lowering drops the statement, so every binding-site census keyed on
+    # Store / def / import / except / match binders (route #132's `_nb_sites`, module_collect's
+    # constant folder, Module 5's local collectors, the program-call resolver) missed it: `K = 5`
+    # then `type K = int` (after the def, in an `if` / `try` / `for` body, generic `type K[T]`, or
+    # function-local) kept K folded to 5, and `type n = int` over a parameter / local / loop
+    # variable / callee / module object / builtin (`type len = int`) kept the old value, so
+    # `ensures \result == 5` over `return K` and `no_exception \all` over `n // K`, `n + 1`,
+    # `len(s)`, `g(n)` PROVED while CPython reads a typing.TypeAliasType (red team 47, 34
+    # witnesses, route #510). Likewise `def f[K](n): return n // K`, `def f[len](s): return
+    # len(s)`, `class C[K]:` around a method reading K: the names of a FunctionDef / ClassDef
+    # `type_params` are bound INSIDE that scope to a typing.TypeVar, but the folder and the call
+    # resolver read the module constant / program def / builtin of the same name (10 witnesses,
+    # route #517).
+    # RULE (refuse by default; inline here, after `_ir_resolve` so the TY3 monomorphization
+    # refusals GT1 / GT3 / GT4 / BOUND fire first, and `_run_pipeline`'s mirror twin is
+    # `\trusted`: no marker, no mirror edit, no re-proof). Neither binding's object is modelled
+    # (a TypeAliasType / TypeVar is never a number, str, container or callable program value), so
+    # its name may only be read where CPython reads it as a TYPE: a parameter / return / variable
+    # annotation, a type alias's value, a type parameter's bound, the subscript of a class base
+    # (`class C[T](Base[T])`). Any other read is REFUSED: (a) #510, a Load (or augmented target)
+    # anywhere in the file, or an identifier in any `#@` line, of a name some `type` statement of
+    # the file binds (name-keyed over the whole file: a module-level alias rebinds the global every
+    # function reads; a local one shadows a parameter / outer name), and, for a `type` statement
+    # directly in a class body (it rebinds a class attribute), an attribute read `<e>.X` anywhere
+    # (code or `#@`); (b) #517, such a read of a
+    # type-parameter name inside its def / class (decorators, defaults, nested scopes included), or
+    # in the `#@` lines of the def / class (its contract block above it through its last line).
+    # One exemption, exact in CPython: the statement `assert X is not None` where X is bound by
+    # `type` statements ONLY (a TypeAliasType is never None; python-reference 0183 / 0212).
+    _st510: List[Any] = list(_ast.walk(unified_ast))
+    _mr510: List[Any] = []
+    _ty510: Dict[str, int] = {}
+    _tp510: List[Any] = []
+    _bd510: Set[str] = set()
+    _ca510: Set[str] = set()
+    for _n510 in _st510:
+        _k510 = type(_n510).__name__
+        if _k510 in ("FunctionDef", "AsyncFunctionDef"):
+            _mr510.append(_n510.returns)
+            _a510 = _n510.args
+            for _ar510 in (list(_a510.posonlyargs) + list(_a510.args) + list(_a510.kwonlyargs)
+                           + [_a510.vararg, _a510.kwarg]):
+                if _ar510 is not None:
+                    _mr510.append(_ar510.annotation)
+                    _bd510.add(_ar510.arg)
+            _bd510.add(_n510.name)
+        elif _k510 == "AnnAssign":
+            _mr510.append(_n510.annotation)
+        elif _k510 == "TypeAlias":
+            _mr510 += [_n510.name, _n510.value] + list(getattr(_n510, "type_params", None) or [])
+            if type(_n510.name).__name__ == "Name":
+                _ty510.setdefault(_n510.name.id, getattr(_n510, "lineno", 0) or 0)
+        elif _k510 == "ClassDef":
+            _mr510 += [_b510.slice for _b510 in _n510.bases
+                       if type(_b510).__name__ == "Subscript"]
+            _bd510.add(_n510.name)
+            _ca510.update(_c510.name.id for _c510 in _n510.body
+                          if type(_c510).__name__ == "TypeAlias"
+                          and type(_c510.name).__name__ == "Name")
+        elif _k510 == "Name" and type(_n510.ctx).__name__ in ("Store", "Del"):
+            _bd510.add(_n510.id)
+        elif _k510 == "alias":
+            _bd510.add((_n510.asname or _n510.name).split(".")[0])
+        elif _k510 in ("ExceptHandler", "MatchAs", "MatchStar") and getattr(_n510, "name", None):
+            _bd510.add(_n510.name)
+        elif _k510 == "MatchMapping" and getattr(_n510, "rest", None):
+            _bd510.add(_n510.rest)
+        elif _k510 in ("Global", "Nonlocal"):
+            _bd510.update(_n510.names)
+        if _k510 in ("FunctionDef", "AsyncFunctionDef", "ClassDef"):
+            _tl510 = list(getattr(_n510, "type_params", None) or [])
+            _mr510 += _tl510
+            if _tl510:
+                _tp510.append((_n510, {_p510.name for _p510 in _tl510}))
+                _bd510.update({_p510.name for _p510 in _tl510})
+    if _ty510 or _tp510:
+        import re as _re510
+        from errors import PyCSLSemanticError as _PyCSLSemErr510
+        _ex510: Set[int] = set()
+        for _r510 in _mr510:
+            if _r510 is not None:
+                _ex510.update(id(_w510) for _w510 in _ast.walk(_r510))
+        for _n510 in _st510:
+            if (type(_n510).__name__ == "Assert" and type(_n510.test).__name__ == "Compare"
+                    and type(_n510.test.left).__name__ == "Name"
+                    and _n510.test.left.id in _ty510 and _n510.test.left.id not in _bd510
+                    and len(_n510.test.ops) == 1
+                    and type(_n510.test.ops[0]).__name__ == "IsNot"
+                    and type(_n510.test.comparators[0]).__name__ == "Constant"
+                    and _n510.test.comparators[0].value is None):
+                _ex510.add(id(_n510.test.left))
+        _ln510 = source_code.split("\n")
+        # one entry per scope judged: (root node, names, first contract line, last line, route)
+        _sc510: List[Any] = []
+        if _ty510:
+            _sc510.append((unified_ast, set(_ty510), 1, len(_ln510), "510", None))
+        for _d510, _tn510 in _tp510:
+            _lo510 = min([getattr(_d510, "lineno", 0) or 0]
+                         + [getattr(_e510, "lineno", 0) or 0
+                            for _e510 in (getattr(_d510, "decorator_list", None) or [])])
+            while _lo510 > 1 and _ln510[_lo510 - 2].strip().startswith("#@"):
+                _lo510 -= 1
+            _sc510.append((_d510, _tn510, _lo510,
+                           getattr(_d510, "end_lineno", None) or getattr(_d510, "lineno", 0) or 0,
+                           "517", _d510))
+        _bad510: List[Any] = []
+        for _rt510, _nm510, _lo510, _hi510, _ro510, _d510 in _sc510:
+            for _w510 in _ast.walk(_rt510):
+                if id(_w510) in _ex510:
+                    continue
+                _wk510 = type(_w510).__name__
+                _id510 = None
+                if _wk510 == "Name" and type(_w510.ctx).__name__ == "Load":
+                    _id510 = _w510.id
+                elif _wk510 == "AugAssign" and type(_w510.target).__name__ == "Name":
+                    _id510 = _w510.target.id
+                elif (_ro510 == "510" and _wk510 == "Attribute" and _w510.attr in _ca510
+                        and type(_w510.ctx).__name__ == "Load"):
+                    _id510 = _w510.attr
+                if _id510 is not None and _id510 in _nm510:
+                    _bad510.append(((getattr(_w510, "lineno", 0) or 0), _ro510, _id510,
+                                    "the code", _d510))
+            for _i510 in range(max(_lo510, 1), min(_hi510, len(_ln510)) + 1):
+                _s510 = _ln510[_i510 - 1].strip()
+                if _s510.startswith("#@"):
+                    for _m510 in _re510.finditer(r"(?<![\w\\.])([A-Za-z_]\w*)", _s510[2:]):
+                        if _m510.group(1) in _nm510:
+                            _bad510.append((_i510, _ro510, _m510.group(1),
+                                            "a `#@` contract line", _d510))
+                    for _m510 in _re510.finditer(r"\.([A-Za-z_]\w*)", _s510[2:]):
+                        if _ro510 == "510" and _m510.group(1) in _ca510:
+                            _bad510.append((_i510, _ro510, _m510.group(1),
+                                            "a `#@` contract line", _d510))
+        if _bad510:
+            _z510 = min(_bad510, key=lambda _q510: (_q510[0], _q510[1]))
+            if _z510[1] == "510":
+                raise _PyCSLSemErr510(
+                    f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: "
+                    f"`{_z510[2]}` is bound by the PEP 695 statement `type {_z510[2]} = ...` "
+                    f"(line {_ty510[_z510[2]]}) and {_z510[3]} reads it as a value. In CPython "
+                    f"that statement BINDS the name (in its scope, whenever it runs) to a "
+                    f"typing.TypeAliasType, which is never a number, string, container or "
+                    f"callable program value, but PyCSL drops the statement and kept reading "
+                    f"the name's other binding (a folded module constant, a parameter, a local, "
+                    f"a def, a builtin): `K = 5` ... `type K = int` proved `\\result == 5` over "
+                    f"`return K` and `no_exception \\all` over `n // K` (route #510). A `type` "
+                    f"name may be read only as a type (an annotation, an alias value, a bound). "
+                    f"Rename the alias so it shadows no value the program reads (`type KT = int`).",
+                    filename=args.file, line=_z510[0], stage="ir-semantic",
+                    code="PYCSL-R510-TYPE-STATEMENT-NAME-READ")
+            raise _PyCSLSemErr510(
+                f"{args.file} (line {_z510[0]}): PYCSL-R517-TYPE-PARAM-NAME-READ: `{_z510[2]}` "
+                f"is a PEP 695 type parameter of `{getattr(_z510[4], 'name', '?')}` (line "
+                f"{getattr(_z510[4], 'lineno', 0)}) and {_z510[3]} inside its scope reads it as "
+                f"a value. In CPython the type-parameter list BINDS the name, for the whole "
+                f"{'class' if type(_z510[4]).__name__ == 'ClassDef' else 'function'} body, to a "
+                f"typing.TypeVar (never a number, string, container or callable program value), "
+                f"but PyCSL's constant folder and call resolver read the module constant / "
+                f"program def / builtin of the same name: `K = 5; def f[K](n: int) -> int: "
+                f"return n // K` proved `no_exception \\all` (route #517). A type parameter may "
+                f"be read only as a type (an annotation, a bound, a base's subscript). Rename "
+                f"the type parameter so it shadows no value the body reads (`def f[T](...)`).",
+                filename=args.file, line=_z510[0], stage="ir-semantic",
+                code="PYCSL-R517-TYPE-PARAM-NAME-READ")
+
     # (#49) ROUTE #216 — A DUNDER OVERRIDE ERASES THE LISKOV OBLIGATION.
     #
     # Two files identical except for ONE IDENTIFIER, under
