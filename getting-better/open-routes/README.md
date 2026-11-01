@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-01): #496-#500 OPENED (red team 44 on 1c30f94b3: 793 probes / 779 CPython-breaching / 139 confirmed pairs
+##   on 111 probes; rt43 (501 probes) had 0 confirmed): #496 r178-callee-raise-summary-allow-list (76 probes, 96 pairs incl. typed / store);
+##   #497 abstract-with-executable-body (4 x 3 models; POLICY — user decision); #498 is-on-fresh-values-as-equality (14);
+##   #499 exec-in-function-scope-splice (11, PEP 667); #500 ir-inline-nested-return (6). Driver repro rp44: 12/12 exemplars.
+
 ## run #3 (2026-10-31): #491-#495 REPAIRED (executor v1 off 0a6f9c153; one rewrite of route #489's judge, inline in `_run_pipeline`,
 ##   mirror twin `\trusted`, no new def, no axiom; annotations §7.400). Refuse by default: (a) every implicit position on a record of
 ##   a KNOWN class is EVERY dunder of its classes (unknown class: the position table, completed) (#491: `[1] * o`, `round(x, o)`, `isinstance(1, o)`, `iter(o, s)` need no table entry);
