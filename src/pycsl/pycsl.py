@@ -14914,11 +14914,118 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     _tdc504 = {_tdx504.get("name") for _tdx504 in (ir_data.get("type_decls") or [])
                if isinstance(_tdx504, dict) and _tdx504.get("kind") == "record"}
     _fld504: Dict[Any, Any] = {}
+    _cc504: Set[str] = set()                   # class-body bindings (class constants)
     for _tdx504 in (ir_data.get("type_decls") or []):
         if isinstance(_tdx504, dict):
             for _fx504 in (_tdx504.get("fields") or []):
                 if isinstance(_fx504, dict):
                     _fld504[(_tdx504.get("name"), _fx504.get("name"))] = _fx504.get("type")
+            _cc504.update(str(_k504) for _k504 in (_tdx504.get("constants") or {}))
+            _cc504.update(str(_k504) for _k504 in (_tdx504.get("class_body_bindings") or []))
+    _cc504 -= {_f504 for (_c504, _f504) in _fld504}
+    # an `object()` SENTINEL: a module-level name of this file -- or one it imports by
+    # `from M import X`, M found on the program's path -- bound ONCE, to `object()`, and
+    # never named by a `global` statement. `object.__eq__` is identity, so VALUE equality
+    # against it is identity; it is a singleton operand, like `None`.
+    import ast as _ast504
+    _sent504: Set[str] = set()
+    try:
+        _mod504 = _ast504.parse(source_code)
+        _roots504 = [os.path.dirname(os.path.abspath(args.file))] + [
+            str(_d504) for _d504 in (getattr(args, "import_path", None) or [])]
+        # worklist: (module source, {name in that module: name bound here}); this file first
+        _wl504: List[Any] = [(_mod504, None)]
+        for _st504 in _mod504.body:
+            if isinstance(_st504, _ast504.ImportFrom) and _st504.module and not _st504.level:
+                _rel504 = _st504.module.replace(".", os.sep)
+                for _r504 in _roots504:
+                    _hit504 = next((_c504 for _c504 in (
+                        os.path.join(_r504, _rel504 + ".py"),
+                        os.path.join(_r504, _rel504, "__init__.py")) if os.path.isfile(_c504)), None)
+                    if _hit504:
+                        with open(_hit504, encoding="utf-8", errors="replace") as _fh504:
+                            _wl504.append((_ast504.parse(_fh504.read()),
+                                           {_al504.name: (_al504.asname or _al504.name)
+                                            for _al504 in _st504.names}))
+                        break
+        for _m504, _map504 in _wl504:
+            _cnt504: Dict[str, int] = {}
+            _obj504: Set[str] = set()
+            _glb504: Set[str] = set()
+            for _nd504 in _ast504.walk(_m504):
+                if isinstance(_nd504, _ast504.Global):
+                    _glb504.update(_nd504.names)
+            # module-scope bindings only (a def / class / lambda body binds its own locals;
+            # a `global` there is counted above)
+            _ms504: List[Any] = list(_m504.body)
+            while _ms504:
+                _nd504 = _ms504.pop()
+                if isinstance(_nd504, (_ast504.FunctionDef, _ast504.AsyncFunctionDef,
+                                       _ast504.ClassDef)):
+                    _cnt504[_nd504.name] = _cnt504.get(_nd504.name, 0) + 1
+                    continue
+                if isinstance(_nd504, (_ast504.Lambda, _ast504.ListComp, _ast504.SetComp,
+                                       _ast504.DictComp, _ast504.GeneratorExp)):
+                    continue
+                if (isinstance(_nd504, _ast504.Name)
+                        and isinstance(_nd504.ctx, (_ast504.Store, _ast504.Del))):
+                    _cnt504[_nd504.id] = _cnt504.get(_nd504.id, 0) + 1
+                _ms504.extend(_ast504.iter_child_nodes(_nd504))
+            for _st504 in _m504.body:
+                if isinstance(_st504, (_ast504.Assign, _ast504.AnnAssign)):
+                    _tg504 = (_st504.targets if isinstance(_st504, _ast504.Assign)
+                              else [_st504.target])
+                    _v504 = _st504.value
+                    if (len(_tg504) == 1 and isinstance(_tg504[0], _ast504.Name)
+                            and isinstance(_v504, _ast504.Call)
+                            and isinstance(_v504.func, _ast504.Name) and _v504.func.id == "object"
+                            and not _v504.args and not _v504.keywords):
+                        _obj504.add(_tg504[0].id)
+            for _n504 in _obj504:
+                if _cnt504.get(_n504) == 1 and _n504 not in _glb504 and "object" not in _cnt504:
+                    if _map504 is None:
+                        _sent504.add(_n504)
+                    elif _n504 in _map504:
+                        _sent504.add(_map504[_n504])
+        # an imported sentinel this file rebinds at module level, or names `global`, is none
+        _own504: Dict[str, int] = {}
+        for _nd504 in _ast504.walk(_mod504):
+            if isinstance(_nd504, _ast504.Global):
+                for _n504 in _nd504.names:
+                    _own504[_n504] = _own504.get(_n504, 0) + 2
+        _ms504 = list(_mod504.body)
+        while _ms504:
+            _nd504 = _ms504.pop()
+            if isinstance(_nd504, (_ast504.FunctionDef, _ast504.AsyncFunctionDef,
+                                   _ast504.ClassDef)):
+                _own504[_nd504.name] = _own504.get(_nd504.name, 0) + 1
+                continue
+            if isinstance(_nd504, (_ast504.Lambda, _ast504.ListComp, _ast504.SetComp,
+                                   _ast504.DictComp, _ast504.GeneratorExp)):
+                continue
+            if (isinstance(_nd504, _ast504.Name)
+                    and isinstance(_nd504.ctx, (_ast504.Store, _ast504.Del))):
+                _own504[_nd504.id] = _own504.get(_nd504.id, 0) + 1
+            _ms504.extend(_ast504.iter_child_nodes(_nd504))
+        for _st504 in _mod504.body:
+            if isinstance(_st504, (_ast504.Import, _ast504.ImportFrom)):
+                for _al504 in _st504.names:
+                    _n504 = (_al504.asname or _al504.name).split(".")[0]
+                    _own504[_n504] = _own504.get(_n504, 0) + 1
+        _sent504 = {_n504 for _n504 in _sent504 if _own504.get(_n504, 0) <= 1}
+        # class-body bindings the IR drops (a non-literal `D = P.A`): class constants too
+        for _nd504 in _ast504.walk(_mod504):
+            if isinstance(_nd504, _ast504.ClassDef):
+                for _cb504 in _nd504.body:
+                    if isinstance(_cb504, _ast504.Assign):
+                        _cc504.update(_t504.id for _t504 in _cb504.targets
+                                      if isinstance(_t504, _ast504.Name))
+                    elif (isinstance(_cb504, _ast504.AnnAssign) and _cb504.value is not None
+                          and isinstance(_cb504.target, _ast504.Name)):
+                        _cc504.add(_cb504.target.id)
+        _cc504 -= {_f504 for (_c504, _f504) in _fld504}
+    except (SyntaxError, ValueError, OSError):
+        _sent504 = set()
     for _f498 in ([_fo498 for _fo498 in (ir_data.get("functions", []) or [])
                    if isinstance(_fo498, dict) and _fo498.get("name") in _r498_own[0]]
                   + [{"name": "%s.__init__" % _td498.get("name"), "symbol_table": {},
@@ -14965,6 +15072,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         or _ty498 in _R498_VK
                         or (_ty498 == "Var" and _st498.get(_o498.get("name")) in _R498_VT)):
                     _skip498 = True                # #42 / #52 / a singleton: not this rule
+                if (_ty498 == "Var" and _o498.get("name") in _sent504
+                        and _o498.get("name") not in _bind498 and _o498.get("name") not in _fp498):
+                    _skip498 = True                # (route #504) an `object()` sentinel
             # one object: the same name, or a chain of single plain assignments `b = a`
             _root498: List[Any] = []
             for _o498 in (_l498, _r498):
@@ -15077,6 +15187,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if (isinstance(_obn504, str) and _obn504 in _td504
                                 and _obn504 not in _bind498 and _obn504 not in _fp498):
                             continue                   # a class constant / enum member
+                        if _fn504 in _cc504:
+                            continue                   # a class constant read via an instance
                         _cls504 = _st498.get(_obn504) if isinstance(_obn504, str) else None
                         _fts504 = [_ft504 for (_c504, _f504), _ft504 in _fld504.items()
                                    if _f504 == _fn504 and (_cls504 not in _td504
