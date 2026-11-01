@@ -1,4 +1,4 @@
-r"""Test 7942 -- route #500 (expected FAIL: PROVED at base, REFUSED PYCSL-R500-INLINE-NESTED-RETURN): a `return` inside a `for` of the method; `r = g.m(3); return r + 100` claimed 1, CPython 101
+r"""Test 7942 -- route #500 (expected FAIL: NOT PROVED at base -- a prover Timeout, rt44 g520/g52004 -- now REFUSED PYCSL-R500-INLINE-NESTED-RETURN by name): a `return` inside a `for` of the method; `r = g.m(3); return r + 100` claimed 1, CPython 101
 """
 # pycsl-expected: FAIL
 from typing import Any, Dict, List, Optional

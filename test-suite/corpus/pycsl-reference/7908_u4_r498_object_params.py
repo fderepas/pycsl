@@ -1,4 +1,4 @@
-r"""Test 7908 -- route #498 (expected FAIL: PROVED at base, REFUSED PYCSL-R498-IS-ON-FRESH-VALUE): `a is b` on unannotated parameters under `requires a == b`, claimed True; CPython g(1000 + n, 1001) with n = 1 returns False
+r"""Test 7908 -- route #498 (expected FAIL: PROVED at base, REFUSED PYCSL-R498-IS-ON-FRESH-VALUE): `a is b` on `object`-annotated parameters under `requires a == b`, claimed True; CPython g(1000 + n, 1001) with n = 1 returns False
 """
 # pycsl-expected: FAIL
 from typing import Any, Dict, List, Optional
@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 #@ requires a == b
 #@ ensures \result == True
-def g(a, b) -> bool:
+def g(a: object, b: object) -> bool:
     return a is b
 
 

@@ -1562,6 +1562,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     _r304_class_bases = {str(_td304["name"]): [str(_b304) for _b304 in _td304["bases"]]
                          for _td304 in (ir_data.get("type_decls", []) or [])
                          if _td304.get("bases") and _td304.get("name")}
+    # (run #4) route #498 judges only THIS file's functions / classes: the resolver below
+    # merges the import closure's IR (an imported module is judged when it is claimed).
+    _r498_own = ({_f498o.get("name") for _f498o in (ir_data.get("functions") or [])
+                  if isinstance(_f498o, dict)},
+                 {_t498o.get("name") for _t498o in (ir_data.get("type_decls") or [])
+                  if isinstance(_t498o, dict)})
     imported_names = _ir_resolve(ir_data, unified_ast, args.file, deep=args.deep, import_paths=args.import_path)
 
     # ORDER MATTERS, AND THE FIRST PLACEMENT GOT IT WRONG. Landed before Module 5
@@ -14900,12 +14906,13 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # every function, and every class declaration as one more unit (its `__init__` body
     # lives in `init_body`, field defaults and class constants beside it; `init_params`
     # carry no annotation here, so they count as unannotated parameters).
-    for _f498 in (list(ir_data.get("functions", []) or [])
+    for _f498 in ([_fo498 for _fo498 in (ir_data.get("functions", []) or [])
+                   if isinstance(_fo498, dict) and _fo498.get("name") in _r498_own[0]]
                   + [{"name": "%s.__init__" % _td498.get("name"), "symbol_table": {},
                       "formal_params": list(_td498.get("init_params") or []),
                       "body": _td498, "line": _td498.get("line")}
                      for _td498 in (ir_data.get("type_decls") or [])
-                     if isinstance(_td498, dict)]):
+                     if isinstance(_td498, dict) and _td498.get("name") in _r498_own[1]]):
         if not isinstance(_f498, dict):
             continue
         _st498 = _f498.get("symbol_table") or {}
