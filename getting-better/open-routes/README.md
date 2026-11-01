@@ -1,5 +1,11 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-01): #507-#509 OPENED (red team 46 on e9d24a6c2: 1132 probes / 1112 breaching / 134 confirmed, default mode;
+##   rt45's 15 + #506's witnesses all refused): #507 overflow-obligation-lost-in-display (71: #414 / #417 OverflowError obligations of
+##   `s * n`, `[x] * n`, `len(range(n))`, `list(range(n))` vanish in size / truth-only displays — #506's census covers only TRIGGERS shapes);
+##   #508 int-to-float-overflow-obligation (29: no obligation for int -> float conversion anywhere); #509 comprehension-census-phase1-only
+##   (34: #177 / #285 / #287 refuse only phase-1 exceptions). Driver repro rp46: 11/11 + 2 controls.
+
 ## run #4 (2026-11-01): #506 REPAIRED (executor u7 off cc65d3ba6, 1c22383ad + its ledger / docs commit; inline in `_run_pipeline` around
 ##   `transpiler.transpile()`, mirror twin `\trusted`, no new def, no axiom, emission byte-identical; new code
 ##   PYCSL-R506-TRIGGER-SITE-UNLOWERED; annotations §7.506). Refuse by default, position-free: the four expression handlers that
