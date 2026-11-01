@@ -14870,6 +14870,172 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     stage="ir-semantic", code="PYCSL-R327-IDENT-COLLISION")
             _seen327[_w327] = _nm327
 
+    # (run #4) ROUTE #498 — `is` / `is not` BETWEEN FRESHLY COMPUTED VALUES. Module 5 narrows
+    # every `is` to `==` (+ the `py_is` marker) and Module 6 keeps that VALUE equality except
+    # against a bool literal (route #42) and over a value-typed literal / annotated name (route
+    # #52). An operand COMPUTED at run time is a NEW object whose identity CPython does not tie
+    # to its value: `(n + 1) is (n + 1)`, `s + "x" is s + "x"`, `s[0:2] is s[0:2]`,
+    # `s.upper() is s.upper()`, `a = n + 1000; b = n + 1000; a is b` are False for n = 1000 /
+    # s = 'ab', and each PROVED `\result == True` (red team 44, witnesses-r498, 14; a
+    # `no_exception \all` division guarded by one also proved). RULE (refuse by default, inline:
+    # the mirror twin of `_run_pipeline` is `\trusted`; the narrowing and #42 / #52 untouched):
+    # an `is` that is not against a singleton (None / Ellipsis / NotImplemented; a bool literal
+    # is #42's), not of one name with itself or with a single-assignment alias of it, and not
+    # one #52 refuses, is REFUSED when either operand MAY BE FRESH: an arithmetic / bitwise /
+    # concatenating BinOp, a unary `-` / `+` / `~`, a slice, an f-string, a container display /
+    # comprehension / lambda, any call but `type(x)` / `isinstance` / `issubclass` / `hasattr` /
+    # `callable` / `bool`, a subscript of a str / bytes / fresh receiver, an if-expression or
+    # `and` / `or` with a fresh arm, a parameter with no (or an `Any`) annotation, and a local
+    # bound by anything but plain assignments of non-fresh values (a loop / unpacking / `with` /
+    # `except` / walrus / augmented binding is unknown, hence fresh). A comparison / `not`
+    # (a bool singleton), an attribute / field read, an outer name and a class-typed
+    # parameter are not fresh (named residuals: a stored field / module global holding a
+    # computed int or str).
+    _R498_SING = ("None", "Ellipsis", "NotImplemented")
+    _R498_VT = ("str", "int", "float", "bytes", "tuple", "list", "dict", "set", "frozenset")
+    _R498_VK = ("String", "Number", "Bytes", "Tuple", "MkTuple", "SetLit", "DictLit",
+                "ListLit", "ArrayLit")
+    _R498_BOOLOPS = ("==", "!=", "<", "<=", ">", ">=", "in", "not in", "is", "is not")
+    _R498_CALLOK = ("type", "isinstance", "issubclass", "hasattr", "callable", "bool")
+    # every function, and every class declaration as one more unit (its `__init__` body
+    # lives in `init_body`, field defaults and class constants beside it; `init_params`
+    # carry no annotation here, so they count as unannotated parameters).
+    for _f498 in (list(ir_data.get("functions", []) or [])
+                  + [{"name": "%s.__init__" % _td498.get("name"), "symbol_table": {},
+                      "formal_params": list(_td498.get("init_params") or []),
+                      "body": _td498, "line": _td498.get("line")}
+                     for _td498 in (ir_data.get("type_decls") or [])
+                     if isinstance(_td498, dict)]):
+        if not isinstance(_f498, dict):
+            continue
+        _st498 = _f498.get("symbol_table") or {}
+        _fp498 = set(_f498.get("formal_params") or [])
+        _bind498: Dict[str, List[Any]] = {}
+        _sites498: List[Any] = []
+        _stk498: List[Any] = [_f498.get("body") or []]
+        while _stk498:
+            _n498 = _stk498.pop()
+            if isinstance(_n498, list):
+                _stk498.extend(_n498)
+                continue
+            if not isinstance(_n498, dict):
+                continue
+            if _n498.get("type") == "BinOp" and _n498.get("py_is"):
+                _sites498.append(_n498)
+            if isinstance(_n498.get("target"), str) and (_n498.get("stmt") or _n498.get("type")):
+                _bind498.setdefault(_n498["target"], []).append(
+                    _n498.get("value") if _n498.get("stmt") in ("Assign", "AnnAssign")
+                    and isinstance(_n498.get("value"), dict) else None)
+            if isinstance(_n498.get("targets"), list):
+                for _t498 in _n498["targets"]:
+                    if isinstance(_t498, str):
+                        _bind498.setdefault(_t498, []).append(None)
+            if "exc_type" in _n498 and isinstance(_n498.get("name"), str):
+                _bind498.setdefault(_n498["name"], []).append(None)
+            _stk498.extend(_n498.values())
+        for _s498 in _sites498:
+            _l498, _r498 = _s498.get("left"), _s498.get("right")
+            if not (isinstance(_l498, dict) and isinstance(_r498, dict)):
+                continue
+            _skip498 = False
+            for _o498 in (_l498, _r498):
+                _ty498 = _o498.get("type")
+                if (_ty498 in ("Bool", "None") or _o498.get("py_ellipsis")
+                        or (_ty498 == "Var" and _o498.get("name") in _R498_SING)
+                        or _ty498 in _R498_VK
+                        or (_ty498 == "Var" and _st498.get(_o498.get("name")) in _R498_VT)):
+                    _skip498 = True                # #42 / #52 / a singleton: not this rule
+            # one object: the same name, or a chain of single plain assignments `b = a`
+            _root498: List[Any] = []
+            for _o498 in (_l498, _r498):
+                _nm498 = _o498.get("name") if _o498.get("type") == "Var" else None
+                _seenr498: Set[str] = set()
+                while (isinstance(_nm498, str) and _nm498 not in _seenr498
+                       and len(_bind498.get(_nm498, [])) == 1
+                       and isinstance(_bind498[_nm498][0], dict)
+                       and _bind498[_nm498][0].get("type") == "Var"):
+                    _seenr498.add(_nm498)
+                    _nm498 = _bind498[_nm498][0].get("name")
+                _root498.append(_nm498)
+            if _skip498 or (_root498[0] is not None and _root498[0] == _root498[1]):
+                continue
+            _why498 = None
+            for _o498 in (_l498, _r498):
+                _wk498: List[Any] = [_o498]
+                _vis498: Set[str] = set()
+                while _wk498 and _why498 is None:
+                    _x498 = _wk498.pop()
+                    if not isinstance(_x498, dict):
+                        continue
+                    _k498 = _x498.get("type")
+                    if _k498 == "Var":
+                        _vn498 = _x498.get("name")
+                        if not isinstance(_vn498, str) or _vn498 in _vis498:
+                            continue
+                        _vis498.add(_vn498)
+                        if _vn498 in _bind498:
+                            for _bv498 in _bind498[_vn498]:
+                                if _bv498 is None:
+                                    _why498 = ("the local `%s` is bound by a loop / unpacking / "
+                                               "`with` / `except` / walrus / augmented "
+                                               "assignment" % _vn498)
+                                else:
+                                    _wk498.append(_bv498)
+                        elif _vn498 in _fp498:
+                            _pt498 = str(_st498.get(_vn498) or "Any")
+                            if (_pt498 in _R498_VT
+                                    or _pt498 in ("Any", "object", "bool", "complex", "None")
+                                    or not _pt498.replace("_", "a").replace(".", "a").isalnum()
+                                    or _pt498.startswith(("Optional", "Union"))):
+                                _why498 = ("the parameter `%s` is not annotated with a class "
+                                           "(`%s`), so it may hold a computed int / str"
+                                           % (_vn498, _pt498))
+                    elif _k498 in ("BinOp", "IfExpr", "BoolOp"):
+                        if _k498 == "BinOp" and _x498.get("op") in _R498_BOOLOPS:
+                            continue                   # a comparison is a bool singleton
+                        if _k498 == "BinOp" and _x498.get("op") not in ("and", "or"):
+                            _why498 = "`%s` computes a new value" % (_x498.get("op"),)
+                        elif _k498 == "IfExpr":
+                            _wk498.extend([_x498.get("body"), _x498.get("orelse")])
+                        else:
+                            _wk498.extend([_x498.get("left"), _x498.get("right")]
+                                          + list(_x498.get("values") or []))
+                    elif _k498 == "UnaryOp":
+                        if _x498.get("op") != "not":
+                            _why498 = "unary `%s` computes a new value" % (_x498.get("op"),)
+                    elif _k498 in ("Attribute", "FieldGet"):
+                        continue
+                    elif _k498 == "Subscript":
+                        _rv498 = _x498.get("value")
+                        if (isinstance(_rv498, dict)
+                                and (_rv498.get("type") in ("String", "Bytes", "FString")
+                                     or (_rv498.get("type") == "Var"
+                                         and _st498.get(_rv498.get("name")) in ("str", "bytes")))):
+                            _why498 = "an index of a str / bytes builds a new string"
+                        else:
+                            _wk498.append(_rv498)
+                    elif _k498 == "Call":
+                        if not (_x498.get("func") in _R498_CALLOK
+                                and _x498.get("receiver") is None):
+                            _why498 = ("the call `%s(...)` may return a newly built value"
+                                       % (_x498.get("func"),))
+                    else:
+                        _why498 = "a `%s` builds a new value" % (_k498,)
+                if _why498 is not None:
+                    break
+            if _why498 is not None:
+                from errors import PyCSLSemanticError as _R498Err
+                raise _R498Err(
+                    "%s (function '%s'): an IDENTITY test (`is` / `is not`) whose operand may "
+                    "be a FRESHLY COMPUTED value is refused: %s (route #498). PyCSL lowers `is` "
+                    "as VALUE equality, but a value computed at run time is a NEW object, so "
+                    "CPython's `(n + 1) is (n + 1)` is False for n = 1000 while the model "
+                    "decides it True. Write `==` if you mean equality; compare identity only "
+                    "against `None` / a singleton, or between one name and an alias of it."
+                    % (args.file, _f498.get("name"), _why498),
+                    filename=args.file, line=int(_f498.get("line") or 0),
+                    stage="ir-semantic", code="PYCSL-R498-IS-ON-FRESH-VALUE")
+
     from errors import PyCSLError as _PyCSLErr460
 
     # [Module 6] WhyML Transpilation
