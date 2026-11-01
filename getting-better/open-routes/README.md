@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-01): #501-#505 OPENED (red team 45 on 0d561a23b = main + #496 / #498-#500 repairs: 332 probes / 303 breaching /
+##   15 confirmed, all default mode; rt44's 139 pairs: 127 refused, #497's 12 = user decision): #501 r496-admission-by-bare-name (5);
+##   #502 division-in-lambda-comprehension-of-callee (5); #503 r498-alias-exemption-ignores-rebinding (2); #504 r498-computed-field-identity
+##   (2, #498's named residual); #505 ir-inline-bare-self-value (1). Driver repro rp45: 8/8 exemplars.
+
 ## run #4 (2026-11-01): #496 REPAIRED (executor u3 off 5a9e2e161, a678af08e + 218247210; inline in route #178's callee summary in
 ##   `_reset_function_state`, mirror twin `\trusted`, no new def, no axiom; new code PYCSL-R496-CALLEE-UNLISTED-CALL; annotations §7.410).
 ##   Refuse by default (route #161's polarity): a callee call is admitted only as a program def / class (joined transitively, also when
