@@ -290,6 +290,30 @@ class _Inliner:
                     f"module-global receiver does not help, and neither does "
                     f"`#@ \\trusted` — the inliner runs on a global-receiver call "
                     f"regardless of either.")
+        # (run #4) ROUTE #500 — A `return` NESTED IN A BRANCH / LOOP / `with` / `try` /
+        # `match` OF THE METHOD. The check above reads only the TOP-LEVEL statements, so
+        # `if n > 0: return 1` / `return 2` passed it and, once spliced, the nested
+        # `return 1` RETURNED FROM THE CALLER: `r = g.m(5); return r + 10` PROVED
+        # `\result == 1` (CPython 11), a field write after the call was skipped, a
+        # method calling such a method on `self` was spliced the same way (red team 44,
+        # witnesses-r500, 6). Refuse by default: every `Return` node at ANY depth of the
+        # body is refused except the one top-level tail `return` the splice binds below.
+        # Inline (no new def: the mirror twin of `_expand` is `\trusted`).
+        _r500_tail = body[-1] if (body and isinstance(body[-1], dict)
+                                  and body[-1].get("stmt") == "Return") else None
+        for _r500_st in body:
+            if _r500_st is _r500_tail:
+                continue
+            if any(_r500_n.get("stmt") == "Return" for _r500_n in _walk_dicts(_r500_st)):
+                raise PyCSLSemanticError(
+                    f"cannot inline '{callee}' on '{recv}': a `return` is nested inside a "
+                    f"branch / loop / `with` / `try` / `match` of the method (route #500). "
+                    f"Splicing the body into the caller would make that `return` return "
+                    f"from the CALLER. Verify it by contract instead — call the method on a "
+                    f"LOCAL instance (`c = C(); c.m()`), or restructure the method so its "
+                    f"only `return` is its last statement (assign a result variable in "
+                    f"each branch).",
+                    stage="ir-inline", code="PYCSL-R500-INLINE-NESTED-RETURN")
         out = list(pre)
         if body and isinstance(body[-1], dict) and body[-1].get("stmt") == "Return":
             ret = body.pop()
