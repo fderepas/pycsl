@@ -763,9 +763,44 @@ class ControlFlowStmtMixin:
         if _slit:
             _sv = f"_seqlit{idx}"
             _seq = "(Seq.empty: seq string)"
+            _ews = []
             for _e in reversed(_slit):
                 _ew = self._expr_to_whyml(_e, local_refs)
+                _ews.insert(0, _ew)
                 _seq = f"(Seq.cons {_ew} {_seq})"
+            # wall lex-char-class (b'): a MODULE-LEVEL str-list constant (`for op in
+            # _OP_TOKENS`, `module_const_str_lists`) is lowered ONCE as a `let function
+            # <name>_lit () : seq string` whose ensures states the length, every element
+            # and every element's `String.length` -- a CHECKED postcondition (its own VC,
+            # discharged by the provers; no `val`, no axiom). The loop then binds
+            # `(<name>_lit ())`, so its context carries those facts instead of the inline
+            # `Seq.cons` chain (whose element lengths are out of Alt-Ergo's reach). Gated
+            # on the module-constant path only (a Var that is not a local / parameter and
+            # not a local str literal), an ASCII-only element set (so Python `len` = Why3
+            # `String.length` code-unit count) and a plain identifier name.
+            _mcl_nm = iter_ir.get("name") if iter_ir.get("type") == "Var" else None
+            if (_mcl_nm is not None
+                    and _mcl_nm not in (getattr(self, "_str_literal_seq_locals", {}) or {})
+                    and _mcl_nm in (((getattr(self, "ir", {}) or {})
+                                     .get("module_const_str_lists")) or {})
+                    and _mcl_nm not in (getattr(self, "_current_symbol_table", {}) or {})
+                    and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", _mcl_nm)
+                    and all(isinstance(_e.get("value"), str) and _e["value"].isascii()
+                            for _e in _slit)):
+                _mcl_fn = (_mcl_nm if _mcl_nm.startswith("_") else "_" + _mcl_nm) + "_lit"
+                _mcl_post = [f"Seq.length result = {len(_slit)}"]
+                _mcl_post += [f"Seq.get result {_k} = {_ews[_k]}" for _k in range(len(_slit))]
+                _mcl_post += [f"String.length (Seq.get result {_k}) = {len(_slit[_k]['value'])}"
+                              for _k in range(len(_slit))]
+                if all(len(_e["value"]) >= 1 for _e in _slit):
+                    _mcl_post.append("(forall k:int. 0 <= k < Seq.length result -> "
+                                     "String.length (Seq.get result k) >= 1)")
+                _mcl_ens = " /\\ ".join(_mcl_post)
+                self._add_abstract_op(
+                    f"let function {_mcl_fn} () : seq string\n"
+                    f"    ensures {{ {_mcl_ens} }}\n"
+                    f"  = {_seq}")
+                _seq = f"({_mcl_fn} ())"
             self._for_iter_materialize = (_sv, _seq)
             self._pyast_loop_variant_len = f"(Seq.length {_sv})"
             return (f"(Seq.length {_sv})", f"(Seq.get {_sv} !{idx})", False)
