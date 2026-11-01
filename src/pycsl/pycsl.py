@@ -14894,9 +14894,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # `and` / `or` with a fresh arm, a parameter with no (or an `Any`) annotation, and a local
     # bound by anything but plain assignments of non-fresh values (a loop / unpacking / `with` /
     # `except` / walrus / augmented binding is unknown, hence fresh). A comparison / `not`
-    # (a bool singleton), an attribute / field read, an outer name and a class-typed
-    # parameter are not fresh (named residuals: a stored field / module global holding a
-    # computed int or str).
+    # (a bool singleton), an outer name and a class-typed parameter are not fresh; a field
+    # read is judged by the field's declared type (route #504 below) and an alias chain
+    # only exempts a root bound once (route #503 below). (Named residual: a module global
+    # holding a computed int or str; measured opaque -- NOT PROVED -- at e5237469f.)
     _R498_SING = ("None", "Ellipsis", "NotImplemented")
     _R498_VT = ("str", "int", "float", "bytes", "tuple", "list", "dict", "set", "frozenset")
     _R498_VK = ("String", "Number", "Bytes", "Tuple", "MkTuple", "SetLit", "DictLit",
@@ -14906,6 +14907,18 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # every function, and every class declaration as one more unit (its `__init__` body
     # lives in `init_body`, field defaults and class constants beside it; `init_params`
     # carry no annotation here, so they count as unannotated parameters).
+    # (run #4) route #504: the declared field types of every program class, and which
+    # type declarations are classes (a field of one of those holds an object).
+    _td504 = {_tdx504.get("name") for _tdx504 in (ir_data.get("type_decls") or [])
+              if isinstance(_tdx504, dict) and isinstance(_tdx504.get("name"), str)}
+    _tdc504 = {_tdx504.get("name") for _tdx504 in (ir_data.get("type_decls") or [])
+               if isinstance(_tdx504, dict) and _tdx504.get("kind") == "record"}
+    _fld504: Dict[Any, Any] = {}
+    for _tdx504 in (ir_data.get("type_decls") or []):
+        if isinstance(_tdx504, dict):
+            for _fx504 in (_tdx504.get("fields") or []):
+                if isinstance(_fx504, dict):
+                    _fld504[(_tdx504.get("name"), _fx504.get("name"))] = _fx504.get("type")
     for _f498 in ([_fo498 for _fo498 in (ir_data.get("functions", []) or [])
                    if isinstance(_fo498, dict) and _fo498.get("name") in _r498_own[0]]
                   + [{"name": "%s.__init__" % _td498.get("name"), "symbol_table": {},
@@ -14964,7 +14977,43 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _seenr498.add(_nm498)
                     _nm498 = _bind498[_nm498][0].get("name")
                 _root498.append(_nm498)
-            if _skip498 or (_root498[0] is not None and _root498[0] == _root498[1]):
+            if _skip498:
+                continue
+            # (run #4) ROUTE #503 — THE ROOT MUST HOLD ONE OBJECT FOR ITS WHOLE LIFE. The
+            # alias walk follows `b = a` to the NAME `a`, not to the object `a` held then:
+            # `a = n + 1000; b = a; a = n + 1000; return a is b` shared the root `a`, skipped
+            # the site and PROVED `\result == True` (CPython False; red team 45,
+            # witnesses-r503, 2); a rebound parameter (`b = a; a = b + 0`) is the same class.
+            # Exempt only one name with itself, or a common root bound at most once for the
+            # whole call: a parameter never rebound, an outer name the function never binds,
+            # or a local with exactly one plain assignment. (A root bound once inside a loop
+            # needs no extra arm: an alias read in a LATER iteration is read before its own
+            # binding in that iteration, so it is either bound twice -- the chain stops at
+            # it -- or not definitely assigned, which route #264 refuses.)
+            _code498 = "PYCSL-R498-IS-ON-FRESH-VALUE"
+            if (_l498.get("type") == "Var" and _r498.get("type") == "Var"
+                    and _l498.get("name") == _r498.get("name")):
+                continue
+            if _root498[0] is not None and _root498[0] == _root498[1]:
+                _rb503 = _bind498.get(_root498[0])
+                if _rb503 is None or (len(_rb503) == 1 and isinstance(_rb503[0], dict)
+                                      and _root498[0] not in _fp498):
+                    continue
+                _code498 = "PYCSL-R503-IS-ALIAS-ROOT-REBOUND"
+            # (run #4) ROUTE #504 — one STORED LOCATION read twice (`c.a is c.a`, a path of
+            # names / attribute reads, no call) is one object; any other field read is
+            # judged below by the field's declared type.
+            _path503: List[Any] = []
+            for _o498 in (_l498, _r498):
+                _p503: Any = _o498
+                _ok503 = True
+                while isinstance(_p503, dict) and _p503.get("type") in ("Attribute", "FieldGet"):
+                    _p503 = _p503.get("object")
+                if isinstance(_p503, dict) and _p503.get("type") != "Var":
+                    _ok503 = False
+                _path503.append(_json.dumps(_o498, sort_keys=True, default=str)
+                                if _ok503 else None)
+            if _path503[0] is not None and _path503[0] == _path503[1]:
                 continue
             _why498 = None
             for _o498 in (_l498, _r498):
@@ -15011,7 +15060,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if _x498.get("op") != "not":
                             _why498 = "unary `%s` computes a new value" % (_x498.get("op"),)
                     elif _k498 in ("Attribute", "FieldGet"):
-                        continue
+                        # (run #4) ROUTE #504 — A FIELD STORES WHATEVER WAS ASSIGNED TO IT.
+                        # `self.a = n + 1000; self.b = n + 1000` then `k.a is k.b`, and a
+                        # class-typed parameter's int fields (`k.b = int("1000")`), PROVED
+                        # `\result == True` as VALUE equality (CPython False; red team 45,
+                        # witnesses-r504, 2). A field read is an existing object only when
+                        # every declaration of that field names a CLASS (or Optional of one)
+                        # of this program, or when it is a class constant / enum member
+                        # (`Color.RED`); a value-typed, container-typed, unannotated or
+                        # undeclared field (a module attribute too) may hold a fresh value.
+                        _ob504 = _x498.get("object")
+                        _fn504 = _x498.get("attr") if _k498 == "Attribute" else _x498.get("field")
+                        _obn504 = (_ob504 if isinstance(_ob504, str) else
+                                   _ob504.get("name") if isinstance(_ob504, dict)
+                                   and _ob504.get("type") == "Var" else None)
+                        if (isinstance(_obn504, str) and _obn504 in _td504
+                                and _obn504 not in _bind498 and _obn504 not in _fp498):
+                            continue                   # a class constant / enum member
+                        _cls504 = _st498.get(_obn504) if isinstance(_obn504, str) else None
+                        _fts504 = [_ft504 for (_c504, _f504), _ft504 in _fld504.items()
+                                   if _f504 == _fn504 and (_cls504 not in _td504
+                                                           or _c504 == _cls504)]
+                        _bad504 = [_ft504 for _ft504 in _fts504
+                                   if str(_ft504 or "").replace("'", "").replace('"', "")
+                                   .replace("Optional[", "")
+                                   .replace("]", "").replace(" | None", "")
+                                   .replace("None | ", "").strip() not in _tdc504]
+                        if not _fts504 or _bad504:
+                            _code498 = "PYCSL-R504-IS-ON-STORED-VALUE"
+                            _why498 = ("the field `.%s` is %s, so it may store a freshly "
+                                       "computed value" % (
+                                           _fn504, "declared `%s`" % (_bad504[0],)
+                                           if _bad504 else "not a declared field of a "
+                                           "program class"))
                     elif _k498 == "Subscript":
                         _rv498 = _x498.get("value")
                         if (isinstance(_rv498, dict)
@@ -15030,6 +15111,32 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _why498 = "a `%s` builds a new value" % (_k498,)
                 if _why498 is not None:
                     break
+            if _why498 is not None and _code498 == "PYCSL-R504-IS-ON-STORED-VALUE":
+                from errors import PyCSLSemanticError as _R504Err
+                raise _R504Err(
+                    "%s (function '%s'): an IDENTITY test (`is` / `is not`) on a value read "
+                    "from a FIELD is refused: %s (route #504). PyCSL lowers `is` as VALUE "
+                    "equality, but a field holds whatever object was stored in it: after "
+                    "`self.a = n + 1000; self.b = n + 1000`, CPython's `k.a is k.b` is False "
+                    "while the model decides it True. Write `==` if you mean equality; "
+                    "compare identity only against `None` / a singleton, between two reads "
+                    "of the same field (`k.a is k.a`), or on fields declared with a class "
+                    "of this program." % (args.file, _f498.get("name"), _why498),
+                    filename=args.file, line=int(_f498.get("line") or 0),
+                    stage="ir-semantic", code=_code498)
+            if _why498 is not None and _code498 == "PYCSL-R503-IS-ALIAS-ROOT-REBOUND":
+                from errors import PyCSLSemanticError as _R503Err
+                raise _R503Err(
+                    "%s (function '%s'): an IDENTITY test (`is` / `is not`) between a name "
+                    "and an alias of `%s` is refused: `%s` is rebound (or is a rebound "
+                    "parameter), so the alias may hold the object of an EARLIER binding, "
+                    "and %s (route #503). PyCSL lowers `is` as VALUE equality: after "
+                    "`a = n + 1000; b = a; a = n + 1000`, CPython's `a is b` is False while "
+                    "the model decides it True. Write `==` if you mean equality; or give "
+                    "the rebound value its own name, so that the alias's root is bound once."
+                    % (args.file, _f498.get("name"), _root498[0], _root498[0], _why498),
+                    filename=args.file, line=int(_f498.get("line") or 0),
+                    stage="ir-semantic", code=_code498)
             if _why498 is not None:
                 from errors import PyCSLSemanticError as _R498Err
                 raise _R498Err(

@@ -214,6 +214,41 @@ class _Inliner:
                 f"cannot inline '{callee}': call passes {len(args)} args, method takes "
                 f"{len(formals)}.")
         body = copy.deepcopy(m.get("body", []))
+        # (run #4) ROUTE #505 — A BARE `self` IN THE SPLICED METHOD. `_substitute` renames
+        # the receiver only in `FieldGet` / `FieldAssign` / `FieldAugAssign` objects and in
+        # `self.X(...)` call heads; any other `self` keeps its spelling and, once the body
+        # is spliced into a caller METHOD, names the CALLER's receiver: `m(self): return
+        # getv(self)` spliced into `run(self): return g.m()` PROVED `\result == self.v`
+        # with `c.run()` on `c = C(2)` claimed 2 (CPython 1, `g.v`; red team 45,
+        # witnesses-r505, 1). Renaming it to the global would pass the global as a value,
+        # which Phase 3 (`_check_no_aliasing`) forbids, so refuse by default (Phase 3's
+        # polarity): a `self` read as a value, called, rebound, or held by any node the
+        # renaming does not cover. Inline (no new def: the mirror twin of `_expand` is
+        # `\trusted`).
+        for _n505 in _walk_dicts(body):
+            _bare505 = None
+            if _n505.get("type") == "Var" and _n505.get("name") == "self":
+                _bare505 = "reads `self` as a value"
+            elif _n505.get("func") == "self":
+                _bare505 = "calls `self`"
+            elif _n505.get("target") == "self" or (
+                    isinstance(_n505.get("targets"), list) and "self" in _n505["targets"]):
+                _bare505 = "rebinds `self`"
+            elif (_n505.get("object") == "self"
+                  and _n505.get("type") != "FieldGet"
+                  and _n505.get("stmt") not in ("FieldAssign", "FieldAugAssign")):
+                _bare505 = "uses `self` in a `%s` node" % (_n505.get("type")
+                                                          or _n505.get("stmt"),)
+            if _bare505 is not None:
+                raise PyCSLSemanticError(
+                    f"cannot inline '{callee}' on '{recv}': the method {_bare505} outside a "
+                    f"field access / `self.m(...)` call (route #505). Splicing the body "
+                    f"keeps that `self`, which inside a calling method names the CALLER's "
+                    f"receiver, and renaming it to '{recv}' would alias the module global "
+                    f"(inline.md Phase 3). Pass the fields the method needs instead of "
+                    f"`self`, or call the method on a LOCAL instance (`c = C(); c.m()`), "
+                    f"verified by its contract.",
+                    stage="ir-inline", code="PYCSL-R505-INLINE-BARE-SELF")
         # Freshen the callee's locals; bind non-trivial actuals to temps (no double-eval
         # / capture); map each formal to its actual (or temp).
         # sorted: _assigned_locals is a set — deterministic __inl<N> numbering
