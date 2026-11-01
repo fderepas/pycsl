@@ -56,6 +56,17 @@ a shape of a row whose exception is active, and a `TRIGGERS` row with NO census 
 comprehension under its exceptions — so a row added later is fail-closed until it is censused.
 **Adding a row therefore also means adding its `TRIGGER_EXPR_SHAPES` entry.**
 
+**Site census (route #506).** The rows are injected by the operation's expression HANDLER
+(`_handle_binop` / `_handle_subscript` / `_handle_call_expr` / `_handle_fstring_expr`), so an
+enclosing expression the emitter models by size or truth only (a set / tuple / starred display,
+`len(<display>)`, `isinstance(...)`, an `assert` test under a named claim) silently dropped them —
+and, in an un-claimed body, dropped the raising `pycsl_div` / bounds VC a caller's handler relies on.
+`pycsl._run_pipeline` observes those handlers during `transpile()` and refuses
+(`PYCSL-R506-TRIGGER-SITE-UNLOWERED`) any `TRIGGER_EXPR_SHAPES` site of a verified body whose
+exception is claimed (declared / reached) or catchable in the file (a handler that catches it, a
+bare / unknown handler, `finally`, `with`) and whose lowered text is absent from the def's emitted
+block. The same table drives it: **a new row's shapes are censused there too.**
+
 The authoritative encoding lives in `src/pycsl/exception_model.py` —
 `KNOWN_EXCEPTIONS`, `TRIGGERS`, `PREDICATE_LIBRARY`. **Do not duplicate
 the table into other files**; consult `triggers_for()` from

@@ -1,6 +1,7 @@
 r"""Test 6785 -- route #443 (expected PASS): CONTROL -- an element of `List[C]` for a file class `C` as a method receiver; PROVED at base and candidate.
+ROUTE #506 (run #4): now expected FAIL -- REFUSED PYCSL-R506-TRIGGER-SITE-UNLOWERED by design. The subscript sits in a position the lowering never evaluates, so the IndexError / KeyError obligation the `no_exception \all` claim covers is absent from the VC; the program is CPython-honest only because of its guard / data, which the model never checks (`xs[0].size()` lowers without its receiver (`size_0 ()`): twin 8019 PROVED at base, CPython IndexError).
 """
-# pycsl-expected: PASS
+# pycsl-expected: FAIL
 from typing import List
 
 

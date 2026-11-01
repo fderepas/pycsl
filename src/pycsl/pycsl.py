@@ -16221,6 +16221,64 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # raise stays modelled and judged at the call site, as before.
     transpiler.reach_r460 = {_k: (sorted(_v[0]), bool(_v[1])) for _k, _v in _rx460.items()}
     transpiler.meth_r460 = set(_ms460)
+    # (#49) ROUTE #506 -- A TRIGGER SITE MUST REACH ITS LOWERING. Every implicit-exception
+    # obligation of `exception_model.TRIGGERS` (and, in a body with no claim, the raising
+    # `pycsl_div` / bounds-checked access that makes a caller's handler live) is attached by
+    # the expression HANDLER of the operation (`_handle_binop` / `_handle_subscript` /
+    # `_handle_call_expr` / `_handle_fstring_expr`). A lowering that models a value by its
+    # size or truth only, or not at all, never calls that handler, or calls it and discards
+    # the text. MEASURED at cc65d3ba6 (u5 + u7, CPython raises): under `#@ no_exception
+    # ZeroDivisionError` / `\all`, `s = {10 // n}`, `t = (1, 10 // n)`, `t = (10 // n,)`,
+    # `[*xs, 10 // n]`, `(*xs, 10 // n)`, `len([10 // n])`, `len((10 // n, 1))`,
+    # `isinstance(10 // n, int)` and (named claim) `assert 10 // n >= 0 or True` all PROVED,
+    # and with no claim the same callee made a caller's `except ZeroDivisionError` arm dead.
+    # So the handlers are observed here (instance attributes: no emitter source changes,
+    # emission byte-identical) and every PROGRAM-context lowering is recorded with its IR
+    # site key; the census after `transpile()` refuses a site whose lowered text is not in
+    # its function's emitted block (fail-closed: whatever the position).
+    from ir_schema import expr_from_dict as _efd506
+    _rec506: List[Any] = []
+    _blk506: Dict[str, List[str]] = {}
+    _st506: List[str] = []
+    # the site key: the node's canonical dict without the emitter's own annotations (keys
+    # starting with `_`, e.g. a pre-lowered `_pycsl_seq`), so a lowered node and its IR
+    # site compare equal
+    _cln506 = (lambda _x: (lambda _g: _g(_g, _x))(lambda _g, _y: {
+        _k: _g(_g, _v) for _k, _v in _y.items() if not str(_k).startswith("_")}
+        if isinstance(_y, dict) else [_g(_g, _v) for _v in _y]
+        if isinstance(_y, (list, tuple)) else _y))
+    _key506 = (lambda _x: repr(_cln506(_efd506(_x).to_dict() if isinstance(_x, dict) else
+                                       _efd506(_x.raw).to_dict()
+                                       if isinstance(getattr(_x, "raw", None), dict)
+                                       else _x.to_dict())))
+    # each handler invocation is a FRAME `[serial, consulted op-keys]`; a trigger row the
+    # handler asks `_maybe_emit_no_exception_assert` about while it is the innermost frame is
+    # a child it lowered ITSELF (`ord(s[i])`: the call handler states the index bound)
+    import itertools as _it506
+    _hs506: List[Any] = []
+    _ct506 = _it506.count()
+    for _hn506 in ("_handle_binop", "_handle_subscript", "_handle_call_expr",
+                   "_handle_fstring_expr"):
+        setattr(transpiler, _hn506, (lambda _o: (lambda *_a, **_k: (lambda _fr: (
+            _hs506.append(_fr),
+            (lambda _r: (
+                _hs506.__delitem__(slice(_hs506.index(_fr), None)) if _fr in _hs506 else None,
+                _rec506.append((_st506[-1] if _st506 else "", _a[0] if _a else _k.get("node"),
+                                _r, _fr[1]))
+                if (isinstance(_r, str) and not getattr(transpiler, "_in_spec", False)
+                    and not (_a[2] if len(_a) > 2 else _k.get("invariant_ctx", False)))
+                else None, _r)[2])(_o(*_a, **_k)))[1])([next(_ct506), []])))(
+            getattr(transpiler, _hn506)))
+    _om506 = transpiler._maybe_emit_no_exception_assert
+    transpiler._maybe_emit_no_exception_assert = (lambda *_a, **_k: (
+        _hs506[-1][1].append(_a[0] if _a else _k.get("op_key")) if _hs506 else None,
+        _om506(*_a, **_k))[1])
+    _ofb506 = transpiler._emit_function_block
+    transpiler._emit_function_block = (lambda _f, *_a, **_k: (
+        _st506.append(str(_f.get("name", "")) if isinstance(_f, dict) else ""),
+        (lambda _r: (_blk506.setdefault(_st506[-1], []).append("\n".join(
+            str(_l) for _l in (_r if isinstance(_r, list) else [_r]))), _st506.pop(), _r)[2])(
+            _ofb506(_f, *_a, **_k)))[1])
     # (#49) ROUTE #460 -- a refusal Module 6 raises inside a REACHED def says "this function
     # claims `#@ no_exception`" of a def that claims nothing itself: name the reached defs.
     try:
@@ -16238,6 +16296,259 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 "calling it."),
             ) + tuple(_e460.args[1:])
         raise
+    for _hn506 in ("_handle_binop", "_handle_subscript", "_handle_call_expr",
+                   "_handle_fstring_expr", "_emit_function_block",
+                   "_maybe_emit_no_exception_assert"):
+        transpiler.__dict__.pop(_hn506, None)
+    # (#49) ROUTE #506 -- THE CENSUS. A site is every `TRIGGERS`-shaped expression of
+    # `exception_model.TRIGGER_EXPR_SHAPES` (BinOp `/` `//` `%` `div` `mod` `<<` `>>` `**`,
+    # any Subscript, a call of `divmod` / `chr` / `str` / `repr` / `format` / `print` /
+    # `next`, a `.pop` / `.index` / `.format` method, an f-string with a value part) in an
+    # executable position of a verified def's body (not a loop invariant / variant, not
+    # ghost or `#@ assert` code; a comprehension / lambda body is route #177 / #285 /
+    # #287's census). It is RELEVANT when one of its exceptions is claimed by the def
+    # (declared or REACHED, route #460) or may be caught: a VERIFIED def body has a handler
+    # catching it (`handler_catches`), a bare / dotted / non-builtin-class handler or a
+    # `finally` that returns / breaks / continues (each makes every exception relevant). A
+    # relevant site must have a program-context lowering whose text occurs in the def's
+    # emitted block at least as often as the site occurs, or be lowered by its nearest kept
+    # handler ancestor (credits below); else REFUSED.
+    from exception_model import (TRIGGERS as _trg506, TRIGGER_EXPR_SHAPES as _shp506,
+                                 handler_catches as _hc506, EXCEPTION_BASES as _eb506,
+                                 KNOWN_EXCEPTIONS as _kn506)
+    # the VERIFIED defs (a def name bound twice: the model uses the LAST binding, route
+    # #476; a `\trusted` / abstract def has no body here, so its handlers prove nothing)
+    _last506: Dict[str, Any] = {}
+    for _f506 in (getattr(transpiler, "ir", None) or {}).get("functions", []) or []:
+        if isinstance(_f506, dict):
+            _last506[str(_f506.get("name", ""))] = _f506
+    _ver506 = [_f506 for _f506 in _last506.values()
+               if not _f506.get("trusted") and not _f506.get("abstract")]
+    # what a handler of a verified body may catch -- its named classes (`handler_catches`
+    # widens to their subclasses), or EVERYTHING (`"*"`) for a bare / dotted / non-builtin
+    # class or a `finally` that returns / breaks / continues (it swallows any exception) --
+    # reaches the def holding the `try` and every def its protected body may call
+    # (transitively; a call / name is matched by its last dotted component against the
+    # def names, `C___m` methods included)
+    _cg506: Dict[str, Set[str]] = {}
+    _cb506: Dict[str, Set[str]] = {}
+    _seed506: List[Any] = []
+    for _f506 in _ver506:
+        _fn506 = str(_f506.get("name", ""))
+        _ca506: Set[str] = set()
+        _wt506: List[Any] = [_f506.get("body")]
+        while _wt506:
+            _x506 = _wt506.pop()
+            if isinstance(_x506, list):
+                _wt506.extend(_x506)
+                continue
+            if not isinstance(_x506, dict):
+                continue
+            if _x506.get("type") == "Call" and isinstance(_x506.get("func"), str):
+                _ca506.add(_x506["func"].rsplit(".", 1)[-1])
+            if _x506.get("type") == "Var" and isinstance(_x506.get("name"), str):
+                _ca506.add(_x506["name"])
+            if _x506.get("stmt") == "Try":
+                _cs506: Set[str] = set()
+                for _h506 in (_x506.get("handlers") or []):
+                    _et506 = _h506.get("exc_type") if isinstance(_h506, dict) else None
+                    for _tn506 in (str(_et506).split("|") if _et506 else [""]):
+                        _cs506.add(_tn506 if (_tn506 in _eb506 or _tn506 in _kn506) else "*")
+                _wf506: List[Any] = [_x506.get("finalbody")]
+                while _wf506:
+                    _y506 = _wf506.pop()
+                    if isinstance(_y506, list):
+                        _wf506.extend(_y506)
+                    elif isinstance(_y506, dict):
+                        if _y506.get("stmt") in ("Return", "Break", "Continue"):
+                            _cs506.add("*")
+                        _wf506.extend(_v for _v in _y506.values() if isinstance(_v, (dict, list)))
+                if _cs506:
+                    _cb506.setdefault(_fn506, set()).update(_cs506)
+                    _wp506: List[Any] = [_x506.get("body")] + ([_x506.get("handlers")]
+                                                              if "*" in _cs506 else [])
+                    while _wp506:
+                        _y506 = _wp506.pop()
+                        if isinstance(_y506, list):
+                            _wp506.extend(_y506)
+                        elif isinstance(_y506, dict):
+                            if _y506.get("type") == "Call" and isinstance(_y506.get("func"), str):
+                                _seed506.append((_y506["func"].rsplit(".", 1)[-1], _cs506))
+                            if _y506.get("type") == "Var" and isinstance(_y506.get("name"), str):
+                                _seed506.append((_y506["name"], _cs506))
+                            _wp506.extend(_v for _v in _y506.values()
+                                          if isinstance(_v, (dict, list)))
+            _wt506.extend(_v for _v in _x506.values() if isinstance(_v, (dict, list)))
+        _cg506[_fn506] = _ca506
+    while _seed506:
+        _tn506, _cs506 = _seed506.pop()
+        for _gn506 in _cg506:
+            if (_gn506 == _tn506 or _gn506.endswith("__" + _tn506)) and not (
+                    _cs506 <= _cb506.get(_gn506, set())):
+                _cb506.setdefault(_gn506, set()).update(_cs506)
+                _seed506.extend((_t506, _cs506) for _t506 in _cg506[_gn506])
+    _ex506: Dict[str, Set[str]] = {}
+    for _k506, _sh506 in _shp506.items():
+        for _s506 in _sh506:
+            _ex506.setdefault(_s506[0] + ":" + _s506[1], set()).update(
+                _e506 for _e506, _t506 in _trg506.get(_k506, []))
+    # op-keys that may realise a shape (a consulted row of a parent credits a child site)
+    _okx506: Dict[str, Set[Any]] = {}
+    for _k506, _sh506 in _shp506.items():
+        for _s506 in _sh506:
+            _okx506.setdefault(_s506[0] + ":" + _s506[1], set()).add(_k506)
+    _kc506: Dict[int, str] = {}
+    _bad506 = None
+    for _f506 in _ver506:
+        if _bad506 is not None:
+            continue
+        _fn506 = str(_f506.get("name", ""))
+        _c506 = _f506.get("contracts") or {}
+        _rh506 = (getattr(transpiler, "reach_r460", None) or {}).get(_fn506) or ([], False)
+        _all506 = bool(_c506.get("no_exception_all")) or bool(_rh506[1])
+        _act506 = set(_c506.get("no_exception", []) or []) | set(_rh506[0])
+        # key -> [(site node, shape, ancestors (nearest last))]
+        _sites506: Dict[str, List[Any]] = {}
+        # (node, handler-node ancestors, statement-owned receiver)
+        _wk506: List[Any] = [(_f506.get("body"), (), False)]
+        while _wk506:
+            _x506, _an506, _so506 = _wk506.pop()
+            if isinstance(_x506, list):
+                _wk506.extend((_v, _an506, False) for _v in _x506)
+                continue
+            if not isinstance(_x506, dict):
+                continue
+            _ty506 = _x506.get("type")
+            _sk506 = _x506.get("stmt")
+            if (_ty506 in ("ListComp", "SetComp", "DictComp", "GenExp", "Lambda")
+                    or _sk506 in ("GhostAssign", "GhostArraySet", "ProofAssert", "Label")):
+                continue
+            _na506 = (_an506 + (_x506,) if _ty506 in ("BinOp", "Subscript", "Call", "FString")
+                      else _an506)
+            _wk506.extend((_v, _na506, _sk506 in ("ArraySet", "DelSubscript", "ArraySliceSet")
+                           and _kk506 == "array")
+                          for _kk506, _v in _x506.items()
+                          if isinstance(_v, (dict, list)) and _kk506 not in (
+                              "invariants", "variants", "assume_invariant", "prove_invariant",
+                              "contracts", "decreases"))
+            _fx506 = _x506.get("func") if isinstance(_x506.get("func"), str) else ""
+            _sx506: Set[str] = set()
+            _sp506 = ""
+            if _ty506 == "BinOp":
+                _sp506 = "BinOp:" + str(_x506.get("op"))
+            elif _ty506 == "Subscript" and not _so506:
+                # the receiver of an element store / `del` / slice store is the statement's
+                # own lowering (its `("subscript", "write" ...)` rows); its index is a site
+                _sp506 = "Subscript:"
+            elif _ty506 == "Call" and _fx506:
+                _sp506 = ("Call:" + _fx506 if _x506.get("receiver") is None and "." not in _fx506
+                          else "Method:" + _fx506.rsplit(".", 1)[-1])
+            elif _ty506 == "FString" and any(
+                    not (isinstance(_p506, dict) and _p506.get("type") in ("String", "Str"))
+                    for _p506 in (_x506.get("parts") or [])):
+                _sp506 = "FString:"
+            _sx506 = _ex506.get(_sp506, set())
+            if not _sx506 or not (
+                    _all506 or (_sx506 & _act506) or "*" in _cb506.get(_fn506, set())
+                    or any(_hc506(_h506, _e506) for _h506 in _cb506.get(_fn506, set())
+                           for _e506 in _sx506)):
+                continue
+            try:
+                _kx506 = _key506(_x506)
+            except Exception:
+                _kx506 = "?" + repr(_x506)
+            _sites506.setdefault(_kx506, []).append((_x506, _sp506, _an506))
+        if not _sites506:
+            continue
+        _txt506 = "".join(("\n".join(_blk506[_fn506]) if _fn506 in _blk506 else (_mlw or ""))
+                          .split())
+        # key -> best own count; key -> [(kept text, remaining consulted op-keys)]
+        _got506: Dict[str, int] = {}
+        _par506: Dict[str, List[Any]] = {}
+        _ka506: Set[str] = set(_sites506)
+        for _ss506 in _sites506.values():
+            for _x506, _sp506, _an506 in _ss506:
+                for _a506 in _an506:
+                    try:
+                        _ka506.add(_key506(_a506))
+                    except Exception:
+                        pass
+        for _rf506, _rn506, _rs506, _rq506 in _rec506:
+            if _fn506 in _blk506 and _rf506 != _fn506:
+                continue
+            if id(_rn506) not in _kc506:
+                try:
+                    _kc506[id(_rn506)] = _key506(_rn506)
+                except Exception:
+                    _kc506[id(_rn506)] = ""
+            _kr506 = _kc506[id(_rn506)]
+            if _kr506 not in _ka506:
+                continue
+            _nr506 = "".join(_rs506.split())
+            _ck506 = _txt506.count(_nr506) if _nr506 else 0
+            if _kr506 in _sites506:
+                _got506[_kr506] = max(_got506.get(_kr506, 0), _ck506)
+            if _ck506:
+                _par506.setdefault(_kr506, []).append((_nr506, list(_rq506)))
+        for _kx506, _ns506 in _sites506.items():
+            _need506 = len(_ns506) - _got506.get(_kx506, 0)
+            for _x506, _sp506, _an506 in _ns506:
+                if _need506 <= 0:
+                    break
+                # a site its own handler never kept is credited by the NEAREST kept ancestor
+                # that consulted one of its rows (it lowered the child itself, obligation
+                # included), or -- a receiver of a kept subscript (`a[i][j]`, a 2-D read) --
+                # by that subscript when its text mentions the receiver's base name and
+                # holds no opaque `any` (the read is lowered whole, bounds included)
+                _cr506 = False
+                for _a506 in reversed(_an506):
+                    try:
+                        _ky506 = _key506(_a506)
+                    except Exception:
+                        break
+                    for _pt506, _pq506 in _par506.get(_ky506, []):
+                        _hq506 = [_q for _q in _pq506 if _q in _okx506.get(_sp506, set())]
+                        if _hq506:
+                            _pq506.remove(_hq506[0])
+                            _cr506 = True
+                            break
+                        _bv506 = _x506.get("value") if isinstance(_x506.get("value"), dict) else {}
+                        if (not _cr506 and _a506 is _an506[-1] and _sp506 == "Subscript:"
+                                and _a506.get("type") == "Subscript"
+                                and _a506.get("value") is _x506
+                                and _bv506.get("type") == "Var"
+                                and "(any" not in _pt506
+                                and str(_bv506.get("name")) in _pt506):
+                            _cr506 = True
+                            break
+                    if _cr506 or _par506.get(_ky506):
+                        break
+                if _cr506:
+                    _need506 -= 1
+            if _need506 > 0:
+                _bad506 = (_fn506, _ns506[0][0])
+                break
+    if _bad506 is not None:
+        from errors import PyCSLSemanticError as _PyCSLSemErr506
+        _n506 = _bad506[1]
+        _op506 = (("`" + {"div": "//", "mod": "%"}.get(str(_n506.get("op")), str(_n506.get("op")))
+                   + "`") if _n506.get("type") == "BinOp" else
+                  ("a call of `" + str(_n506.get("func")) + "`") if _n506.get("type") == "Call"
+                  else "a subscript" if _n506.get("type") == "Subscript" else "an f-string")
+        raise _PyCSLSemErr506(
+            f"PYCSL-R506-TRIGGER-SITE-UNLOWERED: in `{_bad506[0]}`"
+            + (f" (line {_n506.get('lineno')})" if _n506.get("lineno") else "")
+            + f", {_op506} can raise an implicit exception (ZeroDivisionError, IndexError, "
+            f"KeyError or ValueError, `exception_model.TRIGGERS`) that this file claims "
+            f"freedom from or catches, but the expression around it is lowered WITHOUT "
+            f"evaluating it (a set / tuple / starred display, `len(...)` of a display, "
+            f"`isinstance(...)`, an `assert` test, ...: modelled by size or truth only), so "
+            f"its obligation -- and, with no claim, the raise a caller's handler sees -- is "
+            f"absent from the proof (route #506; measured: `s = {{10 // n}}`, `t = (1, 10 // "
+            f"n)` and `len([10 // n])` proved `#@ no_exception ZeroDivisionError`, CPython "
+            f"raises at n == 0). Bind the operation to a local in a plain statement first "
+            f"(`q = 10 // n` then `s = {{q}}`), where its own obligation applies.",
+            stage="whyml", code="PYCSL-R506-TRIGGER-SITE-UNLOWERED")
     # (#49) ROUTE #417 -- every OverflowError obligation the emitter attached to a
     # `list(range(..))` / `sorted(range(..))` / `float(int)` argument carries a tag stable
     # per call node; a later int coercion that drops the argument term drops the obligation
