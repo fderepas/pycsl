@@ -1,5 +1,16 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-01): #510 / #517 REPAIRED (executor u9 off 3a07b619c, 3de5e6481 + its ledger / docs commit; inline in `_run_pipeline` right after
+##   route #215 (after `_ir_resolve`: TY3 refusals first), mirror twin `\trusted`, no new def, no axiom, emission byte-identical; annotations §7.510).
+##   A PEP 695 `type X = ...` statement / def / class type-parameter list BINDS its names to an unmodelled TypeAliasType / TypeVar, so a name
+##   is readable only as a TYPE (annotation, alias value, bound, class-base subscript). PYCSL-R510-TYPE-STATEMENT-NAME-READ: a value read
+##   (Load / augmented target / `#@` identifier) anywhere in the file of a `type`-bound name (class-body `type X`: also `<e>.X`).
+##   PYCSL-R517-TYPE-PARAM-NAME-READ: such a read of a type parameter inside its def / class or its `#@` block. Exempt: the statement
+##   `assert X is not None` over a type-only name (pyref 0183 / 0212). Witnesses 44 x default / typed / store = 132/132 REFUSED; corpus
+##   8100-8117 / 8120-8128 (FAIL), controls 8130-8134 (PASS). Over-refusal: corpus root 0/0/0, pyref 2186/2186 0/0/0, mirror 53/53 0/0/0
+##   (nothing owed); rt43 / rt44 1983 probes 0 refused (none binds a PEP 695 name). Cost: rt47 control o8009 (`type K` BEFORE `K = 5`)
+##   refused (name-keyed). Residual: a dependency module's `type K` over a name this file imports (NOT PROVED / R325 at base).
+
 ## run #4 (2026-11-01): #510-#518 OPENED (red team 47 on ef45a0426: 2022 probes / 192 confirmed in 9 families, default mode; rt46's 134
 ##   all refused): #510 pep695-type-statement-not-a-binding (34); #511 local-class-statement-not-a-binding (17); #512 bytes-count-obligations-lost (31);
 ##   #513 r507-kind-reader-last-type-argument (10); #514 r507-range-length-by-spelling (17); #515 iife-lambda-body-erased (37); #516 r508-unknown-kind-operands

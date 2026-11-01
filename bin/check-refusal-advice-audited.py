@@ -903,6 +903,15 @@ AUDITED = {
         "Route #509. 'Write the loop explicitly (each statement carries its own obligation)': witness 8067 as a `for _ in range(1)` loop "
         "appending `t = \"ab\" * n` under `requires 0 <= n <= 1000` (witnesses-r509/advice/a509_explicit_loop) VERIFIES under "
         "`no_exception \\all`."),
+    # driver run #4 -- routes #510 / #517 (u9): the advice IS controls 8131 / 8134 and the two advice files.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `{_z510[2]}` is bound by the PEP 695 statement `type {'): (FOLLOWABLE,
+        "Route #510. 'Rename the alias so it shadows no value the program reads (`type KT = int`)': witness g811_o8001 with the alias "
+        "renamed `type KT = int` (getting-better/open-routes/witnesses-r510/advice/a510_rename_alias) VERIFIES `\\result == n // 5` under "
+        "`no_exception \\all`; control 8131 (the same as a corpus file) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R517-TYPE-PARAM-NAME-READ: `{_z510[2]}` is a PEP 695 type parameter of `{getattr(_z51'): (FOLLOWABLE,
+        "Route #517. 'Rename the type parameter so it shadows no value the body reads (`def f[T](...)`)': witness g823_a9001 as "
+        "`def f[T](n: int)` (getting-better/open-routes/witnesses-r517/advice/a517_rename_tp) VERIFIES `\\result == n // 5` under "
+        "`no_exception \\all`; control 8134 (`class C[T]:` for 8125) VERIFIES."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1263,6 +1272,9 @@ AUDITED_HASH = {
     ('src/pycsl/frontend/ir_inline.py', 'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': the method {_bare505} outside a field access / `self.m(...)` call (route #505). S'): 'f218b1075bc6',
     # driver run #4 (u7) -- route #506
     ('src/pycsl/pycsl.py', '_PyCSLSemErr506(f\'PYCSL-R506-TRIGGER-SITE-UNLOWERED: in `{_bad506[0]}`\' + (f" (line {_n506.get(\'lineno\')})" if _n506.get(\'lineno\') else \'\') '): 'e5a1915d7002',
+    # driver run #4 (u9) -- routes #510 / #517
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `{_z510[2]}` is bound by the PEP 695 statement `type {'): 'acbd371debc0',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R517-TYPE-PARAM-NAME-READ: `{_z510[2]}` is a PEP 695 type parameter of `{getattr(_z51'): '1639be5fd431',
 }
 
 

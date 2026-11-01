@@ -4705,6 +4705,45 @@ huge int with NO claim is not modelled as a raise, so a caller's `except Overflo
 overflow are outside this table; the kind reader trusts declared annotations (a `x: int` bound to a float at
 run time is read as an int).
 
+### 7.510 A PEP 695 `type` statement and a type-parameter list bind their names: a value read of such a name is refused (routes #510 / #517, run #4)
+
+`type X = T` binds X (in its scope, when it runs) to a `typing.TypeAliasType`, and `def f[K](..)` /
+`class C[K]:` bind K inside the def / class to a `typing.TypeVar`. Neither binding was seen by any binding
+walk: `pure_ast` builds the alias target with Load context and the lowering drops the statement, and the
+binding-site censuses (route #132's `_nb_sites`, `module_collect`'s constant folder, Module 5's local
+collectors, the program-call resolver) record def / store / import / except / match binders only. Red team
+47 measured, PROVED while CPython reads the alias / TypeVar: (#510, 34) `K = 5` then `type K = int` -- after
+the def, in an `if` / `try` / `for` body, generic `type K[T]`, function-local -- under `ensures \result == 5`
+over `return K`, `no_exception \all` over `n // K`, a `#@` contract naming K; `type n = int` over a parameter,
+local, loop variable, callee (`type g = int`), module object, `self`, a builtin (`type len = int`); (#517, 10)
+`def f[K](n): return n // K`, `def f[S](): return len(S)`, `def f[g](n): return g(n) + 1`, `def f[len](s)`,
+`def f[K: int]()`, `class C[K]:` around a method reading K, `def m[K](self)`.
+
+RULE (refuse by default; inline in `_run_pipeline` right after route #215's check, i.e. after `_ir_resolve`
+so the TY3 monomorphization refusals fire first; mirror twin `\trusted`, no new def, no axiom, emission
+byte-identical). Neither object is modelled, so such a name may be read only where CPython reads it as a
+TYPE: a parameter / return / variable annotation, a type alias's value, a type parameter's bound, the
+subscript of a class base (`class C[T](Base[T])`).
+- `PYCSL-R510-TYPE-STATEMENT-NAME-READ`: a Load (or an augmented-assignment target), anywhere in the file,
+  of a name some `type` statement of the file binds, or that name as an identifier of any `#@` line;
+  for a `type` statement directly in a class body (it rebinds a class attribute), also an attribute read
+  `<e>.X` (code or `#@`). Name-keyed over the whole file. Repair: rename the alias (`type KT = int`).
+- `PYCSL-R517-TYPE-PARAM-NAME-READ`: such a read of a type-parameter name inside its def / class
+  (decorators, defaults and nested scopes included) or in the `#@` lines from the def's / class's contract
+  block through its last line. Repair: rename the type parameter (`def f[T](...)`).
+One exemption, exact in CPython: the statement `assert X is not None` where X has no binding but `type`
+statements (a TypeAliasType is never None; python-reference `0183` / `0212`).
+
+Witnesses `8100`-`8116`, `8120`-`8127` (PROVED at base, REFUSED), `8117` (a class-body `type K` read as
+`C.K`: PYCSL-R325-OPAQUE-INT-FALLBACK at base, now refused by name) and `8128` (a def's own contract naming its type parameter);
+controls `8130` (an alias read only in annotations), `8131` / `8134` (the advice: the alias / class type
+parameter renamed), `8132` (a local alias annotating a local, `assert V is not None`), `8133` (a generic def
+never reading T, beside the module constant its body reads). All 44 red-team-47 witnesses
+(`witnesses-r510/` 34, `witnesses-r517/` 10) are refused under default / typed / store. Residuals (named): a
+dependency module's `type K` rebinding a name this file imports (`from dep import K`, `dep.K`) is not judged
+here (measured NOT PROVED at base, red team 47 g811 import_*); a module-level `type K` before `K = 5`
+(CPython reads 5) is refused (name-keyed, not flow-sensitive).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
