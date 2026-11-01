@@ -1,5 +1,13 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-01): #496 REPAIRED (executor u3 off 5a9e2e161, a678af08e + 218247210; inline in route #178's callee summary in
+##   `_reset_function_state`, mirror twin `\trusted`, no new def, no axiom; new code PYCSL-R496-CALLEE-UNLISTED-CALL; annotations §7.410).
+##   Refuse by default (route #161's polarity): a callee call is admitted only as a program def / class (joined transitively, also when
+##   named as an argument), an exception constructor / `super()`, or a never-raises builtin with its partial cases excluded; any other
+##   call carries every modelled implicit exception (StopIteration added to #178's set). 76 witnesses x 3 models = 228 runs REFUSED;
+##   corpus 7847-7864 (FAIL) / controls 7870-7875 (PASS); over-refusal 0 (corpus root 0 moved / 0 gone, 1723 base flake; pyref and
+##   mirror byte-inert; rt43 / rt44 150 control files: 0 refused by #496). Residuals: int_str > 4300 digits, round(NaN), tail-named methods.
+
 ## run #4 (2026-11-01): #496-#500 OPENED (red team 44 on 1c30f94b3: 793 probes / 779 CPython-breaching / 139 confirmed pairs
 ##   on 111 probes; rt43 (501 probes) had 0 confirmed): #496 r178-callee-raise-summary-allow-list (76 probes, 96 pairs incl. typed / store);
 ##   #497 abstract-with-executable-body (4 x 3 models; POLICY — user decision); #498 is-on-fresh-values-as-equality (14);
