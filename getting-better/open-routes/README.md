@@ -8,6 +8,22 @@
 ##   corpus 7847-7864 (FAIL) / controls 7870-7875 (PASS); over-refusal 0 (corpus root 0 moved / 0 gone, 1723 base flake; pyref and
 ##   mirror byte-inert; rt43 / rt44 150 control files: 0 refused by #496). Residuals: int_str > 4300 digits, round(NaN), tail-named methods.
 
+## run #4 (2026-11-01): #498 / #499 / #500 REPAIRED (executor u4 off 5a9e2e161; three inline rules, mirror twins `\trusted`
+##   (`_run_pipeline` x2, `ir_inline._expand`), no new def, no axiom; annotations §7.498 / §7.499 / §7.500).
+##   #498 PYCSL-R498-IS-ON-FRESH-VALUE: an `is` not against a singleton / of one name or its single-assignment alias chain /
+##   already #42's or #52's is refused when an operand MAY BE FRESH (operator, unary, slice, f-string, display, literal, any
+##   call but `type` / `isinstance` / ..., str index, fresh arm, class-less parameter, local not bound by plain assignments of
+##   non-fresh values); judged on this file's functions / classes only. #499 PYCSL-R499-EXEC-IN-FUNCTION-SCOPE: a whitelisted
+##   constant exec in a function binds only names the function never mentions (no namespace reads, no nested scope / yield);
+##   class body in a function and `globals=` / `locals=` keywords refused; corpus 0642 (a false PASS: NameError) now FAIL.
+##   #500 PYCSL-R500-INLINE-NESTED-RETURN: a spliced method's `return` at any depth but the top-level tail is refused.
+##   Witnesses 31 x default / typed / store = 93 runs REFUSED; corpus 7900-7909 / 7920-7927 / 7940-7943 (FAIL), controls
+##   7915-7916 / 7930-7932 / 7946-7947 (PROVED). Over-refusal: corpus root 0 MOVED, 2 declared GONE (0642, the false PASS;
+##   2391, an expected-FAIL `is not` on `Any` parameters), 1723 APPEARED = the base sweep's why3-less env (identical emission
+##   at base code); pyref 2186/2186 0/0/0; mirror 53/53 0/0/0 (first draft refused 5 mirrors by judging imported IR: fixed);
+##   rt43 / rt44 honest controls 1 newly refused (k52114, `10 ** 30 is 10 ** 30`: constant folding only, by design).
+##   Residuals (named): a field / module global storing a computed int / str is read as an existing object (#498).
+
 ## run #4 (2026-11-01): #496-#500 OPENED (red team 44 on 1c30f94b3: 793 probes / 779 CPython-breaching / 139 confirmed pairs
 ##   on 111 probes; rt43 (501 probes) had 0 confirmed): #496 r178-callee-raise-summary-allow-list (76 probes, 96 pairs incl. typed / store);
 ##   #497 abstract-with-executable-body (4 x 3 models; POLICY — user decision); #498 is-on-fresh-values-as-equality (14);

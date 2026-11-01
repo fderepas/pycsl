@@ -4427,6 +4427,82 @@ range `requires`, a handler around a never-raising helper, an explicit `raise Va
 `int_str` row) and `round` of a NaN in a callee are not summarised; a method call whose tail names any program
 method is admitted as that method (#161's own convention).
 
+### 7.498 An identity test whose operand may be a freshly computed value is refused (route #498, run #4)
+
+Module 5 narrows every `is` / `is not` to `==` / `!=` (keeping the `py_is` marker) and Module 6 keeps that
+VALUE equality except against a bool literal (§ route #42, `PYCSL-R42-IS-BOOL-SINGLETON`) and over a
+value-typed literal or annotated name (route #52, `PYCSL-R52-IS-VALUE-TYPED`). A value COMPUTED at run time
+is a new object whose identity CPython does not tie to its value: red team 44 measured `(n + 1) is (n + 1)`,
+`(n * 2) is (n + n)`, `-n is -n`, `s + "x" is s + "x"`, `s[0:2] is s[0:2]`, `s.upper() is s.upper()`,
+`"".join([s, s]) is "".join([s, s])` and `a = n + 1000; b = n + 1000; a is b` PROVED `\result == True`
+(CPython False for n = 1000 / s = 'ab'), and a `no_exception \all` division guarded by such a test (14
+witnesses).
+
+RULE (refuse by default; `_run_pipeline`, before Module 6, on every function and class declaration --
+`__init__` body, field defaults, constants -- of the IR): an `is` that is not
+against a singleton (`None` / `Ellipsis` / `NotImplemented`; a bool literal is route #42's), not of one name
+with itself or with a chain of single plain assignments `b = a` of it, and not one route #52 refuses, is
+REFUSED with `PYCSL-R498-IS-ON-FRESH-VALUE` when either operand MAY BE FRESH: an arithmetic / bitwise /
+concatenating operator, a unary `-` / `+` / `~`, a slice, an f-string, a container display / comprehension /
+lambda / literal, any call except `type(x)` / `isinstance` / `issubclass` / `hasattr` / `callable` / `bool`
+(method calls included), an index of a str / bytes (or of a fresh receiver), an if-expression / `and` / `or`
+with a fresh arm, a parameter not annotated with a class (`Any`, unannotated, `bool`, a value type, a
+`Union` / `Optional`), and a local bound by anything but plain assignments of non-fresh values (a loop /
+unpacking / `with` / `except` / walrus / augmented binding counts as fresh). A comparison or `not` (a bool
+singleton), an attribute / field read, an outer name (global, class, builtin, `self`) and a class-typed
+parameter are not fresh. Write `==` if you mean equality.
+
+Witnesses `7900`-`7907` (PROVED at base, REFUSED), `7908` (`object`-annotated parameters under `requires a ==
+b`: NOT PROVED at base, refused by the parameter arm) and `7909` (store model: a Why3 type error at base,
+now refused by name); controls `7915` (`x = C.A; y = x;
+z = y; z is x` on an enum member), `7916` (`c.a is c.a`, two reads of one stored field). Over-refusal by design: `a = 10 ** 30; b = 10
+** 30; a is b` (True in CPython only by constant folding, rt44 control k52114) is refused. Named
+residuals: a field or module global that STORES a computed int / str (`self.a is self.b`) is read as an
+existing object; an element of a list / dict read by index is not fresh unless its receiver is.
+
+### 7.499 A constant `exec(...)` is spliced only where it runs against the real namespace (route #499, run #4)
+
+`frontend/exec_splice.py` replaces a constant `exec("<src>")` expression statement by the parsed statements
+(07-1839 P5b), which is inline-equivalent at module level and in a module-level class body. Inside a
+FUNCTION, CPython (PEP 667) runs the text against a SNAPSHOT of `locals()`: a name it binds is never seen by
+the function. Red team 44 measured `x = 1; exec("x = 2"); return x` PROVED `\result == 2` (CPython 1), on a
+parameter, augmented, multi-statement, tuple-unpacking, list and str rebinding, and `d = 0; exec("d = 5");
+return 10 // d` PROVED `no_exception \all` (11 witnesses). The old corpus `0642` (`exec("x = 5\ny = x + 1");
+return y` in a function, `\result == 6`) was the same false proof: CPython raises NameError.
+
+RULE (refuse by default; `_run_pipeline`, before the splice, on the woven AST): a constant exec in a
+function scope whose text parses and passes the splice whitelist is admitted only when every name it binds
+(an assignment / augmented / annotated / unpacking target that is a name, a walrus) is named NOWHERE else in
+the function (its snapshot binding is then unobservable) and the function reads no namespace (`locals` /
+`vars` / `dir` / `globals` / `eval` / another `exec`), and the text contains no lambda /
+comprehension (free names resolve in the globals) and no `yield` / `await`; a constant exec in a class body
+nested in a function is refused (it cannot read the function's names); a constant exec passing `globals=` /
+`locals=` by keyword is refused at every scope (the splicer reads only the positional text). Otherwise
+REFUSED with `PYCSL-R499-EXEC-IN-FUNCTION-SCOPE`. Element / attribute stores and calls (`exec("xs[0] = 5")`)
+mutate the same objects in CPython and stay spliced. A text the whitelist rejects or that does not parse
+keeps the splicer's own refusal (`0643`, `1756`, `1757`, `1802`).
+
+Witnesses `7920`-`7924`, `7926` (the module-level keyword form), `7927` (class body in a function)
+(PROVED at base, REFUSED) and `7925` (typed model: a Why3 type error at base, now refused by name); `0642`
+is now expected FAIL. Controls `7930` (`exec("xs[0] = 5")` in a function), `7931` (a module-level
+`exec("y = 6")`), `7932` (`exec("t = 2")` binding a name the function never mentions). Cost: an honest class-in-function exec that reads no enclosing name is refused.
+
+### 7.500 A method spliced by `ir_inline` may `return` only as its last top-level statement (route #500, run #4)
+
+`frontend/ir_inline.py` splices a method called on a module-level global instance into the caller and
+refused a non-tail `return` only among the method's TOP-LEVEL statements, so a `return` nested in an `if` /
+loop / `with` / `try` / `match` was spliced as a return of the CALLER: red team 44 measured `r = g.m(5);
+return r + 10` PROVED `\result == 1` (CPython 11), a field write after a statement-position call skipped,
+two nesting levels, and a method calling such a method on `self` (6 witnesses).
+
+RULE (`ir_inline._expand`, refuse by default): every `Return` node at ANY depth of the method body is
+refused with `PYCSL-R500-INLINE-NESTED-RETURN` except the single top-level tail `return` the splice binds.
+Call the method on a LOCAL instance (its contract is used) or write one tail `return`.
+
+Witnesses `7940`, `7941`, `7943` (PROVED at base, REFUSED) and `7942` (a `return` in a `for`: a prover
+Timeout at base, now refused by name); controls `7946` (one tail `return`, a result variable
+assigned in each branch), `7947` (the nested-return method on a LOCAL instance, by contract).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

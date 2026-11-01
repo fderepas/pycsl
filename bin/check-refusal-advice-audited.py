@@ -865,6 +865,14 @@ AUDITED = {
         "Route #478. 'Rewrite it: mutate the elements through the modelled element store (`a[i] = a[i] * 2`, under every memory model), or build the result in a LOCAL list (`b = [x * 2 for x in a]`, default memory model)': witness 7532's `a *= 2` rewritten `a[0] = a[0] * 2` (a478_elem_store, `assigns a[0]`, `\\result == 2`) VERIFIES under default, typed and store; rewritten `b = [x * 2 for x in a]; return len(b)` (a478_local_comp) VERIFIES under default (typed / store: Why3 error, hence the message names the model). Controls 7538 / 7539 / 7546."),
     ('src/pycsl/pycsl.py', "_PyCSLSemErr476(f'the module name `{_n476}` (read by a verified function, line {_rd476[_n476]}) is bound before the call frontier (line {_tr"): (FOLLOWABLE,
         "Route #476. 'Bind `g` once, before the frontier (move the later definition up, or give it its own name)': witness 7540 with the later `def g` moved above the `__main__` block (both defs before the frontier, control 7548) VERIFIES `no_exception \\all` and `\\result == n`; a def after the guard that no verified function reads (control 7547) VERIFIES."),
+    # driver run #4 -- routes #498 / #499 / #500 (u4, red team 44). Probes in
+    # getting-better/open-routes/witnesses-r49{8,9}/advice/ and witnesses-r500/advice/.
+    ('src/pycsl/pycsl.py', '_R498Err("%s (function \'%s\'): an IDENTITY test (`is` / `is not`) whose operand may be a FRESHLY COMPUTED value is refused: %s (route #498). '): (FOLLOWABLE,
+        "Route #498. 'Write `==` if you mean equality; compare identity only against `None` / a singleton, or between one name and an alias of it': witness 7900 with `is` replaced by `==` (getting-better/open-routes/witnesses-r498/advice/a498_write_eq) VERIFIES `\\result == True`; an alias-chain identity (a498_alias_identity, = control 7915) VERIFIES."),
+    ('src/pycsl/pycsl.py', "_R499Err('a constant `exec(...)` here cannot be spliced as source: %s (route #499). CPython (PEP 667) runs exec in a function against a snap"): (FOLLOWABLE,
+        "Route #499. 'Write the statement inline instead of in `exec(...)`, or move the exec to module level': witness 7920 with `x = 2` written inline (getting-better/open-routes/witnesses-r499/advice/a499_write_inline) VERIFIES `\\result == 2`; witness 7924 with the exec moved to module level (a499_exec_at_module_level, = control 7931) VERIFIES `\\result == 6`."),
+    ('src/pycsl/frontend/ir_inline.py', 'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': a `return` is nested inside a branch / loop / `with` / `try` / `match` of the met'): (FOLLOWABLE,
+        "Route #500. 'Call the method on a LOCAL instance, or restructure the method so its only `return` is its last statement': witness 7940's method on a local instance with a contract (getting-better/open-routes/witnesses-r500/advice/a500_local_instance, = control 7947) VERIFIES; the method with one tail `return` and a result variable (a500_one_tail_return, = control 7946) VERIFIES `\\result == 11`."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1213,6 +1221,10 @@ AUDITED_HASH = {
     # (#49) driver run #3 -- routes #476 / #478 (m2)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr478(f"\'{_f478.get(\'name\')}\': the augmented assignment `{_tg478} {_n478.get(\'op\')}= ...` applies to the parameter \'{_tg478}\' of t'): '0c0861c6b5d3',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr476(f'the module name `{_n476}` (read by a verified function, line {_rd476[_n476]}) is bound before the call frontier (line {_tr"): '130aae8d6257',
+    # driver run #4 (u4) -- routes #498 / #499 / #500
+    ('src/pycsl/pycsl.py', '_R498Err("%s (function \'%s\'): an IDENTITY test (`is` / `is not`) whose operand may be a FRESHLY COMPUTED value is refused: %s (route #498). '): '85a754d524ac',
+    ('src/pycsl/pycsl.py', "_R499Err('a constant `exec(...)` here cannot be spliced as source: %s (route #499). CPython (PEP 667) runs exec in a function against a snap"): '90c477a9b5a5',
+    ('src/pycsl/frontend/ir_inline.py', 'PyCSLSemanticError(f"cannot inline \'{callee}\' on \'{recv}\': a `return` is nested inside a branch / loop / `with` / `try` / `match` of the met'): 'a32a8a247e8c',
 }
 
 
