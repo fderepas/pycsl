@@ -890,6 +890,19 @@ AUDITED = {
         "with the division bound first is control 8020 (`q = 10 // n; s = {q}` under `#@ no_exception ZeroDivisionError`, `requires n != 0`) "
         "and VERIFIES `\\result == 10 // n + 1`; 8001's tuple bound first (8027) VERIFIES; 5044's / 6783's subscripts bound first "
         "(8028 / 8029) VERIFY under `no_exception \\all`."),
+    # driver run #4 -- routes #507 / #508 / #509 (u8): the advice IS controls 8080 / 8084 and the three advice files.
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr507(f'PYCSL-R507-OVERFLOW-SITE-UNLOWERED: {_at507}, {_bad507[3]} can raise OverflowError for a huge int, and the function is jud"): (FOLLOWABLE,
+        "Route #507. 'Bind the operation to a local in a plain statement first (`t = \"ab\" * n` then `v = {t}`)': witness 8050 "
+        "with the repetition bound first under `requires 0 <= n <= 1000` (getting-better/open-routes/witnesses-r507/advice/a507_bind_first) "
+        "VERIFIES `\\result == 1` under `no_exception \\all`; control 8080 (the same for `[0] * n`, `len(range(n))`, `list(range(n))`) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr507(f"""PYCSL-R508-INT-FLOAT-PROMOTION-UNMODELLED: {_at507}, the operation `{ {\'div\': \'//\', \'mod\': \'%\'}.get(str(_n507.get(\'op\'))'): (FOLLOWABLE,
+        "Route #508. 'Convert explicitly where the bound is stated (`#@ requires` a bound on the int, then `float(n)` ...)': witness 8060 "
+        "as `y = float(n); v = {y * 1.5}` under `requires -1000 <= n <= 1000` (witnesses-r508/advice/a508_float_first) VERIFIES "
+        "under `no_exception \\all`; control 8084 VERIFIES."),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr507(f'PYCSL-R509-COMPREHENSION-OVERFLOW-SITE: {_at507}, {_bad507[4]} contains {_bad507[3]}, which raises OverflowError for a hug"): (FOLLOWABLE,
+        "Route #509. 'Write the loop explicitly (each statement carries its own obligation)': witness 8067 as a `for _ in range(1)` loop "
+        "appending `t = \"ab\" * n` under `requires 0 <= n <= 1000` (witnesses-r509/advice/a509_explicit_loop) VERIFIES under "
+        "`no_exception \\all`."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit

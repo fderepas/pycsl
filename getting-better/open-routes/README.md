@@ -1,5 +1,17 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-01): #507 / #508 / #509 REPAIRED (executor u8 off d7eec1552, 85e1eb185 + its ledger / docs commit; inline in `_run_pipeline`
+##   right after #506's census, mirror twin `\trusted`, no new def, no axiom, emission byte-identical; annotations §7.507). Under
+##   `no_exception \all` (declared / reached) operands are read at a numeric kind (symbol table + SOURCE annotations + comprehension
+##   targets + single-kind locals). PYCSL-R508-INT-FLOAT-PROMOTION-UNMODELLED: float op int / unknown, anywhere (the int -> float
+##   conversion has no obligation; the plain form was only a Why3 type error). PYCSL-R509-COMPREHENSION-OVERFLOW-SITE: `a * b`
+##   (not a small int literal / same kind), len / list / sorted(range), float(<non-float>) inside a comprehension / generator /
+##   lambda. PYCSL-R507-OVERFLOW-SITE-UNLOWERED: such a site elsewhere whose handler text (#506's observation) or #417 tag is not in
+##   the def's block. Witnesses 134 x default / typed / store = 402/402 REFUSED; corpus 8050-8076 (FAIL), controls 8080-8087 (PASS).
+##   Over-refusal: corpus root 0/0/0 (first draft refused 6109 / 6118 / 6122 `for x in sorted(range(n))`: fixed by crediting #417
+##   tags), pyref 0/0/0, mirror 53/53 0/0/0 (no movers, nothing owed); rt43 / rt44 CPython-honest probes 0/177. Residuals:
+##   OverflowError is not nameable, so with no claim an `except OverflowError` arm stays dead; int(<float>) / float `**` overflow.
+
 ## run #4 (2026-11-01): #507-#509 OPENED (red team 46 on e9d24a6c2: 1132 probes / 1112 breaching / 134 confirmed, default mode;
 ##   rt45's 15 + #506's witnesses all refused): #507 overflow-obligation-lost-in-display (71: #414 / #417 OverflowError obligations of
 ##   `s * n`, `[x] * n`, `len(range(n))`, `list(range(n))` vanish in size / truth-only displays — #506's census covers only TRIGGERS shapes);

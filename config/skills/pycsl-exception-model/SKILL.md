@@ -67,6 +67,19 @@ exception is claimed (declared / reached) or catchable in the file (a handler th
 bare / unknown handler, `finally`, `with`) and whose lowered text is absent from the def's emitted
 block. The same table drives it: **a new row's shapes are censused there too.**
 
+**OverflowError sites of `\all` (routes #507 / #508 / #509).** The OverflowError obligations that
+`no_exception \all` alone carries are NOT `TRIGGERS` rows: route #414 (`s * n`, `[x] * n`,
+`len(range(..))`) and route #417 (`list` / `sorted(range(..))`, `float(<int>)`) are inline asserts
+in `_handle_binop` / `_handle_call_expr`. Right after #506's census, `_run_pipeline` reads every
+operand of a `\all` body (declared or reached) at a numeric kind (small int literal / int / float /
+non-number / unknown: IR symbol table + SOURCE annotations + comprehension targets + single-kind
+locals) and refuses: an arithmetic op mixing a float with an int / unknown operand, anywhere
+(`PYCSL-R508-INT-FLOAT-PROMOTION-UNMODELLED`: the int -> float conversion owes |n| <= DBL_MAX and
+has no lowering); such a site inside a comprehension / generator / lambda
+(`PYCSL-R509-COMPREHENSION-OVERFLOW-SITE`); elsewhere, a site whose handler text (or #417 tag) is
+absent from the def's block (`PYCSL-R507-OVERFLOW-SITE-UNLOWERED`). **A new `\all`-only obligation
+attached inline by a handler needs its site shape added to that table too.**
+
 The authoritative encoding lives in `src/pycsl/exception_model.py` —
 `KNOWN_EXCEPTIONS`, `TRIGGERS`, `PREDICATE_LIBRARY`. **Do not duplicate
 the table into other files**; consult `triggers_for()` from

@@ -4658,6 +4658,53 @@ element no handler can observe, a tuple of names, the advice applied to 5044 / 6
 def is lowered twice is counted kept; a callee reached only through an implicit dunder call is not on the
 handler's call graph.
 
+### 7.507 Under `no_exception \all`, every OverflowError obligation reaches its lowering; an int -> float promotion is refused (routes #507 / #508 / #509, run #4)
+
+Route #506's census covers the `exception_model.TRIGGERS` rows. The OverflowError obligations that
+`no_exception \all` alone carries -- route #414 (`s * n`, `[x] * n`: the count is a Py_ssize_t;
+`len(range(..))`) and route #417 (`list(range(..))` / `sorted(range(..))`; `float(<int>)`: |n| <= DBL_MAX) --
+are inline asserts in `_handle_binop` / `_handle_call_expr`, and an expression modelled by size or truth
+(`(any T)`) never asks those handlers. Red team 46 measured at e9d24a6c2, PROVED while CPython raises
+OverflowError at n = 10**20 / 10**400: (#507, 71) `{"ab" * n}`, `(1, [0] * n)`, `(x,)`, nested / starred
+displays, `len([..])`, `sorted((..))`, a dict display value, `id` / `type` / `max` / `reversed` of a display,
+in the claimed def, a REACHED callee (#460) and a method; (#508, 29) an int -> float promotion in an
+arithmetic operation (`n * 1.5`, `n + 0.5`, `0.5 * n`, `x + n`) -- it has NO obligation anywhere: the plain
+form only failed as a Why3 type error and, inside an `(any T)` display, proved; (#509, 34) the same
+operations in a comprehension / generator element, condition or iterable or a lambda body, whose census
+(#177 / #285 / #287) refuses the Phase-1 rows only.
+
+RULE (refuse by default; inline in `_run_pipeline` right after route #506's census, mirror twin `\trusted`,
+no new def, no axiom, emission byte-identical). In every verified def judged under `\all` (declared, or
+REACHED, route #460) each operand is read at a numeric KIND -- a small int literal (|v| <= 2**63 - 1, or a
+bool), an int, a float, a known non-number, or unknown -- from the IR symbol table, the SOURCE annotations
+(the table erases `List[int]` to `list`; a name two same-named defs disagree on is unknown), comprehension
+targets (`range(..)` -> int, a typed container -> its element kind) and unannotated locals bound only by
+plain / augmented assignments of one kind (any other binding form leaves them unknown):
+- `PYCSL-R508-INT-FLOAT-PROMOTION-UNMODELLED`: an arithmetic operation (`+ - * / // % **`) with a float
+  operand and an int or unknown operand, WHEREVER it occurs. Repair: state the bound and convert explicitly
+  (`#@ requires` a bound, then `float(n)`, which owes |n| <= DBL_MAX), or keep one numeric type.
+- `PYCSL-R509-COMPREHENSION-OVERFLOW-SITE`: inside a comprehension / generator / lambda, an OverflowError
+  SITE -- `a * b` unless an operand is a small int literal or both are ints / both floats; `len` / `list` /
+  `sorted` of `range(..)`; `float(x)` of anything but a float / small literal / str. Repair: an explicit loop.
+- `PYCSL-R507-OVERFLOW-SITE-UNLOWERED`: elsewhere, a SITE whose handler lowering (route #506's observation)
+  does not occur in the def's emitted block at least as often as the site occurs. Repair: bind the operation
+  to a local in a plain statement (`t = "ab" * n` then `v = {t}`).
+Comparisons (`n < x`, `n == x`) are exact in CPython and are not sites.
+A `list` / `sorted` / `float` site lowered by a statement-level form (`for x in sorted(range(n))`) counts as
+kept when its route #417 tag `[@r417_<h>]` is in the def's block as often.
+
+Witnesses `8050`-`8065`, `8067`-`8074`, `8076` (PROVED at base by default -- `8076`, the plain `w = n * 1.5`,
+was a Why3 type error -- now REFUSED by name; `8066` typed / `8075` store: a Why3 error of the mode at base);
+controls `8080`-`8087` (bound first in plain statements, small literal counts, same-kind int / float
+arithmetic in displays, comprehensions over a `List[int]` and float literals, `float(n)` under a bound then
+float arithmetic, a reached callee binding first under its own requires, an inferred-int local, int / float
+comparisons; PROVED at base and HEAD). All 134 red-team-46 witnesses (`witnesses-r507/` 71, `-r508/` 29,
+`-r509/` 34) are refused under default / typed / store. Residuals (named): an OverflowError raised for a
+huge int with NO claim is not modelled as a raise, so a caller's `except OverflowError` arm stays dead
+(OverflowError is not a nameable `no_exception` exception); `int(<float>)` (inf / nan) and float `**`
+overflow are outside this table; the kind reader trusts declared annotations (a `x: int` bound to a float at
+run time is read as an int).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
