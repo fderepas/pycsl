@@ -97,7 +97,7 @@ MIRROR = os.path.join(ROOT, "src", "self-annotate", "src")
 LIVE = os.path.join(ROOT, "src", "pycsl")
 
 ASSIGNS = re.compile(r"^\s*#@\s*assigns\s+(.*)$")
-TRUSTED = re.compile(r"^\s*#@\s*\\trusted\b")
+TRUSTED = re.compile(r"^\s*#@\s*(?:\\trusted|declared_in)\b")   # B4: declared_in = same val
 SELFF = re.compile(r"self\.([A-Za-z_][A-Za-z_0-9]*)")
 
 MIN_NONEMPTY = 400        # 498 at the first measurement; a walk that sees far fewer is broken

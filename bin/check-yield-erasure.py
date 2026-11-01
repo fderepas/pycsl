@@ -101,6 +101,8 @@ def _is_trusted(lines, fn) -> bool:
         # one (a `continue`), so every one of them was UNCHECKED for yield erasure.
         if st.startswith("#@") and "\\trusted" in st:
             return True
+        if st.startswith("#@ declared_in"):     # B4: the same bodyless `val`
+            return True
         i -= 1
     return False
 

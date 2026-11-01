@@ -170,7 +170,7 @@ def _is_trusted(lines, fn):
         st = lines[i].strip()
         if not (st.startswith("#") or st.startswith("@") or st == ""):
             return False
-        if re.match(r"^#@\s*\\trusted\b", st):
+        if re.match(r"^#@\s*(?:\\trusted|declared_in)\b", st):   # B4: declared_in = same val
             return True
         i -= 1
     return False

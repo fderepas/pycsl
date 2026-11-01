@@ -112,7 +112,7 @@ class ControlFlowStmtMixin:
     # honest frame LOCALLY is the only route: the emitter resolves imports against the
     # LIVE `src/pycsl` tree, which carries no `#@` contracts at all, so no import-based
     # lookup can ever recover it.
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._is_string_expr
     #@ requires True
     #@ ensures True
     #@ assigns self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache
@@ -134,7 +134,7 @@ class ControlFlowStmtMixin:
     # `bin/check-avatar-frame-parity.py`. Declaring the honest frame LOCALLY is the only
     # route that works: the emitter resolves imports against the LIVE `src/pycsl` tree,
     # which carries no `#@` contracts at all, so no import-based lookup can ever recover it.
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/abstract_ops.py::AbstractOpsMixin._add_abstract_op
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._obj_state_written
@@ -166,7 +166,7 @@ class ControlFlowStmtMixin:
             "    ensures { Array.length result = Seq.length s }\n"
             "    ensures { forall i:int. 0 <= i < Seq.length s -> result[i] = Seq.get s i }")
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/statements.py::StatementEmissionMixin._seq_init_expr
     #@ ensures True
     #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _seq_init_expr(self, val_ir: "ExprIR", local_refs: Set[str]) -> str:
@@ -194,24 +194,24 @@ class ControlFlowStmtMixin:
             return f"(if {val} then 1 else 0)"
         return val
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._expr_to_whyml
     #@ ensures True
     #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _expr_to_whyml(self, expr: "ExprIR", local_refs: Set[str]) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._coerce_to_int
     #@ ensures True
     def _coerce_to_int(self, val: str) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._to_bool
     #@ ensures True
     #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _to_bool(self, whyml_str: str, ir_expr: "ExprIR") -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/statements.py::StatementEmissionMixin._stmts_to_whyml
     #@ requires True
     # SOUNDNESS (relocated-stub frame audit): this stub carried NO `assigns` clause at all,
     # so it was emitted as an effect-FREE `val` — while its live body (which lives in
@@ -1039,7 +1039,7 @@ class ControlFlowStmtMixin:
                        for a in pat.get("alternatives", []))
         return False
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._match_pattern_cond
     #@ requires True
     #@ ensures True
     #@ assigns self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._needs_array_init, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap

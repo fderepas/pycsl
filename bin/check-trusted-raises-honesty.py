@@ -261,7 +261,9 @@ def main():
                 # `\\trusted` population rather than hiding one — but it still
                 # mis-reports which stubs are assumed and can move the MAX_SILENT
                 # ratchet for a reason that is not about trust at all.
-                if not any(b.strip().startswith("#@") and "\\trusted" in b for b in blk):
+                # B4: a `#@ declared_in` stub is the same bodyless `val` -> same population.
+                if not any(b.strip().startswith("#@") and ("\\trusted" in b
+                           or b.strip().startswith("#@ declared_in")) for b in blk):
                     continue
                 if n.name not in raising:
                     continue

@@ -33,6 +33,7 @@ This SUPERSEDES the old whole-file `rocq/`/`lean/` tier (empty, abandoned, stale
 Exit 1 on any drift.
 """
 import ast
+import re
 import os
 import sys
 import difflib
@@ -151,6 +152,12 @@ def methods(path):
             # marker separated from the `def` by a note stopped being seen). Requiring the
             # `#@` prefix fixes both directions at once. Verbatim-checked 840 -> 886.
             if src[i].strip().startswith("#@") and "\\trusted" in src[i]:
+                trusted = True
+            # `#@ declared_in` (B4) is the same bodyless `val` as `\\trusted`: a cross-mixin
+            # declaration, certified by bin/check-declaration-conformance.py. Needed by
+            # check-sibling-concrete-fidelity (which imports `methods`): untaught, the 20
+            # declaration stubs read as 20 un-trusted DIVERGING relocations (measured).
+            if re.match(r"^#@\s*declared_in\b", src[i].strip()):
                 trusted = True
             i -= 1
         return trusted

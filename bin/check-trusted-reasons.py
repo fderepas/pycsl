@@ -113,7 +113,8 @@ import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from trusted_markers import (  # noqa: E402
-    ROOT, MIRROR, MIN_MIRROR_FILES, MARKER, iter_trusted_defs)
+    ROOT, MIRROR, MIN_MIRROR_FILES, MARKER, iter_trusted_defs, DECL_MARKER,
+    iter_declared_in_defs)
 
 TSV = os.path.join(ROOT, "getting-better", "trusted-reasons.tsv")
 BACKLOG = os.path.join(ROOT, "getting-better", "driver-backlog.md")
@@ -154,7 +155,7 @@ HEADER = ("file", "qualname", "reason", "cite")
 #        lines, ZERO new abstract operations, green whole-file proof in 38 minutes. Its
 #        near-twin `pycsl.py::_parse_args` is 174 lines, also proves, and is REFUSED by check
 #        1 for TEN new abstract operations — the whole of `argparse` going uninterpreted.
-MAX_UNCLASSIFIED = 257   # cv2 r3 2026-10-26 — 258 -> 257: `frontend/pure_ast.py::_const_value_setter` converted (its row was unclassified). cv2 r3 2026-10-26 — 259 -> 258: `frontend/pure_ast.py::_const_value_getter` converted (its row was unclassified). (#49) gen #37 ch27, 2026-10-19 — 260 -> 259: `ExpressionEmissionMixin._tag_of_value` converted (its row was unclassified).
+MAX_UNCLASSIFIED = 237   # dl4 2026-10-31 (cross-mixin-declaration-stubs B4) — 257 -> 237: the 20 `unclassified` rows of the B2-certified cross-mixin DECLARATION stubs moved OUT of this ledger with their markers (`#@ \trusted` -> `#@ declared_in`, a distinct class counted by count-trusted-directives and certified by check-declaration-conformance); no reason was reclassified. Previously: cv2 r3 2026-10-26 — 258 -> 257: `frontend/pure_ast.py::_const_value_setter` converted (its row was unclassified). cv2 r3 2026-10-26 — 259 -> 258: `frontend/pure_ast.py::_const_value_getter` converted (its row was unclassified). (#49) gen #37 ch27, 2026-10-19 — 260 -> 259: `ExpressionEmissionMixin._tag_of_value` converted (its row was unclassified).
                          # `pure_ast.py::_Unparser.visit_If` CONVERTED, live body verbatim
                          # (+ the honest `#@ \diverges` its `self.traverse` calls require,
                          # as on its verified siblings visit_While/visit_With/_for_helper).
@@ -380,6 +381,25 @@ def live_markers(mirror):
     return rows, problems, len(files)
 
 
+def live_declared_in(mirror):
+    """{(file, qualname): line} for every `#@ declared_in` def (cross-mixin-declaration-stubs B4).
+    NOT part of this ledger: a `declared_in` stub is not a `\\trusted` marker; its reason is
+    structural (a cross-mixin declaration) and its conformance is certified by
+    bin/check-declaration-conformance.py. A TSV row naming one is a defect (moved OUT)."""
+    out = {}
+    for f in sorted(glob.glob(os.path.join(mirror, "**/*.py"), recursive=True)):
+        src = open(f).read()
+        if "declared_in" not in src:
+            continue
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        for _node, m, q in iter_declared_in_defs(tree, src.split("\n")):
+            out[(os.path.relpath(f, mirror), q)] = m + 1
+    return out
+
+
 def read_tsv(path):
     """Return (entries, problems, has_header). entries: list of (tsv_line, file, qual, reason,
     cite) in file order."""
@@ -556,7 +576,15 @@ def run(args):
 
     for k in missing:
         defects.append("MISSING row for live marker %s:%d:%s" % (k[0], live[k], k[1]))
+    _din = live_declared_in(args.mirror)
+    say("[*] trusted-reasons: %d `#@ declared_in` stub(s) OUT of this ledger (a distinct class: "
+        "certified cross-mixin declarations, bin/check-declaration-conformance.py)" % len(_din))
     for n, k in orphans:
+        if k in _din:
+            defects.append("ROW at TSV line %d names a `#@ declared_in` stub %s::%s — that class "
+                           "is OUT of the \\trusted reason ledger; delete the row"
+                           % (n, k[0], k[1]))
+            continue
         defects.append("ORPHAN row at TSV line %d names no live marker: %s::%s" % (n, k[0], k[1]))
 
     if args.sync:

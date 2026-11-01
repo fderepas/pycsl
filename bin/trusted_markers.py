@@ -46,8 +46,50 @@ MIN_MIRROR_FILES = 40   # true population 53; a floor on the INPUT, never on the
 MARKER = re.compile(r"^#@\s*\\trusted\b")
 CONTAINS = "#@ \\trusted"
 
+# THE `#@ declared_in` CLASS (cross-mixin-declaration-stubs B4). A `#@ declared_in
+# <relpath>::<Class.m>` line parses to the SAME `Trusted` node as `\trusted` (identical emission:
+# a bodyless `val`), but it is NOT a `\trusted` marker: it is a cross-mixin DECLARATION whose
+# conformance to the named definition `bin/check-declaration-conformance.py` certifies (RED on
+# any non-conforming one). The headline `\trusted` count does NOT include it; every plane that
+# asks "is this body unverified / emitted as a val?" must treat it like a `\trusted` stub
+# (STUB_MARKER), and the count planes report it as its OWN column.
+DECL_MARKER = re.compile(r"^#@\s*declared_in\b")
+DECL_CONTAINS = "#@ declared_in"
+STUB_MARKER = re.compile(r"^#@\s*(?:\\trusted|declared_in)\b")
+
+
+def is_stub_marker_line(s):
+    """True iff the stripped line `s` is a `\trusted` OR a `declared_in` directive (both emit
+    the governed def as a bodyless `val`)."""
+    return STUB_MARKER.match(s.strip()) is not None
+
 _FUNC = (ast.FunctionDef, ast.AsyncFunctionDef)
 _SCOPE = (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)
+
+
+def _block_decl_line(lines, lineno):
+    """Index of the `#@ declared_in` line governing the def at `lineno`, or None (the same
+    upward walk as `_block_marker_line`)."""
+    i = lineno - 2
+    while i >= 0:
+        s = lines[i].strip()
+        if s.startswith("#@") or s.startswith("#") or s.startswith("@") or s == "":
+            if DECL_MARKER.match(s):
+                return i
+            i -= 1
+            continue
+        return None
+    return None
+
+
+def iter_declared_in_defs(tree, lines):
+    """Yield `(node, decl_line_index, qualname)` for every def governed by `#@ declared_in`."""
+    names = qualnames(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, _FUNC):
+            m = _block_decl_line(lines, node.lineno)
+            if m is not None:
+                yield node, m, names[id(node)]
 
 
 def _block_marker_line(lines, lineno):

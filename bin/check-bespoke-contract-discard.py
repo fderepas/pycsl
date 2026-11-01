@@ -140,6 +140,7 @@ TRIVIAL = (
     re.compile(r"^#@\s*ensures\s+True$"),
     re.compile(r"^#@\s*assigns\s+\\nothing$"),
     re.compile(r"^#@\s*\\trusted\b"),
+    re.compile(r"^#@\s*declared_in\b"),   # B4: a declaration marker, claims nothing
     re.compile(r"^#@\s*\\abstract\b"),
     re.compile(r"^#@\s*sibling_concrete\b"),
     re.compile(r"^#@\s*no_inline\b"),

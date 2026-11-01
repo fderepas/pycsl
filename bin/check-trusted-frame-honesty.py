@@ -771,6 +771,9 @@ def _mirror_nothing_stubs(mirror_root, want_trusted=True):
                             # inside a comment block must not count.
                             if stripped.startswith("#@") and "\\trusted" in stripped:
                                 trusted = True
+                            # B4: `#@ declared_in` is the same bodyless `val` (trusted arm)
+                            if stripped.startswith("#@ declared_in"):
+                                trusted = True
                             if stripped == "#@ assigns \\nothing":
                                 nothing = True
                             i -= 1
@@ -813,6 +816,9 @@ def _mirror_param_frames(mirror_root, want_trusted):
                                           or lines[i].strip() == ""):
                             stripped = lines[i].lstrip()
                             if stripped.startswith("#@") and "\\trusted" in stripped:
+                                trusted = True
+                            # B4: `#@ declared_in` is the same bodyless `val` (trusted arm)
+                            if stripped.startswith("#@ declared_in"):
                                 trusted = True
                             if stripped.startswith("#@ assigns"):
                                 for tgt in re.split(r",(?![^\[]*\])",
@@ -1128,12 +1134,14 @@ def main():
             _own.append((_q, sorted(_o), _vis, "%s.%s" % (_dcls, _d["name"])))
         if _i:
             _inh.append((_q, sorted(_i), "%s.%s" % (_dcls, _d["name"])))
-    print("[*] declaration-frame-honesty: %d declaration(s) (%d `\\trusted` stubs, %d "
-          "`requires_method` windows) resolved through the live MRO; %d understate their "
+    print("[*] declaration-frame-honesty: %d declaration(s) (%d stubs [%d `\\trusted`, %d `declared_in`], "
+          "%d `requires_method` windows) resolved through the live MRO; %d understate their "
           "DEFINITION's live writes that the definition itself declares (OWN, %d "
           "model-visible); %d inherit a definition frame that understates its live closure "
           "(INHERITED); %d unresolved."
           % (len(_decls), sum(1 for d in _decls if d["kind"] == "stub"),
+             sum(1 for d in _decls if d["kind"] == "stub" and not d.get("declared_in")),
+             sum(1 for d in _decls if d["kind"] == "stub" and d.get("declared_in")),
              sum(1 for d in _decls if d["kind"] == "window"), len(_own),
              sum(1 for o in _own if o[2]), len(_inh), len(_unres)))
     for _q, _o, _vis, _def in _own:

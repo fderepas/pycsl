@@ -263,7 +263,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # makes it available in this module's `_module_method_return_types`, so a local
     # bound from `self._expr_to_whyml(...)` types as `string` (L2), not `ref 0`.
     # Faithful: the real siblings do return `str`; this only surfaces that fact.
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/abstract_ops.py::AbstractOpsMixin._add_abstract_op
     #@ ensures True
     #@ assigns self._abstract_ops, self._obj_state_written
     def _add_abstract_op(self, decl: str) -> None:
@@ -313,7 +313,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     # cf6.md M1.4: the emit_ir-node predicate (`_handle_array_set_stmt` uses it to no-op an
     # `<emit_ir>[k]=v` write). Cross-mixin (lives in ExpressionEmissionMixin); a \trusted stub
     # here so the reflecting mirror type-checks the call.
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._is_emit_ir_expr
     #@ ensures True
     #@ assigns self._uses_pyast_parser_cache
     def _is_emit_ir_expr(self, ir: "ExprIR") -> bool:
@@ -428,7 +428,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `assigns \nothing`, so `any` keeps it a pure @staticmethod.
         return "(any (array int))"
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._coerce_to_int
     #@ ensures True
     def _coerce_to_int(self, val: str) -> str:
         return ""
@@ -454,13 +454,13 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                        subst: int = None) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._expr_to_whyml_string_ctx
     #@ ensures True
     #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap
     def _expr_to_whyml_string_ctx(self, ir: "ExprIR", local_refs: Set[str]) -> str:
         return ""
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._is_string_expr
     #@ ensures True
     #@ assigns self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_pyast_parser_cache
     def _is_string_expr(self, ir: "ExprIR") -> bool:
@@ -684,7 +684,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 return "string"
         return ghost_type
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._e
     #@ ensures True
     #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap
     def _e(self, ir: "ExprIR", local_refs: Set[str]) -> str:
@@ -782,7 +782,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 return info.get("field_types", {}).get(field_name)
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in Module6_WhyMLTranspiler.py::Module6_WhyMLTranspiler._maybe_emit_no_exception_assert
     #@ ensures True
     def _maybe_emit_no_exception_assert(self, kind: tuple, args: List[str]) -> str:
         return ""
@@ -805,7 +805,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return val_expr
         return self._coerce_to_int(val_expr)
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/preamble.py::PreambleEmissionMixin._mutex_inv_application
     #@ ensures True
     def _mutex_inv_application(self, mutex: str, inv_str: str) -> str:
         return ""

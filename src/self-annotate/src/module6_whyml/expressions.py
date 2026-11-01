@@ -99,7 +99,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                           "(str_split_elem_op ", "(int_to_string ", "(str_dunder_op ")
 
     # self-tcb-reduction T1.a: sibling stubs the ported expression handlers call cross-mixin.
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/abstract_ops.py::AbstractOpsMixin._add_abstract_op
     #@ ensures True
     #@ assigns self._abstract_ops, self._obj_state_written
     def _add_abstract_op(self, decl: str) -> None:

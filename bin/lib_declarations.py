@@ -264,9 +264,18 @@ def declarations(root, classes=None, marker_re=None):
                 is_marked = tm._block_marker_line(lines, fn.lineno) is not None
                 if marker_re is not None and any(marker_re.match(c) for c in own):
                     is_marked = True
+                # `#@ declared_in` (B4) is ALWAYS a declaration-class marker, whatever the
+                # caller passes: a consumer that forgot `marker_re` must not lose it.
+                decl_in = [c[len("declared_in"):].strip() for c in own
+                           if re.match(r"^declared_in\b", c)]
+                if decl_in:
+                    is_marked = True
                 if is_marked and q not in live_q:
                     out.append({"kind": "stub", "path": os.path.relpath(path, root),
                                 "rel": rel, "cls": cnode.name, "name": fn.name,
+                                "declared_in": decl_in,
+                                "trusted_marker": tm._block_marker_line(lines, fn.lineno)
+                                is not None,
                                 "clauses": [c for c in own if not c.startswith("\\trusted")],
                                 "node": fn, "lines": lines, "host": None,
                                 "line": fn.lineno,
@@ -279,6 +288,32 @@ def declarations(root, classes=None, marker_re=None):
                                 "clauses": w["clauses"], "node": None, "lines": lines,
                                 "host": fn.name, "line": w["line"], "sig": w["sig"],
                                 "defs": resolve(cnode.name, w["name"], classes, mros)})
+    return out
+
+
+def declared_in_markers(root):
+    """Every `#@ declared_in` directive in the mirror, as (repo-relative path, qualname, line,
+    target text) -- over ALL defs at any nesting (module level and nested defs included), so a
+    marker placed on something that is NOT a declaration is seen (the B2 plane refuses it)."""
+    out = []
+    mirror_root = os.path.join(root, MIRROR_REL)
+    for path in _mirror_files(mirror_root):
+        src = open(path, encoding="utf-8").read()
+        if "declared_in" not in src:
+            continue
+        lines = src.split("\n")
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        for node, m, q in tm.iter_declared_in_defs(tree, lines):
+            out.append((os.path.relpath(path, root), q, m + 1,
+                        re.sub(r"^#@\s*declared_in\b", "", lines[m].strip()).strip()))
+        # a directive line attached to no def at all
+        att = {m for _n, m, _q in tm.iter_declared_in_defs(tree, lines)}
+        for i, l in enumerate(lines):
+            if tm.DECL_MARKER.match(l.strip()) and i not in att:
+                out.append((os.path.relpath(path, root), None, i + 1, l.strip()))
     return out
 
 

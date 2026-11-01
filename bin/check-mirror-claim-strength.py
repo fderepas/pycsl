@@ -79,7 +79,7 @@ def classify():
                     nested = True
                     break
                 p = parent.get(p)
-            if any("\\trusted" in a for a in ann):
+            if any("\\trusted" in a or a.startswith("#@ declared_in") for a in ann):   # B4
                 cls = TRUSTED
             elif any(re.match(r"#@\s*ensures\s", a)
                      and not re.match(r"#@\s*ensures\s+True\s*$", a) for a in ann):

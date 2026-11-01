@@ -225,7 +225,9 @@ def scan():
                 if lines[i].strip().startswith("#@"):
                     ann.append(lines[i].strip())
                 i -= 1
-            if any("\\trusted" in a for a in ann):
+            # B4: a `#@ declared_in` stub is an ASSUMED contract too (certified against its
+            # definition, which may itself be trusted) -> conservatively a trust point here.
+            if any("\\trusted" in a or a.startswith("#@ declared_in") for a in ann):
                 trusted.add(k)
             c = set()
             for x in ast.walk(n):

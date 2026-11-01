@@ -255,13 +255,9 @@ module6_whyml/abstract_ops.py	AbstractOpsMixin._insert_abstract_val_block	unclas
 module6_whyml/auto_trust.py	AutoTrustMixin._build_witness_str	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 module6_whyml/auto_trust.py	AutoTrustMixin._check_witness_vals	unclassified	-
 module6_whyml/auto_trust.py	AutoTrustMixin._should_auto_trust_tuple_return	unclassified	-
-module6_whyml/expr_ghost_collections.py	GhostCollectionOpsMixin._e	unclassified	-
-module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._e	unclassified	-
-module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._expr_to_whyml_string_ctx	unclassified	-
 module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._handle_mktuple_expr	cost-scale:writing-call-in-comprehension	ROUTE #488 REPAIR
 module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._handle_proj_expr	unclassified	-
 module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._handle_ctor_payload_expr	unclassified	-
-module6_whyml/expressions.py	ExpressionEmissionMixin._add_abstract_op	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._is_emit_ir_expr	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._e	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._to_bool	unclassified	-
@@ -328,17 +324,9 @@ module6_whyml/preamble.py	PreambleEmissionMixin._emit_type_decls	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_opaque_class_aliases	unclassified	-
 module6_whyml/scc.py	compute_sccs	cost-scale:nested-closure-lift	the nested-closure lift
 module6_whyml/scc.py	sort_functions_by_scc	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-module6_whyml/statements.py	StatementEmissionMixin._add_abstract_op	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._resolve_dotted_signature	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._is_emit_ir_expr	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._coerce_to_int	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._expr_to_whyml	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._expr_to_whyml_string_ctx	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._is_string_expr	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._track_collection_metadata	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._e	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._maybe_emit_no_exception_assert	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._mutex_inv_application	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_return_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._emit_first_assign	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_assign_stmt	unclassified	-
@@ -352,17 +340,9 @@ module6_whyml/statements.py	StatementEmissionMixin._stmts_to_whyml	unclassified	
 module6_whyml/statements.py	StatementEmissionMixin._emit_frame_condition	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._typed_local_vars	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._emit_body_code	unclassified	-
-module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._is_string_expr	unclassified	-
-module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._add_abstract_op	unclassified	-
-module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._seq_init_expr	unclassified	-
-module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._expr_to_whyml	unclassified	-
-module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._coerce_to_int	unclassified	-
-module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._to_bool	unclassified	-
-module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._stmts_to_whyml	unclassified	-
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._classify_iterable	unclassified	-
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_for_stmt	unclassified	-
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._callee_raised_in	unclassified	-
-module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._match_pattern_cond	unclassified	-
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._render_match_pattern	unclassified	-
 module6_whyml/struct_format.py	parse_format	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 module6_whyml/struct_format.py	calcsize	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL

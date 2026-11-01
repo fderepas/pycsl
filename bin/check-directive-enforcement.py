@@ -127,7 +127,7 @@ DRIVER = os.path.join(ROOT, "src", "pycsl", "pycsl.py")
 # (#49) gen #31 — the floor. It starts at the number of pairs written in the commit that
 # introduced the plane, and only ever rises. A directive whose pair is DELETED, or a new
 # directive added to annotations.md without one, drops the fraction and turns this red.
-MIN_COVERED = 52
+MIN_COVERED = 53   # dl4 2026-10-31: + `declared_in` (B4)
 
 
 def population():
@@ -339,6 +339,21 @@ _SC_SRC = (
 
 
 CASES = {
+    # cross-mixin-declaration-stubs B4. `#@ declared_in <relpath>::<Class.m>` is enforced by
+    # REFUSAL outside `src/self-annotate/src/` (the harness writes its halves to a temp dir,
+    # which is outside): the VIOLATE half carries it on an honest method; the SATISFY half is
+    # the same program without it (so the refusal, and nothing else, is what bites). Inside
+    # the mirror its teeth are bin/check-declaration-conformance.py (frame / raises /
+    # pre-post / signature against the NAMED live-MRO definition; RED on any mismatch).
+    "declared_in": (
+        _ANCHOR + '\n\nclass C:\n    def __init__(self) -> None:\n        self.v = 0\n\n    #@ declared_in other.py::B.m\n'
+        '    #@ ensures \\result == 1\n    #@ assigns \\nothing\n'
+        '    def m(self) -> int:\n        return 1\n\n\n'
+        '#@ ensures \\result == 1\ndef f() -> int:\n    c = C()\n    return c.m()\n',
+        _ANCHOR + '\n\nclass C:\n    def __init__(self) -> None:\n        self.v = 0\n\n'
+        '    #@ ensures \\result == 1\n    #@ assigns \\nothing\n'
+        '    def m(self) -> int:\n        return 1\n\n\n'
+        '#@ ensures \\result == 1\ndef f() -> int:\n    c = C()\n    return c.m()\n', []),
     "requires": (
         _ANCHOR + '\n\n#@ requires x > 100\n#@ ensures \\result == x\n'
         'def f(x: int) -> int:\n    return x\n\n\n'

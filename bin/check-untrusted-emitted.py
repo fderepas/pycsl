@@ -109,6 +109,12 @@ def annotation_flags(lines, node):
         t = lines[i].strip()
         if t.startswith("#@ \\trusted"):
             trusted = True
+        # `#@ declared_in` (cross-mixin-declaration-stubs B4) parses to the same `Trusted` node
+        # and is emitted as the same bodyless `val`: OUTSIDE this gate's population (its
+        # emission is checked by count-trusted-directives' declared_in stale arm, and its
+        # contract by bin/check-declaration-conformance.py).
+        if t.startswith("#@ declared_in"):
+            trusted = True
         if t.startswith("#@ \\abstract"):
             abstract = True
         if not t and trusted:

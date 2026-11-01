@@ -147,7 +147,8 @@ def scan():
                         if lines[i].strip().startswith("#@"):
                             ann.append(lines[i].strip())
                         i -= 1
-                    if not any("\\trusted" in a or "\\abstract" in a for a in ann):
+                    if not any("\\trusted" in a or "\\abstract" in a
+                               or a.strip().startswith("#@ declared_in") for a in ann):   # B4
                         continue
                     end = getattr(n, "end_lineno", n.lineno) or n.lineno
                     body_text = lines[n.lineno - 1:end]

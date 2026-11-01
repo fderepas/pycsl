@@ -65,7 +65,8 @@ import sys
 #   _block_marker_line, and iter_trusted_defs (the ast.walk-order enumeration used below).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from trusted_markers import (  # noqa: E402
-    MIRROR, MIN_MIRROR_FILES, MARKER, CONTAINS, _block_marker_line, iter_trusted_defs)
+    MIRROR, MIN_MIRROR_FILES, MARKER, CONTAINS, _block_marker_line, iter_trusted_defs,
+    DECL_MARKER, iter_declared_in_defs)
 
 
 # Declaration scanners. The identifier is CAPTURED and then tested, rather than being
@@ -135,6 +136,12 @@ def main() -> int:
     unattached = []
     attached = 0
     stale = []
+    # `#@ declared_in` (cross-mixin-declaration-stubs B4): a DISTINCT class, reported in its own
+    # column and NEVER folded into `markers` (whose meaning is unchanged: `\trusted`
+    # directives). Same attachment + stale checks as the `\trusted` markers.
+    decl_markers = 0
+    decl_attached = 0
+    decl_unattached = []
 
     # ZERO-INPUT GUARD (gen #4, the #44 rule). This plane owns the campaign's HEADLINE
     # number and had no floor of any kind: a broken glob, a moved MIRROR or a partial
@@ -161,6 +168,8 @@ def main() -> int:
                 else:
                     offset_lines.append((rel, i + 1, l.strip()[:70]))
         markers += len(marker_idx)
+        decl_idx = {i for i, l in enumerate(lines) if DECL_MARKER.match(l.strip())}
+        decl_markers += len(decl_idx)
 
         try:
             tree = ast.parse(src)
@@ -175,6 +184,13 @@ def main() -> int:
         attached += len(claimed)
         for i in sorted(marker_idx - claimed):
             unattached.append((rel, i + 1, lines[i].strip()[:70]))
+        decl_claimed = set()
+        for node, m, _qualname in iter_declared_in_defs(tree, lines):
+            decl_claimed.add(m)
+            trusted_defs.append(node.name)      # emitted as a `val`, like a `\trusted` stub
+        decl_attached += len(decl_claimed)
+        for i in sorted(decl_idx - decl_claimed):
+            decl_unattached.append((rel, i + 1, lines[i].strip()[:70]))
 
         if emit_dir:
             # TWO NAMING CONVENTIONS EXIST IN THIS REPO AND THEY DISAGREE (gen #4). This
@@ -212,6 +228,11 @@ def main() -> int:
             print(f"      {len(files):3d}x  {text}")
     for u in unattached:
         print(f"    [!] UNATTACHED marker (annotates nothing): {u}")
+    print(f"[*] trusted-directives: declared_in {decl_markers} · attached {decl_attached} · "
+          f"unattached {len(decl_unattached)}  (a DISTINCT class, NOT in `markers`: cross-mixin "
+          f"declarations certified by bin/check-declaration-conformance.py; same `val` emission)")
+    for u in decl_unattached:
+        print(f"    [!] UNATTACHED declared_in (annotates nothing): {u}")
     if emit_dir:
         # A STALE COUNT OF 0 FROM AN EMPTY DIRECTORY IS NOT A PASS (gen #4, the #44 rule).
         # DEMONSTRATED before this guard existed: pointing --emit-dir at an EMPTY directory
@@ -226,11 +247,11 @@ def main() -> int:
                   f"naming convention this plane does not recognise. "
                   f"THIS IS A REFUSAL, NOT A PASS.")
             sys.exit(2)
-        print(f"    stale (trusted but emitted as a definition): {len(stale)} "
+        print(f"    stale (trusted or declared_in, but emitted as a definition): {len(stale)} "
               f"(over {matched_mlw} matched emission(s))")
         for s in stale:
             print(f"      [!] {s}")
-    bad = bool(unattached) or bool(stale)
+    bad = bool(unattached) or bool(stale) or bool(decl_unattached)
     if bad:
         print("[!] trusted-directives: FAIL")
         return 1

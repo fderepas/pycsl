@@ -209,6 +209,24 @@ def check(root):
         # bucket: base-class declaration (the declaring class inherits the definer)
         if dcls in L.c3_mro(d["cls"], _GRAPH[0]):
             bucket = "base-override"
+        # (g) `#@ declared_in` (B4): the NAMED target must EQUAL the live-MRO resolution, the
+        # stub must carry exactly one such line and no `\trusted` marker, and it may not sit
+        # on a ledgered (KNOWN_NONCONFORMING) or base-override declaration.
+        if d.get("declared_in"):
+            want = "%s::%s" % (os.path.relpath(dpath, os.path.join(root, L.LIVE_REL)), dq)
+            if len(d["declared_in"]) != 1:
+                fails.append("(g) %d `declared_in` lines (exactly one allowed)"
+                             % len(d["declared_in"]))
+            elif d["declared_in"][0] != want:
+                fails.append("(g) `declared_in %s` names a target other than the live-MRO "
+                             "definition %s" % (d["declared_in"][0], want))
+            if d.get("trusted_marker"):
+                fails.append("(g) `declared_in` together with a `\\trusted` marker")
+            if bucket != "other-mixin":
+                fails.append("(g) `declared_in` on a %s declaration (only other-mixin "
+                             "declarations are eligible)" % bucket)
+            if q.split(" (")[0] in KNOWN_NONCONFORMING:
+                fails.append("(g) `declared_in` on a LEDGERED non-conforming declaration")
         dc = d["clauses"]
         # (a) frame
         dfr, _ = L.frame(dc)
@@ -357,10 +375,27 @@ def main():
               "now; remove it and lower FAIL_RATCHET in the same commit." % q)
         rc = 1
     eligible = [q for d, q, _dq, fails, r2b, _n, b in rows
-                if d["kind"] == "stub" and not fails and not r2b and b == "other-mixin"]
+                if d["kind"] == "stub" and not fails and not r2b and b == "other-mixin"
+                and not d.get("declared_in")]
     print("[*] declaration-conformance: %d `\\trusted` declaration stub(s) are CHECKED here "
           "(conforming, other-mixin): the population a `#@ declared_in` marker may carry."
           % len(eligible))
+    # `#@ declared_in` (B4) population: every marker in the mirror must govern a declaration
+    # of THIS census (a marker on a def that has a live twin, a nested / module-level def, or
+    # no def at all would otherwise be skipped by every fidelity plane and checked by none).
+    din_rows = [r for r in rows if r[0].get("declared_in")]
+    din_ok = [r for r in din_rows if not r[3] and not r[4]]
+    pop = {(r[0]["path"], "%s.%s" % (r[0]["cls"], r[0]["name"])) for r in din_rows}
+    for path, qn, line, tgt in L.declared_in_markers(root):
+        if qn is None or (path, qn) not in pop:
+            print("[!] declaration-conformance: `#@ declared_in %s` at %s:%d governs %s, which "
+                  "is NOT a cross-mixin declaration of this census (it has a live twin, is not "
+                  "a class method, or annotates nothing): REFUSED." % (tgt, path, line,
+                                                                      qn or "no def"))
+            rc = 1
+    print("[*] declaration-conformance: %d `#@ declared_in` stub(s), %d CONFORM (each is a "
+          "certified cross-mixin declaration, counted apart from `\\trusted`)."
+          % (len(din_rows), len(din_ok)))
     for label, got, want in (("fail", n_fail, args.fail_ratchet),
                              ("r2b", n_r2b, args.r2b_ratchet)):
         if got > want:
