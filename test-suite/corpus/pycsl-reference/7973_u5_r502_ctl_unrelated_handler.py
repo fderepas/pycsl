@@ -1,11 +1,11 @@
-r"""Test 7973 -- route #502 (control, expected PASS): g's `[10 // v for v in xs]` may raise ZeroDivisionError only; f catches KeyError (not ZeroDivisionError) and requires every element non-zero; `ensures \result == len(xs)`; CPython f([1, 2]) returns 2
+r"""Test 7973 -- route #502 (control, expected PASS): g's `[10 // (v * v + 1) for v in xs]` (a non-literal divisor: summarised as ZeroDivisionError only); f catches KeyError (not ZeroDivisionError); `ensures \result == len(xs)`; CPython f([1, 2]) returns 2
 """
 # pycsl-expected: PASS
 from typing import Any, Dict, List, Optional
 
 #@ ensures \result == len(xs)
 def g(xs: List[int]) -> int:
-    ys = [10 // v for v in xs]
+    ys = [10 // (v * v + 1) for v in xs]
     return len(xs)
 
 
