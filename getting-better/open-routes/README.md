@@ -4,6 +4,20 @@
 ##   (a division inside a set / tuple display, `len([...])` or an `assert ... or True` test loses its ZeroDivisionError obligation, even
 ##   in the claimed function under `#@ no_exception ZeroDivisionError`).
 
+## run #4 (2026-11-01): #501 / #502 REPAIRED (executor u5 off e5237469f, 503f90465 + ledgers 9380ea786 / c58c77bac; inline in route
+##   #178 / #496's callee summary in `_reset_function_state`, mirror twin `\trusted`, no new def, no axiom; annotations §7.501 / §7.502).
+##   #501: #496's admission RESOLVES the callee instead of matching bare names: a free call admits only an exact module-level def or
+##   class; a method call only a receiver resolved to a program class C (class name, `self`, a parameter / local declared or bound
+##   only to C, `C(...)`, `super()` -> a program base) defining or inheriting the method; refusal code unchanged
+##   (PYCSL-R496-CALLEE-UNLISTED-CALL); closes #496's tail-named residual. #502 PYCSL-R502-CALLEE-COMPREHENSION-OBLIGATION: every
+##   TRIGGERS row whose shape occurs under a callee's Lambda / ListComp / SetComp / DictComp / GenExp (plus tuple targets, plus
+##   unclassified rows) joins its summary; literal non-zero divisors and non-negative literal powers exempt. Witnesses 10 x
+##   default / typed / store = 30 runs REFUSED; corpus 7950-7964 (FAIL), controls 7970-7973 (PASS). Over-refusal: corpus root
+##   0 / 0 / 0 (first draft refused control 6982 `super().h(k)`: fixed), pyref 2186/2186 0/0/0, mirror 53/53 0/0/0; 3308 FAIL
+##   witnesses' refusal messages unchanged; rt43 / rt44 83 CPython-honest probes 0 changed. NEW residual family (not opened):
+##   set / tuple display, `len([..])`, `assert` test lose their ZeroDivisionError obligation even under the function's own
+##   claim (witnesses-r502/residual/, 8 probes PROVED).
+
 ## run #4 (2026-11-01): #501-#505 OPENED (red team 45 on 0d561a23b = main + #496 / #498-#500 repairs: 332 probes / 303 breaching /
 ##   15 confirmed, all default mode; rt44's 139 pairs: 127 refused, #497's 12 = user decision): #501 r496-admission-by-bare-name (5);
 ##   #502 division-in-lambda-comprehension-of-callee (5); #503 r498-alias-exemption-ignores-rebinding (2); #504 r498-computed-field-identity
