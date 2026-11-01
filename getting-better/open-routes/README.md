@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-01): #510-#518 OPENED (red team 47 on ef45a0426: 2022 probes / 192 confirmed in 9 families, default mode; rt46's 134
+##   all refused): #510 pep695-type-statement-not-a-binding (34); #511 local-class-statement-not-a-binding (17); #512 bytes-count-obligations-lost (31);
+##   #513 r507-kind-reader-last-type-argument (10); #514 r507-range-length-by-spelling (17); #515 iife-lambda-body-erased (37); #516 r508-unknown-kind-operands
+##   (22); #517 pep695-type-params-ignored (10); #518 walrus-in-module-lambda-default (14). Driver repro rp47 17/17 + 3 by hand.
+
 ## run #4 (2026-11-01): #507 / #508 / #509 REPAIRED (executor u8 off d7eec1552, 85e1eb185 + its ledger / docs commit; inline in `_run_pipeline`
 ##   right after #506's census, mirror twin `\trusted`, no new def, no axiom, emission byte-identical; annotations §7.507). Under
 ##   `no_exception \all` (declared / reached) operands are read at a numeric kind (symbol table + SOURCE annotations + comprehension
