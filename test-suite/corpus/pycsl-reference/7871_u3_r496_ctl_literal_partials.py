@@ -1,4 +1,4 @@
-r"""Test 7871 -- route #496 (control, expected PASS): g calls the partial builtins only on arguments that cannot raise (`chr(65)`, `range(0, n, 2)`, `max(n, 0)`, `pow(n, 2)`); f catches ValueError; CPython f([], 3) returns 1
+r"""Test 7871 -- route #496 (control, expected PASS): g calls the partial builtins only on arguments that cannot raise (`chr(65)`, `range(0, n, 2)`, `max(n, 0)`, `pow(n, 2)`); f catches ValueError; g returns `len(chr(65))`; CPython f([], 3) returns 1
 """
 # pycsl-expected: PASS
 from typing import Any, Dict, List, Optional
@@ -9,7 +9,7 @@ def g(xs: List[int], n: int) -> int:
     r = len(range(0, n, 2))
     m = max(n, 0)
     p = pow(n, 2)
-    return 1
+    return len(c)
 
 
 #@ ensures \result == 1

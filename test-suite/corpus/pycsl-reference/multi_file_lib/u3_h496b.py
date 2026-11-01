@@ -1,7 +1,2 @@
-from typing import Any, Dict, List
-
-
-#@ ensures \result == 1
-def g(n: int) -> int:
+def g(n: int) -> None:
     y = chr(n)
-    return 1

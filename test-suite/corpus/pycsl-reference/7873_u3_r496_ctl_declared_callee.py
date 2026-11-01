@@ -1,4 +1,4 @@
-r"""Test 7873 -- route #496 (control, expected PASS): g holds `chr(n)` but DECLARES `#@ no_exception ValueError` under `requires 0 <= n < 256`, so the call is checked in g; f catches ValueError; CPython f(65) returns 1
+r"""Test 7873 -- route #496 (control, expected PASS): g holds `chr(n)` but DECLARES `#@ no_exception ValueError` under `requires 0 <= n < 256`, so the call is checked in g; f catches ValueError; g returns `len(chr(n))`; CPython f(65) returns 1
 """
 # pycsl-expected: PASS
 from typing import Any, Dict, List, Optional
@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Optional
 #@ no_exception ValueError
 def g(n: int) -> int:
     y = chr(n)
-    return 1
+    return len(y)
 
 
 #@ requires 0 <= n and n < 256

@@ -1,4 +1,4 @@
-r"""Test 7859 -- route #496 (expected FAIL: PROVED at base, REFUSED PYCSL-R496-CALLEE-UNLISTED-CALL): an IMPORTED g (multi_file_lib/u3_h496a.py) holding `s.index("z")`; f catches ValueError; CPython f('a') returns 2 (red team 44 probe g514/c51400_sindex_import.py)
+r"""Test 7859 -- route #496 (expected FAIL: PROVED at base, REFUSED PYCSL-R496-CALLEE-UNLISTED-CALL): an IMPORTED g (multi_file_lib/u3_h496a.py) holding `s.index("z")` (un-contracted void); f's handler sets r = 2; CPython f('a') returns 2 (red team 44 probe g514/c51400_sindex_import.py)
 """
 # pycsl-expected: FAIL
 from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterator, Sequence, FrozenSet
@@ -9,10 +9,12 @@ from multi_file_lib.u3_h496a import g
 
 #@ ensures \result == 1
 def f(s: str) -> int:
+    r = 1
     try:
-        return g(s)
+        g(s)
     except ValueError:
-        return 2
+        r = 2
+    return r
 
 
 if __name__ == "__main__":

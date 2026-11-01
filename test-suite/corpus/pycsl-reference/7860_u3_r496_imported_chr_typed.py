@@ -1,4 +1,4 @@
-r"""Test 7860 -- route #496 (expected FAIL: PROVED at base, REFUSED PYCSL-R496-CALLEE-UNLISTED-CALL (typed model)): an IMPORTED g (multi_file_lib/u3_h496b.py) holding `chr(n)`, typed model; f catches ValueError; CPython f(-1) returns 2 (red team 44 probe g514/c51404_chr_import.py)
+r"""Test 7860 -- route #496 (expected FAIL: PROVED at base, REFUSED PYCSL-R496-CALLEE-UNLISTED-CALL (typed model)): an IMPORTED g (multi_file_lib/u3_h496b.py) holding `chr(n)` (un-contracted void), typed model; f's handler sets r = 2; CPython f(-1) returns 2 (red team 44 probe g514/c51404_chr_import.py)
 """
 # pycsl-expected: FAIL
 # pycsl-flags: --memory-model typed
@@ -10,10 +10,12 @@ from multi_file_lib.u3_h496b import g
 
 #@ ensures \result == 1
 def f(n: int) -> int:
+    r = 1
     try:
-        return g(n)
+        g(n)
     except ValueError:
-        return 2
+        r = 2
+    return r
 
 
 if __name__ == "__main__":
