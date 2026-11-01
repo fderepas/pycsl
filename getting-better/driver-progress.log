@@ -13009,3 +13009,4 @@ measurement instead of re-running two hours of it.
 2026-10-28T08:25:49Z routes #430 #431 REPAIRED + R-gate BUILT: hashing #UND residual closed under claims, 0 mirror cost
 2026-10-28T14:22:57Z u411 integration candidate pycsl-int 5e94f3f2a+6afbe3b49-pick: v8 GREEN (root 10 / pyref 4 / mirror 18 movers = declared, byte-identical to u411's proved emissions; planes 61; ledgers OK; witnesses 8/8 FAIL, controls 2/2 PASS); landing HELD for owed mirror proofs expressions (running) + pure_ast
 2026-11-01T00:50:00Z wall cross-mixin-declaration-stubs: B0/B1/B2 LANDED (1217d2745; 3 movers re-proved); B4 with dl4
+2026-11-01T04:10:00Z wall cross-mixin-declaration-stubs: B4 declared_in LANDED — grep 437->417 (gross -20, net -2)
