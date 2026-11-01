@@ -2005,6 +2005,29 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         f"_si + String.length {left} <= String.length {right} /\\ "
                         f"String.substring {right} _si (String.length {left}) = {left})")
                 return f"(not {form})" if negate else form
+            # wall lex-char-class step 5 (review §3): `<expr> in "<short literal>"` --
+            # the haystack is a LITERAL, so the set of needles for which `in` is True is
+            # FINITE: exactly the substrings of the literal (the empty string included).
+            # Lower to a per-literal op whose ensures ENUMERATES them: byte-for-byte
+            # Python's semantics, but needing no string theory (Alt-Ergo has none; the
+            # substring-existential `str_contains_op` is out of its reach). Gated: the
+            # literal is 1..8 printable-ASCII characters with no backslash / double
+            # quote (so each substring is its own plain WhyML literal), and the needle is
+            # not itself a literal.
+            _hlit = rhs.get("value") if rhs.get("type") == "String" else None
+            _lir5 = expr.get("left")
+            if (isinstance(_hlit, str) and 1 <= len(_hlit) <= 8
+                    and all(" " <= _ch <= "~" and _ch not in "\\\"" for _ch in _hlit)
+                    and isinstance(_lir5, dict) and _lir5.get("type") != "String"):
+                _subs = sorted({_hlit[_a:_b] for _a in range(len(_hlit) + 1)
+                                for _b in range(_a, len(_hlit) + 1)}, key=lambda _x: (len(_x), _x))
+                _iop = "str_in_lit_" + "".join(f"{ord(_ch):02x}" for _ch in _hlit) + "_op"
+                _alts = " \\/ ".join(f'needle = "{_x}"' for _x in _subs)
+                self._add_abstract_op(
+                    f"val {_iop} (needle: string) : bool\n"
+                    f"    ensures {{ result <-> ({_alts}) }}")
+                _icall = f"({_iop} {left})"
+                return f"(not {_icall})" if negate else _icall
             self._add_abstract_op(
                 "val str_contains_op (haystack: string) (needle: string) : bool\n"
                 "    ensures { result <->\n"
