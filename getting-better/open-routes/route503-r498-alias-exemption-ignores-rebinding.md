@@ -28,4 +28,4 @@ Witnesses: both in `witnesses-r503/` REFUSED (`PYCSL-R503-IS-ALIAS-ROOT-REBOUND`
 PROVED at base, refused by name); controls 7990 (root bound once, an unrelated name rebound) / 7991 (`a is a` on a rebound
 name) PROVED. Advice followed (witnesses-r503/advice): `==` and a renamed second binding VERIFY (default model).
 Over-refusal: corpus root 0 MOVED / 0 GONE / 0 APPEARED vs v23/bd (5 new controls emit), pyref 2186/2186 0/0/0, mirror 53/53 0/0/0 vs mir-main14 (a first draft refused 2 mirror files through #504 -- frontend/pure_ast `operator_precedence is not _Precedence.FACTOR` via a class-level dict read on `self`, module6_whyml/statements `stmt.origin is not _ABSENT` against ir_schema's `object()` sentinel -- fixed in fc3e8512f); rt43 / rt44 / rt45 CPython-honest controls (345): 0 refused by #503 / #504 / #505.
-Commits: 15b5b3e37 (rule + corpus), fc3e8512f (#504 mirror fix in the same pass).
+Commits: 15b5b3e37 (rule + corpus), fc3e8512f (#504 mirror fix in the same pass), dd736c419 (pathlib read, CTXBIND ratchet kept at 51). Final battery on dd736c419: fidelity 3/3, carriers, advice 217, planes 62/62 fast green; driver runs --slow.

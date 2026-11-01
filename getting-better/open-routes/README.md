@@ -18,7 +18,7 @@
 ##   set / tuple display, `len([..])`, `assert` test lose their ZeroDivisionError obligation even under the function's own
 ##   claim (witnesses-r502/residual/, 8 probes PROVED).
 
-## run #4 (2026-11-01): #503 / #504 / #505 REPAIRED (executor u6 off e5237469f, 15b5b3e37 + fc3e8512f; inline, mirror twins `\trusted`
+## run #4 (2026-11-01): #503 / #504 / #505 REPAIRED (executor u6 off e5237469f, 15b5b3e37 + fc3e8512f + dd736c419; inline, mirror twins `\trusted`
 ##   (`_run_pipeline`, `ir_inline._expand`), no new def, no axiom, route #498's message byte-identical; annotations §7.503-§7.505).
 ##   #503 PYCSL-R503-IS-ALIAS-ROOT-REBOUND: an alias chain's common root exempts an `is` only when bound once for the whole call
 ##   (unrebound parameter / outer name / one plain assignment); `a is a` stays exempt. #504 PYCSL-R504-IS-ON-STORED-VALUE: a field
