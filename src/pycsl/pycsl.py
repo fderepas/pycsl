@@ -16549,6 +16549,296 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             f"raises at n == 0). Bind the operation to a local in a plain statement first "
             f"(`q = 10 // n` then `s = {{q}}`), where its own obligation applies.",
             stage="whyml", code="PYCSL-R506-TRIGGER-SITE-UNLOWERED")
+    # (#49) ROUTES #507 / #508 / #509 -- THE OverflowError OBLIGATIONS OF `\all` MUST REACH
+    # THEIR LOWERING TOO. Route #506's census above covers the `exception_model.TRIGGERS`
+    # rows only; the OverflowError obligations the emitter attaches under `no_exception \all`
+    # alone -- route #414 (`s * n`, `[x] * n`: the count is a Py_ssize_t; `len(range(..))`)
+    # and route #417 (`list(range(..))` / `sorted(range(..))`, `float(<int>)`: |n| <= DBL_MAX)
+    # -- live in `_handle_binop` / `_handle_call_expr` as inline asserts, and a display /
+    # `len(<display>)` / builtin wrapper modelled by size or truth (`(any T)`) never calls
+    # them. MEASURED (red team 46, CPython OverflowError at n = 10**20 / 10**400, each PROVED
+    # `no_exception \all`): `{"ab" * n}`, `(1, [0] * n)`, `{len(range(n))}`, `len(["ab" * n])`,
+    # `[*zs, list(range(n))]`, `sorted((s * n, 1))`, `id([0] * n)` (#507, 71); `{n * 1.5}`,
+    # `(x + n, 1)` -- an int -> float promotion in an arithmetic operation, which raises past
+    # DBL_MAX and has NO obligation anywhere: the plain form only failed as a Why3 type error
+    # (#508, 29); and the same operations in a comprehension element / condition / iterable or
+    # a lambda body, whose census (#177 / #285 / #287) refuses the Phase-1 rows only (#509,
+    # 34). So, in every verified body judged under `\all` (declared, or REACHED, #460), read
+    # the numeric kind of each operand (an int literal fitting an index / a double, an int, a
+    # float, a known non-number, or unknown) and REFUSE BY DEFAULT:
+    #   (#508) an arithmetic operation (`+ - * / // % **`) with a float operand and an int or
+    #       unknown one, wherever it is (its int -> float conversion owes |n| <= DBL_MAX and
+    #       no lowering states it);
+    #   (#509) inside a comprehension / generator / lambda, an OverflowError site: `a * b`
+    #       unless an operand is a small int literal or both are ints / both floats,
+    #       `len` / `list` / `sorted` of a `range(..)`, `float(x)` of a non-float;
+    #   (#507) elsewhere, the same site whose handler lowering is not in the def's emitted
+    #       block at least as often as the site occurs (the observation of route #506).
+    _bad507 = None
+    _ar507 = ("+", "-", "*", "/", "//", "div", "%", "mod", "**")
+    # the kind of a declared type string ("" unknown; a container's ELEMENT kind with `_e`)
+    _tk507 = (lambda _t: (lambda _b: "i" if _b == "int" else "f" if _b == "float"
+                          else "s" if _b == "bool" else "o" if _b in (
+                              "str", "bytes", "bytearray", "list", "dict", "set", "frozenset",
+                              "tuple", "sequence", "mapping", "iterable") else "")(
+        str(_t or "").split("[")[0].strip().lower().rsplit(".", 1)[-1]))
+    _te507 = (lambda _t: (lambda _s: _tk507(_s[_s.find("[") + 1:_s.rfind("]")]
+                                            .rsplit(",", 1)[-1])
+                          if "[" in _s and _s.rfind("]") > _s.find("[") else "")(
+        str(_t or "").replace(" ", "")))
+    # the SOURCE annotations of parameters / annotated locals (the IR symbol table erases a
+    # container's element type: `List[int]` -> `list`), per def name; a name two defs (or
+    # two annotations) disagree on is unknown
+    import ast as _ast507
+    _sa507: Dict[str, Dict[str, str]] = {}
+    try:
+        _tr507 = _ast507.parse(source_code)
+    except SyntaxError:
+        _tr507 = None
+    for _fd507 in ([_z for _z in _ast507.walk(_tr507) if isinstance(
+            _z, (_ast507.FunctionDef, _ast507.AsyncFunctionDef))] if _tr507 is not None else []):
+        _dm507: Dict[str, str] = {}
+        for _ag507 in (list(_fd507.args.posonlyargs) + list(_fd507.args.args)
+                       + list(_fd507.args.kwonlyargs)):
+            if _ag507.annotation is not None:
+                _dm507[_ag507.arg] = _ast507.unparse(_ag507.annotation)
+        for _z507 in _ast507.walk(_fd507):
+            if (isinstance(_z507, _ast507.AnnAssign) and isinstance(_z507.target, _ast507.Name)):
+                _u507 = _ast507.unparse(_z507.annotation)
+                _dm507[_z507.target.id] = (_u507 if _dm507.get(_z507.target.id, _u507) == _u507
+                                           else "?")
+        _om507 = _sa507.get(_fd507.name)
+        _sa507[_fd507.name] = (_dm507 if _om507 is None else {
+            _k: _v for _k, _v in _dm507.items() if _om507.get(_k) == _v})
+    for _f507 in _ver506:
+        if _bad507 is not None:
+            break
+        _fn507 = str(_f507.get("name", ""))
+        _rh507 = (getattr(transpiler, "reach_r460", None) or {}).get(_fn507) or ([], False)
+        if not ((_f507.get("contracts") or {}).get("no_exception_all") or _rh507[1]):
+            continue
+        _an507 = _sa507.get(_fn507.rsplit("__", 1)[-1]) or {}
+        _st507 = {str(_k): (_an507.get(str(_k)) or _v)
+                  for _k, _v in (_f507.get("symbol_table") or {}).items()}
+        # an unannotated local (`Any` in the table) is read at the kind of the values bound to
+        # it when every binding is a plain / augmented assignment of one kind (any other
+        # binding form -- a loop / unpack / `with` / walrus target -- leaves it unknown)
+        _lk507: Dict[str, str] = {}
+        # the numeric kind of an expression: "s" an int literal within an index / a
+        # double (or a bool), "i" an int, "f" a float, "o" a known non-number, "" unknown
+        _kd507f = (lambda _cv: (lambda _g: lambda _e: _g(_g, _e))(lambda _g, _e: (
+            "" if not isinstance(_e, dict) else
+            ("s" if isinstance(_e.get("value"), bool) or (
+                isinstance(_e.get("value"), int)
+                and abs(_e["value"]) <= 9223372036854775807)
+             else "i" if isinstance(_e.get("value"), int)
+             else "f" if isinstance(_e.get("value"), float) else "")
+            if _e.get("type") == "Number" else
+            "s" if _e.get("type") == "Bool" else
+            "o" if _e.get("type") in ("String", "Str", "FString", "ArrayLit", "ListLit",
+                                      "Tuple", "SetLit", "DictLit", "ListComp", "SetComp",
+                                      "DictComp", "GenExp", "NoneLit", "None") else
+            (_cv[_e.get("name")] if _e.get("name") in _cv
+             else _tk507(_st507.get(str(_e.get("name"))))
+             or _lk507.get(str(_e.get("name")), ""))
+            if _e.get("type") == "Var" else
+            (lambda _o: "i" if _o == "s" else _o)(
+                _g(_g, _e.get("operand") or _e.get("expr")))
+            if _e.get("type") == "UnaryOp" and _e.get("op") in ("-", "+", "USub", "UAdd")
+            else "s" if _e.get("type") == "UnaryOp" and _e.get("op") in ("not", "Not")
+            else (lambda _l, _r, _op: (
+                "o" if "o" in (_l, _r) and _op in ("+", "*", "/", "%", "mod") else
+                "f" if _op == "/" or "f" in (_l, _r) and _l and _r else
+                "i" if _l in ("i", "s") and _r in ("i", "s") else ""))(
+                _g(_g, _e.get("left")), _g(_g, _e.get("right")), _e.get("op"))
+            if _e.get("type") == "BinOp" and _e.get("op") in _ar507 else
+            ("i" if _e.get("func") in ("len", "ord", "hash", "int", "id")
+             else "f" if _e.get("func") == "float"
+             else "o" if _e.get("func") in ("str", "repr", "list", "sorted", "dict",
+                                            "set", "tuple", "bytes", "bytearray",
+                                            "frozenset", "chr", "format")
+             else (lambda _a: "i" if _a == "s" else _a)(
+                 _g(_g, (_e.get("args") or [None])[0]))
+             if _e.get("func") == "abs" and len(_e.get("args") or []) == 1 else "")
+            if _e.get("type") == "Call" and _e.get("receiver") is None else
+            (_te507(_st507.get(str(_e["value"].get("name"))))
+             if isinstance(_e.get("value"), dict) and _e["value"].get("type") == "Var"
+             and _e["value"].get("name") not in _cv else "")
+            if _e.get("type") == "Subscript" else
+            (lambda _a, _b: _a if _a == _b else "")(
+                _g(_g, _e.get("body")), _g(_g, _e.get("orelse")))
+            if _e.get("type") == "IfExp" else "")))
+        _kd0507 = _kd507f({})
+        for _ps507 in range(3):
+            _nk507: Dict[str, List[str]] = {}
+            _wl507: List[Any] = [_f507.get("body")]
+            while _wl507:
+                _y507 = _wl507.pop()
+                if isinstance(_y507, list):
+                    _wl507.extend(_y507)
+                    continue
+                if not isinstance(_y507, dict):
+                    continue
+                _wl507.extend(_v for _v in _y507.values() if isinstance(_v, (dict, list)))
+                for _tt507 in ([_y507.get("target")] + [
+                        _t for _t in (_y507.get("targets") or []) if isinstance(_t, str)]):
+                    if not isinstance(_tt507, str):
+                        continue
+                    _nk507.setdefault(_tt507, []).append(
+                        "" if _tt507 != _y507.get("target") or _y507.get("stmt") not in (
+                            "Assign", "AnnAssign", "AugAssign") else
+                        _kd0507({"type": "BinOp", "op": _y507.get("op"),
+                                 "left": {"type": "Var", "name": _tt507},
+                                 "right": _y507.get("value")})
+                        if _y507.get("stmt") == "AugAssign" else _kd0507(_y507.get("value")))
+            _lk507 = {_k: (_v[0] if len(set(_v)) == 1 else "") for _k, _v in _nk507.items()}
+        # (node, comprehension / lambda it is inside or None, comprehension-variable kinds)
+        _wk507: List[Any] = [(_f507.get("body"), None, {})]
+        _sites507: Dict[str, List[Any]] = {}
+        while _wk507 and _bad507 is None:
+            _x507, _cp507, _cv507 = _wk507.pop()
+            if isinstance(_x507, list):
+                _wk507.extend((_v, _cp507, _cv507) for _v in _x507)
+                continue
+            if not isinstance(_x507, dict):
+                continue
+            _ty507 = _x507.get("type")
+            if _x507.get("stmt") in ("GhostAssign", "GhostArraySet", "ProofAssert", "Label"):
+                continue
+            _kd507 = _kd507f(_cv507)
+            _ncp507, _ncv507 = _cp507, _cv507
+            if _ty507 in ("ListComp", "SetComp", "DictComp", "GenExp", "Lambda"):
+                _ncp507, _ncv507 = (_cp507 or _x507), dict(_cv507)
+                for _g507 in (_x507.get("generators") or []):
+                    if not isinstance(_g507, dict):
+                        continue
+                    _it507 = _g507.get("iter") if isinstance(_g507.get("iter"), dict) else {}
+                    _ek507 = ("i" if _it507.get("type") == "Call"
+                              and _it507.get("func") == "range" and _it507.get("receiver") is None
+                              else _te507(_st507.get(str(_it507.get("name"))))
+                              if _it507.get("type") == "Var" and _it507.get("name") not in _ncv507
+                              else (lambda _ks: _ks[0] if len(set(_ks)) == 1 else "")(
+                                  [_kd507(_v) for _v in (_it507.get("elts") or [])] or [""])
+                              if _it507.get("type") in ("ArrayLit", "ListLit", "Tuple", "SetLit")
+                              else "")
+                    for _tn507 in ([_g507.get("target")] + list(_g507.get("targets") or [])):
+                        if isinstance(_tn507, str):
+                            _ncv507[_tn507] = _ek507 if _g507.get("target") == _tn507 else ""
+                for _an507 in (_x507.get("args") or []) if _ty507 == "Lambda" else []:
+                    _ncv507[str(_an507.get("name") if isinstance(_an507, dict) else _an507)] = ""
+            _wk507.extend((_v, _ncp507, _ncv507) for _kk507, _v in _x507.items()
+                          if isinstance(_v, (dict, list)) and _kk507 not in (
+                              "invariants", "variants", "assume_invariant", "prove_invariant",
+                              "contracts", "decreases"))
+            _ov507 = ""
+            if _ty507 == "BinOp" and _x507.get("op") in _ar507:
+                _l507, _r507 = _kd507(_x507.get("left")), _kd507(_x507.get("right"))
+                if "f" in (_l507, _r507) and {_l507, _r507} & {"i", ""}:
+                    _bad507 = ("508", _fn507, _x507, "")
+                    break
+                if _x507.get("op") == "*" and not (
+                        "s" in (_l507, _r507) or (_l507, _r507) in (("i", "i"), ("f", "f"))):
+                    _ov507 = "`*` (a repetition count is a Py_ssize_t: route #414)"
+            elif _ty507 == "Call" and _x507.get("receiver") is None:
+                _a507 = (_x507.get("args") or [None])[0]
+                if (_x507.get("func") in ("len", "list", "sorted") and isinstance(_a507, dict)
+                        and _a507.get("type") == "Call" and _a507.get("func") == "range"):
+                    _ov507 = ("`" + str(_x507.get("func")) + "(range(..))` (the range length "
+                              "is a Py_ssize_t: routes #414 / #417)")
+                elif (_x507.get("func") == "float" and _a507 is not None
+                      and _kd507(_a507) not in ("f", "s", "o")):
+                    _ov507 = "`float(<int>)` (|n| <= DBL_MAX: route #417)"
+            if not _ov507:
+                continue
+            if _cp507 is not None:
+                _bad507 = ("509", _fn507, _x507, _ov507,
+                           "a lambda body" if _cp507.get("type") == "Lambda"
+                           else "a comprehension / generator expression")
+                break
+            try:
+                _kx507 = _key506(_x507)
+            except Exception:
+                _kx507 = "?" + repr(_x507)
+            _sites507.setdefault(_kx507, []).append((_x507, _ov507))
+        if _bad507 is not None or not _sites507:
+            continue
+        _txt507 = "".join(("\n".join(_blk506[_fn507]) if _fn507 in _blk506 else (_mlw or ""))
+                          .split())
+        _got507: Dict[str, int] = {}
+        for _rf507, _rn507, _rs507, _rq507 in _rec506:
+            if _fn507 in _blk506 and _rf507 != _fn507:
+                continue
+            if id(_rn507) not in _kc506:
+                try:
+                    _kc506[id(_rn507)] = _key506(_rn507)
+                except Exception:
+                    _kc506[id(_rn507)] = ""
+            _kr507 = _kc506[id(_rn507)]
+            if _kr507 in _sites507:
+                _nr507 = "".join(_rs507.split())
+                _got507[_kr507] = max(_got507.get(_kr507, 0),
+                                      _txt507.count(_nr507) if _nr507 else 0)
+        # a `list` / `sorted` / `float` site may be lowered by a statement-level form (`for x
+        # in sorted(range(n))`) that states route #417's obligation itself: its `[@r417_<h>]`
+        # tag (stable per call node) in the def's block counts as a kept lowering
+        from module6_whyml.identifiers import stable_hash as _sh507
+        for _kx507, _ns507 in _sites507.items():
+            _n0507 = _ns507[0][0]
+            if _n0507.get("type") == "Call" and _n0507.get("func") in ("list", "sorted", "float"):
+                try:
+                    _tg507 = "[@r417_%08x]" % (_sh507(repr(_efd506(_n0507).to_dict()))
+                                               & 0xffffffff)
+                    _got507[_kx507] = max(_got507.get(_kx507, 0), _txt507.count(_tg507))
+                except Exception:
+                    pass
+            if len(_ns507) > _got507.get(_kx507, 0):
+                _bad507 = ("507", _fn507, _ns507[0][0], _ns507[0][1])
+                break
+    if _bad507 is not None:
+        from errors import PyCSLSemanticError as _PyCSLSemErr507
+        _n507 = _bad507[2]
+        _at507 = (f"in `{_bad507[1]}`" + (f" (line {_n507.get('lineno')})"
+                                          if _n507.get("lineno") else ""))
+        if _bad507[0] == "508":
+            raise _PyCSLSemErr507(
+                f"PYCSL-R508-INT-FLOAT-PROMOTION-UNMODELLED: {_at507}, the operation "
+                f"`{ {'div': '//', 'mod': '%'}.get(str(_n507.get('op')), str(_n507.get('op'))) }` "
+                f"mixes a float with an int (or a value of unknown type), so Python converts the "
+                f"int to a float first, and that conversion raises OverflowError (\"int too "
+                f"large to convert to float\") when |n| > DBL_MAX ~ 1.8e308. The function is "
+                f"judged under `no_exception \\all` (declared, or reached from a caller that "
+                f"declares it, route #460), and no lowering states that obligation: the plain "
+                f"form only failed as a Why3 type error, and inside a set / tuple display, "
+                f"`len(...)` or a comprehension it PROVED (route #508; measured: `v = {{n * 1.5}}` "
+                f"proved, CPython raises at n = 10**400). Convert explicitly where the bound is "
+                f"stated (`#@ requires` a bound on the int, then `float(n)`, which owes "
+                f"|n| <= DBL_MAX), or use one numeric type throughout the arithmetic.",
+                stage="whyml", code="PYCSL-R508-INT-FLOAT-PROMOTION-UNMODELLED")
+        if _bad507[0] == "509":
+            raise _PyCSLSemErr507(
+                f"PYCSL-R509-COMPREHENSION-OVERFLOW-SITE: {_at507}, {_bad507[4]} contains "
+                f"{_bad507[3]}, which raises OverflowError for a huge int, and the function is "
+                f"judged under `no_exception \\all` (declared, or reached from a caller that "
+                f"declares it, route #460). The comprehension / lambda is lowered without its "
+                f"per-element obligations, and routes #177 / #285 / #287 refuse only the "
+                f"Phase-1 exceptions there, so the claim would be proved without this one "
+                f"(route #509; measured: `[\"ab\" * n for _ in range(1)]` and `[float(n) for _ "
+                f"in range(1)]` proved, CPython raises at n = 10**20 / 10**400). Write the loop "
+                f"explicitly (each statement carries its own obligation), or drop `\\all` from "
+                f"the context.",
+                stage="whyml", code="PYCSL-R509-COMPREHENSION-OVERFLOW-SITE")
+        raise _PyCSLSemErr507(
+            f"PYCSL-R507-OVERFLOW-SITE-UNLOWERED: {_at507}, {_bad507[3]} can raise "
+            f"OverflowError for a huge int, and the function is judged under `no_exception "
+            f"\\all` (declared, or reached from a caller that declares it, route #460), but "
+            f"the expression around it is lowered WITHOUT evaluating it (a set / tuple / "
+            f"starred display, `len(...)` / `sorted(...)` of a display, a builtin wrapper such "
+            f"as `id` / `type` / `max` / `reversed`: modelled by size or truth only), so its "
+            f"OverflowError obligation is absent from the proof (route #507; measured: `v = "
+            f"{{\"ab\" * n}}`, `v = (1, [0] * n)` and `v = len([len(range(n))])` proved, "
+            f"CPython raises at n = 10**20). Bind the operation to a local in a plain statement "
+            f"first (`t = \"ab\" * n` then `v = {{t}}`), where its own obligation applies.",
+            stage="whyml", code="PYCSL-R507-OVERFLOW-SITE-UNLOWERED")
     # (#49) ROUTE #417 -- every OverflowError obligation the emitter attached to a
     # `list(range(..))` / `sorted(range(..))` / `float(int)` argument carries a tag stable
     # per call node; a later int coercion that drops the argument term drops the obligation
