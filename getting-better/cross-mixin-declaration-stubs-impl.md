@@ -202,3 +202,51 @@ Module6_WhyMLTranspiler (the base mirror emission equals v18's proved one byte f
 and check-emitted-function-coverage OK; check-trusted-frame-honesty --emit-dir OK; check-assigns-underdeclaration
 --transitive OK (TRAP 3, HOLE 0); check-trusted-reasons 409 <-> 409; count-trusted-directives markers 409 / grep 437;
 check-assumed-facts OK. `\trusted` 437 lines / 409 markers before and after (gross 0, net 0).
+
+## 7. Execution record (executor dl4, driver run #4, 2026-10-31/11-01) — B4 BUILT
+
+Base `4b626bc4b` (int13 = main `e7d7cdd47` + dc2's B0/B1/B2). Commits: `edaf10b77` (directive, refusal,
+corpus, docs), `92fadf94b` (20 conversions + planes taught + ledgers).
+
+**Directive.** `#@ declared_in <relpath>.py::<Class>.<method>` parses in `Module2_Parser._parse_contract`
+(inline: its mirror twin is `\trusted`, lesson a4) to the SAME `Trusted` node as `\trusted`, with
+`reviewer = "declared_in:<target>"` (no reviewer reaches the WhyML), so emission is identical by
+construction AND pycsl's own TCB accounting still counts it as trusted. `_run_pipeline` REFUSES it in any
+file outside `src/self-annotate/src/` (choke-point rule). Malformed target = parse refusal; `# @declared_in`
+= ingestor near-miss refusal. pycsl.py's text-level `\trusted` block scans (#444 / #449 / #226 / #468 /
+#489) read `declared_in` as `\trusted`. Corpus: 7827 FAIL (refused; without the refusal `f` would prove a
+false `\result == 1`), 7828 PASS (control, `\trusted reviewer:`), 7829 FAIL (malformed), 7830 FAIL
+(near-miss, all contracts true), 7831 PASS (control) — each matches its expectation. Refusal-witness census
+gained rows for 7827/7829/7830. Five doc surfaces + pycsl-annotate / self-tcb-reduction skills.
+
+**Conversion.** Exactly B2's 20 conforming other-mixin `\trusted` declaration stubs (row 16 and the 5
+ledgered residuals untouched). Mirror emit sweep vs int13: 53/53, **0 MOVED / 0 GONE / 0 APPEARED** — no
+proof owed. `\trusted`: 409 -> **389** markers, grep 437 -> **417**; `declared_in` **20** (own column).
+**GROSS -20 markers; NET TCB -2** (only the two `_coerce_to_int` declarations name a VERIFIED definition;
+the other 18 move the trust onto 13 trusted definitions that stay counted). Whether `declared_in` is a
+headline class is a USER decision: the `\trusted` grep keeps its meaning, both numbers are printed.
+
+**B2 (g).** The named target must EQUAL the live-MRO resolution; exactly one line; no `\trusted` beside it;
+not on a ledgered or base-override declaration; every `declared_in` in the mirror must govern a census
+declaration. Negative tests (`dl4/neg/b2_neg.sh`, scratch copies) 10/10: control GREEN; wrong class; wrong
+file; on a twinned (non-declaration) method; in-record frame field dropped; frame `\nothing`; with
+`\trusted`; on ledgered row 16; annotating nothing; definition gains a `raises` — all RED.
+
+**Planes taught, with (u6) perturbation** (B = base plane on base tree, T = taught on HEAD, U = BASE plane
+on HEAD): count-trusted (U silently drops the 20; T adds the column), trusted-reasons (20 unclassified rows
+moved OUT, MAX_UNCLASSIFIED 257 -> 237; U keeps 257 and never mentions them), untrusted-emitted (U: 20
+SILENTLY RE-ABSTRACTED, rc=1; T = B), mirror-sync `methods` (U: sibling-concrete-fidelity 20 NEW
+DIVERGENCES rc=1; T = B), frame-honesty (U moves 20 from the trusted param population 402 -> 382 into the
+converted one; T = B), raises-honesty (U 67 -> 64), claim-strength (U trusted 391 -> 371), blast-radius
+(U 388 -> 368), directive-enforcement (new pair, MIN_COVERED 52 -> 53). Taught for consistency, no
+measured sensitivity (U = T = B): termination, underdeclaration, bespoke-discard, yield-erasure,
+computed-rhs (perturbation timed out; base only). Inspected and deliberately NOT taught (same-qualname
+pairing never sees a declaration; untaught is stricter on a misplaced marker): self-annotate-mirror-check.sh,
+check-mirror-signature-drift. Others in bin/ read IR / emission (identical by construction) or are tools.
+
+**Battery (HEAD `92fadf94b`).** fidelity sync / mirror-check / doc-coherency rc 0; corpus byte-diff root
+0 MOVED / 0 GONE / 1 APPEARED (`1723_route212_verify_imports_control`: environmental — the int13 baseline
+was swept without why3 on PATH; the base tree with why3 emits it byte-identically) and pyref 2186/2186
+0/0/0; mirror 53/53 0/0/0; fast planes 62/62; slow 22/23 (check-swallowed-exceptions RED, identical on the
+base tree: 4 `_run_pipeline` firings, pre-existing per log 339); count-trusted / trusted-reasons (+self-test)
+/ assumed-facts OK; proof_axiom_allowlist unchanged.
