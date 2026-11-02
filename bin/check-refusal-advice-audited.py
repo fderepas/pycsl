@@ -933,6 +933,11 @@ AUDITED = {
         "Route #523. 'Bind the list once at the top of the function and read it only as a `for` iterable (build the extended list as "
         "a new literal)': witness g1016_x1076 with the appended element folded into one literal (getting-better/open-routes/"
         "witnesses-r523/advice/a523_one_literal) VERIFIES `\\result == 0`; controls 8400 (list) and 8401 (the tuple form) VERIFY."),
+    # driver run #4 -- route #527 (u15): R527's advice IS controls 8420 / 8421 and witnesses-r527/advice/a527_narrow.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R527-OPTIONAL-OPERAND: the operand `{_ast341.unparse(_r432)}` o'): (FOLLOWABLE,
+        "Route #527. 'Narrow it first (`if r.s is not None:`, or an early `return` when it is `None` ...)': witness "
+        "g1026_ah1000 with the concatenation under `if r.s is not None:` (getting-better/open-routes/witnesses-r527/advice/a527_narrow) "
+        "VERIFIES under `no_exception \\all`; controls 8420 (the guard), 8421 (the early return) and 8422 (`self.s`) VERIFY."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1301,6 +1306,8 @@ AUDITED_HASH = {
     # driver run #4 (u10) -- routes #511 / #518
     ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_c, \'lineno\', 0)}: the {(\'class\' if isinstance(_nb_c, ast.ClassDef) else \'type alias\')} statement `{_n'): '825105c83671',
     ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_w, \'lineno\', 0)}: the walrus `{_nb_wn} := ...` sits in a default, decorator, base or keyword of the {'): 'a290e4c589c6',
+    # driver run #4 (u15) -- route #527
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R527-OPTIONAL-OPERAND: the operand `{_ast341.unparse(_r432)}` o'): '08e45dca83f3',
 }
 
 

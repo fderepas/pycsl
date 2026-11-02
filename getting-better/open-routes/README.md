@@ -19,6 +19,18 @@
 ##   pyref 2186/2186 0/0/0, mirror 53/53 0/0/0 (nothing owed); rt43 / rt44 0 probes of the shape. Residual: cross-module mutation (`import m;
 ##   m.OPS.append`), module str SET constants.
 
+## run #4 (2026-11-02): #527 / #528 REPAIRED (executor u15 off 1aaa1dfdd, 42e34a559 + its ledger / docs commit; no axiom; annotations §7.527 /
+##   §7.528). #527 (inline in `_run_pipeline`, route #432's engine, twin `\trusted`, emission byte-identical): under a TypeError claim a
+##   VALUE-READ operand whose derived classes hold None (an `Optional[str]` field, a local bound from one) of an arithmetic / ordering / `in`
+##   haystack / subscript / iteration site is judged by #432's flow narrowing: PYCSL-R527-OPTIONAL-OPERAND unless narrowed. #528 (inline in
+##   `_handle_subscript`'s split arm + `_handle_ifexpr_expr`, twins `\trusted`): `<str>.split(sep)[i]` asserts `i = 0 \/ i = -1` (non-empty
+##   literal sep), `(i = 1 \/ i = -2) /\ <sep occurs>` too (no / literal >= 1 maxsplit), `false` otherwise; literal `[0]` / `[-1]` and the
+##   truth-guarded no-arg `N.split()[0]` byte-identical. Witnesses 52 x default / typed / store: #527 33/33 REFUSED, #528 123/123 NOT
+##   PROVED. Corpus 8410-8418 (FAIL refused), 8425-8432 (FAIL not proved); controls 8420-8424, 8435-8439 (PASS). Over-refusal: root 0 MOVED /
+##   6 GONE (route #230 FAIL witnesses 1920 1922-1925 1928 now refused earlier; first draft also hit honest 1912 / 1913 / 1929 -> value reads
+##   only) / 0 APPEARED; pyref 2 MOVED (split_elem_proves / _fails, --no-proof: a parameter separator is not credited); mirror 2 MOVED
+##   (proof_axiom_allowlist re-PROVED; expressions `_dv_missing_default` OWED); rt43 / rt44 / rt49 CPython-honest probes 0/106.
+
 ## run #4 (2026-11-02): #521-#528 OPENED (red team 49 on dd4a06928: 1472 probes / 275 confirmed in 8 families, default mode): #521 r230-none-fence-
 ##   binary-only (74); #522 r230-get-on-dict-field (30); #523 local-str-list-literal-iterated-after-append (32); #524 r230-nested-optional-container (19);
 ##   #525 module-str-list-mutated-via-namespace (21; a gap of today's lex-char-class inc 2); #526 r230-none-taint-does-not-flow (47);
