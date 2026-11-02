@@ -11,6 +11,15 @@
 ##   (nothing owed); rt43 / rt44 1983 probes 0 refused (none binds a PEP 695 name). Cost: rt47 control o8009 (`type K` BEFORE `K = 5`)
 ##   refused (name-keyed). Residual: a dependency module's `type K` over a name this file imports (NOT PROVED / R325 at base).
 
+## run #4 (2026-11-02): #511 / #518 REPAIRED (executor u10 off 3a07b619c, 11e955e63 + its ledger / docs commit; inline in `Module3_Weaver.process`
+##   (both pipelines), no new def, no axiom, emission byte-identical; annotations §7.511 / §7.518). PYCSL-R511-LOCAL-CLASS-NAME-NOT-UNIQUE: a
+##   `class` / `type` statement whose nearest scope is a function needs a name bound nowhere else in the file and (non-builtin) read nowhere
+##   outside that function. PYCSL-R518-WALRUS-AT-DEFINITION-TIME: a walrus inside def / lambda defaults / kw-defaults, decorators, class bases /
+##   keywords, any scope (closes #118 / #132 / #377 / #463 at once: each walk skipped a lambda whole; `lambda a=(inc := dec): a` also proved).
+##   Witnesses 31 x default / typed / store = 93/93 REFUSED; corpus 8140-8149, 8160-8167 (FAIL), controls 8150-8152, 8170-8171 (PASS).
+##   Over-refusal: corpus root 0/0/0 (+5 new), pyref 0/0/0, mirror 53/53 0/0/0 (no movers, nothing owed); rt43 / rt44 CPython-honest probes
+##   0/177; only 5550-5554 (#392 witnesses, expected FAIL) change refusal. Cost: two honest functions with a same-named local class.
+
 ## run #4 (2026-11-01): #510-#518 OPENED (red team 47 on ef45a0426: 2022 probes / 192 confirmed in 9 families, default mode; rt46's 134
 ##   all refused): #510 pep695-type-statement-not-a-binding (34); #511 local-class-statement-not-a-binding (17); #512 bytes-count-obligations-lost (31);
 ##   #513 r507-kind-reader-last-type-argument (10); #514 r507-range-length-by-spelling (17); #515 iife-lambda-body-erased (37); #516 r508-unknown-kind-operands

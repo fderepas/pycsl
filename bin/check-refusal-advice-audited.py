@@ -912,6 +912,12 @@ AUDITED = {
         "Route #517. 'Rename the type parameter so it shadows no value the body reads (`def f[T](...)`)': witness g823_a9001 as "
         "`def f[T](n: int)` (getting-better/open-routes/witnesses-r517/advice/a517_rename_tp) VERIFIES `\\result == n // 5` under "
         "`no_exception \\all`; control 8134 (`class C[T]:` for 8125) VERIFIES."),
+    # driver run #4 -- routes #511 / #518 (u10, red team 47). Probes in
+    # getting-better/open-routes/witnesses-r51{1,8}/advice/.
+    ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_c, \'lineno\', 0)}: the {(\'class\' if isinstance(_nb_c, ast.ClassDef) else \'type alias\')} statement `{_n'): (FOLLOWABLE,
+        "Route #511. 'Give the local class a name bound nowhere else in the file, or move it to module level': witness 8140 with the local class renamed `Kc` (getting-better/open-routes/witnesses-r511/advice/a511_rename) VERIFIES `no_exception \\all` and `\\result == n // 5` (default model); controls 8150 / 8151 are the renamed shapes."),
+    ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_w, \'lineno\', 0)}: the walrus `{_nb_wn} := ...` sits in a default, decorator, base or keyword of the {'): (FOLLOWABLE,
+        "Route #518. 'Bind the value in a statement of its own before the definition (`T = 0`) and use that plain name in the default': witness 8160 rewritten `T = 0; _l = lambda a=T: a` (getting-better/open-routes/witnesses-r518/advice/a518_own_statement, = control 8171) VERIFIES `\\result == 5`."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1275,6 +1281,9 @@ AUDITED_HASH = {
     # driver run #4 (u9) -- routes #510 / #517
     ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `{_z510[2]}` is bound by the PEP 695 statement `type {'): 'acbd371debc0',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R517-TYPE-PARAM-NAME-READ: `{_z510[2]}` is a PEP 695 type parameter of `{getattr(_z51'): '1639be5fd431',
+    # driver run #4 (u10) -- routes #511 / #518
+    ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_c, \'lineno\', 0)}: the {(\'class\' if isinstance(_nb_c, ast.ClassDef) else \'type alias\')} statement `{_n'): '825105c83671',
+    ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_w, \'lineno\', 0)}: the walrus `{_nb_wn} := ...` sits in a default, decorator, base or keyword of the {'): 'a290e4c589c6',
 }
 
 

@@ -4780,8 +4780,8 @@ base) a lambda in a lambda's default and `lambda a=(inc := dec): a` rebinding a 
 CPython 2), and (not proved at base) a class-body lambda rebinding a class constant.
 
 RULE (`Module3_Weaver.process`, every scope, both pipelines): a `NamedExpr` anywhere inside one of those
-expressions is REFUSED with `PYCSL-R518-WALRUS-AT-DEFINITION-TIME`. Bind the name in a statement of its own
-before the definition and use the plain name in the default.
+expressions is REFUSED with `PYCSL-R518-WALRUS-AT-DEFINITION-TIME`. Bind the value in a statement of its own
+before the definition (`T = 0`) and use that plain name in the default.
 
 Witnesses `8160`-`8164`, `8166` (PROVED at base, REFUSED), `8165` (not proved at base, REFUSED by name) and
 `8167` (the `def`-default twin, refused before by route #350); controls

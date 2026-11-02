@@ -3146,8 +3146,8 @@ class Module3_Weaver:
                             f"it rebinds `{_nb_wn}` there; no binding walk of the model sees "
                             f"that store (measured: `K = 5`, then `_l = lambda a=(K := 0): a` "
                             f"at module level, proved `\\result == 5` over `return K`, CPython "
-                            f"0) (route #518). Assign `{_nb_wn}` in a statement of its own "
-                            f"before the definition and use the plain name in the default.",
+                            f"0) (route #518). Bind the value in a statement of its own before "
+                            f"the definition (`T = 0`) and use that plain name in the default.",
                             code="PYCSL-R518-WALRUS-AT-DEFINITION-TIME")
         # (#49) run #4, ROUTE #511 (red team 47 F2; MEASURED PROVED at a134c3e8f, CPython
         # violates) — A CLASS STATEMENT INSIDE A FUNCTION IS A BINDING. Function-body `class`
