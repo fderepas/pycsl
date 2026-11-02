@@ -16749,15 +16749,56 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                               "str", "bytes", "bytearray", "list", "dict", "set", "frozenset",
                               "tuple", "sequence", "mapping", "iterable") else "")(
         str(_t or "").split("[")[0].strip().lower().rsplit(".", 1)[-1]))
-    _te507 = (lambda _t: (lambda _s: _tk507(_s[_s.find("[") + 1:_s.rfind("]")]
-                                            .rsplit(",", 1)[-1])
-                          if "[" in _s and _s.rfind("]") > _s.find("[") else "")(
-        str(_t or "").replace(" ", "")))
+    # (#516) `Optional[X]` / `X | None` is read at X's kind: its None case raises TypeError,
+    # never an OverflowError (route #230's concern), so it does not hide a promotion
+    _tk507 = (lambda _t, _k0=_tk507: (lambda _s: _k0(
+        _s[len("Optional["):-1] if _s.startswith("Optional[") and _s.endswith("]") else
+        _s[:-len("|None")] if _s.endswith("|None") else
+        _s[len("None|"):] if _s.startswith("None|") else _s))(
+        str(_t or "").replace(" ", "").replace("typing.", "")))
+    # (#49) ROUTE #513 -- a container's element kind is read from its TOP-LEVEL type
+    # arguments (`_tp507`: declared type string -> (lower-cased base, [argument strings]),
+    # filled below), not its last one: this took `rsplit(",", 1)[-1]`, so iterating a
+    # `Dict[int, float]` (its KEYS) read every key as a float and `Tuple[int, float]` every
+    # element as a float, and `[k * 0.5 for k in d]` PROVED `\all` (CPython OverflowError at
+    # k = 10**400). ITERATION (`_te507`): a mapping yields its FIRST argument; a
+    # `Tuple[A, ...]` A; a `Tuple[A, B, ..]` the common kind or unknown; a one-argument
+    # sequence / set / iterable its argument; anything else unknown. SUBSCRIPT (`_tv507`): a
+    # mapping's VALUE (last of two), a `Counter` int, a tuple as above, a sequence its argument.
+    _tp507: Dict[str, Any] = {}
+    _mp507 = ("dict", "mapping", "mutablemapping", "defaultdict", "ordereddict", "counter",
+              "chainmap")
+    _sq507 = ("list", "set", "frozenset", "sequence", "mutablesequence", "iterable",
+              "iterator", "collection", "deque", "abstractset", "mutableset", "reversible",
+              "generator")
+    _te507 = (lambda _t: (lambda _p: (
+        _tk507(_p[1][0]) if _p[0] in _mp507 and _p[1] else
+        (_tk507(_p[1][0]) if len(_p[1]) == 2 and _p[1][1] == "..." else
+         (lambda _ks: _ks[0] if len(set(_ks)) == 1 else "")(
+             [_tk507(_a) for _a in _p[1]] or [""])) if _p[0] == "tuple" else
+        _tk507(_p[1][0]) if _p[0] in _sq507 and len(_p[1]) == 1 else
+        "i" if _p[0] in ("bytes", "bytearray", "range") else "o" if _p[0] == "str" else ""))(
+        _tp507.get(str(_t or "").strip(), ("", []))))
+    _tv507 = (lambda _t: (lambda _p: (
+        _tk507(_p[1][1]) if _p[0] in _mp507 and len(_p[1]) == 2 else
+        "i" if _p[0] == "counter" else
+        _te507(_t) if _p[0] == "tuple" else
+        _tk507(_p[1][0]) if _p[0] in ("list", "sequence", "mutablesequence", "deque")
+        and len(_p[1]) == 1 else
+        "i" if _p[0] in ("bytes", "bytearray", "range") else "o" if _p[0] == "str" else ""))(
+        _tp507.get(str(_t or "").strip(), ("", []))))
     # the SOURCE annotations of parameters / annotated locals (the IR symbol table erases a
     # container's element type: `List[int]` -> `list`), per def name; a name two defs (or
     # two annotations) disagree on is unknown
     import ast as _ast507
     _sa507: Dict[str, Dict[str, str]] = {}
+    _ii507: Dict[str, int] = {}
+    _cf507: Dict[str, Dict[str, str]] = {}
+    _cr507: Dict[str, Dict[str, str]] = {}
+    _rt507: Dict[str, str] = {}
+    _cfi507: Dict[Any, Set[str]] = {}
+    _cn0507: Set[str] = set()
+    _cb507: Dict[str, List[str]] = {}
     try:
         _tr507 = _ast507.parse(source_code)
     except SyntaxError:
@@ -16777,6 +16818,331 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _om507 = _sa507.get(_fd507.name)
         _sa507[_fd507.name] = (_dm507 if _om507 is None else {
             _k: _v for _k, _v in _dm507.items() if _om507.get(_k) == _v})
+        # (#49) ROUTE #515 -- an IMMEDIATELY-INVOKED lambda `(lambda m: E)(n)` is lowered to
+        # `(any int)` (`UnknownPyExpr`): its body is never seen by this census (below)
+        for _z507 in _ast507.walk(_fd507):
+            if (isinstance(_z507, _ast507.Call) and isinstance(_z507.func, _ast507.Lambda)
+                    and _fd507.name not in _ii507):
+                _ii507[_fd507.name] = getattr(_z507, "lineno", 0)
+    # (#49) ROUTE #516 -- the declared kinds of class fields / method results, per class
+    # (lower-cased name): a method result or field read is typed only through its receiver's
+    # class (`self` in a method of the class, or a local / parameter annotated with it), and
+    # two declarations of one name disagreeing leave it unknown
+    for _cd507 in ([_z for _z in _ast507.walk(_tr507) if isinstance(_z, _ast507.ClassDef)]
+                   if _tr507 is not None else []):
+        _cfm507 = _cf507.setdefault(_cd507.name.lower(), {})
+        _cbi507 = {id(_z) for _z in _cd507.body}
+        _cn0507.add(_cd507.name)
+        _cb507[_cd507.name.lower()] = [
+            (_b.id if isinstance(_b, _ast507.Name) else _b.attr).lower()
+            for _b in _cd507.bases if isinstance(_b, (_ast507.Name, _ast507.Attribute))]
+        for _z507 in _cd507.body:
+            # a class-level constant `LOW = 1` (an enum member, a class attribute)
+            if (isinstance(_z507, _ast507.Assign) and len(_z507.targets) == 1
+                    and isinstance(_z507.targets[0], _ast507.Name)):
+                _cfi507.setdefault((_cd507.name.lower(), _z507.targets[0].id), set()).add(
+                    "bool" if isinstance(_z507.value, _ast507.Constant)
+                    and isinstance(_z507.value.value, bool) else
+                    "int" if isinstance(_z507.value, _ast507.Constant)
+                    and type(_z507.value.value) is int else
+                    "float" if isinstance(_z507.value, _ast507.Constant)
+                    and type(_z507.value.value) is float else
+                    "str" if isinstance(_z507.value, _ast507.Constant)
+                    and type(_z507.value.value) is str else "?")
+        _crm507 = _cr507.setdefault(_cd507.name.lower(), {})
+        for _z507 in _ast507.walk(_cd507):
+            _fa507 = None
+            if isinstance(_z507, _ast507.AnnAssign):
+                if isinstance(_z507.target, _ast507.Name) and id(_z507) in _cbi507:
+                    _fa507 = (_z507.target.id, _ast507.unparse(_z507.annotation))
+                elif (isinstance(_z507.target, _ast507.Attribute)
+                      and isinstance(_z507.target.value, _ast507.Name)
+                      and _z507.target.value.id == "self"):
+                    _fa507 = (_z507.target.attr, _ast507.unparse(_z507.annotation))
+            if _fa507 is not None:
+                _cfm507[_fa507[0]] = (_fa507[1] if _cfm507.get(_fa507[0], _fa507[1]) == _fa507[1]
+                                      else "?")
+            # an UNDECLARED field is read at the kind of its stores when all agree: a
+            # literal, a parameter of the storing method declared with a type, or `self.<f>`
+            # plus / minus an int literal (anything else leaves it unknown)
+            for _md507 in ([_z507] if isinstance(_z507, (_ast507.FunctionDef,
+                                                          _ast507.AsyncFunctionDef))
+                           and id(_z507) in _cbi507 else []):
+                _pa507 = {_q.arg: _ast507.unparse(_q.annotation)
+                          for _q in (list(_md507.args.posonlyargs) + list(_md507.args.args)
+                                     + list(_md507.args.kwonlyargs))
+                          if _q.annotation is not None}
+                for _w507 in _ast507.walk(_md507):
+                    if not (isinstance(_w507, (_ast507.Assign, _ast507.AugAssign))):
+                        continue
+                    for _tw507 in (_w507.targets if isinstance(_w507, _ast507.Assign)
+                                   else [_w507.target]):
+                        if not (isinstance(_tw507, _ast507.Attribute)
+                                and isinstance(_tw507.value, _ast507.Name)
+                                and _tw507.value.id == "self"):
+                            continue
+                        _vw507 = _w507.value
+                        _iw507 = (
+                            "bool" if isinstance(_vw507, _ast507.Constant)
+                            and isinstance(_vw507.value, bool) else
+                            "int" if isinstance(_vw507, _ast507.Constant)
+                            and type(_vw507.value) is int else
+                            "float" if isinstance(_vw507, _ast507.Constant)
+                            and type(_vw507.value) is float else
+                            "str" if isinstance(_vw507, _ast507.Constant)
+                            and type(_vw507.value) is str else
+                            _pa507.get(_vw507.id, "?") if isinstance(_vw507, _ast507.Name) else
+                            "=" if isinstance(_vw507, _ast507.BinOp) and isinstance(
+                                _vw507.op, (_ast507.Add, _ast507.Sub))
+                            and isinstance(_vw507.left, _ast507.Attribute)
+                            and isinstance(_vw507.left.value, _ast507.Name)
+                            and _vw507.left.value.id == "self"
+                            and _vw507.left.attr == _tw507.attr
+                            and isinstance(_vw507.right, _ast507.Constant)
+                            and type(_vw507.right.value) is int else "?")
+                        if isinstance(_w507, _ast507.AugAssign):
+                            _iw507 = ("=" if isinstance(_w507.op, (_ast507.Add, _ast507.Sub))
+                                      and _iw507 == "int" else "?")
+                        if _iw507 != "=":
+                            _cfi507.setdefault((_cd507.name.lower(), _tw507.attr), set()).add(
+                                _iw507)
+            if (isinstance(_z507, (_ast507.FunctionDef, _ast507.AsyncFunctionDef))
+                    and id(_z507) in _cbi507):
+                _ru507 = _ast507.unparse(_z507.returns) if _z507.returns is not None else "?"
+                _crm507[_z507.name] = (_ru507 if _crm507.get(_z507.name, _ru507) == _ru507
+                                       else "?")
+    # a field also stored through another receiver (`p.a = ..`) anywhere is not inferred
+    _ext507 = {_t.attr for _z in (_ast507.walk(_tr507) if _tr507 is not None else [])
+               if isinstance(_z, (_ast507.Assign, _ast507.AugAssign, _ast507.AnnAssign))
+               for _t in (_z.targets if isinstance(_z, _ast507.Assign) else [_z.target])
+               if isinstance(_t, _ast507.Attribute) and not (
+                   isinstance(_t.value, _ast507.Name) and _t.value.id == "self")}
+    for (_cn507, _an507), _vs507 in _cfi507.items():
+        if _an507 not in _cf507.setdefault(_cn507, {}):
+            _cf507[_cn507][_an507] = (next(iter(_vs507)) if len(_vs507) == 1
+                                      and _an507 not in _ext507 else "?")
+    # module-level names bound once: their declared / literal kind (a constant `N = 6`)
+    _gk507: Dict[str, str] = {}
+    for _z507 in (_tr507.body if _tr507 is not None else []):
+        for _t507, _u507 in (
+                [(_t, ("bool" if isinstance(_z507.value, _ast507.Constant)
+                       and isinstance(_z507.value.value, bool) else
+                       "int" if isinstance(_z507.value, _ast507.Constant)
+                       and type(_z507.value.value) is int else
+                       "float" if isinstance(_z507.value, _ast507.Constant)
+                       and type(_z507.value.value) is float else
+                       "str" if isinstance(_z507.value, _ast507.Constant)
+                       and type(_z507.value.value) is str else "?"))
+                 for _t in _z507.targets if isinstance(_t, _ast507.Name)]
+                if isinstance(_z507, _ast507.Assign) else
+                [(_z507.target, _ast507.unparse(_z507.annotation))]
+                if isinstance(_z507, _ast507.AnnAssign)
+                and isinstance(_z507.target, _ast507.Name) else []):
+            _gk507[_t507.id] = "?" if _t507.id in _gk507 else _u507
+    # every name bound at MODULE scope (in any block: `if TYPE_CHECKING:`, `try:`, ...) and
+    # every builtin name: a global read is not an erased value (its own routes judge it)
+    import builtins as _bi507
+    _gn507: Set[str] = set(dir(_bi507)) | {
+        "__builtins__", "__file__", "__name__", "__doc__", "__cached__", "__spec__",
+        "__loader__", "__package__", "__path__", "__annotations__", "__dict__"}
+    _gw507: List[Any] = list(_tr507.body) if _tr507 is not None else []
+    _tbi507 = {id(_z) for _z in _gw507}
+    while _gw507:
+        _z507 = _gw507.pop()
+        if isinstance(_z507, (_ast507.FunctionDef, _ast507.AsyncFunctionDef,
+                              _ast507.ClassDef)):
+            _gn507.add(_z507.name)
+            if not isinstance(_z507, _ast507.ClassDef) and id(_z507) not in _tbi507:
+                _ru507 = _ast507.unparse(_z507.returns) if _z507.returns is not None else "?"
+                _rt507[_z507.name] = (_ru507 if _rt507.get(_z507.name, _ru507) == _ru507
+                                      else "?")
+            continue
+        if isinstance(_z507, (_ast507.Import, _ast507.ImportFrom)):
+            _gn507 |= {(_a.asname or _a.name).split(".")[0] for _a in _z507.names}
+            continue
+        if isinstance(_z507, _ast507.Name):
+            _gn507.add(_z507.id)
+        if isinstance(_z507, _ast507.Lambda):
+            continue
+        _gw507.extend(_ast507.iter_child_nodes(_z507))
+    if any(isinstance(_z, _ast507.Global) for _z in (
+            _ast507.walk(_tr507) if _tr507 is not None else [])):
+        for _z507 in _ast507.walk(_tr507):
+            if isinstance(_z507, _ast507.Global):
+                for _q507 in _z507.names:
+                    _gk507[_q507] = "?"
+    for _ps507 in range(4):
+        for _cn507, _bs507 in _cb507.items():
+            for _bn507 in _bs507:
+                for _dst507, _src507 in ((_cf507, _cf507), (_cr507, _cr507)):
+                    for _k507, _v507 in (_src507.get(_bn507) or {}).items():
+                        _dst507.setdefault(_cn507, {}).setdefault(_k507, _v507)
+    for _fd507 in ([_z for _z in _tr507.body if isinstance(
+            _z, (_ast507.FunctionDef, _ast507.AsyncFunctionDef))] if _tr507 is not None else []):
+        _ru507 = _ast507.unparse(_fd507.returns) if _fd507.returns is not None else "?"
+        _rt507[_fd507.name] = _ru507 if _rt507.get(_fd507.name, _ru507) == _ru507 else "?"
+    _md0507 = ({id(_z) for _z in _tr507.body} | {
+        id(_z) for _c in _ast507.walk(_tr507) if isinstance(_c, _ast507.ClassDef)
+        for _z in _c.body}) if _tr507 is not None else set()
+    for _fd507 in ([_z for _z in _ast507.walk(_tr507) if isinstance(
+            _z, (_ast507.FunctionDef, _ast507.AsyncFunctionDef))] if _tr507 is not None else []):
+        if id(_fd507) in _md0507:
+            continue
+        _ru507 = _ast507.unparse(_fd507.returns) if _fd507.returns is not None else "?"
+        _rt507[_fd507.name] = _ru507 if _rt507.get(_fd507.name, _ru507) == _ru507 else "?"
+    # a function imported from a USER module (`from m import g` / `import m` then `m.g(..)`,
+    # resolved as route #439 does) has the kind of its declared return in that module
+    _rm507: Dict[str, Dict[str, str]] = {}
+    for _z507 in (_ast507.walk(_tr507) if _tr507 is not None else []):
+        if not isinstance(_z507, (_ast507.Import, _ast507.ImportFrom)):
+            continue
+        for _mn507, _lv507, _al507 in (
+                [(_a.name, 0, _a) for _a in _z507.names] if isinstance(_z507, _ast507.Import)
+                else [(_z507.module or "", _z507.level or 0, None)]):
+            if not _mn507 or (not _lv507 and _mn507.split(".")[0] in _std439):
+                continue
+            try:
+                _rp507 = _rmp439(_mn507, _lv507, os.path.abspath(args.file))
+                _mt507 = _ast507.parse(open(_rp507).read()) if _rp507 and not os.path.abspath(
+                    _rp507).startswith(_lib439 + os.sep) else None
+            except Exception:
+                _mt507 = None
+            if _mt507 is None:
+                continue
+            _mr507 = {_d.name: (_ast507.unparse(_d.returns) if _d.returns is not None else "?")
+                      for _d in _mt507.body
+                      if isinstance(_d, (_ast507.FunctionDef, _ast507.AsyncFunctionDef))}
+            if _al507 is not None:
+                _rm507[_al507.asname or _al507.name] = _mr507
+            else:
+                for _a507 in _z507.names:
+                    if _a507.name in _mr507:
+                        _q507 = _a507.asname or _a507.name
+                        _rt507[_q507] = (_mr507[_a507.name] if _rt507.get(
+                            _q507, _mr507[_a507.name]) == _mr507[_a507.name] else "?")
+    # parse every declared type string once (`_tp507`, read by `_te507` / `_tv507`)
+    for _u507 in ([_v for _m in _sa507.values() for _v in _m.values()]
+                  + [_v for _m in _cf507.values() for _v in _m.values()]
+                  + [_v for _m in _cr507.values() for _v in _m.values()]
+                  + list(_rt507.values())
+                  + [str(_v) for _f in _ver506 for _v in (_f.get("symbol_table") or {}).values()]):
+        _u507 = str(_u507).strip()
+        if _u507 in _tp507:
+            continue
+        try:
+            _pz507 = _ast507.parse(str(_u507).strip(), mode="eval").body
+        except Exception:
+            _tp507[_u507] = ("", [])
+            continue
+        _hz507 = _pz507.value if isinstance(_pz507, _ast507.Subscript) else _pz507
+        _tp507[_u507] = (
+            (_hz507.value if isinstance(_hz507, _ast507.Constant) and isinstance(
+                _hz507.value, str) else _ast507.unparse(_hz507)).lower().rsplit(".", 1)[-1]
+            if isinstance(_hz507, (_ast507.Name, _ast507.Attribute, _ast507.Constant)) else "",
+            ([_ast507.unparse(_a) for _a in _pz507.slice.elts]
+             if isinstance(_pz507.slice, _ast507.Tuple) else [_ast507.unparse(_pz507.slice)])
+            if isinstance(_pz507, _ast507.Subscript) else [])
+    # (#49) ROUTE #514 -- WHICH VALUES MAY BE A `range`. Route #507's range-length site was
+    # the SPELLING `len|list|sorted(range(..))`, so a range reaching `len` / `list` / `*`
+    # unpacking any other way -- bound to a name (`r = range(n); len(r)`), through a walrus /
+    # if-expression / list element (`rs = [range(n)]; len(rs[0])`), or unpacked
+    # (`(*range(n),)`) -- lowered to `iter_length` with no Py_ssize_t bound and PROVED `\all`
+    # (CPython OverflowError at n = 10**20). `_m514f(R, RC, P)` gives two readers over the IR:
+    # "may be a range" (a `range(..)` call, a name in R or a parameter declared `range` /
+    # `Sequence` / `Iterable` / `Collection` / `Sized` / `Reversible` / `Any` / `object` or
+    # undeclared (P), a walrus / if-expression / `and` / `or` reaching one, an element of a
+    # container that may hold one, a field or a def result bound to one) and "may HOLD a range"
+    # (a name in RC, a display / comprehension of such values, a concatenation of holders).
+    # R / RC are the names of a def bound (any binding form) to such a value, to a fixpoint;
+    # fields (`_rd514`) and defs returning one (`_rf514`, by source name) are file-wide.
+    _rgb514 = ("range", "sequence", "iterable", "collection", "sized", "reversible", "any",
+               "object")
+    _rf514: Set[str] = set()
+    _rd514: Set[str] = set()
+    _m514f = (lambda _R, _RC, _P: (lambda _g: (lambda _e: _g(_g, _e, False),
+                                               lambda _e: _g(_g, _e, True)))(
+        lambda _g, _e, _h: isinstance(_e, dict) and bool(
+            (not _h and (
+                (_e.get("type") == "Call" and _e.get("receiver") is None
+                 and _e.get("func") == "range")
+                or (_e.get("type") == "Var" and (_e.get("name") in _R or _e.get("name") in _P))
+                or (_e.get("type") in ("FieldGet", "Attribute")
+                    and (_e.get("field") or _e.get("attr")) in _rd514)
+                or (_e.get("type") == "Call" and isinstance(_e.get("func"), str)
+                    and _e["func"] != "range" and _e["func"].rsplit(".", 1)[-1] in _rf514)))
+            or (_h and (
+                (_e.get("type") == "Var" and _e.get("name") in _RC)
+                or (_e.get("type") in ("ArrayLit", "ListLit", "Tuple", "SetLit") and any(
+                    _g(_g, _v, False) or _g(_g, _v, True) for _v in (_e.get("elts") or [])))
+                or (_e.get("type") == "DictLit" and any(
+                    _g(_g, _v, False) or _g(_g, _v, True) for _v in (_e.get("values") or [])))
+                or (_e.get("type") in ("ListComp", "SetComp", "GenExp")
+                    and (_g(_g, _e.get("elt"), False) or _g(_g, _e.get("elt"), True)))
+                or (_e.get("type") == "DictComp"
+                    and (_g(_g, _e.get("value"), False) or _g(_g, _e.get("value"), True)))
+                or (_e.get("type") == "BinOp" and _e.get("op") in ("+", "*")
+                    and (_g(_g, _e.get("left"), True) or _g(_g, _e.get("right"), True)))
+                or (_e.get("type") == "Starred" and _g(_g, _e.get("value"), True))))
+            or (_e.get("type") == "NamedExpr" and _g(_g, _e.get("value"), _h))
+            or (_e.get("type") in ("IfExp", "IfExpr")
+                and (_g(_g, _e.get("body"), _h) or _g(_g, _e.get("orelse"), _h)))
+            or (_e.get("type") == "BinOp" and _e.get("op") in ("and", "or")
+                and (_g(_g, _e.get("left"), _h) or _g(_g, _e.get("right"), _h)))
+            or (_e.get("type") == "Subscript" and _g(_g, _e.get("value"), True)))))
+    _rr514: Dict[str, Any] = {}
+    for _ps514 in range(3):
+        for _f514 in _last506.values():
+            _fn514 = str(_f514.get("name", ""))
+            _sn514 = _sa507.get(_fn514.rsplit("__", 1)[-1]) or {}
+            _P514 = {str(_q) for _q in (_f514.get("formal_params") or [])
+                     if str(_q) not in ("self", "cls") and (
+                         str(_q) not in _sn514 or _tp507.get(str(_sn514[str(_q)]).strip(), (
+                             "", []))[0] in _rgb514)}
+            _R514, _RC514 = _rr514.get(_fn514, (set(), {str(_q) for _q, _u in _sn514.items()
+                                                       if "range" in str(_u)} - _P514))[:2]
+            _mr514, _hl514 = _m514f(_R514, _RC514, _P514)
+            _wl514: List[Any] = [_f514.get("body")]
+            while _wl514:
+                _y514 = _wl514.pop()
+                if isinstance(_y514, list):
+                    _wl514.extend(_y514)
+                    continue
+                if not isinstance(_y514, dict):
+                    continue
+                _wl514.extend(_v for _v in _y514.values() if isinstance(_v, (dict, list)))
+                _sv514 = _y514.get("value")
+                _tg514 = ([_y514.get("target")] if isinstance(_y514.get("target"), str) else []) + [
+                    _t for _t in (_y514.get("targets") or []) if isinstance(_t, str)]
+                if _y514.get("stmt") == "For" or _y514.get("type") in (
+                        "ListComp", "SetComp", "DictComp", "GenExp"):
+                    for _gg514 in ([_y514] if _y514.get("stmt") == "For"
+                                   else (_y514.get("generators") or [])):
+                        if isinstance(_gg514, dict) and _hl514(_gg514.get("iter")):
+                            for _t514 in ([_gg514.get("target")]
+                                          + list(_gg514.get("tuple_targets") or [])):
+                                if isinstance(_t514, str):
+                                    _R514.add(_t514)
+                                    _RC514.add(_t514)
+                elif _y514.get("stmt") == "Return":
+                    if _mr514(_sv514):
+                        _rf514.add(_fn514.rsplit("__", 1)[-1])
+                elif _y514.get("stmt") in ("FieldAssign",) or (
+                        _y514.get("stmt") is not None and isinstance(_y514.get("field"), str)):
+                    if _mr514(_sv514):
+                        _rd514.add(str(_y514.get("field")))
+                elif _y514.get("type") == "Call" and isinstance(_y514.get("func"), str):
+                    if (_y514["func"].count(".") == 1 and any(
+                            _mr514(_a) or _hl514(_a) for _a in (_y514.get("args") or []))):
+                        _RC514.add(_y514["func"].split(".", 1)[0])
+                elif _tg514 and (_mr514(_sv514) or _hl514(_sv514)):
+                    for _t514 in _tg514:
+                        (_R514 if _mr514(_sv514) or _y514.get("targets") else set()).add(_t514)
+                        (_RC514 if _hl514(_sv514) or _y514.get("targets") else set()).add(_t514)
+                elif (_y514.get("stmt") is not None and _mr514(_sv514) and any(
+                        isinstance(_y514.get(_kq), str) for _kq in ("array", "dict", "name"))):
+                    _RC514.update(str(_y514.get(_kq)) for _kq in ("array", "dict", "name")
+                                  if isinstance(_y514.get(_kq), str))
+            _rr514[_fn514] = (_R514, _RC514, _P514)
     for _f507 in _ver506:
         if _bad507 is not None:
             break
@@ -16787,6 +17153,45 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _an507 = _sa507.get(_fn507.rsplit("__", 1)[-1]) or {}
         _st507 = {str(_k): (_an507.get(str(_k)) or _v)
                   for _k, _v in (_f507.get("symbol_table") or {}).items()}
+        # (#49) ROUTE #515 -- this def (by its source name) holds an immediately-invoked
+        # lambda: erased to `(any int)`, so nothing below can see its body
+        if _ii507.get(_fn507.rsplit("__", 1)[-1]):
+            _bad507 = ("515", _fn507, {"lineno": _ii507[_fn507.rsplit("__", 1)[-1]]}, "")
+            break
+        # (#516) the class of a receiver: `self` in a method `<cls>__<m>`, else the declared
+        # type of the local / parameter; a field read / method result is read at the kind
+        # that class declares for it (unknown otherwise)
+        _cl507 = _fn507.rsplit("__", 1)[0].lower() if "__" in _fn507 else ""
+        _mr507 = _m514f(*(_rr514.get(_fn507) or (set(), set(), set())))[0]
+        _lc0507: Dict[str, Set[str]] = {}
+        _wc507: List[Any] = [_f507.get("body")]
+        while _wc507:
+            _y507 = _wc507.pop()
+            if isinstance(_y507, list):
+                _wc507.extend(_y507)
+                continue
+            if not isinstance(_y507, dict):
+                continue
+            _wc507.extend(_v for _v in _y507.values() if isinstance(_v, (dict, list)))
+            for _tt507 in ([_y507.get("target")] + list(_y507.get("targets") or [])
+                           + list(_y507.get("tuple_targets") or [])):
+                if isinstance(_tt507, str) and (_y507.get("stmt") is not None
+                                                or _y507.get("type") == "NamedExpr"):
+                    _vc507 = _y507.get("value") if isinstance(_y507.get("value"), dict) else {}
+                    _lc0507.setdefault(_tt507, set()).add(
+                        str(_vc507.get("func")).lower()
+                        if _tt507 == _y507.get("target") and _y507.get("stmt") == "Assign"
+                        and _vc507.get("type") == "Call" and _vc507.get("func") in _cn0507
+                        else "@disp"
+                        if _tt507 == _y507.get("target") and _y507.get("stmt") == "Assign"
+                        and _vc507.get("type") in ("DictLit", "ArrayLit", "ListLit", "SetLit")
+                        else "?")
+        _lc507 = {_k: next(iter(_v)) for _k, _v in _lc0507.items() if len(_v) == 1 and "?" not in _v}
+        _rc507 = (lambda _o: _cl507 if _o == "self" else
+                  str(_o).lower() if str(_o) in _cn0507 and str(_o) not in _st507 else
+                  (lambda _b: _b if _b in _cf507 or _b in _cr507 or str(_o) not in _lc507
+                   else _lc507[str(_o)])(
+                      _tp507.get(str(_st507.get(str(_o), "")).strip(), ("", []))[0]))
         # an unannotated local (`Any` in the table) is read at the kind of the values bound to
         # it when every binding is a plain / augmented assignment of one kind (any other
         # binding form -- a loop / unpack / `with` / walrus target -- leaves it unknown)
@@ -16807,7 +17212,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                       "DictComp", "GenExp", "NoneLit", "None") else
             (_cv[_e.get("name")] if _e.get("name") in _cv
              else _tk507(_st507.get(str(_e.get("name"))))
-             or _lk507.get(str(_e.get("name")), ""))
+             or _lk507.get(str(_e.get("name")), "")
+             or (_tk507(_gk507.get(str(_e.get("name")))) if str(_e.get("name")) not in _st507
+                 and str(_e.get("name")) not in _lk507 else ""))
             if _e.get("type") == "Var" else
             (lambda _o: "i" if _o == "s" else _o)(
                 _g(_g, _e.get("operand") or _e.get("expr")))
@@ -16819,6 +17226,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 "i" if _l in ("i", "s") and _r in ("i", "s") else ""))(
                 _g(_g, _e.get("left")), _g(_g, _e.get("right")), _e.get("op"))
             if _e.get("type") == "BinOp" and _e.get("op") in _ar507 else
+            (lambda _l, _r: "i" if _l in ("i", "s") and _r in ("i", "s") else "")(
+                _g(_g, _e.get("left")), _g(_g, _e.get("right")))
+            if _e.get("type") == "BinOp" and _e.get("op") in (
+                "<<", ">>", "&", "|", "^", "lshift", "rshift", "bitand", "bitor", "bitxor",
+                "BitAnd", "BitOr", "BitXor", "LShift", "RShift") else
             ("i" if _e.get("func") in ("len", "ord", "hash", "int", "id")
              else "f" if _e.get("func") == "float"
              else "o" if _e.get("func") in ("str", "repr", "list", "sorted", "dict",
@@ -16826,16 +17238,118 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                             "frozenset", "chr", "format")
              else (lambda _a: "i" if _a == "s" else _a)(
                  _g(_g, (_e.get("args") or [None])[0]))
-             if _e.get("func") == "abs" and len(_e.get("args") or []) == 1 else "")
+             if _e.get("func") == "abs" and len(_e.get("args") or []) == 1
+             else (lambda _ks: _ks[0] if _ks and len(set(_ks)) == 1 else "")(
+                 [(lambda _k: "i" if _k == "s" else _k)(_g(_g, _a))
+                  for _a in (_e.get("args") or [])])
+             if _e.get("func") in ("min", "max") and len(_e.get("args") or []) >= 2
+             else (lambda _a: _te507(_st507.get(str(_a.get("name"))))
+                   if isinstance(_a, dict) and _a.get("type") == "Var"
+                   and _a.get("name") not in _cv else "")((_e.get("args") or [None])[0])
+             if _e.get("func") in ("min", "max", "sum") and len(_e.get("args") or []) == 1
+             else "i" if _e.get("func") in (
+                 "round", "math.floor", "math.ceil", "math.trunc", "math.isqrt", "math.gcd",
+                 "math.factorial", "math.comb", "math.perm") and (
+                 _e.get("func") != "round" or len(_e.get("args") or []) == 1)
+             else "f" if _e.get("func") in (
+                 "math.sqrt", "math.exp", "math.log", "math.log2", "math.log10", "math.sin",
+                 "math.cos", "math.tan", "math.atan", "math.atan2", "math.hypot", "math.fabs",
+                 "math.pow", "math.radians", "math.degrees", "math.fsum")
+             else (lambda _rv, _m: _tk507((_cr507.get(_rc507(_rv)) or {}).get(_m)) or (
+                 _tk507(_rm507[_rv].get(_m)) if _rv in _rm507 and _rv not in _st507 else "") or (
+                 lambda _b: "i" if (_b == "str" and _m in (
+                     "find", "rfind", "index", "rindex", "count")) or (
+                     _b in ("list", "tuple", "sequence") and _m in ("index", "count"))
+                 else "o" if _b == "str" and _m in (
+                     "strip", "lstrip", "rstrip", "lower", "upper", "replace", "join",
+                     "format", "title", "capitalize", "zfill", "center", "ljust", "rjust",
+                     "casefold", "swapcase", "split", "rsplit", "splitlines", "encode")
+                 else _tv507(_st507.get(_rv)) if (_b == "list" and _m == "pop") or (
+                     _b in _mp507 and _m in ("get", "pop", "setdefault")) else "")(
+                 _tp507.get(str(_st507.get(_rv, "")).strip(), ("", []))[0]
+                 if _rv not in _cv else ""))(*str(_e["func"]).rsplit(".", 1))
+             if isinstance(_e.get("func"), str) and "." in _e["func"]
+             and "." not in _e["func"].rsplit(".", 1)[0]
+             else _tk507(_rt507.get(str(_e.get("func")))))
             if _e.get("type") == "Call" and _e.get("receiver") is None else
-            (_te507(_st507.get(str(_e["value"].get("name"))))
+            _tk507((_cf507.get(_rc507(_e.get("object") if isinstance(_e.get("object"), str)
+                                      else (_e.get("object") or {}).get("name")
+                                      if isinstance(_e.get("object"), dict)
+                                      and _e["object"].get("type") == "Var" else "?"))
+                    or {}).get(str(_e.get("field") or _e.get("attr"))))
+            if _e.get("type") in ("FieldGet", "Attribute") else
+            (_tv507(_st507.get(str(_e["value"].get("name"))))
              if isinstance(_e.get("value"), dict) and _e["value"].get("type") == "Var"
              and _e["value"].get("name") not in _cv else "")
             if _e.get("type") == "Subscript" else
             (lambda _a, _b: _a if _a == _b else "")(
                 _g(_g, _e.get("body")), _g(_g, _e.get("orelse")))
-            if _e.get("type") == "IfExp" else "")))
+            if _e.get("type") in ("IfExp", "IfExpr") else "")))
+        # (#513 / #516) the kinds of the targets of an iteration over `_it` (`_n` targets):
+        # `d.items()` / `.keys()` / `.values()` of a declared mapping, `enumerate(xs)`,
+        # `range(..)`, a declared container, a display of one kind; unknown otherwise
+        _itk507 = (lambda _it, _n, _cv, _kd: (lambda _fu, _rv: (
+            [_te507(_rv), _tv507(_rv)] if _fu == ".items" and _n == 2 else
+            [_te507(_rv)] if _fu == ".keys" and _n == 1 else
+            [_tv507(_rv)] if _fu == ".values" and _n == 1 else
+            ["i"] if _fu == "range" and _n == 1 else
+            ["i", _te507(_rv)] if _fu == "enumerate" and _n == 2 else
+            [_te507(_rv)] if _fu == "var" and _n == 1 else
+            [(lambda _ks: _ks[0] if len(set(_ks)) == 1 else "")(
+                [_kd(_v) for _v in (_it.get("elts") or [])] or [""])]
+            if _fu == "display" and _n == 1 else [""] * _n))(
+            ("." + _it["func"].rsplit(".", 1)[-1]
+             if _it.get("type") == "Call" and isinstance(_it.get("func"), str)
+             and _it["func"].count(".") == 1 and not _it.get("args") else
+             str(_it.get("func")) if _it.get("type") == "Call" and _it.get("receiver") is None
+             and _it.get("func") in ("range", "enumerate") else
+             "var" if _it.get("type") == "Var" and _it.get("name") not in _cv else
+             "display" if _it.get("type") in ("ArrayLit", "ListLit", "Tuple", "SetLit") else "")
+            if isinstance(_it, dict) else "",
+            (_st507.get(_it["func"].split(".", 1)[0])
+             if _it.get("type") == "Call" and isinstance(_it.get("func"), str)
+             and "." in _it["func"] else
+             _st507.get(str(((_it.get("args") or [{}])[0] or {}).get("name")))
+             if _it.get("type") == "Call" and _it.get("func") == "enumerate" else
+             _st507.get(str(_it.get("name")))) if isinstance(_it, dict) else None))
         _kd0507 = _kd507f({})
+        # (#516) an OPAQUE value: unknown kind AND produced by an erased source -- a call /
+        # method result, a field / attribute read, a name bound by a loop / unpacking target or
+        # to an opaque value, a name the def's table does not know (a comprehension's tuple
+        # target), or an operation over one. A declared parameter / plain local of unknown kind
+        # (`x: Any`, an un-parameterised `list` element, an `Optional`) is NOT opaque: the
+        # model reads it as it is declared (residual, as for declared annotations).
+        _uo507: Set[str] = set()
+        _oq507f = (lambda _cv: (lambda _kd: (lambda _g: lambda _e: _g(_g, _e))(
+            lambda _g, _e: isinstance(_e, dict) and not _kd(_e) and bool(
+                (_e.get("type") in ("Call", "FieldGet", "Attribute", "UnknownPyExpr")
+                 and not (_e.get("type") == "Attribute" and isinstance(_e.get("object"), dict)
+                          and _e["object"].get("type") == "Var" and (
+                              (_e["object"].get("name") not in _st507
+                               and _e["object"].get("name") not in _cv
+                               and _e["object"].get("name") in _gn507
+                               and str(_e["object"].get("name")) not in _cn0507)
+                              or _tp507.get(str(_st507.get(str(_e["object"].get("name")), ""))
+                                            .strip(), ("", []))[0] in (
+                                  "int", "float", "str", "bool", "complex", "list", "dict",
+                                  "set", "tuple", "bytes", "bytearray", "frozenset")))
+                 and not (_e.get("type") == "Call" and isinstance(_e.get("func"), str)
+                          and _e["func"].count(".") == 1
+                          and _lc507.get(_e["func"].split(".")[0]) == "@disp")
+                 and not (_e.get("type") == "Call" and isinstance(_e.get("func"), str)
+                          and _e["func"].count(".") == 1
+                          and _tp507.get(str(_st507.get(_e["func"].split(".")[0], "")).strip(),
+                                         ("", ["?"])) in (
+                              (_c, []) for _c in ("list", "dict", "set", "str", "tuple",
+                                                  "frozenset", "bytes", "bytearray"))))
+                or (_e.get("type") == "Var" and (
+                    _e.get("name") in _uo507 or (_e.get("name") not in _st507
+                                                and _e.get("name") not in _cv
+                                                and _e.get("name") not in _gn507)))
+                or (_e.get("type") in ("BinOp", "UnaryOp") and any(
+                    _g(_g, _e.get(_kq)) for _kq in ("left", "right", "operand", "expr")))
+                or (_e.get("type") in ("IfExp", "IfExpr") and any(
+                    _g(_g, _e.get(_kq)) for _kq in ("body", "orelse"))))))(_kd507f(_cv)))
         for _ps507 in range(3):
             _nk507: Dict[str, List[str]] = {}
             _wl507: List[Any] = [_f507.get("body")]
@@ -16847,6 +17361,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if not isinstance(_y507, dict):
                     continue
                 _wl507.extend(_v for _v in _y507.values() if isinstance(_v, (dict, list)))
+                if _y507.get("stmt") == "For":
+                    _tg507 = (list(_y507.get("tuple_targets") or [])
+                              or [_t for _t in [_y507.get("target")] if isinstance(_t, str)])
+                    for _tt507, _kk507 in zip(_tg507, _itk507(_y507.get("iter"), len(_tg507),
+                                                             {}, _kd0507)):
+                        _nk507.setdefault(str(_tt507), []).append(_kk507)
+                        if not _kk507:
+                            _uo507.add(str(_tt507))
+                    continue
                 for _tt507 in ([_y507.get("target")] + [
                         _t for _t in (_y507.get("targets") or []) if isinstance(_t, str)]):
                     if not isinstance(_tt507, str):
@@ -16857,11 +17380,23 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _kd0507({"type": "BinOp", "op": _y507.get("op"),
                                  "left": {"type": "Var", "name": _tt507},
                                  "right": _y507.get("value")})
-                        if _y507.get("stmt") == "AugAssign" else _kd0507(_y507.get("value")))
-            _lk507 = {_k: (_v[0] if len(set(_v)) == 1 else "") for _k, _v in _nk507.items()}
+                        if _y507.get("stmt") == "AugAssign" else
+                        "N" if isinstance(_y507.get("value"), dict)
+                        and _y507["value"].get("type") in ("NoneLit", "None") else
+                        _kd0507(_y507.get("value")))
+                    # (#516) a name bound by an unpacking / non-assignment form, or to an
+                    # OPAQUE value, is itself opaque
+                    if (_tt507 != _y507.get("target") or _y507.get("stmt") not in (
+                            "Assign", "AnnAssign", "AugAssign")
+                            or _oq507f({})(_y507.get("value"))):
+                        _uo507.add(_tt507)
+            _lk507 = {_k: (lambda _vs: next(iter(_vs)) if len(_vs) == 1 else
+                           "i" if _vs == {"i", "s"} else "")(set(_v) - {"N"})
+                      for _k, _v in _nk507.items()}
         # (node, comprehension / lambda it is inside or None, comprehension-variable kinds)
         _wk507: List[Any] = [(_f507.get("body"), None, {})]
         _sites507: Dict[str, List[Any]] = {}
+        _ca507 = ""
         while _wk507 and _bad507 is None:
             _x507, _cp507, _cv507 = _wk507.pop()
             if isinstance(_x507, list):
@@ -16880,41 +17415,82 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     if not isinstance(_g507, dict):
                         continue
                     _it507 = _g507.get("iter") if isinstance(_g507.get("iter"), dict) else {}
-                    _ek507 = ("i" if _it507.get("type") == "Call"
-                              and _it507.get("func") == "range" and _it507.get("receiver") is None
-                              else _te507(_st507.get(str(_it507.get("name"))))
-                              if _it507.get("type") == "Var" and _it507.get("name") not in _ncv507
-                              else (lambda _ks: _ks[0] if len(set(_ks)) == 1 else "")(
-                                  [_kd507(_v) for _v in (_it507.get("elts") or [])] or [""])
-                              if _it507.get("type") in ("ArrayLit", "ListLit", "Tuple", "SetLit")
-                              else "")
-                    for _tn507 in ([_g507.get("target")] + list(_g507.get("targets") or [])):
-                        if isinstance(_tn507, str):
-                            _ncv507[_tn507] = _ek507 if _g507.get("target") == _tn507 else ""
+                    _tg507 = [_t for _t in ([_g507.get("target")]
+                                            + list(_g507.get("targets") or []))
+                              if isinstance(_t, str)]
+                    _ek507 = _itk507(_it507, 1, _ncv507, _kd507)[0]
+                    _ks507 = _itk507(_it507, len(_g507.get("targets") or []), _ncv507, _kd507)
+                    for _tn507 in _tg507:
+                        _ncv507[_tn507] = (_ek507 if _g507.get("target") == _tn507 else
+                                           dict(zip(list(_g507.get("targets") or []),
+                                                    _ks507)).get(_tn507, ""))
                 for _an507 in (_x507.get("args") or []) if _ty507 == "Lambda" else []:
                     _ncv507[str(_an507.get("name") if isinstance(_an507, dict) else _an507)] = ""
             _wk507.extend((_v, _ncp507, _ncv507) for _kk507, _v in _x507.items()
                           if isinstance(_v, (dict, list)) and _kk507 not in (
                               "invariants", "variants", "assume_invariant", "prove_invariant",
                               "contracts", "decreases"))
-            _ov507 = ""
+            _ov507, _ca507 = "", ""
             if _ty507 == "BinOp" and _x507.get("op") in _ar507:
                 _l507, _r507 = _kd507(_x507.get("left")), _kd507(_x507.get("right"))
                 if "f" in (_l507, _r507) and {_l507, _r507} & {"i", ""}:
                     _bad507 = ("508", _fn507, _x507, "")
                     break
+                # (#49) ROUTE #516 -- an operand of UNKNOWN kind beside an int or another
+                # unknown may be the float of an int -> float promotion (or the str of a
+                # repetition): `for k, v in d.items(): k * v` over `Dict[int, float]`,
+                # `p.ga() * p.gb()` PROVED `\all` (CPython OverflowError at 10**400) because
+                # #508 fired only on a KNOWN float. Unknown is refused, like a float.
+                if ("" in (_l507, _r507) and {_l507, _r507} <= {"", "i"} and (
+                        _oq507f(_cv507)(_x507.get("left"))
+                        or _oq507f(_cv507)(_x507.get("right")))):
+                    _bad507 = ("508", _fn507, _x507, "516")
+                    break
                 if _x507.get("op") == "*" and not (
                         "s" in (_l507, _r507) or (_l507, _r507) in (("i", "i"), ("f", "f"))):
                     _ov507 = "`*` (a repetition count is a Py_ssize_t: route #414)"
+                    _ca507 = "b"
             elif _ty507 == "Call" and _x507.get("receiver") is None:
                 _a507 = (_x507.get("args") or [None])[0]
-                if (_x507.get("func") in ("len", "list", "sorted") and isinstance(_a507, dict)
-                        and _a507.get("type") == "Call" and _a507.get("func") == "range"):
-                    _ov507 = ("`" + str(_x507.get("func")) + "(range(..))` (the range length "
-                              "is a Py_ssize_t: routes #414 / #417)")
+                _ca507 = "b"
+                if (_x507.get("func") in ("len", "list", "sorted", "bytes", "bytearray")
+                        and len(_x507.get("args") or []) == 1 and _mr507(_a507)):
+                    # (#514) ANY value that may be a range, not the spelling `range(..)`
+                    _ov507 = ("`" + str(_x507.get("func")) + "(<range>)` (the range length "
+                              "is a Py_ssize_t: routes #414 / #417 / #514)")
                 elif (_x507.get("func") == "float" and _a507 is not None
                       and _kd507(_a507) not in ("f", "s", "o")):
                     _ov507 = "`float(<int>)` (|n| <= DBL_MAX: route #417)"
+                    _ca507 = ""
+                elif (_x507.get("func") in ("bytes", "bytearray")
+                      and len(_x507.get("args") or []) == 1 and isinstance(_a507, dict)
+                      and not (_a507.get("type") == "Number" and isinstance(
+                          _a507.get("value"), int) and not isinstance(_a507.get("value"), bool)
+                          and 0 <= _a507["value"] <= 9223372036854775807)
+                      and not (_a507.get("type") in ("ArrayLit", "ListLit", "Tuple")
+                               and all(isinstance(_v, dict) and _v.get("type") == "Number"
+                                       and isinstance(_v.get("value"), int)
+                                       and 0 <= _v["value"] <= 255
+                                       for _v in (_a507.get("elts") or [])))
+                      and _a507.get("type") not in ("String", "Str", "Bytes")):
+                    # (#49) ROUTE #512 -- `bytes(n)` / `bytearray(n)` owe 0 <= n <= 2**63-1
+                    # (ValueError / OverflowError) and `bytes(<list>)` elements in 0..255
+                    # (ValueError): a site like `[x] * n`. The count form's lowering states
+                    # the Py_ssize_t bound under `\all` (`_call_named_builtins`), the list
+                    # form's `bytes_new` owes the element range; in a dict display / store /
+                    # comprehension / field initialiser the call was erased to `(any int)`.
+                    if _kd507(_a507) in ("o",) or _a507.get("type") in (
+                            "ArrayLit", "ListLit", "Tuple", "ListComp", "GenExp"):
+                        _ov507 = ("`" + str(_x507.get("func")) + "(<list>)` (each element "
+                                  "must be in range(0, 256): route #512)")
+                        _ca507 = ""
+                    else:
+                        _ov507 = ("`" + str(_x507.get("func")) + "(<count>)` (the count must "
+                                  "be in 0 .. 2**63-1: route #512)")
+            elif _ty507 == "Starred" and _mr507(_x507.get("value")):
+                # (#514) unpacking a range (`[*r]`, `(*range(n),)`) sizes it: never lowered
+                _ov507 = "`*<range>` unpacking (the range length is a Py_ssize_t: route #514)"
+                _ca507 = "b"
             if not _ov507:
                 continue
             if _cp507 is not None:
@@ -16926,7 +17502,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _kx507 = _key506(_x507)
             except Exception:
                 _kx507 = "?" + repr(_x507)
-            _sites507.setdefault(_kx507, []).append((_x507, _ov507))
+            _sites507.setdefault(_kx507, []).append((_x507, _ov507, _ca507))
         if _bad507 is not None or not _sites507:
             continue
         _txt507 = "".join(("\n".join(_blk506[_fn507]) if _fn507 in _blk506 else (_mlw or ""))
@@ -16941,7 +17517,12 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 except Exception:
                     _kc506[id(_rn507)] = ""
             _kr507 = _kc506[id(_rn507)]
-            if _kr507 in _sites507:
+            # (#512 / #514 / #516) a repetition / range-length / byte-count site is credited
+            # only by a lowering that STATES the Py_ssize_t bound: `len(r)` lowers to
+            # `iter_length !r` and `k * v` over erased dict values to int multiplication,
+            # each a kept lowering with no obligation
+            if _kr507 in _sites507 and (_sites507[_kr507][0][2] != "b"
+                                        or "9223372036854775807" in _rs507):
                 _nr507 = "".join(_rs507.split())
                 _got507[_kr507] = max(_got507.get(_kr507, 0),
                                       _txt507.count(_nr507) if _nr507 else 0)
@@ -16966,6 +17547,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _n507 = _bad507[2]
         _at507 = (f"in `{_bad507[1]}`" + (f" (line {_n507.get('lineno')})"
                                           if _n507.get("lineno") else ""))
+        if _bad507[0] == "515":
+            raise _PyCSLSemErr507(
+                f"PYCSL-R515-IMMEDIATELY-INVOKED-LAMBDA: {_at507}, a lambda is called where it "
+                f"is written (`(lambda m: E)(n)`, `(lambda m=n: E)()`), and the function is "
+                f"judged under `no_exception \\all` (declared, or reached from a caller that "
+                f"declares it, route #460). Such a call is lowered to an opaque value `(any "
+                f"int)`: its body is never lowered, so no obligation of it (a sequence "
+                f"repetition's Py_ssize_t count, an int -> float promotion, a division, ...) "
+                f"reaches the proof (route #515; measured: `w = (lambda m: \"ab\" * m)(n)` and "
+                f"`(lambda m: m * 0.5)(n)` proved, CPython raises OverflowError at n = 10**20 / "
+                f"10**400). Write the body inline (`w = \"ab\" * n`), where its own obligation "
+                f"applies, or make it a `def` with its own contract.",
+                stage="whyml", code="PYCSL-R515-IMMEDIATELY-INVOKED-LAMBDA")
         if _bad507[0] == "508":
             raise _PyCSLSemErr507(
                 f"PYCSL-R508-INT-FLOAT-PROMOTION-UNMODELLED: {_at507}, the operation "
@@ -16977,7 +17571,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 f"declares it, route #460), and no lowering states that obligation: the plain "
                 f"form only failed as a Why3 type error, and inside a set / tuple display, "
                 f"`len(...)` or a comprehension it PROVED (route #508; measured: `v = {{n * 1.5}}` "
-                f"proved, CPython raises at n = 10**400). Convert explicitly where the bound is "
+                f"proved, CPython raises at n = 10**400). "
+                + ("Here an operand's type is UNKNOWN (route #516: a `for k, v in d.items()` "
+                   "target, a method result or field read whose class is not declared, an "
+                   "unannotated local bound several ways, ...), and an unknown operand beside "
+                   "an int or another unknown is refused like a float (measured: `for k, v in "
+                   "d.items(): w = k * v` over `Dict[int, float]` and `p.ga() * p.gb()` "
+                   "proved). Declare the operand's type (an annotated local `x: int = ...`, a "
+                   "parameter / field / return annotation) so both sides are known ints or "
+                   "known floats. " if len(_bad507) > 3 and _bad507[3] == "516" else "")
+                + f"Convert explicitly where the bound is "
                 f"stated (`#@ requires` a bound on the int, then `float(n)`, which owes "
                 f"|n| <= DBL_MAX), or use one numeric type throughout the arithmetic.",
                 stage="whyml", code="PYCSL-R508-INT-FLOAT-PROMOTION-UNMODELLED")
@@ -20705,7 +21308,63 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                               else _f315.attr if isinstance(_f315, _ast175.Attribute)
                                               else None)
                                     _bx315 = getattr(_bi315, _fn315 or "", None)
-                                    if (isinstance(_f315, _ast175.Name) and _fn315 in _cdefs315):
+                                    # (#49) ROUTE #512 -- `bytes(n)` / `bytearray(n)` owe
+                                    # 0 <= n <= 2**63-1 (ValueError / OverflowError) and
+                                    # `bytes(<list>)` elements in 0..255, and `len` / `list` /
+                                    # `sorted` of a `range` with a non-literal bound a
+                                    # Py_ssize_t length (OverflowError): NOT total. Measured:
+                                    # `self.data = bytes(n)` erased to `(any int)`, PROVED
+                                    # `\all` (CPython OverflowError at n = 10**20). Total only
+                                    # for a literal count / a module constant bound once to
+                                    # one, a display of literal bytes, a bytes / str literal.
+                                    _ok512 = (lambda _a: (
+                                        isinstance(_a, _ast175.Constant) and (
+                                            isinstance(_a.value, bytes) or (
+                                                type(_a.value) is int
+                                                and 0 <= _a.value <= 9223372036854775807)))
+                                        or (isinstance(_a, (_ast175.List, _ast175.Tuple))
+                                            and all(isinstance(_v, _ast175.Constant)
+                                                    and type(_v.value) is int
+                                                    and 0 <= _v.value <= 255 for _v in _a.elts))
+                                        or (isinstance(_a, _ast175.Name) and [
+                                            (type(_z.value.value) is int
+                                             and 0 <= _z.value.value <= 9223372036854775807)
+                                            if isinstance(_z, _ast175.Assign)
+                                            and isinstance(_z.value, _ast175.Constant) else False
+                                            for _z in _t175.body
+                                            if isinstance(_z, (_ast175.Assign, _ast175.AnnAssign,
+                                                               _ast175.AugAssign))
+                                            and any(isinstance(_w, _ast175.Name)
+                                                    and _w.id == _a.id for _w in (
+                                                        _z.targets if isinstance(
+                                                            _z, _ast175.Assign) else [_z.target]))]
+                                            == [True] and not any(
+                                                isinstance(_z, _ast175.Global) and _a.id in _z.names
+                                                for _z in _ast175.walk(_t175))))
+                                    if (isinstance(_f315, _ast175.Name)
+                                            and _fn315 in ("bytes", "bytearray")
+                                            and (len(_q315.args) > 1 or _q315.keywords or (
+                                                _q315.args and not _ok512(_q315.args[0])))):
+                                        _why315[_cn315] = (f"`{_ast175.unparse(_q315)}` (line "
+                                                           f"{_q315.lineno}), whose ValueError "
+                                                           f"/ OverflowError is not modelled "
+                                                           f"(route #512)")
+                                    elif (isinstance(_f315, _ast175.Name)
+                                            and _fn315 in ("len", "list", "sorted")
+                                            and _q315.args
+                                            and isinstance(_q315.args[0], _ast175.Call)
+                                            and isinstance(_q315.args[0].func, _ast175.Name)
+                                            and _q315.args[0].func.id == "range"
+                                            and not all(_ok512(_v) or (
+                                                isinstance(_v, _ast175.UnaryOp)
+                                                and isinstance(_v.op, _ast175.USub)
+                                                and _ok512(_v.operand))
+                                                for _v in _q315.args[0].args)):
+                                        _why315[_cn315] = (f"`{_ast175.unparse(_q315)}` (line "
+                                                           f"{_q315.lineno}), whose "
+                                                           f"OverflowError is not modelled "
+                                                           f"(route #514)")
+                                    elif (isinstance(_f315, _ast175.Name) and _fn315 in _cdefs315):
                                         _dep315[_cn315].add(_fn315)
                                     elif (isinstance(_f315, _ast175.Name) and _fn315 in _tot315):
                                         pass

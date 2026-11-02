@@ -12713,6 +12713,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # CPython agrees on the value: `bytes(n)` is n zero bytes, exactly like
             # `bytearray(n)`. Witness 1725 keeps the immutability line; 1818/1819 pin this.
             if args and _ba_is_count and func_name in ("bytearray", "bytes"):
+                # (#49) ROUTE #512 -- the count is converted to a Py_ssize_t: OverflowError for
+                # n > sys.maxsize, exactly route #414's `[x] * n` (`Array.make` owes only
+                # n >= 0, the ValueError side). MEASURED: `b = bytes(n); if n > 0: return
+                # b[0]` under `requires n >= 0` PROVED `\all`, CPython OverflowError at
+                # n = 10**20. Under `\all` only, route #332's rule, as for `[x] * n`.
+                if (not self._in_spec
+                        and getattr(self, "_current_no_exception_all", False)):
+                    return (f"(Array.make (begin assert {{ [@expl:no_exception: OverflowError "
+                            f"reachable] {args[0]} <= 9223372036854775807 }}; {args[0]} end) 0)")
                 return f"(Array.make {args[0]} 0)"
             if args:
                 # WL-06d soundness: Python `bytes([...])`/`bytearray([...])` raises
