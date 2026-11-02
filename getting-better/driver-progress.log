@@ -13016,3 +13016,4 @@ measurement instead of re-running two hours of it.
 2026-11-01T18:15:49Z routes #507-#509 REPAIRED+LANDED
 2026-11-02T09:23:58Z routes #510-#518 REPAIRED+LANDED
 2026-11-02T10:08:15Z wall lex-char-class BROKEN: lex converted 417->416
+2026-11-02T17:05Z routes #519 #520 + #510 residual LANDED (u12; v30 --slow 85/85) — trusted 416 unchanged
