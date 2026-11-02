@@ -1,5 +1,10 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-02): #521-#528 OPENED (red team 49 on dd4a06928: 1472 probes / 275 confirmed in 8 families, default mode): #521 r230-none-fence-
+##   binary-only (74); #522 r230-get-on-dict-field (30); #523 local-str-list-literal-iterated-after-append (32); #524 r230-nested-optional-container (19);
+##   #525 module-str-list-mutated-via-namespace (21; a gap of today's lex-char-class inc 2); #526 r230-none-taint-does-not-flow (47);
+##   #527 optional-str-field-as-plain-string (11); #528 split-elem-total-no-indexerror (41). Driver repro 9/9.
+
 ## run #4 (2026-11-02): #519 #520 OPENED (red team 48: 1800 probes / 76 confirmed; rt47's 192 all refused / not proved): #519
 ##   r315-field-initialiser-constructor-unchecked (59: a constructor admitted by route #315 as a field initialiser is lowered to
 ##   `{ f = (any int) }` and its body's obligations are never checked); #520 dataclass-default-factory-never-called (17). Also: #510's
