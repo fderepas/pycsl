@@ -474,6 +474,32 @@ START (standing), not as an interrupt. Rules:
   against the ONE moved file's emit + type-check (~10 s a round), never against a battery. The
   opposite edge is checked too: a `writes` the body never performs is "this write effect does not
   happen" (#74) — so a declared frame on a concrete `let` must be exactly as honest as its body.
+- **CARVE-OUT (gen #36, 2026-10-14, MANDATORY) — CAP EVERY HEAVY JOB; NEVER MORE THAN TWO AT ONCE.**
+  All four gen #36 session deaths were systemd-oomd killing the WHOLE tmux scope (the assistant and every
+  child, ~13 GB on a 15 GB machine) after user-slice memory pressure stayed above 50% for 20 s — caused by
+  fanning out three parallel proof queues plus agent sweeps. Every heavy job (pycsl whole-file / `--fun`
+  proofs, `why3 prove`, corpus/pyref/mirror sweeps, the planes, coqc, lake) runs through
+  `scratchpad/heavy/heavy.sh <cmd>`: a global 2-slot `flock` semaphore around
+  `systemd-run --user --scope -q -p MemoryMax=6G` (NO MemoryHigh: a 4G MemoryHigh throttled the big proofs into swap thrash, 5-7h runtimes). Owed proofs go in ONE sequential
+  queue; every sub-agent prompt must require the wrapper; why3 `-j` <= 4. Long whole-file re-proof QUEUES run with `HEAVY_LOW=1` (slot 2 only; heavy.sh now AUTO-classifies a pycsl.py whole-file proof of a src/self-annotate file and a why3 prove of a mirror .mlw as LOW, and --no-proof/--type-only runs as QUICK on their own slot 3; every helper brief must still state the HEAVY_LOW rule), so slot 1 always serves short GATING jobs (spikes, witnesses, sweeps, planes) -- two long proofs holding both slots for hours starved every gate (coordinator, 2026-10-16). NEVER edit heavy.sh (or any script a queued/running job is executing) IN PLACE: write a new file and `mv` it over the old one (atomic rename; running bash keeps the old inode) -- an in-place rewrite made three queued wrappers resume at a stale byte offset, each holding gate.lock while waiting on it via a second fd: the whole queue deadlocked for an hour (2026-10-16 00:44-01:47Z). HOUSEKEEPING (user rule): once a worktree's work has landed, been abandoned or refuted, `git worktree remove --force` it (r<N>, r<N>base, land<N>, p<N>, g<N>ch<M>, spikes) in the SAME iteration that logs the outcome — after checking no job runs in it and anything worth keeping is committed or saved under getting-better/ — and note "worktree removed" in the log line. An rc of 137 is an OOM-kill —
+  a resource failure to re-run, never a proof verdict.
+- **CARVE-OUT (gen #36, 2026-10-16) — A SOUNDNESS REPAIR TO A SHARED LOWERING OWES WHOLE-FILE RE-PROOFS OF
+  EVERY MOVED MIRROR, AND THOSE PROOFS CAN FAIL.** Route #249 turned `==` on `Any` operands into an
+  uninterpreted `py_eq`; its executor type-checked the 9 moved mirrors and logged the proofs OWED. The owed
+  queue then found `PyCSLWeaver._const_int`'s verified postcondition `\result == node.value` no longer
+  provable (it had relied on the unsound law). Fix the CONTRACT honestly (restate what the body computes,
+  here `\result == int(node.value)`), never by re-trusting the method. Never drop an owed proof because the
+  emission diff "looks harmless"; and when installing a helper script atomically, CHECK the new file is
+  non-empty before the `mv` (a failed `sed` once installed an empty heavy.sh).
+- **CARVE-OUT (gen #36) — GIVE PARALLEL EXECUTORS DISJOINT, BOUNDED CORPUS-ID RANGES.** "Number witnesses from
+  N" is not a range: two concurrent executors told "from 2540" and "from 2560" collided (and twice before,
+  2300-2314). Brief each with an explicit `[lo, hi]` block (e.g. 2540-2559) and "stop and report if you need
+  more"; at landing, `ls test-suite/corpus/pycsl-reference | cut -c1-4 | sort | uniq -d` must be empty.
+- **CARVE-OUT (gen #36) — THE FAST 61 ARE NOT THE BATTERY: RUN `--slow` (84) AT LEAST ONCE PER LANDED STACK.**
+  A window of ~25 route repairs gated only on the fast planes left THREE slow planes red
+  (stdlib-modules-verify, getattr-erasure, assigns-writes-survival) and one open-route carrier stale (#214
+  silently closed). Run `bin/run-soundness-planes.sh --slow` on the landed HEAD after every 2-3 landings of
+  shared-lowering changes, and bisect any red to its commit before the next landing.
 - **CARVE-OUT (gen #37, 2026-10-20) — A SUB-AGENT DIES SILENTLY WHEN ITS COMMAND IS AUTO-BACKGROUNDED;
   BRIEF THE TIMEOUT, NOT JUST THE DURATION.** Four sub-agents died mid-task in one window (ch28, rsurv,
   r283, r2b): no process, no file write for >45 min, no report — r2b with finished, UNCOMMITTED gates.
@@ -494,6 +520,17 @@ START (standing), not as an interrupt. Rules:
 - **Escalate-not-thrash, time-aware.** A per-wall attempt budget still applies; additionally, do not START
   a full cycle whose fable-review + spike cannot plausibly finish before the deadline — defer it (record
   the wall-signal for the next run) and spend the tail on cheaper items.
+
+- **CARVE-OUT (driver run #4, 2026-11-02) — A CENSUS PORT WITHOUT LOOP ANNOTATIONS IS NOT A MEASUREMENT OF
+  TERMINATION.** The base-loop census ports the live body verbatim, with no `#@ loop` lines; the fidelity plane
+  allows in-body `#@` lines. A TC-OK stub whose only non-Valid goals are `[@expl:termination] false` must have its
+  variant / invariant / frame lines tried before it is called a wall (lex: 10 -> 3 non-Valid on mirror lines alone,
+  then converted). And a `for` loop whose break path writes an outer variable havocs it: give it a frame invariant
+  (`x == \at(x, L)`) before blaming prover capacity.
+- **CARVE-OUT (driver run #4, 2026-11-01 OOM) — CPYTHON ITSELF IS A MEMORY BOMB ON OVERFLOW PROBES.** A red-team or
+  route executor's bare `python3 -c "max(range(10**20))"` reached 12 GB and was OOM-killed outside the heavy slice.
+  Every brief says: CPython runs of probes go through heavy.sh (or `timeout` + `ulimit -v`), and any python that
+  imports pycsl or walks the corpus runs AS heavy.sh.
 
 ### A.5 WHY the heartbeat exists (read this before deciding it is ceremony)
 
