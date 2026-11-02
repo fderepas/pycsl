@@ -928,6 +928,11 @@ AUDITED = {
         "Route #515. 'Write the body inline (`w = \"ab\" * n`), where its own obligation applies': witness 8195 with the body "
         "inline under `requires 0 <= n <= 1000` (getting-better/open-routes/witnesses-r515/advice/a515_inline) VERIFIES "
         "`\\result == 1` under `no_exception \\all`; control 8213 (the same) VERIFIES."),
+    # driver run #4 -- routes #523 / #525 (u14): R523's advice IS control 8400 and witnesses-r523/advice/a523_one_literal.
+    ('src/pycsl/module6_whyml/stmt_control_flow.py', 'PyCSLIRError(f"""PYCSL-R523-STR-LITERAL-LIST-MUTATED: `for ... in {iter_ir.get(\'name\')}`: the local `{iter_ir.get(\'name\')}` is bound to a st'): (FOLLOWABLE,
+        "Route #523. 'Bind the list once at the top of the function and read it only as a `for` iterable (build the extended list as "
+        "a new literal)': witness g1016_x1076 with the appended element folded into one literal (getting-better/open-routes/"
+        "witnesses-r523/advice/a523_one_literal) VERIFIES `\\result == 0`; controls 8400 (list) and 8401 (the tuple form) VERIFY."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit

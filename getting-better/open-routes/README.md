@@ -7,6 +7,18 @@
 ##   program-class factory not callable with no argument (33), #534 literal lambda kinds (79), #535 class-body binding shadowing a builtin factory (10);
 ##   #538 tuple ordering with an Any slot (1, plain function); #539 module / class-scope names judged by their first binding (7). Driver repro 11/11.
 
+## run #4 (2026-11-02): #523 / #525 REPAIRED (executor u14 off 1aaa1dfdd, 675f8cff4 + its ledger / docs commit; inline in Module 5 `visit_Module` and
+##   Module 6 `_typed_local_vars` (twins `\trusted`) + `_str_lit_seq_elts` (no twin), no new def, no axiom, emission byte-identical; annotations §7.523).
+##   A str-list literal is iterated as its literal only when nothing can reach the list. Module-wide namespace / object-graph scan (`globals` /
+##   `locals` / `vars` / `__import__` / `eval` / `exec`, non-constant `getattr`, `__globals__` / `__dict__` / frame attributes, `gc` / `inspect` /
+##   `__main__` / `importlib` / ... imports, `sys` beyond plain value attributes, a self-import by file stem): with any, neither shortcut is taken
+##   (#525: `module_const_str_lists` not recorded -> general lowering, NOT PROVED). Local (#523): `str_lit_seq_locals_ok` admits a binding directly
+##   in the body, bound once, read after, a list read only by `for`; a `for` over any other str-literal local is REFUSED
+##   PYCSL-R523-STR-LITERAL-LIST-MUTATED (the general lowering int-erases: `append(None)` + `len(p)` still proved). Witnesses 53 x default / typed /
+##   store = 159/159 REFUSED or NOT PROVED; corpus 8380-8387 / 8390-8399 (FAIL), controls 8400-8403 (PASS). Over-refusal: corpus root 0/0/0,
+##   pyref 2186/2186 0/0/0, mirror 53/53 0/0/0 (nothing owed); rt43 / rt44 0 probes of the shape. Residual: cross-module mutation (`import m;
+##   m.OPS.append`), module str SET constants.
+
 ## run #4 (2026-11-02): #521-#528 OPENED (red team 49 on dd4a06928: 1472 probes / 275 confirmed in 8 families, default mode): #521 r230-none-fence-
 ##   binary-only (74); #522 r230-get-on-dict-field (30); #523 local-str-list-literal-iterated-after-append (32); #524 r230-nested-optional-container (19);
 ##   #525 module-str-list-mutated-via-namespace (21; a gap of today's lex-char-class inc 2); #526 r230-none-taint-does-not-flow (47);
