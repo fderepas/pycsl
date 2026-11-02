@@ -80,7 +80,8 @@ OTHER = re.compile(r"^#@\s+(requires|assigns|loop|\\variant|raises|ensures|act|"
 # first one fails closed), so the contract is a real claim about method resolution rather
 # than one the tail `return` discharges. See getting-better/vacuous-driver-classification.md
 # for the remaining 54, all named and grouped.
-RATCHETS = {"python-reference": 81, "pycsl-reference": 9}
+# (driver run #4, 2026-11-02) python-reference 81 -> 80: measured 80 on main 9bdb8cf32 (tightened, not loosened).
+RATCHETS = {"python-reference": 80, "pycsl-reference": 9}
 # THE SHARPER SUB-POPULATION: a function whose ENTIRE body is a docstring plus a single
 # `return <literal>`. It is not merely "proved from the tail return" — it EXERCISES
 # NOTHING. `python-reference/0034` ("Integer literals"), `0038` ("Objects, values and

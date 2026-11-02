@@ -11,10 +11,10 @@ class R:
     t: str
 
 
-#@ ensures \result == 1
+#@ ensures \result == len(r.t)
 def f(r: R) -> int:
     w = r.s + "x"
-    return 1
+    return len(r.t)
 
 
 if __name__ == "__main__":
