@@ -3104,6 +3104,150 @@ class Module3_Weaver:
             "locals", "map", "max", "memoryview", "min", "next", "object", "oct", "open", "ord", "pow",
             "print", "property", "quit", "range", "repr", "reversed", "round", "set", "setattr", "slice",
             "sorted", "staticmethod", "str", "sum", "super", "tuple", "type", "vars", "zip"))
+        # (#49) run #4, ROUTE #518 (red team 47 F9; MEASURED PROVED at a134c3e8f, CPython
+        # violates) — A WALRUS EVALUATED AT DEFINITION TIME. `_l = lambda a=(K := 0): a` at
+        # module level rebinds the module constant `K` when the lambda is CREATED, but every
+        # binding-site walk of this pass (#118 rule (1), #132, #377, #463) skips a Lambda node
+        # WHOLE, defaults included, so `K` stayed folded to 5 and `ensures \result == 5` over
+        # `return K` proved (CPython 0); measured past the route's own spellings: a keyword-only
+        # default, a lambda in a list display, a lambda in another lambda's default, a
+        # comprehension in the default, and `_l = lambda a=(inc := dec): a` rebinding a module
+        # FUNCTION (`inc(3)` proved 4, CPython 2); a class-body lambda rebinding a class
+        # constant (`C.K`) did not prove but is the same store. The expressions a nested scope evaluates in the ENCLOSING one
+        # are the defaults and keyword-only defaults of a def / lambda, the decorators of a
+        # def / class, and the bases and keywords of a class (annotations cannot hold a
+        # walrus). RULE (refuse by default, every scope, every pipeline): a `NamedExpr`
+        # anywhere inside one of those expressions is REFUSED — the walks need not each learn
+        # the position. CENSUS (both corpora, 53 mirrors, `pycsl_lib`, live `src/pycsl`, the
+        # rt43 / rt44 probes): 0 sites.
+        for _nb_x in ast.walk(python_ast):
+            _nb_dt: list = []
+            if isinstance(_nb_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                _nb_dt.extend(_nb_d for _nb_d in (_nb_x.args.defaults or []) if _nb_d is not None)
+                _nb_dt.extend(_nb_d for _nb_d in (_nb_x.args.kw_defaults or [])
+                              if _nb_d is not None)
+            if isinstance(_nb_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                _nb_dt.extend(_nb_x.decorator_list or [])
+            if isinstance(_nb_x, ast.ClassDef):
+                _nb_dt.extend(_nb_x.bases or [])
+                _nb_dt.extend(_nb_k.value for _nb_k in (_nb_x.keywords or []))
+            for _nb_e in _nb_dt:
+                for _nb_w in ast.walk(_nb_e):
+                    if isinstance(_nb_w, ast.NamedExpr):
+                        _nb_wn = (_nb_w.target.id if isinstance(_nb_w.target, ast.Name)
+                                  else "?")
+                        _nb_own = ("lambda" if isinstance(_nb_x, ast.Lambda)
+                                   else f"`{_nb_x.name}`")
+                        raise PyCSLSemanticError(
+                            f"line {getattr(_nb_w, 'lineno', 0)}: the walrus `{_nb_wn} := ...` "
+                            f"sits in a default, decorator, base or keyword of the {_nb_own} "
+                            f"at line {getattr(_nb_x, 'lineno', 0)}, which Python evaluates in "
+                            f"the ENCLOSING scope when the def / class / lambda is created, so "
+                            f"it rebinds `{_nb_wn}` there; no binding walk of the model sees "
+                            f"that store (measured: `K = 5`, then `_l = lambda a=(K := 0): a` "
+                            f"at module level, proved `\\result == 5` over `return K`, CPython "
+                            f"0) (route #518). Assign `{_nb_wn}` in a statement of its own "
+                            f"before the definition and use the plain name in the default.",
+                            code="PYCSL-R518-WALRUS-AT-DEFINITION-TIME")
+        # (#49) run #4, ROUTE #511 (red team 47 F2; MEASURED PROVED at a134c3e8f, CPython
+        # violates) — A CLASS STATEMENT INSIDE A FUNCTION IS A BINDING. Function-body `class`
+        # (and `type X = ...`) statements are not lowered (`_PY_STMT_HANDLERS` has no row): the
+        # class is modelled as ONE program-wide class under its bare name, and a read of that
+        # name resolves through the other tables first. `K = 5` then `class K: pass; return
+        # n // K` in a `no_exception \all` function lowered `n // 5` (CPython TypeError), and
+        # the same local class hid a program function (`class g: pass; return g(n) + 1`), a
+        # parameter (`class n`), an earlier local (`x = 5; class x: pass; return x`); measured
+        # past the route's spellings: `type K = int` in a function (folded to 5, PROVED); not
+        # proved but resolved to the wrong binding: two functions each with their own `class
+        # Q`, a local `class Q` beside a module `class Q`, a local class read from ANOTHER
+        # function (CPython NameError). Route #460 refuses the nested-`def`
+        # twin; route #264 the read-before-bind paths. RULE (refuse by default): a `class` /
+        # `type` statement anywhere inside a function body is admitted only when its name
+        # has NO other binding site in the file (def / class / parameter / lambda parameter /
+        # store of any kind / import / except-as / match capture / global / nonlocal) and,
+        # unless it names a builtin (route #386 owns those; outside the def CPython reads the
+        # builtin), is read nowhere outside that function. CENSUS (both corpora, 53 mirrors,
+        # `pycsl_lib`, live `src/pycsl`, rt43 / rt44): 50 functions bind a local class;
+        # outside 5550-5554 (route #392 witnesses, expected FAIL) none is bound twice or read
+        # outside its function.
+        _nb_r511: Dict[str, list] = {}
+        _nb_ld511: Dict[str, list] = {}
+        for _nb_x in ast.walk(python_ast):
+            if isinstance(_nb_x, ast.Name) and isinstance(_nb_x.ctx, ast.Load):
+                _nb_ld511.setdefault(_nb_x.id, []).append(_nb_x)
+            if isinstance(_nb_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                _nb_r511.setdefault(_nb_x.name, []).append(_nb_x)
+            if isinstance(_nb_x, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                _nb_pa = _nb_x.args
+                for _nb_a in (list(getattr(_nb_pa, "posonlyargs", []) or []) + list(_nb_pa.args)
+                              + list(_nb_pa.kwonlyargs)
+                              + [_nb_v for _nb_v in (_nb_pa.vararg, _nb_pa.kwarg)
+                                 if _nb_v is not None]):
+                    _nb_r511.setdefault(_nb_a.arg, []).append(_nb_a)
+            if isinstance(_nb_x, ast.Name) and not isinstance(_nb_x.ctx, ast.Load):
+                _nb_r511.setdefault(_nb_x.id, []).append(_nb_x)
+            elif isinstance(_nb_x, (ast.Import, ast.ImportFrom)):
+                for _nb_a in _nb_x.names:
+                    if _nb_a.name != "*":
+                        _nb_r511.setdefault((_nb_a.asname or _nb_a.name).split(".")[0],
+                                            []).append(_nb_x)
+            elif isinstance(_nb_x, (ast.Global, ast.Nonlocal)):
+                for _nb_v in _nb_x.names:
+                    _nb_r511.setdefault(_nb_v, []).append(_nb_x)
+            elif type(_nb_x).__name__ in ("ExceptHandler", "MatchAs", "MatchStar"):
+                if isinstance(getattr(_nb_x, "name", None), str):
+                    _nb_r511.setdefault(_nb_x.name, []).append(_nb_x)
+            elif type(_nb_x).__name__ == "MatchMapping":
+                if isinstance(getattr(_nb_x, "rest", None), str):
+                    _nb_r511.setdefault(_nb_x.rest, []).append(_nb_x)
+        for _nb_f in ast.walk(python_ast):
+            if not isinstance(_nb_f, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            # the class / type statements whose NEAREST enclosing function is this one (a
+            # nested def / lambda is its own scope, visited on its own turn)
+            _nb_cs: list = []
+            _nb_stk: list = list(_nb_f.body)
+            while _nb_stk:
+                _nb_c = _nb_stk.pop()
+                if isinstance(_nb_c, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+                    continue
+                if isinstance(_nb_c, ast.ClassDef) or type(_nb_c).__name__ == "TypeAlias":
+                    _nb_cs.append(_nb_c)
+                _nb_stk.extend(ast.iter_child_nodes(_nb_c))
+            if not _nb_cs:
+                continue
+            _nb_in = {id(_nb_z) for _nb_z in ast.walk(_nb_f)}
+            for _nb_c in _nb_cs:
+                if isinstance(_nb_c, ast.ClassDef):
+                    _nb_cn, _nb_cid = _nb_c.name, _nb_c
+                elif (type(_nb_c).__name__ == "TypeAlias"
+                      and isinstance(getattr(_nb_c, "name", None), ast.Name)):
+                    _nb_cn, _nb_cid = _nb_c.name.id, _nb_c.name
+                else:
+                    continue
+                _nb_why = ""
+                _nb_oth = [_nb_s for _nb_s in _nb_r511.get(_nb_cn, []) if _nb_s is not _nb_cid]
+                if _nb_oth:
+                    _nb_why = (f"`{_nb_cn}` is bound again at line "
+                               f"{getattr(_nb_oth[0], 'lineno', 0)}")
+                elif _nb_cn not in _nb_builtin_names:
+                    for _nb_z in _nb_ld511.get(_nb_cn, []):
+                        if id(_nb_z) not in _nb_in:
+                            _nb_why = (f"`{_nb_cn}` is read outside `{_nb_f.name}` at line "
+                                       f"{getattr(_nb_z, 'lineno', 0)}")
+                            break
+                if _nb_why:
+                    raise PyCSLSemanticError(
+                        f"line {getattr(_nb_c, 'lineno', 0)}: the "
+                        f"{'class' if isinstance(_nb_c, ast.ClassDef) else 'type alias'} "
+                        f"statement `{_nb_cn}` inside function `{_nb_f.name}` binds "
+                        f"`{_nb_cn}` in that function's scope, but the model keeps ONE "
+                        f"program-wide meaning per name and {_nb_why}, so a read of "
+                        f"`{_nb_cn}` would be lowered as the OTHER binding (measured: `K = 5`, "
+                        f"then `class K: pass; return n // K` in a function proved "
+                        f"`no_exception`, CPython TypeError) (route #511). Give the local class "
+                        f"a name bound nowhere else in the file, or move it to module level.",
+                        code="PYCSL-R511-LOCAL-CLASS-NAME-NOT-UNIQUE")
         # binding sites per SCOPE (the module, every class body, every function body), not
         # descending into nested def/class/lambda bodies nor into comprehension targets:
         # name -> list of (kind, key, node); kind in def/store/import; key identifies an import.

@@ -1,0 +1,25 @@
+r"""Test 8140 -- route #511 (expected FAIL: PROVED at base, REFUSED PYCSL-R511-LOCAL-CLASS-NAME-NOT-UNIQUE): `K = 5`, then `class K: pass` inside a `no_exception \all` function and `return n // K`; the lowering read the folded constant (`n // 5`); CPython raises TypeError
+"""
+# pycsl-expected: FAIL
+from typing import Any, Dict, List, Optional
+from dataclasses import dataclass
+
+K = 5
+
+
+#@ no_exception \all
+def f(n: int) -> int:
+    class K:
+        pass
+    return n // K
+
+
+if __name__ == "__main__":
+    try:
+        r = f(10)
+        if not (r == 2):
+            print("VIOLATION contract", repr(r)[:60])
+            raise SystemExit
+        print("result", repr(r)[:60])
+    except Exception as e:
+        print("VIOLATION", type(e).__name__, e)

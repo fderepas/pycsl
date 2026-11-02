@@ -4744,6 +4744,50 @@ dependency module's `type K` rebinding a name this file imports (`from dep impor
 here (measured NOT PROVED at base, red team 47 g811 import_*); a module-level `type K` before `K = 5`
 (CPython reads 5) is refused (name-keyed, not flow-sensitive).
 
+### 7.511 A `class` / `type` statement inside a function binds a name the whole file leaves free (route #511, run #4)
+
+A `class` (or `type X = ...`) statement in a function body is not lowered as a statement: the class is modelled
+as ONE program-wide class under its bare name, and a read of the name resolves through the module-constant,
+function, parameter and local tables first. Red team 47 measured PROVED (CPython violates) `K = 5`, then
+`class K: pass; return n // K` under `no_exception \all` (lowered `n // 5`; CPython TypeError), `return K`
+under `ensures \result == 5`, a `@dataclass` / attribute-bearing / method-local class, `class g: pass; return
+g(n) + 1` over a program `g`, `class n` over the parameter `n`, `x = 5; class x: pass; return x` (17 witnesses);
+the repair's own audit added a local `type K = int` (PROVED at base) and, NOT proved at base but resolved
+to the wrong binding, two functions each with their own `class Q`, a local `class Q` beside a module `class
+Q`, and a local class read from ANOTHER function (CPython NameError).
+
+RULE (`Module3_Weaver.process`, both pipelines, refuse by default): a `class` / `type` statement whose nearest
+enclosing scope is a function is admitted only when its name has NO other binding site anywhere in the file
+(def / class / parameter / lambda parameter / any store target / import / except-as / match capture / `global`
+/ `nonlocal`) and, unless it names a builtin (route #386 owns those), is read nowhere outside that function.
+Otherwise REFUSED with `PYCSL-R511-LOCAL-CLASS-NAME-NOT-UNIQUE`. Give the local class a name used nowhere
+else in the file, or move it to module level. Route #460 refuses the nested-`def` twin; route #264 a read on a
+path where the statement did not run.
+
+Witnesses `8140`-`8147` (PROVED at base, REFUSED) and `8148` / `8149` (not proved at base, REFUSED by name); controls `8150` (a uniquely named local class constructed and read in its
+function), `8151` (local classes under distinct names beside a module constant), `8152` (a uniquely named local
+`type` alias). Cost: two honest functions that each define a local class under the same name are refused.
+
+### 7.518 A walrus in a definition-time expression is refused (route #518, run #4)
+
+The defaults and keyword-only defaults of a `def` / `lambda`, the decorators of a `def` / `class` and the bases
+and keywords of a `class` are evaluated in the ENCLOSING scope when the definition runs, so a walrus there
+rebinds an enclosing name; the binding-site walks of the weaver (routes #118, #132, #377, #463) skip a lambda
+whole. Red team 47 measured PROVED `K = 5`, `ensures \result == 5` over `return K`, then a module-level `_l =
+lambda a=(K := 0): a` (CPython 0), with keyword-only defaults, a lambda in a list display, before or after the
+claimed def, and `len(S)` after `lambda a=(S := "abc"): a` (14 witnesses); the repair's audit added (PROVED at
+base) a lambda in a lambda's default and `lambda a=(inc := dec): a` rebinding a program FUNCTION (`inc(3) == 4`,
+CPython 2), and (not proved at base) a class-body lambda rebinding a class constant.
+
+RULE (`Module3_Weaver.process`, every scope, both pipelines): a `NamedExpr` anywhere inside one of those
+expressions is REFUSED with `PYCSL-R518-WALRUS-AT-DEFINITION-TIME`. Bind the name in a statement of its own
+before the definition and use the plain name in the default.
+
+Witnesses `8160`-`8164`, `8166` (PROVED at base, REFUSED), `8165` (not proved at base, REFUSED by name) and
+`8167` (the `def`-default twin, refused before by route #350); controls
+`8170` (a plain-name default and a walrus in the lambda BODY, which binds the lambda's own local), `8171` (the
+binding moved to its own statement).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
