@@ -8964,3 +8964,15 @@ L-input that revealed the divergence: `l3o` / `l3p` / `l3n` were rc=0 PROVED whi
 normally with `out[0] == 2`. The review's ambient premise
 (`dict-value-model-r3-response.md` §5.4) rested on the skill's inter-procedural rules and had not been
 probed against any swallow channel.
+
+## wall lex-char-class (driver run #4, 2026-11-02) — BROKEN (proof2why3/parser.py::lex converted, 417 -> 416)
+- LESSON (validity-tested, CARVE-OUT for the base-loop census): the verbatim live-body port carries NO `#@ loop` lines,
+  so a stub whose only non-Valid goals are `[@expl:termination] false` is NOT a wall until the census has tried the
+  variant / invariant / frame lines the fidelity plane allows in-body (`check-self-annotate-mirror-sync.py` compares
+  bodies modulo `#@` lines). Measured: lex 10 non-Valid -> 3 with the 5 variant lines + 3 frame lines (`#@ label`,
+  `i == \at(i, L)`, `not matched`), before any emitter work. L-input: review C3 + lx1 §5.2.
+- LESSON: a `for` loop whose BREAK path writes an outer variable havocs it at loop exit (its only emitted invariant
+  is the index bound); the outer variant is then unprovable, not slow. A frame invariant (`x == \at(x, L)`) fixes
+  it; the emitter could synthesise it. L-input: lx1 §5.1 task dump.
+- The driver's report misdiagnosed the wall twice (symbol unification, then "prover capacity"); the independent
+  review and the spike each refuted one diagnosis with an oracle run — the cycle worked as designed.
