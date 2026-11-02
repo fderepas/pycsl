@@ -17843,7 +17843,56 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             self._add_abstract_op(
                 "val str_split_elem_op (s sep: string) (i: int) : string\n"
                 "    ensures { String.length result <= String.length s }")
-            return f"(str_split_elem_op {_rcvw} {_sepw} {index})"
+            # (#49) ROUTE #528 — THE PIECE LIST IS NEVER MATERIALISED, SO ITS INDEX HAD NO
+            # BOUNDS OBLIGATION. `"ab".split(",")[1]` raises IndexError (one piece), yet
+            # `len(s.split(",")[1])`, `s.split(",")[1].isdigit()`, `.. in "ab"`, `x = ..`
+            # PROVED `no_exception \all`. The sound neighbour is the list read: a Why3
+            # array read carries its bounds precondition in EVERY body, claimed or not.
+            # The piece count is unmodelled; the only index it is known to admit is `0` /
+            # `-1`, and only for a NON-EMPTY string LITERAL separator (`"".split()` is
+            # `[]`, a non-literal separator may be None or empty). So: a literal `[0]` /
+            # `[-1]` on such a separator keeps its lowering byte-identical; any other index
+            # owes `i = 0 \/ i = -1` (a non-literal separator: `false`), bound once so a
+            # program-valued index stays a program term. Written INLINE: `_handle_subscript`'s
+            # mirror twin is `\trusted`.
+            # A guarded no-arg `N.split()[0]` (see `_handle_ifexpr_expr`) is in range too.
+            # And when the separator OCCURS in the receiver (`if sep in s:` / an early
+            # return), there are at least two pieces unless a maxsplit of 0 is given, so
+            # `[1]` / `[-2]` are owed exactly that occurrence (the `str_contains_op` law).
+            _r528_ix = expr.get("index", {})
+            _r528_call = expr.get("value", {})
+            _r528_args = list(_r528_call.get("args") or [])
+            _r528_lit = (isinstance(_sep, dict) and _sep.get("type") == "String"
+                         and isinstance(_sep.get("value"), str) and _sep.get("value") != "")
+            _r528_ws = (_sep is None and not _r528_args and not _r528_call.get("keywords")
+                        and isinstance(_rcv, dict) and _rcv.get("type") == "Var"
+                        and _rcv.get("name") is not None
+                        and _rcv.get("name") == getattr(self, "_r528_wsg", None))
+            _r528_zero = (isinstance(_r528_ix, dict) and _r528_ix.get("type") == "Number"
+                          and _r528_ix.get("value") == 0
+                          and not isinstance(_r528_ix.get("value"), bool))
+            if ((_r528_lit or _r528_ws)
+                    and (_r528_zero or self._negative_literal_index(_r528_ix) == 1)):
+                return f"(str_split_elem_op {_rcvw} {_sepw} {index})"
+            _r528_c = "false"
+            if _r528_lit:
+                _r528_c = "_r528_i = 0 \\/ _r528_i = (-1)"
+                _r528_mx = _r528_args[1] if len(_r528_args) > 1 else None
+                if (not _r528_call.get("keywords") and len(_r528_args) <= 2
+                        and (_r528_mx is None
+                             or (isinstance(_r528_mx, dict)
+                                 and _r528_mx.get("type") == "Number"
+                                 and isinstance(_r528_mx.get("value"), int)
+                                 and not isinstance(_r528_mx.get("value"), bool)
+                                 and _r528_mx.get("value") >= 1))):
+                    _r528_c += (f" \\/ ((_r528_i = 1 \\/ _r528_i = (-2)) /\\ "
+                                f"(exists _r528_k: int. 0 <= _r528_k /\\ _r528_k + "
+                                f"String.length {_sepw} <= String.length _r528_s /\\ "
+                                f"String.substring _r528_s _r528_k (String.length {_sepw}) "
+                                f"= {_sepw}))")
+            return (f"(let _r528_s = {_rcvw} in let _r528_i = {index} in begin assert {{ "
+                    f"[@expl:PyCSL-R528 split piece index may be out of range: IndexError] "
+                    f"{_r528_c} }}; (str_split_elem_op _r528_s {_sepw} _r528_i) end)")
         # typing-engagement ty2 / 29-1700-typing-spec-5 §2.2 T5: a string-literal
         # subscript `p["x"]` on a TypedDict-record-typed receiver lowers to a
         # record-field read `p.x` (the core-agent hard rule). Non-TypedDict
@@ -19583,7 +19632,35 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # emit_ir (via the `.to_dict()` recognizer) instead of the int tuple-unpack target.
         _bd = node.body.to_dict()
         _od = node.orelse.to_dict()
+        # (#49) ROUTE #528 -- `N.split()[0] if N.split() else ..`: the TRUE arm of a truth
+        # test of the no-arg split of a plain name N holds a non-empty piece list, so its
+        # `N.split()[0]` / `[-1]` is in range (the two `str_split_ws_op` calls are not
+        # connected in the model). Recorded for the split-piece arm of `_handle_subscript`
+        # while the true arm is lowered; void when the arm can rebind or shadow N (a
+        # walrus, a lambda, a comprehension). INLINE: this twin is `\trusted`.
+        _g528 = getattr(self, "_r528_wsg", None)
+        _t528 = node.test.to_dict()
+        _n528 = None
+        if (isinstance(_t528, dict) and _t528.get("type") == "Call"
+                and not _t528.get("args") and not _t528.get("keywords")):
+            _rv528, _tl528 = self._str_method_recv_and_tail(_t528)
+            if (_tl528 == "split" and isinstance(_rv528, dict)
+                    and _rv528.get("type") == "Var" and isinstance(_rv528.get("name"), str)):
+                _n528 = _rv528.get("name")
+                _w528 = [_bd]
+                while _w528 and _n528 is not None:
+                    _x528 = _w528.pop()
+                    if isinstance(_x528, dict):
+                        _ty528 = str(_x528.get("type", ""))
+                        if ("Comp" in _ty528 or "Lambda" in _ty528 or "Named" in _ty528
+                                or "Generator" in _ty528):
+                            _n528 = None
+                        _w528.extend(_x528.values())
+                    elif isinstance(_x528, list):
+                        _w528.extend(_x528)
+        self._r528_wsg = _n528
         body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
+        self._r528_wsg = _g528
         orelse = self._expr_to_whyml(node.orelse, local_refs, invariant_ctx, subst)
         # OPTION-PARAM GUARDED PROJECTION (relaunch #8): `start if start is not None else
         # self.cur()` over an `Optional[<record>]` PARAM. The ternary IS a Why3 `match` on

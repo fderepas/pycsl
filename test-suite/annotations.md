@@ -4956,6 +4956,52 @@ Witnesses `8380`-`8387` (#523) and `8390`-`8399` (#525), PROVED at base. Control
 read only by `for`), `8401` (a local tuple also read by `len`), `8402` (a module list, no namespace access), `8403`
 (`import sys` read as `sys.argv`), PROVED at HEAD and at base.
 
+### 7.527 An operand that may be `None` of a TypeError-raising operator is judged like an attribute receiver (route #527, run #4)
+
+An `Optional[str]` record field (a `@dataclass` field `s: Optional[str]`, or `self.s: Optional[str]`) is lowered
+as a plain Why3 `string` with no None case, and route #432's receiver rule only judged ATTRIBUTE loads. Red team
+49 measured PROVED `no_exception \all` (CPython TypeError on `R(None, ..)`): `w = r.s + "x"`, `"x" + r.s`,
+`r.t + r.s`, `v = r.s; v + "x"`, `"a" in r.s`, `"a" not in r.s`, `for c in r.s`, and the `self.s` twins whose
+None is stored in `__init__` (11 witnesses).
+
+RULE (inline in `_run_pipeline`, in route #432's engine; mirror twin `\trusted`, no new def, no axiom,
+emission byte-identical): in a function that is neither `\trusted` nor `\abstract` and claims TypeError (`\all`,
+`TypeError`, `Exception`, `BaseException`, declared or reached), every OPERAND whose derived classes (`_ex346` /
+`_eh372`) hold `None` -- an arithmetic operand (`%`: the left one only; `|` is not judged, it is also a type
+union), either side of an ordering comparison, an `in` / `not in` haystack, a subscripted value, a `for` /
+comprehension iterable; a literal `None` is not judged -- is a synthetic attribute load judged by #432's FLOW
+NARROWING (an enclosing `if O is not None:` / `isinstance`, an earlier `assert`, an early `return` / `raise`
+when `O is None`, with no rebinding -- and, for an attribute path, no call -- in between). It is admitted iff
+its narrowed classes hold no `None`; otherwise REFUSED with `PYCSL-R527-OPTIONAL-OPERAND`. Narrow the operand
+first, declare the field without `None`, or drop the claim.
+
+Witnesses `8410`-`8418` (PROVED at base, REFUSED); controls `8420` (`if r.s is not None:`), `8421` (early
+`return` when `r.s is None`), `8422` (the `self.s` guard), `8423` (a plain `str` field beside the Optional one),
+`8424` (no claim: route #431).
+
+### 7.528 A split piece read owes its index: `[0]` / `[-1]`, or `[1]` / `[-2]` when the separator occurs (route #528, run #4)
+
+`<str>.split(<sep>)[i]` (also `split(sep, k)[i]`, `rsplit`) lowers to the total `val str_split_elem_op (s sep:
+string) (i: int) : string` (faithful-string-op §3.4); the piece list is never materialised, so the list read's
+bounds obligation never existed. Red team 49 measured PROVED `no_exception \all` (CPython IndexError on
+`"ab".split(",")[1]`): `len(s.split(",")[1])`, `x = ..`, `== "a"`, `+ "x"`, `.upper()`, `.startswith`, an
+f-string, a `-> str` return, a parameter / expression / `[-2]` / big index, `split(",", 1)[1]`, `split(",",
+0)[1]`, a loop over lines, and the lex-char-class lowerings `s.split(",")[1].isdigit()` / `.isalpha()` (computed
+receiver) and `s.split(",")[1] in "ab"` (enumerated-substring fold) (41 witnesses).
+
+RULE (inline in `_handle_subscript`'s split arm, program context, every body -- the polarity of the list read,
+whose Why3 array access carries its bounds precondition claimed or not; mirror twin `\trusted`, no new def, no
+axiom): the read binds its receiver and index once and asserts `[@expl:PyCSL-R528 ..]`
+`i = 0 \/ i = -1` for a NON-EMPTY string-literal separator, extended by `(i = 1 \/ i = -2) /\ <sep occurs in
+s>` (the `str_contains_op` law, so `if sep in s:` / an early return discharges it) when no maxsplit or a
+literal maxsplit >= 1 is given; any other separator (no-arg split, a variable, `sep=` keyword) owes `false`. A
+literal `[0]` / `[-1]` on such a separator, and on the no-arg `N.split()` in the TRUE arm of `.. if N.split()
+else ..` (a plain name, the arm free of walrus / lambda / comprehension), keeps its lowering byte-identical.
+A read the assertion cannot discharge is NOT PROVED (fail closed).
+
+Witnesses `8425`-`8432` (PROVED at base, NOT PROVED); controls `8435` (`[0]`), `8436` (`[-1]`, `split(":", 1)[0]`),
+`8437` (a parameter index under `requires i == 0 or i == -1`).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

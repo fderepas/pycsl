@@ -9947,7 +9947,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                "BaseException"})
             _al432 = list(_ast341.walk(_f346)) if (_ae432 or _te432) else []
             _nr440 = {}
-            if _ae432:
+            # (#49) ROUTE #527 -- the #432 engine also judges, under a TypeError claim, an
+            # OPERAND THAT MAY BE None (derived classes hold `None`: an `Optional[str]` record
+            # field `r.s` / `self.s`, a local bound from one) of an operator that raises
+            # TypeError on None: an arithmetic operand (`%`: the left only; `|` is a type
+            # union too: not judged), an ordering comparison, an `in` / `not in` haystack, a
+            # subscripted value, a `for` / comprehension iterable -- when the operand is a
+            # VALUE READ (name, attribute, subscript, call, `and` / `or`, `x if c else y`,
+            # walrus, await). Such a field is lowered as
+            # a plain Why3 `string` with no None case, so `r.s + "x"`, `"a" in r.s`, `for c
+            # in r.s` PROVED `no_exception \all` (CPython TypeError). Each operand O becomes
+            # a SYNTHETIC load `O.<op>` judged by #432's admission + FLOW NARROWING (`if
+            # r.s is not None:`, an early `return`, `isinstance`), admitted iff its narrowed
+            # classes hold no `None` (PYCSL-R527-OPTIONAL-OPERAND). INLINE: `_run_pipeline`'s
+            # mirror twin is `\trusted`.
+            if _ae432 or _te432:
                 import importlib as _il443
                 _NT432 = {"int": int, "bool": bool, "float": float, "complex": complex,
                           "str": str, "bytes": bytes, "bytearray": bytearray, "list": list,
@@ -10004,10 +10018,51 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 for _p432, _d432 in zip(_f346.args.kwonlyargs, _f346.args.kw_defaults):
                     if isinstance(_d432, _ast341.Constant) and _d432.value is None:
                         _pd432.add(_p432.arg)
-                for _a432 in _al432:
+                _s527 = []
+                for _z527 in (_al432 if _te432 else []):
+                    _o527 = []
+                    if isinstance(_z527, _ast341.BinOp) and not isinstance(_z527.op,
+                                                                          _ast341.BitOr):
+                        _o527 = ([_z527.left] if isinstance(_z527.op, _ast341.Mod)
+                                 else [_z527.left, _z527.right])
+                    elif isinstance(_z527, _ast341.Compare):
+                        _cp527 = [_z527.left] + list(_z527.comparators)
+                        for _j527, _q527 in enumerate(_z527.ops):
+                            if isinstance(_q527, (_ast341.In, _ast341.NotIn)):
+                                _o527.append(_cp527[_j527 + 1])
+                            elif isinstance(_q527, (_ast341.Lt, _ast341.LtE, _ast341.Gt,
+                                                    _ast341.GtE)):
+                                _o527 += [_cp527[_j527], _cp527[_j527 + 1]]
+                    elif isinstance(_z527, (_ast341.For, _ast341.AsyncFor,
+                                            _ast341.comprehension)):
+                        _o527 = [_z527.iter]
+                    elif (isinstance(_z527, _ast341.Subscript)
+                          and isinstance(_z527.ctx, _ast341.Load)):
+                        _o527 = [_z527.value]
+                    for _v527 in _o527:
+                        # (a VALUE READ only: an operator's own result is never None -- a None
+                        # operand of it is judged at that operator)
+                        if (id(_v527) in _anx365 or id(_z527) in _anx365
+                                or not isinstance(_v527, (
+                                    _ast341.Name, _ast341.Attribute, _ast341.Subscript,
+                                    _ast341.Call, _ast341.BoolOp, _ast341.IfExp,
+                                    _ast341.NamedExpr, _ast341.Await))):
+                            continue
+                        if not ((set(_ex346.get(id(_v527), set()))
+                                 | set(_eh372.get(id(_v527), set())))
+                                & {"None", "NoneType"}):
+                            continue
+                        _x527 = _ast341.Attribute(value=_v527, attr="__r527__",
+                                                  ctx=_ast341.Load())
+                        _ast341.copy_location(_x527, _v527)
+                        _pm432[id(_x527)] = _z527
+                        _s527.append(_x527)
+                _i527 = {id(_x) for _x in _s527}
+                for _a432 in (_al432 if _ae432 else []) + _s527:
                     if not (isinstance(_a432, _ast341.Attribute)
                             and isinstance(_a432.ctx, _ast341.Load)) or id(_a432) in _anx365:
                         continue
+                    _f527 = id(_a432) in _i527
                     _r432 = _a432.value
                     _cs432 = set(_ex346.get(id(_r432), set())) | set(_eh372.get(id(_r432),
                                                                                set()))
@@ -10073,9 +10128,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             and not any(not _im443 and (_a443.asname or _a443.name)
                                         in (_r432.id, "*") for _im443, _a443 in _mi443)):
                         _dv443 = True
+                    if _f527:
+                        _dv443 = True
                     for _ph432 in (0, 1):
                         _cn432 = {_c for _c in _fs432 if _c[:1] != "#"
                                   and _c not in ("Any", "object")}
+                        if _f527:
+                            if not (_cn432 & {"None", "NoneType"}):
+                                break
+                            if _ph432 == 1:
+                                _pz527 = _pm432.get(id(_a432))
+                                _pz527 = ("for ... in " + _ast341.unparse(_r432)
+                                          if isinstance(_pz527, (_ast341.comprehension,
+                                                                 _ast341.For,
+                                                                 _ast341.AsyncFor))
+                                          else _ast341.unparse(_pz527))
+                                raise _PyCSLSemErr341(
+                                    f"'{_f346.name}' line {getattr(_a432, 'lineno', 0)}: "
+                                    f"PYCSL-R527-OPTIONAL-OPERAND: the operand "
+                                    f"`{_ast341.unparse(_r432)}` of `{_pz527}`"
+                                    f" may be `None` here (derived classes "
+                                    f"{sorted(_cn432)}), and this operation raises TypeError "
+                                    f"on None in CPython, while this function claims "
+                                    f"`#@ no_exception` covering TypeError and the model "
+                                    f"may lower the value with no None case (an `Optional[str]` "
+                                    f"field is a plain string) (route #527; measured: `@dataclass R: s: "
+                                    f"Optional[str]`, `w = r.s + \"x\"` / `\"a\" in r.s` / "
+                                    f"`for c in r.s` under `#@ no_exception \\all` proved). "
+                                    f"Narrow it first (`if {_ast341.unparse(_r432)} is not "
+                                    f"None:`, or an early `return` when it is `None`, with no "
+                                    f"rebinding -- and, for an attribute path, no call -- in "
+                                    f"between), declare the field without `None`, or drop "
+                                    f"the claim.",
+                                    stage="ir-semantic", code="PYCSL-R527-OPTIONAL-OPERAND")
                         _ud443 = False
                         if not _dv443:
                             _ud443 = not _fs432 or bool(_fs432 & {"#UND", "#UNK", "#UNKT",

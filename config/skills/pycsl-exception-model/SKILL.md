@@ -91,6 +91,15 @@ loop-target / unpacked value) beside an int or another unknown is refused like a
 immediately-invoked lambda under `\all` is `PYCSL-R515-IMMEDIATELY-INVOKED-LAMBDA`; route #315 no longer
 counts `bytes(x)` / `len(range(<non-literal>))` as total in a constructor. annotations §7.512.
 
+**Split pieces and None operands (routes #527 / #528, run #4).** `<str>.split(sep)[i]` never
+materialises its list, so `_handle_subscript`'s split arm asserts the index itself in EVERY body (the
+polarity of a Why3 array read): `i = 0 \/ i = -1` for a non-empty literal separator, plus `(i = 1 \/
+i = -2) /\ <sep occurs in s>` (no maxsplit or a literal one >= 1), `false` for any other separator; a
+literal `[0]` / `[-1]` keeps its lowering. Under a TypeError claim, a value-read operand whose derived
+classes hold `None` (an `Optional[str]` field read as a plain string) of an arithmetic / ordering / `in`
+haystack / subscript / iteration site is judged by route #432's flow narrowing
+(`PYCSL-R527-OPTIONAL-OPERAND`). annotations §7.527 / §7.528.
+
 The authoritative encoding lives in `src/pycsl/exception_model.py` —
 `KNOWN_EXCEPTIONS`, `TRIGGERS`, `PREDICATE_LIBRARY`. **Do not duplicate
 the table into other files**; consult `triggers_for()` from
