@@ -17855,7 +17855,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # owes `i = 0 \/ i = -1` (a non-literal separator: `false`), bound once so a
             # program-valued index stays a program term. Written INLINE: `_handle_subscript`'s
             # mirror twin is `\trusted`.
-            # A guarded no-arg `N.split()[0]` (see `_handle_ifexpr_expr`) is in range too.
+            # (A guarded no-arg `N.split()[0]` is restored by `_handle_ifexpr_expr`.)
             # And when the separator OCCURS in the receiver (`if sep in s:` / an early
             # return), there are at least two pieces unless a maxsplit of 0 is given, so
             # `[1]` / `[-2]` are owed exactly that occurrence (the `str_contains_op` law).
@@ -17864,14 +17864,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _r528_args = list(_r528_call.get("args") or [])
             _r528_lit = (isinstance(_sep, dict) and _sep.get("type") == "String"
                          and isinstance(_sep.get("value"), str) and _sep.get("value") != "")
-            _r528_ws = (_sep is None and not _r528_args and not _r528_call.get("keywords")
-                        and isinstance(_rcv, dict) and _rcv.get("type") == "Var"
-                        and _rcv.get("name") is not None
-                        and _rcv.get("name") == getattr(self, "_r528_wsg", None))
             _r528_zero = (isinstance(_r528_ix, dict) and _r528_ix.get("type") == "Number"
                           and _r528_ix.get("value") == 0
                           and not isinstance(_r528_ix.get("value"), bool))
-            if ((_r528_lit or _r528_ws)
+            if (_r528_lit
                     and (_r528_zero or self._negative_literal_index(_r528_ix) == 1)):
                 return f"(str_split_elem_op {_rcvw} {_sepw} {index})"
             _r528_c = "false"
@@ -19635,10 +19631,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # (#49) ROUTE #528 -- `N.split()[0] if N.split() else ..`: the TRUE arm of a truth
         # test of the no-arg split of a plain name N holds a non-empty piece list, so its
         # `N.split()[0]` / `[-1]` is in range (the two `str_split_ws_op` calls are not
-        # connected in the model). Recorded for the split-piece arm of `_handle_subscript`
-        # while the true arm is lowered; void when the arm can rebind or shadow N (a
-        # walrus, a lambda, a comprehension). INLINE: this twin is `\trusted`.
-        _g528 = getattr(self, "_r528_wsg", None)
+        # connected in the model). The split-piece arm of `_handle_subscript` asserts
+        # `false` for a no-arg split; in the true arm that exact assertion over N's own
+        # text at index 0 / -1 is replaced by the unguarded read. Void when the arm can
+        # rebind or shadow N (a walrus, a lambda, a comprehension). INLINE (no new field:
+        # this twin is `\trusted` and its `assigns` is measured).
         _t528 = node.test.to_dict()
         _n528 = None
         if (isinstance(_t528, dict) and _t528.get("type") == "Call"
@@ -19658,9 +19655,15 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _w528.extend(_x528.values())
                     elif isinstance(_x528, list):
                         _w528.extend(_x528)
-        self._r528_wsg = _n528
         body = self._expr_to_whyml(node.body, local_refs, invariant_ctx, subst)
-        self._r528_wsg = _g528
+        if _n528 is not None and "PyCSL-R528" in body:
+            _rw528 = self._expr_to_whyml(_rv528, local_refs or set(), invariant_ctx, subst)
+            body = re.sub(
+                r"\(let _r528_s = " + re.escape(_rw528) + r" in let _r528_i = "
+                r"(0|\(- ?1\)|-1) in begin assert \{ \[@expl:PyCSL-R528 [^\]]*\] false \}; "
+                r"\(str_split_elem_op _r528_s \" \" _r528_i\) end\)",
+                "(str_split_elem_op " + _rw528.replace("\\", "\\\\") + ' " " \\1)',
+                body)
         orelse = self._expr_to_whyml(node.orelse, local_refs, invariant_ctx, subst)
         # OPTION-PARAM GUARDED PROJECTION (relaunch #8): `start if start is not None else
         # self.cur()` over an `Optional[<record>]` PARAM. The ternary IS a Why3 `match` on
