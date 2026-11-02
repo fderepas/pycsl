@@ -20,6 +20,8 @@
 ##   m.OPS.append`), module str SET constants.
 
 ## run #4 (2026-11-02): #527 / #528 REPAIRED (executor u15 off 1aaa1dfdd, 42e34a559 + its ledger / docs commit; no axiom; annotations §7.527 /
+
+## run #4 (2026-11-02): #527 / #528 REPAIRED (executor u15 off 1aaa1dfdd, 42e34a559 + 937d8084c + 62c8a995b; no axiom; annotations §7.527 /
 ##   §7.528). #527 (inline in `_run_pipeline`, route #432's engine, twin `\trusted`, emission byte-identical): under a TypeError claim a
 ##   VALUE-READ operand whose derived classes hold None (an `Optional[str]` field, a local bound from one) of an arithmetic / ordering / `in`
 ##   haystack / subscript / iteration site is judged by #432's flow narrowing: PYCSL-R527-OPTIONAL-OPERAND unless narrowed. #528 (inline in
