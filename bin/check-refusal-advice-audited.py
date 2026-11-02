@@ -918,6 +918,11 @@ AUDITED = {
         "Route #511. 'Give the local class a name bound nowhere else in the file, or move it to module level': witness 8140 with the local class renamed `Kc` (getting-better/open-routes/witnesses-r511/advice/a511_rename) VERIFIES `no_exception \\all` and `\\result == n // 5` (default model); controls 8150 / 8151 are the renamed shapes."),
     ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_w, \'lineno\', 0)}: the walrus `{_nb_wn} := ...` sits in a default, decorator, base or keyword of the {'): (FOLLOWABLE,
         "Route #518. 'Bind the value in a statement of its own before the definition (`T = 0`) and use that plain name in the default': witness 8160 rewritten `T = 0; _l = lambda a=T: a` (getting-better/open-routes/witnesses-r518/advice/a518_own_statement, = control 8171) VERIFIES `\\result == 5`."),
+    # driver run #4 -- routes #512-#516 (u11): R515's advice IS control 8213 and witnesses-r515/advice/a515_inline.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr507(f"""PYCSL-R515-IMMEDIATELY-INVOKED-LAMBDA: {_at507}, a lambda is called where it is written (`(lambda m: E)(n)`, `(lambda m='): (FOLLOWABLE,
+        "Route #515. 'Write the body inline (`w = \"ab\" * n`), where its own obligation applies': witness 8195 with the body "
+        "inline under `requires 0 <= n <= 1000` (getting-better/open-routes/witnesses-r515/advice/a515_inline) VERIFIES "
+        "`\\result == 1` under `no_exception \\all`; control 8213 (the same) VERIFIES."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
