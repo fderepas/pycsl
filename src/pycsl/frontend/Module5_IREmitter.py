@@ -696,6 +696,105 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         if module_const_str_sets:
             self.program_ir["module_const_str_sets"] = module_const_str_sets
 
+        # (#49) ROUTES #523 / #525 — A str-LIST LITERAL IS PINNED ONLY WHEN NOTHING CAN
+        # REACH IT. Both literal shortcuts below (the module `_NAME_lit ()` let function
+        # and the local `for p in a` `Seq.cons` materialisation) bind the loop to the
+        # LITERAL, not to the list object, so any write to the object between its binding
+        # and the loop is invisible: rt49 PROVED `ensures \result == 0` / `no_exception
+        # \all` after `a.append("z")` (local) and after `globals()["OPS"].append("z")`,
+        # `__main__.OPS`, `__import__(__name__).OPS`, `sys._getframe().f_globals`,
+        # `gc.get_objects()` (module). `_nsx523` is set when the module has ANY surface that
+        # reaches a binding or an object other than by its name: the namespace builtins
+        # (`globals` / `locals` / `vars` / `__import__` / `eval` / `exec` / `compile` /
+        # `breakpoint` / `__builtins__`), `getattr` / `setattr` / `delattr` other than a
+        # direct call with a constant non-dunder attribute name, a dunder attribute outside
+        # a small value-level allow-list (`__globals__`, `__dict__`, `__self__`,
+        # `__closure__`, `__getattribute__`, ...), a frame attribute (`f_globals`,
+        # `f_locals`, `gi_frame`, `tb_frame`, ...), an import of an object-graph module
+        # (`gc`, `inspect`, `ctypes`, `__main__`, `importlib`, `builtins`, `traceback`,
+        # `operator`, `pickle`, `string`, ...), a use of `sys` other than a plain
+        # value attribute (`sys.argv`, `sys.exit`, ...; never `sys.modules` /
+        # `sys._getframe`), or an import of this module itself (by file stem). When set,
+        # neither shortcut is recorded and both loops take the general lowering.
+        _ns523_names = {"globals", "locals", "vars", "__import__", "eval", "exec", "compile",
+                        "breakpoint", "__builtins__", "__loader__", "__spec__"}
+        _ns523_attrfns = {"getattr", "setattr", "delattr"}
+        _ns523_frame = {"f_globals", "f_locals", "f_builtins", "f_back", "gi_frame",
+                        "cr_frame", "ag_frame", "tb_frame", "tb_next", "gi_yieldfrom",
+                        "cr_await", "ag_await"}
+        _ns523_dunder_ok = {"__init__", "__name__", "__qualname__", "__doc__", "__class__",
+                            "__module__", "__len__", "__iter__", "__next__", "__enter__",
+                            "__exit__", "__eq__", "__ne__", "__lt__", "__le__", "__gt__",
+                            "__ge__", "__hash__", "__repr__", "__str__", "__contains__",
+                            "__getitem__", "__bool__", "__post_init__", "__match_args__",
+                            "__dataclass_fields__", "__slots__", "__annotations__",
+                            "__bases__", "__mro__", "__version__", "__file__", "__call__",
+                            "__new__", "__format__", "__index__", "__int__", "__float__",
+                            "__abs__", "__neg__", "__add__", "__sub__", "__mul__"}
+        _ns523_mods = {"gc", "inspect", "ctypes", "_ctypes", "__main__", "importlib", "builtins",
+                       "__builtin__", "traceback", "pdb", "bdb", "code", "codeop", "runpy",
+                       "imp", "pkgutil", "operator", "_operator", "pickle", "_pickle",
+                       "marshal", "shelve", "copyreg", "dill", "cloudpickle", "string",
+                       "_string", "_testcapi", "_testinternalcapi"}
+        _ns523_sys_ok = {"argv", "exit", "stdout", "stderr", "stdin", "version",
+                         "version_info", "maxsize", "maxunicode", "platform", "path",
+                         "byteorder", "executable", "float_info", "int_info", "hexversion",
+                         "implementation", "getrecursionlimit", "setrecursionlimit",
+                         "getsizeof", "intern", "float_repr_style", "getdefaultencoding",
+                         "getfilesystemencoding", "flags", "stdlib_module_names",
+                         "builtin_module_names", "set_int_max_str_digits",
+                         "get_int_max_str_digits"}
+        _ns523_stem = getattr(node, "pycsl_module_stem", None)
+        _nsx523 = False
+        _ns523_sys: Set[str] = set()
+        _ns523_okfn: Set[int] = set()
+        _ns523_sysuse: Set[int] = set()
+        for _n523 in ast.walk(node):
+            if isinstance(_n523, ast.Import):
+                for _a523 in _n523.names:
+                    _p523 = _a523.name.split(".")
+                    if _p523[0] in _ns523_mods or (_ns523_stem and _ns523_stem in _p523):
+                        _nsx523 = True
+                    elif _p523[0] == "sys":
+                        if _a523.asname is None and len(_p523) == 1:
+                            _ns523_sys.add("sys")
+                        else:
+                            _nsx523 = True
+            elif isinstance(_n523, ast.ImportFrom):
+                _p523 = (_n523.module or "").split(".")
+                if (_p523[0] in _ns523_mods
+                        or (_ns523_stem and (_ns523_stem in _p523 or any(
+                            _a523.name == _ns523_stem for _a523 in _n523.names)))):
+                    _nsx523 = True
+                elif _p523[0] == "sys" and any(_a523.name not in _ns523_sys_ok
+                                               for _a523 in _n523.names):
+                    _nsx523 = True
+            elif isinstance(_n523, ast.Call) and isinstance(_n523.func, ast.Name):
+                if (_n523.func.id in _ns523_attrfns and len(_n523.args) >= 2
+                        and isinstance(_n523.args[1], ast.Constant)
+                        and isinstance(_n523.args[1].value, str)
+                        and not _n523.args[1].value.startswith("__")
+                        and _n523.args[1].value not in _ns523_frame):
+                    _ns523_okfn.add(id(_n523.func))
+            elif isinstance(_n523, ast.Attribute):
+                _at523 = _n523.attr
+                if (_at523 in _ns523_frame
+                        or (_at523.startswith("__") and _at523.endswith("__")
+                            and _at523 not in _ns523_dunder_ok)):
+                    _nsx523 = True
+                if (isinstance(_n523.value, ast.Name) and _n523.value.id == "sys"
+                        and _at523 in _ns523_sys_ok):
+                    _ns523_sysuse.add(id(_n523.value))
+        for _n523 in ast.walk(node):
+            if isinstance(_n523, ast.Name):
+                if _n523.id in _ns523_names:
+                    _nsx523 = True
+                elif _n523.id in _ns523_attrfns and id(_n523) not in _ns523_okfn:
+                    _nsx523 = True
+                elif (_n523.id == "sys" and "sys" in _ns523_sys
+                        and id(_n523) not in _ns523_sysuse):
+                    _nsx523 = True
+
         # gen #37 ch34: module-level constant LIST/TUPLE-of-str literals
         # (`proof2why3/parser._OP_TOKENS = ["->", ">=", ...]`), read ONLY as a `for`
         # iterable. Recorded as `{NAME: [str, ...]}` (source order) so Module 6 iterates
@@ -726,7 +825,7 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     and all(isinstance(_e, ast.Constant) and isinstance(_e.value, str)
                             for _e in _msl_v.elts)):
                 _msl_cand[_msl_t] = [_e.value for _e in _msl_v.elts]
-        if _msl_cand:
+        if _msl_cand and not _nsx523:
             _msl_bad: Set[str] = {d.variable for d in getattr(node, "csl_shared_decls", [])}
             _msl_iters: Set[int] = set()
             _msl_stores: Dict[str, int] = {}
@@ -755,6 +854,99 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                        and _k not in _msl_bad and _k in _msl_reads}
             if _msl_ok:
                 self.program_ir["module_const_str_lists"] = _msl_ok
+
+        # (#49) ROUTE #523 — the LOCAL twin. Module 6's faithful for-over-literal
+        # (`_collect_str_literal_seq_locals` -> `_str_lit_seq_elts`) binds `for p in a` to
+        # the Seq.cons chain of `a`'s literal; it is admitted only for a binding recorded
+        # here (`str_lit_seq_locals_ok`: `[name, [str, ...]]` pairs; absent = none, so a
+        # binding this pass never saw keeps the general lowering). A local qualifies when
+        # its all-str List / Tuple literal is bound by a statement DIRECTLY in its
+        # function's body (it dominates what follows: no conditional / loop / handler
+        # binding), the name has no other binding anywhere in the function (nested defs
+        # included: no rebinding, augmented assignment, `del`, `for`/`with`/`except`/match
+        # / walrus / import target, parameter, `global` / `nonlocal`), every read comes
+        # after the binding, and -- for a LIST -- every read is the iterable of a `for`
+        # (no method call such as `a.append(..)`, no alias, argument, subscript or closure
+        # escape can write the object). A tuple's reads are unrestricted (immutable). The
+        # same (name, literal) bound anywhere without qualifying disqualifies the pair,
+        # and nothing qualifies when `_nsx523` (above) is set.
+        _sl523_ok: List[list] = []
+        _sl523_bad: List[list] = []
+        if not _nsx523:
+            for _F523 in ast.walk(node):
+                if not isinstance(_F523, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    continue
+                _own523: List[ast.AST] = []
+                _stk523: List[ast.AST] = list(_F523.body)
+                while _stk523:
+                    _x523 = _stk523.pop()
+                    _own523.append(_x523)
+                    if isinstance(_x523, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda,
+                                          ast.ClassDef)):
+                        continue
+                    _stk523.extend(ast.iter_child_nodes(_x523))
+                _sub523 = list(ast.walk(_F523))
+                _fors523 = {id(_m523.iter): _m523.lineno for _m523 in _sub523
+                            if isinstance(_m523, ast.For) and isinstance(_m523.iter, ast.Name)}
+                for _st523 in _own523:
+                    _t523 = None
+                    _v523 = None
+                    if (isinstance(_st523, ast.Assign) and len(_st523.targets) == 1
+                            and isinstance(_st523.targets[0], ast.Name)):
+                        _t523, _v523 = _st523.targets[0].id, _st523.value
+                    elif (isinstance(_st523, ast.AnnAssign)
+                            and isinstance(_st523.target, ast.Name)):
+                        _t523, _v523 = _st523.target.id, _st523.value
+                    if not (_t523 and isinstance(_v523, (ast.List, ast.Tuple)) and _v523.elts
+                            and all(isinstance(_e523, ast.Constant)
+                                    and isinstance(_e523.value, str)
+                                    for _e523 in _v523.elts)):
+                        continue
+                    _key523 = [_t523, [_e523.value for _e523 in _v523.elts]]
+                    _end523 = getattr(_st523, "end_lineno", None) or _st523.lineno
+                    _good523 = any(_st523 is _b523 for _b523 in _F523.body)
+                    _stores523 = 0
+                    for _m523 in _sub523:
+                        if not _good523:
+                            break
+                        if isinstance(_m523, ast.Name) and _m523.id == _t523:
+                            _cx523 = type(_m523.ctx).__name__
+                            if _cx523 == "Store":
+                                _stores523 += 1
+                            elif _cx523 != "Load" or _m523.lineno <= _end523:
+                                _good523 = False
+                            elif (isinstance(_v523, ast.List)
+                                    and (id(_m523) not in _fors523
+                                         or _fors523[id(_m523)] <= _end523)):
+                                _good523 = False
+                        elif isinstance(_m523, ast.arg) and _m523.arg == _t523:
+                            _good523 = False
+                        elif (isinstance(_m523, (ast.Global, ast.Nonlocal))
+                                and _t523 in _m523.names):
+                            _good523 = False
+                        elif (isinstance(_m523, ast.ExceptHandler)
+                                and _m523.name == _t523):
+                            _good523 = False
+                        elif (isinstance(_m523, ast.alias)
+                                and (_m523.asname or _m523.name.split(".")[0]) == _t523):
+                            _good523 = False
+                        elif (isinstance(_m523, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                                 ast.ClassDef))
+                                and _m523.name == _t523):
+                            _good523 = False
+                        elif (type(_m523).__name__ in ("MatchAs", "MatchStar")
+                                and getattr(_m523, "name", None) == _t523):
+                            _good523 = False
+                        elif (type(_m523).__name__ == "MatchMapping"
+                                and getattr(_m523, "rest", None) == _t523):
+                            _good523 = False
+                    if _good523 and _stores523 == 1:
+                        _sl523_ok.append(_key523)
+                    else:
+                        _sl523_bad.append(_key523)
+        _sl523_ok = [_k523 for _k523 in _sl523_ok if _k523 not in _sl523_bad]
+        if _sl523_ok:
+            self.program_ir["str_lit_seq_locals_ok"] = _sl523_ok
 
         # inline.md Phase 1: module-level global object instances `g = C(...)`. Modeled
         # in Module 6 as a Why3 mutable-record global `let g : c = <ctor>`; the ctor

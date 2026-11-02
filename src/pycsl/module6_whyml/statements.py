@@ -7375,6 +7375,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # tuple/list literal → the String-elt IR nodes, so `for p in a` materialises a real
         # `seq string` and iterates faithfully (see `_collect_str_literal_seq_locals`).
         self._str_literal_seq_locals = self._collect_str_literal_seq_locals(body_stmts)
+        # (#49) ROUTE #523: only a binding Module 5 found unreachable between its binding
+        # and its loops (`str_lit_seq_locals_ok`: single dominating binding, a list read
+        # only as a `for` iterable, no namespace / object-graph access in the module) is
+        # materialised from its literal. Any other (`a.append(..)` before the loop, an
+        # alias, a conditional binding) is marked `False`: a `for` over it is REFUSED in
+        # `_str_lit_seq_elts` (the general lowering int-erases the elements, so an appended
+        # None / int would be read as a string-length-less int: `len(p)` proved).
+        _ok523 = (getattr(self, "ir", {}) or {}).get("str_lit_seq_locals_ok") or []
+        self._str_literal_seq_locals = {
+            _k523: (_v523 if [_k523, [_e523.get("value") for _e523 in _v523]] in _ok523
+                    else False)
+            for _k523, _v523 in self._str_literal_seq_locals.items()}
         # arity2.md (2b): expose the array-local set to the per-operation
         # `is_array` sites WITHOUT touching `_array_locals` (declaration path).
         # Reset per body — `_typed_local_vars` is called once per `_emit_body_code`.

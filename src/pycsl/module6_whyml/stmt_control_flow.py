@@ -349,6 +349,25 @@ class ControlFlowStmtMixin:
             return None
         if t == "Var":
             _loc = getattr(self, "_str_literal_seq_locals", {}).get(iter_ir.get("name"))
+            if _loc is False:
+                # (#49) ROUTE #523: a local bound to an all-str list / tuple literal that
+                # Module 5 did not find unreachable between its binding and its loops.
+                raise PyCSLIRError(
+                    f"PYCSL-R523-STR-LITERAL-LIST-MUTATED: `for ... in "
+                    f"{iter_ir.get('name')}`: the local "
+                    f"`{iter_ir.get('name')}` is bound to a str list / tuple literal, but "
+                    f"the list may change before this loop (a method call such as "
+                    f"`.append(..)`, an alias, an argument, a subscript, a closure, a second "
+                    f"or conditional binding, or a namespace / frame / gc access in the "
+                    f"module), and its elements are then no longer the literal's strings: "
+                    f"the loop is not modelled (route #523; measured: `a = [\"abc\", "
+                    f"\"defg\"]; a.append(\"z\"); for p in a: if p == \"z\": return 1` "
+                    f"proved `ensures \\result == 0`, and `a.append(None)` then `len(p)` "
+                    f"proved `no_exception \\all`). Bind the list once at the top of the "
+                    f"function and read it only as a `for` iterable (build the extended "
+                    f"list as a new literal: `a = [\"abc\", \"defg\", \"z\"]`), or use a "
+                    f"tuple.",
+                    stage="whyml", code="PYCSL-R523-STR-LITERAL-LIST-MUTATED")
             if _loc is not None:
                 return _loc
             # gen #37 ch34: a module-level str-list constant read only as a `for` iterable

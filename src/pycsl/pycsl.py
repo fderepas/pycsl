@@ -1330,6 +1330,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     if cc_warnings:
         print(cc.summary())
 
+    # (#49) ROUTE #525: the file stem, so Module 5's namespace-access scan sees an import of
+    # this module by its own name (`import <stem>; <stem>.OPS.append(..)`).
+    if str(getattr(args, "file", "") or ""):
+        unified_ast.pycsl_module_stem = _Path(str(getattr(args, "file", ""))).stem
     # [Module 5] IR Generation
     emitter = Module5_IREmitter(unified_ast)
     json_ir = emitter.generate_json()

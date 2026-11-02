@@ -4919,6 +4919,43 @@ implicit-dunder routes' (#489-#495); a field bound to a range-holding parameter 
 tracked; MemoryError is outside the model; a dependency's `type` statement inside a def body, and a function
 body of a dependency reading its own rebound name (imported dependency bodies are trusted stubs), are not judged.
 
+### 7.523 A str-list literal is iterated as its literal only when nothing can reach the list (routes #523 / #525, run #4)
+
+Two lowerings bind a `for` loop to the LITERAL a str list was bound to instead of to the list object: a local
+`a = ["abc", "defg"]` iterated by `for p in a` (Module 6 `_collect_str_literal_seq_locals` -> `_str_lit_seq_elts`,
+a `Seq.cons` chain) and a module-level `OPS = [...]` read only as a `for` iterable (`module_const_str_lists`, the
+proved `let function _OPS_lit ()` of lex-char-class inc 2). Neither looked at what may write the object first:
+red team 49 measured `a.append("z")` (a literal / parameter / None / computed value, twice, under an `if` / loop /
+`try`) then `for p in a: if p == "z": return 1` PROVED `ensures \result == 0`, and `p[2]` / `len(p)` PROVED
+`no_exception \all` (32 witnesses); at module level `globals()["OPS"].append("z")`, `locals()` / `vars()`,
+`import __main__; __main__.OPS`, `__import__(__name__).OPS`, `sys._getframe().f_globals`, `gc.get_objects()`,
+before or after the def, in a class body or the driver block, PROVED the same early-return claim (21 witnesses).
+
+RULE (Module 5 `visit_Module`, refuse the shortcut by default):
+- NAMESPACE ACCESS. The module reaches a binding or an object other than by its name when it uses `globals` /
+  `locals` / `vars` / `__import__` / `eval` / `exec` / `compile` / `breakpoint` / `__builtins__`; `getattr` /
+  `setattr` / `delattr` other than a direct call with a constant, non-dunder, non-frame attribute name; a dunder
+  attribute outside a value-level allow-list (`__globals__`, `__dict__`, `__self__`, `__closure__`,
+  `__getattribute__` ... are out); a frame attribute (`f_globals`, `f_locals`, `f_back`, `gi_frame`, `cr_frame`,
+  `tb_frame`, ...); an import of `gc` / `inspect` / `ctypes` / `__main__` / `importlib` / `builtins` / `traceback` /
+  `operator` / `pickle` / `string` / ... ; `sys` other than `import sys` read through a plain value attribute
+  (`sys.argv`, `sys.exit`, `sys.maxsize`, ...; never `sys.modules` / `sys._getframe`, never an alias); an import
+  of the module's own name (file stem, set by `_run_pipeline`). Then neither shortcut is recorded.
+- MODULE LIST (#525): with namespace access, `module_const_str_lists` is not recorded and `for x in OPS` keeps the
+  general (opaque) lowering, as before inc 2: the early-return claim is NOT PROVED.
+- LOCAL LIST (#523): `str_lit_seq_locals_ok` records the (name, literal) pairs that qualify: bound by a statement
+  DIRECTLY in its function's body, no other binding of the name anywhere in the function (nested defs included:
+  rebinding, augmented, `del`, `for` / `with` / `except` / match / walrus / import target, parameter, `global` /
+  `nonlocal`), every read after the binding, and for a LIST every read the iterable of a `for` (so no
+  `.append(..)`, alias, argument, subscript or closure); a TUPLE may be read anywhere. Module 6 iterates the
+  literal only for a recorded pair; a `for` over any other local bound to an all-str literal is REFUSED with
+  `PYCSL-R523-STR-LITERAL-LIST-MUTATED` (the general lowering int-erases the elements: after `a.append(None)`,
+  `len(p)` would still prove). Repair: bind the final list as one literal, or use a tuple.
+
+Witnesses `8380`-`8387` (#523) and `8390`-`8399` (#525), PROVED at base. Controls `8400` (a local list bound once,
+read only by `for`), `8401` (a local tuple also read by `len`), `8402` (a module list, no namespace access), `8403`
+(`import sys` read as `sys.argv`), PROVED at HEAD and at base.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
