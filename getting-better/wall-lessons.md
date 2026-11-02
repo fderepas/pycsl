@@ -8976,3 +8976,11 @@ probed against any swallow channel.
   it; the emitter could synthesise it. L-input: lx1 §5.1 task dump.
 - The driver's report misdiagnosed the wall twice (symbol unification, then "prover capacity"); the independent
   review and the spike each refuted one diagnosis with an oracle run — the cycle worked as designed.
+
+## lever boolop-value-model (driver run #4, 2026-11-02, executor bv1) — CERTIFIED-BOUNDARY (CORRECTNESS)
+- Route #487's refusal is the first blocker of 7 cv7 stubs, but it is a symptom: native same-type BoolOp values are
+  already lowered faithfully; the marked sites all mix an int-ERASED operand with a native one. Stripping the refusal
+  (unsound upper bound) converts 0 / 7 (next: R325, json.dumps, local typing, heterogeneous dict values).
+- Erasing a str literal to match an erased-int operand is UNSOUND: `(0 or "?") * 0 == 0` proves, CPython False.
+- Reopening: a type- and truthiness-tracking model of erased values (= the int-erasure seam). Measurement:
+  scratchpad bv1/ (session) — strip.tsv, spk/shapes.mlw.
