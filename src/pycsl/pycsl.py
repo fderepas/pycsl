@@ -1764,8 +1764,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 continue
             _dinf510[_pp510] = ({}, [], [])
             try:
-                with open(_pp510, encoding="utf-8") as _fh510:
-                    _dt510 = _sa510.parse(_fh510.read())
+                _dt510 = _sa510.parse(open(_pp510, encoding="utf-8").read())
             except Exception:
                 continue
             _bl510 = [list(_dt510.body)]
