@@ -674,13 +674,12 @@ class _MergeConservationError(Exception):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def __init__(self, expected: int, got: int):
+    def __init__(self, expected: int, got: int, msg: str):
+        # (run #4, route #519) the message is formatted by the RAISER: an f-string of an
+        # int in a constructor is refused (ValueError past 4300 digits, never judged).
         self.expected = expected
         self.got = got
-        super().__init__(
-            f"merge dropped goal(s): first full-file run enumerated {expected} "
-            f"goal block(s) but the merged result has only {got} — refusing to "
-            f"report a verdict (a dropped goal must never silently pass).")
+        super().__init__(msg)
 
 
 #@ requires True
@@ -699,7 +698,11 @@ def _check_goal_conservation(first_full_output: str, merged_output: str) -> None
     first_n = len(_parse_goal_blocks(first_full_output))
     merged_n = len(_parse_goal_blocks(merged_output))
     if merged_n < first_n:
-        raise _MergeConservationError(first_n, merged_n)
+        raise _MergeConservationError(
+            first_n, merged_n,
+            f"merge dropped goal(s): first full-file run enumerated {first_n} "
+            f"goal block(s) but the merged result has only {merged_n} — refusing to "
+            f"report a verdict (a dropped goal must never silently pass).")
 
 
 # --- Structured (`why3 prove --json`) goal handling -------------------------------

@@ -1712,7 +1712,122 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             if _tl510:
                 _tp510.append((_n510, {_p510.name for _p510 in _tl510}))
                 _bd510.update({_p510.name for _p510 in _tl510})
-    if _ty510 or _tp510:
+    # (run #4) ROUTE #510 RESIDUAL — A DEPENDENCY MODULE'S `type` STATEMENT REBINDS THE NAME THIS
+    # FILE IMPORTS. The rule above is keyed on the main file's own `type` statements; a dependency
+    # `dep.py` holding `def g(n): ...` and then, at module scope (after the def, in an `if` / `try`
+    # body), `type g = int` exports a typing.TypeAliasType as `g`, but the import resolver injects
+    # the dependency's def: `from dep import g` / `import dep` then `g(3)` / `dep.g(3)` / `C(3)`
+    # under `no_exception \all` / `ensures \result == 3` PROVED while CPython raises TypeError
+    # (red team 48, rt48 g900 f9000-f9005 / f9042). Same rule, extended over the import closure:
+    # each module the main file imports (resolved as the import resolver does, transitively through
+    # re-exporting `from X import Y` and `*` imports) exports the names its MODULE-SCOPE `type`
+    # statements bind (any depth of `if` / `for` / `while` / `try` / `with` / `match` bodies; not
+    # a def / class body); such a name imported here (`from dep import g [as h]`, `from dep import
+    # *`) is read like an in-file `type` name, and `dep.g` (a module reference spelled as imported)
+    # is refused like `<e>.X` of a class-body alias. Class-body `type X` of a dependency class joins
+    # the `<e>.X` set. No new def (inline, `_run_pipeline`'s mirror twin is `\trusted`).
+    import ast as _sa510
+    from frontend.ir_resolve import _resolve_module_path as _rmp510
+    _tyf510: Set[str] = set(_ty510)
+    _tyi510: Dict[str, str] = {}
+    _mod510: Dict[str, Set[str]] = {}
+    _dfr510: List[Any] = []
+    _dmo510: List[Any] = []
+    for _n510 in _st510:
+        _k510 = type(_n510).__name__
+        if _k510 == "Import":
+            for _al510 in _n510.names:
+                _pt510 = _rmp510(_al510.name, 0, str(args.file))
+                if _pt510:
+                    _dmo510.append((_al510.asname or _al510.name, _pt510,
+                                    getattr(_n510, "lineno", 0) or 0))
+        elif _k510 == "ImportFrom":
+            _lv510 = getattr(_n510, "level", 0) or 0
+            _mm510 = getattr(_n510, "module", None) or ""
+            for _al510 in _n510.names:
+                _ln0510 = getattr(_n510, "lineno", 0) or 0
+                _sb510 = _rmp510(f"{_mm510}.{_al510.name}" if _mm510 else _al510.name, _lv510,
+                                 str(args.file)) if _al510.name != "*" else None
+                if _sb510:
+                    _dmo510.append((_al510.asname or _al510.name, _sb510, _ln0510))
+                elif _mm510:
+                    _pt510 = _rmp510(_mm510, _lv510, str(args.file))
+                    if _pt510:
+                        _dfr510.append((_al510.asname or _al510.name, _pt510, _al510.name, _ln0510))
+    if _dfr510 or _dmo510:
+        # per dependency path: (module-scope type names, re-exporting from-imports, star imports)
+        _dinf510: Dict[str, Any] = {}
+        _dq510 = [_q[1] for _q in _dfr510] + [_q[1] for _q in _dmo510]
+        while _dq510 and len(_dinf510) < 64:
+            _pp510 = _dq510.pop()
+            if _pp510 in _dinf510:
+                continue
+            _dinf510[_pp510] = ({}, [], [])
+            try:
+                with open(_pp510, encoding="utf-8") as _fh510:
+                    _dt510 = _sa510.parse(_fh510.read())
+            except Exception:
+                continue
+            _bl510 = [list(_dt510.body)]
+            while _bl510:
+                for _s510 in _bl510.pop():
+                    if isinstance(_s510, _sa510.TypeAlias) and isinstance(_s510.name, _sa510.Name):
+                        _dinf510[_pp510][0].setdefault(_s510.name.id, _s510.lineno)
+                    elif isinstance(_s510, _sa510.ClassDef):
+                        _ca510.update(_c510.name.id for _c510 in _s510.body
+                                      if isinstance(_c510, _sa510.TypeAlias)
+                                      and isinstance(_c510.name, _sa510.Name))
+                    elif isinstance(_s510, _sa510.ImportFrom) and (_s510.module or _s510.level):
+                        _mm510 = _s510.module or ""
+                        for _al510 in _s510.names:
+                            _sb510 = None if _al510.name == "*" else _rmp510(
+                                f"{_mm510}.{_al510.name}" if _mm510 else _al510.name,
+                                _s510.level or 0, _pp510)
+                            _qq510 = _rmp510(_mm510, _s510.level or 0, _pp510) if _mm510 else None
+                            if _al510.name == "*" and _qq510:
+                                _dinf510[_pp510][2].append(_qq510)
+                                _dq510.append(_qq510)
+                            elif _qq510 and not _sb510:
+                                _dinf510[_pp510][1].append(
+                                    (_al510.asname or _al510.name, _qq510, _al510.name))
+                                _dq510.append(_qq510)
+                    elif not isinstance(_s510, (_sa510.FunctionDef, _sa510.AsyncFunctionDef)):
+                        for _fd510 in ("body", "orelse", "finalbody"):
+                            if isinstance(getattr(_s510, _fd510, None), list):
+                                _bl510.append(list(getattr(_s510, _fd510)))
+                        for _hd510 in (getattr(_s510, "handlers", None) or []):
+                            _bl510.append(list(_hd510.body))
+                        for _cs510 in (getattr(_s510, "cases", None) or []):
+                            _bl510.append(list(_cs510.body))
+        _exp510: Dict[str, Set[str]] = {_p: set(_v[0]) for _p, _v in _dinf510.items()}
+        _chg510 = True
+        while _chg510:
+            _chg510 = False
+            for _pp510, _v510 in _dinf510.items():
+                for _lc510, _qq510, _or510 in _v510[1]:
+                    if _or510 in _exp510.get(_qq510, set()) and _lc510 not in _exp510[_pp510]:
+                        _exp510[_pp510].add(_lc510)
+                        _chg510 = True
+                for _qq510 in _v510[2]:
+                    _new510 = {_x for _x in _exp510.get(_qq510, set())
+                               if not _x.startswith("_")} - _exp510[_pp510]
+                    if _new510:
+                        _exp510[_pp510] |= _new510
+                        _chg510 = True
+        for _lc510, _pp510, _or510, _ln0510 in _dfr510:
+            if _or510 == "*":
+                for _x510 in sorted(_exp510.get(_pp510, set())):
+                    if not _x510.startswith("_") and _x510 not in _tyf510:
+                        _tyi510.setdefault(_x510, _pp510)
+                        _ty510.setdefault(_x510, _ln0510)
+            elif _or510 in _exp510.get(_pp510, set()) and _lc510 not in _tyf510:
+                _tyi510.setdefault(_lc510, _pp510)
+                _ty510.setdefault(_lc510, _ln0510)
+        for _lc510, _pp510, _ln0510 in _dmo510:
+            if _exp510.get(_pp510):
+                _mod510.setdefault(_lc510, set()).update(_exp510[_pp510])
+                _tyi510.setdefault(_lc510, _pp510)
+    if _ty510 or _tp510 or _mod510 or _ca510:
         import re as _re510
         from errors import PyCSLSemanticError as _PyCSLSemErr510
         _ex510: Set[int] = set()
@@ -1731,7 +1846,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         _ln510 = source_code.split("\n")
         # one entry per scope judged: (root node, names, first contract line, last line, route)
         _sc510: List[Any] = []
-        if _ty510:
+        if _ty510 or _mod510 or _ca510:
             _sc510.append((unified_ast, set(_ty510), 1, len(_ln510), "510", None))
         for _d510, _tn510 in _tp510:
             _lo510 = min([getattr(_d510, "lineno", 0) or 0]
@@ -1756,6 +1871,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 elif (_ro510 == "510" and _wk510 == "Attribute" and _w510.attr in _ca510
                         and type(_w510.ctx).__name__ == "Load"):
                     _id510 = _w510.attr
+                elif (_ro510 == "510" and _wk510 == "Attribute" and _mod510
+                        and type(_w510.ctx).__name__ == "Load"):
+                    # `dep.g` / `pkg.dep.g`: the dotted module reference as imported
+                    _dv510 = _w510.value
+                    _dp510: List[str] = []
+                    while type(_dv510).__name__ == "Attribute":
+                        _dp510.insert(0, _dv510.attr)
+                        _dv510 = _dv510.value
+                    if type(_dv510).__name__ == "Name":
+                        _dk510 = ".".join([_dv510.id] + _dp510)
+                        if _w510.attr in _mod510.get(_dk510, set()):
+                            _bad510.append(((getattr(_w510, "lineno", 0) or 0), _ro510,
+                                            f"{_dk510}.{_w510.attr}", "the code", _d510))
                 if _id510 is not None and _id510 in _nm510:
                     _bad510.append(((getattr(_w510, "lineno", 0) or 0), _ro510, _id510,
                                     "the code", _d510))
@@ -1770,8 +1898,31 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if _ro510 == "510" and _m510.group(1) in _ca510:
                             _bad510.append((_i510, _ro510, _m510.group(1),
                                             "a `#@` contract line", _d510))
+                    for _dk510 in (sorted(_mod510) if _ro510 == "510" else []):
+                        for _m510 in _re510.finditer(r"(?<![\w.])" + _re510.escape(_dk510)
+                                                     + r"\.([A-Za-z_]\w*)", _s510[2:]):
+                            if _m510.group(1) in _mod510[_dk510]:
+                                _bad510.append((_i510, _ro510, f"{_dk510}.{_m510.group(1)}",
+                                                "a `#@` contract line", _d510))
         if _bad510:
             _z510 = min(_bad510, key=lambda _q510: (_q510[0], _q510[1]))
+            if _z510[1] == "510" and (_z510[2] in _tyi510 or "." in _z510[2]
+                                      or (_z510[2] in _ca510 and _z510[2] not in _tyf510)):
+                raise _PyCSLSemErr510(
+                    f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: "
+                    f"`{_z510[2]}` is imported from a dependency module "
+                    f"({_tyi510.get(_z510[2], _tyi510.get(_z510[2].rsplit('.', 1)[0], 'imported'))}) whose MODULE-SCOPE PEP 695 "
+                    f"statement `type {_z510[2].split('.')[-1]} = ...` rebinds it, and "
+                    f"{_z510[3]} reads it as a value. In CPython that statement binds the "
+                    f"module attribute to a typing.TypeAliasType (never a number, string, "
+                    f"container or callable program value) when the module is imported, but "
+                    f"PyCSL resolves the import to the dependency's def / class / constant of "
+                    f"the same name: `def g(n): ...` then `type g = int` in `dep.py` proved "
+                    f"`no_exception \\all` over `dep.g(3)` (route #510 residual, red team 48). "
+                    f"Rename the alias in the dependency so it shadows no value it exports "
+                    f"(`type GT = int`).",
+                    filename=args.file, line=_z510[0], stage="ir-semantic",
+                    code="PYCSL-R510-TYPE-STATEMENT-NAME-READ")
             if _z510[1] == "510":
                 raise _PyCSLSemErr510(
                     f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: "
@@ -21203,10 +21354,116 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     # no own `__init__`: the inherited one runs (a dataclass's synthesized one
                     # is a pure field initialiser; its `__post_init__` is checked below)
                     _dep315[_cn315] |= {_b for _b in _bn315 if _b in _cdefs315 and _b != _cn315}
+                # (run #4) ROUTE #520 -- a dataclass field's `default_factory` RUNS INSIDE the
+                # synthesized `__init__`, which is lowered to `{ a = (any int) }`: its body was never
+                # judged (`lambda: 1 // 0`, `[1][5]`, `int("x")`, a def doing `assert False` made
+                # `P()` raise under a proved `no_exception \all`, red team 48). Admitted: a builtin
+                # container / scalar type called with no argument, a class of the program (its
+                # constructor is judged), a lambda without parameters whose BODY passes the
+                # field-initialiser judge below (it is judged as a statement of a pseudo-hook).
+                # Anything else -- a def, a method, a partial, a call result -- is not modelled.
+                _pdf315 = []
+                for _fs315 in _c315.body:
+                    _fv315 = (_fs315.value if isinstance(_fs315, (_ast175.Assign, _ast175.AnnAssign))
+                              else None)
+                    if not (isinstance(_fv315, _ast175.Call) and (
+                            (isinstance(_fv315.func, _ast175.Name) and _fv315.func.id == "field")
+                            or (isinstance(_fv315.func, _ast175.Attribute)
+                                and _fv315.func.attr == "field"))):
+                        continue
+                    for _kw315 in _fv315.keywords:
+                        if _kw315.arg != "default_factory":
+                            continue
+                        _fy315 = _kw315.value
+                        if (isinstance(_fy315, _ast175.Name) and _fy315.id in (
+                                "list", "dict", "set", "tuple", "frozenset", "str", "bytes",
+                                "bytearray", "int", "float", "bool", "complex", "object")
+                                and not any(isinstance(_z, (_ast175.FunctionDef,
+                                                            _ast175.AsyncFunctionDef,
+                                                            _ast175.ClassDef))
+                                            and _z.name == _fy315.id
+                                            for _z in _ast175.walk(_tall175))):
+                            pass
+                        elif isinstance(_fy315, _ast175.Name) and _fy315.id in _cdefs315:
+                            _dep315[_cn315].add(_fy315.id)
+                        elif (isinstance(_fy315, _ast175.Lambda)
+                              and not (_fy315.args.posonlyargs or _fy315.args.args
+                                       or _fy315.args.vararg or _fy315.args.kwonlyargs
+                                       or _fy315.args.kwarg)):
+                            _pdf315.append(_ast175.Expr(value=_fy315.body, lineno=_fy315.lineno,
+                                                        col_offset=0))
+                        else:
+                            _why315[_cn315] = _why315[_cn315] or (
+                                f"the dataclass `default_factory={_ast175.unparse(_fy315)}` (line "
+                                f"{_fy315.lineno}), which the synthesized `__init__` calls and "
+                                f"whose body, precondition and raises are not modelled (route "
+                                f"#520)")
+                if _pdf315:
+                    _hooks315 = _hooks315 + [_ast175.FunctionDef(
+                        name="<default_factory>", args=_ast175.arguments(
+                            posonlyargs=[], args=[], vararg=None, kwonlyargs=[], kw_defaults=[],
+                            kwarg=None, defaults=[]),
+                        body=_pdf315, decorator_list=[], returns=None, type_params=[],
+                        lineno=_pdf315[0].lineno, col_offset=0)]
+                # (run #4) ROUTE #519 -- the field-initialiser judge's context: the declared kinds
+                # of the hook's parameters (a parameter rebound in the body is undeclared) and of
+                # the class's annotated fields (a field the class's hooks store is undeclared),
+                # the parameters that may hold a `range` (route #514's set: no annotation,
+                # `range`, an abstract sequence / iterable / `Any` / `object`), the fields bound
+                # straight from one, and the `for` / comprehension iterables.
+                _st0315 = {_z.attr for _hk in _hooks315 for _z in _ast175.walk(_hk)
+                           if isinstance(_z, _ast175.Attribute) and isinstance(_z.ctx, _ast175.Store)}
+                _fa315 = {_z.target.id: _ast175.unparse(_z.annotation) for _z in _c315.body
+                          if isinstance(_z, _ast175.AnnAssign) and isinstance(_z.target, _ast175.Name)
+                          and _z.target.id not in _st0315}
                 for _m315 in _hooks315:
                     if isinstance(_m315, _ast175.AsyncFunctionDef):
                         _why315[_cn315] = _why315[_cn315] or "an `async` constructor"
                         continue
+                    _rb315 = {_z.id for _z in _ast175.walk(_m315)
+                              if isinstance(_z, _ast175.Name) and isinstance(_z.ctx, _ast175.Store)}
+                    _pl315 = (list(_m315.args.posonlyargs) + list(_m315.args.args)
+                              + list(_m315.args.kwonlyargs))[1:] if _m315.name != "<default_factory>" else []
+                    _pa315 = {_a.arg: (_ast175.unparse(_a.annotation) if _a.annotation is not None
+                                       else "") for _a in _pl315 if _a.arg not in _rb315}
+                    _rp315 = {_a.arg for _a in _pl315
+                              if _a.annotation is None or _ast175.unparse(_a.annotation).split("[")[0]
+                              .split(".")[-1] in ("range", "Sequence", "Iterable", "Collection",
+                                                  "Sized", "Reversible", "Any", "object",
+                                                  "Iterator", "Generator", "Container")}
+                    for _a in ([_m315.args.vararg, _m315.args.kwarg] if _m315.name != "<default_factory>" else []):
+                        if _a is not None:
+                            _rb315.add(_a.arg)
+                    _rf315 = {_z.targets[0].attr for _z in _ast175.walk(_m315)
+                              if isinstance(_z, _ast175.Assign) and len(_z.targets) == 1
+                              and isinstance(_z.targets[0], _ast175.Attribute)
+                              and isinstance(_z.value, _ast175.Name) and _z.value.id in _rp315}
+                    _it315 = {id(_z.iter) for _z in _ast175.walk(_m315)
+                              if isinstance(_z, (_ast175.For, _ast175.comprehension))}
+                    # small literal: an int / bool literal (or its negation) with |v| <= 2**31
+                    _sm315 = (lambda _e: (isinstance(_e, _ast175.Constant)
+                                          and type(_e.value) in (int, bool)
+                                          and abs(_e.value) <= 2147483648)
+                              or (isinstance(_e, _ast175.UnaryOp)
+                                  and isinstance(_e.op, (_ast175.USub, _ast175.UAdd))
+                                  and isinstance(_e.operand, _ast175.Constant)
+                                  and type(_e.operand.value) in (int, bool)
+                                  and abs(_e.operand.value) <= 2147483648))
+                    _kmap315 = {"int": "int", "bool": "int", "float": "float", "str": "str"}
+                    _kd315 = (lambda _e: (
+                        {int: "int", bool: "int", float: "float", str: "str"}.get(type(_e.value))
+                        if isinstance(_e, _ast175.Constant)
+                        else {int: "int", bool: "int", float: "float"}.get(type(_e.operand.value))
+                        if (isinstance(_e, _ast175.UnaryOp)
+                            and isinstance(_e.op, (_ast175.USub, _ast175.UAdd))
+                            and isinstance(_e.operand, _ast175.Constant))
+                        else ("obj" if _pa315.get(_e.id, "") in _cdefs315
+                              else _kmap315.get(_pa315.get(_e.id, "")))
+                        if isinstance(_e, _ast175.Name)
+                        else _kmap315.get(_fa315.get(_e.attr, ""))
+                        if (isinstance(_e, _ast175.Attribute) and isinstance(_e.value, _ast175.Name)
+                            and _e.value.id == "self")
+                        else None))
                     _st315 = list(_m315.body)
                     while _st315 and not _why315[_cn315]:
                         _s315 = _st315.pop()
@@ -21388,6 +21645,150 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                            f"(...)` (line {_q315.lineno}), whose "
                                                            f"effects, precondition and raises "
                                                            f"are not modelled")
+                                # (run #4) ROUTE #519 -- THE FIELD-INITIALISER JUDGE REFUSES BY
+                                # DEFAULT EVERY VALUE-DEPENDENT RAISE IT CANNOT RULE OUT. The body
+                                # is never emitted, so no route that judges a function body (#506's
+                                # TRIGGERS sites, #414 / #417 / #507-#516's OverflowError sites,
+                                # #508's int -> float promotion, a TypeError of mixed kinds) ever
+                                # sees it: `len("ab" * n)`, `[0] * n`, `[*range(n)]`, `str(n)` /
+                                # `f"{n}"` past 4300 digits, `sorted([n, "a"])`, `sum([n, 0.5])`
+                                # PROVED `no_exception \all` over the caller (red team 48, 59
+                                # witnesses). An expression node is admitted only if it is of a
+                                # total shape, read at the declared kinds of `_kd315`.
+                                _r519 = ""
+                                if not _why315[_cn315] and not isinstance(_q315, (
+                                        _ast175.expr_context, _ast175.operator, _ast175.boolop,
+                                        _ast175.unaryop, _ast175.cmpop, _ast175.Constant,
+                                        _ast175.Name, _ast175.Attribute, _ast175.List,
+                                        _ast175.Tuple, _ast175.Set, _ast175.Dict, _ast175.Starred,
+                                        _ast175.BoolOp, _ast175.UnaryOp, _ast175.Compare,
+                                        _ast175.IfExp, _ast175.BinOp, _ast175.Call,
+                                        _ast175.keyword, _ast175.Subscript, _ast175.Slice,
+                                        _ast175.JoinedStr, _ast175.FormattedValue,
+                                        _ast175.ListComp, _ast175.SetComp, _ast175.DictComp,
+                                        _ast175.GeneratorExp, _ast175.comprehension,
+                                        _ast175.Lambda, _ast175.arguments, _ast175.arg,
+                                        _ast175.NamedExpr)):
+                                    _r519 = "an expression form whose raises are not modelled"
+                                elif _why315[_cn315]:
+                                    pass
+                                elif isinstance(_q315, _ast175.BinOp):
+                                    _l519, _g519 = _q315.left, _q315.right
+                                    _kl519, _kg519 = _kd315(_l519), _kd315(_g519)
+                                    if isinstance(_q315.op, _ast175.Mult):
+                                        if not (_sm315(_l519) or _sm315(_g519)
+                                                or (_kl519 == _kg519 and _kl519 in ("int", "float"))):
+                                            _r519 = ("a repetition / multiplication whose count is "
+                                                     "not a small literal (OverflowError / "
+                                                     "MemoryError, int -> float promotion)")
+                                    elif isinstance(_q315.op, _ast175.Pow):
+                                        _ev519 = (_g519.value if isinstance(_g519, _ast175.Constant)
+                                                  else -_g519.operand.value
+                                                  if (isinstance(_g519, _ast175.UnaryOp)
+                                                      and isinstance(_g519.op, _ast175.USub))
+                                                  else _g519.operand.value
+                                                  if isinstance(_g519, _ast175.UnaryOp) else None)
+                                        _bv519 = (_l519.value if isinstance(_l519, _ast175.Constant)
+                                                  else None)
+                                        if not (_sm315(_g519) and type(_ev519) is int
+                                                and abs(_ev519) <= 64
+                                                and ((_sm315(_l519) and not (
+                                                    _bv519 == 0 and _ev519 < 0))
+                                                     or (_kl519 == "int" and _ev519 >= 0))):
+                                            _r519 = ("a power whose operands are not a small int "
+                                                     "base and exponent (OverflowError / "
+                                                     "ZeroDivisionError)")
+                                    elif isinstance(_q315.op, _ast175.Div):
+                                        if not ((_kl519 == "float" or _sm315(_l519))
+                                                and isinstance(_g519, _ast175.Constant)
+                                                and type(_g519.value) in (int, float)
+                                                and _g519.value != 0):
+                                            _r519 = ("a true division of an int (OverflowError: "
+                                                     "too large for a float)")
+                                    elif (isinstance(_q315.op, _ast175.Mod)
+                                          and (_kl519 == "str"
+                                               or isinstance(_l519, _ast175.JoinedStr))):
+                                        if not all(_kd315(_v) in ("str", "float") or _sm315(_v)
+                                                   for _v in (_g519.elts if isinstance(
+                                                       _g519, _ast175.Tuple) else [_g519])):
+                                            _r519 = ("a `%` formatting of a value that may be an "
+                                                     "int past 4300 digits (ValueError)")
+                                    if (not _r519 and not isinstance(_q315.op, (
+                                            _ast175.Mult, _ast175.Pow, _ast175.Div))
+                                            and "float" in (_kl519, _kg519)
+                                            and not (_kl519 == _kg519 or _sm315(_l519)
+                                                     or _sm315(_g519))):
+                                        _r519 = ("an arithmetic operation mixing a float with "
+                                                 "a value that may be a huge int (int -> float "
+                                                 "promotion, OverflowError, route #508)")
+                                elif isinstance(_q315, _ast175.Call) and isinstance(
+                                        _q315.func, _ast175.Name):
+                                    _fn519 = _q315.func.id
+                                    _as519 = list(_q315.args)
+                                    if _fn519 in ("str", "repr", "ascii", "format") and _as519 and not all(
+                                            _kd315(_v) in ("str", "float", "obj") or _sm315(_v)
+                                            or (isinstance(_v, _ast175.Constant)
+                                                and type(_v.value) not in (int, bool))
+                                            for _v in (_as519[0].elts if isinstance(
+                                                _as519[0], (_ast175.List, _ast175.Tuple,
+                                                            _ast175.Set)) else [_as519[0]])):
+                                        _r519 = ("a string conversion of a value that may be an "
+                                                 "int past 4300 digits (ValueError)")
+                                    elif _fn519 == "abs" and not (
+                                            _as519 and _kd315(_as519[0]) in ("int", "float", "obj")):
+                                        _r519 = ("`abs` of a value that is not a declared "
+                                                 "number (TypeError)")
+                                    elif _fn519 in ("sum", "sorted", "min", "max") and (
+                                            any(isinstance(_v, (
+                                                _ast175.List, _ast175.Tuple, _ast175.Set,
+                                                _ast175.Dict, _ast175.ListComp, _ast175.SetComp,
+                                                _ast175.DictComp, _ast175.GeneratorExp,
+                                                _ast175.Starred, _ast175.Call)) for _v in _as519)
+                                            or (len(_as519) > 1 and not (
+                                                len({_kd315(_v) for _v in _as519}) == 1
+                                                and _kd315(_as519[0]) in ("int", "float",
+                                                                          "str")))):
+                                        _r519 = (f"`{_fn519}` over values whose kinds may mix "
+                                                 f"(TypeError, int -> float promotion)")
+                                    elif _fn519 == "range" and id(_q315) not in _it315 and not all(
+                                            _sm315(_v) for _v in _as519):
+                                        _r519 = ("a `range` with a non-literal bound used as a "
+                                                 "value (its length is not a Py_ssize_t: "
+                                                 "OverflowError, route #514)")
+                                    elif _fn519 in ("len", "list", "tuple", "set", "frozenset",
+                                                    "sorted", "sum", "min", "max", "bytes",
+                                                    "bytearray", "reversed", "dict") and any(
+                                            (isinstance(_v, _ast175.Name) and _v.id in _rp315)
+                                            or (isinstance(_v, _ast175.Attribute)
+                                                and isinstance(_v.value, _ast175.Name)
+                                                and _v.value.id == "self" and _v.attr in _rf315)
+                                            for _v in _as519):
+                                        _r519 = ("a sizing of a parameter that may hold a "
+                                                 "`range` (OverflowError, route #514)")
+                                elif isinstance(_q315, _ast175.Starred) and isinstance(
+                                        _q315.ctx, _ast175.Load) and (
+                                        (isinstance(_q315.value, _ast175.Name)
+                                         and _q315.value.id in _rp315)
+                                        or (isinstance(_q315.value, _ast175.Attribute)
+                                            and isinstance(_q315.value.value, _ast175.Name)
+                                            and _q315.value.value.id == "self"
+                                            and _q315.value.attr in _rf315)):
+                                    _r519 = ("an unpacking of a parameter that may hold a "
+                                             "`range` (OverflowError, route #514)")
+                                elif isinstance(_q315, _ast175.FormattedValue) and not (
+                                        _kd315(_q315.value) in ("str", "float", "obj")
+                                        or _sm315(_q315.value)
+                                        or (isinstance(_q315.value, _ast175.Constant)
+                                            and type(_q315.value.value) not in (int, bool))):
+                                    _r519 = ("an f-string part that may be an int past 4300 "
+                                             "digits (ValueError)")
+                                elif isinstance(_q315, _ast175.Slice) and _q315.step is not None and not (
+                                        _sm315(_q315.step) and _ast175.literal_eval(_q315.step) != 0):
+                                    _r519 = "a slice step that may be 0 (ValueError)"
+                                if _r519:
+                                    _why315[_cn315] = (f"`{_ast175.unparse(_q315)}` (line "
+                                                       f"{getattr(_q315, 'lineno', '?')}): {_r519} "
+                                                       f"(route #519)")
                                 if _why315[_cn315]:
                                     break
         # a class depending on an unmodelled one is unmodelled too
@@ -30975,13 +31376,12 @@ class _MergeConservationError(Exception):
     non-Valid one). It is a trust-free, fail-closed backstop: it depends on NO merge
     implementation being correct, so it survives any future rewrite of the merge.
     See soundness-issue.md (Tier 0)."""
-    def __init__(self, expected: int, got: int):
+    def __init__(self, expected: int, got: int, msg: str):
+        # (run #4, route #519) the message is formatted by the RAISER: an f-string of an
+        # int in a constructor is refused (ValueError past 4300 digits, never judged).
         self.expected = expected
         self.got = got
-        super().__init__(
-            f"merge dropped goal(s): first full-file run enumerated {expected} "
-            f"goal block(s) but the merged result has only {got} — refusing to "
-            f"report a verdict (a dropped goal must never silently pass).")
+        super().__init__(msg)
 
 
 def _check_goal_conservation(first_full_output: str, merged_output: str) -> None:
@@ -30997,7 +31397,11 @@ def _check_goal_conservation(first_full_output: str, merged_output: str) -> None
     first_n = len(_parse_goal_blocks(first_full_output))
     merged_n = len(_parse_goal_blocks(merged_output))
     if merged_n < first_n:
-        raise _MergeConservationError(first_n, merged_n)
+        raise _MergeConservationError(
+            first_n, merged_n,
+            f"merge dropped goal(s): first full-file run enumerated {first_n} "
+            f"goal block(s) but the merged result has only {merged_n} — refusing to "
+            f"report a verdict (a dropped goal must never silently pass).")
 
 
 # --- Structured (`why3 prove --json`) goal handling -------------------------------

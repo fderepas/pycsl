@@ -4858,6 +4858,67 @@ over a bare `list` holding strs is admitted as before; a range passed as an argu
 declared parameter type (`range` / `Sequence` / ... / undeclared); a constructor's other OverflowError forms (`"ab" * n`,
 a range reaching `len` by a name) are fenced only by route #315's existing table and the mode's type checker.
 
+### 7.519 Route #315's field-initialiser judge refuses every value-dependent raise by default; a `default_factory` is judged; a dependency's `type` statement rebinds what it exports (routes #519 / #520 / #510 residual, run #4)
+
+A construction `C(args)` is lowered to a record literal of the constructor's `self.<f>` stores (§7.10): the
+`__init__` / `__post_init__` body is never emitted, so no route that judges a function body (route #506's
+`TRIGGERS` sites, routes #414 / #417 / #507-#516's OverflowError sites, route #508's int -> float promotion, a
+TypeError of mixed kinds) ever sees it, and a dataclass's synthesized `__init__` calls each field's
+`default_factory`, which nothing judged. Red team 48 measured at 412817ab8, PROVED `no_exception \all` over the
+caller while CPython raises: (#519, 59) `len("ab" * n)`, `n * "ab"`, `[0] * n`, `(0,) * n`, `b"ab" * n`,
+`[*range(n)]`, `str(n)` / `repr(n)` / `f"{n}"` past 4300 digits, `str(n ** 10)`, `sorted([n, "a"])`,
+`sum([n, 0.5])`, in `__init__` / `__post_init__` / an `if` or `for` body / a user exception's constructor, the
+object built and discarded, a nested constructor, a dataclass field argument `P(C(n))`; (#520, 17)
+`field(default_factory=lambda: 1 // 0)`, `[1][5]`, `{"a": 1}["b"]`, `int("x")`, `next(iter([]))`, a generator
+`.throw`, a def doing `assert False` (plain / `kw_only` / `slots` / `frozen` dataclasses, a field argument, a loop).
+And (#510 residual, red team 48 g900) a DEPENDENCY module defining `def g` / `class C` and then, at module scope,
+`type g = int` (after the def, in an `if` / `try` body): `from dep import g`, `import dep` + `dep.g(3)`, `C(3)`
+PROVED while CPython raises TypeError.
+
+RULE (refuse by default; inline in `_run_pipeline`, mirror twin `\trusted`, no new def, no axiom, emission
+byte-identical where admitted):
+- (#519) Route #315's judge reads each expression of a constructor at the DECLARED kinds of the hook's
+  parameters (a parameter the body rebinds is undeclared) and of the class's annotated fields (a field the
+  hooks store is undeclared); a parameter / field annotated with a program class has the kind "object". A node
+  is admitted only if it is a constant, name, attribute, display, comparison, boolean / unary operation,
+  if-expression, slice (step a non-zero literal), comprehension, lambda, walrus, keyword or call already
+  admitted by §7.10, and: `a * b` only with a small int literal operand (|v| <= 2**31) or two operands of the
+  same declared number kind; `a ** b` only for small int literals (|b| <= 64, no `0 ** -k`) or a declared int
+  base and a literal exponent 0..64; `a / b` only of a declared float or small literal by a non-zero literal;
+  `%` formatting only of declared str / float / small-literal values; an arithmetic operation with a float
+  operand only beside a float or a small literal; `str` / `repr` / `ascii` / `format` and f-string parts only of
+  a declared str / float / object, a non-int constant or a small literal (or a display of them); `abs` only of a
+  declared number / object; `sum` / `sorted` / `min` / `max` never of a display, comprehension, unpacking or
+  call, and over several arguments only of one declared kind; `range` with a non-literal bound only as a `for` /
+  comprehension iterable; no sizing builtin (`len list tuple set frozenset sorted sum min max bytes bytearray
+  reversed dict`) of, and no `*` unpacking of, a parameter that may hold a range (undeclared, `range`,
+  `Sequence`, `Iterable`, `Collection`, `Sized`, `Reversible`, `Any`, `object`, `Iterator`, `Generator`,
+  `Container`) or a field bound straight from one. Anything else makes the constructor unmodelled.
+- (#520) a `field(default_factory=X)` in a class body is admitted only for a builtin container / scalar type
+  (`list dict set tuple frozenset str bytes bytearray int float bool complex object`, not rebound by the
+  program), a program class (its constructor is judged with no argument), or a parameterless lambda whose body
+  passes the judge above. A def, a method, a call result is not modelled.
+  An unmodelled constructor constructed by a non-trusted function is `PYCSL-R315-UNMODELLED-CONSTRUCTOR`, which
+  names the site and the route (`route #519` / `route #520`).
+- (#510 residual) each module the main file imports (resolved as the import resolver does; transitively through
+  re-exporting `from X import Y` and `*`) EXPORTS the names its module-scope `type` statements bind (any depth of
+  `if` / `for` / `while` / `try` / `with` / `match` bodies, not a def / class body). Such a name imported here
+  (`from dep import g [as h]`, `from dep import *`) is read like an in-file `type` name (§7.510), a module
+  reference `dep.g` / `pkg.dep.g` spelled as imported is refused like it, and a dependency class-body `type X`
+  joins §7.510's `<e>.X` set: `PYCSL-R510-TYPE-STATEMENT-NAME-READ`. An annotation-only read stays admitted.
+
+Witnesses `8270`-`8285` (#519), `8286`-`8293` (#520), `8294`-`8297` (#510 residual; dependencies
+`multi_file_lib/u12_r510_{after,if,cls}.py`): PROVED at base, REFUSED by name. Controls `8300`-`8305` (a
+dependency alias read only as an annotation, small-literal repetitions, conversions / products at declared kinds,
+`len` / `sorted` / `sum` / `list` of a `List[int]` parameter and a `for` over `range(n)`, builtin / lambda
+factories, a `__post_init__` over a declared int field): PROVED at base and HEAD. Refused by design (expected
+FAIL -> REFUSED): `1431` (a def factory), `2016` (`[0] * n` over a defaulted parameter), python-reference `0091`
+(`list(data)` of an undeclared parameter). Residuals (named): the kinds trust declared annotations (a `str`
+parameter bound to an int at run time); user dunders reached by `str` / `abs` / comparisons of an object are the
+implicit-dunder routes' (#489-#495); a field bound to a range-holding parameter in ANOTHER method is not
+tracked; MemoryError is outside the model; a dependency's `type` statement inside a def body, and a function
+body of a dependency reading its own rebound name (imported dependency bodies are trusted stubs), are not judged.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
