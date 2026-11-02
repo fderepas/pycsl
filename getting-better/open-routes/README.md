@@ -20,6 +20,17 @@
 ##   Over-refusal: corpus root 0/0/0 (+5 new), pyref 0/0/0, mirror 53/53 0/0/0 (no movers, nothing owed); rt43 / rt44 CPython-honest probes
 ##   0/177; only 5550-5554 (#392 witnesses, expected FAIL) change refusal. Cost: two honest functions with a same-named local class.
 
+## run #4 (2026-11-02): #512 / #513 / #514 / #515 / #516 REPAIRED (executor u11 off 3a07b619c, 59c325b95 + 616b47d2c + its docs commit;
+##   inline in `_run_pipeline` in #507's block + #315's constructor table + `_call_named_builtins` count form, twins `\trusted`, no new
+##   def, no axiom; annotations §7.512). Route #507's census now refuses by default. bytes / bytearray are sites, and the count form
+##   states the Py_ssize_t bound (#512). Kinds come from the TOP-LEVEL type arguments, so a mapping iterates its keys (#513). len /
+##   list / sorted / bytes of ANY may-be-range value and `*` unpacking are sites, credited only by a lowering that states the bound
+##   (#514). PYCSL-R515-IMMEDIATELY-INVOKED-LAMBDA (#515). R508 also refuses an OPAQUE unknown operand (call / field / loop-target /
+##   unpacked) beside an int / unknown, with kinds read through receiver classes and imported user modules (#516). Witnesses 117 x
+##   default / typed / store: refused, NOT PROVED (4 count-form) or a mode Why3 error; corpus 8180-8203 (FAIL), controls 8210-8215
+##   (PASS). Over-refusal: first draft refused 11% of the `\all` corpus. Fixed by limiting #516 to opaque operands and widening the
+##   kind reader. Final: byte-diff root 0/0 0 APPEARED, pyref 0/0/0, mirror 53/53 0/0/0 (nothing owed), rt43 / rt44 honest 0/150.
+
 ## run #4 (2026-11-01): #510-#518 OPENED (red team 47 on ef45a0426: 2022 probes / 192 confirmed in 9 families, default mode; rt46's 134
 ##   all refused): #510 pep695-type-statement-not-a-binding (34); #511 local-class-statement-not-a-binding (17); #512 bytes-count-obligations-lost (31);
 ##   #513 r507-kind-reader-last-type-argument (10); #514 r507-range-length-by-spelling (17); #515 iife-lambda-body-erased (37); #516 r508-unknown-kind-operands

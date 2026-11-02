@@ -80,6 +80,17 @@ has no lowering); such a site inside a comprehension / generator / lambda
 absent from the def's block (`PYCSL-R507-OVERFLOW-SITE-UNLOWERED`). **A new `\all`-only obligation
 attached inline by a handler needs its site shape added to that table too.**
 
+**Refuse by default (routes #512-#516).** That table reads values, not spellings: a
+`len` / `list` / `sorted` / `bytes` of ANY value that may be a range (bound to a name, through a walrus /
+if-expression / container element, a `Sequence` / `Iterable` / undeclared parameter) and a `*`
+unpacking of one are sites; `bytes(x)` / `bytearray(x)` (count or list) are sites; a repetition /
+range-length / byte-count site is credited only by a lowering that STATES the Py_ssize_t bound. Kinds
+come from the TOP-LEVEL type arguments (a mapping iterates its keys), the receiver's class (method
+results, fields) and imported user modules; an operand of unknown kind that is OPAQUE (a call / field /
+loop-target / unpacked value) beside an int or another unknown is refused like a float (R508); an
+immediately-invoked lambda under `\all` is `PYCSL-R515-IMMEDIATELY-INVOKED-LAMBDA`; route #315 no longer
+counts `bytes(x)` / `len(range(<non-literal>))` as total in a constructor. annotations §7.512.
+
 The authoritative encoding lives in `src/pycsl/exception_model.py` —
 `KNOWN_EXCEPTIONS`, `TRIGGERS`, `PREDICATE_LIBRARY`. **Do not duplicate
 the table into other files**; consult `triggers_for()` from

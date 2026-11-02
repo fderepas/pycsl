@@ -4788,6 +4788,76 @@ Witnesses `8160`-`8164`, `8166` (PROVED at base, REFUSED), `8165` (not proved at
 `8170` (a plain-name default and a walrus in the lambda BODY, which binds the lambda's own local), `8171` (the
 binding moved to its own statement).
 
+### 7.512 Route #507's census refuses by default: byte counts, any range value, element kinds by position, unknown operands, immediately-invoked lambdas (routes #512-#516, run #4)
+
+Route #507 (§7.507) read its sites by SPELLING and its operand kinds optimistically. Red team 47 measured at
+ef45a0426, each PROVED `no_exception \all` while CPython raises: (#512, 31) `bytes(n)` / `bytearray(n)` /
+`bytes([v])` in a dict display, a dict store, a dict comprehension or a field initialiser (erased to `(any int)`),
+and the faithful plain `Array.make n 0`, which owed only `n >= 0` (OverflowError past 2**63-1, ValueError for a
+negative count or an element outside 0..255); (#513, 10) a comprehension over a `Dict[K, V]` / `Mapping` / a
+`Tuple[A, B]` read every target at the kind of the LAST type argument (`[k * 0.5 for k in d]` over
+`Dict[int, float]`); (#514, 17) a range bound to a name, reached through a walrus / if-expression / list element,
+or unpacked (`r = range(n); len(r)`, `len(rs[0])`, `(*range(n),)`), lowered to `iter_length` with no Py_ssize_t
+bound; (#515, 37) an immediately-invoked lambda `(lambda m: "ab" * m)(n)` / `(lambda m=n: m * 0.5)()`, erased to
+`(any int)` and its body never seen; (#516, 22) an arithmetic operation whose two operands have UNKNOWN kind
+(`for k, v in d.items(): w = k * v`, `p.ga() * p.gb()`, `p.a * p.gb()`): #508 fired only on a known float.
+
+RULE (refuse by default; inline in `_run_pipeline` in route #507's block, mirror twin `\trusted`, no new def, no
+axiom). Under `\all` (declared, or REACHED, route #460):
+- KINDS (#513 / #516). A declared type is read at its TOP-LEVEL arguments: iterating a mapping yields its FIRST
+  argument, a subscript its value (last of two); `Tuple[A, ...]` is A, `Tuple[A, B]` the common kind or unknown;
+  `bytes` / `bytearray` / `range` elements are ints, `str` elements strings; `Optional[X]` / `X | None` is X (its
+  None raises TypeError, never OverflowError). The targets of `for k, v in d.items()` / `.keys()` / `.values()` /
+  `enumerate(xs)` take the declared kinds. A method result / field read is typed through its RECEIVER's class
+  (`self` in a method, a local / parameter declared with the class, a local bound only to `C(..)`, the class
+  name itself for a class constant), inherited members included: the return / field annotation, or -- for an
+  undeclared field -- the kind every store of it agrees on (a literal, a declared parameter, `self.f +/- <int
+  literal>`; a store through another receiver anywhere leaves it unknown). A def of the file (at any depth) or of
+  an imported USER module (resolved as route #439 does) has its return annotation; `min` / `max` / `sum` /
+  `round` / `math.floor`-like functions, declared `str` / `list` / `dict` methods and bit operations on ints have
+  their result kinds; a module constant bound once its literal kind; a local bound to `None` and an int keeps
+  the int kind.
+- `PYCSL-R508-INT-FLOAT-PROMOTION-UNMODELLED` (#516) also refuses an arithmetic operation with an operand of
+  unknown kind beside an int or another unknown when one of them is OPAQUE -- produced by an erased source: a
+  call / method result, a field / attribute read of a user-class (or unknown) receiver, a name bound by a loop /
+  unpacking target or to an opaque value, a name the def does not know (a comprehension's tuple target), or an
+  operation over one. A declared parameter or plain local of unknown kind (`x: Any`, an element of an
+  un-parameterised `list`, an `Optional`), a global / builtin name and an attribute of an int / str / ... is NOT
+  opaque: the model reads it as declared (residual). Repair: declare the operand's type.
+- SITES (#512 / #514). A `len` / `list` / `sorted` / `bytes` / `bytearray` of ANY value that may be a range (a
+  `range(..)` call; a name bound by any binding form -- assignment, walrus, loop / comprehension target over a
+  container holding one -- to such a value; a parameter declared `range` / `Sequence` / `Iterable` /
+  `Collection` / `Sized` / `Reversible` / `Any` / `object` or undeclared; an if-expression / `and` / `or` /
+  element of a container holding one; a field or a def result bound to one) and a `*` unpacking of one;
+  `bytes(x)` / `bytearray(x)` unless `x` is a literal count in 0 .. 2**63-1, a display of literal ints in 0..255
+  or a bytes literal. A repetition `*` / range-length / byte-count site is credited ONLY by a kept lowering that
+  STATES the Py_ssize_t bound (`9223372036854775807` in its text): `len(r)` -> `iter_length !r` and `k * v`
+  over erased dict values -> int multiplication are kept lowerings without the obligation. The count form of
+  `bytes(n)` / `bytearray(n)` now states that bound under `\all` (`_call_named_builtins`, as route #414 does for
+  `[x] * n`). Inside a comprehension / generator / lambda such a site is `PYCSL-R509-COMPREHENSION-OVERFLOW-SITE`,
+  elsewhere unlowered `PYCSL-R507-OVERFLOW-SITE-UNLOWERED`.
+- CONSTRUCTORS (#512). Route #315's "total builtins" no longer include `bytes(x)` / `bytearray(x)` (unless `x` is
+  as above, or a module constant bound once to a literal count) or `len` / `list` / `sorted` of a `range` with a
+  non-literal bound: such a constructor is not a field initialiser (`PYCSL-R315-UNMODELLED-CONSTRUCTOR`).
+- `PYCSL-R515-IMMEDIATELY-INVOKED-LAMBDA` (#515): a def judged under `\all` whose source holds a call of a lambda
+  where it is written. Repair: write the body inline (or make it a `def` with its own contract).
+
+Witnesses `8180`-`8203` (PROVED at base by default; now REFUSED by name -- `8185`, the plain count form under
+`requires n >= 0`, is NOT PROVED: the stated bound does not discharge); controls `8210`-`8215` (bounded byte
+counts read and displayed, comprehensions over float keys / a `Tuple[float, ...]`, a range bound to a name and never sized plus a
+spelled bounded `len(range(n))`, the lambda body inline, `.items()` over `Dict[int, int]`, method results /
+fields through a declared receiver; PROVED at HEAD, and at base except `8211`, which base REFUSED because it read the float keys
+as ints). Over-refusal: a first draft refused 11% of the 1314 `\all` corpus files (un-parameterised `list` elements, `Optional`
+values, None-merged locals, bit operations, enum constants, inherited / ctor-bound fields, imported / nested defs). Restricting #516 to
+OPAQUE operands and widening the kind reader brought it to byte-diff root 0 MOVED / 0 GONE / 0 APPEARED, pyref 0/0/0, mirror 53/53
+0/0/0, rt43 / rt44 CPython-honest probes 0/150 changed. All 117 red-team-47 witnesses (`witnesses-r512/` 31,
+`-r513/` 10, `-r514/` 17, `-r515/` 37, `-r516/` 22) are refused (or NOT PROVED / a Why3 error of the mode) under
+default / typed / store. Residuals (named): the kind reader trusts declared annotations; an un-parameterised `list` / `dict` element, an
+`x: Any` parameter and a plain local of unknown kind are NOT opaque (read as the model reads them: an int), so `xs[0] * n`
+over a bare `list` holding strs is admitted as before; a range passed as an argument is tracked only through the callee's
+declared parameter type (`range` / `Sequence` / ... / undeclared); a constructor's other OverflowError forms (`"ab" * n`,
+a range reaching `len` by a name) are fenced only by route #315's existing table and the mode's type checker.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

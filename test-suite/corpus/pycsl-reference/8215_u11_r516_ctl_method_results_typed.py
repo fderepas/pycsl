@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 @dataclass
 class P:
-    a: int
-    b: int
+    a: int = 2
+    b: int = 3
 
     def ga(self) -> int:
         return self.a
