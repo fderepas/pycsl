@@ -1,5 +1,11 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-02): #519 #520 OPENED (red team 48: 1800 probes / 76 confirmed; rt47's 192 all refused / not proved): #519
+##   r315-field-initialiser-constructor-unchecked (59: a constructor admitted by route #315 as a field initialiser is lowered to
+##   `{ f = (any int) }` and its body's obligations are never checked); #520 dataclass-default-factory-never-called (17). Also: #510's
+##   named residual (a dependency's `type` statement rebinding an imported FUNCTION / CLASS) PROVES — the route doc said NOT PROVED / R325
+##   (measured on constants only); recorded on route #510's doc. Driver repro 4/4.
+
 ## run #4 (2026-11-01): #510 / #517 REPAIRED (executor u9 off 3a07b619c, 3de5e6481 + its ledger / docs commit; inline in `_run_pipeline` right after
 ##   route #215 (after `_ir_resolve`: TY3 refusals first), mirror twin `\trusted`, no new def, no axiom, emission byte-identical; annotations §7.510).
 ##   A PEP 695 `type X = ...` statement / def / class type-parameter list BINDS its names to an unmodelled TypeAliasType / TypeVar, so a name
