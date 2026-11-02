@@ -4,6 +4,14 @@
 ##   binary-only (74); #522 r230-get-on-dict-field (30); #523 local-str-list-literal-iterated-after-append (32); #524 r230-nested-optional-container (19);
 ##   #525 module-str-list-mutated-via-namespace (21; a gap of today's lex-char-class inc 2); #526 r230-none-taint-does-not-flow (47);
 ##   #527 optional-str-field-as-plain-string (11); #528 split-elem-total-no-indexerror (41). Driver repro 9/9.
+## run #4 (2026-11-02): #519 / #520 / #510 residual REPAIRED (executor u12 off dd4a06928, 144d7a34e + its ledger / docs commit; inline in route #315's
+##   field-initialiser judge and route #510's block in `_run_pipeline`, mirror twins `\trusted`, no new def, no axiom; annotations §7.519): the judge reads
+##   constructor expressions at declared kinds and refuses every value-dependent raise by default (repetition by a non-literal count, int
+##   string conversion, float promotion, mixed-kind sum / sorted, range sizing / unpacking, zero slice steps); `default_factory` admitted only for
+##   builtin types, program classes, or total parameterless lambdas; a dependency's module-scope `type` statement makes the name it binds
+##   unreadable as a value when imported (`from dep import g`, `dep.g`). Witnesses 76 + 7 x default / typed / store = 249/249 REFUSED. Corpus
+##   8270-8297 FAIL, controls 8300-8305 PASS. Byte-diff root 0 / 2 GONE (1431, 2016 expected-FAIL) / 0, pyref 0 / 1 GONE (0091 expected-FAIL) / 0,
+##   mirror 53/53 0/0/0 (mirror `_MergeConservationError` re-ported: message formatted by the raiser; nothing owed). rt43 / rt44 honest: 0 refused.
 
 ## run #4 (2026-11-02): #519 #520 OPENED (red team 48: 1800 probes / 76 confirmed; rt47's 192 all refused / not proved): #519
 ##   r315-field-initialiser-constructor-unchecked (59: a constructor admitted by route #315 as a field initialiser is lowered to

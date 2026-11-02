@@ -912,6 +912,11 @@ AUDITED = {
         "Route #517. 'Rename the type parameter so it shadows no value the body reads (`def f[T](...)`)': witness g823_a9001 as "
         "`def f[T](n: int)` (getting-better/open-routes/witnesses-r517/advice/a517_rename_tp) VERIFIES `\\result == n // 5` under "
         "`no_exception \\all`; control 8134 (`class C[T]:` for 8125) VERIFIES."),
+    # driver run #4 -- route #510 residual (u12, red team 48): a dependency's module-scope `type` statement.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `{_z510[2]}` is imported from a dependency module ({_t'): (FOLLOWABLE,
+        "Route #510 residual. 'Rename the alias in the dependency so it shadows no value it exports (`type GT = int`)': corpus 8294 "
+        "with the dependency's alias renamed `type GT = int` (getting-better/open-routes/witnesses-r510/advice/a510r_rename_dep_alias, "
+        "dependency a510r_dep_renamed) VERIFIES `\\result == 3`; control 8300 (an alias read only as an annotation) VERIFIES."),
     # driver run #4 -- routes #511 / #518 (u10, red team 47). Probes in
     # getting-better/open-routes/witnesses-r51{1,8}/advice/.
     ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_c, \'lineno\', 0)}: the {(\'class\' if isinstance(_nb_c, ast.ClassDef) else \'type alias\')} statement `{_n'): (FOLLOWABLE,
@@ -1286,6 +1291,8 @@ AUDITED_HASH = {
     # driver run #4 (u9) -- routes #510 / #517
     ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `{_z510[2]}` is bound by the PEP 695 statement `type {'): 'acbd371debc0',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R517-TYPE-PARAM-NAME-READ: `{_z510[2]}` is a PEP 695 type parameter of `{getattr(_z51'): '1639be5fd431',
+    # driver run #4 (u12) -- route #510 residual
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `{_z510[2]}` is imported from a dependency module ({_t'): '85e25dc9fe56',
     # driver run #4 (u10) -- routes #511 / #518
     ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_c, \'lineno\', 0)}: the {(\'class\' if isinstance(_nb_c, ast.ClassDef) else \'type alias\')} statement `{_n'): '825105c83671',
     ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_w, \'lineno\', 0)}: the walrus `{_nb_wn} := ...` sits in a default, decorator, base or keyword of the {'): 'a290e4c589c6',
