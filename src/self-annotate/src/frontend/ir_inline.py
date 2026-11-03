@@ -25,7 +25,7 @@ def _walk_dicts(obj: Any):
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _touches_global(obj: Any, globals_set: int) -> bool:
+def _touches_global(obj: Any, globals_set: Any) -> bool:
     for node in _walk_dicts(obj):
         t = node.get("type") or node.get("stmt")
         if t == "Attribute":

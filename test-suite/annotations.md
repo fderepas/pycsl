@@ -5237,6 +5237,62 @@ classes (a target copy's, a None source's) are added to an operand: the operand'
 dunder positions list `UAdd`); a None reaching the operand through a container / field the derivation does not
 follow is the #521 fence's (Module 6 obligation).
 
+### 7.541 A value of a declared kind is refused where CPython needs another kind: element stores, iterated / searched operands, annotated bindings (routes #541 / #542 / #543, run #4)
+
+The value model erases a str / list / dict / set / one-int-field record / enum value to one Why3 `int`, and
+the operations that depend on the real Python kind are TOTAL opaque `val`s over that int (`iter_length`,
+`iter_get`, `contains_check`, `get_<field>`, the str ops' int placeholders). Red team 51 measured on main
+977dfd091, PROVED `no_exception \all` while CPython raises: (#541, 112) a local list whose element kind is
+established -- annotated `List[str]` / `List[List[int]]` / `List[P]` / `List[Dict[..]]` / `List[Set[..]]`, or a
+display of one kind (`["abc", f"defg"]`) -- taking `.append(None)` / `.append(k)` / `+= [None]` /
+`.extend([None])`, its element then read through `len(p)` / `p.upper()` / `"a" in p` / `p < 3` / a
+comprehension (TypeError / AttributeError); (#542, 66) the haystack of `in` / `not in` and the iterable of a
+`for` / comprehension that is an int / bool parameter, literal, field, tuple slot, element, `-> int` call,
+`len(s)`, arithmetic, or `None` -- in the claimed body, an unclaimed callee, a method, a constructor, a
+`default_factory` lambda (TypeError); (#543, 8) a local annotated with a one-int-field dataclass / plain class /
+one-member enum bound to None / an int (`x: P = None; x.a`, `xs: List[P] = [None]`, `x: C = 5`; AttributeError).
+
+RULE (refuse at the binding / insertion / use site; inline in `_run_pipeline` after route #490's judge, mirror
+twin `\trusted`, no new def, no axiom, emitter untouched: a file with no such site is byte-inert; every
+verified function / method and every class-body / module-level lambda, in every memory model). Every
+expression gets the set of KINDS it may evaluate to -- num (int / bool / float / complex), str (str / bytes /
+f-string), none, list, tuple, dict, set, iter, fn, `c:<C>` (an instance of a class of the file), unk (not
+established) -- with its element kinds (iteration / list or set element / dict key), dict value kinds and
+tuple slots: from literals and displays, parameter annotations (a method's receiver is its class), local
+annotations, the joined bindings of each local (to a fixpoint) widened by the insertions into it, file-function
+and method return annotations, class field annotations and `self.f = <annotated parameter / literal>`,
+module constants bound once, the builtins of fixed result kind (`len` / `ord` / `int` ... -> num, `str` /
+`repr` ... -> str, `list` / `sorted` -> list, `range` -> iter of num, `enumerate` / `zip`), str methods,
+`.get` / `.pop` / `.values()` / `.keys()` / `.items()`, a field read of a record of a known class; an
+annotation of unknown meaning (Any, object, Sequence, Iterable, a TypeVar) is unk, a TypedDict class annotates a
+dict. REFUSED:
+- `PYCSL-R542-NON-CONTAINER-OPERAND`: an operand that CPython iterates, searches or indexes -- the container of
+  `in` / `not in`, the iterable of a `for` / comprehension, `*x`, `yield from`, an unpacked value, a subscript
+  receiver, the argument of `len` / `list` / `tuple` / `set` / `frozenset` / `sorted` / `reversed` / `sum` /
+  `any` / `all` / `enumerate` / `iter` / `dict` / one-argument `min` / `max`, every argument of `zip`, the
+  iterables of `map` / `filter`, the argument of `str.join` -- whose kinds include num or are exactly {none}.
+- `PYCSL-R541-ELEMENT-KIND`: an insertion (`append` / `add` / `insert` / `extend` / `update` / `+=` / `|=` / an
+  item or slice store / `setdefault`) into a list / set (element) or dict (value) whose domain is established --
+  an annotated local or parameter, an annotated / parameter-derived field, a local bound only to non-empty
+  displays of known element kinds or to such a local -- of a value whose known kinds do not fit the domain (a
+  record of a subclass fits its base). A number domain (`List[int]`) is the int-native model and stays routes
+  #490 / #230 / #521's.
+- `PYCSL-R543-ANNOTATED-BINDING-KIND`: a binding of an annotated local or field (`x: T = v`, a later `x = v` / a
+  walrus) whose value's known kinds -- for a list / set annotation also its element kinds -- do not fit the
+  annotation (`Optional` / `Union` / `|` admit their members; num admits every number). A parameter's default is
+  route #350's (`PYCSL-SEM-DEFAULT-ANNOTATION-MISMATCH`).
+A None that is only one member of a NAME's flow-insensitive join, and a None into a number container, are left to
+the narrowable value fences (routes #230 / #521 / #527); a non-last `or` operand is never None; an unk kind is not
+judged (Why3 typing and the value fences apply).
+
+Witnesses `witnesses-r541/` (112), `witnesses-r542/` (66), `witnesses-r543/` (8) x default / typed / store:
+REFUSED (or NOT PROVED); corpus `8580`-`8603` (FAIL), controls `8605`-`8607` (PASS). The self-annotation mirror
+annotated three set parameters `int` (`monomorphize._collect_instantiations_ast(generics)`,
+`ConcurrencyChecker._warn_if_unprotected(held)`, `ir_inline._touches_global(globals_set)`): now `Any`.
+Residuals (named): narrowing is not modelled (a `Union[int, List[int]]` iterated under `isinstance` is
+refused); a list aliased through a call or a container is not followed; a None member of a name's join and a
+non-number into a number container are the value fences' / route #490's.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

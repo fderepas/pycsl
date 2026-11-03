@@ -197,7 +197,7 @@ def _match_generic_annotation(
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def _collect_instantiations_ast(tree: Any, generics: int) -> int:
+def _collect_instantiations_ast(tree: Any, generics: Any) -> int:
     found: Set[Tuple[str, str]] = set()
     generic_names = set(generics)
     for node in _ast.walk(tree):

@@ -19584,6 +19584,822 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"or keep the None case apart and test it before use (`if y is not None:"
                     f" z = y + 1`).",
                     stage="ir-semantic", code="PYCSL-R490-LITERAL-INT-HASH")
+    # (#49) driver run #4, ROUTES #541 / #542 / #543 (red team 51 F2 / F3 / F4; MEASURED PROVED
+    # on main 977dfd091 and on int26) -- THE REFUSAL SIDE OF THE INT-ERASURE SEAM: A VALUE OF A
+    # DECLARED KIND USED WHERE CPython NEEDS ANOTHER KIND. The value model erases a str / list /
+    # dict / set / one-int-field record / enum value to one Why3 `int`, and the operations that
+    # depend on the real Python kind are TOTAL opaque `val`s over that int (`iter_length`,
+    # `iter_get`, `contains_check`, `get_<field>`, the str ops' int placeholders), so nothing
+    # stops a None / an int where CPython needs a container, a str or a record:
+    #  #541 a local list whose element kind is established -- annotated `List[str]` /
+    #       `List[List[int]]` / `List[P]` / `List[Dict[..]]` / `List[Set[..]]`, or a display of
+    #       one kind (`["abc", f"defg"]`) -- accepted `.append(None)` / `.append(k)` / `+= [None]`
+    #       / `.extend([None])` / `.insert` / an item store, and `len(p)` / `p.upper()` / `"a" in p`
+    #       of the element then PROVED `no_exception \all` (CPython TypeError / AttributeError);
+    #  #542 the haystack of `in` / `not in` and the iterable of a `for` / comprehension (and
+    #       every other iterating position: `len` / `list` / `sorted` / `sum` / `min` / `max` /
+    #       `any` / `all` / `enumerate` / `zip` / `join` / `*x` / unpacking / a subscript
+    #       receiver) of an int / bool / None value -- an int parameter or field, a number
+    #       literal, `len(s)`, arithmetic, an int element, a `-> int` call, `None` -- lowered to
+    #       `contains_check` / `iter_length` / `iter_get` over the int and PROVED (TypeError);
+    #  #543 a local annotated with a class (a one-int-field dataclass / plain class / enum is
+    #       int-erased) or a container bound to None / an int (`x: P = None; x.a`, `xs:
+    #       List[P] = [None]`, `x: C = 5`) and the attribute read PROVED (AttributeError).
+    # RULE (refuse at the binding / insertion / use site; judged on the Python AST of every
+    # verified function and of every lambda in a class body or at module level, in every
+    # model; the emitter is untouched, so a file with no such site is byte-inert): every
+    # expression gets the set of KINDS it may evaluate to (num: int / bool / float / complex;
+    # str: str / bytes / f-string; none; list; tuple; dict; set; iter: range / generator /
+    # iterator; fn; `c:<C>` an instance of a class of this file; unk: not established) with an
+    # ELEMENT kind set (iteration / list or set element / dict key), a dict VALUE kind set and
+    # tuple SLOTS, from: literals and displays, parameter annotations (the receiver of a
+    # method is its class), local annotations, the bindings of each local (joined, to a
+    # fixpoint) and the insertions into a container local (append / add / insert / extend /
+    # update / `+=` / item store / setdefault), file-function and method return annotations,
+    # class field annotations and `self.f = <annotated parameter / literal>`, module
+    # constants, the builtins whose result kind is fixed (`len` / `ord` / ... -> num, `str` /
+    # `repr` / ... -> str, `sorted` / `list` -> list, `range` -> iter of num, ...), str
+    # methods, `.get` / `.pop` / `.values()` / `.items()` / `.keys()`, a field read of a
+    # record of a known class. REFUSED: (#542, PYCSL-R542-NON-CONTAINER-OPERAND) an iterating
+    # / membership-haystack / subscript-receiver operand that may be a number or is None;
+    # (#541, PYCSL-R541-ELEMENT-KIND) an insertion into a list / set / dict local whose
+    # element (dict: value) kind is established -- by its annotation, or by its display
+    # initialisers when every element kind is known -- of a value that may be of another
+    # known kind (a record of a subclass is of its base's kind); (#543,
+    # PYCSL-R543-ANNOTATED-BINDING-KIND) a binding of an annotated local or field (`x: T =
+    # v`, a later `x = v` / walrus) whose value may be of a known kind the annotation does not
+    # admit (Optional / Union / `|` admit their members; num admits every number; a TypedDict
+    # class annotates a dict), element kinds included (`xs: List[P] = [None]`). A None that
+    # is only one member of a NAME's flow-insensitive join, and a None into a NUMBER
+    # container, are left to the narrowable value fences of routes #230 / #521; a non-last
+    # `or` operand is never None. An `unk` kind is not judged (Why3 typing and the value
+    # fences apply); an annotation of unknown meaning (Any, object, Sequence, a TypeVar) is
+    # not a domain. Inline; `_run_pipeline`'s mirror twin is `\trusted`.
+    if _tr486 is not None and _ver486:
+        _U541 = frozenset(["unk"])
+        _UT541 = (_U541, _U541, _U541, None)
+        _J541 = lambda _a, _b: (_a[0] | _b[0], _a[1] | _b[1], _a[2] | _b[2],
+                                _a[3] if _a[3] == _b[3] else None)
+        _K541 = lambda _k: (frozenset(_k), _U541, _U541, None)
+        _cls541 = {}
+        for _x541 in _ast486.walk(_tr486):
+            if isinstance(_x541, _ast486.ClassDef):
+                _cls541.setdefault(_x541.name, _x541)
+        # ancestors of each file class (itself included), through file bases
+        _anc541 = {_c: {_c} for _c in _cls541}
+        for _r541 in range(len(_cls541) + 1):
+            for _c541, _cd541 in _cls541.items():
+                for _b541 in _cd541.bases:
+                    _bn541 = (_b541.id if isinstance(_b541, _ast486.Name) else
+                              _b541.attr if isinstance(_b541, _ast486.Attribute) else None)
+                    if _bn541 in _anc541:
+                        _anc541[_c541] = _anc541[_c541] | _anc541[_bn541]
+        # does the known kind set _a fit the domain _d?  (a record fits a base's domain)
+        _FIT541 = lambda _a, _d: all(
+            _x == "unk" or _x in _d or (_x.startswith("c:") and any(
+                ("c:" + _y) in _d for _y in _anc541.get(_x[2:], ())))
+            for _x in _a)
+        # a TypedDict class annotates a dict (route #?? gen31: a TypedDict local is a record)
+        _td541 = {_c for _c, _cd in _cls541.items() if any(
+            (_b.id if isinstance(_b, _ast486.Name) else getattr(_b, "attr", "")) == "TypedDict"
+            for _b in _cd.bases)}
+        for _r541 in range(len(_cls541) + 1):
+            _td541 |= {_c for _c, _cd in _cls541.items() if any(
+                isinstance(_b, _ast486.Name) and _b.id in _td541 for _b in _cd.bases)}
+        _HD541 = {**{_k: "num" for _k in ("int", "float", "bool", "complex")},
+                  **{_k: "str" for _k in ("str", "bytes")},
+                  **{_k: "none" for _k in ("None", "NoneType")},
+                  **{_k: "list" for _k in ("List", "list", "Deque", "deque")},
+                  **{_k: "tuple" for _k in ("Tuple", "tuple")},
+                  **{_k: "dict" for _k in ("Dict", "dict", "DefaultDict", "defaultdict",
+                                           "OrderedDict", "Counter")},
+                  **{_k: "set" for _k in ("Set", "set", "FrozenSet", "frozenset")}}
+        # 1. the meaning of every node read AS AN ANNOTATION (children first)
+        _am541 = {}
+        for _n541 in reversed(list(_ast486.walk(_tr486))):
+            _r541 = _UT541
+            if isinstance(_n541, _ast486.Constant) and _n541.value is None:
+                _r541 = _K541(["none"])
+            elif isinstance(_n541, _ast486.Constant) and isinstance(_n541.value, str):
+                _s541 = _n541.value.strip()
+                _r541 = (_K541(["dict"]) if _s541 in _td541 else
+                         _K541(["c:" + _s541]) if _s541 in _cls541 else
+                         _K541([_HD541[_s541]]) if _HD541.get(_s541) in ("num", "str", "none")
+                         else _UT541)
+            elif isinstance(_n541, (_ast486.Name, _ast486.Attribute)):
+                _h541 = _n541.id if isinstance(_n541, _ast486.Name) else _n541.attr
+                _r541 = (_K541(["dict"]) if _h541 in _td541 and isinstance(
+                    _n541, _ast486.Name) else
+                         _K541(["c:" + _h541]) if _h541 in _cls541 and isinstance(
+                    _n541, _ast486.Name) else
+                         _K541([_HD541[_h541]]) if _h541 in _HD541 else _UT541)
+            elif isinstance(_n541, _ast486.Subscript) and isinstance(
+                    _n541.value, (_ast486.Name, _ast486.Attribute)):
+                _h541 = (_n541.value.id if isinstance(_n541.value, _ast486.Name)
+                         else _n541.value.attr)
+                _ar541 = (_n541.slice.elts if isinstance(_n541.slice, _ast486.Tuple)
+                          else [_n541.slice])
+                _at541 = [_am541.get(id(_y), _UT541) for _y in _ar541]
+                _hk541 = _HD541.get(_h541)
+                if _h541 == "Optional" and len(_at541) == 1:
+                    _r541 = _J541(_at541[0], _K541(["none"]))
+                elif _h541 == "Union" and _at541:
+                    _r541 = _at541[0]
+                    for _y541 in _at541[1:]:
+                        _r541 = _J541(_r541, _y541)
+                elif _h541 in ("Annotated", "Final", "ClassVar") and _at541:
+                    _r541 = _at541[0]
+                elif _hk541 in ("list", "set") and len(_at541) == 1:
+                    _r541 = (frozenset([_hk541]), _at541[0][0], _U541, None)
+                elif _hk541 == "dict" and len(_at541) == 2:
+                    _r541 = (frozenset(["dict"]), _at541[0][0], _at541[1][0], None)
+                elif _hk541 == "tuple" and _at541:
+                    if any(isinstance(_y, _ast486.Constant) and _y.value is Ellipsis
+                           for _y in _ar541):
+                        _r541 = (frozenset(["tuple"]), _at541[0][0], _U541, None)
+                    else:
+                        _r541 = (frozenset(["tuple"]),
+                                 frozenset().union(*[_y[0] for _y in _at541]), _U541,
+                                 tuple(_y[0] for _y in _at541))
+            elif isinstance(_n541, _ast486.BinOp) and isinstance(_n541.op, _ast486.BitOr):
+                _r541 = _J541(_am541.get(id(_n541.left), _UT541),
+                              _am541.get(id(_n541.right), _UT541))
+            _am541[id(_n541)] = _r541
+        _ANN541 = lambda _a: _am541.get(id(_a), _UT541) if _a is not None else _UT541
+        # 2. fields of the file classes, file-function / method return kinds, module names
+        _fld541 = {_c: {} for _c in _cls541}
+        _mret541 = {_c: {} for _c in _cls541}
+        _fret541 = {}
+        for _c541, _cd541 in _cls541.items():
+            for _y541 in _cd541.body:
+                if (isinstance(_y541, _ast486.AnnAssign)
+                        and isinstance(_y541.target, _ast486.Name)):
+                    _fld541[_c541][_y541.target.id] = _ANN541(_y541.annotation)
+                elif isinstance(_y541, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
+                    _mret541[_c541][_y541.name] = _ANN541(_y541.returns)
+            _sw541 = {}
+            for _y541 in _cd541.body:
+                if not isinstance(_y541, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
+                    continue
+                _ps541 = {_p.arg: _ANN541(_p.annotation) for _p in (
+                    _y541.args.posonlyargs + _y541.args.args + _y541.args.kwonlyargs)}
+                for _z541 in _ast486.walk(_y541):
+                    if (isinstance(_z541, _ast486.AnnAssign)
+                            and isinstance(_z541.target, _ast486.Attribute)
+                            and isinstance(_z541.target.value, _ast486.Name)
+                            and _z541.target.value.id == "self"):
+                        _fld541[_c541][_z541.target.attr] = _ANN541(_z541.annotation)
+                    elif isinstance(_z541, _ast486.Assign):
+                        for _t541 in _z541.targets:
+                            if (isinstance(_t541, _ast486.Attribute)
+                                    and isinstance(_t541.value, _ast486.Name)
+                                    and _t541.value.id == "self"):
+                                _v541 = _z541.value
+                                _k541 = (
+                                    _ps541[_v541.id] if isinstance(_v541, _ast486.Name)
+                                    and _v541.id in _ps541 and _v541.id != "self" else
+                                    _K541(["num"]) if isinstance(_v541, _ast486.Constant)
+                                    and isinstance(_v541.value, (bool, int, float, complex))
+                                    else _K541(["str"]) if isinstance(_v541, _ast486.Constant)
+                                    and isinstance(_v541.value, (str, bytes)) else
+                                    _K541(["none"]) if isinstance(_v541, _ast486.Constant)
+                                    and _v541.value is None else _UT541)
+                                _sw541[_t541.attr] = (_J541(_sw541[_t541.attr], _k541)
+                                                      if _t541.attr in _sw541 else _k541)
+                            elif any(isinstance(_q, _ast486.Attribute)
+                                     and isinstance(_q.value, _ast486.Name)
+                                     and _q.value.id == "self"
+                                     for _q in _ast486.walk(_t541)):
+                                for _q541 in _ast486.walk(_t541):
+                                    if (isinstance(_q541, _ast486.Attribute)
+                                            and isinstance(_q541.value, _ast486.Name)
+                                            and _q541.value.id == "self"):
+                                        _sw541[_q541.attr] = _UT541
+                    elif (isinstance(_z541, _ast486.AugAssign)
+                          and isinstance(_z541.target, _ast486.Attribute)):
+                        _sw541[_z541.target.attr] = _UT541
+            for _a541, _k541 in _sw541.items():
+                _fld541[_c541].setdefault(_a541, _k541)
+        for _x541 in _tr486.body:
+            if isinstance(_x541, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
+                _fret541[_x541.name] = (_J541(_fret541[_x541.name], _ANN541(_x541.returns))
+                                        if _x541.name in _fret541 else _ANN541(_x541.returns))
+        _gl541 = {_a for _x in _ast486.walk(_tr486)
+                  if isinstance(_x, (_ast486.Global, _ast486.Nonlocal)) for _a in _x.names}
+        _mcnt541, _menv541 = {}, {}
+        for _x541 in _tr486.body:
+            for _t541 in (_x541.targets if isinstance(_x541, _ast486.Assign) else
+                          [_x541.target] if isinstance(_x541, (_ast486.AnnAssign,
+                                                               _ast486.AugAssign))
+                          else []):
+                for _q541 in _ast486.walk(_t541):
+                    if isinstance(_q541, _ast486.Name):
+                        _mcnt541[_q541.id] = _mcnt541.get(_q541.id, 0) + 1
+            if isinstance(_x541, (_ast486.FunctionDef, _ast486.AsyncFunctionDef,
+                                  _ast486.ClassDef, _ast486.Import, _ast486.ImportFrom)):
+                for _q541 in ([_x541.name] if hasattr(_x541, "name") else
+                              [(_a.asname or _a.name).split(".")[0] for _a in _x541.names]):
+                    _mcnt541[_q541] = _mcnt541.get(_q541, 0) + 2
+        for _x541 in _tr486.body:
+            if (isinstance(_x541, _ast486.Assign) and len(_x541.targets) == 1
+                    and isinstance(_x541.targets[0], _ast486.Name)
+                    and isinstance(_x541.value, _ast486.Constant)):
+                _nm541, _v541 = _x541.targets[0].id, _x541.value.value
+                if _mcnt541.get(_nm541) == 1 and _nm541 not in _gl541:
+                    _menv541[_nm541] = (
+                        _K541(["num"]) if isinstance(_v541, (bool, int, float, complex)) else
+                        (frozenset(["str"]), frozenset(["str"]), _U541, None)
+                        if isinstance(_v541, (str, bytes)) else
+                        _K541(["none"]) if _v541 is None else _UT541)
+            elif (isinstance(_x541, _ast486.AnnAssign) and isinstance(_x541.target, _ast486.Name)
+                  and _mcnt541.get(_x541.target.id) == 1 and _x541.target.id not in _gl541):
+                _menv541[_x541.target.id] = _ANN541(_x541.annotation)
+        # 3. the bodies judged: every verified function / method, every class-body or
+        # module-level lambda (a dataclass `default_factory`)
+        _fds541 = []
+        for _x541 in _ast486.walk(_tr486):
+            if isinstance(_x541, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
+                _cn541 = next((_c.name for _c in _cls541.values() if _x541 in _c.body), "")
+                if any(_v == _x541.name or _v.endswith("." + _x541.name)
+                       or _v.endswith("__" + _x541.name)
+                       or (_cn541 and _v == f"{_cn541}_{_x541.name}") for _v in _ver486):
+                    _fds541.append((_x541, _cn541))
+        _lam541 = list(_tr486.body)
+        while _lam541:
+            _x541 = _lam541.pop()
+            if isinstance(_x541, _ast486.Lambda):
+                _fds541.append((_x541, ""))
+            elif not isinstance(_x541, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
+                _lam541.extend(_ast486.iter_child_nodes(_x541))
+        _STRM541 = ("upper", "lower", "strip", "lstrip", "rstrip", "title", "capitalize",
+                    "casefold", "swapcase", "replace", "join", "format", "center", "ljust",
+                    "rjust", "zfill", "expandtabs", "removeprefix", "removesuffix")
+        _NUMM541 = ("find", "rfind", "index", "rindex", "count", "startswith", "endswith",
+                    "isdigit", "isalpha", "isalnum", "isspace", "isupper", "islower",
+                    "isnumeric", "isdecimal", "isidentifier", "istitle", "isprintable",
+                    "isascii")
+        _rep541 = None
+        _reps541 = []
+        for _fd541, _cn541 in _fds541:
+            if _reps541:
+                break
+            _aa541 = _fd541.args
+            _prm541 = {}
+            for _p541 in (_aa541.posonlyargs + _aa541.args + _aa541.kwonlyargs):
+                _prm541[_p541.arg] = (_ANN541(_p541.annotation)
+                                      if not isinstance(_fd541, _ast486.Lambda) else _UT541)
+            if _aa541.vararg is not None:
+                _prm541[_aa541.vararg.arg] = _K541(["tuple"])
+            if _aa541.kwarg is not None:
+                _prm541[_aa541.kwarg.arg] = _K541(["dict"])
+            if (_cn541 and (_aa541.posonlyargs + _aa541.args)
+                    and not any(isinstance(_d, _ast486.Name)
+                                and _d.id in ("staticmethod", "classmethod")
+                                for _d in _fd541.decorator_list)):
+                _prm541[(_aa541.posonlyargs + _aa541.args)[0].arg] = _K541(["c:" + _cn541])
+            # annotated locals / fields of this body (the declared DOMAIN of every binding)
+            _dcl541 = {}
+            # bindings: (name, "v" value | "e" element of | "k" / "w" key / value of
+            # `.items()` | "u" unknown, node); insertions: (container, "v" | "e" | "d", value,
+            # site) -- "d": a dict item store / setdefault (value domain)
+            _bd541, _ins541, _abd541 = [], [], []
+            for _n541 in _ast486.walk(_fd541):
+                if isinstance(_n541, _ast486.AnnAssign):
+                    if isinstance(_n541.target, _ast486.Name):
+                        _dcl541[_n541.target.id] = _ANN541(_n541.annotation)
+                        if _n541.value is not None:
+                            _bd541.append((_n541.target.id, "v", _n541.value))
+                    if _n541.value is not None:
+                        _abd541.append((_n541.target, _ANN541(_n541.annotation),
+                                        _n541.value, "v"))
+                elif isinstance(_n541, _ast486.Assign):
+                    for _t541 in _n541.targets:
+                        if isinstance(_t541, _ast486.Name):
+                            _bd541.append((_t541.id, "v", _n541.value))
+                        elif (isinstance(_t541, (_ast486.Tuple, _ast486.List))
+                              and isinstance(_n541.value, (_ast486.Tuple, _ast486.List))
+                              and len(_t541.elts) == len(_n541.value.elts)
+                              and all(isinstance(_a, _ast486.Name) for _a in _t541.elts)):
+                            _bd541.extend((_a.id, "v", _b) for _a, _b in zip(
+                                _t541.elts, _n541.value.elts))
+                        elif (isinstance(_t541, _ast486.Subscript)
+                              and isinstance(_t541.value, (_ast486.Name, _ast486.Attribute))):
+                            _ins541.append((
+                                _t541.value.id if isinstance(_t541.value, _ast486.Name)
+                                else None, "e" if isinstance(_t541.slice, _ast486.Slice)
+                                else "d", _n541.value, _n541, _t541.value))
+                        else:
+                            _bd541.extend((_a.id, "u", None) for _a in _ast486.walk(_t541)
+                                          if isinstance(_a, _ast486.Name)
+                                          and isinstance(_a.ctx, _ast486.Store))
+                elif isinstance(_n541, _ast486.NamedExpr):
+                    _bd541.append((_n541.target.id, "v", _n541.value))
+                elif isinstance(_n541, (_ast486.For, _ast486.AsyncFor, _ast486.comprehension)):
+                    _it541 = _n541.iter
+                    if isinstance(_n541.target, _ast486.Name):
+                        _bd541.append((_n541.target.id, "e", _it541))
+                    else:
+                        _pr541 = (isinstance(_n541.target, _ast486.Tuple)
+                                  and len(_n541.target.elts) == 2
+                                  and all(isinstance(_a, _ast486.Name)
+                                          for _a in _n541.target.elts)
+                                  and isinstance(_it541, _ast486.Call) and _it541.args == []
+                                  and isinstance(_it541.func, _ast486.Attribute)
+                                  and _it541.func.attr == "items")
+                        _en541 = (isinstance(_n541.target, _ast486.Tuple)
+                                  and len(_n541.target.elts) == 2
+                                  and all(isinstance(_a, _ast486.Name)
+                                          for _a in _n541.target.elts)
+                                  and isinstance(_it541, _ast486.Call)
+                                  and isinstance(_it541.func, _ast486.Name)
+                                  and _it541.func.id == "enumerate" and len(_it541.args) == 1
+                                  and not _it541.keywords)
+                        if _pr541:
+                            _bd541.append((_n541.target.elts[0].id, "k", _it541.func.value))
+                            _bd541.append((_n541.target.elts[1].id, "w", _it541.func.value))
+                        elif _en541:
+                            _bd541.append((_n541.target.elts[0].id, "n", None))
+                            _bd541.append((_n541.target.elts[1].id, "e", _it541.args[0]))
+                        else:
+                            _bd541.extend((_a.id, "u", None)
+                                          for _a in _ast486.walk(_n541.target)
+                                          if isinstance(_a, _ast486.Name))
+                elif isinstance(_n541, _ast486.AugAssign):
+                    if isinstance(_n541.target, _ast486.Name):
+                        _bd541.append((_n541.target.id, "a", _n541))
+                    if isinstance(_n541.target, (_ast486.Name, _ast486.Attribute)) and (
+                            isinstance(_n541.op, (_ast486.Add, _ast486.BitOr))):
+                        _ins541.append((_n541.target.id if isinstance(
+                            _n541.target, _ast486.Name) else None, "e", _n541.value, _n541,
+                                        _n541.target))
+                elif (isinstance(_n541, _ast486.Call)
+                      and isinstance(_n541.func, _ast486.Attribute)
+                      and isinstance(_n541.func.value, (_ast486.Name, _ast486.Attribute))):
+                    _rc541 = (_n541.func.value.id if isinstance(_n541.func.value, _ast486.Name)
+                              else None)
+                    _md541 = _n541.func.attr
+                    if _md541 in ("append", "add") and len(_n541.args) == 1:
+                        _ins541.append((_rc541, "v", _n541.args[0], _n541, _n541.func.value))
+                    elif _md541 == "insert" and len(_n541.args) == 2:
+                        _ins541.append((_rc541, "v", _n541.args[1], _n541, _n541.func.value))
+                    elif _md541 == "setdefault" and len(_n541.args) == 2:
+                        _ins541.append((_rc541, "d", _n541.args[1], _n541, _n541.func.value))
+                    elif _md541 in ("extend", "update") and len(_n541.args) == 1:
+                        _ins541.append((_rc541, "e", _n541.args[0], _n541, _n541.func.value))
+                elif isinstance(_n541, _ast486.withitem) and _n541.optional_vars is not None:
+                    _bd541.extend((_a.id, "u", None) for _a in _ast486.walk(_n541.optional_vars)
+                                  if isinstance(_a, _ast486.Name))
+                elif isinstance(_n541, _ast486.ExceptHandler) and _n541.name:
+                    _bd541.append((_n541.name, "u", None))
+                elif isinstance(_n541, (_ast486.Global, _ast486.Nonlocal)):
+                    _bd541.extend((_a, "u", None) for _a in _n541.names)
+                elif isinstance(_n541, (_ast486.FunctionDef, _ast486.AsyncFunctionDef,
+                                        _ast486.Lambda)) and _n541 is not _fd541:
+                    # a nested scope's parameters / name: unknown here
+                    _bd541.extend((_p.arg, "u", None) for _p in (
+                        _n541.args.posonlyargs + _n541.args.args + _n541.args.kwonlyargs
+                        + [_q for _q in (_n541.args.vararg, _n541.args.kwarg) if _q]))
+                    if not isinstance(_n541, _ast486.Lambda):
+                        _bd541.append((_n541.name, "u", None))
+                elif isinstance(_n541, (_ast486.Import, _ast486.ImportFrom)):
+                    _bd541.extend(((_a.asname or _a.name).split(".")[0], "u", None)
+                                  for _a in _n541.names)
+                elif isinstance(_n541, _ast486.MatchAs) and _n541.name:
+                    _bd541.append((_n541.name, "u", None))
+                elif isinstance(_n541, _ast486.MatchStar) and _n541.name:
+                    _bd541.append((_n541.name, "u", None))
+                elif isinstance(_n541, _ast486.MatchMapping) and _n541.rest:
+                    _bd541.append((_n541.rest, "u", None))
+                elif isinstance(_n541, _ast486.Delete):
+                    _bd541.extend((_a.id, "u", None) for _a in _n541.targets
+                                  if isinstance(_a, _ast486.Name))
+            _loc541 = {_b[0] for _b in _bd541} | set(_dcl541)
+            _env541 = {}
+            _T541 = {}
+            _nodes541 = list(reversed(list(_ast486.walk(_fd541))))
+            for _round541 in range(8):
+                _T541 = {}
+                for _n541 in _nodes541:
+                    _r541 = _UT541
+                    if isinstance(_n541, _ast486.Constant):
+                        _v541 = _n541.value
+                        _r541 = (_K541(["num"]) if isinstance(_v541, (bool, int, float, complex))
+                                 else (frozenset(["str"]), frozenset(["str"]), _U541, None)
+                                 if isinstance(_v541, (str, bytes)) else
+                                 _K541(["none"]) if _v541 is None else _UT541)
+                    elif isinstance(_n541, _ast486.JoinedStr):
+                        _r541 = (frozenset(["str"]), frozenset(["str"]), _U541, None)
+                    elif isinstance(_n541, (_ast486.List, _ast486.Set, _ast486.Tuple)):
+                        _es541 = [(_T541.get(id(_y.value), _UT541)[1]
+                                   if isinstance(_y, _ast486.Starred)
+                                   else _T541.get(id(_y), _UT541)[0]) for _y in _n541.elts]
+                        _r541 = (frozenset([{_ast486.List: "list", _ast486.Set: "set",
+                                             _ast486.Tuple: "tuple"}[type(_n541)]]),
+                                 frozenset().union(*_es541), _U541,
+                                 tuple(_es541) if isinstance(_n541, _ast486.Tuple)
+                                 and not any(isinstance(_y, _ast486.Starred)
+                                             for _y in _n541.elts) else None)
+                    elif isinstance(_n541, _ast486.Dict):
+                        _r541 = (frozenset(["dict"]), frozenset().union(*[
+                            _T541.get(id(_y), _UT541)[0] if _y is not None else _U541
+                            for _y in _n541.keys]), frozenset().union(*[
+                                _T541.get(id(_y), _UT541)[0] for _y in _n541.values])
+                            if _n541.values else frozenset(), None)
+                        if any(_y is None for _y in _n541.keys):
+                            _r541 = (_r541[0], _r541[1] | _U541, _r541[2] | _U541, None)
+                    elif isinstance(_n541, (_ast486.ListComp, _ast486.SetComp,
+                                            _ast486.GeneratorExp)):
+                        _r541 = (frozenset(["list" if isinstance(_n541, _ast486.ListComp)
+                                            else "set" if isinstance(_n541, _ast486.SetComp)
+                                            else "iter"]),
+                                 _T541.get(id(_n541.elt), _UT541)[0], _U541, None)
+                    elif isinstance(_n541, _ast486.DictComp):
+                        _r541 = (frozenset(["dict"]), _T541.get(id(_n541.key), _UT541)[0],
+                                 _T541.get(id(_n541.value), _UT541)[0], None)
+                    elif isinstance(_n541, _ast486.Lambda):
+                        _r541 = _K541(["fn"])
+                    elif isinstance(_n541, _ast486.IfExp):
+                        _r541 = _J541(_T541.get(id(_n541.body), _UT541),
+                                      _T541.get(id(_n541.orelse), _UT541))
+                    elif isinstance(_n541, _ast486.BoolOp):
+                        # `or`: a non-last operand is the result only when truthy (not None)
+                        _r541 = _T541.get(id(_n541.values[-1]), _UT541)
+                        for _y541 in _n541.values[:-1]:
+                            _q541 = _T541.get(id(_y541), _UT541)
+                            if isinstance(_n541.op, _ast486.Or):
+                                _q541 = (_q541[0] - frozenset(["none"]),) + _q541[1:]
+                            _r541 = _J541(_r541, _q541)
+                    elif isinstance(_n541, _ast486.NamedExpr):
+                        _r541 = _T541.get(id(_n541.value), _UT541)
+                    elif isinstance(_n541, _ast486.Compare):
+                        _r541 = _K541(["num"])
+                    elif isinstance(_n541, _ast486.UnaryOp):
+                        _r541 = (_K541(["num"]) if isinstance(_n541.op, _ast486.Not)
+                                 or _T541.get(id(_n541.operand), _UT541)[0] == frozenset(["num"])
+                                 else _UT541)
+                    elif isinstance(_n541, _ast486.BinOp):
+                        _l541 = _T541.get(id(_n541.left), _UT541)
+                        _q541 = _T541.get(id(_n541.right), _UT541)
+                        _r541 = (_K541(["num"]) if _l541[0] == _q541[0] == frozenset(["num"])
+                                 and not isinstance(_n541.op, _ast486.MatMult) else
+                                 (frozenset(["str"]), frozenset(["str"]), _U541, None)
+                                 if _l541[0] == frozenset(["str"]) and (
+                                     isinstance(_n541.op, _ast486.Mod)
+                                     or (_q541[0] == frozenset(["str"])
+                                         and isinstance(_n541.op, _ast486.Add))
+                                     or (_q541[0] == frozenset(["num"])
+                                         and isinstance(_n541.op, _ast486.Mult))) else
+                                 (frozenset(["list"]), _l541[1] | _q541[1], _U541, None)
+                                 if _l541[0] == _q541[0] == frozenset(["list"])
+                                 and isinstance(_n541.op, _ast486.Add) else _UT541)
+                    elif isinstance(_n541, _ast486.Name):
+                        _r541 = (_dcl541[_n541.id] if _n541.id in _dcl541 else
+                                 _prm541[_n541.id] if _n541.id in _prm541
+                                 and _n541.id not in _loc541 else
+                                 _env541.get(_n541.id, _UT541) if _n541.id in _loc541 else
+                                 _menv541.get(_n541.id, _UT541))
+                    elif isinstance(_n541, _ast486.Subscript):
+                        _b541 = _T541.get(id(_n541.value), _UT541)
+                        if isinstance(_n541.slice, _ast486.Slice):
+                            _r541 = _b541
+                        else:
+                            _ks541 = set()
+                            for _a541 in _b541[0]:
+                                if _a541 in ("list", "set", "iter"):
+                                    _ks541 |= _b541[1]
+                                elif _a541 == "tuple":
+                                    _ix541 = _n541.slice
+                                    if (_b541[3] is not None
+                                            and isinstance(_ix541, _ast486.Constant)
+                                            and type(_ix541.value) is int
+                                            and -len(_b541[3]) <= _ix541.value
+                                            < len(_b541[3])):
+                                        _ks541 |= _b541[3][_ix541.value]
+                                    else:
+                                        _ks541 |= _b541[1]
+                                elif _a541 == "dict":
+                                    _ks541 |= _b541[2]
+                                elif _a541 == "str":
+                                    _ks541.add("str")
+                                elif _a541 != "none":
+                                    _ks541.add("unk")
+                            _r541 = ((frozenset(_ks541), frozenset(["str"]), _U541, None)
+                                     if _ks541 == {"str"} else _K541(_ks541 or ["unk"]))
+                    elif isinstance(_n541, _ast486.Attribute):
+                        _b541 = _T541.get(id(_n541.value), _UT541)
+                        _cs541 = [_a[2:] for _a in _b541[0] if _a.startswith("c:")]
+                        if _cs541 and all(_a.startswith("c:") or _a == "none"
+                                          for _a in _b541[0]):
+                            _r541 = None
+                            for _c541 in _cs541:
+                                _f541 = next((_fld541[_y][_n541.attr]
+                                              for _y in [_c541] + sorted(
+                                                  _anc541.get(_c541, set()) - {_c541})
+                                              if _y in _fld541 and _n541.attr in _fld541[_y]),
+                                             _UT541)
+                                _r541 = _f541 if _r541 is None else _J541(_r541, _f541)
+                    elif isinstance(_n541, _ast486.Call):
+                        _f541 = _n541.func
+                        _a0541 = (_T541.get(id(_n541.args[0]), _UT541) if _n541.args
+                                  else None)
+                        if isinstance(_f541, _ast486.Name) and _f541.id not in _loc541 \
+                                and _f541.id not in _prm541:
+                            _fi541 = _f541.id
+                            if _fi541 in _fret541:
+                                _r541 = _fret541[_fi541]
+                            elif _fi541 in _cls541:
+                                _r541 = _K541(["c:" + _fi541])
+                            elif _fi541 in _menv541 or _fi541 in _mcnt541:
+                                _r541 = _UT541
+                            elif _fi541 in ("len", "int", "abs", "ord", "round", "hash", "id",
+                                            "float", "bool", "isinstance", "issubclass",
+                                            "callable", "complex"):
+                                _r541 = _K541(["num"])
+                            elif _fi541 in ("str", "repr", "chr", "format", "hex", "oct",
+                                            "bin", "ascii"):
+                                _r541 = (frozenset(["str"]), frozenset(["str"]), _U541, None)
+                            elif _fi541 in ("list", "sorted") and _a0541 is not None:
+                                _r541 = (frozenset(["list"]), _a0541[1], _U541, None)
+                            elif _fi541 in ("set", "frozenset") and _a0541 is not None:
+                                _r541 = (frozenset(["set"]), _a0541[1], _U541, None)
+                            elif _fi541 == "tuple" and _a0541 is not None:
+                                _r541 = (frozenset(["tuple"]), _a0541[1], _U541, None)
+                            elif _fi541 in ("list", "set", "tuple", "dict", "frozenset") \
+                                    and not _n541.args and not _n541.keywords:
+                                _r541 = (frozenset([{"frozenset": "set"}.get(
+                                    _fi541, _fi541)]), frozenset(), frozenset(), None)
+                            elif _fi541 == "range":
+                                _r541 = (frozenset(["iter"]), frozenset(["num"]), _U541, None)
+                            elif _fi541 in ("enumerate", "zip"):
+                                _r541 = (frozenset(["iter"]), frozenset(["tuple"]), _U541,
+                                         None)
+                            elif _fi541 == "reversed" and _a0541 is not None:
+                                _r541 = (frozenset(["iter"]), _a0541[1], _U541, None)
+                        elif isinstance(_f541, _ast486.Attribute):
+                            _b541 = _T541.get(id(_f541.value), _UT541)
+                            _md541 = _f541.attr
+                            _cs541 = [_a[2:] for _a in _b541[0] if _a.startswith("c:")]
+                            if _b541[0] == frozenset(["str"]):
+                                _r541 = ((frozenset(["str"]), frozenset(["str"]), _U541, None)
+                                         if _md541 in _STRM541 else
+                                         _K541(["num"]) if _md541 in _NUMM541 else
+                                         (frozenset(["list"]), frozenset(["str"]), _U541, None)
+                                         if _md541 in ("split", "rsplit", "splitlines")
+                                         else _UT541)
+                            elif _cs541 and len(_cs541) == len(_b541[0]):
+                                _r541 = None
+                                for _c541 in _cs541:
+                                    _f541b = next((_mret541[_y][_md541]
+                                                   for _y in [_c541] + sorted(
+                                                       _anc541.get(_c541, set()) - {_c541})
+                                                   if _y in _mret541
+                                                   and _md541 in _mret541[_y]), _UT541)
+                                    _r541 = _f541b if _r541 is None else _J541(_r541, _f541b)
+                            elif _b541[0] == frozenset(["dict"]):
+                                if _md541 == "get" and _n541.args:
+                                    _r541 = _K541(_b541[2] | (
+                                        _T541.get(id(_n541.args[1]), _UT541)[0]
+                                        if len(_n541.args) > 1 else frozenset(["none"])))
+                                elif _md541 == "values" and not _n541.args:
+                                    _r541 = (frozenset(["iter"]), _b541[2], _U541, None)
+                                elif _md541 == "keys" and not _n541.args:
+                                    _r541 = (frozenset(["iter"]), _b541[1], _U541, None)
+                                elif _md541 == "items" and not _n541.args:
+                                    _r541 = (frozenset(["iter"]), frozenset(["tuple"]), _U541,
+                                             None)
+                                elif _md541 == "copy" and not _n541.args:
+                                    _r541 = _b541
+                            elif _b541[0] in (frozenset(["list"]), frozenset(["set"])):
+                                if _md541 == "pop":
+                                    _r541 = _K541(_b541[1])
+                                elif _md541 == "copy" and not _n541.args:
+                                    _r541 = _b541
+                                elif _md541 in ("index", "count"):
+                                    _r541 = _K541(["num"])
+                    _T541[id(_n541)] = _r541
+                # bindings -> the local's kinds (declared locals keep their declaration)
+                _nenv541 = {}
+                for _nm541, _md541, _vn541 in _bd541:
+                    if _nm541 in _dcl541:
+                        continue
+                    _t541 = _T541.get(id(_vn541), _UT541) if _vn541 is not None else _UT541
+                    if _md541 == "e":
+                        _t541 = ((_t541[1], frozenset(["str"]), _U541, None)
+                                 if _t541[1] == frozenset(["str"]) else _K541(_t541[1]))
+                        if not _t541[0]:
+                            _t541 = (frozenset(), frozenset(), frozenset(), None)
+                    elif _md541 == "k":
+                        _t541 = _K541(_t541[1] if _t541[0] == frozenset(["dict"]) else _U541)
+                    elif _md541 == "w":
+                        _t541 = _K541(_t541[2] if _t541[0] == frozenset(["dict"]) else _U541)
+                    elif _md541 == "n":
+                        _t541 = _K541(["num"])
+                    elif _md541 == "a":
+                        _q541 = _T541.get(id(_vn541.value), _UT541)
+                        _o541 = _env541.get(_nm541, _UT541)
+                        _t541 = (_K541(["num"]) if _q541[0] == _o541[0] == frozenset(["num"])
+                                 else _o541 if _o541[0] == frozenset(["list"])
+                                 and isinstance(_vn541.op, _ast486.Add) else
+                                 _o541 if _o541[0] == frozenset(["str"]) and
+                                 _q541[0] == frozenset(["str"]) else _UT541)
+                    elif _md541 != "v":
+                        _t541 = _UT541
+                    _nenv541[_nm541] = (_J541(_nenv541[_nm541], _t541)
+                                        if _nm541 in _nenv541 else _t541)
+                # insertions widen an undeclared container local's element / value kinds
+                for _nm541, _md541, _vn541, _st541, _rv541 in _ins541:
+                    if _nm541 is None or _nm541 in _dcl541 or _nm541 not in _nenv541:
+                        continue
+                    _t541 = _T541.get(id(_vn541), _UT541)
+                    _o541 = _nenv541[_nm541]
+                    if _md541 == "d":
+                        _nenv541[_nm541] = (
+                            (_o541[0], _o541[1], _o541[2] | _t541[0], None)
+                            if _o541[0] == frozenset(["dict"]) else
+                            (_o541[0], _o541[1] | _t541[0], _o541[2], None))
+                    elif _md541 == "v":
+                        _nenv541[_nm541] = (_o541[0], _o541[1] | _t541[0], _o541[2], None)
+                    else:
+                        _nenv541[_nm541] = (_o541[0], _o541[1] | _t541[1], _o541[2], None)
+                if _nenv541 == _env541:
+                    break
+                _env541 = _nenv541
+            # parent links (narrowing is not modelled: a refusal names the rewrite)
+            _bad541 = lambda _k: "num" in _k or _k == frozenset(["none"])
+            _KN541 = lambda _k: ", ".join(
+                {"num": "a number", "str": "a str", "none": "None", "list": "a list",
+                 "tuple": "a tuple", "dict": "a dict", "set": "a set", "iter": "an iterator",
+                 "fn": "a function"}.get(_x, f"a `{_x[2:]}` instance" if _x.startswith("c:")
+                                         else _x) for _x in sorted(_k - _U541))
+            # (#542) iterating / membership-haystack / subscript-receiver operands
+            for _n541 in _ast486.walk(_fd541):
+                _ops541 = []
+                if isinstance(_n541, _ast486.Compare):
+                    _ops541 = [(_c, "the container of `in` / `not in`")
+                               for _o, _c in zip(_n541.ops, _n541.comparators)
+                               if isinstance(_o, (_ast486.In, _ast486.NotIn))]
+                elif isinstance(_n541, (_ast486.For, _ast486.AsyncFor, _ast486.comprehension)):
+                    _ops541 = [(_n541.iter, "the iterable of a `for` / comprehension")]
+                elif isinstance(_n541, (_ast486.YieldFrom, _ast486.Starred)):
+                    _ops541 = [(_n541.value, "an unpacked / delegated iterable")]
+                elif (isinstance(_n541, _ast486.Subscript)
+                      and isinstance(_n541.ctx, _ast486.Load)):
+                    _ops541 = [(_n541.value, "a subscripted value")]
+                elif (isinstance(_n541, _ast486.Assign) and any(
+                        isinstance(_t, (_ast486.Tuple, _ast486.List)) for _t in _n541.targets)
+                      and not isinstance(_n541.value, (_ast486.Tuple, _ast486.List))):
+                    _ops541 = [(_n541.value, "an unpacked value")]
+                elif isinstance(_n541, _ast486.Call):
+                    _f541 = _n541.func
+                    if (isinstance(_f541, _ast486.Name) and _f541.id not in _loc541
+                            and _f541.id not in _prm541 and _f541.id not in _mcnt541):
+                        if _f541.id in ("len", "list", "tuple", "set", "frozenset", "sorted",
+                                        "reversed", "sum", "any", "all", "enumerate", "iter",
+                                        "dict") and len(_n541.args) >= 1:
+                            _ops541 = [(_n541.args[0], f"the argument of `{_f541.id}`")]
+                        elif _f541.id in ("min", "max") and len(_n541.args) == 1:
+                            _ops541 = [(_n541.args[0], f"the argument of `{_f541.id}`")]
+                        elif _f541.id == "zip":
+                            _ops541 = [(_y, "an argument of `zip`") for _y in _n541.args]
+                        elif _f541.id in ("map", "filter") and len(_n541.args) >= 2:
+                            _ops541 = [(_y, f"an iterable argument of `{_f541.id}`")
+                                       for _y in _n541.args[1:]]
+                    elif (isinstance(_f541, _ast486.Attribute) and _f541.attr == "join"
+                          and len(_n541.args) == 1 and _T541.get(
+                              id(_f541.value), _UT541)[0] == frozenset(["str"])):
+                        _ops541 = [(_n541.args[0], "the argument of `str.join`")]
+                for _y541, _w541 in _ops541:
+                    _k541 = _T541.get(id(_y541), _UT541)[0]
+                    if _bad541(_k541):
+                        _rep541 = ("PYCSL-R542-NON-CONTAINER-OPERAND", _y541,
+                                   f"`{_ast486.unparse(_y541).strip()[:80]}` is {_w541} and may be "
+                                   f"{_KN541(_k541)}")
+                        _reps541.append(_rep541)
+                        _rep541 = None
+                        break
+                if _reps541:
+                    break
+            if _reps541:
+                break
+            # (#541) insertions into a container with an established element domain: an
+            # annotated local / parameter / field, or a local bound only to non-empty
+            # displays (or to such a local)
+            _dom541 = {}
+            for _r541 in range(3):
+                for _nm541 in _loc541 | set(_prm541):
+                    if _nm541 in _dcl541 or (_nm541 in _prm541 and _nm541 not in _loc541):
+                        _dom541[_nm541] = (_dcl541[_nm541] if _nm541 in _dcl541
+                                           else _prm541[_nm541])
+                        continue
+                    _vb541 = [(_md, _v) for _m, _md, _v in _bd541 if _m == _nm541]
+                    if _vb541 and all(
+                            _md == "v" and ((isinstance(_v, (_ast486.List, _ast486.Set))
+                                             and _v.elts) or (isinstance(_v, _ast486.Name)
+                                                              and _v.id in _dom541))
+                            for _md, _v in _vb541):
+                        _d541 = None
+                        for _md, _v in _vb541:
+                            _q541 = (_dom541[_v.id] if isinstance(_v, _ast486.Name) else
+                                     _T541.get(id(_v), _UT541))
+                            _d541 = _q541 if _d541 is None else _J541(_d541, _q541)
+                        _dom541[_nm541] = _d541
+            for _nm541, _md541, _vn541, _st541, _rv541 in _ins541:
+                _d541 = (_dom541.get(_nm541) if _nm541 is not None else
+                         _T541.get(id(_rv541), _UT541))
+                if _d541 is None or len(_d541[0]) != 1:
+                    continue
+                _dk541 = next(iter(_d541[0]))
+                if _dk541 in ("list", "set") and _md541 in ("v", "d", "e"):
+                    _d541 = _d541[1]
+                elif _dk541 == "dict" and _md541 == "d":
+                    _d541 = _d541[2]
+                else:
+                    continue
+                # a NUMBER container is the int-native model (routes #490 / #230 / #521)
+                if "unk" in _d541 or not _d541 or _d541 <= frozenset(["num"]):
+                    continue
+                _t541 = _T541.get(id(_vn541), _UT541)
+                _k541 = (_t541[1] if _md541 == "e" else _t541[0]) - _U541
+                # a None in a NAME's flow-insensitive join is the None value fence's
+                # (routes #230 / #521: narrowable obligations)
+                if (_md541 != "e" and isinstance(_vn541, _ast486.Name)
+                        and _t541[0] != frozenset(["none"])):
+                    _k541 = _k541 - frozenset(["none"])
+                if not _FIT541(_k541, _d541):
+                    _rep541 = ("PYCSL-R541-ELEMENT-KIND", _st541,
+                               f"`{_ast486.unparse(_st541).strip()[:80]}` stores into "
+                               f"`{_ast486.unparse(_rv541).strip()[:40]}`, whose "
+                               f"{'values are' if _dk541 == 'dict' else 'elements are'} "
+                               f"{_KN541(_d541)}, a value that may be {_KN541(_k541 - _d541)}")
+                    _reps541.append(_rep541)
+                    _rep541 = None
+                    break
+            if _reps541:
+                break
+            # (#543) bindings of an annotated local / field vs its declared kinds
+            _chk541 = list(_abd541) + [
+                (_ast486.Name(id=_m), _dcl541[_m], _v, "v") for _m, _md, _v in _bd541
+                if _m in _dcl541 and _md == "v" and _v is not None]
+            for _tg541, _d541, _vn541, _md541 in _chk541:
+                if "unk" in _d541[0]:
+                    continue
+                _t541 = _T541.get(id(_vn541), _UT541)
+                _k541 = _t541[0] - _U541
+                if isinstance(_vn541, _ast486.Name) and _t541[0] != frozenset(["none"]):
+                    _k541 = _k541 - frozenset(["none"])
+                _bk541 = None
+                if not _FIT541(_k541, _d541[0]):
+                    _bk541 = _k541
+                elif (_d541[0] <= frozenset(["list", "set"]) and _k541 <= _d541[0]
+                      and "unk" not in _d541[1] and not _FIT541(_t541[1] - _U541, _d541[1])):
+                    _bk541 = "a container whose elements may be " + _KN541(_t541[1] - _U541)
+                if _bk541 is not None:
+                    _rep541 = ("PYCSL-R543-ANNOTATED-BINDING-KIND", _vn541,
+                               f"`{_ast486.unparse(_tg541).strip()[:40]}` is annotated "
+                               f"{_KN541(_d541[0])} and is bound to "
+                               f"`{_ast486.unparse(_vn541).strip()[:60]}`, which may be "
+                               f"{_KN541(_k541) if _bk541 is _k541 else _bk541}")
+                    _reps541.append(_rep541)
+                    _rep541 = None
+                    break
+        if _reps541:
+            _rc541, _rv541, _rm541 = _reps541[0]
+            _ln541 = getattr(_rv541, "lineno", 0)
+            from errors import PyCSLSemanticError as _PyCSLSemErr541
+            if _rc541 == "PYCSL-R542-NON-CONTAINER-OPERAND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R542-NON-CONTAINER-OPERAND: {_rm541}. CPython "
+                    f"cannot iterate, search or index a number or None (TypeError), while "
+                    f"the value model lowers it as a Why3 `int` and the operation as a "
+                    f"TOTAL opaque function of that int (`contains_check` / `iter_length` "
+                    f"/ `iter_get`), so the claim proved (route #542; measured: `1 in k` and "
+                    f"`for c in k` on `k: int`, `\"a\" in None`, `for c in len(s)` proved "
+                    f"`no_exception \\all`). Iterate / search a container or a str instead "
+                    f"(`for c in range(k)`, `\"a\" in s` of `s: str`), or fix the annotation "
+                    f"that declares the operand a number / None.",
+                    stage="ir-semantic", code="PYCSL-R542-NON-CONTAINER-OPERAND")
+            if _rc541 == "PYCSL-R541-ELEMENT-KIND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R541-ELEMENT-KIND: {_rm541}. The value model "
+                    f"erases such an element to a Why3 `int`, so a later `len(p)` / "
+                    f"`p.upper()` / `\"a\" in p` / `p.a` of the element is a TOTAL opaque "
+                    f"function of that int and the claim proved while CPython raises "
+                    f"TypeError / AttributeError (route #541; measured: `a: List[str] = []; "
+                    f"a.append(None); ... len(p)` and `a = [\"abc\", f\"defg\"]; "
+                    f"a.append(k); ... p.upper()` proved `no_exception \\all`). Store only "
+                    f"values of the element kind (or remove the store), or declare the kind "
+                    f"you store (`a: List[Optional[str]]`) and test each element before "
+                    f"using it as that kind (`if p is not None: ...`).",
+                    stage="ir-semantic", code="PYCSL-R541-ELEMENT-KIND")
+            raise _PyCSLSemErr541(
+                f"line {_ln541}: PYCSL-R543-ANNOTATED-BINDING-KIND: {_rm541}. The value "
+                f"model erases a one-field record / an enum / a container to a Why3 `int` "
+                f"and reads its attribute / element through a TOTAL opaque function, so "
+                f"`x: P = None; x.a` proved `no_exception \\all` while CPython raises "
+                f"AttributeError (route #543). Bind a value of the declared kind (`x: P = "
+                f"P(k)`), or declare what you bind (`x: Optional[P] = None`) and test it "
+                f"before use (`if x is None: return 0`).",
+                stage="ir-semantic", code="PYCSL-R543-ANNOTATED-BINDING-KIND")
     # (#49) driver run #3, ROUTE #476 (red team 39 F3; MEASURED PROVED on d6abee90b) -- THE
     # BINDING LIVE AT THE CALL FRONTIER. The model resolves a module name to its textually LAST
     # binding (the IMPORT view), while a file run as a script executes its call frontier -- the

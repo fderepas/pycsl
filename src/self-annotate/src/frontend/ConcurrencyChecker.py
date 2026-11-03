@@ -76,7 +76,7 @@ class ConcurrencyChecker:
     #@ requires True
     #@ ensures True
     #@ assigns self.warnings
-    def _warn_if_unprotected(self, var: str, held: int, func_name: str, line: int, write: bool) -> None:
+    def _warn_if_unprotected(self, var: str, held: Any, func_name: str, line: int, write: bool) -> None:
         if var not in self._shared_vars:
             return
         req_mutex = self._shared_vars[var]
