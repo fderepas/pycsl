@@ -19,6 +19,17 @@
 ##   0 / 0 / 0; mirror 53/53 0 / 0 / 0 (nothing owed). A first draft refused control 8370 (`-(d.get("k") or 0)`), fixed f8f075847. rt43 / rt44
 ##   honest controls 36/36 unchanged. Residuals: a user `__pos__` in an unclaimed function; a None through a container the derivation misses (#521).
 
+## run #4 (2026-11-03): #541 / #542 / #543 REPAIRED (executor u20 off 2177bb622, 6dfd8e72b + its ledger / docs commit; inline in `_run_pipeline`
+##   after route #490's judge, mirror twin `\trusted`, no new def, no axiom, emitter untouched; annotations §7.541): a refuse-by-default KIND judge (may-be
+##   kinds of every expression from literals, displays, parameter / local / field / return annotations, joined bindings widened by insertions, fixed-kind
+##   builtins) refuses an iterated / searched / indexed operand that may be a number or is None (`PYCSL-R542-NON-CONTAINER-OPERAND`), a store into a list /
+##   set / dict of established non-number element kind of a value of another kind (`PYCSL-R541-ELEMENT-KIND`), and a binding of an annotated local /
+##   field the annotation does not admit (`PYCSL-R543-ANNOTATED-BINDING-KIND`). Base int26: #541 51 PROVED / 61 NOT PROVED, #542 60 PROVED / 6 REFUSED,
+##   #543 8 PROVED. Witnesses 186 x default / typed / store = 558/558 REFUSED. Corpus 8580-8604 / 8608 / 8609 FAIL, controls 8605-8607 PASS (base + HEAD).
+##   Byte-diff root 0 / 0 / 0, pyref 0 / 0 / 0, mirror 53/53 1 MOVED (ConcurrencyChecker: a lying `held: int` annotation -> `Any`; MIRROR_PROOF);
+##   rt43 / rt44 178 honest controls: 0 newly refused. Residuals: narrowing not modelled (`Union[int, List]` under isinstance refused), aliasing through
+##   calls / containers not followed, a None member of a name's join stays the value fences'.
+
 ## run #4 (2026-11-03): #540-#545 OPENED (red team 51 on 9c8c5cf4a: 2713 probes / 301 confirmed in 6 families, default mode): #540 unary `+`
 ##   lowered as the identity and judged by nothing (59); #541 local lists whose elements the model int-erases accept append(None) / append(int)
 ##   unchecked (112; its exemplars no longer prove on int26 = + the #521-#526 fence); #542 an int-modelled `in` haystack / for iterable never

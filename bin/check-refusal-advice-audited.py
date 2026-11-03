@@ -912,6 +912,19 @@ AUDITED = {
         "Route #517. 'Rename the type parameter so it shadows no value the body reads (`def f[T](...)`)': witness g823_a9001 as "
         "`def f[T](n: int)` (getting-better/open-routes/witnesses-r517/advice/a517_rename_tp) VERIFIES `\\result == n // 5` under "
         "`no_exception \\all`; control 8134 (`class C[T]:` for 8125) VERIFIES."),
+    # driver run #4 -- routes #541 / #542 / #543 (u20, red team 51): the kind judge.
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R541-ELEMENT-KIND: {_rm541}. The value model erases such an element to a Why3 `int`, so a later `len("): (FOLLOWABLE,
+        "Route #541. 'Store only values of the element kind (or remove the store), or declare the kind you store (`a: List[Optional[str]]`) "
+        "and test each element': witness hh1284 with the store removed (getting-better/open-routes/witnesses-r541/advice/a541_drop_store) "
+        "VERIFIES `no_exception \\all`; declared `List[Optional[str]]` and tested `if p is not None` (a541_optional_count) VERIFIES; control 8605 VERIFIES."),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R542-NON-CONTAINER-OPERAND: {_rm541}. CPython cannot iterate, search or index a number or None (TypeE"): (FOLLOWABLE,
+        "Route #542. 'Iterate / search a container or a str instead (`for c in range(k)`, `\"a\" in s` of `s: str`)': witness av1201 as "
+        "`for c in range(k)` (getting-better/open-routes/witnesses-r542/advice/a542_range) and av1200 as `\"a\" in s` (a542_str) VERIFY "
+        "`no_exception \\all`; control 8606 VERIFIES."),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R543-ANNOTATED-BINDING-KIND: {_rm541}. The value model erases a one-field record / an enum / a contai"): (FOLLOWABLE,
+        "Route #543. 'Bind a value of the declared kind (`x: P = P(k)`), or declare `x: Optional[P] = None` and test it': witness ad1200 as "
+        "`x: P = P(k)` (getting-better/open-routes/witnesses-r543/advice/a543_ctor) and as `Optional[P]` tested `if x is None: return 0` "
+        "(a543_optional) VERIFY `no_exception \\all`; control 8607 VERIFIES."),
     # driver run #4 -- route #538 (u17, red team 50): an ordering comparison of tuples / lists.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` orders tuples / lists whose components may b'): (FOLLOWABLE,
         "Route #538. 'Compare components declared with such a type instead (e.g. `t[0] < u[0]` of `Tuple[int, int]` parameters), or "
@@ -1317,6 +1330,10 @@ AUDITED_HASH = {
     # driver run #4 (u9) -- routes #510 / #517
     ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `{_z510[2]}` is bound by the PEP 695 statement `type {'): 'acbd371debc0',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R517-TYPE-PARAM-NAME-READ: `{_z510[2]}` is a PEP 695 type parameter of `{getattr(_z51'): '1639be5fd431',
+    # driver run #4 (u20) -- routes #541 / #542 / #543
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R541-ELEMENT-KIND: {_rm541}. The value model erases such an element to a Why3 `int`, so a later `len("): '9a82eb9a3d17',
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R542-NON-CONTAINER-OPERAND: {_rm541}. CPython cannot iterate, search or index a number or None (TypeE"): '8c47e3d8afdd',
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R543-ANNOTATED-BINDING-KIND: {_rm541}. The value model erases a one-field record / an enum / a contai"): '655694273384',
     # driver run #4 (u17) -- route #538
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` orders tuples / lists whose components may b'): 'ad1afca1af36',
     # driver run #4 (u12) -- route #510 residual
