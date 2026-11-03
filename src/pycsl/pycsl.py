@@ -10237,7 +10237,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _c545.add("None")
                         if not (_c545 & {"None", "NoneType"}):
                             continue
-                        _nb545[id(_v545)] = _c545
+                        # (only the EXTRA classes: a target copy's, a None source's; the
+                        # engine reads the operand's own derivation, `or` rule included)
+                        _nb545[id(_v545)] = (set(_nb545.get(id(_v545), set()))
+                                             | ({"None"} if _ns545.get(id(_v545)) else set()))
                         _x527 = _ast341.Attribute(value=_v545, attr="__r545__",
                                                   ctx=_ast341.Load())
                         _ast341.copy_location(_x527, _v545)
