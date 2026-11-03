@@ -58,6 +58,16 @@
 ##   only) / 0 APPEARED; pyref 2 MOVED (split_elem_proves / _fails, --no-proof: a parameter separator is not credited); mirror 2 MOVED
 ##   (proof_axiom_allowlist re-PROVED; expressions `_dv_missing_default` OWED); rt43 / rt44 / rt49 CPython-honest probes 0/106.
 
+## run #4 (2026-11-03): #521 / #522 / #524 / #526 FINISHED (executor u18 on u13's tree: f7e307240 8f0529f96 202afd392 + docs; MIRROR 0/53 MOVED
+##   vs the v29 base, so NO whole-file mirror proof is owed (u13: 9/53, three with an unprovable obligation)). (1) the eleven nested helper defs
+##   -> record data + ONE inline evaluator (no def; mirror-coverage 548 <= 549); (2) CLAIM GATE: a LOCAL raise on a may-be-None value is owed
+##   only under a claim covering the raised class (declared / #460-reached / #171-widened), an ESCAPE (file function / method / constructor
+##   argument, return, field / unfollowed item store) always -- handlers that could catch the raise under an `ensures` stay refused by #174;
+##   (3) Module 5 `r526_return_none_depths` (Optional / None depths, Any / object / PyVal any-from), constructor option fields admit None, an
+##   escaping display's elements owe the narrowable obligation, Weaver `_target_dotted_path -> Any`, statements `_field_label(.., "")` (live +
+##   mirror, CPython test). RESULTS at 202afd392: witnesses (170) default 170/170 NOT PROVED (169 on a PyCSL-R521 goal, g1010_r1153 on the erased-element `false`); corpus 8320-8351 32/32 FAIL, controls 8360-8372 13/13 PASS; byte-diff vs v29: root 5 MOVED / 2774 (6521 6522 6523 7792 7794: PASS at base and head; u13's 3327 no longer moves), 0 GONE, 45 new; pyref 0 / 2186; MIRROR 0 / 53; sync / mirror-check / doc-coherency rc 0; fast planes 62/62; claim-vacuity / open-route-carriers / refusal-witness-coverage OK; census +32 VERIFY-FAIL rows (8320-8351). Typed / store: see the u18 report.
+##   Residual: a None handed by an UNCLAIMED function to an IMPORTED callee that stores it without raising.
+
 ## run #4 (2026-11-03): #521 / #522 / #524 / #526 REPAIRED (executor u13 off 1aaa1dfdd, 03fc6bab4 + its docs / ledger commit; one mechanism:
 ##   route #230's None VALUE fence completed -- record in `functions.py::_emit_function_block` (no twin), obligations inline in
 ##   `_expr_to_whyml` / `_stmts_to_whyml` / `_handle_isinstance` (twins `\trusted`), Module 5 `r524_optional_depths` / `r526_returns_optional`;

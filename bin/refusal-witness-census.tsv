@@ -3206,3 +3206,35 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 8461_u16_r539_factory_global_rebound.py	REFUSAL	[whyml-emit]: 'f' constructs `P` (line 22), whose constructor is not a field initialiser: `K + 1` (line 14) at operand kinds not known to be compatible (TypeError) (route #529-#539 kind-flow judge, route #519) (ROUTE #315). A construction is lowered to a record literal of the `self.<f>` stores and the rest of the body is never emitted, so its effects on the arguments, its callees' preconditions and its raises would be missing from the proof. Move that work out of the constructor (into a function called before or after it).
 8462_u16_r539_ctor_global_none.py	REFUSAL	[whyml-emit]: 'f' constructs `P` (line 19), whose constructor is not a field initialiser: `n + Z` (line 14) at operand kinds not known to be compatible (TypeError) (route #529-#539 kind-flow judge, route #519) (ROUTE #315). A construction is lowered to a record literal of the `self.<f>` stores and the rest of the body is never emitted, so its effects on the arguments, its callees' preconditions and its raises would be missing from the proof. Move that work out of the constructor (into a function called before or after it).
 2018_gen36_r235_list_field_from_list_call_of_global_false_claim.py	REFUSAL	[whyml-emit]: 'count' constructs `Item` (line 27), whose constructor is not a field initialiser: `list(BASE)` (line 16) of a value not known to be iterable (TypeError) (route #529-#539 kind-flow judge, route #519) (ROUTE #315). A construction is lowered to a record literal of the `self.<f>` stores and the rest of the body is never emitted, so its effects on the arguments, its callees' preconditions and its raises would be missing from the proof. Move that work out of the constructor (into a function called before or after it).
+8320_u13_r521_si_neg.py	VERIFY-FAIL	
+8321_u13_r521_dget_invert.py	VERIFY-FAIL	
+8322_u13_r521_dget_aug.py	VERIFY-FAIL	
+8323_u13_r521_dget_local_aug.py	VERIFY-FAIL	
+8324_u13_r521_dict_get_needle.py	VERIFY-FAIL	
+8325_u13_r521_ss_lit_in_get.py	VERIFY-FAIL	
+8326_u13_r521_ss_in_lit_notin.py	VERIFY-FAIL	
+8327_u13_r521_optdict_i_neg.py	VERIFY-FAIL	
+8328_u13_r521_optlist_i_aug_add.py	VERIFY-FAIL	
+8329_u13_r521_dget_s_fmt_spec.py	VERIFY-FAIL	
+8330_u13_r522_field_add.py	VERIFY-FAIL	
+8331_u13_r522_self_add.py	VERIFY-FAIL	
+8332_u13_r522_dcself_lt.py	VERIFY-FAIL	
+8333_u13_r522_nested_field_add.py	VERIFY-FAIL	
+8334_u13_r522_sfield_in_lit.py	VERIFY-FAIL	
+8335_u13_r524_ll_add.py	VERIFY-FAIL	
+8336_u13_r524_ll_ij_neg.py	VERIFY-FAIL	
+8337_u13_r524_seq_seq_aug.py	VERIFY-FAIL	
+8338_u13_r524_ll_opt_str_len_concat.py	VERIFY-FAIL	
+8339_u13_r526_list_lit_add.py	VERIFY-FAIL	
+8340_u13_r526_list_append_lt.py	VERIFY-FAIL	
+8341_u13_r526_dict_store_add.py	VERIFY-FAIL	
+8342_u13_r526_dict_lit_mul.py	VERIFY-FAIL	
+8343_u13_r526_field_neg.py	VERIFY-FAIL	
+8344_u13_r526_ctor_arg_add.py	VERIFY-FAIL	
+8345_u13_r526_callee_ret_neg.py	VERIFY-FAIL	
+8346_u13_r526_callee_arg_neg.py	VERIFY-FAIL	
+8347_u13_r526_walrus_add.py	VERIFY-FAIL	
+8348_u13_r526_unpack_add.py	VERIFY-FAIL	
+8349_u13_r526_or_none_add.py	VERIFY-FAIL	
+8350_u13_r526_dict_get2_none_var_add.py	VERIFY-FAIL	
+8351_u13_r526_for_sum.py	VERIFY-FAIL	
