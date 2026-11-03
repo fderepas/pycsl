@@ -12,3 +12,6 @@ F7 AN `Optional[str]` RECORD FIELD (A @dataclass FIELD `s: Optional[str]` OF A P
   WHY: the record field type of `Optional[str]` is the plain `string` (route #50's `pycsl_none_str` sentinel is used only for None-bound LOCALS of @mutable_state classes, translational §T.5.12n); route #325's opaque-int fallback fires only for the int-valued Optional field, and route #230 / #432 do not see a field read as possibly None, so the string operators get no obligation.
   PROBES: g1025/ag1007_s_concat.py g1025/ag1009_s_hay.py g1026/ah1000_concat.py g1026/ah1001_rconcat.py g1026/ah1003_hay.py g1026/ah1004_hay_notin.py g1026/ah1009_for.py g1026/ah1010_concat_field_t.py g1026/ah1013_local_concat.py g1026/ah1119_self_concat.py g1026/ah1120_self_hay.py
 ```
+
+
+**Integration note (driver, int26, 2026-11-03):** landed beside u13 / u18's #521-#526 fence. R527 judges a subscript operand (`xs[0] + 1`) and route #432's narrowing does not narrow a subscript expression, so `if xs[0] is not None: return xs[0] + 1` (u13's control 8367) is REFUSED -- fail-closed over-refusal; the control now binds `v = xs[0]` first. Reopening: narrow a subscript of an unmutated local in #432.
