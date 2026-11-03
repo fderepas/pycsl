@@ -58,6 +58,20 @@
 ##   only) / 0 APPEARED; pyref 2 MOVED (split_elem_proves / _fails, --no-proof: a parameter separator is not credited); mirror 2 MOVED
 ##   (proof_axiom_allowlist re-PROVED; expressions `_dv_missing_default` OWED); rt43 / rt44 / rt49 CPython-honest probes 0/106.
 
+## run #4 (2026-11-03): #521 / #522 / #524 / #526 REPAIRED (executor u13 off 1aaa1dfdd, 03fc6bab4 + its docs / ledger commit; one mechanism:
+##   route #230's None VALUE fence completed -- record in `functions.py::_emit_function_block` (no twin), obligations inline in
+##   `_expr_to_whyml` / `_stmts_to_whyml` / `_handle_isinstance` (twins `\trusted`), Module 5 `r524_optional_depths` / `r526_returns_optional`;
+##   no new def in a mirrored body, no axiom, no raise; annotations §7.521). A value that MAY be None (one-argument / None-default `.get` on a
+##   dict local, parameter or dict FIELD `r.d` / `self.d` / `o.r.d`; a subscript chain at the depth a container admits None; ternary / `and`
+##   arms, right of `or`, walrus; and everything the taint flows into: displays, append / item stores, unpack, for targets, aliases) owes
+##   `not (v = pycsl_none)` at every operation that raises on None (unary, membership, arithmetic, concat, subscript, call argument unless the
+##   parameter admits None, format spec, iterable, `+=` value / target, return / field store unless annotated Optional); unprovable for a
+##   non-pure operand, an escaping container holding None, an erased comprehension element. Witnesses 170 (74 + 30 + 19 + 47): default
+##   170/170 NOT PROVED; typed / store: see the u13 report (driver re-measures). Corpus 8320-8351 (FAIL) / 8360-8372 (PASS controls) match.
+##   Over-refusal: corpus root 6 MOVED (5 honest movers re-proved PASS, 3327 still FAIL), pyref 0/2186; rt43 / rt44 1983 probes byte-identical.
+##   MIRROR 9/53 MOVED, whole-file proofs OWED; Module5_IREmitter / monomorphize / functions carry an unprovable R521 obligation (expected RED).
+##   Residuals: float / non-scalar `.get` codomains (route #57), Optional FIELD reads, a container holding None passed to a method / builtin.
+
 ## run #4 (2026-11-02): #521-#528 OPENED (red team 49 on dd4a06928: 1472 probes / 275 confirmed in 8 families, default mode): #521 r230-none-fence-
 ##   binary-only (74); #522 r230-get-on-dict-field (30); #523 local-str-list-literal-iterated-after-append (32); #524 r230-nested-optional-container (19);
 ##   #525 module-str-list-mutated-via-namespace (21; a gap of today's lex-char-class inc 2); #526 r230-none-taint-does-not-flow (47);

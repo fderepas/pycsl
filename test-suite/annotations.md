@@ -5130,6 +5130,49 @@ annotations; user dunders (`__iter__`, `__len__`, `__abs__`, `__eq__`, `__repr__
 implicit-dunder routes'; the arity of a nested program-class construction and `__slots__` stores are not
 judged; a field re-annotated by a dataclass subclass is read at the base's annotation in an inherited hook.
 
+### 7.521 A value that may be None is fenced at every operation that raises on None (routes #521 / #522 / #524 / #526, run #4)
+
+A missing `.get` key and a None stored in a container lower to the opaque `pycsl_none` / `pycsl_none_str` of
+the codomain (routes #44 / #50 / #57), an ordinary int / str to the solver. Route #230 asserted `not (v =
+pycsl_none)` only for an ARITHMETIC / ORDERING operand in `_handle_binop`, and judged "may be None" only for a
+one-dot `<dict>.get(k)`, a one-level read of a container with an Optional element or a stored None, and a local
+bound directly from one. Red team 49 measured, PROVED `no_exception \all` while CPython raises TypeError: (#521,
+74) unary `-` / `+` / `~`, `t += ..`, `in` / `not in` (either side), an f-string format spec on such a value;
+(#522, 30) `r.d.get(k)` / `self.d.get(k)` / `o.r.d.get(k)` on a dict FIELD; (#524, 19) `xss[0][0]` /
+`xss[i][j]` of `List[List[Optional[int]]]` / `Sequence[Sequence[Optional[..]]]`; (#526, 47) the None flowing
+through a list / dict display, `append`, an item store, a walrus, a tuple unpack, a `for` target, `x or None`,
+a None-valued `.get` default, a callee's argument / return, a field store, a constructor argument.
+
+RULE (one value fence, refuse by default; record in `functions.py::_emit_function_block`, no twin; sites in
+`_expr_to_whyml` / `_stmts_to_whyml` / `_handle_isinstance`, twins `\trusted`; no new def in a mirrored body, no
+axiom, no raise). "May be None" (`mb`) is a fixpoint over the body seeded with route #230's record: a local or a
+subscript chain of length L into a container holding None at depth L (Module 5 `r524_optional_depths`); a
+`.get` with no / a None / a may-be-None default on a known dict local or parameter, a dict field of int / str
+codomain (resolved through the record types; an unresolved dotted receiver counts), and `.get` / `.pop` /
+`.setdefault` on a container holding None; a ternary / `and` arm or the right operand of `or` that may be None
+(a None literal included); a walrus of one. A binding (assignment, unpack, walrus, `for` / comprehension
+target) from such a value taints the local; a display / comprehension element, item store, `append` /
+`insert` / `add` / `setdefault` / `extend` / `update` / `+=`, alias, copy or slice taints the container. At
+every position that RAISES on None the obligation `not (v = pycsl_none)` is asserted before the operation:
+unary, membership (container; needle of a str haystack), arithmetic / ordering operands #230 does not already
+guard, string concatenation, subscript receiver / index, the argument of a builtin / method / file function or
+constructor whose parameter annotation does not admit None, a format spec, an iterable, an augmented
+assignment's value and target, a tuple unpack, a `return` from a function whose return annotation does not
+admit None, a field store (unless the field admits None), an item store into a non-local container. It holds
+under `is not None` / `isinstance`; a non-pure operand (a call, a walrus) and a container holding None that
+leaves the function (return, field, file-function argument) without an annotation admitting None get an
+unprovable obligation, as does a comprehension whose element raises on such a value but whose lowering erased
+the element (`any(..)` -> abstract `any_1`). Safe (no obligation): `is` / `==` / `!=`, truth tests, `and` / `or`
+/ ternary arms, display elements, `str` / `repr` / `print` / `isinstance` / `bool` / `id` / `type` / `hash`,
+container mutators' value arguments. IR-node ADT (`emit_ir`) values are exempt (no None in that model).
+
+Witnesses `8320`-`8351` (PROVED at base 1aaa1dfdd, NOT PROVED on a `PyCSL-R521` obligation); controls `8360`-`8372`
+(guarded unary / `+=` / `in`, non-None defaults, guarded field and nested reads, guarded list element, `x or 0`,
+`isinstance` over an Optional list, equality on `.get`). Residuals (named): a `.get` on a dict of a non-scalar or
+float codomain (route #57's unmeasured placeholders); an Optional record FIELD read (`self.x: Optional[int]`)
+and a CONTAINER holding None passed to a method or a builtin (`sorted(xs)`, route #437's) are not judged here; a local bound to a None literal
+and later rebound is the None-local routes' (#44 / #46 / #227 / #239).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
