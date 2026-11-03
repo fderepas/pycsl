@@ -7,6 +7,18 @@
 ##   accepted as an int (46); #553 a callee's item store of None into its container parameter (18); #554 #449's argument binding stops at the file
 ##   (32, all models); #555 an imported function's None result never may-be-None (31, all models). Driver repro 10/10 on int28.
 
+## run #4 (2026-11-03): #540 / #544 / #545 REPAIRED (executor u19 off ac07b8bb0 = int26 + route docs, d063311e4 + f8f075847 + 2ee31a2a9 + its
+##   ledger / docs commit; inline in route #432 / #527's engine and route #441's `CL` row in `_run_pipeline`, mirror twin `\trusted`, no new def, no
+##   axiom, emission byte-identical; annotations §7.540). Under a TypeError claim: a unary `+` operand must be derived numeric (PYCSL-R540-UNARY-
+##   PLUS-OPERAND); the operand of unary `+` / `-` / `~` and an augmented assignment's value and target join #527's census, a None SOURCE (literal,
+##   None-bound local / walrus / module name, None-defaulted parameter, call of a def whose return may be None, ternary / `and` / last-`or` arm)
+##   counting as may-be-None, judged by #432's flow narrowing (PYCSL-R545-NONE-OPERAND); a literal None classinfo outside a `|` union is refused by
+##   #441's row (#544). Witnesses 115 x default / typed / store = 345/345 REFUSED (base int26: 100 PROVED / 3 NOT PROVED / 12 refused by the
+##   constructor judge). Corpus 8540-8554 FAIL, controls 8560-8568 PASS. Byte-diff vs v33/bd root 0 MOVED / 8 GONE (#521 / #524 expected-FAIL
+##   witnesses 8320-8323 8327 8328 8336 8337, NOT PROVED at base, now refused earlier; census rows re-measured) / 9 APPEARED (controls), pyref
+##   0 / 0 / 0; mirror 53/53 0 / 0 / 0 (nothing owed). A first draft refused control 8370 (`-(d.get("k") or 0)`), fixed f8f075847. rt43 / rt44
+##   honest controls 36/36 unchanged. Residuals: a user `__pos__` in an unclaimed function; a None through a container the derivation misses (#521).
+
 ## run #4 (2026-11-03): #540-#545 OPENED (red team 51 on 9c8c5cf4a: 2713 probes / 301 confirmed in 6 families, default mode): #540 unary `+`
 ##   lowered as the identity and judged by nothing (59); #541 local lists whose elements the model int-erases accept append(None) / append(int)
 ##   unchecked (112; its exemplars no longer prove on int26 = + the #521-#526 fence); #542 an int-modelled `in` haystack / for iterable never

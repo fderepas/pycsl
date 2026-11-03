@@ -5230,7 +5230,10 @@ Witnesses `8540`-`8554` (REFUSED in default, `typed` and `store`; all 115 of `wi
 `ensures \result == n`), `8561` (`+(-n)`), `8562` (`+r.n` under `if r.n is not None:`), `8563` (a tuple of
 classes), `8564` / `8565` (an `Optional[int]` parameter narrowed by an early return, unary and `+=`), `8566`
 (`-one(k)` of a `-> int` def), `8567` (no claim: route #431), `8568` (`v = None; v = k; n += v`: the rebinding
-narrows). Residuals (named): a user `__pos__` reached in an UNCLAIMED function (identity lowering; route #489's
+narrows). Route #521 / #524's expected-FAIL witnesses `8320`-`8323`, `8327`, `8328`, `8336`, `8337` (NOT PROVED at
+base on the #521 fence's obligation) are now REFUSED earlier by R545 (census rows re-measured). Only the EXTRA
+classes (a target copy's, a None source's) are added to an operand: the operand's own derivation keeps #432's
+`or` rule, so `-(d.get("k") or 0)` (control `8370`) stays admitted. Residuals (named): a user `__pos__` reached in an UNCLAIMED function (identity lowering; route #489's
 dunder positions list `UAdd`); a None reaching the operand through a container / field the derivation does not
 follow is the #521 fence's (Module 6 obligation).
 
