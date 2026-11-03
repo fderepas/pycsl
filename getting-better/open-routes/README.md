@@ -1,5 +1,14 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-03): #533 / #534 / #535 / #538 REPAIRED (executor u17 off 2c4c575ed, d3e9099c6 + its ledger / docs commit; inline in route #315's
+##   #520 block and route #437's orderability judge in `_run_pipeline`, mirror twins `\trusted`, no new def, no axiom; annotations §7.533): a program-class
+##   `default_factory` must be a single program-class chain whose first (own / inherited / synthesized) `__init__` has no required parameter and whose
+##   constructors (and their dependencies) hold no `raise` / `assert`; a factory lambda's body and the closed sub-expressions of a factory class's
+##   constructors pass a literal-kind judge; a factory name is resolved through the class body and module scope (no rebinding, no `import *`); an
+##   ordering of tuples / lists joins #437 (`PYCSL-R538-UNORDERED-TUPLE-COMPARISON`). Witnesses 123 x default / typed / store = 369/369 REFUSED.
+##   Corpus 8500-8528 FAIL, controls 8530-8533 PASS. Byte-diff root 0 / 0 / 0, pyref 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed).
+##   rt43 / rt44 honest: 0 newly refused. Residual: named-operand kinds inside a factory class's constructor stay route #519's judge.
+
 ## run #4 (2026-11-03): #529-#539 OPENED (red team 50 on 9bdb8cf32: 1113 probes / 342 confirmed in 11 families, default mode; rt48's 76 pairs
 ##   76/76 REFUSED = #519 / #520 converge on their own pairs): bypasses of route #519's constructor judge — #529 iteration / unpacking shape (78),
 ##   #530 sorted ordering / key (38), #531 unresolved attribute reads (26), #532 builtin / exception-class call argument kinds + __post_init__ arity (35),

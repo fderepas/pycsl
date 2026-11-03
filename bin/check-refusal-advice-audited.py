@@ -912,6 +912,11 @@ AUDITED = {
         "Route #517. 'Rename the type parameter so it shadows no value the body reads (`def f[T](...)`)': witness g823_a9001 as "
         "`def f[T](n: int)` (getting-better/open-routes/witnesses-r517/advice/a517_rename_tp) VERIFIES `\\result == n // 5` under "
         "`no_exception \\all`; control 8134 (`class C[T]:` for 8125) VERIFIES."),
+    # driver run #4 -- route #538 (u17, red team 50): an ordering comparison of tuples / lists.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` orders tuples / lists whose components may b'): (FOLLOWABLE,
+        "Route #538. 'Compare components declared with such a type instead (e.g. `t[0] < u[0]` of `Tuple[int, int]` parameters), or "
+        "drop the claim': witness g1105/bf1047 as `t[0] < u[0]` of `Tuple[int, int]` (getting-better/open-routes/witnesses-r538/advice/"
+        "a538_compare_components) VERIFIES `no_exception \\all`; with the claim dropped (a538_drop_claim) VERIFIES; control 8533 VERIFIES."),
     # driver run #4 -- route #510 residual (u12, red team 48): a dependency's module-scope `type` statement.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `{_z510[2]}` is imported from a dependency module ({_t'): (FOLLOWABLE,
         "Route #510 residual. 'Rename the alias in the dependency so it shadows no value it exports (`type GT = int`)': corpus 8294 "
@@ -1301,6 +1306,8 @@ AUDITED_HASH = {
     # driver run #4 (u9) -- routes #510 / #517
     ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `{_z510[2]}` is bound by the PEP 695 statement `type {'): 'acbd371debc0',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R517-TYPE-PARAM-NAME-READ: `{_z510[2]}` is a PEP 695 type parameter of `{getattr(_z51'): '1639be5fd431',
+    # driver run #4 (u17) -- route #538
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` orders tuples / lists whose components may b'): 'ad1afca1af36',
     # driver run #4 (u12) -- route #510 residual
     ('src/pycsl/pycsl.py', '_PyCSLSemErr510(f"{args.file} (line {_z510[0]}): PYCSL-R510-TYPE-STATEMENT-NAME-READ: `{_z510[2]}` is imported from a dependency module ({_t'): '85e25dc9fe56',
     # driver run #4 (u10) -- routes #511 / #518
