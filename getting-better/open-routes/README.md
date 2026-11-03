@@ -9,6 +9,16 @@
 ##   Corpus 8500-8528 FAIL, controls 8530-8533 PASS. Byte-diff root 0 / 0 / 0, pyref 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed).
 ##   rt43 / rt44 honest: 0 newly refused. Residual: named-operand kinds inside a factory class's constructor stay route #519's judge.
 
+## run #4 (2026-11-03): #529 / #530 / #531 / #532 / #536 / #537 / #539 REPAIRED (executor u16 off 2c4c575ed, 50692aa38 + cfc0f31f2 + its ledger /
+##   docs commit; inline in route #315 / #519's field-initialiser judge in `_run_pipeline`, mirror twin `\trusted`, lambdas only, no new def, no axiom;
+##   annotations §7.529): a refuse-by-default KIND-FLOW pass over every constructor hook -- every read resolves (definite local binding, `self.<f>`
+##   stored / class attribute / dataclass field, program-class field, module name, builtin; class-body names invisible) and every kind-dependent
+##   operation (iteration, unpacking arity, sort order / keys, builtin argument kinds and arities, exception-class keywords, operators, comparisons,
+##   `%` / f-string formats, slices) is admitted only at kinds that make it total; match captures / `del` / lambda args rebind; repr-safe classes only
+##   for string conversion; `__post_init__` must take exactly the InitVars. Witnesses 219 x default / typed / store = 657/657 REFUSED. Corpus
+##   8440-8462 FAIL, controls 8480-8487 PASS. Byte-diff root 0 / 1 GONE (2018 expected-FAIL) / 0, pyref 0 / 0 / 0, mirror 53/53 0/0/0 (nothing owed).
+##   rt43 / rt44 1378 probes: 0 newly refused.
+
 ## run #4 (2026-11-03): #529-#539 OPENED (red team 50 on 9bdb8cf32: 1113 probes / 342 confirmed in 11 families, default mode; rt48's 76 pairs
 ##   76/76 REFUSED = #519 / #520 converge on their own pairs): bypasses of route #519's constructor judge — #529 iteration / unpacking shape (78),
 ##   #530 sorted ordering / key (38), #531 unresolved attribute reads (26), #532 builtin / exception-class call argument kinds + __post_init__ arity (35),

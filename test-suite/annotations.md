@@ -5061,6 +5061,75 @@ judge (only closed sub-expressions are kind-checked there); an ordering of whole
 < Tuple[int, str]`) is admitted by the rule but is not lowered by the model (Why3 type error, NOT PROVED at base
 and HEAD); MemoryError of a large literal repetition is outside the model.
 
+### 7.529 Route #519's constructor judge also runs a refuse-by-default KIND-FLOW pass: every read resolves, every kind-dependent operation is total at the kinds it reads (routes #529 / #530 / #531 / #532 / #536 / #537 / #539, run #4)
+
+Route #519 (§7.519) read a constructor's expressions at declared kinds but never checked what they iterate,
+unpack, sort, read as an attribute or pass to a builtin, nor which binding a name reads. Red team 50 measured on
+9bdb8cf32, PROVED `no_exception \all` over the caller while CPython raises in `__init__` / `__post_init__` / a
+`default_factory` (plain, nested, discarded, built in a method; 219 witnesses): (#529, 78) `for x in n` /
+`[x for x in n]` / `[*n]` / `{**xs}` over an int / float / object / Any / List value, `a, b = xs` and `for a, b in`
+of the wrong arity, `a, *b = []`, `zip(.., strict=True)`, `range(0, 5, s)` / `range(n, 0, -0)`; (#530, 38)
+`sorted(xs)` of List[Any] / List[object] / List[Optional[int]] / List[Dict] / Set[Any] / Tuple[int, str],
+`key=len` over ints, `key=str` / `key=repr` over a 10 ** 5000 element, `key=abs` over strs, key lambdas raising;
+(#531, 26) `o.nope` / `o.a.b` / `type(o).zz` / `o.__len__` of an object / Any / Optional, `self.j` read before its
+store, a class attribute of another kind read through `self` (`k = "a"`; `self.k + n`), a slice of an int local;
+(#532, 35) `issubclass(n, int)`, `setattr(self, n, 1)`, `ValueError(x=n)`, `ExceptionGroup("m", [])`,
+`UnicodeDecodeError()`, `SyntaxError("m", n)`, a dataclass `__post_init__` whose parameters are not its InitVar
+fields (missing / extra / kw-only / swapped / inherited) or that is not a function; (#536, 23) `str(p)` / `repr(p)`
+/ `str([p])` of a @dataclass / NamedTuple whose synthesized `__repr__` formats an int field (ValueError past 4300
+digits); (#537, 12) a `match` capture (`case n:`, `case str() as n:`, `case n if n:`) rebinding a parameter read
+later at its declared kind; (#539, 7) a `default_factory` lambda reading a class-body name (NameError) or a global
+rebound / mutated after the class, a constructor `n + Z` with `Z = None`.
+
+RULE (inline in `_run_pipeline`, inside route #315's judge; mirror twin `\trusted`, no new def, no axiom):
+- Kinds: int bool float str bytes none range, an instance of a program class, list / Sequence / Iterable / set /
+  dict of an element kind, a fixed tuple of slot kinds, a homogeneous tuple; anything else (Any, object,
+  Optional, Union, unannotated) is UNKNOWN. A parameter has its annotation's kind; a local, a rebound
+  parameter and a `self.<f>` stored in the hook have the kind every one of their plain bindings (`=`, `+=`,
+  a `for` target, a tuple-unpacking slot) agrees on -- for a parameter / dataclass field, the declared kind --
+  else unknown; a module global has a kind only if bound exactly once, to a constant, and never declared
+  `global`; a comprehension variable has its iterable's element kind.
+- Every read resolves: a hook local only where definitely bound (straight-line; both `if` branches do not
+  count); `self.<f>` only after a store in the hook, as a class attribute, as a dataclass field set by the
+  synthesized `__init__` (in `__post_init__`), or after a top-level `super().__init__()` for the fields the
+  base definitely stores; `p.<f>` only for a program-class instance whose class / constructor definitely
+  defines `<f>`; `m.<a>` only for an imported loaded module that has `<a>`; any other name only if bound at
+  module level, a parameter or a builtin (a class-body name is NOT visible in a method or a lambda).
+- Every kind-dependent operation is admitted only at kinds that make it total: iteration (`for`,
+  comprehensions, `*x`, `list` / `tuple` / `set` / `any` / `all` / `sorted` / `reversed` / `enumerate` / `zip`)
+  of an iterable kind (a user `__iter__` counts); `**x` of a dict; unpacking only against a display or a fixed
+  tuple of matching length; set elements / dict keys hashable; `len` of a sized kind (a user `__len__`
+  counts); `sorted` / one-argument `min` / `max` (the latter only with `default=`) of elements with one total
+  order, or with `key=len` / `abs` / `str` / `repr` / a one-parameter lambda total on the element kind and
+  yielding ordered values; `sum` of numbers; `abs` of a number (or a class with `__abs__`); `range` of ints with a
+  non-zero literal step; `zip` without `strict` (or `strict=False`); `isinstance` / `issubclass` against classes;
+  `setattr(self, "<plain literal>", v)`; a builtin exception class without keywords and not one whose
+  constructor validates its arguments (`ExceptionGroup`, `BaseExceptionGroup`, `SyntaxError` family,
+  `Unicode*Error`, `BlockingIOError`); builtin arities; binary / unary operators, ordering comparisons and
+  membership at compatible known kinds; `%` formatting of a literal format whose conversions fit the values;
+  an f-string format spec only on a str / float value it fits; a slice of a sequence with int / None bounds; a
+  class pattern's positional sub-patterns within `__match_args__`; no `return <value>` in `__init__`; no store
+  to `self` in a frozen dataclass hook.
+- (#536) the "object" kind of route #519's string conversions holds only for a REPR-SAFE class: no foreign
+  base, and every @dataclass ancestor with a synthesized `__repr__` has only str / float / bool / None / bytes /
+  repr-safe-class fields (or containers of them); NamedTuple / Enum / exception subclasses are not repr-safe.
+- (#537) a `match` capture, a `del`, a lambda parameter rebind the name like a store (§7.519's declared kinds).
+- (#532) a dataclass whose `__init__` is synthesized calls the nearest `__post_init__` with its InitVar fields
+  (bases first) positionally: the hook must be a function taking exactly those names, in that order, with
+  those annotations, no `*args` / keyword-only / `**kw`.
+  Anything else makes the constructor unmodelled: `PYCSL-R315-UNMODELLED-CONSTRUCTOR`, naming the site and
+  `route #529-#539 kind-flow judge` (or `route #532` for the hook arity).
+
+Witnesses `8440`-`8462` (PROVED at base, REFUSED by name); controls `8480`-`8487` (iteration / unpacking at known
+shapes, total sorts, resolved attributes, builtin / exception / InitVar calls at accepted kinds, a repr-safe
+dataclass, a `match` that captures no parameter, a constant global read by a factory, a dataclass field read in
+`__post_init__`): PROVED at base and HEAD.
+Byte-diff: root 0 MOVED / 1 GONE / 0 APPEARED (`2018`, `list(BASE)` of a mutable module global: expected FAIL ->
+REFUSED), python-reference 0 / 0 / 0, mirror 53/53 byte-identical. Residuals (named): kinds trust declared
+annotations; user dunders (`__iter__`, `__len__`, `__abs__`, `__eq__`, `__repr__` of a plain class) are the
+implicit-dunder routes'; the arity of a nested program-class construction and `__slots__` stores are not
+judged; a field re-annotated by a dataclass subclass is read at the base's annotation in an inherited hook.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
