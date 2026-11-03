@@ -5002,6 +5002,65 @@ A read the assertion cannot discharge is NOT PROVED (fail closed).
 Witnesses `8425`-`8432` (PROVED at base, NOT PROVED); controls `8435` (`[0]`), `8436` (`[-1]`, `split(":", 1)[0]`),
 `8437` (a parameter index under `requires i == 0 or i == -1`).
 
+### 7.533 A `default_factory` program class must be callable with no argument and raise-free; a factory lambda's literal operands are kind-checked; a factory name resolves through the class body; a tuple / list ordering compares its components (routes #533 / #534 / #535 / #538, run #4)
+
+Route #520 (§7.519) admitted a `field(default_factory=X)` for a builtin type, a program class or a parameterless
+lambda whose body passes route #519's judge. Red team 50 measured at 9bdb8cf32, PROVED `no_exception \all` over the
+caller while CPython raises in the synthesized `__init__`: (#533, 33) a program class whose `__init__` needs an
+argument (positional, keyword-only, inherited), an `enum.Enum` / `IntEnum`, a dataclass with a required field or
+`InitVar`, a user exception needing arguments, an `__init__` / `__post_init__` that `raise`s (plainly or under an
+`if` on a default), a constructor body doing `[*5]`, a nested dataclass factory, in plain / frozen / kw_only /
+slots / order / eq=False dataclasses, loops and nested constructors; (#534, 79) a parameterless lambda built from
+literals of the wrong kinds (`"a" + 1`, `[*5]`, `1 < "a"`, `{[1]}`, `-"a"`, `"%d" % "a"`, `f"{'a':d}"`,
+`1 << 9223372036854775808`, `len(5)`, `None + 1`, `(1, 2) < (1, "a")` ...); (#535, 10) a class-body binding of
+the factory's name before the field (`dict = 0`, `list = lambda: 1 // 0`, a nested `class complex`, a ClassVar,
+`object = staticmethod(..)`), which is what the field expression evaluates in the class body. And (#538, 1) `t <
+u` of two `Tuple[int, Any]` parameters in a plain function, which compares the `Any` components on equal heads.
+
+RULE (refuse by default; inline in `_run_pipeline`, mirror twin `\trusted`, no new def, no axiom, emission
+byte-identical where admitted):
+- (#535) a factory NAME is admitted only when it is bound nowhere in the field's class body, the program has no
+  `from M import *`, and at module scope (assignments, imports, `def` / `class`, `except .. as`, match captures,
+  a `global` / `nonlocal` store anywhere) a builtin factory name is never bound and a program-class factory is
+  bound exactly once, by its one `class` statement (a class defined inside a function is not admitted).
+- (#533) a program class X is admitted as a factory only when its base chain is a single chain of program
+  classes (`object` aside; no class keyword / metaclass; no decorator but `dataclass` / `dataclasses.dataclass`
+  without positional arguments or `init` other than `True`; no `__new__`), the first `__init__` of the chain
+  (own, or synthesized from the dataclass fields of the chain: a field without a default / `default_factory`
+  and not `init=False`, an `InitVar` included, is required) has no required parameter (positional or
+  keyword-only), and no `__init__` / `__post_init__` / `__new__` of the chain or of a class those constructors
+  depend on (constructed, a base, a field factory) holds a `raise` or `assert`.
+- (#534) the body of a parameterless factory lambda, and every closed (name-free) sub-expression of the
+  constructors a factory class runs, is admitted only when each node has a kind among: a constant; a list /
+  tuple display (a `*` of a sequence / set / dict); a set / dict display of hashable keys; `not`; unary `-` /
+  `+` of a number, `~` of an int; `+` of two numbers / str / bytes / lists / tuples; `-` of numbers or sets;
+  `*` of numbers or of a sequence by a small int literal; `/` `//` `%` of a number by a non-zero number literal
+  (a float never beside an int that may be large); `**` of a small int by a literal 0..64; `<<` / `>>` by a
+  literal 0..64; `&` `|` `^` of ints / sets; `==` / `!=` / `is` anywhere, `<` `<=` `>` `>=` only of two numbers /
+  str / bytes / sets, `in` of a list / tuple, of a hashable in a set / dict, of a str in a str, of bytes in
+  bytes; `and` / `or` / `x if c else y`; an f-string of scalars without a format spec; a slice (small int
+  bounds, non-zero literal step) of a sequence; a builtin type the program does not rebind called with no
+  argument. Anything else (a name, an attribute, a subscript, a call with arguments, a comprehension) is not
+  modelled.
+  A factory that fails any of these makes the class's constructor unmodelled: a non-trusted function
+  constructing it is `PYCSL-R315-UNMODELLED-CONSTRUCTOR`, naming the site and the route (`route #533` /
+  `#534` / `#535`).
+- (#538) under a claim covering TypeError (§7.135's scope), an ordering comparison (`<` `<=` `>` `>=`) any of
+  whose ordered operands is derived a tuple / list joins route #437's orderability judge over the operands of
+  its ordering operators: admitted only when their components are derived all numbers / all `str` / all
+  `bytes` / parameterised tuples / lists of such at each position; `Any`, `object`, `None`, a user class, a
+  union of unordered kinds, an un-parameterised tuple and an underivable operand are refused:
+  `PYCSL-R538-UNORDERED-TUPLE-COMPARISON`.
+
+Witnesses `8500`-`8510`, `8521` (#533), `8511`-`8520` (#534), `8522`-`8526` (#535), `8527` (#538): PROVED at
+base, REFUSED; `8528` (#538, `List[Any] >= List[Any]`): NOT PROVED at base, REFUSED. Controls `8530` (program
+class factories with defaulted / inherited / dataclass-defaulted / absent `__init__`), `8531` (literal lambdas
+of matching kinds), `8532` (class-body bindings of other names), `8533` (ordering of int components of tuples):
+PROVED at base and HEAD. Residuals (named): the kinds of a NAMED operand inside a constructor stay route #519's
+judge (only closed sub-expressions are kind-checked there); an ordering of whole typed tuples (`Tuple[int, str]
+< Tuple[int, str]`) is admitted by the rule but is not lowered by the model (Why3 type error, NOT PROVED at base
+and HEAD); MemoryError of a large literal repetition is outside the model.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

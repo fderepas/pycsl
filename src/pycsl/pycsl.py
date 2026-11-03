@@ -10544,13 +10544,43 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _fs432 -= {"None", "NoneType"}
             if _te432:
                 for _n432 in _al432:
-                    if not isinstance(_n432, _ast341.Call) or id(_n432) in _anx365:
+                    # (run #4) ROUTE #538 -- an ORDERING comparison `a < b` (`<=` / `>` / `>=`) of
+                    # a tuple / list compares the components pairwise, so it raises TypeError
+                    # exactly where `sorted([a, b])` would (route #437), but it was lowered with
+                    # no obligation: `t: Tuple[int, Any]; t < u` PROVED `no_exception \all` while
+                    # `(1, "a") < (1, 2)` raises (red team 50). A comparison any of whose ordered
+                    # operands is derived a tuple / list joins #437's orderability judge over
+                    # the operands of its ordering operators.
+                    _cm538 = None
+                    if isinstance(_n432, _ast341.Compare) and id(_n432) not in _anx365:
+                        _op538 = [_n432.left] + list(_n432.comparators)
+                        _cm538 = []
+                        for _i538, _o538 in enumerate(_n432.ops):
+                            if isinstance(_o538, (_ast341.Lt, _ast341.LtE, _ast341.Gt,
+                                                  _ast341.GtE)):
+                                _cm538 += [_v for _v in _op538[_i538:_i538 + 2]
+                                           if all(_v is not _w for _w in _cm538)]
+                        if not any(
+                                (isinstance(_t, _ast341.Subscript)
+                                 and isinstance(_t.value, _ast341.Name)
+                                 and _t.value.id in ("Tuple", "tuple", "#tuple", "List", "list",
+                                                     "#list"))
+                                or (isinstance(_t, _ast341.Name)
+                                    and _t.id in ("Tuple", "tuple", "#tuple", "List", "list",
+                                                  "#list"))
+                                for _v in _cm538 for _t in (_ty383.get(id(_v)) or [])):
+                            continue
+                    elif not isinstance(_n432, _ast341.Call) or id(_n432) in _anx365:
                         continue
-                    _fu432 = _n432.func
+                    _fu432 = getattr(_n432, "func", None)
                     _gq432 = None
                     _kn432 = ""
                     _ok433 = None
-                    if (isinstance(_fu432, _ast341.Attribute) and _fu432.attr == "join"
+                    if _cm538 is not None:
+                        _kn432 = "an ordering comparison"
+                        _gq432 = [_t for _v in _cm538 for _t in (_ty383.get(id(_v)) or [_U383])]
+                        _it432 = None
+                    elif (isinstance(_fu432, _ast341.Attribute) and _fu432.attr == "join"
                             and len(_n432.args) == 1 and not _n432.keywords
                             and not isinstance(_n432.args[0], _ast341.Starred)):
                         _rc432 = {_c for _c in (set(_ex346.get(id(_fu432.value), set()))
@@ -10603,7 +10633,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _gq432 = [(_t.slice.elts[0] if isinstance(_t, _ast341.Subscript)
                                        and isinstance(_t.slice, _ast341.Tuple)
                                        and _t.slice.elts else _U383) for _t in _gq432]
-                        for _kw432 in _n432.keywords:
+                        for _kw432 in getattr(_n432, "keywords", []):
                             if _kw432.arg == "key":
                                 _kv432 = _kw432.value
                                 if (isinstance(_kv432, _ast341.Constant)
@@ -10776,6 +10806,22 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             f"elements annotated so -- e.g. a display `[a, b]` of such "
                             f"parameters), or drop the claim.",
                             stage="ir-semantic", code="PYCSL-R433-JOIN-ELEMENT-CLASS")
+                    if _cm538 is not None:
+                        raise _PyCSLSemErr341(
+                            f"'{_f346.name}' line {getattr(_n432, 'lineno', 0)}: "
+                            f"`{_ast341.unparse(_n432)}` orders tuples / lists whose components "
+                            f"may be {_bd432}: an ordering comparison of tuples / lists compares "
+                            f"their components pairwise and raises TypeError unless those are "
+                            f"totally ordered among themselves, while this function claims "
+                            f"`#@ no_exception` covering TypeError and the model lowers the "
+                            f"comparison with no obligation (route #538; measured: `t: "
+                            f"Tuple[int, Any]; t < u` under `#@ no_exception \\all` proved, "
+                            f"CPython `(1, 'a') < (1, 2)` TypeError). Admitted: components "
+                            f"derived as all numbers, all `str`, all `bytes`, or parameterised "
+                            f"tuples / lists of such at each position. Compare components "
+                            f"declared with such a type instead (e.g. `t[0] < u[0]` of "
+                            f"`Tuple[int, int]` parameters), or drop the claim.",
+                            stage="ir-semantic", code="PYCSL-R538-UNORDERED-TUPLE-COMPARISON")
                     raise _PyCSLSemErr341(
                         f"'{_f346.name}' line {getattr(_n432, 'lineno', 0)}: "
                         f"`{_ast341.unparse(_n432)}` compares values that may be {_bd432}: "
@@ -21425,6 +21471,50 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         for _c315 in _ast175.walk(_tall175):
             if isinstance(_c315, _ast175.ClassDef):
                 _cdefs315.setdefault(_c315.name, []).append(_c315)
+        # (run #4) ROUTE #535 -- a `field(default_factory=X)` is evaluated IN THE CLASS BODY, so
+        # a class-body binding of X (`dict = 0`, `list = lambda: 1 // 0`, `def float(): ..`, a
+        # nested `class complex`) or a module-scope one (an assignment, an import, a `global`
+        # store) is the factory called, not the builtin / the class (red team 50: TypeError /
+        # ZeroDivisionError at construction under a proved `no_exception \all`). The bindings
+        # of every MODULE scope (`None`) and every class body reached from one (`id(class)`),
+        # counted per name (`def` / `class` names, stores, imports, `except .. as`, match
+        # captures; nested def / lambda bodies bind locally, except a `global` name).
+        _sb535 = {}
+        _sc535 = set()
+        _sk535 = [(_z, None) for _z in _tall175.body]
+        while _sk535:
+            _z535, _ow535 = _sk535.pop()
+            _nm535 = []
+            if isinstance(_z535, (_ast175.FunctionDef, _ast175.AsyncFunctionDef, _ast175.ClassDef)):
+                _nm535.append(_z535.name)
+                if isinstance(_z535, _ast175.ClassDef):
+                    _sc535.add(id(_z535))
+                    _sk535.extend((_y, id(_z535)) for _y in _z535.body)
+            elif isinstance(_z535, _ast175.Lambda):
+                pass
+            elif isinstance(_z535, (_ast175.Import, _ast175.ImportFrom)):
+                _nm535 += [(_a.asname or _a.name.split(".")[0]) for _a in _z535.names]
+            else:
+                if isinstance(_z535, _ast175.Name) and not isinstance(_z535.ctx, _ast175.Load):
+                    _nm535.append(_z535.id)
+                elif isinstance(_z535, (_ast175.ExceptHandler, _ast175.MatchAs,
+                                        _ast175.MatchStar)) and _z535.name:
+                    _nm535.append(_z535.name)
+                elif isinstance(_z535, _ast175.MatchMapping) and _z535.rest:
+                    _nm535.append(_z535.rest)
+                _sk535.extend((_y, _ow535) for _y in _ast175.iter_child_nodes(_z535))
+            for _y535 in _nm535:
+                _sb535[(_ow535, _y535)] = _sb535.get((_ow535, _y535), 0) + 1
+        for _z535 in _ast175.walk(_tall175):
+            if isinstance(_z535, (_ast175.Global, _ast175.Nonlocal)):
+                for _y535 in _z535.names:
+                    _sb535[(None, _y535)] = _sb535.get((None, _y535), 0) + 1
+        # (run #4) ROUTES #533 / #534 -- the program classes each class calls as a
+        # `default_factory` (judged after the class loop), and the expressions whose LITERAL
+        # operand kinds are judged (a factory lambda's body; the closed sub-expressions of the
+        # constructors a factory class runs).
+        _fc533 = {}
+        _lq534 = []
         # per class: the reason its constructor is NOT a field initialiser ("" = modelled),
         # and the user classes it depends on (constructed in its body / its bases)
         _why315 = {}
@@ -21463,23 +21553,46 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if _kw315.arg != "default_factory":
                             continue
                         _fy315 = _kw315.value
+                        # (#535) the factory name may not be bound in this class body, nor (a
+                        # builtin) in any module scope, nor (a program class) other than by its
+                        # one `class` statement
+                        _sh535 = (isinstance(_fy315, _ast175.Name) and (
+                            id(_c315) not in _sc535 or (id(_c315), _fy315.id) in _sb535
+                            or _sb535.get((None, _fy315.id), 0) != (
+                                1 if _fy315.id in _cdefs315 else 0)
+                            or len(_cdefs315.get(_fy315.id, [])) > 1
+                            or any(_z.names[0].name == "*" for _z in _ast175.walk(_tall175)
+                                   if isinstance(_z, _ast175.ImportFrom))))
                         if (isinstance(_fy315, _ast175.Name) and _fy315.id in (
                                 "list", "dict", "set", "tuple", "frozenset", "str", "bytes",
                                 "bytearray", "int", "float", "bool", "complex", "object")
+                                and not _sh535
                                 and not any(isinstance(_z, (_ast175.FunctionDef,
                                                             _ast175.AsyncFunctionDef,
                                                             _ast175.ClassDef))
                                             and _z.name == _fy315.id
                                             for _z in _ast175.walk(_tall175))):
                             pass
-                        elif isinstance(_fy315, _ast175.Name) and _fy315.id in _cdefs315:
+                        elif (isinstance(_fy315, _ast175.Name) and _fy315.id in _cdefs315
+                              and not _sh535):
                             _dep315[_cn315].add(_fy315.id)
+                            _fc533.setdefault(_cn315, []).append((_fy315.id, _fy315.lineno))
                         elif (isinstance(_fy315, _ast175.Lambda)
                               and not (_fy315.args.posonlyargs or _fy315.args.args
                                        or _fy315.args.vararg or _fy315.args.kwonlyargs
                                        or _fy315.args.kwarg)):
                             _pdf315.append(_ast175.Expr(value=_fy315.body, lineno=_fy315.lineno,
                                                         col_offset=0))
+                            _lq534.append((_fy315.body, _cn315, True,
+                                           f"the dataclass `default_factory="
+                                           f"{_ast175.unparse(_fy315)}` (line {_fy315.lineno})"))
+                        elif _sh535:
+                            _why315[_cn315] = _why315[_cn315] or (
+                                f"the dataclass `default_factory={_fy315.id}` (line "
+                                f"{_fy315.lineno}): `{_fy315.id}` is bound by the program (in "
+                                f"this class body, at module scope, by an import or a `global` "
+                                f"store), and the field is evaluated in the class body, so the "
+                                f"factory called is not the builtin / the class (route #535)")
                         else:
                             _why315[_cn315] = _why315[_cn315] or (
                                 f"the dataclass `default_factory={_ast175.unparse(_fy315)}` (line "
@@ -21879,6 +21992,363 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                        f"(route #519)")
                                 if _why315[_cn315]:
                                     break
+        # (run #4) ROUTE #533 -- a program class X called as a `default_factory` is constructed
+        # by the synthesized `__init__` WITH NO ARGUMENT. Route #520 judged X's constructor
+        # body but never that `X()` can be called (a required / keyword-only / inherited
+        # `__init__` parameter, a dataclass's required field or InitVar), nor what its
+        # constructor's base is (an `Enum` / `IntEnum`, an exception needing arguments, a
+        # builtin container), nor that the constructors it runs do not `raise` (red team 50:
+        # TypeError / ValueError at `P(n)` under a proved `no_exception \all`). Admitted only:
+        # a single chain of program classes (no other base than `object`, no class keyword,
+        # no decorator but `dataclass` without `init=False`, no `__new__`) whose first
+        # `__init__` (own or synthesized from the dataclass fields of the chain) has no
+        # required parameter, and no `raise` / `assert` in any `__init__` / `__post_init__` /
+        # `__new__` of the chain or of a class those constructors depend on; the closed
+        # (name-free) sub-expressions of those constructors join #534's kind judge.
+        for _cn533 in sorted(_fc533):
+            for _q533, _ln533 in _fc533[_cn533]:
+                if _why315.get(_cn533):
+                    break
+                _r533 = ""
+                _ch533 = []
+                _x533 = _q533
+                while _x533 is not None and not _r533 and len(_ch533) < 64:
+                    _xl533 = _cdefs315.get(_x533) or []
+                    if len(_xl533) != 1 or _sb535.get((None, _x533), 0) != 1:
+                        _r533 = f"`{_x533}` is not bound once, by its `class` statement"
+                        break
+                    if _xl533[0] in _ch533:
+                        _r533 = f"`{_x533}` inherits from itself"
+                        break
+                    _ch533.append(_xl533[0])
+                    _pb533 = [_b for _b in _xl533[0].bases
+                              if not (isinstance(_b, _ast175.Name) and _b.id == "object")]
+                    if _xl533[0].keywords:
+                        _r533 = f"`{_x533}` has a class keyword (a metaclass)"
+                    elif len(_pb533) > 1:
+                        _r533 = f"`{_x533}` has several bases"
+                    elif _pb533 and not (isinstance(_pb533[0], _ast175.Name)
+                                         and _pb533[0].id in _cdefs315):
+                        _r533 = (f"`{_x533}` derives from `{_ast175.unparse(_pb533[0])}`, not a "
+                                 f"class of the program (an `Enum`, an exception, a builtin "
+                                 f"container: its constructor is not modelled)")
+                    for _dk533 in _xl533[0].decorator_list:
+                        _dn533 = _dk533.func if isinstance(_dk533, _ast175.Call) else _dk533
+                        if not ((isinstance(_dn533, _ast175.Name) and _dn533.id == "dataclass")
+                                or (isinstance(_dn533, _ast175.Attribute)
+                                    and _dn533.attr == "dataclass"
+                                    and isinstance(_dn533.value, _ast175.Name)
+                                    and _dn533.value.id == "dataclasses")):
+                            _r533 = _r533 or (f"`{_x533}` has the decorator "
+                                              f"`{_ast175.unparse(_dk533)}`")
+                        elif isinstance(_dk533, _ast175.Call) and (_dk533.args or any(
+                                _k.arg is None or (_k.arg == "init" and not (
+                                    isinstance(_k.value, _ast175.Constant)
+                                    and _k.value.value is True))
+                                for _k in _dk533.keywords)):
+                            _r533 = _r533 or (f"`{_x533}` is a dataclass whose `__init__` is not "
+                                              f"synthesized")
+                    _x533 = _pb533[0].id if (_pb533 and not _r533) else None
+                _rq533 = None
+                for _i533, _xc533 in enumerate(_ch533 if not _r533 else []):
+                    _ms533 = {_m.name: _m for _m in _xc533.body
+                              if isinstance(_m, (_ast175.FunctionDef, _ast175.AsyncFunctionDef))}
+                    if "__new__" in _ms533:
+                        _r533 = f"`{_xc533.name}` defines `__new__`"
+                        break
+                    if _rq533 is not None:
+                        continue
+                    if "__init__" in _ms533:
+                        _a533 = _ms533["__init__"].args
+                        _pp533 = list(_a533.posonlyargs) + list(_a533.args)
+                        if not _pp533 and _a533.vararg is None:
+                            _rq533 = ["self"]
+                        else:
+                            _rq533 = [_p.arg for _p in _pp533[1:len(_pp533) - len(_a533.defaults)]]
+                        _rq533 += [_k.arg for _k, _d in zip(_a533.kwonlyargs, _a533.kw_defaults)
+                                   if _d is None]
+                    elif _xc533.decorator_list:
+                        # the synthesized `__init__`: the fields of the dataclasses of the chain
+                        _rq533 = []
+                        for _yc533 in _ch533[_i533:]:
+                            if not _yc533.decorator_list:
+                                continue
+                            for _st533 in _yc533.body:
+                                if not (isinstance(_st533, _ast175.AnnAssign)
+                                        and isinstance(_st533.target, _ast175.Name)):
+                                    continue
+                                _an533 = _ast175.unparse(_st533.annotation)
+                                if "ClassVar" in _an533 or "KW_ONLY" in _an533:
+                                    continue
+                                _v533 = _st533.value
+                                _kw533 = ({_k.arg: _k.value for _k in _v533.keywords}
+                                          if isinstance(_v533, _ast175.Call) else {})
+                                if _v533 is None or (
+                                        isinstance(_v533, _ast175.Call)
+                                        and ((isinstance(_v533.func, _ast175.Name)
+                                              and _v533.func.id == "field")
+                                             or (isinstance(_v533.func, _ast175.Attribute)
+                                                 and _v533.func.attr == "field"))
+                                        and "default" not in _kw533
+                                        and "default_factory" not in _kw533
+                                        and not (isinstance(_kw533.get("init"), _ast175.Constant)
+                                                 and _kw533["init"].value is False)):
+                                    _rq533.append(_st533.target.id)
+                if not _r533 and _rq533:
+                    _r533 = (f"`{_q533}()` raises TypeError: its constructor needs the "
+                             f"argument(s) {', '.join('`%s`' % _z for _z in _rq533)}")
+                # the constructors `X()` runs: the chain and, transitively, what they depend on
+                _vs533 = []
+                _wq533 = [_c.name for _c in _ch533]
+                while _wq533 and not _r533 and len(_vs533) < 256:
+                    _y533 = _wq533.pop()
+                    if _y533 in _vs533:
+                        continue
+                    _vs533.append(_y533)
+                    _wq533.extend(sorted(_dep315.get(_y533) or ()))
+                    for _yc533 in _cdefs315.get(_y533) or []:
+                        for _m533 in _yc533.body:
+                            if not (isinstance(_m533, (_ast175.FunctionDef,
+                                                       _ast175.AsyncFunctionDef))
+                                    and _m533.name in ("__init__", "__post_init__", "__new__")):
+                                continue
+                            _sk533 = set()
+                            for _z533 in _ast175.walk(_m533):
+                                if isinstance(_z533, _ast175.AnnAssign):
+                                    _sk533 |= {id(_w) for _w in _ast175.walk(_z533.annotation)}
+                            _pm534 = {}
+                            _cl534 = set()
+                            for _st533 in _m533.body:
+                                for _z533 in reversed(list(_ast175.walk(_st533))):
+                                    if isinstance(_z533, (_ast175.Raise, _ast175.Assert)):
+                                        _r533 = _r533 or (
+                                            f"`{_ast175.unparse(_z533)[:60]}` (line "
+                                            f"{_z533.lineno}) in `{_y533}.{_m533.name}`, which "
+                                            f"`{_q533}()` runs")
+                                    for _w534 in _ast175.iter_child_nodes(_z533):
+                                        _pm534[id(_w534)] = _z533
+                                    if (isinstance(_z533, _ast175.expr)
+                                            and not isinstance(_z533, (
+                                                _ast175.Name, _ast175.Attribute, _ast175.Call,
+                                                _ast175.Lambda, _ast175.ListComp, _ast175.SetComp,
+                                                _ast175.DictComp, _ast175.GeneratorExp,
+                                                _ast175.NamedExpr, _ast175.Await, _ast175.Yield,
+                                                _ast175.YieldFrom))
+                                            and all(id(_w) in _cl534 or isinstance(_w, (
+                                                _ast175.expr_context, _ast175.operator,
+                                                _ast175.boolop, _ast175.unaryop, _ast175.cmpop))
+                                                    for _w in _ast175.iter_child_nodes(_z533))):
+                                        _cl534.add(id(_z533))
+                                for _z533 in _ast175.walk(_st533):
+                                    if (id(_z533) in _cl534 and id(_z533) not in _sk533
+                                            and id(_pm534.get(id(_z533))) not in _cl534):
+                                        _lq534.append((_z533, _cn533, False,
+                                                       f"`{_ast175.unparse(_z533)[:60]}` (line "
+                                                       f"{_z533.lineno}) in "
+                                                       f"`{_y533}.{_m533.name}`, which "
+                                                       f"`{_q533}()` runs"))
+                if _r533:
+                    _why315[_cn533] = (f"the dataclass `default_factory={_q533}` (line {_ln533}): "
+                                       f"{_r533}; the synthesized `__init__` calls it with no "
+                                       f"argument (route #533)")
+        # (run #4) ROUTE #534 -- THE LITERAL OPERANDS' KINDS. A parameterless factory lambda's
+        # body passed route #519's judge, which reads a NAME / FIELD at its declared kind but
+        # never judged the kinds of LITERAL operands: `lambda: "a" + 1`, `[*5]`, `1 < "a"`,
+        # `{[1]}`, `-"a"`, `"%d" % "a"`, `f"{'a':d}"`, `1 << 2**63`, `len(5)` raised in the
+        # synthesized `__init__` under a proved `no_exception \all` (red team 50, 79). A
+        # factory lambda's body (and every closed sub-expression of a constructor a factory
+        # class runs) is admitted only when each node has a kind among: a constant; a list /
+        # tuple display (a `*` of a sequence / set / dict display); a set / dict display of
+        # hashable keys; `not`; unary `-` / `+` of a number, `~` of an int; `+` of two numbers
+        # / two str / two bytes / two lists / two tuples; `-` of numbers or sets; `*` of
+        # numbers or of a sequence by a small int literal; `/` `//` `%` of a number by a
+        # non-zero number literal (a float never beside an int that may be large); `**` of a
+        # small int by a literal 0..64; `<<` / `>>` by a literal 0..64; `&` `|` `^` of ints /
+        # sets; `==` / `!=` / `is` anywhere, `<` ... only of two numbers / str / bytes / sets,
+        # `in` of a list / tuple, of a hashable in a set / dict, of a str in a str, of bytes in
+        # bytes; `and` / `or` / `x if c else y`; an f-string of scalars without a format spec;
+        # a slice (small int bounds, non-zero literal step) of a sequence; a builtin type the
+        # program does not rebind, called with no argument. Anything else -- a name, an
+        # attribute, a subscript, a call with arguments, a comprehension -- is not modelled.
+        for _e534, _cn534, _lam534, _wh534 in _lq534:
+            if _why315.get(_cn534):
+                continue
+            _kk534 = {}
+            _bd534 = None
+            _NU534 = ("int", "big", "float", "complex")
+            _HA534 = ("int", "big", "float", "complex", "str", "bytes", "none", "htuple",
+                      "fset", "obj")
+            _VA534 = _HA534 + ("tuple", "list", "set", "dict", "barr", "mix")
+            for _z534 in reversed(list(_ast175.walk(_e534))):
+                if isinstance(_z534, (_ast175.expr_context, _ast175.operator, _ast175.boolop,
+                                      _ast175.unaryop, _ast175.cmpop)):
+                    continue
+                _ch534 = [_kk534.get(id(_w)) for _w in _ast175.iter_child_nodes(_z534)
+                          if not isinstance(_w, (_ast175.expr_context, _ast175.operator,
+                                                 _ast175.boolop, _ast175.unaryop,
+                                                 _ast175.cmpop))]
+                _k534 = None
+                if isinstance(_z534, _ast175.Constant):
+                    _v534 = _z534.value
+                    _k534 = ("int" if type(_v534) in (int, bool) and abs(_v534) <= 2147483648
+                             else "big" if type(_v534) is int
+                             else {float: "float", complex: "complex", str: "str",
+                                   bytes: "bytes"}.get(type(_v534))
+                             or ("none" if _v534 is None else "obj" if _v534 is Ellipsis
+                                 else None))
+                elif isinstance(_z534, _ast175.Name):
+                    if (_z534.id in ("list", "dict", "set", "tuple", "frozenset", "str", "bytes",
+                                     "bytearray", "int", "float", "bool", "complex", "object")
+                            and _sb535.get((None, _z534.id), 0) == 0
+                            and not any(_z.names[0].name == "*"
+                                        for _z in _ast175.walk(_tall175)
+                                        if isinstance(_z, _ast175.ImportFrom))):
+                        _k534 = "fn:" + _z534.id
+                elif isinstance(_z534, _ast175.Call):
+                    _fk534 = _kk534.get(id(_z534.func)) or ""
+                    if _fk534.startswith("fn:") and not _z534.args and not _z534.keywords:
+                        _k534 = {"list": "list", "dict": "dict", "set": "set", "tuple": "htuple",
+                                 "frozenset": "fset", "str": "str", "bytes": "bytes",
+                                 "bytearray": "barr", "int": "int", "float": "float",
+                                 "bool": "int", "complex": "complex",
+                                 "object": "obj"}[_fk534[3:]]
+                elif isinstance(_z534, _ast175.Starred):
+                    if _ch534 and _ch534[0] in ("str", "bytes", "list", "tuple", "htuple", "set",
+                                                "fset", "dict", "barr"):
+                        _k534 = "star"
+                elif isinstance(_z534, (_ast175.List, _ast175.Tuple)):
+                    if all(_c in _VA534 or _c == "star" for _c in _ch534):
+                        _k534 = ("list" if isinstance(_z534, _ast175.List)
+                                 else "htuple" if all(_c in _HA534 for _c in _ch534)
+                                 else "tuple")
+                elif isinstance(_z534, _ast175.Set):
+                    if all(_c in _HA534 for _c in _ch534):
+                        _k534 = "set"
+                elif isinstance(_z534, _ast175.Dict):
+                    if (all(_k is not None for _k in _z534.keys)
+                            and all(_kk534.get(id(_k)) in _HA534 for _k in _z534.keys)
+                            and all(_kk534.get(id(_v)) in _VA534 for _v in _z534.values)):
+                        _k534 = "dict"
+                elif isinstance(_z534, _ast175.UnaryOp):
+                    _o534 = _ch534[0] if _ch534 else None
+                    if isinstance(_z534.op, _ast175.Not):
+                        _k534 = "int" if _o534 in _VA534 else None
+                    elif isinstance(_z534.op, (_ast175.USub, _ast175.UAdd)):
+                        _k534 = _o534 if _o534 in _NU534 else None
+                    elif isinstance(_z534.op, _ast175.Invert):
+                        _k534 = _o534 if _o534 in ("int", "big") else None
+                elif isinstance(_z534, _ast175.BinOp):
+                    _l534 = _kk534.get(id(_z534.left))
+                    _g534 = _kk534.get(id(_z534.right))
+                    _rv534 = (_z534.right.value if isinstance(_z534.right, _ast175.Constant)
+                              else None)
+                    _nj534 = (None if "big" in (_l534, _g534) and (
+                        {"float", "complex"} & {_l534, _g534})
+                              else "complex" if "complex" in (_l534, _g534)
+                              else "float" if "float" in (_l534, _g534) else "big")
+                    _bn534 = _l534 in _NU534 and _g534 in _NU534
+                    _op534 = _z534.op
+                    if isinstance(_op534, _ast175.Add):
+                        _k534 = (_nj534 if _bn534
+                                 else _l534 if _l534 == _g534 and _l534 in ("str", "bytes",
+                                                                             "list", "htuple")
+                                 else "tuple" if {_l534, _g534} <= {"tuple", "htuple"}
+                                 else None)
+                    elif isinstance(_op534, _ast175.Sub):
+                        _k534 = (_nj534 if _bn534
+                                 else _l534 if _l534 in ("set", "fset") and _g534 in ("set",
+                                                                                     "fset")
+                                 else None)
+                    elif isinstance(_op534, _ast175.Mult):
+                        _k534 = (_nj534 if _bn534
+                                 else _l534 if (_l534 in ("str", "bytes", "list", "tuple",
+                                                         "htuple") and _g534 == "int")
+                                 else _g534 if (_g534 in ("str", "bytes", "list", "tuple",
+                                                         "htuple") and _l534 == "int")
+                                 else None)
+                    elif isinstance(_op534, (_ast175.Div, _ast175.FloorDiv, _ast175.Mod)):
+                        _k534 = (("float" if isinstance(_op534, _ast175.Div) else _nj534)
+                                 if (_l534 in ("int", "big", "float") and type(_rv534) in (int, float)
+                                     and _rv534 != 0
+                                     and not (_l534 == "big" and (type(_rv534) is float
+                                                                  or isinstance(_op534,
+                                                                                _ast175.Div))))
+                                 else None)
+                    elif isinstance(_op534, _ast175.Pow):
+                        _k534 = ("big" if _l534 == "int" and type(_rv534) is int
+                                 and 0 <= _rv534 <= 64 else None)
+                    elif isinstance(_op534, (_ast175.LShift, _ast175.RShift)):
+                        _k534 = ("big" if _l534 in ("int", "big") and type(_rv534) is int
+                                 and 0 <= _rv534 <= 64 else None)
+                    elif isinstance(_op534, (_ast175.BitAnd, _ast175.BitOr, _ast175.BitXor)):
+                        _k534 = ("big" if _l534 in ("int", "big") and _g534 in ("int", "big")
+                                 else _l534 if _l534 in ("set", "fset") and _g534 in ("set",
+                                                                                     "fset")
+                                 else None)
+                elif isinstance(_z534, _ast175.Compare):
+                    _os534 = [_kk534.get(id(_z534.left))] + [_kk534.get(id(_w))
+                                                             for _w in _z534.comparators]
+                    _k534 = "int" if all(_c in _VA534 for _c in _os534) else None
+                    for _i534, _o534 in enumerate(_z534.ops):
+                        _a534, _b534 = _os534[_i534], _os534[_i534 + 1]
+                        if isinstance(_o534, (_ast175.Eq, _ast175.NotEq, _ast175.Is,
+                                              _ast175.IsNot)):
+                            continue
+                        if isinstance(_o534, (_ast175.In, _ast175.NotIn)):
+                            if not (_b534 in ("list", "tuple", "htuple")
+                                    or (_b534 in ("set", "fset", "dict") and _a534 in _HA534)
+                                    or (_b534 == "str" and _a534 == "str")
+                                    or (_b534 == "bytes" and _a534 == "bytes")):
+                                _k534 = None
+                        elif not ((_a534 in ("int", "big", "float")
+                                   and _b534 in ("int", "big", "float"))
+                                  or (_a534 == _b534 and _a534 in ("str", "bytes"))
+                                  or (_a534 in ("set", "fset") and _b534 in ("set", "fset"))):
+                            _k534 = None
+                elif isinstance(_z534, _ast175.BoolOp):
+                    if all(_c in _VA534 for _c in _ch534):
+                        _k534 = _ch534[0] if len(set(_ch534)) == 1 else "mix"
+                elif isinstance(_z534, _ast175.IfExp):
+                    if all(_c in _VA534 for _c in _ch534):
+                        _k534 = _ch534[1] if _ch534[1] == _ch534[2] else "mix"
+                elif isinstance(_z534, _ast175.FormattedValue):
+                    if (_z534.format_spec is None
+                            and _kk534.get(id(_z534.value)) in ("int", "float", "complex",
+                                                                 "str", "bytes", "none")):
+                        _k534 = "fv"
+                elif isinstance(_z534, _ast175.JoinedStr):
+                    if all(_c in ("str", "fv") for _c in _ch534):
+                        _k534 = "str"
+                elif isinstance(_z534, _ast175.Slice):
+                    _ss534 = [_w for _w in (_z534.lower, _z534.upper) if _w is not None]
+                    if (all(_kk534.get(id(_w)) == "int" for _w in _ss534)
+                            and (_z534.step is None or (
+                                isinstance(_z534.step, _ast175.Constant)
+                                and type(_z534.step.value) is int and _z534.step.value != 0)
+                                 or (isinstance(_z534.step, _ast175.UnaryOp)
+                                     and isinstance(_z534.step.op, _ast175.USub)
+                                     and isinstance(_z534.step.operand, _ast175.Constant)
+                                     and type(_z534.step.operand.value) is int
+                                     and _z534.step.operand.value != 0))):
+                        _k534 = "slice"
+                elif isinstance(_z534, _ast175.Subscript):
+                    if (isinstance(_z534.ctx, _ast175.Load)
+                            and _kk534.get(id(_z534.slice)) == "slice"
+                            and _kk534.get(id(_z534.value)) in ("str", "bytes", "list", "tuple",
+                                                                 "htuple", "barr")):
+                        _k534 = _kk534.get(id(_z534.value))
+                if _k534 is None:
+                    _bd534 = _z534
+                    break
+                _kk534[id(_z534)] = _k534
+            if _bd534 is None and _kk534.get(id(_e534)) not in (
+                    _VA534 if _lam534 else _VA534 + ("star", "fv", "slice")):
+                _bd534 = _e534
+            if _bd534 is not None:
+                _why315[_cn534] = (f"{_wh534}: `{_ast175.unparse(_bd534)[:60]}` is not of a kind "
+                                   f"whose evaluation is modelled as total (a literal operand "
+                                   f"of the wrong kind raises TypeError / ValueError / "
+                                   f"OverflowError, route #534)")
         # a class depending on an unmodelled one is unmodelled too
         _chg315 = True
         while _chg315:
