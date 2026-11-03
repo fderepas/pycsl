@@ -1,5 +1,12 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-03): #529-#539 OPENED (red team 50 on 9bdb8cf32: 1113 probes / 342 confirmed in 11 families, default mode; rt48's 76 pairs
+##   76/76 REFUSED = #519 / #520 converge on their own pairs): bypasses of route #519's constructor judge — #529 iteration / unpacking shape (78),
+##   #530 sorted ordering / key (38), #531 unresolved attribute reads (26), #532 builtin / exception-class call argument kinds + __post_init__ arity (35),
+##   #536 synthesized dataclass / NamedTuple __repr__ over > 4300-digit ints (23), #537 match capture rebinding a parameter (12); of #520 — #533
+##   program-class factory not callable with no argument (33), #534 literal lambda kinds (79), #535 class-body binding shadowing a builtin factory (10);
+##   #538 tuple ordering with an Any slot (1, plain function); #539 module / class-scope names judged by their first binding (7). Driver repro 11/11.
+
 ## run #4 (2026-11-02): #521-#528 OPENED (red team 49 on dd4a06928: 1472 probes / 275 confirmed in 8 families, default mode): #521 r230-none-fence-
 ##   binary-only (74); #522 r230-get-on-dict-field (30); #523 local-str-list-literal-iterated-after-append (32); #524 r230-nested-optional-container (19);
 ##   #525 module-str-list-mutated-via-namespace (21; a gap of today's lex-char-class inc 2); #526 r230-none-taint-does-not-flow (47);
