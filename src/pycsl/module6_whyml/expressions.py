@@ -21439,6 +21439,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 _d521 = None
             _k521 = _d521.get("type") if isinstance(_d521, dict) else None
             _g521: List[Any] = []
+            # u18 -- THE CLAIM GATE (route #431's polarity, as route #527's): without a claim
+            # that makes the raise a contract violation, a TypeError / AttributeError /
+            # KeyError only ends the function abnormally, which no `ensures` is about (a
+            # handler that could catch it is refused by route #174 under any claim). So a
+            # LOCAL raise on a may-be-None operand is owed only under a claim covering it
+            # (declared, reached -- route #460's `reach_r460` -- or widened by #171); an
+            # ESCAPE (a None or a container holding one handed to a file / imported
+            # callee or constructor, returned, stored into a field) is owed always: the
+            # reader of the escaped value is not this function.
+            _ne521 = set(getattr(self, "_current_no_exception", set()) or set())
+            _al521 = bool(getattr(self, "_current_no_exception_all", False))
+            _te521 = _al521 or bool(_ne521 & {"TypeError", "Exception", "BaseException"})
+            _ke521 = _te521 or bool(_ne521 & {"KeyError", "LookupError"})
+            _ae521 = _al521 or bool(_ne521 & {"AttributeError", "Exception",
+                                               "BaseException"})
             _cmp521 = False
             if _k521 is not None:
                 _o521 = _d521.get("op")
@@ -21495,7 +21510,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 elif _k521 == "Subscript":
                     _c521.append((_d521.get("value"), "subscripting None raises TypeError", "mb"))
                     _c521.append((_d521.get("index"), "a None index raises TypeError / KeyError",
-                                  "mb"))
+                                  "mbk"))
                 elif _k521 in ("SliceAccess", "Slice"):
                     _c521.append((_d521.get("value"), "slicing None raises TypeError", "mb"))
                 elif _k521 == "FString":
@@ -21517,7 +21532,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         for _kw521 in (_d521.get("keywords") or [])
                         if isinstance(_kw521, dict)]
                     _rv521, _m521 = (_f521.rsplit(".", 1) if "." in _f521 else ("", _f521))
-                    if _rv521 and "." not in _rv521 and _rv521 in _r521["mb_locals"]:
+                    if (_rv521 and "." not in _rv521 and _rv521 in _r521["mb_locals"]
+                            and _ae521):
                         _g521.append(({"type": "Var", "name": _rv521},
                                       "a method call on None raises AttributeError"))
                     if _rv521:
@@ -21557,11 +21573,45 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         or str(_f521).lower() in {
                             str(_rk521).lower() for _rk521 in (
                                 getattr(self, "_record_types", {}) or {})}))
+                    # u18: a CONSTRUCTOR's field whose declared type admits None (`option`,
+                    # a union, Optional / Any) takes the value, as a file function's
+                    # parameter does above (measured: the mirror's `_N("MatchStar")(name=
+                    # name)` with `name: Optional[str]`, an ASDL `option` slot).
+                    if _ctr521 and _fi521 is None:
+                        for _td521 in ((getattr(self, "ir", None) or {}).get("type_decls")
+                                       or []):
+                            if not (isinstance(_td521, dict)
+                                    and _td521.get("kind") == "record"
+                                    and str(_td521.get("name", "")).lower()
+                                    == str(_f521).lower()):
+                                continue
+                            for _i521, _fd521 in enumerate(_td521.get("fields") or []):
+                                _an521 = str((_fd521 or {}).get("type", ""))
+                                _adm521[_i521] = _adm521[str((_fd521 or {}).get("name"))] = (
+                                    _an521 in ("option", "Any", "object")
+                                    or _an521.startswith("option")
+                                    or _an521.startswith("_union_")
+                                    or "Optional" in _an521 or "None" in _an521)
+                            break
+                    # u18: a callee this FILE does not define (a builtin function, a method
+                    # of a builtin type, an imported function) is entered with the None HERE
+                    # and raises there or returns into this record: a LOCAL raise, owed only
+                    # under a claim (below). A FILE function / method / constructor receives
+                    # the None into a body verified against its parameter's annotation: an
+                    # ESCAPE from the record, owed unconditionally (residual, recorded: an
+                    # imported callee that stores the None without raising).
+                    _bi521 = (not _ctr521 and not any(
+                        str(_fn.get("name", "")) in (_m521, _f521)
+                        and str(_fn.get("name", "")) not in (
+                            getattr(self, "imported_names_r521", None) or set())
+                        or str(_fn.get("name", "")).endswith("__" + _m521)
+                        for _fn in ((getattr(self, "ir", None) or {}).get("functions") or [])
+                        if isinstance(_fn, dict)))
                     for _i521, _x521 in _as521:
                         if not _chk521 or _adm521.get(_i521, False):
                             continue
                         _c521.append((_x521, "passing None to `%s` raises or breaks its "
-                                      "parameter's type" % _f521, "mb"))
+                                      "parameter's type" % _f521, "mba" if _bi521 else "mbu"))
                         if _ctr521:
                             # a container holding None handed to a FILE function / constructor
                             # leaves the record; a builtin over it (`sorted`, `sum`, ...) is the
@@ -21729,9 +21779,12 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     if _z521 == "cd!":
                         if _cdv521 and not any(_e521[0] is _x521 for _e521 in _g521):
                             _g521.append((_bad521, _y521))
-                    elif _mbv521:
-                        _g521.append((_x521 if _z521 == "mb" else _bad521, _y521))
-                _cmp521 = any(_q5_mbr[len(_c521):])
+                    elif _mbv521 and (_z521 == "mbu"
+                                      or (_z521 == "mbk" and _ke521)
+                                      or (_z521 == "mba" and (_te521 or _ae521))
+                                      or (_z521 in ("mb", "mb?") and _te521)):
+                        _g521.append((_x521 if _z521 != "mb?" else _bad521, _y521))
+                _cmp521 = _te521 and any(_q5_mbr[len(_c521):])
             if _g521 or _cmp521:
                 _low521 = self._expr_to_whyml(dict(_d521, _pycsl_r521n=True,
                                                    **({"_pycsl_r358n": True} if _nr358 else {})),

@@ -7437,6 +7437,50 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     _r524_st.append((_r524_n.right, _r524_d))
             if _r524_ds and _r524_ds != {1}:
                 _r524_depths[_r230_nm] = sorted(_r524_ds)
+        _r526_nd: Dict[str, Any] = {}
+        if node.returns is not None and isinstance(node.returns, ast.Subscript):
+            _r526_ad: set = set()
+            _r526_af: List[int] = []
+            _r526_st: list = [(node.returns, 0)]
+            while _r526_st:
+                _r526_n, _r526_d = _r526_st.pop()
+                if isinstance(_r526_n, ast.Constant) and isinstance(_r526_n.value, str):
+                    # a string (forward-reference) annotation is not parsed: it admits None
+                    # at its own depth only when it spells `None` / `Optional` (deeper
+                    # Nones are then owed: the fail-closed direction)
+                    if "None" in _r526_n.value or "Optional" in _r526_n.value:
+                        _r526_ad.add(_r526_d)
+                    continue
+                if ((isinstance(_r526_n, ast.Constant) and _r526_n.value is None)
+                        or (isinstance(_r526_n, ast.Name) and _r526_n.id == "None")):
+                    _r526_ad.add(_r526_d)
+                    continue
+                _r526_nm = (_r526_n.id if isinstance(_r526_n, ast.Name) else
+                            _r526_n.attr if isinstance(_r526_n, ast.Attribute) else "")
+                if _r526_nm in ("Any", "object", "PyVal"):
+                    _r526_af.append(_r526_d)
+                    continue
+                if isinstance(_r526_n, ast.Subscript):
+                    _r526_b = _r526_n.value
+                    _r526_bn = (_r526_b.id if isinstance(_r526_b, ast.Name) else
+                                _r526_b.attr if isinstance(_r526_b, ast.Attribute) else "")
+                    if _r526_bn == "Optional":
+                        _r526_ad.add(_r526_d)
+                        _r526_st.append((_r526_n.slice, _r526_d))
+                    elif _r526_bn in ("Union", "Annotated", "Final", "ClassVar"):
+                        _r526_st.append((_r526_n.slice, _r526_d))
+                    else:
+                        _r526_st.append((_r526_n.slice, _r526_d + 1))
+                    continue
+                if isinstance(_r526_n, ast.Tuple):
+                    _r526_st.extend((_e, _r526_d) for _e in _r526_n.elts)
+                    continue
+                if isinstance(_r526_n, ast.BinOp) and isinstance(_r526_n.op, ast.BitOr):
+                    _r526_st.append((_r526_n.left, _r526_d))
+                    _r526_st.append((_r526_n.right, _r526_d))
+            if _r526_af or any(_x >= 1 for _x in _r526_ad):
+                _r526_nd = {"admit": sorted(_r526_ad),
+                            "any_from": min(_r526_af) if _r526_af else None}
         # (#49) ROUTE #249 — CONTAINERS WHOSE ELEMENTS ARE `Any`. `List[Any]`, `Dict[str, Any]`,
         # `Set[Any]`, `Tuple[Any, int]`, or a TypeVar element: `param_annotations` keeps only `"list"`/`"dict"`, so Module 6 could not
         # tell `xs[0] == xs[1]` on a `List[Any]` from the same read on a `List[int]`, and
@@ -7552,23 +7596,18 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             **({"global_writes": sorted(_global_writes)} if _global_writes else {}),
             **({"r230_optional_containers": sorted(_r230_opt)} if _r230_opt else {}),
             **({"r524_optional_depths": _r524_depths} if _r524_depths else {}),
-            # (#49) driver run #4, ROUTE #526: the RETURN annotation admits `None` somewhere
-            # (`Optional[int]`, `List[Optional[int]]`, `int | None`) -- `return_annotation`
-            # keeps only `"list"` for the latter, and Module 6 must know whether a value or a
-            # container that may hold None may leave the function. Emitted only for a CONTAINER
-            # annotation (a top-level Optional / Union is already `_union_*`), so IR goldens hold.
-            **({"r526_returns_optional": True}
-               if node.returns is not None and isinstance(node.returns, ast.Subscript)
-               and not (isinstance(node.returns.value, ast.Name)
-                        and node.returns.value.id in ("Optional", "Union"))
-               and any(
-                   (isinstance(_x526, ast.Name) and _x526.id in ("Optional", "Any"))
-                   or (isinstance(_x526, ast.Attribute) and _x526.attr in ("Optional", "Any"))
-                   or (isinstance(_x526, ast.Constant) and (
-                       _x526.value is None or (isinstance(_x526.value, str) and (
-                           "None" in _x526.value or "Optional" in _x526.value
-                           or "Any" in _x526.value))))
-                   for _x526 in ast.walk(node.returns)) else {}),
+            # (#49) driver run #4, ROUTE #526 (u13, refined u18): the DEPTHS at which the
+            # RETURN annotation admits `None` -- `return_annotation` keeps only `"list"` for
+            # `List[Optional[int]]`, and Module 6 must know whether a value (depth 0) or a
+            # container holding None at depth d may leave the function. `admit`: the depths
+            # of an `Optional[..]` / `None` / `.. | None`; `any_from`: the least depth of an
+            # `Any` / `object` / `PyVal` (the verifier's own `PyVal = Any` sentinel, see
+            # route #336 above), which admits None there and below. Counted as route #524's
+            # `_r524_depths` count (container subscripts; the Optional / Union / Annotated
+            # wrappers do not count). Emitted ONLY for a
+            # subscripted annotation admitting None below the top (a top-level Optional /
+            # Union alone is already `_union_*`), so IR goldens hold.
+            **({"r526_return_none_depths": _r526_nd} if _r526_nd else {}),
             **({"r249_erased_containers": dict(sorted(_r249_cont.items()))}
                if _r249_cont else {}),
             # (#34) emitted ONLY when non-empty, so the IR of every function without a

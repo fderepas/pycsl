@@ -5173,6 +5173,29 @@ float codomain (route #57's unmeasured placeholders); an Optional record FIELD r
 and a CONTAINER holding None passed to a method or a builtin (`sorted(xs)`, route #437's) are not judged here; a local bound to a None literal
 and later rebound is the None-local routes' (#44 / #46 / #227 / #239).
 
+CLAIM GATE (u18, route #431's polarity, as route #527's). A LOCAL raise -- unary, membership, arithmetic /
+concat, subscript receiver (index: TypeError or KeyError / LookupError), slice, format spec, iterable,
+comprehension iterable or erased element, augmented assignment, tuple unpack, a method call on the value
+(AttributeError), an argument to a callee this FILE does not define (a builtin, a builtin-type method, an
+IMPORTED function: `imported_names`) -- is owed only when the function claims the raised class (`\all`,
+the class, `Exception`, `BaseException`; declared, reached by route #460, or widened by route #171's handler
+rule). Without such a claim the raise only ends the function abnormally, which no `ensures` speaks about, and a
+handler that could catch it in a claimed function is refused by route #174 (probes: `try: -d.get(k) except
+TypeError` under `ensures`, in the function or around a callee, are refused; an `ensures` caller of an
+unclaimed helper with such a handler is NOT PROVED). An ESCAPE -- a None or a container holding one handed to
+a FILE function / method / constructor whose parameter (constructor: field) does not admit None, returned at a
+depth the return annotation does not admit, stored into a field or a container the record does not follow --
+is owed always: its reader is not this function. Return depths (Module 5 `r526_return_none_depths`, which
+replaces `r526_returns_optional`): `admit` = the depths of an `Optional[..]` / `None` / `| None`, `any_from` =
+the least depth of an `Any` / `object` / `PyVal` (the verifier's `PyVal = Any` sentinel, route #336); a
+top-level Optional / Union admits depth 0; an unannotated return admits nothing. The elements of an escaping
+display owe the ordinary (narrowable) value obligation instead of the display an unprovable one when they
+are the only None it holds. The record is now DATA (`mb_locals`, `mb_cont`, `none_loc`, `dicts`, `dvt`,
+`fget`) read by ONE inline evaluator kept textually identical in `functions.py` / `expressions.py` /
+`statements.py` (no nested def: check-mirror-coverage); the fixpoint applies a round's bindings after
+evaluating them all (u13's walk-order read missed a None-valued `.get` default local: `8350`).
+Residual (named): a None passed by an UNCLAIMED function to an IMPORTED callee that stores it without raising.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

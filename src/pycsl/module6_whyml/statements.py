@@ -3447,7 +3447,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `_field_label` returns the bare name when unambiguous → byte-identical for
         # non-overlapping corpus.
         _rec_lower = (self._current_self_type if obj == "self"
-                      else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or None)
+                      else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or "")
         safe_field = self._field_label(_rec_lower, field)
         if field in self._all_record_fields:
             # Coerce RHS to the field's declared WhyML type. Without
@@ -3560,7 +3560,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # failed to type-check (fail-closed) while `self.n = self.n + 1` proved.
         # `_field_label` returns the bare name when the field is unambiguous.
         _rec_lower = (self._current_self_type if obj == "self"
-                      else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or None)
+                      else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or "")
         safe_field = self._field_label(_rec_lower, field)
         if field in self._all_record_fields:
             code = f"{indent}{obj}.{safe_field} <- {obj}.{safe_field} {op} {val}"
@@ -4737,14 +4737,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # the candidates: (operand, why when it may be None, why when it holds a None
             # (None: not judged), the obligation is unconditional)
             _c521s: List[Any] = []
-            if _k521s == "Return" and isinstance(_v521s, dict) and not (
-                    _fn521s.get("r526_returns_optional")
-                    or str(_fn521s.get("return_annotation") or "").startswith("_union_")
-                    or str(_fn521s.get("return_annotation") or "") in ("Any", "object")):
-                _c521s.append((_v521s, "returning it from a function whose return annotation "
-                               "does not admit None hands None to callers",
+            # (u18) a RETURN is judged against the depths its annotation admits None at
+            # (Module 5's `r526_return_none_depths`; a top-level Optional / Union admits
+            # depth 0, `Any` / `object` every depth): None at depth 0, or a container
+            # holding None at a depth the annotation does not admit, is owed.
+            _ra521s = str(_fn521s.get("return_annotation") or "")
+            _rd521s = _fn521s.get("r526_return_none_depths") or {}
+            _ad521s = set(_rd521s.get("admit") or [])
+            if _ra521s.startswith("_union_"):
+                _ad521s.add(0)
+            _af521s = (0 if _ra521s in ("Any", "object") else _rd521s.get("any_from"))
+            if _k521s == "Return" and isinstance(_v521s, dict) and _af521s != 0:
+                _c521s.append((_v521s, None if 0 in _ad521s else (
+                               "returning it from a function whose return annotation "
+                               "does not admit None hands None to callers"),
                                "returning a container that may hold None from a function whose "
-                               "return annotation does not admit None"))
+                               "return annotation does not admit None at that depth",
+                               (_ad521s, _af521s)))
             elif _k521s in ("FieldAssign", "FieldAugAssign") and isinstance(_v521s, dict):
                 _ob521s = str(stmt_d.get("object") or "")
                 _cl521s = (getattr(self, "_current_self_type", None) if _ob521s == "self"
@@ -4762,17 +4771,26 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     _c521s.append((_v521s, "storing it into a field whose annotation does not "
                                    "admit None (or updating the field with it)",
                                    "storing a container that may hold None into a field, which "
-                                   "the record does not follow"))
+                                   "the record does not follow", None))
+            # u18 -- THE CLAIM GATE (see `_expr_to_whyml`): the three LOCAL raises below
+            # (augmented assignment, iteration, unpacking) are owed only under a claim
+            # covering TypeError; the escapes above (return, field store) and below (an
+            # item store into a container the record does not follow) always.
+            elif _k521s in ("AugAssign", "For", "TupleUnpack") and not (
+                    getattr(self, "_current_no_exception_all", False)
+                    or set(getattr(self, "_current_no_exception", set()) or set())
+                    & {"TypeError", "Exception", "BaseException"}):
+                pass
             elif _k521s == "AugAssign":
                 _c521s.append((_v521s, "an augmented assignment raises TypeError when its value "
-                               "is None", None))
+                               "is None", None, None))
                 if isinstance(stmt_d.get("target"), str):
                     _c521s.append(({"type": "Var", "name": stmt_d.get("target")}, "an augmented "
-                                   "assignment raises TypeError when its target is None", None))
+                                   "assignment raises TypeError when its target is None", None, None))
             elif _k521s == "For":
-                _c521s.append((stmt_d.get("iter"), "iterating None raises TypeError", None))
+                _c521s.append((stmt_d.get("iter"), "iterating None raises TypeError", None, None))
             elif _k521s == "TupleUnpack":
-                _c521s.append((_v521s, "unpacking None raises TypeError", None))
+                _c521s.append((_v521s, "unpacking None raises TypeError", None, None))
             elif _k521s == "ArraySet" and isinstance(_v521s, dict):
                 _ar521s = stmt_d.get("array")
                 while isinstance(_ar521s, dict) and _ar521s.get("type") == "Subscript":
@@ -4781,11 +4799,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     _c521s.append((_v521s, "storing it into an item of a container the record "
                                    "does not follow",
                                    "storing a container that may hold None into a container "
-                                   "the record does not follow"))
+                                   "the record does not follow", None))
             _g521: List[Any] = []
             if _c521s:
                 _q5_rec = _r521s
                 _q5_qs = [(_x521s[0], False) for _x521s in _c521s]
+                # (u18) the ELEMENTS of an escaping display (`return (a, b)`, `self.f = [a]`)
+                # are queried too: when the only None the display holds is an element that
+                # may itself be None, that element owes the ordinary (narrowable) value
+                # obligation instead of the display an unprovable one (measured: the
+                # mirror's `return (slice_node, lower_ir, width)` after `if lower_ir is
+                # None: return None`).
+                _el521s: List[Any] = []
+                for _i521s, _x521s in enumerate(_c521s):
+                    if (isinstance(_x521s[0], dict) and _x521s[0].get("type") in (
+                            "ArrayLit", "ListLit", "SetLit", "Tuple", "MkTuple", "MkList",
+                            "List", "Set")):
+                        for _y521s in (_x521s[0].get("elts") or []):
+                            _el521s.append((_i521s, _y521s))
+                            _q5_qs.append((_y521s, True))
                 # ---- THE R521 EVALUATOR (routes #521-#526). KEPT TEXTUALLY IDENTICAL in
                 # functions.py `_emit_function_block`, expressions.py `_expr_to_whyml` and statements.py
                 # `_stmts_to_whyml` (no helper `def`: check-mirror-coverage). In: `_q5_rec` (the record
@@ -4908,11 +4940,31 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     _q5_mbr.append(_q5_mb)
                     _q5_cdr.append(_q5_cd)
                 # ---- end of the R521 evaluator
-                for (_x521s, _y521s, _z521s), _mbv521s, _cdv521s in zip(_c521s, _q5_mbr, _q5_cdr):
-                    if _mbv521s:
+                for _i521s, ((_x521s, _y521s, _z521s, _w521s), _mbv521s, _cdv521s) in enumerate(
+                        zip(_c521s, _q5_mbr, _q5_cdr)):
+                    # the depths the annotation admits None at: `_ad` exactly, `_af` and below
+                    _ad521s, _af521s = _w521s if _w521s is not None else (set(), None)
+                    _cdv521s = {_d for _d in _cdv521s if not (
+                        _d in _ad521s or (_af521s is not None and _d >= _af521s))}
+                    if _mbv521s and _y521s is not None:
                         _g521.append((_x521s, _y521s))
                     elif _z521s is not None and _cdv521s:
-                        _g521.append((_bad521s, _z521s))
+                        _es521s = [(_e, _m, _c) for (_j, _e), _m, _c in zip(
+                            _el521s, _q5_mbr[len(_c521s):], _q5_cdr[len(_c521s):])
+                            if _j == _i521s]
+                        if _es521s and _cdv521s == {1} and all(
+                                all(_d + 1 in _ad521s or (_af521s is not None
+                                                          and _d + 1 >= _af521s)
+                                    for _d in _c)
+                                for _e, _m, _c in _es521s):
+                            _g521 += [(_e, _z521s) for _e, _m, _c in _es521s
+                                      if _m and isinstance(_e, dict)
+                                      and _e.get("type") != "None"]
+                            if any(_m and (not isinstance(_e, dict) or _e.get("type") == "None")
+                                   for _e, _m, _c in _es521s):
+                                _g521.append((_bad521s, _z521s))
+                        else:
+                            _g521.append((_bad521s, _z521s))
             _gl521 = local_refs
             _gs521 = None
             # ---- THE R521 OBLIGATION TEXT (kept textually identical in expressions.py and

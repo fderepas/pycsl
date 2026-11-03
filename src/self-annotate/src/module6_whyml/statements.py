@@ -1296,7 +1296,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # `_field_label` returns the bare name when unambiguous → byte-identical for
         # non-overlapping corpus.
         _rec_lower = (self._current_self_type if obj == "self"
-                      else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or None)
+                      else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or "")
         safe_field = self._field_label(_rec_lower, field)
         if field in self._all_record_fields:
             # Coerce RHS to the field's declared WhyML type. Without
@@ -1412,7 +1412,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # failed to type-check (fail-closed) while `self.n = self.n + 1` proved.
         # `_field_label` returns the bare name when the field is unambiguous.
         _rec_lower = (self._current_self_type if obj == "self"
-                      else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or None)
+                      else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or "")
         safe_field = self._field_label(_rec_lower, field)
         if field in self._all_record_fields:
             code = f"{indent}{obj}.{safe_field} <- {obj}.{safe_field} {op} {val}"

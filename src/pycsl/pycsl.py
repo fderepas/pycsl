@@ -15740,6 +15740,11 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
     # ROUTE #304 — the pre-resolution class bases (read by `_emit_function_block`'s
     # own-raise coverage test; a class absent from it is covered, fail-closed).
     transpiler.class_bases_r304 = _r304_class_bases
+    # ROUTES #521-#526 (u18) -- the local names of IMPORTED functions (their stubs are
+    # injected into the IR's `functions`): a None passed to one is a LOCAL raise for the
+    # value fence (`expressions.py::_expr_to_whyml`), owed under a claim, not an escape
+    # into a body of this file.
+    transpiler.imported_names_r521 = set(imported_names or set())
     # ROUTE #430 — the functions that may raise TypeError by hashing an underivable value
     # (read by route #178's callee summary in `_reset_function_state`).
     # (#49) ROUTE #439 (red team 34; MEASURED PROVED at 78b519f63, CPython TypeError) — A

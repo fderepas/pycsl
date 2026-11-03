@@ -410,7 +410,7 @@ class Module3_Weaver:
     #@ assigns \nothing
     #@ \diverges
     @staticmethod
-    def _target_dotted_path(target: ast.AST):
+    def _target_dotted_path(target: ast.AST) -> Any:
         """07-1143 R2: the dotted base path of a write target, stripping a trailing
         subscript: `world.fs.disk[i]` → "world.fs.disk", `world.proc.umask` →
         "world.proc.umask", `self.disk[i]` → "self.disk". None if not a Name-rooted
