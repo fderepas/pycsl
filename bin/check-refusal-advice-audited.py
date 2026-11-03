@@ -943,6 +943,17 @@ AUDITED = {
         "Route #527. 'Narrow it first (`if r.s is not None:`, or an early `return` when it is `None` ...)': witness "
         "g1026_ah1000 with the concatenation under `if r.s is not None:` (getting-better/open-routes/witnesses-r527/advice/a527_narrow) "
         "VERIFIES under `no_exception \\all`; controls 8420 (the guard), 8421 (the early return) and 8422 (`self.s`) VERIFY."),
+    # driver run #4 -- routes #540 / #544 / #545 (u19): R540's advice IS control 8560 and witnesses-r540/advice/a540_numeric;
+    # R545's IS controls 8562 / 8564 / 8565 and witnesses-r545/advice/a545_narrow.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_z545, \'lineno\', 0)}: PYCSL-R540-UNARY-PLUS-OPERAND: the operand `{_ast341.unparse(_z545.oper'): (FOLLOWABLE,
+        "Route #540. 'Annotate the value with a numeric type, drop the `+`, or drop the claim': witness g1207_ii1209 with `s: int` "
+        "(getting-better/open-routes/witnesses-r540/advice/a540_numeric) VERIFIES under `no_exception \\all`; control 8560 (`+n` of an "
+        "int under `ensures \\result == n`) VERIFIES; dropping the claim is control 8567."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R545-NONE-OPERAND: the operand `{_ast341.unparse(_r432)}` of `{_p'): (FOLLOWABLE,
+        "Route #545. 'Narrow it first (`if v is not None:`, or an early `return` when it is `None` ...)': witness g1234_am1207's "
+        "`n += v` over an `Optional[int]` parameter, and `-v`, under `if v is not None:` (getting-better/open-routes/witnesses-r545/"
+        "advice/a545_narrow) VERIFIES under "
+        "`no_exception \\all`; controls 8562 (`+r.n` under the guard), 8564 / 8565 (early return, unary and `+=`) VERIFY."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1315,6 +1326,9 @@ AUDITED_HASH = {
     ('src/pycsl/frontend/Module3_Weaver.py', 'PyCSLSemanticError(f"line {getattr(_nb_w, \'lineno\', 0)}: the walrus `{_nb_wn} := ...` sits in a default, decorator, base or keyword of the {'): 'a290e4c589c6',
     # driver run #4 (u15) -- route #527
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"""\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R527-OPTIONAL-OPERAND: the operand `{_ast341.unparse(_r432)}` o'): '08e45dca83f3',
+    # driver run #4 -- routes #540 / #545 (u19)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_z545, \'lineno\', 0)}: PYCSL-R540-UNARY-PLUS-OPERAND: the operand `{_ast341.unparse(_z545.oper'): '2c1cbb6f5b9f',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R545-NONE-OPERAND: the operand `{_ast341.unparse(_r432)}` of `{_p'): '5d9812ac259d',
 }
 
 

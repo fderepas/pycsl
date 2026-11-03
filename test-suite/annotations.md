@@ -5196,6 +5196,44 @@ are the only None it holds. The record is now DATA (`mb_locals`, `mb_cont`, `non
 evaluating them all (u13's walk-order read missed a None-valued `.get` default local: `8350`).
 Residual (named): a None passed by an UNCLAIMED function to an IMPORTED callee that stores it without raising.
 
+### 7.540 A unary `+` operand must be numeric; a unary / augmented-assignment operand that may be `None` is judged like route #527's; a literal `None` is no classinfo (routes #540 / #544 / #545, run #4)
+
+Module 6 lowers `+x` as `x` itself (`_handle_unaryop_expr`: no obligation, no kind check) and `None` as the int
+`pycsl_none`, so `+s` of a str / list / dict / tuple / set / range / record / None value, `-None`, `~None`, `-v`
+for `v = None`, `-nothing()` (a `-> None` def), `-(v := None)`, `-xs[0]` of a `List[Optional[int]]`, `n += None`,
+`v = None; n += v` fit their Why3 slots; route #527's operand census (BinOp / Compare / for / comprehension /
+Subscript) never collected a UnaryOp or AugAssign operand and skipped a literal None; and route #441's `CL` row
+let a literal `None` through as a classinfo (it is one only inside a `|` union: `int | None`). Red team 51
+measured PROVED `no_exception \all` while CPython raises TypeError: (#540, 59) unary `+`; (#545, 38) a None
+operand of `-` / `~` / an augmented assignment; (#544, 18) `isinstance(x, None)` / `isinstance(x, (None, int))`.
+
+RULE (inline in `_run_pipeline`, in route #432 / #527's engine and route #441's `CL` check; mirror twin
+`\trusted`, no new def, no axiom, emission byte-identical; same claim gate as #527: a function that is neither
+`\trusted` nor `\abstract` and claims TypeError -- `\all`, `TypeError`, `Exception`, `BaseException`, declared or
+reached). (a) The operand of a unary `+` must be NUMERIC: a number literal; a value whose derived classes
+(`_ex346` / `_eh372`), None aside, are non-empty and among int / bool / float / complex; a unary / binary /
+ternary / `and` / `or` / walrus of numerics -- otherwise REFUSED with `PYCSL-R540-UNARY-PLUS-OPERAND` (a None
+operand is left to (b)). (b) The operand of a unary `+` / `-` / `~` and the value AND the target (read) of an
+augmented assignment that MAY BE None -- derived classes holding None, or a None SOURCE: the literal; a local,
+walrus target or module name bound from one (flow-insensitive fixpoint, tuple unpack element-wise); a parameter
+defaulting to None; a call of a file def whose return annotation is absent or admits None / `Any` / `object`; a
+ternary arm, an `and` operand or the last `or` operand that is one -- becomes a #527 synthetic operand judged by
+#432's FLOW NARROWING (`if v is not None:`, an early `return`, `isinstance`, an `assert`, a rebinding from a
+derived non-None value), admitted iff narrowing removes None, otherwise REFUSED with `PYCSL-R545-NONE-OPERAND`.
+(c) `isinstance` / `issubclass` argument 2: a literal `None` alone, in a tuple (nested included), or `None | None`
+is REFUSED by route #441's signature row (`PYCSL-R441-BUILTIN-SIGNATURE`, naming route #544); `X | None` with a
+non-None `X` stays admitted. Constructor bodies, `__post_init__` and `default_factory` lambdas are judged by
+routes #519 / #529's kind-flow pass (they were refused there at base).
+
+Witnesses `8540`-`8554` (REFUSED in default, `typed` and `store`; all 115 of `witnesses-r540/` /
+`witnesses-r544/` / `witnesses-r545/` refused in all three modes); controls `8560` (`+n` of an int under
+`ensures \result == n`), `8561` (`+(-n)`), `8562` (`+r.n` under `if r.n is not None:`), `8563` (a tuple of
+classes), `8564` / `8565` (an `Optional[int]` parameter narrowed by an early return, unary and `+=`), `8566`
+(`-one(k)` of a `-> int` def), `8567` (no claim: route #431), `8568` (`v = None; v = k; n += v`: the rebinding
+narrows). Residuals (named): a user `__pos__` reached in an UNCLAIMED function (identity lowering; route #489's
+dunder positions list `UAdd`); a None reaching the operand through a container / field the derivation does not
+follow is the #521 fence's (Module 6 obligation).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

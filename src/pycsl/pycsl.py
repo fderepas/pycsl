@@ -10057,6 +10057,193 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _ast341.copy_location(_x527, _v527)
                         _pm432[id(_x527)] = _z527
                         _s527.append(_x527)
+                # (run #4) ROUTES #540 / #545 -- THE OPERAND OF A UNARY `+` / `-` / `~` AND
+                # BOTH SIDES OF AN AUGMENTED ASSIGNMENT. Module 6 lowers `+x` as `x` itself
+                # (no kind check: `+s` of a str / list / None ... fit any slot) and None as the
+                # int `pycsl_none` (`-None`, `n += v` for `v = None`, `-nothing()` typecheck),
+                # and route #527's census above never collected these operands: red team 51
+                # measured PROVED `no_exception \all` while CPython raises TypeError (97
+                # witnesses). RULE (same claim gate and FLOW NARROWING as #527): (a) a unary
+                # `+` operand must be NUMERIC (`_nk545`: a number literal; a value whose derived
+                # classes, None aside, are int / bool / float / complex; a unary / binary /
+                # ternary / `and` / `or` / walrus of numerics) -- else PYCSL-R540; (b) every
+                # such operand that MAY BE None -- derived classes holding None, or a None
+                # SOURCE (`_ns545`: the literal; a local / walrus / module name bound from one;
+                # a call of a file def whose return annotation is absent or admits None / Any;
+                # a ternary arm, an `and` operand, the last `or` operand that is one) -- is a
+                # #527 synthetic operand, admitted iff narrowing removes None, else
+                # PYCSL-R545-NONE-OPERAND. INLINE: `_run_pipeline`'s mirror twin is `\trusted`.
+                _nb545 = {}
+                _i545 = set()
+                _kp545 = []
+                _NS545 = ("int", "bool", "float", "complex")
+                _dn545 = set()
+                for _y545 in _ast341.walk(_t341):
+                    if isinstance(_y545, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                        _rn545 = _y545.returns
+                        if _rn545 is None or any(
+                                (isinstance(_w, _ast341.Constant) and (_w.value is None or (
+                                    isinstance(_w.value, str) and any(
+                                        _q in _w.value for _q in ("None", "Optional", "Any",
+                                                                  "object")))))
+                                or (isinstance(_w, _ast341.Name) and _w.id in (
+                                    "None", "NoneType", "Optional", "Any", "object"))
+                                or (isinstance(_w, _ast341.Attribute) and _w.attr in (
+                                    "NoneType", "Optional", "Any"))
+                                for _w in _ast341.walk(_rn545)):
+                            _dn545.add(_y545.name)
+                _lc545 = {_w.id for _w in _al432 if isinstance(_w, _ast341.Name)
+                          and not isinstance(_w.ctx, _ast341.Load)}
+                _nl545 = set()
+                for _y545 in _t341.body:
+                    if isinstance(_y545, (_ast341.Assign, _ast341.AnnAssign)) and (
+                            _y545.value is not None) and any(
+                                isinstance(_w, _ast341.Constant) and _w.value is None
+                                for _w in ([_y545.value] + (
+                                    [_y545.value.body, _y545.value.orelse]
+                                    if isinstance(_y545.value, _ast341.IfExp) else
+                                    list(_y545.value.values)
+                                    if isinstance(_y545.value, _ast341.BoolOp) else []))):
+                        _nl545 |= {_w.id for _t in (_y545.targets if isinstance(
+                            _y545, _ast341.Assign) else [_y545.target])
+                                   for _w in [_t] if isinstance(_w, _ast341.Name)
+                                   and _w.id not in _lc545}
+                _ns545 = {}
+                _rv545 = list(reversed(_al432)) if _te432 else []
+                for _g545 in range(8):
+                    _nn545 = len(_nl545)
+                    for _z545 in _rv545:
+                        _v545 = False
+                        if isinstance(_z545, _ast341.Constant):
+                            _v545 = _z545.value is None
+                        elif isinstance(_z545, _ast341.Name):
+                            _v545 = isinstance(_z545.ctx, _ast341.Load) and (
+                                _z545.id in _nl545 or _z545.id in _pd432)
+                        elif isinstance(_z545, _ast341.Call):
+                            _v545 = ((isinstance(_z545.func, _ast341.Name)
+                                      and _z545.func.id in _dn545
+                                      and _z545.func.id not in _cls341)
+                                     or (isinstance(_z545.func, _ast341.Attribute)
+                                         and _z545.func.attr in _dn545))
+                        elif isinstance(_z545, _ast341.IfExp):
+                            _v545 = bool(_ns545.get(id(_z545.body))
+                                         or _ns545.get(id(_z545.orelse)))
+                        elif isinstance(_z545, _ast341.BoolOp):
+                            _v545 = bool(_ns545.get(id(_z545.values[-1])) or (
+                                isinstance(_z545.op, _ast341.And) and any(
+                                    _ns545.get(id(_w)) for _w in _z545.values)))
+                        elif isinstance(_z545, _ast341.NamedExpr):
+                            _v545 = bool(_ns545.get(id(_z545.value)))
+                            if _v545:
+                                _nl545.add(_z545.target.id)
+                        elif isinstance(_z545, (_ast341.Assign, _ast341.AnnAssign)):
+                            if _z545.value is not None and _ns545.get(id(_z545.value)):
+                                _nl545 |= {_t.id for _t in (
+                                    _z545.targets if isinstance(_z545, _ast341.Assign)
+                                    else [_z545.target]) if isinstance(_t, _ast341.Name)}
+                            if (isinstance(_z545, _ast341.Assign)
+                                    and isinstance(_z545.value, _ast341.Tuple)):
+                                for _t545 in _z545.targets:
+                                    if (isinstance(_t545, _ast341.Tuple)
+                                            and len(_t545.elts) == len(_z545.value.elts)):
+                                        _nl545 |= {_t.id for _t, _w in zip(
+                                            _t545.elts, _z545.value.elts)
+                                                   if isinstance(_t, _ast341.Name)
+                                                   and _ns545.get(id(_w))}
+                        _ns545[id(_z545)] = _v545
+                    if len(_nl545) == _nn545 and _g545:
+                        break
+                for _z545 in (_al432 if _te432 else []):
+                    _o545 = []
+                    if isinstance(_z545, _ast341.UnaryOp) and not isinstance(_z545.op,
+                                                                            _ast341.Not):
+                        _o545 = [_z545.operand]
+                    elif isinstance(_z545, _ast341.AugAssign):
+                        _o545 = [_z545.value]
+                        _tg545 = _z545.target
+                        if isinstance(_tg545, (_ast341.Name, _ast341.Attribute,
+                                               _ast341.Subscript)):
+                            _cp545 = (_ast341.Name(id=_tg545.id, ctx=_ast341.Load())
+                                      if isinstance(_tg545, _ast341.Name) else
+                                      _ast341.Attribute(value=_tg545.value, attr=_tg545.attr,
+                                                        ctx=_ast341.Load())
+                                      if isinstance(_tg545, _ast341.Attribute) else
+                                      _ast341.Subscript(value=_tg545.value,
+                                                        slice=_tg545.slice,
+                                                        ctx=_ast341.Load()))
+                            _ast341.copy_location(_cp545, _tg545)
+                            _kp545.append(_cp545)
+                            _nb545[id(_cp545)] = (set(_ex346.get(id(_tg545), set()))
+                                                  | set(_eh372.get(id(_tg545), set())))
+                            _ns545[id(_cp545)] = (isinstance(_tg545, _ast341.Name) and (
+                                _tg545.id in _nl545 or _tg545.id in _pd432))
+                            _o545.append(_cp545)
+                    if isinstance(_z545, _ast341.UnaryOp) and isinstance(_z545.op,
+                                                                        _ast341.UAdd):
+                        # (a) the numeric kind of the operand, children first
+                        _nk545 = {}
+                        for _w545 in reversed(list(_ast341.walk(_z545.operand))):
+                            _k545 = False
+                            if isinstance(_w545, _ast341.Constant):
+                                _k545 = type(_w545.value) in (int, bool, float, complex)
+                            elif isinstance(_w545, (_ast341.Name, _ast341.Attribute,
+                                                    _ast341.Subscript, _ast341.Call)):
+                                _c545 = (set(_ex346.get(id(_w545), set()))
+                                         | set(_eh372.get(id(_w545), set()))) - {
+                                             "None", "NoneType"}
+                                _k545 = bool(_c545) and _c545 <= set(_NS545)
+                            elif isinstance(_w545, _ast341.UnaryOp):
+                                _k545 = (not isinstance(_w545.op, _ast341.Not)
+                                         and _nk545.get(id(_w545.operand), False))
+                            elif isinstance(_w545, _ast341.BinOp):
+                                _k545 = (not isinstance(_w545.op, _ast341.MatMult)
+                                         and _nk545.get(id(_w545.left), False)
+                                         and _nk545.get(id(_w545.right), False))
+                            elif isinstance(_w545, _ast341.IfExp):
+                                _k545 = (_nk545.get(id(_w545.body), False)
+                                         and _nk545.get(id(_w545.orelse), False))
+                            elif isinstance(_w545, _ast341.BoolOp):
+                                _k545 = all(_nk545.get(id(_v), False)
+                                            for _v in _w545.values)
+                            elif isinstance(_w545, _ast341.NamedExpr):
+                                _k545 = _nk545.get(id(_w545.value), False)
+                            _nk545[id(_w545)] = _k545
+                        if not (_nk545.get(id(_z545.operand), False)
+                                or _ns545.get(id(_z545.operand))):
+                            raise _PyCSLSemErr341(
+                                f"'{_f346.name}' line {getattr(_z545, 'lineno', 0)}: "
+                                f"PYCSL-R540-UNARY-PLUS-OPERAND: the operand "
+                                f"`{_ast341.unparse(_z545.operand)}` of the unary "
+                                f"`{_ast341.unparse(_z545)}` is not derived NUMERIC here "
+                                f"(an int / bool / float / complex value, or a number "
+                                f"literal; derived classes "
+                                f"{sorted((set(_ex346.get(id(_z545.operand), set())) | set(_eh372.get(id(_z545.operand), set()))) - {'None', 'NoneType'}) or 'unknown'}"
+                                f"), and CPython raises TypeError ('bad operand type for "
+                                f"unary +') on a str / list / dict / tuple / set / range / "
+                                f"record value, while this function claims `#@ no_exception` "
+                                f"covering TypeError and the model lowers `+x` as `x` itself "
+                                f"(route #540; measured: `def f(s: str) -> int: +s; return "
+                                f"1` under `#@ no_exception \\all` proved). Annotate the "
+                                f"value with a numeric type, drop the `+`, or drop the "
+                                f"claim.",
+                                stage="ir-semantic", code="PYCSL-R540-UNARY-PLUS-OPERAND")
+                    for _v545 in _o545:
+                        if id(_v545) in _anx365 or id(_z545) in _anx365:
+                            continue
+                        _c545 = (set(_ex346.get(id(_v545), set()))
+                                 | set(_eh372.get(id(_v545), set()))
+                                 | set(_nb545.get(id(_v545), set())))
+                        if _ns545.get(id(_v545)):
+                            _c545.add("None")
+                        if not (_c545 & {"None", "NoneType"}):
+                            continue
+                        _nb545[id(_v545)] = _c545
+                        _x527 = _ast341.Attribute(value=_v545, attr="__r545__",
+                                                  ctx=_ast341.Load())
+                        _ast341.copy_location(_x527, _v545)
+                        _pm432[id(_x527)] = _z545
+                        _s527.append(_x527)
+                        _i545.add(id(_x527))
                 _i527 = {id(_x) for _x in _s527}
                 for _a432 in (_al432 if _ae432 else []) + _s527:
                     if not (isinstance(_a432, _ast341.Attribute)
@@ -10075,6 +10262,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                           id(_r432.values[-1]), set()))
                     if isinstance(_r432, _ast341.Name) and _r432.id in _pd432:
                         _cs432.add("None")
+                    if id(_a432) in _i545:
+                        _cs432 |= _nb545.get(id(_r432), set())
                     _fs432 = set(_cs432)
                     # (#443) an UNDERIVABLE receiver -- no derived class, an underivable mark
                     # ("#UND" / "#UNK" / "#UNKT" / "#UB"), `Any`, `object`, or a class name
@@ -10143,6 +10332,27 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                                  _ast341.For,
                                                                  _ast341.AsyncFor))
                                           else _ast341.unparse(_pz527))
+                                if id(_a432) in _i545:
+                                    raise _PyCSLSemErr341(
+                                        f"'{_f346.name}' line "
+                                        f"{getattr(_a432, 'lineno', 0)}: "
+                                        f"PYCSL-R545-NONE-OPERAND: the operand "
+                                        f"`{_ast341.unparse(_r432)}` of `{_pz527}` may be "
+                                        f"`None` here (a None literal, a name / walrus bound "
+                                        f"from one, a call of a def whose result may be None, "
+                                        f"or derived classes {sorted(_cn432)}), and a unary "
+                                        f"`+` / `-` / `~` or an augmented assignment raises "
+                                        f"TypeError on None in CPython, while this function "
+                                        f"claims `#@ no_exception` covering TypeError and the "
+                                        f"model lowers None as the int `pycsl_none` (routes "
+                                        f"#545 / #540; measured: `w = -None`, `v = None; n += "
+                                        f"v`, `return -nothing()` under `#@ no_exception "
+                                        f"\\all` proved). Narrow it first (`if "
+                                        f"{_ast341.unparse(_r432)} is not None:`, or an early "
+                                        f"`return` when it is `None`, with no rebinding in "
+                                        f"between), give it a non-None value, or drop the "
+                                        f"claim.",
+                                        stage="ir-semantic", code="PYCSL-R545-NONE-OPERAND")
                                 raise _PyCSLSemErr341(
                                     f"'{_f346.name}' line {getattr(_a432, 'lineno', 0)}: "
                                     f"PYCSL-R527-OPTIONAL-OPERAND: the operand "
@@ -11347,6 +11557,10 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _bd440 = None
                         if _c440 == "CL":
                             _q440 = [_v440]
+                            # (run #4) ROUTE #544: a literal None is a classinfo only as an
+                            # operand of a `|` union beside a non-None operand (`int | None`);
+                            # alone, in a tuple, or `None | None`, CPython raises TypeError
+                            _un544 = set()
                             while _q440 and _bd440 is None:
                                 _y440 = _q440.pop()
                                 if isinstance(_y440, _ast341.Tuple):
@@ -11354,8 +11568,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 elif isinstance(_y440, _ast341.BinOp) and isinstance(
                                         _y440.op, _ast341.BitOr):
                                     _q440 += [_y440.left, _y440.right]
+                                    if not all(isinstance(_w, _ast341.Constant)
+                                               and _w.value is None
+                                               for _w in (_y440.left, _y440.right)):
+                                        _un544 |= {id(_y440.left), id(_y440.right)}
                                 elif isinstance(_y440, _ast341.Constant) and _y440.value is None:
-                                    pass
+                                    if id(_y440) not in _un544:
+                                        _bd440 = ("the literal `None` (a classinfo must be a "
+                                                  "class -- `type(None)` -- or a tuple / union "
+                                                  "of classes; route #544)")
                                 elif isinstance(_y440, _ast341.Name) and (
                                         _y440.id not in _lb383 and _y440.id not in _ln394) and (
                                         _y440.id in _cls341 or _y440.id in _imp341
