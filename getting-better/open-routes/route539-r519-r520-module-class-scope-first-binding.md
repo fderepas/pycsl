@@ -11,3 +11,6 @@ F11 ROUTES #519 / #520 JUDGE MODULE-GLOBAL / CLASS-SCOPE NAMES BY THEIR FIRST BI
   PYCSL CMD: cd /home/fabrice/git/pycsl-rt50 && PATH=/home/fabrice/.opam/framac-coq8/bin:$PATH PYTHONHASHSEED=0 /home/fabrice/git/pycsl/scratchpad/heavy/heavy.sh .venv/bin/python3 src/pycsl/pycsl.py /home/fabrice/git/pycsl/scratchpad/rt50/g1106/bg1002_lam_global_rebound_later.py --import-path src/pycsl  ->  rc=0 'Verification SUCCESS'
   PROBES: g1106/bg1000_lam_class_scope_name.py g1106/bg1001_lam_class_scope_shadow_global.py g1106/bg1002_lam_global_rebound_later.py g1106/bg1005_lam_global_list_appended.py g1106/bg1013_lam_global_sorted_mixed.py g1106/bg1023_ctor_global_list_sorted.py g1106/bg1028_ctor_global_none_add.py
 ```
+
+
+**Integration note (driver, int25, 2026-11-03):** control 8486's `default_factory=lambda: K + 1` half is refused by route #534's literal-kind check once both land (fail-closed over-refusal, recorded in route534); the control keeps the constructor half (`n + K`) and a literal lambda.
