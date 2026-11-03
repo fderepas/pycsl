@@ -4728,25 +4728,23 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _r521s = getattr(self, "_r230_maybe_none", None)
         if isinstance(_r521s, dict) and _r521s.get("stmt_done") is stmt_d:
             _r521s["stmt_done"] = None
-        elif (isinstance(_r521s, dict) and _r521s.get("mb") is not None
+        elif (isinstance(_r521s, dict) and _r521s.get("on")
                 and isinstance(stmt_d, dict) and not getattr(self, "_in_spec", False)):
             _k521s = stmt_d.get("stmt")
             _v521s = stmt_d.get("value")
-            _mb521s = _r521s["mb"]
-            _cd521s = _r521s["cd"]
             _fn521s = _r521s.get("func") or {}
-            _g521s: List[Any] = []
             _bad521s = {"type": "Call", "func": "?"}   # an unprovable obligation
+            # the candidates: (operand, why when it may be None, why when it holds a None
+            # (None: not judged), the obligation is unconditional)
+            _c521s: List[Any] = []
             if _k521s == "Return" and isinstance(_v521s, dict) and not (
                     _fn521s.get("r526_returns_optional")
                     or str(_fn521s.get("return_annotation") or "").startswith("_union_")
                     or str(_fn521s.get("return_annotation") or "") in ("Any", "object")):
-                if _mb521s(_v521s):
-                    _g521s.append((_v521s, "returning it from a function whose return "
-                                   "annotation does not admit None hands None to callers"))
-                elif _cd521s(_v521s):
-                    _g521s.append((_bad521s, "returning a container that may hold None from "
-                                   "a function whose return annotation does not admit None"))
+                _c521s.append((_v521s, "returning it from a function whose return annotation "
+                               "does not admit None hands None to callers",
+                               "returning a container that may hold None from a function whose "
+                               "return annotation does not admit None"))
             elif _k521s in ("FieldAssign", "FieldAugAssign") and isinstance(_v521s, dict):
                 _ob521s = str(stmt_d.get("object") or "")
                 _cl521s = (getattr(self, "_current_self_type", None) if _ob521s == "self"
@@ -4757,47 +4755,217 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                            or next((_rv for _rk, _rv in _rts521s.items()
                                     if str(_rk).lower() == str(_cl521s).lower()), None)
                            if _cl521s else None) or {}
-                _ft521s = str((_rt521s.get("field_types") or {}).get(
-                    stmt_d.get("field"), ""))
-                _ok521s = _k521s == "FieldAssign" and (
-                    _ft521s.startswith("_union_") or "Optional" in _ft521s
-                    or "None" in _ft521s or _ft521s in ("Any", "object"))
-                if _mb521s(_v521s) and not _ok521s:
-                    _g521s.append((_v521s, "storing it into a field whose annotation does "
-                                   "not admit None (or updating the field with it)"))
-                elif _cd521s(_v521s) and not _ok521s:
-                    _g521s.append((_bad521s, "storing a container that may hold None into a "
-                                   "field, which the record does not follow"))
+                _ft521s = str((_rt521s.get("field_types") or {}).get(stmt_d.get("field"), ""))
+                if not (_k521s == "FieldAssign" and (
+                        _ft521s.startswith("_union_") or "Optional" in _ft521s
+                        or "None" in _ft521s or _ft521s in ("Any", "object"))):
+                    _c521s.append((_v521s, "storing it into a field whose annotation does not "
+                                   "admit None (or updating the field with it)",
+                                   "storing a container that may hold None into a field, which "
+                                   "the record does not follow"))
             elif _k521s == "AugAssign":
-                if _mb521s(_v521s):
-                    _g521s.append((_v521s, "an augmented assignment raises TypeError when "
-                                   "its value is None"))
-                _tg521s = stmt_d.get("target")
-                if isinstance(_tg521s, str) and _mb521s({"type": "Var", "name": _tg521s}):
-                    _g521s.append(({"type": "Var", "name": _tg521s}, "an augmented "
-                                   "assignment raises TypeError when its target is None"))
-            elif _k521s == "For" and _mb521s(stmt_d.get("iter")):
-                _g521s.append((stmt_d.get("iter"), "iterating None raises TypeError"))
-            elif _k521s == "TupleUnpack" and _mb521s(_v521s):
-                _g521s.append((_v521s, "unpacking None raises TypeError"))
+                _c521s.append((_v521s, "an augmented assignment raises TypeError when its value "
+                               "is None", None))
+                if isinstance(stmt_d.get("target"), str):
+                    _c521s.append(({"type": "Var", "name": stmt_d.get("target")}, "an augmented "
+                                   "assignment raises TypeError when its target is None", None))
+            elif _k521s == "For":
+                _c521s.append((stmt_d.get("iter"), "iterating None raises TypeError", None))
+            elif _k521s == "TupleUnpack":
+                _c521s.append((_v521s, "unpacking None raises TypeError", None))
             elif _k521s == "ArraySet" and isinstance(_v521s, dict):
                 _ar521s = stmt_d.get("array")
                 while isinstance(_ar521s, dict) and _ar521s.get("type") == "Subscript":
                     _ar521s = _ar521s.get("value")
                 if not (isinstance(_ar521s, dict) and _ar521s.get("type") == "Var"):
-                    if _mb521s(_v521s):
-                        _g521s.append((_v521s, "storing it into an item of a container the "
-                                       "record does not follow"))
-                    elif _cd521s(_v521s):
-                        _g521s.append((_bad521s, "storing a container that may hold None "
-                                       "into a container the record does not follow"))
-            _pre521s = ";\n".join(
-                indent + _x521s for _x521s in (
-                    _r521s["guard"](_c521s, local_refs, _w521s)
-                    for _c521s, _w521s in _g521s) if _x521s)
-            if _pre521s:
+                    _c521s.append((_v521s, "storing it into an item of a container the record "
+                                   "does not follow",
+                                   "storing a container that may hold None into a container "
+                                   "the record does not follow"))
+            _g521: List[Any] = []
+            if _c521s:
+                _q5_rec = _r521s
+                _q5_qs = [(_x521s[0], False) for _x521s in _c521s]
+                # ---- THE R521 EVALUATOR (routes #521-#526). KEPT TEXTUALLY IDENTICAL in
+                # functions.py `_emit_function_block`, expressions.py `_expr_to_whyml` and statements.py
+                # `_stmts_to_whyml` (no helper `def`: check-mirror-coverage). In: `_q5_rec` (the record
+                # `_r230_maybe_none`), `_q5_qs` (a list of `(expr, a None literal counts)`). Out, per
+                # query: `_q5_mbr[i]` -- the value may be Python None; `_q5_cdr[i]` -- the depths at which
+                # the CONTAINER value holds a None. The rule is the one stated in `_emit_function_block`.
+                _q5_loc = _q5_rec["mb_locals"]
+                _q5_cont = _q5_rec["mb_cont"]
+                _q5_mbr: List[bool] = []
+                _q5_cdr: List[Set[int]] = []
+                for _q5_e, _q5_nl0 in _q5_qs:
+                    _q5_cd: Set[int] = set()
+                    # may-be-None queries: (expr, depth recorded when it may be None / None: the value
+                    # itself, a None literal counts)
+                    _q5_mq: List[Any] = [(_q5_e, None, _q5_nl0)]
+                    _q5_cw: List[Any] = [(_q5_e, 0)]
+                    while _q5_cw:
+                        _q5_x, _q5_o = _q5_cw.pop()
+                        if not isinstance(_q5_x, dict):
+                            continue
+                        _q5_r, _q5_L = _q5_x, 0
+                        while isinstance(_q5_r, dict) and _q5_r.get("type") == "Subscript":
+                            _q5_L += 1
+                            _q5_r = _q5_r.get("value")
+                        if isinstance(_q5_r, dict) and _q5_r.get("type") == "Var":
+                            _q5_cd |= {_q5_d - _q5_L + _q5_o for _q5_d in _q5_cont.get(_q5_r.get("name"), ())
+                                       if _q5_d - _q5_L >= 1}
+                            continue
+                        if _q5_L:
+                            continue
+                        _q5_t = _q5_x.get("type")
+                        if _q5_t in ("ArrayLit", "ListLit", "SetLit", "Tuple", "MkTuple", "MkList",
+                                     "DictLit", "List", "Set"):
+                            for _q5_y in list(_q5_x.get("elts") or []) + list(_q5_x.get("values") or []):
+                                _q5_mq.append((_q5_y, _q5_o + 1, True))
+                                _q5_cw.append((_q5_y, _q5_o + 1))
+                        elif _q5_t in ("ListComp", "SetComp", "GenExp", "DictComp"):
+                            _q5_y = _q5_x.get("value") if _q5_t == "DictComp" else _q5_x.get("elt")
+                            _q5_mq.append((_q5_y, _q5_o + 1, True))
+                            _q5_cw.append((_q5_y, _q5_o + 1))
+                        elif _q5_t == "Call":
+                            _q5_f = str(_q5_x.get("func", ""))
+                            _q5_a = _q5_x.get("args") or []
+                            if _q5_f in ("list", "sorted", "reversed", "tuple", "set", "frozenset",
+                                         "dict") and _q5_a:
+                                _q5_cw.append((_q5_a[0], _q5_o))
+                            elif _q5_f.endswith(".copy"):
+                                _q5_cd |= {_q5_d + _q5_o for _q5_d in _q5_cont.get(_q5_f[:-len(".copy")], ())}
+                        elif _q5_t == "IfExpr":
+                            _q5_cw.append((_q5_x.get("body"), _q5_o))
+                            _q5_cw.append((_q5_x.get("orelse"), _q5_o))
+                        elif _q5_t in ("BinOp", "BoolOp") and _q5_x.get("op") in ("+", "or", "and"):
+                            _q5_cw.append((_q5_x.get("left"), _q5_o))
+                            _q5_cw.append((_q5_x.get("right"), _q5_o))
+                        elif _q5_t == "NamedExpr":
+                            _q5_cw.append((_q5_x.get("value"), _q5_o))
+                        elif "Slice" in str(_q5_t) and isinstance(_q5_x.get("value"), dict):
+                            _q5_cw.append((_q5_x.get("value"), _q5_o))
+                    _q5_mb = False
+                    while _q5_mq:
+                        _q5_m0, _q5_md, _q5_nl = _q5_mq.pop()
+                        _q5_mw: List[Any] = [(_q5_m0, _q5_nl)]
+                        _q5_hit = False
+                        while _q5_mw and not _q5_hit:
+                            _q5_x, _q5_nl = _q5_mw.pop()
+                            if not isinstance(_q5_x, dict):
+                                continue
+                            _q5_t = _q5_x.get("type")
+                            if _q5_t == "None":
+                                _q5_hit = _q5_nl
+                            elif _q5_t == "Var":
+                                # (no look-through a unary / `int(..)`: their RESULT is never None -- the
+                                # operation itself raises, and is guarded where it is emitted)
+                                _q5_hit = _q5_x.get("name") in _q5_loc
+                            elif _q5_t == "Subscript":
+                                _q5_r, _q5_L = _q5_x, 0
+                                while isinstance(_q5_r, dict) and _q5_r.get("type") == "Subscript":
+                                    _q5_L += 1
+                                    _q5_r = _q5_r.get("value")
+                                _q5_hit = (isinstance(_q5_r, dict) and _q5_r.get("type") == "Var"
+                                           and _q5_L in _q5_cont.get(_q5_r.get("name"), ()))
+                            elif _q5_t == "Call":
+                                _q5_f = str(_q5_x.get("func", ""))
+                                _q5_a = _q5_x.get("args") or []
+                                _q5_hit = any(_q5_f.endswith(_q5_s) and 1 in _q5_cont.get(_q5_f[:-len(_q5_s)], ())
+                                              for _q5_s in (".get", ".pop", ".setdefault"))
+                                if (not _q5_hit and _q5_f.endswith(".get") and not _q5_x.get("keywords")
+                                        and len(_q5_a) in (1, 2)):
+                                    _q5_rv = _q5_f[:-len(".get")]
+                                    if "." not in _q5_rv:
+                                        _q5_ok = (_q5_rv in _q5_rec["dicts"] and (_q5_rec.get("dvt") or {})
+                                                  .get(_q5_rv) in (None, "", "int", "string"))
+                                    else:
+                                        # a dotted receiver: resolved through the record types up front
+                                        # (`fget`); one that does not resolve counts (fail-closed)
+                                        _q5_ok = (_q5_rec.get("fget") or {}).get(_q5_rv, True)
+                                    if _q5_ok and len(_q5_a) == 1:
+                                        _q5_hit = True
+                                    elif _q5_ok:
+                                        if (isinstance(_q5_a[1], dict) and _q5_a[1].get("type") == "Var"
+                                                and _q5_a[1].get("name") in (_q5_rec.get("none_loc") or ())):
+                                            _q5_hit = True
+                                        else:
+                                            _q5_mw.append((_q5_a[1], True))
+                            elif _q5_t == "IfExpr":
+                                _q5_mw.append((_q5_x.get("body"), True))
+                                _q5_mw.append((_q5_x.get("orelse"), True))
+                            elif _q5_t in ("BinOp", "BoolOp") and _q5_x.get("op") == "and":
+                                _q5_mw.append((_q5_x.get("left"), True))
+                                _q5_mw.append((_q5_x.get("right"), True))
+                            elif _q5_t in ("BinOp", "BoolOp") and _q5_x.get("op") == "or":
+                                _q5_mw.append((_q5_x.get("right"), True))
+                            elif _q5_t == "NamedExpr":
+                                _q5_mw.append((_q5_x.get("value"), False))
+                        if _q5_hit:
+                            if _q5_md is None:
+                                _q5_mb = True
+                            else:
+                                _q5_cd.add(_q5_md)
+                    _q5_mbr.append(_q5_mb)
+                    _q5_cdr.append(_q5_cd)
+                # ---- end of the R521 evaluator
+                for (_x521s, _y521s, _z521s), _mbv521s, _cdv521s in zip(_c521s, _q5_mbr, _q5_cdr):
+                    if _mbv521s:
+                        _g521.append((_x521s, _y521s))
+                    elif _z521s is not None and _cdv521s:
+                        _g521.append((_bad521s, _z521s))
+            _gl521 = local_refs
+            _gs521 = None
+            # ---- THE R521 OBLIGATION TEXT (kept textually identical in expressions.py and
+            # statements.py: no helper `def`). In: `_g521` (a list of (value that may be None, why)),
+            # `_gl521` / `_gs521` (local refs / substitution). Out: `_pre521`, one obligation per
+            # entry. An IR-node ADT value (`emit_ir`: an `ExprIR` parameter, its `.get` projections
+            # `left_of` / `op_of` ...) has no None in the model at all -- route #57 left the
+            # non-scalar codomains unmeasured -- so it gets none. A value that is not a pure read (a
+            # call, a walrus) gets an unprovable `false` instead of being lowered twice.
+            _pre521: List[str] = []
+            for _ge521, _gw521 in _g521:
+                _grc521 = (str(_ge521.get("func", ""))[:-len(".get")]
+                           if isinstance(_ge521, dict) and _ge521.get("type") == "Call"
+                           and str(_ge521.get("func", "")).endswith(".get") else "")
+                if (self._is_emit_ir_expr(_ge521)
+                        or (_grc521 and "." not in _grc521
+                            and self._is_emit_ir_expr({"type": "Var", "name": _grc521}))):
+                    continue
+                _gp521 = True
+                _gk521: List[Any] = [_ge521]
+                while _gk521 and _gp521:
+                    _gx521 = _gk521.pop()
+                    if isinstance(_gx521, list):
+                        _gk521.extend(_gx521)
+                        continue
+                    if not isinstance(_gx521, dict):
+                        continue
+                    _gt521 = _gx521.get("type")
+                    if _gt521 in ("NamedExpr", "Await", "Yield", "YieldFrom", "Lambda", "GenExp",
+                                  "ListComp", "SetComp", "DictComp"):
+                        _gp521 = False
+                    elif _gt521 == "Call" and not (
+                            str(_gx521.get("func", "")).endswith(".get")
+                            or _gx521.get("func") in ("int", "float", "abs", "round", "len")):
+                        _gp521 = False
+                    else:
+                        _gk521.extend(_gx521.values())
+                if not _gp521:
+                    _pre521.append("(assert { [@expl:PyCSL-R521 %s; the value may be None and is not "
+                                   "a pure read, so the obligation cannot be stated] false })" % _gw521)
+                    continue
+                _gn521 = "pycsl_none_str" if self._is_string_expr(_ge521) else "pycsl_none"
+                self._add_abstract_op("val function %s : %s" % (
+                    _gn521, "string" if _gn521.endswith("_str") else "int"))
+                _pre521.append("(let _r521_v = %s in assert { [@expl:PyCSL-R521 %s, but the value may "
+                               "be None (a one-argument `.get`, an Optional container element, or a "
+                               "value flowing from one); guard it with `is not None`] "
+                               "not (_r521_v = %s) })"
+                               % (self._expr_to_whyml(_ge521, _gl521, False, _gs521), _gw521, _gn521))
+            # ---- end of the R521 obligation text
+            if _pre521:
                 _r521s["stmt_done"] = stmt_d
-                return _pre521s + ";\n" + self._stmts_to_whyml(
+                return ";\n".join(indent + _x521s for _x521s in _pre521) + ";\n" + self._stmts_to_whyml(
                     stmts, local_refs, declared_refs, indent, in_loop)
         stmt = stmt_from_dict(stmt_d)
         code = ""

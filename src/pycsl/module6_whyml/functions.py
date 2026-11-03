@@ -10431,163 +10431,52 @@ class FunctionEmissionMixin:
         _r521_cont = {_n: {1} for _n in _r230_cont}
         for _n, _ds in (func.get("r524_optional_depths") or {}).items():
             _r521_cont[_n] = set(_ds)
-        _r521_none_loc = set()
         _r521_st = func.get("symbol_table") or {}
         _r521_rts = getattr(self, "_record_types", {}) or {}
-        _r521_dvt = func.get("dict_value_types") or {}
-        _r521_self_t = self._current_self_type
-
-        def _r521_rt(_cls):
-            if not _cls:
-                return None
-            return (_r521_rts.get(_cls) or _r521_rts.get(str(_cls).lower())
-                    or next((_v for _k, _v in _r521_rts.items()
-                             if str(_k).lower() == str(_cls).lower()), None))
-
-        def _r521_field_nu(_recv):
-            # "?" = the receiver does not resolve; None = resolves to a non-dict field.
-            _parts = _recv.split(".")
-            _cls = _r521_self_t if _parts[0] == "self" else _r521_st.get(_parts[0])
-            for _p in _parts[1:-1]:
-                _rt = _r521_rt(_cls)
+        # `fget`: every DOTTED `.get` receiver of the body (`r.d`, `self.d`, `o.r.d`) resolved
+        # through the record types: True when it is a dict FIELD with an int / str codomain, or
+        # when it does not resolve (fail-closed); False for a non-dict field.
+        _r521_fget: Dict[str, bool] = {}
+        _r521_stack: List[Any] = [body_stmts]
+        while _r521_stack:
+            _n = _r521_stack.pop()
+            if isinstance(_n, list):
+                _r521_stack.extend(_n)
+                continue
+            if not isinstance(_n, dict):
+                continue
+            _r521_stack.extend(_n.values())
+            _f = str(_n.get("func", "")) if _n.get("type") == "Call" else ""
+            if not _f.endswith(".get") or "." not in _f[:-len(".get")] or _f[:-4] in _r521_fget:
+                continue
+            _parts = _f[:-len(".get")].split(".")
+            _cls = self._current_self_type if _parts[0] == "self" else _r521_st.get(_parts[0])
+            _nu: Any = "?"
+            for _i, _p in enumerate(_parts[1:]):
+                _rt = ((_r521_rts.get(_cls) or _r521_rts.get(str(_cls).lower())
+                        or next((_v for _k, _v in _r521_rts.items()
+                                 if str(_k).lower() == str(_cls).lower()), None))
+                       if _cls else None)
                 if not _rt:
-                    return "?"
+                    _nu = "?"
+                    break
                 _cls = (_rt.get("field_types") or {}).get(_p)
-            _rt = _r521_rt(_cls)
-            if not _rt:
-                return "?"
-            _ft = (_rt.get("field_types") or {}).get(_parts[-1])
-            if _ft is None:
-                return "?"
-            if _ft != "dict":
-                return None
-            return (_rt.get("field_value_types") or {}).get(_parts[-1], "int")
-
-        def _r521_chain(_e):
-            _L = 0
-            while isinstance(_e, dict) and _e.get("type") == "Subscript":
-                _L += 1
-                _e = _e.get("value")
-            if isinstance(_e, dict) and _e.get("type") == "Var":
-                return _e.get("name"), _L
-            return None, _L
-
-        def _r521_mbx(_e):
-            return (isinstance(_e, dict) and _e.get("type") == "None") or _r521_mb(_e)
-
-        def _r521_mb(_e):
-            # (no look-through a unary / `int(..)`: their RESULT is never None -- the
-            # operation itself raises, and is guarded where it is emitted)
-            if not isinstance(_e, dict):
-                return False
-            _t = _e.get("type")
-            if _t == "Var":
-                return _e.get("name") in _r521_loc
-            if _t == "Subscript":
-                _r, _L = _r521_chain(_e)
-                return _r is not None and _L in _r521_cont.get(_r, ())
-            if _t == "Call":
-                _f = str(_e.get("func", ""))
-                _a = _e.get("args") or []
-                for _sfx in (".get", ".pop", ".setdefault"):
-                    if _f.endswith(_sfx) and 1 in _r521_cont.get(_f[:-len(_sfx)], ()):
-                        return True
-                if not _f.endswith(".get") or _e.get("keywords"):
-                    return False
-                if not (len(_a) == 1 or (len(_a) == 2 and (
-                        _r521_mbx(_a[1]) or (isinstance(_a[1], dict)
-                                             and _a[1].get("type") == "Var"
-                                             and _a[1].get("name") in _r521_none_loc)))):
-                    return False
-                _rv = _f[:-len(".get")]
-                if "." not in _rv:
-                    return (_rv in _r230_dicts
-                            and _r521_dvt.get(_rv) in (None, "", "int", "string"))
-                _nu = _r521_field_nu(_rv)
-                return _nu == "?" or _nu in ("", "int", "string")
-            if _t == "IfExpr":
-                return _r521_mbx(_e.get("body")) or _r521_mbx(_e.get("orelse"))
-            if _t in ("BinOp", "BoolOp") and _e.get("op") == "and":
-                return _r521_mbx(_e.get("left")) or _r521_mbx(_e.get("right"))
-            if _t in ("BinOp", "BoolOp") and _e.get("op") == "or":
-                return _r521_mbx(_e.get("right"))
-            if _t == "NamedExpr":
-                return _r521_mb(_e.get("value"))
-            return False
-
-        def _r521_cd(_e):
-            # the depths at which the CONTAINER value `_e` holds a None
-            if not isinstance(_e, dict):
-                return set()
-            _r, _L = _r521_chain(_e)
-            if _r is not None:
-                return {_d - _L for _d in _r521_cont.get(_r, ()) if _d - _L >= 1}
-            _t = _e.get("type")
-            if _t in ("ArrayLit", "ListLit", "SetLit", "Tuple", "MkTuple", "MkList",
-                      "DictLit", "List", "Set"):
-                _o = set()
-                for _x in list(_e.get("elts") or []) + list(_e.get("values") or []):
-                    if _r521_mbx(_x):
-                        _o.add(1)
-                    _o |= {_d + 1 for _d in _r521_cd(_x)}
-                return _o
-            if _t in ("ListComp", "SetComp", "GenExp", "DictComp"):
-                _x = _e.get("value") if _t == "DictComp" else _e.get("elt")
-                return ({1} if _r521_mbx(_x) else set()) | {_d + 1 for _d in _r521_cd(_x)}
-            if _t == "Call":
-                _f = str(_e.get("func", ""))
-                _a = _e.get("args") or []
-                if _f in ("list", "sorted", "reversed", "tuple", "set", "frozenset",
-                          "dict") and _a:
-                    return _r521_cd(_a[0])
-                if _f.endswith(".copy"):
-                    return set(_r521_cont.get(_f[:-len(".copy")], ()))
-                return set()
-            if _t == "IfExpr":
-                return _r521_cd(_e.get("body")) | _r521_cd(_e.get("orelse"))
-            if _t in ("BinOp", "BoolOp") and _e.get("op") in ("+", "or", "and"):
-                return _r521_cd(_e.get("left")) | _r521_cd(_e.get("right"))
-            if _t == "NamedExpr":
-                return _r521_cd(_e.get("value"))
-            if "Slice" in str(_t) and isinstance(_e.get("value"), dict):
-                return _r521_cd(_e.get("value"))
-            return set()
-
-        def _r521_bind(_tg, _mbv, _cdv):
-            # bind target(s) `_tg` (a name, or a list of names / Var dicts) to a value
-            # that may be None (`_mbv`) and / or holds None at depths `_cdv`
-            _ch = False
-            for _nm in (_tg if isinstance(_tg, list) else [_tg]):
-                if isinstance(_nm, dict):
-                    _nm = _nm.get("name") if _nm.get("type") == "Var" else None
-                if not isinstance(_nm, str):
+                if _i < len(_parts) - 2:
                     continue
-                if _mbv and _nm not in _r521_loc:
-                    _r521_loc.add(_nm)
-                    _ch = True
-                if _cdv and not set(_cdv) <= _r521_cont.get(_nm, set()):
-                    _r521_cont.setdefault(_nm, set()).update(_cdv)
-                    _ch = True
-            return _ch
-
-        def _r521_iter_bind(_tg, _it):
-            # a for / comprehension target over `_it`
-            _cd = _r521_cd(_it)
-            _ch = _r521_bind(_tg, 1 in _cd, {_d - 1 for _d in _cd if _d > 1})
-            if isinstance(_it, dict) and _it.get("type") == "Call":
-                _f = str(_it.get("func", ""))
-                _src = ([_f[:-len(_sfx)] for _sfx in (".values", ".items")
-                         if _f.endswith(_sfx)]
-                        + [_a.get("name") for _a in (_it.get("args") or [])
-                           if isinstance(_a, dict) and _a.get("type") == "Var"
-                           and _f in ("enumerate", "zip", "reversed", "sorted", "list",
-                                      "iter", "filter", "map")])
-                if any(1 in _r521_cont.get(_s, ()) for _s in _src):
-                    _ch = _r521_bind(_tg, True, set()) or _ch
-            return _ch
-
+                if _cls is None:
+                    _nu = "?"
+                elif _cls != "dict":
+                    _nu = None
+                else:
+                    _nu = (_rt.get("field_value_types") or {}).get(_p, "int")
+            _r521_fget[_f[:-len(".get")]] = _nu == "?" or _nu in ("", "int", "string")
+        _q5_rec: Dict[str, Any] = {"mb_locals": _r521_loc, "mb_cont": _r521_cont,
+                                   "none_loc": set(), "dicts": _r230_dicts,
+                                   "dvt": func.get("dict_value_types") or {}, "fget": _r521_fget}
         for _r521_round in range(32):
-            _r521_ch = False
+            # one round: collect every binding the body makes, evaluate its value, apply.
+            # requests: (kind, target(s), value, a None literal counts)
+            _r521_rq: List[Any] = []
             _r521_stack = [body_stmts]
             while _r521_stack:
                 _n = _r521_stack.pop()
@@ -10601,138 +10490,214 @@ class FunctionEmissionMixin:
                 _v = _n.get("value")
                 if _s == "Assign" and isinstance(_n.get("target"), str):
                     if isinstance(_v, dict) and _v.get("type") == "None":
-                        _r521_none_loc.add(_n["target"])
-                    _r521_ch = _r521_bind(_n["target"], _r521_mb(_v), _r521_cd(_v)) or _r521_ch
+                        _q5_rec["none_loc"].add(_n["target"])
+                    _r521_rq.append(("bind", _n["target"], _v, False))
                 elif _s == "TupleUnpack":
                     _tgs = _n.get("targets") or []
                     if (isinstance(_v, dict) and _v.get("type") in ("Tuple", "MkTuple")
                             and len(_v.get("elts") or []) == len(_tgs)):
                         for _tg, _el in zip(_tgs, _v.get("elts") or []):
-                            _r521_ch = _r521_bind(_tg, _r521_mbx(_el),
-                                                  _r521_cd(_el)) or _r521_ch
+                            _r521_rq.append(("bind", _tg, _el, True))
                     else:
-                        _cd = _r521_cd(_v)
-                        _r521_ch = _r521_bind(_tgs, 1 in _cd,
-                                              {_d - 1 for _d in _cd if _d > 1}) or _r521_ch
+                        _r521_rq.append(("unpack", _tgs, _v, False))
                 elif _s == "For":
-                    _r521_ch = _r521_iter_bind(_n.get("target"), _n.get("iter")) or _r521_ch
+                    _r521_rq.append(("iter", _n.get("target"), _n.get("iter"), False))
                 elif _s == "ArraySet":
-                    _r, _L = _r521_chain(_n.get("array"))
-                    if _r is not None:
-                        _add =({_L + 1} if _r521_mbx(_v) else set()) | {
-                            _d + _L + 1 for _d in _r521_cd(_v)}
-                        if _add and not _add <= _r521_cont.get(_r, set()):
-                            _r521_cont.setdefault(_r, set()).update(_add)
-                            _r521_ch = True
+                    _r, _L = _n.get("array"), 0
+                    while isinstance(_r, dict) and _r.get("type") == "Subscript":
+                        _L += 1
+                        _r = _r.get("value")
+                    if isinstance(_r, dict) and _r.get("type") == "Var":
+                        _r521_rq.append(("cont", (_r.get("name"), _L + 1), _v, True))
                 elif _s == "AugAssign" and isinstance(_n.get("target"), str):
-                    _cd = _r521_cd(_v)
-                    if _cd and not _cd <= _r521_cont.get(_n["target"], set()):
-                        _r521_cont.setdefault(_n["target"], set()).update(_cd)
-                        _r521_ch = True
+                    _r521_rq.append(("contcd", (_n["target"], 0), _v, False))
                 if _t == "NamedExpr":
-                    _r521_ch = _r521_bind(_n.get("target"), _r521_mb(_v),
-                                          _r521_cd(_v)) or _r521_ch
+                    _r521_rq.append(("bind", _n.get("target"), _v, False))
                 elif _t in ("ListComp", "SetComp", "GenExp", "DictComp"):
                     for _g in (_n.get("generators") or []):
                         if isinstance(_g, dict):
-                            _r521_ch = _r521_iter_bind(_g.get("target"),
-                                                       _g.get("iter")) or _r521_ch
+                            _r521_rq.append(("iter", _g.get("target"), _g.get("iter"), False))
                 elif _t == "Call":
                     _f = str(_n.get("func", ""))
                     _a = _n.get("args") or []
                     _rv, _m = (_f.rsplit(".", 1) if "." in _f else ("", _f))
                     if _rv and "." not in _rv and _a:
-                        _add = set()
                         if _m in ("append", "insert", "add", "setdefault", "appendleft"):
-                            if _r521_mbx(_a[-1]):
-                                _add.add(1)
-                            _add |= {_d + 1 for _d in _r521_cd(_a[-1])}
+                            _r521_rq.append(("cont", (_rv, 1), _a[-1], True))
                         elif _m in ("extend", "update", "extendleft"):
-                            _add |= _r521_cd(_a[0])
-                        if _add and not _add <= _r521_cont.get(_rv, set()):
-                            _r521_cont.setdefault(_rv, set()).update(_add)
-                            _r521_ch = True
+                            _r521_rq.append(("contcd", (_rv, 0), _a[0], False))
+            _q5_qs = [(_x[2], _x[3]) for _x in _r521_rq]
+            # ---- THE R521 EVALUATOR (routes #521-#526). KEPT TEXTUALLY IDENTICAL in
+            # functions.py `_emit_function_block`, expressions.py `_expr_to_whyml` and statements.py
+            # `_stmts_to_whyml` (no helper `def`: check-mirror-coverage). In: `_q5_rec` (the record
+            # `_r230_maybe_none`), `_q5_qs` (a list of `(expr, a None literal counts)`). Out, per
+            # query: `_q5_mbr[i]` -- the value may be Python None; `_q5_cdr[i]` -- the depths at which
+            # the CONTAINER value holds a None. The rule is the one stated in `_emit_function_block`.
+            _q5_loc = _q5_rec["mb_locals"]
+            _q5_cont = _q5_rec["mb_cont"]
+            _q5_mbr: List[bool] = []
+            _q5_cdr: List[Set[int]] = []
+            for _q5_e, _q5_nl0 in _q5_qs:
+                _q5_cd: Set[int] = set()
+                # may-be-None queries: (expr, depth recorded when it may be None / None: the value
+                # itself, a None literal counts)
+                _q5_mq: List[Any] = [(_q5_e, None, _q5_nl0)]
+                _q5_cw: List[Any] = [(_q5_e, 0)]
+                while _q5_cw:
+                    _q5_x, _q5_o = _q5_cw.pop()
+                    if not isinstance(_q5_x, dict):
+                        continue
+                    _q5_r, _q5_L = _q5_x, 0
+                    while isinstance(_q5_r, dict) and _q5_r.get("type") == "Subscript":
+                        _q5_L += 1
+                        _q5_r = _q5_r.get("value")
+                    if isinstance(_q5_r, dict) and _q5_r.get("type") == "Var":
+                        _q5_cd |= {_q5_d - _q5_L + _q5_o for _q5_d in _q5_cont.get(_q5_r.get("name"), ())
+                                   if _q5_d - _q5_L >= 1}
+                        continue
+                    if _q5_L:
+                        continue
+                    _q5_t = _q5_x.get("type")
+                    if _q5_t in ("ArrayLit", "ListLit", "SetLit", "Tuple", "MkTuple", "MkList",
+                                 "DictLit", "List", "Set"):
+                        for _q5_y in list(_q5_x.get("elts") or []) + list(_q5_x.get("values") or []):
+                            _q5_mq.append((_q5_y, _q5_o + 1, True))
+                            _q5_cw.append((_q5_y, _q5_o + 1))
+                    elif _q5_t in ("ListComp", "SetComp", "GenExp", "DictComp"):
+                        _q5_y = _q5_x.get("value") if _q5_t == "DictComp" else _q5_x.get("elt")
+                        _q5_mq.append((_q5_y, _q5_o + 1, True))
+                        _q5_cw.append((_q5_y, _q5_o + 1))
+                    elif _q5_t == "Call":
+                        _q5_f = str(_q5_x.get("func", ""))
+                        _q5_a = _q5_x.get("args") or []
+                        if _q5_f in ("list", "sorted", "reversed", "tuple", "set", "frozenset",
+                                     "dict") and _q5_a:
+                            _q5_cw.append((_q5_a[0], _q5_o))
+                        elif _q5_f.endswith(".copy"):
+                            _q5_cd |= {_q5_d + _q5_o for _q5_d in _q5_cont.get(_q5_f[:-len(".copy")], ())}
+                    elif _q5_t == "IfExpr":
+                        _q5_cw.append((_q5_x.get("body"), _q5_o))
+                        _q5_cw.append((_q5_x.get("orelse"), _q5_o))
+                    elif _q5_t in ("BinOp", "BoolOp") and _q5_x.get("op") in ("+", "or", "and"):
+                        _q5_cw.append((_q5_x.get("left"), _q5_o))
+                        _q5_cw.append((_q5_x.get("right"), _q5_o))
+                    elif _q5_t == "NamedExpr":
+                        _q5_cw.append((_q5_x.get("value"), _q5_o))
+                    elif "Slice" in str(_q5_t) and isinstance(_q5_x.get("value"), dict):
+                        _q5_cw.append((_q5_x.get("value"), _q5_o))
+                _q5_mb = False
+                while _q5_mq:
+                    _q5_m0, _q5_md, _q5_nl = _q5_mq.pop()
+                    _q5_mw: List[Any] = [(_q5_m0, _q5_nl)]
+                    _q5_hit = False
+                    while _q5_mw and not _q5_hit:
+                        _q5_x, _q5_nl = _q5_mw.pop()
+                        if not isinstance(_q5_x, dict):
+                            continue
+                        _q5_t = _q5_x.get("type")
+                        if _q5_t == "None":
+                            _q5_hit = _q5_nl
+                        elif _q5_t == "Var":
+                            # (no look-through a unary / `int(..)`: their RESULT is never None -- the
+                            # operation itself raises, and is guarded where it is emitted)
+                            _q5_hit = _q5_x.get("name") in _q5_loc
+                        elif _q5_t == "Subscript":
+                            _q5_r, _q5_L = _q5_x, 0
+                            while isinstance(_q5_r, dict) and _q5_r.get("type") == "Subscript":
+                                _q5_L += 1
+                                _q5_r = _q5_r.get("value")
+                            _q5_hit = (isinstance(_q5_r, dict) and _q5_r.get("type") == "Var"
+                                       and _q5_L in _q5_cont.get(_q5_r.get("name"), ()))
+                        elif _q5_t == "Call":
+                            _q5_f = str(_q5_x.get("func", ""))
+                            _q5_a = _q5_x.get("args") or []
+                            _q5_hit = any(_q5_f.endswith(_q5_s) and 1 in _q5_cont.get(_q5_f[:-len(_q5_s)], ())
+                                          for _q5_s in (".get", ".pop", ".setdefault"))
+                            if (not _q5_hit and _q5_f.endswith(".get") and not _q5_x.get("keywords")
+                                    and len(_q5_a) in (1, 2)):
+                                _q5_rv = _q5_f[:-len(".get")]
+                                if "." not in _q5_rv:
+                                    _q5_ok = (_q5_rv in _q5_rec["dicts"] and (_q5_rec.get("dvt") or {})
+                                              .get(_q5_rv) in (None, "", "int", "string"))
+                                else:
+                                    # a dotted receiver: resolved through the record types up front
+                                    # (`fget`); one that does not resolve counts (fail-closed)
+                                    _q5_ok = (_q5_rec.get("fget") or {}).get(_q5_rv, True)
+                                if _q5_ok and len(_q5_a) == 1:
+                                    _q5_hit = True
+                                elif _q5_ok:
+                                    if (isinstance(_q5_a[1], dict) and _q5_a[1].get("type") == "Var"
+                                            and _q5_a[1].get("name") in (_q5_rec.get("none_loc") or ())):
+                                        _q5_hit = True
+                                    else:
+                                        _q5_mw.append((_q5_a[1], True))
+                        elif _q5_t == "IfExpr":
+                            _q5_mw.append((_q5_x.get("body"), True))
+                            _q5_mw.append((_q5_x.get("orelse"), True))
+                        elif _q5_t in ("BinOp", "BoolOp") and _q5_x.get("op") == "and":
+                            _q5_mw.append((_q5_x.get("left"), True))
+                            _q5_mw.append((_q5_x.get("right"), True))
+                        elif _q5_t in ("BinOp", "BoolOp") and _q5_x.get("op") == "or":
+                            _q5_mw.append((_q5_x.get("right"), True))
+                        elif _q5_t == "NamedExpr":
+                            _q5_mw.append((_q5_x.get("value"), False))
+                    if _q5_hit:
+                        if _q5_md is None:
+                            _q5_mb = True
+                        else:
+                            _q5_cd.add(_q5_md)
+                _q5_mbr.append(_q5_mb)
+                _q5_cdr.append(_q5_cd)
+            # ---- end of the R521 evaluator
+            # apply: `bind` targets (a name, or a list of names / Var dicts) to a value that may
+            # be None and / or holds None at some depths; `cont` adds to a container's depths
+            # (`(name, k)`: the value's own None at depth k, its held Nones below it).
+            _r521_ch = False
+            _r521_bn: List[Any] = []
+            _r521_ca: List[Any] = []
+            for _x, _mbv, _cdv in zip(_r521_rq, _q5_mbr, _q5_cdr):
+                if _x[0] == "bind":
+                    _r521_bn.append((_x[1], _mbv, _cdv))
+                elif _x[0] in ("unpack", "iter"):
+                    _r521_bn.append((_x[1], 1 in _cdv, {_d - 1 for _d in _cdv if _d > 1}))
+                    _it = _x[2]
+                    if _x[0] == "iter" and isinstance(_it, dict) and _it.get("type") == "Call":
+                        # a for / comprehension target over `.values()` / `.items()` /
+                        # `enumerate(..)` / ... of a container holding None at depth 1
+                        _f = str(_it.get("func", ""))
+                        _src = ([_f[:-len(_sfx)] for _sfx in (".values", ".items")
+                                 if _f.endswith(_sfx)]
+                                + [_a.get("name") for _a in (_it.get("args") or [])
+                                   if isinstance(_a, dict) and _a.get("type") == "Var"
+                                   and _f in ("enumerate", "zip", "reversed", "sorted", "list",
+                                              "iter", "filter", "map")])
+                        if any(1 in _r521_cont.get(_sv, ()) for _sv in _src):
+                            _r521_bn.append((_x[1], True, set()))
+                elif _x[0] == "cont":
+                    _nm, _k = _x[1]
+                    _r521_ca.append((_nm, ({_k} if _mbv else set())
+                                     | {_d + _k for _d in _cdv}))
+                elif _x[0] == "contcd":
+                    _r521_ca.append((_x[1][0], set(_cdv)))
+            for _tg, _mbv, _cdv in _r521_bn:
+                for _nm in (_tg if isinstance(_tg, list) else [_tg]):
+                    if isinstance(_nm, dict):
+                        _nm = _nm.get("name") if _nm.get("type") == "Var" else None
+                    if not isinstance(_nm, str):
+                        continue
+                    if _mbv and _nm not in _r521_loc:
+                        _r521_loc.add(_nm)
+                        _r521_ch = True
+                    if _cdv:
+                        _r521_ca.append((_nm, set(_cdv)))
+            for _nm, _add in _r521_ca:
+                if _add and not _add <= _r521_cont.get(_nm, set()):
+                    _r521_cont.setdefault(_nm, set()).update(_add)
+                    _r521_ch = True
             if not _r521_ch:
                 break
-
-        def _r521_pure(_e):
-            _stk = [_e]
-            while _stk:
-                _x = _stk.pop()
-                if isinstance(_x, list):
-                    _stk.extend(_x)
-                    continue
-                if not isinstance(_x, dict):
-                    continue
-                _xt = _x.get("type")
-                if _xt in ("NamedExpr", "Await", "Yield", "YieldFrom", "Lambda", "GenExp",
-                           "ListComp", "SetComp", "DictComp"):
-                    return False
-                if _xt == "Call" and not (
-                        str(_x.get("func", "")).endswith(".get")
-                        or _x.get("func") in ("int", "float", "abs", "round", "len")):
-                    return False
-                _stk.extend(_x.values())
-            return True
-
-        def _r521_guard(_e, _lrefs, _why, _subst=None):
-            # a statement-position obligation that `_e` (a may-be-None value) is not None.
-            # An IR-node ADT value (`emit_ir`: an `ExprIR` parameter, its `.get` projections
-            # `left_of` / `op_of` ...) has no None in the model at all -- route #57 left the
-            # non-scalar codomains unmeasured -- so it gets no obligation here ("").
-            _rcv = (str(_e.get("func", ""))[:-len(".get")]
-                    if isinstance(_e, dict) and _e.get("type") == "Call"
-                    and str(_e.get("func", "")).endswith(".get") else "")
-            if (self._is_emit_ir_expr(_e)
-                    or (_rcv and "." not in _rcv
-                        and self._is_emit_ir_expr({"type": "Var", "name": _rcv}))):
-                return ""
-            if not _r521_pure(_e):
-                return ("(assert { [@expl:PyCSL-R521 %s; the value may be None and is not a "
-                        "pure read, so the obligation cannot be stated] false })" % _why)
-            _nn = "pycsl_none_str" if self._is_string_expr(_e) else "pycsl_none"
-            self._add_abstract_op("val function %s : %s" % (
-                _nn, "string" if _nn.endswith("_str") else "int"))
-            return ("(let _r521_v = %s in assert { [@expl:PyCSL-R521 %s, but the value may "
-                    "be None (a one-argument `.get`, an Optional container element, or a "
-                    "value flowing from one); guard it with `is not None`] "
-                    "not (_r521_v = %s) })"
-                    % (self._expr_to_whyml(_e, _lrefs, False, _subst), _why, _nn))
-
-        def _r521_raises_in(_e):
-            # does the subtree `_e` apply an operation that raises on None to a may-be-None
-            # operand (the positions `_expr_to_whyml` guards)?
-            _stk = [_e]
-            while _stk:
-                _x = _stk.pop()
-                if isinstance(_x, list):
-                    _stk.extend(_x)
-                    continue
-                if not isinstance(_x, dict):
-                    continue
-                _xt, _xo = _x.get("type"), _x.get("op")
-                _kids = []
-                if _xt == "UnaryOp" and _xo in ("-", "+", "~", "USub", "UAdd", "Invert"):
-                    _kids = [_x.get("expr")]
-                elif _xt in ("BinOp", "StrConcat") and _xo not in (
-                        "and", "or", "==", "!=", "is", "is not"):
-                    _kids = [_x.get("left"), _x.get("right")]
-                elif _xt == "Subscript":
-                    _kids = [_x.get("value"), _x.get("index")]
-                elif _xt == "Call" and _x.get("func") not in (
-                        "str", "repr", "print", "isinstance", "bool", "id", "type", "hash"):
-                    _kids = list(_x.get("args") or [])
-                elif _xt == "FormattedValue" and _x.get("format_spec"):
-                    _kids = [_x.get("value")]
-                if any(_r521_mb(_kd) for _kd in _kids):
-                    return True
-                _stk.extend(_x.values())
-            return False
-
-        self._r230_maybe_none.update({
-            "mb_locals": _r521_loc, "mb_cont": _r521_cont, "mb": _r521_mb,
-            "cd": _r521_cd, "guard": _r521_guard, "func": func,
-            "raises_in": _r521_raises_in})
+        self._r230_maybe_none.update(_q5_rec)
+        self._r230_maybe_none.update({"on": True, "func": func})
         # self-tcb-reduction WRITER class (`_build_param_list`): record the name of the
         # function whose SIGNATURE is currently being built, so `_param_type_str` can type
         # the trusted `_param_type_str` stub's own `ref_params`/`array2d_params`/… params as
