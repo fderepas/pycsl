@@ -6104,6 +6104,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # `:=` mistyped. This is the classifier agreeing with the lowering.
             if self._is_re_str_call(v):
                 return True
+            # lv6: same agreement for the str-iteration-chain shapes (classifier and
+            # lowering both say `string`): `unicodedata.normalize(<form>, <str>)` and the
+            # character-filter `sep.join(c for c in s if ...)`.
+            if (self._is_unicodedata_normalize_call(v)
+                    or self._is_str_char_genexp_join(v)):
+                return True
             # an emit_ir str-attribute read (`var = node.var` -> name_of) is a string local, so a
             # dependent slice (`field = var[len("self."):]`) types as string. @mutable_state.
             if (t in ("Attribute", "FieldGet") and _ms_str and self._is_string_expr(v)):
@@ -6361,6 +6367,21 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     if st is not None and st.get(_ftg) in (None, "Any"):
                         st[_ftg] = "str"
                     changed = True
+                # lv6: a for-target over a `str`-typed NAME is a 1-char string — EXACTLY the
+                # `_classify_iterable` G2 test (`Var`, `_value_semantic`, symbol type `str`)
+                # whose loop binds `ch = str_sub_op s !idx 1`. The loop already typed the
+                # target inside its body (`_string_char_iter`); this makes the FUNCTION-SCOPE
+                # classification agree, so a local bound from the target (`d =
+                # unicodedata.normalize("NFD", ch)`) pre-declares `ref ""`, not `ref 0`.
+                elif (self._value_semantic and isinstance(_fit, dict)
+                        and _fit.get("type") == "Var" and st is not None
+                        and st.get(_fit.get("name", "")) == "str"
+                        and st.get(_ftg) in (None, "Any", "str")):
+                    out.add(_ftg)
+                    seen.add(_ftg)
+                    if st.get(_ftg) in (None, "Any"):
+                        st[_ftg] = "str"
+                    changed = True
                 # lv3: the `re.split(<pattern literal>, <string>)` twin (the
                 # `_classify_iterable` re.split arm; its pattern test is re-checked there,
                 # and a declined pattern leaves an opaque int element -> a type error, i.e.
@@ -6432,6 +6453,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 if (isinstance(_b, dict) and _b.get("type") == "Var"
                         and _b.get("name") in str_dicts):
                     return True
+            # lv6: a ternary APPENDED with BOTH arms string-valued appends a string (Python
+            # evaluates to one of the two arms). Scoped to this element-source test — the
+            # general `_is_string_expr` IfExpr arm stays gated as it was.
+            if src.get("type") == "IfExpr":
+                return (_src_is_str(src.get("body", {}))
+                        and _src_is_str(src.get("orelse", {})))
             return False
 
         srcs: Dict[str, List[Any]] = {v: [] for v in seqs}
