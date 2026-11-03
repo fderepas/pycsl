@@ -21600,19 +21600,22 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # the None into a body verified against its parameter's annotation: an
                     # ESCAPE from the record, owed unconditionally (residual, recorded: an
                     # imported callee that stores the None without raising).
-                    _bi521 = (not _ctr521 and not any(
-                        str(_fn.get("name", "")) in (_m521, _f521)
-                        and str(_fn.get("name", "")) not in (
+                    _bi521 = (not (not _rv521 and str(_f521).lower() in {
+                        str(_rk521).lower() for _rk521 in (
+                            getattr(self, "_record_types", {}) or {})}) and not any(
+                        _fn in (_m521, _f521) and _fn not in (
                             getattr(self, "imported_names_r521", None) or set())
-                        or str(_fn.get("name", "")).endswith("__" + _m521)
-                        for _fn in ((getattr(self, "ir", None) or {}).get("functions") or [])
-                        if isinstance(_fn, dict)))
+                        or _fn.endswith("__" + _m521)
+                        for _fn in (getattr(self, "own_names_r521", None) or [
+                            str(_fx.get("name", "")) for _fx in (
+                                (getattr(self, "ir", None) or {}).get("functions") or [])
+                            if isinstance(_fx, dict)])))
                     for _i521, _x521 in _as521:
                         if not _chk521 or _adm521.get(_i521, False):
                             continue
                         _c521.append((_x521, "passing None to `%s` raises or breaks its "
                                       "parameter's type" % _f521, "mba" if _bi521 else "mbu"))
-                        if _ctr521:
+                        if _ctr521 and not _bi521:
                             # a container holding None handed to a FILE function / constructor
                             # leaves the record; a builtin over it (`sorted`, `sum`, ...) is the
                             # builtin's own exception model's (route #437)
