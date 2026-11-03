@@ -1,5 +1,11 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-03): #540-#545 OPENED (red team 51 on 9c8c5cf4a: 2713 probes / 301 confirmed in 6 families, default mode): #540 unary `+`
+##   lowered as the identity and judged by nothing (59); #541 local lists whose elements the model int-erases accept append(None) / append(int)
+##   unchecked (112; its exemplars no longer prove on int26 = + the #521-#526 fence); #542 an int-modelled `in` haystack / for iterable never
+##   kind-checked (66); #543 a local annotated with a class the model erases to int bound to None / int (8); #544 isinstance(x, None) (18);
+##   #545 a None operand of unary - / ~ or of an augmented assignment (38; still proves on int26). Driver repro 10/10 on main.
+
 ## run #4 (2026-11-03): #533 / #534 / #535 / #538 REPAIRED (executor u17 off 2c4c575ed, d3e9099c6 + its ledger / docs commit; inline in route #315's
 ##   #520 block and route #437's orderability judge in `_run_pipeline`, mirror twins `\trusted`, no new def, no axiom; annotations §7.533): a program-class
 ##   `default_factory` must be a single program-class chain whose first (own / inherited / synthesized) `__init__` has no required parameter and whose
