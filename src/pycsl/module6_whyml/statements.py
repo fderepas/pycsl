@@ -4712,6 +4712,92 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
 
         stmt_d = stmts[0]
         rest = stmts[1:]
+        # (#49) driver run #4, ROUTES #521 #526 — THE STATEMENT POSITIONS OF ROUTE #230's
+        #   VALUE FENCE (the expression positions are in `_expr_to_whyml`; the record and the
+        #   rule in `functions.py::_emit_function_block`). A value that MAY be None (`mb`) or
+        #   a container that may HOLD one (`cd`) is guarded where the statement raises on it
+        #   or lets it escape the record: an augmented assignment (`t += d.get(k)`, and a
+        #   may-be-None target), a `for` iterable, a tuple unpack of it, a RETURN from a
+        #   function whose return annotation does not admit None (`return d.get(k)` from a
+        #   `-> int` helper proved `-g(d)` at the caller), a store into a FIELD whose
+        #   annotation does not admit None or into an item of a non-local container (the
+        #   record does not follow fields). Each obligation precedes the statement, which is
+        #   then emitted unchanged (re-entry marked by identity in `_r521_stmt_done`).
+        #   Inline (this method's mirror twin is `\trusted`, no new def, no raise).
+        _r521s = getattr(self, "_r230_maybe_none", None)
+        if getattr(self, "_r521_stmt_done", None) is stmt_d:
+            self._r521_stmt_done = None
+        elif (isinstance(_r521s, dict) and _r521s.get("mb") is not None
+                and isinstance(stmt_d, dict) and not getattr(self, "_in_spec", False)):
+            _k521s = stmt_d.get("stmt")
+            _v521s = stmt_d.get("value")
+            _mb521s = _r521s["mb"]
+            _cd521s = _r521s["cd"]
+            _fn521s = _r521s.get("func") or {}
+            _g521s: List[Any] = []
+            _bad521s = {"type": "Call", "func": "?"}   # an unprovable obligation
+            if _k521s == "Return" and isinstance(_v521s, dict) and not (
+                    _fn521s.get("r526_returns_optional")
+                    or str(_fn521s.get("return_annotation") or "").startswith("_union_")
+                    or str(_fn521s.get("return_annotation") or "") in ("Any", "object")):
+                if _mb521s(_v521s):
+                    _g521s.append((_v521s, "returning it from a function whose return "
+                                   "annotation does not admit None hands None to callers"))
+                elif _cd521s(_v521s):
+                    _g521s.append((_bad521s, "returning a container that may hold None from "
+                                   "a function whose return annotation does not admit None"))
+            elif _k521s in ("FieldAssign", "FieldAugAssign") and isinstance(_v521s, dict):
+                _ob521s = str(stmt_d.get("object") or "")
+                _cl521s = (getattr(self, "_current_self_type", None) if _ob521s == "self"
+                           else (getattr(self, "_current_record_var_classes", {}) or {})
+                           .get(_ob521s))
+                _rts521s = getattr(self, "_record_types", {}) or {}
+                _rt521s = (_rts521s.get(_cl521s) or _rts521s.get(str(_cl521s).lower())
+                           or next((_rv for _rk, _rv in _rts521s.items()
+                                    if str(_rk).lower() == str(_cl521s).lower()), None)
+                           if _cl521s else None) or {}
+                _ft521s = str((_rt521s.get("field_types") or {}).get(
+                    stmt_d.get("field"), ""))
+                _ok521s = _k521s == "FieldAssign" and (
+                    _ft521s.startswith("_union_") or "Optional" in _ft521s
+                    or "None" in _ft521s or _ft521s in ("Any", "object"))
+                if _mb521s(_v521s) and not _ok521s:
+                    _g521s.append((_v521s, "storing it into a field whose annotation does "
+                                   "not admit None (or updating the field with it)"))
+                elif _cd521s(_v521s) and not _ok521s:
+                    _g521s.append((_bad521s, "storing a container that may hold None into a "
+                                   "field, which the record does not follow"))
+            elif _k521s == "AugAssign":
+                if _mb521s(_v521s):
+                    _g521s.append((_v521s, "an augmented assignment raises TypeError when "
+                                   "its value is None"))
+                _tg521s = stmt_d.get("target")
+                if isinstance(_tg521s, str) and _mb521s({"type": "Var", "name": _tg521s}):
+                    _g521s.append(({"type": "Var", "name": _tg521s}, "an augmented "
+                                   "assignment raises TypeError when its target is None"))
+            elif _k521s == "For" and _mb521s(stmt_d.get("iter")):
+                _g521s.append((stmt_d.get("iter"), "iterating None raises TypeError"))
+            elif _k521s == "TupleUnpack" and _mb521s(_v521s):
+                _g521s.append((_v521s, "unpacking None raises TypeError"))
+            elif _k521s == "ArraySet" and isinstance(_v521s, dict):
+                _ar521s = stmt_d.get("array")
+                while isinstance(_ar521s, dict) and _ar521s.get("type") == "Subscript":
+                    _ar521s = _ar521s.get("value")
+                if not (isinstance(_ar521s, dict) and _ar521s.get("type") == "Var"):
+                    if _mb521s(_v521s):
+                        _g521s.append((_v521s, "storing it into an item of a container the "
+                                       "record does not follow"))
+                    elif _cd521s(_v521s):
+                        _g521s.append((_bad521s, "storing a container that may hold None "
+                                       "into a container the record does not follow"))
+            _pre521s = ";\n".join(
+                indent + _x521s for _x521s in (
+                    _r521s["guard"](_c521s, local_refs, _w521s)
+                    for _c521s, _w521s in _g521s) if _x521s)
+            if _pre521s:
+                self._r521_stmt_done = stmt_d
+                return _pre521s + ";\n" + self._stmts_to_whyml(
+                    stmts, local_refs, declared_refs, indent, in_loop)
         stmt = stmt_from_dict(stmt_d)
         code = ""
 

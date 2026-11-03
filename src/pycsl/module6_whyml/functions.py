@@ -10385,6 +10385,354 @@ class FunctionEmissionMixin:
                     _r230_changed = True
         self._r230_maybe_none = {"containers": _r230_cont, "locals": _r230_loc,
                                  "dicts": _r230_dicts}
+        # (#49) driver run #4, ROUTES #521 #522 #524 #526 — ROUTE #230's FENCE, COMPLETED.
+        # Red team 49 found four faces of ONE gap in the record above: (#521) the obligation
+        # was emitted by `_handle_binop` for arithmetic / ordering operands ONLY, so a unary
+        # `-` / `+` / `~`, an augmented assignment and a membership test on the None took it
+        # as an ordinary int / str; (#522) a `.get` counted only on a ONE-dot receiver, so
+        # `r.d.get(k)` / `self.d.get(k)` was never 'may be None'; (#524) only a ONE-level read
+        # `xs[i]` of an Optional container was, so `xss[0][0]` of `List[List[Optional[int]]]`
+        # was not; (#526) the taint did not flow — a `.get` result stored into a list / dict
+        # (display, append, item store), bound by a walrus / tuple unpack / for target /
+        # `x or None`, passed to a callee, returned, or stored into a field was read back as a
+        # plain int. All proved `no_exception \all` where CPython raises TypeError.
+        #
+        # THE RULE (refuse-by-default). `mb(e)`: the expression may evaluate to Python None —
+        #   * a local in `mb_locals` / a subscript chain of length L rooted at a container of
+        #     `mb_cont` that holds None at depth L (Module 5's `r524_optional_depths`);
+        #   * `<recv>.get(k)` with no default, a None default, or a may-be-None default, on a
+        #     known dict local / parameter, on a dict FIELD with an int / str codomain
+        #     (`r.d`, `self.d`, `o.r.d`, resolved through the record types), or on a dotted
+        #     receiver that does not resolve (fail-closed); `.get` / `.pop` / `.setdefault`
+        #     on a container that holds None;
+        #   * `a if c else b` / `a and b` when an arm may be None, `a or b` when `b` may be,
+        #     a walrus whose value may be (a None literal counts in these positions).
+        # Both sets are a FIXPOINT over the body, seeded with route #230's: a local bound
+        # (assignment, tuple unpack, walrus, for / comprehension target) from a may-be-None
+        # value or from iterating / unpacking a container holding None at depth 1; a
+        # container that receives one (display or comprehension element, item store,
+        # append / insert / add / setdefault / extend / update / `+=`, alias, copy, slice).
+        # The OBLIGATION `not (v = pycsl_none)` (str: `pycsl_none_str`) is asserted at EVERY
+        # use that raises on None (expressions.py `_expr_to_whyml`, statements.py
+        # `_stmts_to_whyml`): arithmetic / ordering / unary operand, membership haystack (and
+        # needle of a str haystack), string concatenation, subscript receiver / index, the
+        # argument of a builtin / method / user function or constructor (a file function's
+        # parameter annotated Optional / Any / object excepted), a formatted f-string field,
+        # an iterable, an augmented-assignment target or value, a return value (unless the
+        # return annotation admits None), a field store. It is provable exactly under an
+        # `is not None` / `isinstance` guard. A may-be-None operand that is not a pure read
+        # (a call, a walrus) gets an unprovable `false` obligation instead of being lowered
+        # twice; a CONTAINER holding None that leaves the function (returned, stored into a
+        # field, passed to a user function) without an annotation admitting None does too.
+        # Route #230's own record and `_handle_binop` fence above are untouched (byte-
+        # identical); the new sites skip an operand that fence already guards. Inline
+        # (wall-lesson (a4)); this method has no mirror twin.
+        _r521_loc = set(_r230_loc)
+        _r521_cont = {_n: {1} for _n in _r230_cont}
+        for _n, _ds in (func.get("r524_optional_depths") or {}).items():
+            _r521_cont[_n] = set(_ds)
+        _r521_none_loc = set()
+        _r521_st = func.get("symbol_table") or {}
+        _r521_rts = getattr(self, "_record_types", {}) or {}
+        _r521_dvt = func.get("dict_value_types") or {}
+        _r521_self_t = self._current_self_type
+
+        def _r521_rt(_cls):
+            if not _cls:
+                return None
+            return (_r521_rts.get(_cls) or _r521_rts.get(str(_cls).lower())
+                    or next((_v for _k, _v in _r521_rts.items()
+                             if str(_k).lower() == str(_cls).lower()), None))
+
+        def _r521_field_nu(_recv):
+            # "?" = the receiver does not resolve; None = resolves to a non-dict field.
+            _parts = _recv.split(".")
+            _cls = _r521_self_t if _parts[0] == "self" else _r521_st.get(_parts[0])
+            for _p in _parts[1:-1]:
+                _rt = _r521_rt(_cls)
+                if not _rt:
+                    return "?"
+                _cls = (_rt.get("field_types") or {}).get(_p)
+            _rt = _r521_rt(_cls)
+            if not _rt:
+                return "?"
+            _ft = (_rt.get("field_types") or {}).get(_parts[-1])
+            if _ft is None:
+                return "?"
+            if _ft != "dict":
+                return None
+            return (_rt.get("field_value_types") or {}).get(_parts[-1], "int")
+
+        def _r521_chain(_e):
+            _L = 0
+            while isinstance(_e, dict) and _e.get("type") == "Subscript":
+                _L += 1
+                _e = _e.get("value")
+            if isinstance(_e, dict) and _e.get("type") == "Var":
+                return _e.get("name"), _L
+            return None, _L
+
+        def _r521_mbx(_e):
+            return (isinstance(_e, dict) and _e.get("type") == "None") or _r521_mb(_e)
+
+        def _r521_mb(_e):
+            # (no look-through a unary / `int(..)`: their RESULT is never None -- the
+            # operation itself raises, and is guarded where it is emitted)
+            if not isinstance(_e, dict):
+                return False
+            _t = _e.get("type")
+            if _t == "Var":
+                return _e.get("name") in _r521_loc
+            if _t == "Subscript":
+                _r, _L = _r521_chain(_e)
+                return _r is not None and _L in _r521_cont.get(_r, ())
+            if _t == "Call":
+                _f = str(_e.get("func", ""))
+                _a = _e.get("args") or []
+                for _sfx in (".get", ".pop", ".setdefault"):
+                    if _f.endswith(_sfx) and 1 in _r521_cont.get(_f[:-len(_sfx)], ()):
+                        return True
+                if not _f.endswith(".get") or _e.get("keywords"):
+                    return False
+                if not (len(_a) == 1 or (len(_a) == 2 and (
+                        _r521_mbx(_a[1]) or (isinstance(_a[1], dict)
+                                             and _a[1].get("type") == "Var"
+                                             and _a[1].get("name") in _r521_none_loc)))):
+                    return False
+                _rv = _f[:-len(".get")]
+                if "." not in _rv:
+                    return (_rv in _r230_dicts
+                            and _r521_dvt.get(_rv) in (None, "", "int", "string"))
+                _nu = _r521_field_nu(_rv)
+                return _nu == "?" or _nu in ("", "int", "string")
+            if _t == "IfExpr":
+                return _r521_mbx(_e.get("body")) or _r521_mbx(_e.get("orelse"))
+            if _t in ("BinOp", "BoolOp") and _e.get("op") == "and":
+                return _r521_mbx(_e.get("left")) or _r521_mbx(_e.get("right"))
+            if _t in ("BinOp", "BoolOp") and _e.get("op") == "or":
+                return _r521_mbx(_e.get("right"))
+            if _t == "NamedExpr":
+                return _r521_mb(_e.get("value"))
+            return False
+
+        def _r521_cd(_e):
+            # the depths at which the CONTAINER value `_e` holds a None
+            if not isinstance(_e, dict):
+                return set()
+            _r, _L = _r521_chain(_e)
+            if _r is not None:
+                return {_d - _L for _d in _r521_cont.get(_r, ()) if _d - _L >= 1}
+            _t = _e.get("type")
+            if _t in ("ArrayLit", "ListLit", "SetLit", "Tuple", "MkTuple", "MkList",
+                      "DictLit", "List", "Set"):
+                _o = set()
+                for _x in list(_e.get("elts") or []) + list(_e.get("values") or []):
+                    if _r521_mbx(_x):
+                        _o.add(1)
+                    _o |= {_d + 1 for _d in _r521_cd(_x)}
+                return _o
+            if _t in ("ListComp", "SetComp", "GenExp", "DictComp"):
+                _x = _e.get("value") if _t == "DictComp" else _e.get("elt")
+                return ({1} if _r521_mbx(_x) else set()) | {_d + 1 for _d in _r521_cd(_x)}
+            if _t == "Call":
+                _f = str(_e.get("func", ""))
+                _a = _e.get("args") or []
+                if _f in ("list", "sorted", "reversed", "tuple", "set", "frozenset",
+                          "dict") and _a:
+                    return _r521_cd(_a[0])
+                if _f.endswith(".copy"):
+                    return set(_r521_cont.get(_f[:-len(".copy")], ()))
+                return set()
+            if _t == "IfExpr":
+                return _r521_cd(_e.get("body")) | _r521_cd(_e.get("orelse"))
+            if _t in ("BinOp", "BoolOp") and _e.get("op") in ("+", "or", "and"):
+                return _r521_cd(_e.get("left")) | _r521_cd(_e.get("right"))
+            if _t == "NamedExpr":
+                return _r521_cd(_e.get("value"))
+            if "Slice" in str(_t) and isinstance(_e.get("value"), dict):
+                return _r521_cd(_e.get("value"))
+            return set()
+
+        def _r521_bind(_tg, _mbv, _cdv):
+            # bind target(s) `_tg` (a name, or a list of names / Var dicts) to a value
+            # that may be None (`_mbv`) and / or holds None at depths `_cdv`
+            _ch = False
+            for _nm in (_tg if isinstance(_tg, list) else [_tg]):
+                if isinstance(_nm, dict):
+                    _nm = _nm.get("name") if _nm.get("type") == "Var" else None
+                if not isinstance(_nm, str):
+                    continue
+                if _mbv and _nm not in _r521_loc:
+                    _r521_loc.add(_nm)
+                    _ch = True
+                if _cdv and not set(_cdv) <= _r521_cont.get(_nm, set()):
+                    _r521_cont.setdefault(_nm, set()).update(_cdv)
+                    _ch = True
+            return _ch
+
+        def _r521_iter_bind(_tg, _it):
+            # a for / comprehension target over `_it`
+            _cd = _r521_cd(_it)
+            _ch = _r521_bind(_tg, 1 in _cd, {_d - 1 for _d in _cd if _d > 1})
+            if isinstance(_it, dict) and _it.get("type") == "Call":
+                _f = str(_it.get("func", ""))
+                _src = ([_f[:-len(_sfx)] for _sfx in (".values", ".items")
+                         if _f.endswith(_sfx)]
+                        + [_a.get("name") for _a in (_it.get("args") or [])
+                           if isinstance(_a, dict) and _a.get("type") == "Var"
+                           and _f in ("enumerate", "zip", "reversed", "sorted", "list",
+                                      "iter", "filter", "map")])
+                if any(1 in _r521_cont.get(_s, ()) for _s in _src):
+                    _ch = _r521_bind(_tg, True, set()) or _ch
+            return _ch
+
+        for _r521_round in range(32):
+            _r521_ch = False
+            _r521_stack = [body_stmts]
+            while _r521_stack:
+                _n = _r521_stack.pop()
+                if isinstance(_n, list):
+                    _r521_stack.extend(_n)
+                    continue
+                if not isinstance(_n, dict):
+                    continue
+                _r521_stack.extend(_n.values())
+                _s, _t = _n.get("stmt"), _n.get("type")
+                _v = _n.get("value")
+                if _s == "Assign" and isinstance(_n.get("target"), str):
+                    if isinstance(_v, dict) and _v.get("type") == "None":
+                        _r521_none_loc.add(_n["target"])
+                    _r521_ch = _r521_bind(_n["target"], _r521_mb(_v), _r521_cd(_v)) or _r521_ch
+                elif _s == "TupleUnpack":
+                    _tgs = _n.get("targets") or []
+                    if (isinstance(_v, dict) and _v.get("type") in ("Tuple", "MkTuple")
+                            and len(_v.get("elts") or []) == len(_tgs)):
+                        for _tg, _el in zip(_tgs, _v.get("elts") or []):
+                            _r521_ch = _r521_bind(_tg, _r521_mbx(_el),
+                                                  _r521_cd(_el)) or _r521_ch
+                    else:
+                        _cd = _r521_cd(_v)
+                        _r521_ch = _r521_bind(_tgs, 1 in _cd,
+                                              {_d - 1 for _d in _cd if _d > 1}) or _r521_ch
+                elif _s == "For":
+                    _r521_ch = _r521_iter_bind(_n.get("target"), _n.get("iter")) or _r521_ch
+                elif _s == "ArraySet":
+                    _r, _L = _r521_chain(_n.get("array"))
+                    if _r is not None:
+                        _add =({_L + 1} if _r521_mbx(_v) else set()) | {
+                            _d + _L + 1 for _d in _r521_cd(_v)}
+                        if _add and not _add <= _r521_cont.get(_r, set()):
+                            _r521_cont.setdefault(_r, set()).update(_add)
+                            _r521_ch = True
+                elif _s == "AugAssign" and isinstance(_n.get("target"), str):
+                    _cd = _r521_cd(_v)
+                    if _cd and not _cd <= _r521_cont.get(_n["target"], set()):
+                        _r521_cont.setdefault(_n["target"], set()).update(_cd)
+                        _r521_ch = True
+                if _t == "NamedExpr":
+                    _r521_ch = _r521_bind(_n.get("target"), _r521_mb(_v),
+                                          _r521_cd(_v)) or _r521_ch
+                elif _t in ("ListComp", "SetComp", "GenExp", "DictComp"):
+                    for _g in (_n.get("generators") or []):
+                        if isinstance(_g, dict):
+                            _r521_ch = _r521_iter_bind(_g.get("target"),
+                                                       _g.get("iter")) or _r521_ch
+                elif _t == "Call":
+                    _f = str(_n.get("func", ""))
+                    _a = _n.get("args") or []
+                    _rv, _m = (_f.rsplit(".", 1) if "." in _f else ("", _f))
+                    if _rv and "." not in _rv and _a:
+                        _add = set()
+                        if _m in ("append", "insert", "add", "setdefault", "appendleft"):
+                            if _r521_mbx(_a[-1]):
+                                _add.add(1)
+                            _add |= {_d + 1 for _d in _r521_cd(_a[-1])}
+                        elif _m in ("extend", "update", "extendleft"):
+                            _add |= _r521_cd(_a[0])
+                        if _add and not _add <= _r521_cont.get(_rv, set()):
+                            _r521_cont.setdefault(_rv, set()).update(_add)
+                            _r521_ch = True
+            if not _r521_ch:
+                break
+
+        def _r521_pure(_e):
+            _stk = [_e]
+            while _stk:
+                _x = _stk.pop()
+                if isinstance(_x, list):
+                    _stk.extend(_x)
+                    continue
+                if not isinstance(_x, dict):
+                    continue
+                _xt = _x.get("type")
+                if _xt in ("NamedExpr", "Await", "Yield", "YieldFrom", "Lambda", "GenExp",
+                           "ListComp", "SetComp", "DictComp"):
+                    return False
+                if _xt == "Call" and not (
+                        str(_x.get("func", "")).endswith(".get")
+                        or _x.get("func") in ("int", "float", "abs", "round", "len")):
+                    return False
+                _stk.extend(_x.values())
+            return True
+
+        def _r521_guard(_e, _lrefs, _why, _subst=None):
+            # a statement-position obligation that `_e` (a may-be-None value) is not None.
+            # An IR-node ADT value (`emit_ir`: an `ExprIR` parameter, its `.get` projections
+            # `left_of` / `op_of` ...) has no None in the model at all -- route #57 left the
+            # non-scalar codomains unmeasured -- so it gets no obligation here ("").
+            _rcv = (str(_e.get("func", ""))[:-len(".get")]
+                    if isinstance(_e, dict) and _e.get("type") == "Call"
+                    and str(_e.get("func", "")).endswith(".get") else "")
+            if (self._is_emit_ir_expr(_e)
+                    or (_rcv and "." not in _rcv
+                        and self._is_emit_ir_expr({"type": "Var", "name": _rcv}))):
+                return ""
+            if not _r521_pure(_e):
+                return ("(assert { [@expl:PyCSL-R521 %s; the value may be None and is not a "
+                        "pure read, so the obligation cannot be stated] false })" % _why)
+            _nn = "pycsl_none_str" if self._is_string_expr(_e) else "pycsl_none"
+            self._add_abstract_op("val function %s : %s" % (
+                _nn, "string" if _nn.endswith("_str") else "int"))
+            return ("(let _r521_v = %s in assert { [@expl:PyCSL-R521 %s, but the value may "
+                    "be None (a one-argument `.get`, an Optional container element, or a "
+                    "value flowing from one); guard it with `is not None`] "
+                    "not (_r521_v = %s) })"
+                    % (self._expr_to_whyml(_e, _lrefs, False, _subst), _why, _nn))
+
+        def _r521_raises_in(_e):
+            # does the subtree `_e` apply an operation that raises on None to a may-be-None
+            # operand (the positions `_expr_to_whyml` guards)?
+            _stk = [_e]
+            while _stk:
+                _x = _stk.pop()
+                if isinstance(_x, list):
+                    _stk.extend(_x)
+                    continue
+                if not isinstance(_x, dict):
+                    continue
+                _xt, _xo = _x.get("type"), _x.get("op")
+                _kids = []
+                if _xt == "UnaryOp" and _xo in ("-", "+", "~", "USub", "UAdd", "Invert"):
+                    _kids = [_x.get("expr")]
+                elif _xt in ("BinOp", "StrConcat") and _xo not in (
+                        "and", "or", "==", "!=", "is", "is not"):
+                    _kids = [_x.get("left"), _x.get("right")]
+                elif _xt == "Subscript":
+                    _kids = [_x.get("value"), _x.get("index")]
+                elif _xt == "Call" and _x.get("func") not in (
+                        "str", "repr", "print", "isinstance", "bool", "id", "type", "hash"):
+                    _kids = list(_x.get("args") or [])
+                elif _xt == "FormattedValue" and _x.get("format_spec"):
+                    _kids = [_x.get("value")]
+                if any(_r521_mb(_kd) for _kd in _kids):
+                    return True
+                _stk.extend(_x.values())
+            return False
+
+        self._r230_maybe_none.update({
+            "mb_locals": _r521_loc, "mb_cont": _r521_cont, "mb": _r521_mb,
+            "cd": _r521_cd, "guard": _r521_guard, "func": func,
+            "raises_in": _r521_raises_in})
         # self-tcb-reduction WRITER class (`_build_param_list`): record the name of the
         # function whose SIGNATURE is currently being built, so `_param_type_str` can type
         # the trusted `_param_type_str` stub's own `ref_params`/`array2d_params`/… params as

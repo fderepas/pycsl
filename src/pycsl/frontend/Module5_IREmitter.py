@@ -7391,6 +7391,52 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         or (isinstance(_r230_x, ast.Constant) and _r230_x.value is None)):
                     _r230_opt.add(_r230_nm)
                     break
+        # (#49) driver run #4, ROUTE #524 — THE NESTING DEPTH AT WHICH A ROUTE-#230 CONTAINER
+        # ADMITS `None`. `xss: List[List[Optional[int]]]` was recorded by name only, and Module
+        # 6 fenced only a ONE-level read `xss[i]`, so `xss[0][0] + 1` PROVED `no_exception \all`
+        # (CPython TypeError on `[[None]]`). The depth is the number of container subscripts
+        # between the annotation and an `Optional[..]` / `Union[.., None]` / `.. | None` /
+        # `None` (the `Optional` / `Union` wrappers themselves do not count): `List[Optional
+        # [int]]` -> 1, `List[List[Optional[int]]]` / `Dict[str, List[Optional[int]]]` -> 2.
+        # Module 6 judges a subscript chain of length L rooted at the container "may be None"
+        # iff L is one of these depths. Emitted ONLY for a name whose depths are not exactly
+        # {1} (the one-level shape route #230 already handles), so every other IR is
+        # byte-identical. Inline (this method's mirror twin is `\trusted`).
+        _r524_depths: Dict[str, List[int]] = {}
+        for _r230_nm, _r230_ann in _r230_anns:
+            if _r230_nm not in _r230_opt:
+                continue
+            _r524_ds: set = set()
+            _r524_st: list = [(_r230_ann, 0)]
+            while _r524_st:
+                _r524_n, _r524_d = _r524_st.pop()
+                if ((isinstance(_r524_n, ast.Name) and _r524_n.id == "Optional")
+                        or (isinstance(_r524_n, ast.Attribute) and _r524_n.attr == "Optional")
+                        or (isinstance(_r524_n, ast.Constant) and _r524_n.value is None)):
+                    if _r524_d >= 1:
+                        _r524_ds.add(_r524_d)
+                    continue
+                if isinstance(_r524_n, ast.Subscript):
+                    _r524_b = _r524_n.value
+                    _r524_bn = (_r524_b.id if isinstance(_r524_b, ast.Name) else
+                                _r524_b.attr if isinstance(_r524_b, ast.Attribute) else "")
+                    if _r524_bn == "Optional":
+                        if _r524_d >= 1:
+                            _r524_ds.add(_r524_d)
+                        _r524_st.append((_r524_n.slice, _r524_d))
+                    elif _r524_bn in ("Union", "Annotated", "Final", "ClassVar"):
+                        _r524_st.append((_r524_n.slice, _r524_d))
+                    else:
+                        _r524_st.append((_r524_n.slice, _r524_d + 1))
+                    continue
+                if isinstance(_r524_n, ast.Tuple):
+                    _r524_st.extend((_e, _r524_d) for _e in _r524_n.elts)
+                    continue
+                if isinstance(_r524_n, ast.BinOp) and isinstance(_r524_n.op, ast.BitOr):
+                    _r524_st.append((_r524_n.left, _r524_d))
+                    _r524_st.append((_r524_n.right, _r524_d))
+            if _r524_ds and _r524_ds != {1}:
+                _r524_depths[_r230_nm] = sorted(_r524_ds)
         # (#49) ROUTE #249 — CONTAINERS WHOSE ELEMENTS ARE `Any`. `List[Any]`, `Dict[str, Any]`,
         # `Set[Any]`, `Tuple[Any, int]`, or a TypeVar element: `param_annotations` keeps only `"list"`/`"dict"`, so Module 6 could not
         # tell `xs[0] == xs[1]` on a `List[Any]` from the same read on a `List[int]`, and
@@ -7505,6 +7551,20 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             "name": func_name,
             **({"global_writes": sorted(_global_writes)} if _global_writes else {}),
             **({"r230_optional_containers": sorted(_r230_opt)} if _r230_opt else {}),
+            **({"r524_optional_depths": _r524_depths} if _r524_depths else {}),
+            # (#49) driver run #4, ROUTE #526: the RETURN annotation admits `None` somewhere
+            # (`Optional[int]`, `List[Optional[int]]`, `int | None`) -- `return_annotation`
+            # keeps only `"list"` for the latter, and Module 6 must know whether a value or a
+            # container that may hold None may leave the function. Emitted only when true.
+            **({"r526_returns_optional": True}
+               if node.returns is not None and any(
+                   (isinstance(_x526, ast.Name) and _x526.id in ("Optional", "Any"))
+                   or (isinstance(_x526, ast.Attribute) and _x526.attr in ("Optional", "Any"))
+                   or (isinstance(_x526, ast.Constant) and (
+                       _x526.value is None or (isinstance(_x526.value, str) and (
+                           "None" in _x526.value or "Optional" in _x526.value
+                           or "Any" in _x526.value))))
+                   for _x526 in ast.walk(node.returns)) else {}),
             **({"r249_erased_containers": dict(sorted(_r249_cont.items()))}
                if _r249_cont else {}),
             # (#34) emitted ONLY when non-empty, so the IR of every function without a
