@@ -26,7 +26,7 @@
 ##   set / dict of established non-number element kind of a value of another kind (`PYCSL-R541-ELEMENT-KIND`), and a binding of an annotated local /
 ##   field the annotation does not admit (`PYCSL-R543-ANNOTATED-BINDING-KIND`). Base int26: #541 51 PROVED / 61 NOT PROVED, #542 60 PROVED / 6 REFUSED,
 ##   #543 8 PROVED. Witnesses 186 x default / typed / store = 558/558 REFUSED. Corpus 8580-8604 / 8608 / 8609 FAIL, controls 8605-8607 PASS (base + HEAD).
-##   Byte-diff root 0 / 0 / 0, pyref 0 / 0 / 0, mirror 53/53 1 MOVED (ConcurrencyChecker: a lying `held: int` annotation -> `Any`; MIRROR_PROOF);
+##   Byte-diff root 0 / 0 / 0, pyref 0 / 0 / 0, mirror 53/53 1 MOVED (ConcurrencyChecker: a lying `held: int` annotation -> `Any`; whole-file proof re-run: Verification SUCCESS);
 ##   rt43 / rt44 178 honest controls: 0 newly refused. Residuals: narrowing not modelled (`Union[int, List]` under isinstance refused), aliasing through
 ##   calls / containers not followed, a None member of a name's join stays the value fences'.
 
