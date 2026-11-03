@@ -3646,84 +3646,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # argument; everything else keeps the generic opaque dotted-call lowering. The callee
     # must RESOLVE to the stdlib module (route #323's import test: every binding of the
     # name `unicodedata` is `import unicodedata`, and no user definition shadows it).
+    # The recognizer is INLINED at its three sites (`_is_string_expr`, `_handle_call_expr`,
+    # and the statements pre-decl classifier) — every live helper def is mirror-coverage
+    # debt (bin/check-mirror-coverage.py), and all three sites are `\trusted` / live-only.
     _UNICODEDATA_FORMS = ("NFC", "NFD", "NFKC", "NFKD")
-
-    def _is_unicodedata_normalize_call(self, expr):
-        if not isinstance(expr, dict) or expr.get("type") != "Call":
-            return False
-        if (expr.get("func") != "unicodedata.normalize" or expr.get("receiver") is not None
-                or expr.get("keywords")):
-            return False
-        a = expr.get("args") or []
-        if (len(a) != 2 or not isinstance(a[0], dict) or a[0].get("type") != "String"
-                or a[0].get("value") not in self._UNICODEDATA_FORMS
-                or not isinstance(a[1], dict) or not self._is_string_expr(a[1])):
-            return False
-        if "unicodedata" in (getattr(self, "_module_method_return_types", {}) or {}):
-            return False
-        if "unicodedata" in (getattr(self, "_current_symbol_table", {}) or {}):
-            return False
-        _imps = [_i for _i in ((self.ir.get("imports") or [])
-                               if isinstance(getattr(self, "ir", None), dict) else [])
-                 if isinstance(_i, (list, tuple)) and len(_i) >= 5]
-        _b = [_i for _i in _imps if _i[0] == "unicodedata"]
-        return bool(_b) and all(_i[2] == "unicodedata" and _i[4] and _i[1] == "unicodedata"
-                                for _i in _b)
-
-    def _handle_unicodedata_normalize_call(self, expr, args):
-        """`unicodedata.normalize(form, s)` -> `unicodedata_normalize_op form s : string`.
-        NO content or length law: only that the result is a `str` and that the function is
-        DETERMINISTIC (a `val function`: CPython's normalization is a pure function of its
-        two arguments for the running Unicode database). None if not applicable."""
-        if not self._is_unicodedata_normalize_call(expr):
-            return None
-        self._add_abstract_op(
-            "val function unicodedata_normalize_op (form s: string) : string")
-        return f"(unicodedata_normalize_op {args[0]} {args[1]})"
-
-    def _is_str_char_genexp_join(self, expr):
-        """lv6: `<sep>.join(<c> for <c> in <s> [if <p>]...)` with `sep`/`s` string-typed, ONE
-        generator, a plain-name target and the element EXACTLY the target (a character
-        filter of `s`). Shape test only; `_handle_join_call` lowers it to an inline fold."""
-        if not isinstance(expr, dict) or expr.get("type") != "Call":
-            return False
-        _fn = expr.get("func")
-        if _fn != "join" or expr.get("keywords"):
-            return False
-        _rv = expr.get("receiver")
-        a = expr.get("args") or []
-        if not isinstance(_rv, dict) or not self._is_string_expr(_rv) or len(a) != 1:
-            return False
-        g = a[0]
-        if not isinstance(g, dict) or g.get("type") != "GenExp":
-            return False
-        gens = g.get("generators") or []
-        if len(gens) != 1 or not isinstance(gens[0], dict):
-            return False
-        tg = gens[0].get("target")
-        if not isinstance(tg, str) or not tg.isidentifier() or tg == "_comp_var":
-            return False
-        if gens[0].get("is_async") or gens[0].get("tuple_targets"):
-            return False
-        el = g.get("elt")
-        if not (isinstance(el, dict) and el.get("type") == "Var" and el.get("name") == tg):
-            return False
-        it = gens[0].get("iter")
-        if not (isinstance(it, dict) and self._is_string_expr(it)):
-            return False
-        # Refuse-by-default: a walrus / yield / await / lambda anywhere in the operands or
-        # filters keeps the old lowering (their scoping and effects are not modelled here).
-        _wk = [_rv, it] + list(gens[0].get("ifs") or [])
-        while _wk:
-            _x = _wk.pop()
-            if isinstance(_x, list):
-                _wk.extend(_x)
-            elif isinstance(_x, dict):
-                if _x.get("type") in ("NamedExpr", "Yield", "YieldFrom", "Await", "Lambda",
-                                      "GenExp", "ListComp", "SetComp", "DictComp"):
-                    return False
-                _wk.extend(v for v in _x.values() if isinstance(v, (dict, list)))
-        return True
 
     def _handle_string_value_method(self, expr, args, local_refs, invariant_ctx, subst):
         """faithful-string-op.md §3.1–3.3: lower `.replace`/`.lower`/`.upper`/`.strip`/
@@ -4940,8 +4866,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 return True
             # lv6: the two str-iteration-chain shapes lower to `string` values
             # (`unicodedata_normalize_op`, the inline character-filter join fold).
-            if (self._is_unicodedata_normalize_call(ir)
-                    or self._is_str_char_genexp_join(ir)):
+            # (Inlined recognizers; their twins sit in `_handle_call_expr` and
+            # `_expr_to_whyml` — keep the three in step.)
+            if (isinstance(ir, dict) and ir.get("type") == "Call"
+                 and ir.get("func") == "unicodedata.normalize" and ir.get("receiver") is None
+                 and not ir.get("keywords") and len(ir.get("args") or []) == 2
+                 and isinstance(ir["args"][0], dict) and ir["args"][0].get("type") == "String"
+                 and ir["args"][0].get("value") in self._UNICODEDATA_FORMS
+                 and isinstance(ir["args"][1], dict) and self._is_string_expr(ir["args"][1])
+                 and "unicodedata" not in (getattr(self, "_module_method_return_types", {}) or {})
+                 and "unicodedata" not in (getattr(self, "_current_symbol_table", {}) or {})
+                 and bool([_i for _i in ((self.ir.get("imports") or []) if isinstance(getattr(self, "ir", None), dict) else [])
+                           if isinstance(_i, (list, tuple)) and len(_i) >= 5 and _i[0] == "unicodedata"])
+                 and all(_i[2] == "unicodedata" and _i[4] and _i[1] == "unicodedata"
+                         for _i in ((self.ir.get("imports") or []) if isinstance(getattr(self, "ir", None), dict) else [])
+                         if isinstance(_i, (list, tuple)) and len(_i) >= 5 and _i[0] == "unicodedata")):
+                return True
+            if (isinstance(ir, dict) and ir.get("type") == "Call" and ir.get("func") == "join"
+                 and not ir.get("keywords") and isinstance(ir.get("receiver"), dict)
+                 and self._is_string_expr(ir["receiver"]) and len(ir.get("args") or []) == 1
+                 and isinstance(ir["args"][0], dict) and ir["args"][0].get("type") == "GenExp"
+                 and len(ir["args"][0].get("generators") or []) == 1
+                 and isinstance(ir["args"][0]["generators"][0], dict)
+                 and isinstance(ir["args"][0]["generators"][0].get("target"), str)
+                 and ir["args"][0]["generators"][0]["target"].isidentifier()
+                 and ir["args"][0]["generators"][0]["target"] != "_comp_var"
+                 and not ir["args"][0]["generators"][0].get("is_async")
+                 and not ir["args"][0]["generators"][0].get("tuple_targets")
+                 and isinstance(ir["args"][0].get("elt"), dict)
+                 and ir["args"][0]["elt"].get("type") == "Var"
+                 and ir["args"][0]["elt"].get("name") == ir["args"][0]["generators"][0]["target"]
+                 and isinstance(ir["args"][0]["generators"][0].get("iter"), dict)
+                 and self._is_string_expr(ir["args"][0]["generators"][0]["iter"])
+                 and not any(_t in ("NamedExpr", "Yield", "YieldFrom", "Await", "Lambda", "GenExp",
+                                    "ListComp", "SetComp", "DictComp")
+                             for _t in re.findall(r"'type': '([A-Za-z]+)'", repr(
+                                 [ir["receiver"], ir["args"][0]["generators"][0]["iter"],
+                                  ir["args"][0]["generators"][0].get("ifs") or []])))):
                 return True
             # (#31) `os.path.basename/dirname/join/...` return a Python `str`, so a
             # receiving local types as a string and a chained `.lower()`/`+` on the
@@ -8035,64 +7996,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         self._add_abstract_op("val join_1 (x: int) : int")
         return f"(join_1 {args[0]})"
 
-    def _emit_str_char_genexp_join(self, expr, local_refs, subst):
-        """lv6: the inline fold for `_is_str_char_genexp_join` (see `_handle_join_call`).
-        Binders live in the reserved `__pycsl_` namespace (route #333), so no user name can
-        be captured. The comprehension target is a fresh, string-typed, let-bound ref that
-        SHADOWS any same-named outer local inside the fold only — Python 3 comprehension
-        scoping. Returns None (old lowering) if a filter does not lower."""
-        g = expr["args"][0]
-        gen = g["generators"][0]
-        tg = gen["target"]
-        sub = dict(subst or {})
-        sub.pop(tg, None)
-        _lr = set(local_refs)
-        _sep = self._expr_to_whyml(expr["receiver"], _lr, False, sub)
-        _src = self._expr_to_whyml(gen["iter"], _lr, False, sub)
-        if not _sep or not _src:
-            return None
-        # The target is a fresh `ref` under its own (whyml_ident) name, read as `!c` like a
-        # `for c in s` target; the `let` shadows a same-named outer local inside the fold
-        # only (Python 3 comprehension scope).
-        sub_in = sub
-        _lr_in = set(_lr) | {tg}
-        _c = whyml_ident(tg)
-        if getattr(self, "_string_local_vars", None) is None:
-            self._string_local_vars = set()
-        _had = tg in self._string_local_vars
-        self._string_local_vars.add(tg)
-        try:
-            _conds = [self._to_bool(self._expr_to_whyml(c, _lr_in, False, sub_in), c)
-                      for c in (gen.get("ifs") or [])]
-        finally:
-            if not _had:
-                self._string_local_vars.discard(tg)
-        self._add_abstract_op(
-            "val str_sub_op (s: string) (lo len: int) : string\n"
-            "    ensures { result = (String.substring s lo len) }\n"
-            "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
-            " -> String.length result = len }")
-        self._add_abstract_op(
-            "val str_length_op (s: string) : int\n"
-            "    ensures { result = (String.length s) }")
-        self._add_abstract_op(
-            "val str_concat_op (a: string) (b: string) : string\n"
-            "    ensures { result = (concat a b) }\n"
-            "    ensures { String.length result = String.length a"
-            " + String.length b }")
-        _keep = " && ".join(f"({x})" for x in _conds) if _conds else "true"
-        if _c.startswith("__pycsl_gj_"):
-            return None
-        return ("(let __pycsl_gj_sep = " + _sep + " in let __pycsl_gj_s = " + _src + " in"
-                " let __pycsl_gj_acc = ref \"\" in let __pycsl_gj_first = ref true in"
-                " for __pycsl_gj_i = 0 to str_length_op __pycsl_gj_s - 1 do"
-                f" let {_c} = ref (str_sub_op __pycsl_gj_s __pycsl_gj_i 1) in"
-                f" if {_keep} then begin"
-                " (if not !__pycsl_gj_first then __pycsl_gj_acc :="
-                " str_concat_op !__pycsl_gj_acc __pycsl_gj_sep);"
-                f" __pycsl_gj_acc := str_concat_op !__pycsl_gj_acc !{_c};"
-                " __pycsl_gj_first := false end done; !__pycsl_gj_acc)")
-
     def _join_arg_elem_is_string(self, arg_ir) -> bool:
         """list-comprehension-lowering.md L2: does the join argument's array carry STRING
         elements? A Var → `_array_elem_types`; the literal comprehension/repeat/list forms →
@@ -11025,9 +10928,25 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return _rsc
         # lv6: `unicodedata.normalize(<literal form>, <str>)` -> a `string` op, BEFORE the
         # generic dotted-call fallback (opaque int `unicodedata_normalize_2` on hashes).
-        _udn = self._handle_unicodedata_normalize_call(expr, args)
-        if _udn is not None:
-            return _udn
+        if (isinstance(expr, dict) and expr.get("type") == "Call"
+             and expr.get("func") == "unicodedata.normalize" and expr.get("receiver") is None
+             and not expr.get("keywords") and len(expr.get("args") or []) == 2
+             and isinstance(expr["args"][0], dict) and expr["args"][0].get("type") == "String"
+             and expr["args"][0].get("value") in self._UNICODEDATA_FORMS
+             and isinstance(expr["args"][1], dict) and self._is_string_expr(expr["args"][1])
+             and "unicodedata" not in (getattr(self, "_module_method_return_types", {}) or {})
+             and "unicodedata" not in (getattr(self, "_current_symbol_table", {}) or {})
+             and bool([_i for _i in ((self.ir.get("imports") or []) if isinstance(getattr(self, "ir", None), dict) else [])
+                       if isinstance(_i, (list, tuple)) and len(_i) >= 5 and _i[0] == "unicodedata"])
+             and all(_i[2] == "unicodedata" and _i[4] and _i[1] == "unicodedata"
+                     for _i in ((self.ir.get("imports") or []) if isinstance(getattr(self, "ir", None), dict) else [])
+                     if isinstance(_i, (list, tuple)) and len(_i) >= 5 and _i[0] == "unicodedata")):
+            # NO content or length law: only that the result is a `str` and that the
+            # function is DETERMINISTIC (a `val function`: CPython's normalization is a pure
+            # function of its two arguments for the running Unicode database).
+            self._add_abstract_op(
+                "val function unicodedata_normalize_op (form s: string) : string")
+            return f"(unicodedata_normalize_op {args[0]} {args[1]})"
 
         _svm = self._handle_string_value_method(expr, args, local_refs, invariant_ctx, subst)
         if _svm is not None:
@@ -21524,10 +21443,83 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             _d_gj = (expr if isinstance(expr, dict) else
                      (expr.raw if isinstance(expr, OpaqueExpr) else
                       (expr.to_dict() if hasattr(expr, "to_dict") else None)))
-            if isinstance(_d_gj, dict) and self._is_str_char_genexp_join(_d_gj):
-                _r_gj = self._emit_str_char_genexp_join(_d_gj, local_refs or set(), subst)
-                if _r_gj is not None:
-                    return _r_gj
+            if (isinstance(_d_gj, dict) and _d_gj.get("type") == "Call" and _d_gj.get("func") == "join"
+                 and not _d_gj.get("keywords") and isinstance(_d_gj.get("receiver"), dict)
+                 and self._is_string_expr(_d_gj["receiver"]) and len(_d_gj.get("args") or []) == 1
+                 and isinstance(_d_gj["args"][0], dict) and _d_gj["args"][0].get("type") == "GenExp"
+                 and len(_d_gj["args"][0].get("generators") or []) == 1
+                 and isinstance(_d_gj["args"][0]["generators"][0], dict)
+                 and isinstance(_d_gj["args"][0]["generators"][0].get("target"), str)
+                 and _d_gj["args"][0]["generators"][0]["target"].isidentifier()
+                 and _d_gj["args"][0]["generators"][0]["target"] != "_comp_var"
+                 and not _d_gj["args"][0]["generators"][0].get("is_async")
+                 and not _d_gj["args"][0]["generators"][0].get("tuple_targets")
+                 and isinstance(_d_gj["args"][0].get("elt"), dict)
+                 and _d_gj["args"][0]["elt"].get("type") == "Var"
+                 and _d_gj["args"][0]["elt"].get("name") == _d_gj["args"][0]["generators"][0]["target"]
+                 and isinstance(_d_gj["args"][0]["generators"][0].get("iter"), dict)
+                 and self._is_string_expr(_d_gj["args"][0]["generators"][0]["iter"])
+                 and not any(_t in ("NamedExpr", "Yield", "YieldFrom", "Await", "Lambda", "GenExp",
+                                    "ListComp", "SetComp", "DictComp")
+                             for _t in re.findall(r"'type': '([A-Za-z]+)'", repr(
+                                 [_d_gj["receiver"], _d_gj["args"][0]["generators"][0]["iter"],
+                                  _d_gj["args"][0]["generators"][0].get("ifs") or []])))):
+                # (The fold; `_gj_ok` is cleared where a piece does not lower, and the old
+                # lowering is kept.)
+                _gj_ok = True
+                _gj_out = None
+                _gj_g = _d_gj["args"][0]
+                _gj_gen = _gj_g["generators"][0]
+                _gj_tg = _gj_gen["target"]
+                _gj_sub = dict(subst or {})
+                _gj_sub.pop(_gj_tg, None)
+                _gj_lr = set((local_refs or set()))
+                _gj_sep_w = self._expr_to_whyml(_d_gj["receiver"], _gj_lr, False, _gj_sub)
+                _gj_src = self._expr_to_whyml(_gj_gen["iter"], _gj_lr, False, _gj_sub)
+                _gj_ok = (bool(_gj_sep_w) and bool(_gj_src)
+                          and not whyml_ident(_gj_tg).startswith("__pycsl_gj_"))
+                if _gj_ok:
+                    # The target is a fresh `ref` under its own (whyml_ident) name, read as `!c` like a
+                    # `for c in s` target; the `let` shadows a same-named outer local inside the fold
+                    # only (Python 3 comprehension scope).
+                    _gj_sub_in = _gj_sub
+                    _gj_lr_in = set(_gj_lr) | {_gj_tg}
+                    _gj_c = whyml_ident(_gj_tg)
+                    if getattr(self, "_string_local_vars", None) is None:
+                        self._string_local_vars = set()
+                    _gj_had = _gj_tg in self._string_local_vars
+                    self._string_local_vars.add(_gj_tg)
+                    try:
+                        _gj_conds = [self._to_bool(self._expr_to_whyml(c, _gj_lr_in, False, _gj_sub_in), c)
+                                  for c in (_gj_gen.get("ifs") or [])]
+                    finally:
+                        if not _gj_had:
+                            self._string_local_vars.discard(_gj_tg)
+                    self._add_abstract_op(
+                        "val str_sub_op (s: string) (lo len: int) : string\n"
+                        "    ensures { result = (String.substring s lo len) }\n"
+                        "    ensures { (0 <= lo /\\ 0 <= len /\\ lo + len <= String.length s)"
+                        " -> String.length result = len }")
+                    self._add_abstract_op(
+                        "val str_length_op (s: string) : int\n"
+                        "    ensures { result = (String.length s) }")
+                    self._add_abstract_op(
+                        "val str_concat_op (a: string) (b: string) : string\n"
+                        "    ensures { result = (concat a b) }\n"
+                        "    ensures { String.length result = String.length a"
+                        " + String.length b }")
+                    _gj_keep = " && ".join(f"({x})" for x in _gj_conds) if _gj_conds else "true"
+                    _gj_out = ("(let __pycsl_gj_sep = " + _gj_sep_w + " in let __pycsl_gj_s = " + _gj_src + " in"
+                            " let __pycsl_gj_acc = ref \"\" in let __pycsl_gj_first = ref true in"
+                            " for __pycsl_gj_i = 0 to str_length_op __pycsl_gj_s - 1 do"
+                            f" let {_gj_c} = ref (str_sub_op __pycsl_gj_s __pycsl_gj_i 1) in"
+                            f" if {_gj_keep} then begin"
+                            " (if not !__pycsl_gj_first then __pycsl_gj_acc :="
+                            " str_concat_op !__pycsl_gj_acc __pycsl_gj_sep);"
+                            f" __pycsl_gj_acc := str_concat_op !__pycsl_gj_acc !{_gj_c};"
+                            " __pycsl_gj_first := false end done; !__pycsl_gj_acc)")
+                if _gj_ok and _gj_out is not None:
+                    return _gj_out
         # (#49) ROUTE #375 — A STARRED ELEMENT OF AN ERASED VALUE. `[*x]` / `{*x}` / `(*x,)`
         #   and a starred call argument `f(*x)` ITERATE `x`, but the Starred node lowers as
         #   the bare element: `[*self]` was the ONE-element array `[self]`, so

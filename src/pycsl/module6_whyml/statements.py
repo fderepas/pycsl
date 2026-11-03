@@ -6107,8 +6107,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # lv6: same agreement for the str-iteration-chain shapes (classifier and
             # lowering both say `string`): `unicodedata.normalize(<form>, <str>)` and the
             # character-filter `sep.join(c for c in s if ...)`.
-            if (self._is_unicodedata_normalize_call(v)
-                    or self._is_str_char_genexp_join(v)):
+            if (t == "Call" and (v.get("func") == "unicodedata.normalize"
+                                 or (v.get("func") == "join" and len(v.get("args") or []) == 1
+                                     and isinstance(v["args"][0], dict)
+                                     and v["args"][0].get("type") == "GenExp"))
+                    and self._is_string_expr(v)):
                 return True
             # an emit_ir str-attribute read (`var = node.var` -> name_of) is a string local, so a
             # dependent slice (`field = var[len("self."):]`) types as string. @mutable_state.
