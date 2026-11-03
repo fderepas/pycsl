@@ -4722,11 +4722,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         #   `-> int` helper proved `-g(d)` at the caller), a store into a FIELD whose
         #   annotation does not admit None or into an item of a non-local container (the
         #   record does not follow fields). Each obligation precedes the statement, which is
-        #   then emitted unchanged (re-entry marked by identity in `_r521_stmt_done`).
+        #   then emitted unchanged (re-entry marked by identity in the record's `stmt_done`,
+        #   not a new emitter field: no `#@ assigns` widening).
         #   Inline (this method's mirror twin is `\trusted`, no new def, no raise).
         _r521s = getattr(self, "_r230_maybe_none", None)
-        if getattr(self, "_r521_stmt_done", None) is stmt_d:
-            self._r521_stmt_done = None
+        if isinstance(_r521s, dict) and _r521s.get("stmt_done") is stmt_d:
+            _r521s["stmt_done"] = None
         elif (isinstance(_r521s, dict) and _r521s.get("mb") is not None
                 and isinstance(stmt_d, dict) and not getattr(self, "_in_spec", False)):
             _k521s = stmt_d.get("stmt")
@@ -4795,7 +4796,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     _r521s["guard"](_c521s, local_refs, _w521s)
                     for _c521s, _w521s in _g521s) if _x521s)
             if _pre521s:
-                self._r521_stmt_done = stmt_d
+                _r521s["stmt_done"] = stmt_d
                 return _pre521s + ";\n" + self._stmts_to_whyml(
                     stmts, local_refs, declared_refs, indent, in_loop)
         stmt = stmt_from_dict(stmt_d)

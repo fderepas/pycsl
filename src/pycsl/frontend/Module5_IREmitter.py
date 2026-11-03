@@ -7555,9 +7555,13 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # (#49) driver run #4, ROUTE #526: the RETURN annotation admits `None` somewhere
             # (`Optional[int]`, `List[Optional[int]]`, `int | None`) -- `return_annotation`
             # keeps only `"list"` for the latter, and Module 6 must know whether a value or a
-            # container that may hold None may leave the function. Emitted only when true.
+            # container that may hold None may leave the function. Emitted only for a CONTAINER
+            # annotation (a top-level Optional / Union is already `_union_*`), so IR goldens hold.
             **({"r526_returns_optional": True}
-               if node.returns is not None and any(
+               if node.returns is not None and isinstance(node.returns, ast.Subscript)
+               and not (isinstance(node.returns.value, ast.Name)
+                        and node.returns.value.id in ("Optional", "Union"))
+               and any(
                    (isinstance(_x526, ast.Name) and _x526.id in ("Optional", "Any"))
                    or (isinstance(_x526, ast.Attribute) and _x526.attr in ("Optional", "Any"))
                    or (isinstance(_x526, ast.Constant) and (
