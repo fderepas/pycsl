@@ -21515,6 +21515,415 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         # constructors a factory class runs).
         _fc533 = {}
         _lq534 = []
+        # (run #4) ROUTES #529 / #530 / #531 / #532 / #536 / #537 / #539 -- ROUTE #519'S JUDGE READ
+        # A CONSTRUCTOR AT DECLARED KINDS BUT NEVER CHECKED THE SHAPE OF WHAT IT ITERATES, UNPACKS,
+        # SORTS, READS AS AN ATTRIBUTE OR PASSES TO A BUILTIN, NOR WHICH BINDING A NAME READS
+        # (red team 50, 219 witnesses): `for x in n` (n: int), `a, b = xs`, `zip(.., strict=True)`,
+        # `range(0, 5, s)`, `sorted(xs)` of List[Any] / `key=len` over ints, `o.nope` of an object,
+        # `self.j` read before its store, `issubclass(n, int)`, `ValueError(x=n)`, a `__post_init__`
+        # not matching the InitVar fields, `str(p)` of a dataclass whose synthesized __repr__ formats
+        # a 10 ** 5000 field, a `match` capture rebinding a parameter, a lambda factory reading a
+        # class-body name or a global rebound after the class -- each raised in the constructor
+        # while `no_exception \all` over the caller PROVED. The judge now also runs a KIND-FLOW
+        # pass over every hook, REFUSE-BY-DEFAULT: each read resolves (a local definitely bound
+        # before it, a parameter, a field of `self` stored before / a class attribute / a dataclass
+        # field set by the synthesized `__init__`, a module name, a builtin), and each operation
+        # whose raise depends on its operand kinds is admitted only at kinds that make it total.
+        # Kinds (tuples): int bool float str bytes none range ("obj", C) ("list", e) ("seq", e)
+        # ("iter", e) ("set", e) ("tuple", (k...)) ("tuple*", e) ("dict", k, v); None = unknown.
+        import sys as _sys529
+        import re as _re529
+        import functools as _ft529
+        _fld529 = (lambda _v: isinstance(_v, _ast175.Call) and (
+            (isinstance(_v.func, _ast175.Name) and _v.func.id == "field")
+            or (isinstance(_v.func, _ast175.Attribute) and _v.func.attr == "field")))
+        _dcd529 = {}
+        for _cn529, _cl529 in _cdefs315.items():
+            for _c529 in _cl529:
+                for _d529 in _c529.decorator_list:
+                    _dn529 = _d529.func if isinstance(_d529, _ast175.Call) else _d529
+                    if ((isinstance(_dn529, _ast175.Name) and _dn529.id == "dataclass")
+                            or (isinstance(_dn529, _ast175.Attribute)
+                                and _dn529.attr == "dataclass")):
+                        _kw529 = {_k.arg: _k.value for _k in getattr(_d529, "keywords", [])}
+                        _dcd529[_cn529] = {
+                            _o: ((not (isinstance(_kw529[_o], _ast175.Constant)
+                                       and _kw529[_o].value in (False, True)))
+                                 or bool(_kw529[_o].value)) if _o in _kw529 else _df
+                            for _o, _df in (("frozen", False), ("repr", True), ("init", True),
+                                            ("eq", True))}
+        _bsn529 = (lambda _b: _b.id if isinstance(_b, _ast175.Name)
+                   else _b.attr if isinstance(_b, _ast175.Attribute)
+                   else _bsn529(_b.value) if isinstance(_b, _ast175.Subscript) else None)
+        _pb529, _fb529, _cb529 = {}, {}, {}
+        for _cn529, _cl529 in _cdefs315.items():
+            _pb529[_cn529], _fb529[_cn529], _cb529[_cn529] = [], False, set()
+            for _c529 in _cl529:
+                for _b529 in _c529.bases:
+                    _x529 = _bsn529(_b529)
+                    if _x529 in _cdefs315 and _x529 != _cn529:
+                        _pb529[_cn529].append(_x529)
+                    elif _x529 not in ("object", "Generic", "Protocol", "ABC"):
+                        _fb529[_cn529] = True
+                if _c529.keywords:
+                    _fb529[_cn529] = True
+                for _z529 in _c529.body:
+                    if isinstance(_z529, _ast175.Assign):
+                        _cb529[_cn529] |= {_w.id for _t in _z529.targets for _w in _ast175.walk(_t)
+                                           if isinstance(_w, _ast175.Name)}
+                    elif (isinstance(_z529, _ast175.AnnAssign) and _z529.value is not None
+                          and isinstance(_z529.target, _ast175.Name)
+                          and not (_fld529(_z529.value) and not any(
+                              _k.arg == "default" for _k in _z529.value.keywords))):
+                        _cb529[_cn529].add(_z529.target.id)
+                    elif isinstance(_z529, (_ast175.FunctionDef, _ast175.AsyncFunctionDef,
+                                            _ast175.ClassDef)):
+                        _cb529[_cn529].add(_z529.name)
+        _anc529 = {}
+        for _cn529 in _cdefs315:
+            _q529, _anc529[_cn529] = [_cn529], []
+            while _q529:
+                _x529 = _q529.pop(0)
+                if _x529 not in _anc529[_cn529]:
+                    _anc529[_cn529].append(_x529)
+                    _q529.extend(_pb529.get(_x529, []))
+        _fba529 = {_c: any(_fb529[_a] for _a in _anc529[_c]) for _c in _cdefs315}
+        _cba529 = {_c: set().union(*(_cb529[_a] for _a in _anc529[_c])) for _c in _cdefs315}
+        _iv529 = lambda _a: _ast175.unparse(_a).split("[")[0].split(".")[-1] == "InitVar"
+        _cv529 = lambda _a: _ast175.unparse(_a).split("[")[0].split(".")[-1] == "ClassVar"
+        # per class: the fields its synthesized dataclass `__init__` sets (name -> annotation) and
+        # its InitVar pseudo-fields in order (name, inner annotation text)
+        _dff529, _div529 = {}, {}
+        for _cn529 in _cdefs315:
+            _dff529[_cn529], _div529[_cn529] = {}, []
+            for _a529 in reversed(_anc529[_cn529]):
+                if _a529 not in _dcd529:
+                    continue
+                for _z529 in _cdefs315[_a529][0].body:
+                    if not (isinstance(_z529, _ast175.AnnAssign)
+                            and isinstance(_z529.target, _ast175.Name)):
+                        continue
+                    if _iv529(_z529.annotation):
+                        _div529[_cn529] = [_v for _v in _div529[_cn529]
+                                           if _v[0] != _z529.target.id] + [(
+                            _z529.target.id, _ast175.unparse(_z529.annotation.slice)
+                            if isinstance(_z529.annotation, _ast175.Subscript) else "")]
+                    elif not _cv529(_z529.annotation) and not (
+                            _fld529(_z529.value) and any(
+                                _k.arg == "init" and not (isinstance(_k.value, _ast175.Constant)
+                                                          and _k.value.value is True)
+                                for _k in _z529.value.keywords)
+                            and not any(_k.arg in ("default", "default_factory")
+                                        for _k in _z529.value.keywords)):
+                        _dff529[_cn529][_z529.target.id] = _z529.annotation
+        # a class whose instances are built by a synthesized dataclass `__init__`
+        _syn529 = {_c for _c in _cdefs315 if _c in _dcd529 and _dcd529[_c]["init"]
+                   and not any(isinstance(_m, (_ast175.FunctionDef, _ast175.AsyncFunctionDef))
+                               and _m.name == "__init__" for _m in _cdefs315[_c][0].body)}
+        _BK529 = {"int": ("int",), "bool": ("bool",), "float": ("float",), "str": ("str",),
+                  "bytes": ("bytes",), "range": ("range",), "list": ("list", None),
+                  "List": ("list", None), "tuple": ("tuple*", None), "Tuple": ("tuple*", None),
+                  "set": ("set", None), "Set": ("set", None), "frozenset": ("set", None),
+                  "FrozenSet": ("set", None), "dict": ("dict", None, None),
+                  "Dict": ("dict", None, None)}
+        _ka529 = (lambda _a: None if _a is None
+                  else ("none",) if isinstance(_a, _ast175.Constant) and _a.value is None
+                  else (("obj", _a.id) if _a.id in _cdefs315 else _BK529.get(_a.id))
+                  if isinstance(_a, _ast175.Name)
+                  else _kas529(_bsn529(_a.value), list(_a.slice.elts) if isinstance(
+                      _a.slice, _ast175.Tuple) else [_a.slice])
+                  if isinstance(_a, _ast175.Subscript) else None)
+        _kas529 = (lambda _b, _xs: ("tuple", ()) if not _xs and _b in ("tuple", "Tuple")
+                   else None if not _xs
+                   else ("list", _ka529(_xs[0])) if _b in ("list", "List", "MutableSequence")
+                   else ("seq", _ka529(_xs[0])) if _b == "Sequence"
+                   else ("iter", _ka529(_xs[0])) if _b in ("Iterable", "Iterator", "Collection",
+                                                           "Reversible", "Generator")
+                   else (("tuple*", _ka529(_xs[0])) if (
+                       len(_xs) == 2 and isinstance(_xs[1], _ast175.Constant)
+                       and _xs[1].value is Ellipsis)
+                         else ("tuple", tuple(_ka529(_x) for _x in _xs)))
+                   if _b in ("tuple", "Tuple")
+                   else ("set", _ka529(_xs[0])) if _b in ("set", "Set", "frozenset", "FrozenSet",
+                                                          "AbstractSet", "MutableSet")
+                   else ("dict", _ka529(_xs[0]), _ka529(_xs[1]) if len(_xs) > 1 else None)
+                   if _b in ("dict", "Dict", "Mapping", "MutableMapping") else None)
+        _el529 = (lambda _k: None if _k is None
+                  else _k[1] if _k[0] in ("list", "seq", "iter", "set", "tuple*", "dict")
+                  else (_k[1][0] if _k[1] and all(_x == _k[1][0] for _x in _k[1]) else None)
+                  if _k[0] == "tuple"
+                  else ("str",) if _k[0] == "str"
+                  else ("int",) if _k[0] in ("bytes", "range") else None)
+        # a program class with a user `__iter__` / `__len__` (its body is the implicit-dunder
+        # routes' business, #489-#495) is iterable / sized
+        _it529 = lambda _k: _k is not None and (_k[0] in (
+            "list", "seq", "iter", "set", "tuple*", "tuple", "dict", "str", "bytes", "range")
+            or (_k[0] == "obj" and "__iter__" in _cba529.get(_k[1], ())))
+        _sz529 = lambda _k: _k is not None and (_k[0] in (
+            "list", "seq", "set", "tuple*", "tuple", "dict", "str", "bytes")
+            or (_k[0] == "obj" and "__len__" in _cba529.get(_k[1], ())))
+        _nm529 = lambda _k: _k in (("int",), ("bool",), ("float",))
+        _in529 = lambda _k: _k in (("int",), ("bool",))
+        # hashable program classes: no (unfrozen, eq) dataclass ancestor, no __eq__ without
+        # __hash__, no foreign base
+        _hc529 = {_c for _c in _cdefs315 if not _fba529[_c]
+                  and not any(_a in _dcd529 and _dcd529[_a]["eq"] and not _dcd529[_a]["frozen"]
+                              for _a in _anc529[_c])
+                  and ("__eq__" not in _cba529[_c] or "__hash__" in _cba529[_c])}
+        _hs529 = (lambda _k: _k is not None and (
+            _k[0] in ("int", "bool", "float", "str", "bytes", "none")
+            or (_k[0] == "tuple" and all(_hs529(_x) for _x in _k[1]))
+            or (_k[0] == "tuple*" and _hs529(_k[1]))
+            or (_k[0] == "obj" and _k[1] in _hc529)))
+        # ordering group: two values compare with `<` iff their groups are equal and not None
+        _og529 = (lambda _k: None if _k is None
+                  else "num" if _nm529(_k)
+                  else _k[0] if _k[0] in ("str", "bytes")
+                  else (("tuple",) + tuple(_og529(_x) for _x in _k[1])
+                        if all(_og529(_x) is not None for _x in _k[1]) else None)
+                  if _k[0] == "tuple"
+                  else ((_k[0], _og529(_k[1])) if _og529(_k[1]) is not None else None)
+                  if _k[0] in ("tuple*", "list") else None)
+        # repr-safe classes: `str` / `repr` / `%s` / f-string of an instance cannot meet an int
+        # (route #536: a @dataclass / NamedTuple's synthesized __repr__ formats every field)
+        _rs529 = set()
+        _rk529 = (lambda _k: _k is not None and (
+            _k[0] in ("str", "float", "bool", "none", "bytes")
+            or (_k[0] == "obj" and _k[1] in _rs529)
+            or (_k[0] in ("list", "set", "tuple*", "seq", "iter") and _rk529(_k[1]))
+            or (_k[0] == "tuple" and all(_rk529(_x) for _x in _k[1]))
+            or (_k[0] == "dict" and _rk529(_k[1]) and _rk529(_k[2]))))
+        for _i529 in range(len(_cdefs315) + 1):
+            for _c529 in _cdefs315:
+                if _c529 not in _rs529 and not _fba529[_c529] and all(
+                        _a not in _dcd529 or not _dcd529[_a]["repr"] or all(
+                            _rk529(_ka529(_z.annotation)) for _z in _cdefs315[_a][0].body
+                            if isinstance(_z, _ast175.AnnAssign)
+                            and isinstance(_z.target, _ast175.Name)
+                            and not _cv529(_z.annotation) and not _iv529(_z.annotation))
+                        for _a in _anc529[_c529]):
+                    _rs529.add(_c529)
+        # attributes definitely present on a constructed instance: class attributes, the fields
+        # a synthesized `__init__` sets, the top-level `self.<f>` stores of the `__init__` /
+        # `__post_init__` that runs (plus its bases' after a top-level `super().__init__()`)
+        _tls529 = (lambda _h: {_t.attr for _z in _h.body if isinstance(
+            _z, (_ast175.Assign, _ast175.AnnAssign)) for _t in (
+                _z.targets if isinstance(_z, _ast175.Assign) else [_z.target])
+            if isinstance(_t, _ast175.Attribute) and isinstance(_t.value, _ast175.Name)
+            and _h.args.args and _t.value.id == _h.args.args[0].arg})
+        _sup529 = (lambda _h: any(
+            isinstance(_z, _ast175.Expr) and isinstance(_z.value, _ast175.Call)
+            and isinstance(_z.value.func, _ast175.Attribute)
+            and _z.value.func.attr in ("__init__", "__post_init__")
+            and isinstance(_z.value.func.value, _ast175.Call)
+            and isinstance(_z.value.func.value.func, _ast175.Name)
+            and _z.value.func.value.func.id == "super" for _z in _h.body))
+        _hk529 = (lambda _c, _n: next((_m for _a in _anc529[_c] for _m in _cdefs315[_a][0].body
+                                       if isinstance(_m, _ast175.FunctionDef)
+                                       and _m.name == _n), None))
+        _pr529 = {_c: set() for _c in _cdefs315}
+        for _i529 in range(len(_cdefs315) + 1):
+            for _c529 in _cdefs315:
+                _s529 = set(_cba529[_c529])
+                _h529 = None if _c529 in _syn529 else _hk529(_c529, "__init__")
+                if _c529 in _syn529:
+                    _s529 |= set(_dff529[_c529])
+                    _h529 = _hk529(_c529, "__post_init__")
+                if _h529 is not None:
+                    _s529 |= _tls529(_h529)
+                    if _sup529(_h529):
+                        _s529 |= set().union(*(_pr529[_b] for _a in _anc529[_c529]
+                                               for _b in _pb529[_a]))
+                _pr529[_c529] = _s529
+        # module-level names (all parsed modules), how often each is bound, `import m` names, and
+        # the kinds of names bound exactly once, to a constant, and never declared `global`
+        _mbc529, _mk0529, _im529, _sti529 = {}, {}, {}, False
+        _gl529 = {_n for _z in _ast175.walk(_tall175) if isinstance(_z, _ast175.Global)
+                  for _n in _z.names}
+        for _z529 in _tall175.body:
+            _nb529 = []
+            _sk529 = [_z529]
+            while _sk529:
+                _w529 = _sk529.pop()
+                if isinstance(_w529, (_ast175.FunctionDef, _ast175.AsyncFunctionDef,
+                                      _ast175.ClassDef)):
+                    _nb529.append(_w529.name)
+                    continue
+                if isinstance(_w529, (_ast175.Lambda, _ast175.ListComp, _ast175.SetComp,
+                                      _ast175.DictComp, _ast175.GeneratorExp)):
+                    continue
+                if isinstance(_w529, _ast175.Import):
+                    for _al529 in _w529.names:
+                        _nb529.append(_al529.asname or _al529.name.split(".")[0])
+                        _im529[_al529.asname or _al529.name.split(".")[0]] = (
+                            _al529.name if _al529.asname else _al529.name.split(".")[0])
+                elif isinstance(_w529, _ast175.ImportFrom):
+                    for _al529 in _w529.names:
+                        if _al529.name == "*":
+                            _sti529 = True
+                        else:
+                            _nb529.append(_al529.asname or _al529.name)
+                elif isinstance(_w529, _ast175.Name) and isinstance(
+                        _w529.ctx, (_ast175.Store, _ast175.Del)):
+                    _nb529.append(_w529.id)
+                elif isinstance(_w529, (_ast175.ExceptHandler, _ast175.MatchAs,
+                                        _ast175.MatchStar)) and _w529.name:
+                    _nb529.append(_w529.name)
+                elif isinstance(_w529, _ast175.MatchMapping) and _w529.rest:
+                    _nb529.append(_w529.rest)
+                _sk529.extend(_ast175.iter_child_nodes(_w529))
+            for _n529 in _nb529:
+                _mbc529[_n529] = _mbc529.get(_n529, 0) + 1
+            if (isinstance(_z529, (_ast175.Assign, _ast175.AnnAssign))
+                    and isinstance(_z529.value, _ast175.Constant)
+                    and len(getattr(_z529, "targets", [None])) == 1):
+                _t529 = _z529.targets[0] if isinstance(_z529, _ast175.Assign) else _z529.target
+                if isinstance(_t529, _ast175.Name):
+                    _mk0529[_t529.id] = _z529.value.value
+        _ck529 = (lambda _v: {bool: ("bool",), int: ("int",), float: ("float",), str: ("str",),
+                              bytes: ("bytes",), type(None): ("none",)}.get(type(_v)))
+        _mk529 = {_n: _ck529(_v) for _n, _v in _mk0529.items()
+                  if _mbc529.get(_n) == 1 and _n not in _gl529}
+        # the builtin exception classes whose constructor raises on some positional arguments
+        _xbad529 = {"BaseExceptionGroup", "ExceptionGroup", "BlockingIOError", "SyntaxError",
+                    "IndentationError", "TabError", "UnicodeDecodeError", "UnicodeEncodeError",
+                    "UnicodeTranslateError", "_IncompleteInputError", "PythonFinalizationError"}
+        _hst529 = {_c: {_t.attr for _a in _anc529[_c] for _m in _cdefs315[_a][0].body
+                        if isinstance(_m, _ast175.FunctionDef)
+                        and _m.name in ("__init__", "__post_init__") and _m.args.args
+                        for _t in _ast175.walk(_m) if isinstance(_t, _ast175.Attribute)
+                        and isinstance(_t.ctx, (_ast175.Store, _ast175.Del))
+                        and isinstance(_t.value, _ast175.Name)
+                        and _t.value.id == _m.args.args[0].arg} for _c in _cdefs315}
+        _fk529 = (lambda _c, _f: _ka529(_dff529[_c][_f]) if (
+            _c in _syn529 and _f in _dff529[_c] and _f not in _hst529[_c]) else None)
+        # binary operation result kind; "BAD" = a TypeError at these kinds; None = unknown
+        _bo529 = (lambda _n, _a, _b: None if _a is None or _b is None
+                  else (("float",) if ("float",) in (_a, _b) else ("int",))
+                  if (_nm529(_a) and _nm529(_b) and isinstance(_n.op, (
+                      _ast175.Add, _ast175.Sub, _ast175.Mult, _ast175.FloorDiv, _ast175.Mod)))
+                  else ("float",) if _nm529(_a) and _nm529(_b) and isinstance(_n.op, _ast175.Div)
+                  else (("float",) if ("float",) in (_a, _b) else ("int",) if (
+                      isinstance(_n.right, _ast175.Constant) and type(_n.right.value) is int
+                      and _n.right.value >= 0) else ("float",) if (
+                      isinstance(_n.right, _ast175.UnaryOp)
+                      and isinstance(_n.right.op, _ast175.USub)
+                      and isinstance(_n.right.operand, _ast175.Constant)
+                      and type(_n.right.operand.value) is int and _n.right.operand.value > 0)
+                      else None)
+                  if _nm529(_a) and _nm529(_b) and isinstance(_n.op, _ast175.Pow)
+                  else ("int",) if _in529(_a) and _in529(_b) and isinstance(_n.op, (
+                      _ast175.BitAnd, _ast175.BitOr, _ast175.BitXor, _ast175.LShift,
+                      _ast175.RShift))
+                  else _a if (_a == _b and _a[0] in ("str", "bytes")
+                              and isinstance(_n.op, _ast175.Add))
+                  else ("list", _a[1] if _a[1] == _b[1] else None)
+                  if _a[0] == _b[0] == "list" and isinstance(_n.op, _ast175.Add)
+                  else (_a[0:1] + (_a[1] + _b[1],) if _a[0] == _b[0] == "tuple"
+                        else ("tuple*", _el529(_a) if _el529(_a) == _el529(_b) else None))
+                  if (_a[0] in ("tuple", "tuple*") and _b[0] in ("tuple", "tuple*")
+                      and isinstance(_n.op, _ast175.Add))
+                  else (("tuple*", _el529(_a)) if _a[0] == "tuple" else _a)
+                  if (_a[0] in ("str", "bytes", "list", "tuple", "tuple*") and _in529(_b)
+                      and isinstance(_n.op, _ast175.Mult))
+                  else (("tuple*", _el529(_b)) if _b[0] == "tuple" else _b)
+                  if (_b[0] in ("str", "bytes", "list", "tuple", "tuple*") and _in529(_a)
+                      and isinstance(_n.op, _ast175.Mult))
+                  else ("set", _a[1] if _a[1] == _b[1] else None)
+                  if (_a[0] == _b[0] == "set" and isinstance(_n.op, (
+                      _ast175.Sub, _ast175.BitAnd, _ast175.BitOr, _ast175.BitXor)))
+                  else ("str",) if _a == ("str",) and isinstance(_n.op, _ast175.Mod)
+                  else "BAD")
+        _cm529 = (lambda _ks: _ks[0] if _ks and all(_x == _ks[0] for _x in _ks) else None)
+        # the kind of an expression under an environment of names / `<self>.<f>` keys
+        _kx529 = (lambda _e, _v: _ck529(_e.value) if isinstance(_e, _ast175.Constant)
+                  else (_v[_e.id] if _e.id in _v else _mk529.get(_e.id))
+                  if isinstance(_e, _ast175.Name)
+                  else (_v.get(_e.value.id + "." + _e.attr) if (
+                      isinstance(_e.value, _ast175.Name) and (_e.value.id + "." + _e.attr) in _v)
+                        else _fk529(_kx529(_e.value, _v)[1], _e.attr) if (
+                            (_kx529(_e.value, _v) or ("",))[0] == "obj") else None)
+                  if isinstance(_e, _ast175.Attribute)
+                  else ("bool",) if isinstance(_e, (_ast175.Compare,)) or (
+                      isinstance(_e, _ast175.UnaryOp) and isinstance(_e.op, _ast175.Not))
+                  else (_kx529(_e.operand, _v) if _nm529(_kx529(_e.operand, _v)) else None)
+                  if (isinstance(_e, _ast175.UnaryOp)
+                      and isinstance(_e.op, (_ast175.USub, _ast175.UAdd)))
+                  else ("int",) if (isinstance(_e, _ast175.UnaryOp) and _in529(
+                      _kx529(_e.operand, _v)))
+                  else (lambda _r: None if _r == "BAD" else _r)(
+                      _bo529(_e, _kx529(_e.left, _v), _kx529(_e.right, _v)))
+                  if isinstance(_e, _ast175.BinOp)
+                  else _cm529([_kx529(_x, _v) for _x in _e.values])
+                  if isinstance(_e, _ast175.BoolOp)
+                  else _cm529([_kx529(_e.body, _v), _kx529(_e.orelse, _v)])
+                  if isinstance(_e, _ast175.IfExp)
+                  else _kx529(_e.value, _v) if isinstance(_e, _ast175.NamedExpr)
+                  else ("str",) if isinstance(_e, (_ast175.JoinedStr, _ast175.FormattedValue))
+                  else ("list", _cm529([_el529(_kx529(_x.value, _v))
+                                        if isinstance(_x, _ast175.Starred) else _kx529(_x, _v)
+                                        for _x in _e.elts]))
+                  if isinstance(_e, _ast175.List)
+                  else (("tuple*", None) if any(isinstance(_x, _ast175.Starred) for _x in _e.elts)
+                        else ("tuple", tuple(_kx529(_x, _v) for _x in _e.elts)))
+                  if isinstance(_e, _ast175.Tuple)
+                  else ("set", _cm529([_el529(_kx529(_x.value, _v))
+                                       if isinstance(_x, _ast175.Starred) else _kx529(_x, _v)
+                                       for _x in _e.elts]))
+                  if isinstance(_e, _ast175.Set)
+                  else ("dict", _cm529([_kx529(_x, _v) for _x in _e.keys]) if all(
+                      _x is not None for _x in _e.keys) else None,
+                        _cm529([_kx529(_x, _v) for _x in _e.values]) if all(
+                            _x is not None for _x in _e.keys) else None)
+                  if isinstance(_e, _ast175.Dict)
+                  else ({_ast175.ListComp: "list", _ast175.SetComp: "set",
+                         _ast175.GeneratorExp: "iter"}[type(_e)],
+                        _kx529(_e.elt, _cv529e(_e, _v)))
+                  if isinstance(_e, (_ast175.ListComp, _ast175.SetComp, _ast175.GeneratorExp))
+                  else ("dict", _kx529(_e.key, _cv529e(_e, _v)), _kx529(_e.value, _cv529e(_e, _v)))
+                  if isinstance(_e, _ast175.DictComp)
+                  else ((lambda _k: _k if _k is not None and _k[0] in (
+                      "str", "bytes", "list", "tuple*", "seq") else ("tuple*", _el529(_k))
+                      if _k is not None and _k[0] == "tuple" else None)(_kx529(_e.value, _v)))
+                  if isinstance(_e, _ast175.Subscript) and isinstance(_e.slice, _ast175.Slice)
+                  else _kc529(_e, _v) if isinstance(_e, _ast175.Call)
+                  else None)
+        # the names a target binds, with their kinds when the value kind is `_k`
+        _bt529 = (lambda _t, _k: {_t.id: _k} if isinstance(_t, _ast175.Name)
+                  else {_n: _kk for _i, _x in enumerate(_t.elts) for _n, _kk in _bt529(
+                      _x, _k[1][_i] if (_k is not None and _k[0] == "tuple"
+                                        and len(_k[1]) == len(_t.elts)
+                                        and not any(isinstance(_y, _ast175.Starred)
+                                                    for _y in _t.elts)) else None).items()}
+                  if isinstance(_t, (_ast175.Tuple, _ast175.List))
+                  else _bt529(_t.value, None) if isinstance(_t, _ast175.Starred) else {})
+        # the environment inside a comprehension (after all its generators)
+        _cv529e = (lambda _e, _v: _ft529.reduce(
+            lambda _en, _g: {**_en, **_bt529(_g.target, _el529(_kx529(_g.iter, _en)))},
+            _e.generators, dict(_v)))
+        # the kind of a call
+        _kc529 = (lambda _e, _v: (lambda _f, _as: ("obj", _f) if _f in _cdefs315
+                  else ("int",) if _f in ("len", "id")
+                  else ("str",) if _f in ("str", "repr", "ascii", "format")
+                  else ("bool",) if _f in ("bool", "isinstance", "issubclass", "callable", "any",
+                                           "all")
+                  else (_as[0] if _as and _nm529(_as[0]) else None) if _f == "abs"
+                  else ("list", _el529(_as[0]) if _as else None) if _f in ("list", "sorted")
+                  else ("tuple*", _el529(_as[0]) if _as else None) if _f == "tuple"
+                  else ("set", _el529(_as[0]) if _as else None) if _f in ("set", "frozenset")
+                  else ("iter", _el529(_as[0]) if _as else None) if _f == "reversed"
+                  else ("range",) if _f == "range"
+                  else (_el529(_as[0]) if _as and _nm529(_el529(_as[0])) and len(_as) == 1
+                        else None) if _f == "sum"
+                  else (_el529(_as[0]) if len(_as) == 1 else _cm529(_as)) if _f in ("min", "max")
+                  else ("iter", ("tuple", (("int",), _el529(_as[0]) if _as else None)))
+                  if _f == "enumerate"
+                  else ("iter", ("tuple", tuple(_el529(_x) for _x in _as))) if _f == "zip"
+                  else (_as[0] if _as and _as[0] is not None and _as[0][0] == "dict"
+                        else ("dict", None, None)) if _f == "dict"
+                  else ("bytes",) if _f == "bytes"
+                  else None)(_e.func.id if isinstance(_e.func, _ast175.Name) else None,
+                             [_kx529(_x, _v) for _x in _e.args]))
         # per class: the reason its constructor is NOT a field initialiser ("" = modelled),
         # and the user classes it depends on (constructed in its body / its bases)
         _why315 = {}
@@ -21606,6 +22015,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             kwarg=None, defaults=[]),
                         body=_pdf315, decorator_list=[], returns=None, type_params=[],
                         lineno=_pdf315[0].lineno, col_offset=0)]
+                # (run #4) ROUTE #532 -- a synthesized dataclass `__init__` calls `__post_init__`
+                # with the InitVar values, positionally, in field order (bases first): a hook whose
+                # parameters are not exactly those InitVars (name, order, annotation), a
+                # keyword-only / variadic one, or a `__post_init__` that is not a function, raises
+                # TypeError at construction (`C(n)` with `__post_init__(self, m)` and no InitVar
+                # PROVED `no_exception \all`, red team 50).
+                if _cn315 in _syn529 and not _why315[_cn315]:
+                    _ph529 = next(((_a, _m) for _a in _anc529[_cn315]
+                                   for _m in _cdefs315[_a][0].body
+                                   if (isinstance(_m, (_ast175.FunctionDef,
+                                                       _ast175.AsyncFunctionDef))
+                                       and _m.name == "__post_init__")
+                                   or (isinstance(_m, (_ast175.Assign, _ast175.AnnAssign))
+                                       and "__post_init__" in {
+                                           _w.id for _t in (_m.targets if isinstance(
+                                               _m, _ast175.Assign) else [_m.target])
+                                           for _w in _ast175.walk(_t)
+                                           if isinstance(_w, _ast175.Name)})), None)
+                    if _ph529 is not None:
+                        _pm529 = _ph529[1]
+                        _pq529 = (list(_pm529.args.posonlyargs) + list(_pm529.args.args))[1:] if (
+                            isinstance(_pm529, (_ast175.FunctionDef, _ast175.AsyncFunctionDef))) else None
+                        if _pq529 is None or _pm529.args.vararg or _pm529.args.kwarg or (
+                                _pm529.args.kwonlyargs) or [
+                                    (_p.arg, _ast175.unparse(_p.annotation)
+                                     if _p.annotation is not None else _v[1])
+                                    for _p, _v in zip(_pq529, _div529[_cn315])] != list(
+                                        _div529[_cn315]) or len(_pq529) != len(_div529[_cn315]):
+                            _why315[_cn315] = (
+                                f"its `__post_init__` (in `{_ph529[0]}`), which the synthesized "
+                                f"`__init__` calls with the InitVar fields "
+                                f"{[_v[0] for _v in _div529[_cn315]]} positionally: its "
+                                f"parameters do not match them (TypeError; route #532)")
                 # (run #4) ROUTE #519 -- the field-initialiser judge's context: the declared kinds
                 # of the hook's parameters (a parameter rebound in the body is undeclared) and of
                 # the class's annotated fields (a field the class's hooks store is undeclared),
@@ -21623,6 +22065,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         continue
                     _rb315 = {_z.id for _z in _ast175.walk(_m315)
                               if isinstance(_z, _ast175.Name) and isinstance(_z.ctx, _ast175.Store)}
+                    # (run #4) ROUTE #537 -- a `match` capture (`case n:`, `case str() as n:`,
+                    # `case [*n]`, `case {**n}`), a `del n` and a lambda parameter rebind the name too
+                    _rb315 |= ({_z.id for _z in _ast175.walk(_m315) if isinstance(_z, _ast175.Name)
+                                and isinstance(_z.ctx, _ast175.Del)}
+                               | {_z.name for _z in _ast175.walk(_m315) if isinstance(
+                                   _z, (_ast175.MatchAs, _ast175.MatchStar)) and _z.name}
+                               | {_z.rest for _z in _ast175.walk(_m315)
+                                  if isinstance(_z, _ast175.MatchMapping) and _z.rest}
+                               | {_z.arg for _y in _ast175.walk(_m315)
+                                  if isinstance(_y, _ast175.Lambda) for _z in _ast175.walk(_y.args)
+                                  if isinstance(_z, _ast175.arg)})
                     _pl315 = (list(_m315.args.posonlyargs) + list(_m315.args.args)
                               + list(_m315.args.kwonlyargs))[1:] if _m315.name != "<default_factory>" else []
                     _pa315 = {_a.arg: (_ast175.unparse(_a.annotation) if _a.annotation is not None
@@ -21658,7 +22111,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         if (isinstance(_e, _ast175.UnaryOp)
                             and isinstance(_e.op, (_ast175.USub, _ast175.UAdd))
                             and isinstance(_e.operand, _ast175.Constant))
-                        else ("obj" if _pa315.get(_e.id, "") in _cdefs315
+                        else ("obj" if _pa315.get(_e.id, "") in _rs529
                               else _kmap315.get(_pa315.get(_e.id, "")))
                         if isinstance(_e, _ast175.Name)
                         else _kmap315.get(_fa315.get(_e.attr, ""))
@@ -21992,6 +22445,735 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                        f"(route #519)")
                                 if _why315[_cn315]:
                                     break
+                    # (run #4) ROUTES #529-#532 / #536 / #537 / #539 -- the kind-flow pass over this
+                    # hook (refuse-by-default; the context is built above the class loop).
+                    if not _why315[_cn315]:
+                        _r529 = ""
+                        _ag529 = _m315.args
+                        _pp529 = list(_ag529.posonlyargs) + list(_ag529.args)
+                        _sf529 = (_pp529[0].arg if _pp529 and _m315.name != "<default_factory>"
+                                  else None)
+                        _pn529 = ({_a.arg for _a in _pp529 + list(_ag529.kwonlyargs)}
+                                  | {_a.arg for _a in (_ag529.vararg, _ag529.kwarg)
+                                     if _a is not None})
+                        _lam529 = {id(_w) for _z in _ast175.walk(_m315)
+                                   if isinstance(_z, _ast175.Lambda)
+                                   for _w in _ast175.walk(_z) if _w is not _z}
+                        _ctg529 = {id(_w) for _z in _ast175.walk(_m315)
+                                   if isinstance(_z, _ast175.comprehension)
+                                   for _w in _ast175.walk(_z.target)}
+                        _sk529 = (lambda _t: _t.id if isinstance(_t, _ast175.Name)
+                                  else _sf529 + "." + _t.attr if (
+                                      _sf529 is not None and isinstance(_t, _ast175.Attribute)
+                                      and isinstance(_t.value, _ast175.Name)
+                                      and _t.value.id == _sf529) else None)
+                        # every binding of a local / `self.<f>`: a plain one is (value, is-an-
+                        # iteration, tuple path); any other (augmented, walrus, match capture,
+                        # starred, `del`, `setattr`) makes the key's kind unknown
+                        _pl529 = {}
+                        for _z529 in _ast175.walk(_m315):
+                            if id(_z529) in _lam529:
+                                continue
+                            _tv529 = ([(_t, _z529.value, False) for _t in _z529.targets]
+                                      if isinstance(_z529, _ast175.Assign)
+                                      else [(_z529.target, _z529.value, False)]
+                                      if (isinstance(_z529, _ast175.AnnAssign)
+                                          and _z529.value is not None)
+                                      else [(_z529.target, _z529.iter, True)]
+                                      if isinstance(_z529, _ast175.For)
+                                      else [(_z529.target, _ast175.BinOp(
+                                          left=(_ast175.Name(id=_z529.target.id,
+                                                             ctx=_ast175.Load())
+                                                if isinstance(_z529.target, _ast175.Name)
+                                                else _ast175.Attribute(
+                                                    value=_z529.target.value,
+                                                    attr=_z529.target.attr,
+                                                    ctx=_ast175.Load())),
+                                          op=_z529.op, right=_z529.value), False)]
+                                      if (isinstance(_z529, _ast175.AugAssign)
+                                          and isinstance(_z529.target, (_ast175.Name,
+                                                                        _ast175.Attribute)))
+                                      else [])
+                            for _t529, _x529, _io529 in _tv529:
+                                _tq529 = [(_t529, ())]
+                                while _tq529:
+                                    _u529, _ph529 = _tq529.pop()
+                                    if isinstance(_u529, (_ast175.Tuple, _ast175.List)) and not any(
+                                            isinstance(_y, _ast175.Starred) for _y in _u529.elts):
+                                        _tq529.extend((_y, _ph529 + (_i,))
+                                                      for _i, _y in enumerate(_u529.elts))
+                                    elif isinstance(_u529, (_ast175.Name, _ast175.Attribute)):
+                                        _pl529[id(_u529)] = (_x529, _io529, _ph529)
+                        _bd529 = {}
+                        for _z529 in _ast175.walk(_m315):
+                            if id(_z529) in _lam529 or id(_z529) in _ctg529:
+                                continue
+                            _k529 = None
+                            if isinstance(_z529, (_ast175.Name, _ast175.Attribute)) and isinstance(
+                                    _z529.ctx, (_ast175.Store, _ast175.Del)):
+                                _k529 = _sk529(_z529)
+                            elif isinstance(_z529, (_ast175.MatchAs, _ast175.MatchStar)):
+                                _k529 = _z529.name
+                            elif isinstance(_z529, _ast175.MatchMapping):
+                                _k529 = _z529.rest
+                            elif (isinstance(_z529, _ast175.Call)
+                                  and isinstance(_z529.func, _ast175.Name)
+                                  and _z529.func.id == "setattr" and len(_z529.args) >= 2
+                                  and _sf529 is not None
+                                  and isinstance(_z529.args[0], _ast175.Name)
+                                  and _z529.args[0].id == _sf529
+                                  and isinstance(_z529.args[1], _ast175.Constant)
+                                  and isinstance(_z529.args[1].value, str)):
+                                _k529 = _sf529 + "." + _z529.args[1].value
+                            if _k529 is None:
+                                continue
+                            if (id(_z529) in _pl529 and isinstance(_z529.ctx, _ast175.Store)
+                                    and _bd529.get(_k529, []) is not None):
+                                _bd529.setdefault(_k529, []).append(_pl529[id(_z529)])
+                            else:
+                                _bd529[_k529] = None
+                        _lv529 = {_k for _k in _bd529 if "." not in _k}
+                        _env529 = {}
+                        for _a529 in _pp529 + list(_ag529.kwonlyargs):
+                            _env529[_a529.arg] = (("obj", _cn315) if _a529.arg == _sf529
+                                                  else _ka529(_a529.annotation))
+                        if _ag529.vararg is not None:
+                            _env529[_ag529.vararg.arg] = ("tuple*", _ka529(_ag529.vararg.annotation))
+                        if _ag529.kwarg is not None:
+                            _env529[_ag529.kwarg.arg] = ("dict", ("str",),
+                                                         _ka529(_ag529.kwarg.annotation))
+                        _pi529 = _m315.name == "__post_init__" and _cn315 in _syn529
+                        _dfk529 = ({_sf529 + "." + _f: _ka529(_an)
+                                    for _f, _an in _dff529[_cn315].items()}
+                                   if _pi529 and _sf529 is not None else {})
+                        for _k529 in _bd529:
+                            _env529[_k529] = None
+                        for _k529, _kv529 in _dfk529.items():
+                            if _k529 not in _bd529:
+                                _env529[_k529] = _kv529
+                        _kb529 = (lambda _b, _en: _ft529.reduce(
+                            lambda _k, _i: _k[1][_i] if (_k is not None and _k[0] == "tuple"
+                                                         and _i < len(_k[1])) else None,
+                            _b[2], _el529(_kx529(_b[0], _en)) if _b[1] else _kx529(_b[0], _en)))
+                        for _i529 in range(4):
+                            for _k529, _vs529 in _bd529.items():
+                                if (_vs529 is None or _k529 == _sf529
+                                        or _k529 in (_ag529.vararg.arg if _ag529.vararg else None,
+                                                     _ag529.kwarg.arg if _ag529.kwarg else None)
+                                        or _env529.get(_k529) is not None
+                                        or ("." in _k529
+                                            and _k529.split(".", 1)[1] in _cba529[_cn315])):
+                                    continue
+                                # a parameter / dataclass field is first read at its declared
+                                # kind: that kind is the candidate the stores must keep
+                                _c0529 = (_dfk529[_k529] if _k529 in _dfk529
+                                          else _ka529(next(_a.annotation for _a in _pp529 + list(
+                                              _ag529.kwonlyargs) if _a.arg == _k529))
+                                          if _k529 in _pn529
+                                          else _kb529(_vs529[0], {**_env529, _k529: None}))
+                                if (_c0529 is not None
+                                        and all(_kb529(_b, {**_env529, _k529: _c0529}) == _c0529
+                                                for _b in _vs529)):
+                                    _env529[_k529] = _c0529
+                        # the definitely-bound names / `self.<f>` before each statement
+                        _D0529 = set(_pn529) | ({_sf529 + "." + _f for _f in _cba529[_cn315]}
+                                                if _sf529 is not None else set()) | set(_dfk529)
+                        _tn529 = (lambda _t: {_k for _w in _ast175.walk(_t) for _k in [_sk529(_w)]
+                                              if _k is not None and isinstance(
+                                                  getattr(_w, "ctx", None), _ast175.Store)})
+                        _pc529 = (lambda _p: {_w.name for _w in _ast175.walk(_p) if isinstance(
+                            _w, (_ast175.MatchAs, _ast175.MatchStar)) and _w.name}
+                            | {_w.rest for _w in _ast175.walk(_p)
+                               if isinstance(_w, _ast175.MatchMapping) and _w.rest})
+                        _pairs529 = []
+                        _wl529 = [(list(_m315.body), set(_D0529))]
+                        while _wl529:
+                            _bk529, _dd529 = _wl529.pop()
+                            for _s529 in _bk529:
+                                _pairs529.append((_s529, frozenset(_dd529)))
+                                if isinstance(_s529, _ast175.If):
+                                    _wl529.append((_s529.body, set(_dd529)))
+                                    _wl529.append((_s529.orelse, set(_dd529)))
+                                    continue
+                                if isinstance(_s529, _ast175.For):
+                                    _wl529.append((_s529.body, set(_dd529) | _tn529(_s529.target)))
+                                    _wl529.append((_s529.orelse, set(_dd529)))
+                                    continue
+                                if isinstance(_s529, _ast175.Match):
+                                    for _k529 in _s529.cases:
+                                        _wl529.append((_k529.body,
+                                                       set(_dd529) | _pc529(_k529.pattern)))
+                                    continue
+                                if isinstance(_s529, (_ast175.Assign, _ast175.AnnAssign)) and (
+                                        _s529.value is not None):
+                                    for _t529 in (_s529.targets if isinstance(_s529, _ast175.Assign)
+                                                  else [_s529.target]):
+                                        _dd529 |= _tn529(_t529)
+                                elif isinstance(_s529, _ast175.Delete):
+                                    for _t529 in _s529.targets:
+                                        _dd529 -= {_sk529(_w) for _w in _ast175.walk(_t529)}
+                                elif (isinstance(_s529, _ast175.Expr)
+                                      and isinstance(_s529.value, _ast175.Call)
+                                      and _sf529 is not None):
+                                    _f529 = _s529.value.func
+                                    if (isinstance(_f529, _ast175.Attribute)
+                                            and _f529.attr in ("__init__", "__post_init__")
+                                            and isinstance(_f529.value, _ast175.Call)
+                                            and isinstance(_f529.value.func, _ast175.Name)
+                                            and _f529.value.func.id == "super"):
+                                        _dd529 |= {_sf529 + "." + _f for _b in _pb529[_cn315]
+                                                   for _f in _pr529[_b]}
+                                    elif (isinstance(_f529, _ast175.Name)
+                                          and _f529.id == "setattr"
+                                          and len(_s529.value.args) >= 2
+                                          and isinstance(_s529.value.args[0], _ast175.Name)
+                                          and _s529.value.args[0].id == _sf529
+                                          and isinstance(_s529.value.args[1], _ast175.Constant)
+                                          and isinstance(_s529.value.args[1].value, str)):
+                                        _dd529.add(_sf529 + "." + _s529.value.args[1].value)
+                                _dd529 |= {_w.target.id for _w in _ast175.walk(_s529)
+                                           if isinstance(_w, _ast175.NamedExpr)}
+                        # an unpacking target against the kind of what it receives
+                        _ua529 = (lambda _t, _k: "" if not isinstance(_t, (_ast175.Tuple,
+                                                                         _ast175.List))
+                                  else (f"the unpacking target `{_ast175.unparse(_t)}` (line "
+                                        f"{_t.lineno}) receives a value whose length is not "
+                                        f"known to match (ValueError / TypeError)")
+                                  if (_k is None or _k[0] != "tuple" or (
+                                      len(_k[1]) != len(_t.elts) if not any(
+                                          isinstance(_y, _ast175.Starred) for _y in _t.elts)
+                                      else (len(_k[1]) < len(_t.elts) - 1 or any(
+                                          isinstance(_y, (_ast175.Tuple, _ast175.List))
+                                          for _y in _t.elts))))
+                                  else "" if any(isinstance(_y, _ast175.Starred) for _y in _t.elts)
+                                  else next((_r for _r in (_ua529(_y, _k[1][_i])
+                                                           for _i, _y in enumerate(_t.elts))
+                                             if _r), ""))
+                        _cls529 = (lambda _e, _sv: (
+                            isinstance(_e, _ast175.Name) and _e.id not in _sv
+                            and _e.id not in _lv529 and _e.id not in _pn529
+                            and (_e.id in _cdefs315
+                                 or isinstance(getattr(_bi315, _e.id, None), type)))
+                            or (isinstance(_e, _ast175.Tuple) and all(_cls529(_x, _sv)
+                                                                      for _x in _e.elts))
+                            or (isinstance(_e, _ast175.Attribute)
+                                and isinstance(_e.value, _ast175.Name)
+                                and _e.value.id in _im529 and _e.value.id not in _sv
+                                and _e.value.id not in _lv529 and _e.value.id not in _pn529
+                                and isinstance(getattr(_sys529.modules.get(
+                                    _im529[_e.value.id]), _e.attr, None), type)))
+                        _fro529 = any(_a in _dcd529 and _dcd529[_a]["frozen"]
+                                      for _a in _anc529[_cn315])
+                        if _fro529 and _sf529 is not None and any(
+                                (isinstance(_z, _ast175.Attribute)
+                                 and isinstance(_z.ctx, (_ast175.Store, _ast175.Del))
+                                 and isinstance(_z.value, _ast175.Name) and _z.value.id == _sf529)
+                                or (isinstance(_z, _ast175.Call)
+                                    and isinstance(_z.func, _ast175.Name)
+                                    and _z.func.id in ("setattr", "delattr"))
+                                for _z in _ast175.walk(_m315)):
+                            _r529 = (f"a store to `{_sf529}` in a hook of a frozen dataclass "
+                                     f"(FrozenInstanceError)")
+                        for _s529, _dd529 in _pairs529:
+                            if _r529:
+                                break
+                            _xs529 = []
+                            _ut529 = []
+                            if isinstance(_s529, _ast175.Expr):
+                                _xs529.append((_s529.value, _dd529))
+                            elif isinstance(_s529, _ast175.Assign):
+                                _xs529.append((_s529.value, _dd529))
+                                _vk529 = (("tuple", tuple(_kx529(_x, _env529)
+                                                          for _x in _s529.value.elts))
+                                          if isinstance(_s529.value, _ast175.List) and not any(
+                                              isinstance(_x, _ast175.Starred)
+                                              for _x in _s529.value.elts)
+                                          else _kx529(_s529.value, _env529))
+                                _ut529 = [(_t, _vk529) for _t in _s529.targets]
+                            elif isinstance(_s529, _ast175.AnnAssign):
+                                if _s529.value is not None:
+                                    _xs529.append((_s529.value, _dd529))
+                            elif isinstance(_s529, _ast175.AugAssign):
+                                _ld529 = (_ast175.Name(id=_s529.target.id, ctx=_ast175.Load())
+                                          if isinstance(_s529.target, _ast175.Name)
+                                          else _ast175.Attribute(value=_s529.target.value,
+                                                                 attr=_s529.target.attr,
+                                                                 ctx=_ast175.Load())
+                                          if isinstance(_s529.target, _ast175.Attribute) else None)
+                                if _ld529 is not None:
+                                    _xs529.append((_ast175.copy_location(_ast175.BinOp(
+                                        left=_ast175.copy_location(_ld529, _s529.target),
+                                        op=_s529.op, right=_s529.value), _s529), _dd529))
+                            elif isinstance(_s529, _ast175.Delete):
+                                for _t529 in _s529.targets:
+                                    if isinstance(_t529, _ast175.Name):
+                                        _xs529.append((_ast175.copy_location(_ast175.Name(
+                                            id=_t529.id, ctx=_ast175.Load()), _t529), _dd529))
+                                    elif isinstance(_t529, _ast175.Attribute):
+                                        _xs529.append((_ast175.copy_location(_ast175.Attribute(
+                                            value=_t529.value, attr=_t529.attr,
+                                            ctx=_ast175.Load()), _t529), _dd529))
+                            elif isinstance(_s529, _ast175.If):
+                                _xs529.append((_s529.test, _dd529))
+                            elif isinstance(_s529, _ast175.For):
+                                _xs529.append((_s529.iter, _dd529))
+                                _ik529 = _kx529(_s529.iter, _env529)
+                                if not _it529(_ik529):
+                                    _r529 = (f"the `for` over `{_ast175.unparse(_s529.iter)}` "
+                                             f"(line {_s529.lineno}), a value not known to be "
+                                             f"iterable (TypeError)")
+                                _ut529 = [(_s529.target, _el529(_ik529))]
+                            elif isinstance(_s529, _ast175.Match):
+                                _xs529.append((_s529.subject, _dd529))
+                                for _k529 in _s529.cases:
+                                    if _k529.guard is not None:
+                                        _xs529.append((_k529.guard,
+                                                       _dd529 | _pc529(_k529.pattern)))
+                                    for _w529 in _ast175.walk(_k529.pattern):
+                                        if (isinstance(_w529, _ast175.MatchClass)
+                                                and _w529.patterns and not (
+                                                    isinstance(_w529.cls, _ast175.Name)
+                                                    and ((_w529.cls.id in _syn529 and len(
+                                                        _w529.patterns) <= len(
+                                                        _dff529[_w529.cls.id]))
+                                                         or (_w529.cls.id in (
+                                                             "int", "float", "str", "bytes",
+                                                             "bool", "list", "tuple", "dict",
+                                                             "set", "frozenset")
+                                                             and len(_w529.patterns) == 1)))):
+                                            _r529 = (f"the class pattern "
+                                                     f"`{_ast175.unparse(_w529)}` (line "
+                                                     f"{_s529.lineno}), whose positional "
+                                                     f"sub-patterns may exceed `__match_args__` "
+                                                     f"(TypeError)")
+                            elif isinstance(_s529, _ast175.Raise):
+                                _xs529.extend((_x, _dd529) for _x in (_s529.exc, _s529.cause)
+                                              if _x is not None)
+                            elif isinstance(_s529, _ast175.Return) and _s529.value is not None:
+                                _xs529.append((_s529.value, _dd529))
+                                if _m315.name == "__init__" and not (
+                                        isinstance(_s529.value, _ast175.Constant)
+                                        and _s529.value.value is None):
+                                    _r529 = (f"`return {_ast175.unparse(_s529.value)}` in "
+                                             f"`__init__` (line {_s529.lineno}): TypeError")
+                            for _t529, _tk529 in _ut529:
+                                _r529 = _r529 or _ua529(_t529, _tk529)
+                            for _e529, _de529 in _xs529:
+                                _sq529 = [(_e529, {})]
+                                while _sq529 and not _r529:
+                                    _n529, _sv529 = _sq529.pop()
+                                    _ev529 = {**_env529, **_sv529}
+                                    _ln529 = getattr(_n529, "lineno", getattr(_s529, "lineno", "?"))
+                                    _u529 = _ast175.unparse(_n529) if isinstance(
+                                        _n529, _ast175.expr) else ""
+                                    if isinstance(_n529, _ast175.Lambda):
+                                        continue
+                                    if isinstance(_n529, (_ast175.ListComp, _ast175.SetComp,
+                                                          _ast175.DictComp, _ast175.GeneratorExp)):
+                                        _sv2529 = dict(_sv529)
+                                        for _g529 in _n529.generators:
+                                            _gk529 = _kx529(_g529.iter, {**_env529, **_sv2529})
+                                            _sq529.append((_g529.iter, dict(_sv2529)))
+                                            if not _it529(_gk529):
+                                                _r529 = (f"the comprehension over "
+                                                         f"`{_ast175.unparse(_g529.iter)}` (line "
+                                                         f"{_ln529}), a value not known to be "
+                                                         f"iterable (TypeError)")
+                                                break
+                                            _r529 = _ua529(_g529.target, _el529(_gk529))
+                                            if _r529:
+                                                break
+                                            _sv2529.update(_bt529(_g529.target, _el529(_gk529)))
+                                            _sq529.extend((_x, dict(_sv2529)) for _x in _g529.ifs)
+                                        _ev2529 = {**_env529, **_sv2529}
+                                        if isinstance(_n529, _ast175.DictComp):
+                                            _sq529.extend([(_n529.key, _sv2529),
+                                                           (_n529.value, _sv2529)])
+                                            if not _r529 and not _hs529(_kx529(_n529.key, _ev2529)):
+                                                _r529 = (f"the dict comprehension `{_u529}` (line "
+                                                         f"{_ln529}): a key not known to be "
+                                                         f"hashable (TypeError)")
+                                        else:
+                                            _sq529.append((_n529.elt, _sv2529))
+                                            if (not _r529 and isinstance(_n529, _ast175.SetComp)
+                                                    and not _hs529(_kx529(_n529.elt, _ev2529))):
+                                                _r529 = (f"the set comprehension `{_u529}` (line "
+                                                         f"{_ln529}): an element not known to be "
+                                                         f"hashable (TypeError)")
+                                        continue
+                                    _sq529.extend((_x, _sv529) for _x in _ast175.iter_child_nodes(
+                                        _n529) if not isinstance(_n529, (
+                                            _ast175.Call, _ast175.Attribute)))
+                                    if isinstance(_n529, _ast175.Name) and isinstance(
+                                            _n529.ctx, _ast175.Load):
+                                        _i529 = _n529.id
+                                        if not (_i529 in _sv529 or (
+                                                _i529 in _de529 if _i529 in _lv529 else (
+                                                    _i529 in _pn529 or _mbc529.get(_i529)
+                                                    or _sti529 or hasattr(_bi315, _i529)))):
+                                            _r529 = (f"the name `{_i529}` (line {_ln529}), which "
+                                                     f"may not be bound where it is read "
+                                                     f"(NameError / UnboundLocalError; a "
+                                                     f"class-body name is not visible here)")
+                                    elif isinstance(_n529, _ast175.Attribute):
+                                        _vv529 = _n529.value
+                                        _sq529.append((_vv529, _sv529))
+                                        if (isinstance(_vv529, _ast175.Name) and _sf529 is not None
+                                                and _vv529.id == _sf529 and _sf529 not in _sv529
+                                                and _sf529 not in _lv529):
+                                            if (_sf529 + "." + _n529.attr) not in _de529:
+                                                _r529 = (f"`{_u529}` (line {_ln529}), read where "
+                                                         f"no store, class attribute or "
+                                                         f"dataclass field defines it "
+                                                         f"(AttributeError)")
+                                        else:
+                                            _ok529 = (lambda _k: _k is not None and _k[0] == "obj"
+                                                      and _n529.attr in _pr529.get(_k[1], ()))(
+                                                _kx529(_vv529, _ev529))
+                                            if (not _ok529 and isinstance(_vv529, _ast175.Name)
+                                                    and _vv529.id in _im529
+                                                    and _vv529.id not in _ev529):
+                                                _ok529 = hasattr(_sys529.modules.get(
+                                                    _im529[_vv529.id]), _n529.attr) and (
+                                                    _sys529.modules.get(_im529[_vv529.id])
+                                                    is not None)
+                                            if not _ok529:
+                                                _r529 = (f"the attribute read `{_u529}` (line "
+                                                         f"{_ln529}) of a value whose kind is "
+                                                         f"not known to define it "
+                                                         f"(AttributeError)")
+                                    elif isinstance(_n529, _ast175.Call):
+                                        _f529 = _n529.func
+                                        _fn529 = _f529.id if isinstance(_f529, _ast175.Name) else None
+                                        _as529 = list(_n529.args)
+                                        _ak529 = [_kx529(_x, _ev529) for _x in _as529]
+                                        _kw529 = {_k.arg: _k.value for _k in _n529.keywords}
+                                        _bx529 = getattr(_bi315, _fn529 or "", None)
+                                        _sq529.extend((_x, _sv529) for _x in _as529)
+                                        _sq529.extend((_k.value, _sv529) for _k in _n529.keywords
+                                                      if _k.arg != "key")
+                                        if isinstance(_f529, _ast175.Name):
+                                            _sq529.append((_f529, _sv529))
+                                        _lo529, _hi529 = {
+                                            "len": (1, 1), "isinstance": (2, 2),
+                                            "issubclass": (2, 2), "bool": (0, 1),
+                                            "list": (0, 1), "set": (0, 1), "frozenset": (0, 1),
+                                            "tuple": (0, 1), "dict": (0, 1), "sorted": (1, 1),
+                                            "reversed": (1, 1), "str": (0, 1), "repr": (1, 1),
+                                            "ascii": (1, 1), "format": (1, 1), "range": (1, 3),
+                                            "sum": (1, 2), "any": (1, 1), "all": (1, 1),
+                                            "abs": (1, 1), "object": (0, 0), "type": (1, 1),
+                                            "zip": (0, 64), "enumerate": (1, 2), "id": (1, 1),
+                                            "callable": (1, 1), "super": (0, 0),
+                                            "min": (1, 64), "max": (1, 64), "setattr": (3, 3),
+                                        }.get(_fn529, (0, 9999))
+                                        _kwo529 = {"sorted": ("key", "reverse"),
+                                                   "sum": ("start",), "enumerate": ("start",),
+                                                   "zip": ("strict",), "min": ("key", "default"),
+                                                   "max": ("key", "default")}.get(_fn529, ())
+                                        _e0529 = _el529(_ak529[0]) if _ak529 else None
+                                        _ky529 = _kw529.get("key")
+                                        if (any(isinstance(_x, _ast175.Starred) for _x in _as529)
+                                                or None in _kw529):
+                                            _r529 = (f"the call `{_u529}` (line {_ln529}) with "
+                                                     f"`*` / `**` arguments, whose arity is not "
+                                                     f"known (TypeError)")
+                                        elif (_fn529 is None or _fn529 in _cdefs315
+                                              or _fn529 in _lv529 or _fn529 in _pn529
+                                              or _fn529 in _sv529):
+                                            pass
+                                        elif isinstance(_bx529, type) and issubclass(
+                                                _bx529, BaseException):
+                                            if _n529.keywords or _fn529 in _xbad529:
+                                                _r529 = (f"the exception construction `{_u529}` "
+                                                         f"(line {_ln529}), whose constructor "
+                                                         f"rejects keywords / these arguments "
+                                                         f"(TypeError)")
+                                        elif _fn529 in ("bytes", "bytearray"):
+                                            pass
+                                        elif not (_lo529 <= len(_as529) <= _hi529) or any(
+                                                _k not in _kwo529 for _k in _kw529
+                                                if _fn529 != "dict"):
+                                            _r529 = (f"the call `{_u529}` (line {_ln529}), whose "
+                                                     f"arguments do not fit `{_fn529}` "
+                                                     f"(TypeError)")
+                                        elif _fn529 == "len" and not _sz529(_ak529[0]):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) of a value not "
+                                                     f"known to be sized (TypeError)")
+                                        elif _fn529 == "isinstance" and not _cls529(_as529[1],
+                                                                                    _sv529):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) whose second "
+                                                     f"argument is not known to be a class "
+                                                     f"(TypeError)")
+                                        elif _fn529 == "issubclass" and not (
+                                                (_cls529(_as529[0], _sv529) or (
+                                                    isinstance(_as529[0], _ast175.Call)
+                                                    and isinstance(_as529[0].func, _ast175.Name)
+                                                    and _as529[0].func.id == "type"))
+                                                and _cls529(_as529[1], _sv529)):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) whose arguments "
+                                                     f"are not known to be classes (TypeError)")
+                                        elif _fn529 in ("list", "tuple", "any", "all", "set",
+                                                        "frozenset", "sorted", "reversed",
+                                                        "enumerate") and _as529 and not _it529(
+                                                _ak529[0]):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) of a value not "
+                                                     f"known to be iterable (TypeError)")
+                                        elif _fn529 in ("set", "frozenset") and _as529 and not (
+                                                _hs529(_e0529)):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) of elements not "
+                                                     f"known to be hashable (TypeError)")
+                                        elif _fn529 == "dict" and _as529 and not (
+                                                (_ak529[0] is not None and _ak529[0][0] == "dict")
+                                                or (_it529(_ak529[0]) and _e0529 is not None
+                                                    and _e0529[0] == "tuple"
+                                                    and len(_e0529[1]) == 2
+                                                    and _hs529(_e0529[1][0]))):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) of a value that "
+                                                     f"is not known to be a mapping or a "
+                                                     f"sequence of hashable pairs (TypeError / "
+                                                     f"ValueError)")
+                                        elif _fn529 == "reversed" and _ak529[0][0] not in (
+                                                "list", "tuple", "tuple*", "str", "bytes",
+                                                "range", "dict", "seq"):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) of a value not "
+                                                     f"known to be reversible (TypeError)")
+                                        elif _fn529 in ("sorted", "min", "max") and (
+                                                _fn529 == "sorted" or len(_as529) == 1):
+                                            _ek529 = _e0529
+                                            if not _it529(_ak529[0]):
+                                                _r529 = (f"`{_u529}` (line {_ln529}) of a value "
+                                                         f"not known to be iterable (TypeError)")
+                                            elif _fn529 != "sorted" and "default" not in _kw529:
+                                                _r529 = (f"`{_u529}` (line {_ln529}) of a "
+                                                         f"collection that may be empty "
+                                                         f"(ValueError)")
+                                            elif "reverse" in _kw529 and not (
+                                                    isinstance(_kw529["reverse"], _ast175.Constant)
+                                                    and type(_kw529["reverse"].value) is bool):
+                                                _r529 = (f"`{_u529}` (line {_ln529}): a `reverse` "
+                                                         f"that is not a bool literal (TypeError)")
+                                            elif _ky529 is None and _og529(_ek529) is None:
+                                                _r529 = (f"`{_u529}` (line {_ln529}) of elements "
+                                                         f"whose ordering is not known to be total "
+                                                         f"(TypeError: '<' not supported)")
+                                            elif _ky529 is not None and not (
+                                                    (isinstance(_ky529, _ast175.Name)
+                                                     and _ky529.id not in _sv529
+                                                     and _ky529.id not in _lv529
+                                                     and _ky529.id not in _pn529
+                                                     and _ky529.id not in _cdefs315
+                                                     and ((_ky529.id == "len" and _sz529(_ek529))
+                                                          or (_ky529.id == "abs"
+                                                              and _nm529(_ek529))
+                                                          or (_ky529.id in ("str", "repr")
+                                                              and _rk529(_ek529))))
+                                                    or (isinstance(_ky529, _ast175.Lambda)
+                                                        and len(_ky529.args.args) == 1
+                                                        and not (_ky529.args.posonlyargs
+                                                                 or _ky529.args.vararg
+                                                                 or _ky529.args.kwonlyargs
+                                                                 or _ky529.args.kwarg)
+                                                        and _og529(_kx529(_ky529.body, {
+                                                            **_ev529,
+                                                            _ky529.args.args[0].arg: _ek529}))
+                                                        is not None)):
+                                                _r529 = (f"`{_u529}` (line {_ln529}): a sort key "
+                                                         f"not known to be total on these "
+                                                         f"elements and to yield ordered values "
+                                                         f"(TypeError / ValueError / "
+                                                         f"AttributeError)")
+                                            if (not _r529 and isinstance(_ky529, _ast175.Lambda)):
+                                                _sq529.append((_ky529.body, {
+                                                    **_sv529, _ky529.args.args[0].arg: _ek529}))
+                                        elif _fn529 in ("min", "max") and (
+                                                _ky529 is not None or len({_og529(_k) for _k in _ak529}) != 1
+                                                or _og529(_ak529[0]) is None):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) of values not "
+                                                     f"known to be mutually ordered (TypeError)")
+                                        elif _fn529 == "sum" and not (
+                                                _it529(_ak529[0]) and _nm529(_e0529) and (
+                                                    len(_as529) == 1 and "start" not in _kw529
+                                                    or _nm529(_ak529[1] if len(_as529) > 1
+                                                              else _kx529(_kw529["start"], _ev529))
+                                                )):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) of values not "
+                                                     f"known to be numbers (TypeError)")
+                                        elif _fn529 == "abs" and not (_nm529(_ak529[0]) or (
+                                                _ak529[0] is not None and _ak529[0][0] == "obj"
+                                                and "__abs__" in _cba529.get(_ak529[0][1], ()))):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) of a value not "
+                                                     f"known to be a number (TypeError)")
+                                        elif _fn529 == "range" and not (
+                                                all(_in529(_k) for _k in _ak529)
+                                                and (len(_as529) < 3 or (
+                                                    _sm315(_as529[2])
+                                                    and _ast175.literal_eval(_as529[2]) != 0))):
+                                            _r529 = (f"`{_u529}` (line {_ln529}): a `range` "
+                                                     f"whose bounds are not ints or whose step "
+                                                     f"may be 0 (TypeError / ValueError)")
+                                        elif _fn529 == "zip" and (
+                                                not all(_it529(_k) for _k in _ak529)
+                                                or ("strict" in _kw529 and not (
+                                                    isinstance(_kw529["strict"], _ast175.Constant)
+                                                    and _kw529["strict"].value is False))):
+                                            _r529 = (f"`{_u529}` (line {_ln529}): a `zip` of "
+                                                     f"values not known to be iterable, or "
+                                                     f"`strict` over lengths not known to be "
+                                                     f"equal (TypeError / ValueError)")
+                                        elif _fn529 == "enumerate" and not (
+                                                (len(_as529) < 2 or _in529(_ak529[1]))
+                                                and ("start" not in _kw529 or _in529(
+                                                    _kx529(_kw529["start"], _ev529)))):
+                                            _r529 = (f"`{_u529}` (line {_ln529}): an "
+                                                     f"`enumerate` start not known to be an int "
+                                                     f"(TypeError)")
+                                        elif _fn529 == "setattr" and not (
+                                                isinstance(_as529[1], _ast175.Constant)
+                                                and isinstance(_as529[1].value, str)
+                                                and _as529[1].value.isidentifier()
+                                                and not _as529[1].value.startswith("__")):
+                                            _r529 = (f"`{_u529}` (line {_ln529}): an attribute "
+                                                     f"name that is not a plain str literal "
+                                                     f"(TypeError / AttributeError)")
+                                    elif isinstance(_n529, _ast175.Starred) and isinstance(
+                                            _n529.ctx, _ast175.Load) and not _it529(
+                                            _kx529(_n529.value, _ev529)):
+                                        _r529 = (f"the unpacking `{_u529}` (line {_ln529}) of a "
+                                                 f"value not known to be iterable (TypeError)")
+                                    elif isinstance(_n529, _ast175.Dict):
+                                        for _x529, _y529 in zip(_n529.keys, _n529.values):
+                                            if _x529 is None and (lambda _k: _k is None or (
+                                                    _k[0] != "dict"))(_kx529(_y529, _ev529)):
+                                                _r529 = (f"the unpacking `**{_ast175.unparse(_y529)}` "
+                                                         f"(line {_ln529}) of a value not known to "
+                                                         f"be a mapping (TypeError)")
+                                            elif _x529 is not None and not _hs529(
+                                                    _kx529(_x529, _ev529)):
+                                                _r529 = (f"the dict key `{_ast175.unparse(_x529)}` "
+                                                         f"(line {_ln529}), not known to be "
+                                                         f"hashable (TypeError)")
+                                    elif isinstance(_n529, _ast175.Set) and not all(
+                                            _hs529(_el529(_kx529(_x.value, _ev529))
+                                                   if isinstance(_x, _ast175.Starred)
+                                                   else _kx529(_x, _ev529)) for _x in _n529.elts):
+                                        _r529 = (f"the set display `{_u529}` (line {_ln529}) of "
+                                                 f"elements not known to be hashable (TypeError)")
+                                    elif isinstance(_n529, _ast175.UnaryOp) and not (
+                                            isinstance(_n529.op, _ast175.Not)
+                                            or (isinstance(_n529.op, _ast175.Invert)
+                                                and _in529(_kx529(_n529.operand, _ev529)))
+                                            or _nm529(_kx529(_n529.operand, _ev529))):
+                                        _r529 = (f"`{_u529}` (line {_ln529}) of a value not "
+                                                 f"known to be a number (TypeError)")
+                                    elif isinstance(_n529, _ast175.BinOp):
+                                        _kl529 = _kx529(_n529.left, _ev529)
+                                        _kr529 = _kx529(_n529.right, _ev529)
+                                        if isinstance(_n529.op, _ast175.Mod) and _kl529 == ("str",):
+                                            _vs529 = (list(_n529.right.elts) if isinstance(
+                                                _n529.right, _ast175.Tuple) else [_n529.right])
+                                            _cs529 = ([_mm.group(4) for _mm in _re529.finditer(
+                                                r"%(\([^)]*\))?([-#0 +]*)(\*|\d{0,4})"
+                                                r"(?:\.(?:\*|\d{0,4}))?[hlL]?(.?)",
+                                                _n529.left.value)]
+                                                if isinstance(_n529.left, _ast175.Constant)
+                                                else None)
+                                            if (_cs529 is None or any(
+                                                    "(" in _mm.group(0) or "*" in _mm.group(0)
+                                                    for _mm in _re529.finditer(
+                                                        r"%(\([^)]*\))?[-#0 +]*(\*|\d*)"
+                                                        r"(?:\.(?:\*|\d*))?",
+                                                        _n529.left.value))
+                                                    or any(isinstance(_x, _ast175.Starred)
+                                                           for _x in _vs529)
+                                                    or (not isinstance(_n529.right, _ast175.Tuple)
+                                                        and (_kr529 is None or _kr529[0] in (
+                                                            "tuple", "tuple*")))):
+                                                _r529 = (f"the `%` formatting `{_u529}` (line "
+                                                         f"{_ln529}) with a format or values of "
+                                                         f"unknown arity (TypeError)")
+                                            else:
+                                                _cs529 = [_c for _c in _cs529 if _c != "%"]
+                                                if len(_cs529) != len(_vs529) or any(
+                                                        len(_c) != 1 for _c in _cs529) or not all(
+                                                        (_c in "sra" and (
+                                                            _rk529(_kx529(_x, _ev529))
+                                                            or _sm315(_x)))
+                                                        or (_c in "diueEfFgG" and (
+                                                            _kx529(_x, _ev529) == ("float",)
+                                                            or _sm315(_x)))
+                                                        or (_c in "xXo" and _in529(
+                                                            _kx529(_x, _ev529)))
+                                                        for _c, _x in zip(_cs529, _vs529)):
+                                                    _r529 = (f"the `%` formatting `{_u529}` "
+                                                             f"(line {_ln529}) whose conversions "
+                                                             f"do not fit its values (TypeError / "
+                                                             f"ValueError)")
+                                        elif _bo529(_n529, _kl529, _kr529) in (None, "BAD"):
+                                            _r529 = (f"`{_u529}` (line {_ln529}) at operand kinds "
+                                                     f"not known to be compatible (TypeError)")
+                                    elif isinstance(_n529, _ast175.Compare):
+                                        _cks529 = [_kx529(_x, _ev529)
+                                                   for _x in [_n529.left] + _n529.comparators]
+                                        for _o529, _a529, _b529 in zip(_n529.ops, _cks529,
+                                                                       _cks529[1:]):
+                                            if isinstance(_o529, (_ast175.Lt, _ast175.LtE,
+                                                                  _ast175.Gt, _ast175.GtE)) and (
+                                                    _og529(_a529) is None
+                                                    or _og529(_a529) != _og529(_b529)):
+                                                _r529 = (f"the comparison `{_u529}` (line "
+                                                         f"{_ln529}) of values not known to be "
+                                                         f"mutually ordered (TypeError)")
+                                            elif isinstance(_o529, (_ast175.In,
+                                                                    _ast175.NotIn)) and not (
+                                                    _b529 is not None and (
+                                                        (_b529[0] == "str" and _a529 == ("str",))
+                                                        or (_b529[0] == "bytes" and (
+                                                            _a529 == ("bytes",) or _in529(_a529)))
+                                                        or (_b529[0] in ("set", "dict")
+                                                            and _hs529(_a529))
+                                                        or _b529[0] in ("list", "tuple", "tuple*",
+                                                                        "seq", "iter", "range"))):
+                                                _r529 = (f"the membership test `{_u529}` (line "
+                                                         f"{_ln529}) in a value not known to be "
+                                                         f"a container of that kind (TypeError)")
+                                    elif isinstance(_n529, _ast175.Subscript) and isinstance(
+                                            _n529.slice, _ast175.Slice):
+                                        _kv529 = _kx529(_n529.value, _ev529)
+                                        if _kv529 is None or _kv529[0] not in (
+                                                "str", "bytes", "list", "tuple", "tuple*", "seq") or not all(
+                                                _x is None or _in529(_kx529(_x, _ev529))
+                                                or _kx529(_x, _ev529) == ("none",)
+                                                for _x in (_n529.slice.lower, _n529.slice.upper,
+                                                           _n529.slice.step)):
+                                            _r529 = (f"the slice `{_u529}` (line {_ln529}) of a "
+                                                     f"value not known to be a sequence, or "
+                                                     f"with bounds not known to be ints "
+                                                     f"(TypeError)")
+                                    elif isinstance(_n529, _ast175.FormattedValue) and (
+                                            _n529.format_spec is not None):
+                                        _fs529 = _n529.format_spec
+                                        _fk529 = _kx529(_n529.value, _ev529)
+                                        _sp529 = ("".join(_x.value for _x in _fs529.values)
+                                                  if isinstance(_fs529, _ast175.JoinedStr) and all(
+                                                      isinstance(_x, _ast175.Constant)
+                                                      for _x in _fs529.values) else None)
+                                        _ok529 = False
+                                        if (_sp529 is not None and _n529.conversion == -1
+                                                and not _re529.search(r"\d{5}", _sp529)
+                                                and _fk529 in (("str",), ("float",))):
+                                            try:
+                                                format("a" if _fk529 == ("str",) else 0.5, _sp529)
+                                                _ok529 = True
+                                            except Exception:
+                                                _ok529 = False
+                                        if not _ok529:
+                                            _r529 = (f"the format spec of `{_u529}` (line "
+                                                     f"{_ln529}), not known to fit its value "
+                                                     f"(ValueError)")
+                        if _r529:
+                            _why315[_cn315] = (f"{_r529} (route #529-#539 kind-flow judge, "
+                                               f"route #519)")
         # (run #4) ROUTE #533 -- a program class X called as a `default_factory` is constructed
         # by the synthesized `__init__` WITH NO ARGUMENT. Route #520 judged X's constructor
         # body but never that `X()` can be called (a required / keyword-only / inherited
