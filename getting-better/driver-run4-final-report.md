@@ -87,3 +87,10 @@ session scratchpad `run4-notes.md`.
 - CPython overflow probes are memory bombs (the 11-01 OOM): CPython checks run inside heavy.sh or under ulimit.
 - Census: never `--append-new` over the backlog; append only one's own rows with `_census_row`.
 - Integration interactions (section 4) — the controls of every executor are part of every integration battery.
+
+## 8. Final-main convergence check (2026-11-04T13:15Z, main 06c92aa69)
+The driver re-ran the exemplars it had reproduced before opening routes #540-#564 (29 probes, default mode) on the
+final main: every exemplar of a REPAIRED route is refused (R540 R541 R542 R543 R545 R549 R551 R552 R554 R555 R557 R559
+R563 R564) or NOT PROVED on its fence obligation (#544 #546 #547 #548 #550 #553); the exemplars of the five OPEN
+routes #556 #558 #560 #561 #562 still prove (Verification SUCCESS) — consistent with section 4. Output:
+session scratchpad `conv.out`.
