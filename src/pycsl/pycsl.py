@@ -20617,6 +20617,78 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     "isdigit", "isalpha", "isalnum", "isspace", "isupper", "islower",
                     "isnumeric", "isdecimal", "isidentifier", "istitle", "isprintable",
                     "isascii")
+        # (run #5, routes #556 / #558 / #560) file-wide tables of the judge at the end of the
+        # loop below: every name the file binds ANYWHERE (a builtin name is resolved only when
+        # the file never binds it, and no `from M import *` exists), the objects bound once by
+        # a top-level `import` of a standard-library module (never shadowed by a file beside
+        # the program), and the file IntEnum classes (an int at runtime: no Flag / str mixin,
+        # no `__iter__` / `__contains__` / `__getitem__` of their own) with their member names.
+        import builtins as _bi556
+        import importlib as _il556
+        import types as _ty556
+        _bnd556 = {}
+        for _x556 in _ast486.walk(_tr486):
+            for _q556 in ([_x556.id] if isinstance(_x556, _ast486.Name)
+                          and not isinstance(_x556.ctx, _ast486.Load) else
+                          [_x556.name] if isinstance(_x556, (
+                              _ast486.FunctionDef, _ast486.AsyncFunctionDef, _ast486.ClassDef))
+                          else [(_a.asname or _a.name).split(".")[0] for _a in _x556.names]
+                          if isinstance(_x556, (_ast486.Import, _ast486.ImportFrom)) else
+                          list(_x556.names) if isinstance(_x556, (_ast486.Global,
+                                                                  _ast486.Nonlocal)) else
+                          [_x556.arg] if isinstance(_x556, _ast486.arg) else
+                          [_x556.name] if isinstance(_x556, (
+                              _ast486.ExceptHandler, _ast486.MatchAs, _ast486.MatchStar))
+                          and _x556.name else
+                          [_x556.rest] if isinstance(_x556, _ast486.MatchMapping)
+                          and _x556.rest else []):
+                _bnd556[_q556] = _bnd556.get(_q556, 0) + 1
+        _star556 = "*" in _bnd556
+        _SAFE556 = frozenset(["math", "cmath", "os", "sys", "string", "functools", "itertools",
+                              "operator", "collections", "typing", "enum", "re", "json",
+                              "random", "time", "copy", "heapq", "bisect", "statistics",
+                              "decimal", "fractions", "dataclasses", "abc", "numbers",
+                              "keyword", "types"])
+        _imo556 = {}
+        for _x556 in _tr486.body:
+            _al556 = []
+            if isinstance(_x556, _ast486.Import):
+                _al556 = [(_a.asname or _a.name.split(".")[0],
+                           _a.name if _a.asname else _a.name.split(".")[0], None)
+                          for _a in _x556.names]
+            elif (isinstance(_x556, _ast486.ImportFrom) and _x556.level == 0
+                  and _x556.module):
+                _al556 = [(_a.asname or _a.name, _x556.module, _a.name) for _a in _x556.names]
+            for _nm556, _mn556, _at556 in _al556:
+                _rt556 = _mn556.split(".")[0]
+                if (_rt556 not in _SAFE556 or _bnd556.get(_nm556) != 1 or _os552.path.exists(
+                        _os552.path.join(_dd552[0], _rt556 + ".py")) or _os552.path.isdir(
+                            _os552.path.join(_dd552[0], _rt556))):
+                    continue
+                try:
+                    _mo556 = _il556.import_module(_mn556)
+                except Exception:
+                    continue
+                if _at556 is None:
+                    _imo556[_nm556] = _mo556
+                elif hasattr(_mo556, _at556):
+                    _imo556[_nm556] = getattr(_mo556, _at556)
+        _ie560, _mem560 = set(), {}
+        for _c560 in _cls541:
+            _hb560 = {_b for _a in _lin552[_c560] for _b in _bs552[_a]}
+            if not (("IntEnum" in _hb560 or ("int" in _hb560 and _hb560 & {"Enum", "ReprEnum"}))
+                    and not _hb560 & {"Flag", "IntFlag", "StrEnum", "str"}
+                    and not any(isinstance(_z, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                                and _z.name in ("__iter__", "__contains__", "__getitem__")
+                                for _a in _lin552[_c560] for _z in _cls541[_a].body)):
+                continue
+            _ie560.add(_c560)
+            _mem560[_c560] = {_t.id for _a in _lin552[_c560] for _z in _cls541[_a].body
+                              for _t in (_z.targets if isinstance(_z, _ast486.Assign) else
+                                         [_z.target] if isinstance(_z, _ast486.AnnAssign)
+                                         and _z.value is not None else [])
+                              if isinstance(_t, _ast486.Name) and not _t.id.startswith("_")
+                              and not isinstance(_z.value, _ast486.Lambda)}
         _rep541 = None
         _reps541 = []
         for _fd541, _cn541 in _fds541:
@@ -21603,6 +21675,273 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 f"{_n557.func.attr}`, declared {_KN541(_d557[0])}, and may be "
                                 f"{_w557}"))
                             break
+            # (run #5, routes #556 / #558 / #560; red team 53) three values the lowering turns
+            # into an opaque Why3 `int` whose kind the judge above does not establish:
+            # - PYCSL-R556-BUILTIN-OBJECT-OPERAND: a builtin function / type object, a module
+            #   or a module attribute (`len`, `int`, `ValueError`, `math`, `math.sqrt`,
+            #   `os.path`, `Optional`, `type(None)`, a local bound only to one) whose runtime
+            #   type defines neither `__iter__` nor `__contains__`, at an iterating /
+            #   membership-haystack position of route #542 (`k in len`, `for x in print`,
+            #   `sum(1 for x in math)`) or as a subscript receiver when it is a function /
+            #   module -- `contains_check` / `iter_length` are total over the int constant;
+            # - PYCSL-R560-INTENUM-MEMBER-OPERAND: an IntEnum member (`IE.B`, `IE(1)`, `IE["B"]`,
+            #   an `IE` parameter, a local or a display element bound only to one) -- an int at
+            #   runtime -- at the same positions (`k in IE.B`, `for x in IE.B`, `IE.B[0]`);
+            # - PYCSL-R558-BYTES-VALUE-KIND: a `bytes(..)` / `bytearray(..)` value (lowered to
+            #   an opaque `any int`) as a list / set / tuple display element or dict display
+            #   value, inserted into a container (append / add / insert / item store /
+            #   setdefault), or bound to an annotated local, where the declared (or displayed)
+            #   element / binding domain is not a container kind and does not name bytes
+            #   (`bytes` / `bytearray` / `ByteString` / `Buffer` / `memoryview` / `Any` /
+            #   `object`): `xs: List[str]; xs.append(bytes(2))` then `x + "c"` proved.
+            if not _reps541:
+                _nc556 = lambda _o: (getattr(type(_o), "__iter__", None) is None
+                                     and getattr(type(_o), "__contains__", None) is None)
+                _CK556 = frozenset(["list", "tuple", "set", "dict", "iter"])
+                # the objects an operand may be (None: not established)
+                _ob556 = (lambda _e, _n: None if _n <= 0 else (
+                    ([getattr(_bi556, _e.id)] if _e.id not in _bnd556 and not _star556
+                     and not _e.id.startswith("_") and hasattr(_bi556, _e.id) else
+                     [_imo556[_e.id]] if _e.id in _imo556 and _e.id not in _loc541
+                     and _e.id not in _prm541 else
+                     (lambda _vs: None if not _vs or any(
+                         _md != "v" or _v is None for _md, _v in _vs) else (
+                             lambda _rs: None if any(_r is None for _r in _rs)
+                             else [_o for _r in _rs for _o in _r])(
+                                 [_ob556(_v, _n - 1) for _md, _v in _vs]))(
+                         [(_md, _v) for _m, _md, _v in _bd541 if _m == _e.id])
+                     if _e.id in _loc541 and _e.id not in _dcl541 and _e.id not in _prm541
+                     else None) if isinstance(_e, _ast486.Name) else
+                    (lambda _bs: None if not _bs or not all(
+                        isinstance(_b, _ty556.ModuleType) and hasattr(_b, _e.attr)
+                        for _b in _bs) else [getattr(_b, _e.attr) for _b in _bs])(
+                            _ob556(_e.value, _n - 1)) if isinstance(_e, _ast486.Attribute) else
+                    ([type(_e.args[0].value)] if isinstance(_e.args[0], _ast486.Constant) else
+                     [int] if (_T541.get(id(_e.args[0]), _UT541)[0]
+                               and _T541.get(id(_e.args[0]), _UT541)[0] <= frozenset(
+                                   ["num", "str", "none", "list", "tuple", "dict", "set"]))
+                     else None)
+                    if isinstance(_e, _ast486.Call) and isinstance(_e.func, _ast486.Name)
+                    and _e.func.id == "type" and "type" not in _bnd556 and not _star556
+                    and len(_e.args) == 1 and not _e.keywords else
+                    (lambda _a, _b: None if _a is None or _b is None else _a + _b)(
+                        _ob556(_e.body, _n - 1), _ob556(_e.orelse, _n - 1))
+                    if isinstance(_e, _ast486.IfExp) else
+                    _ob556(_e.value, _n - 1) if isinstance(_e, _ast486.NamedExpr) else None))
+                # an IntEnum member (an int at runtime)
+                _shd560 = lambda _x: _x in _loc541 or _x in _prm541 or _bnd556.get(_x, 0) != 1
+                _iem560 = (lambda _e, _n: _n > 0 and (
+                    (isinstance(_e, _ast486.Attribute) and isinstance(_e.value, _ast486.Name)
+                     and _e.value.id in _ie560 and not _shd560(_e.value.id)
+                     and _e.attr in _mem560[_e.value.id])
+                    or (isinstance(_e, _ast486.Call) and isinstance(_e.func, _ast486.Name)
+                        and _e.func.id in _ie560 and not _shd560(_e.func.id))
+                    or (isinstance(_e, _ast486.Subscript) and isinstance(_e.value, _ast486.Name)
+                        and _e.value.id in _ie560 and not _shd560(_e.value.id))
+                    or (lambda _k: bool(_k) and all(
+                        _x.startswith("c:") and _x[2:] in _ie560 for _x in _k))(
+                            _T541.get(id(_e), _UT541)[0])
+                    or (isinstance(_e, _ast486.Name) and _e.id in _loc541
+                        and _e.id not in _dcl541 and (lambda _vs: bool(_vs) and all(
+                            _md == "v" and _v is not None and _iem560(_v, _n - 1)
+                            for _md, _v in _vs))(
+                                [(_md, _v) for _m, _md, _v in _bd541 if _m == _e.id]))
+                    or (isinstance(_e, _ast486.Subscript)
+                        and not isinstance(_e.slice, _ast486.Slice)
+                        and (lambda _ds: bool(_ds) and all(
+                            isinstance(_d, (_ast486.List, _ast486.Tuple)) and _d.elts and all(
+                                not isinstance(_y, _ast486.Starred) and _iem560(_y, _n - 1)
+                                for _y in _d.elts) for _d in _ds))(
+                                    [_e.value] if isinstance(_e.value, (_ast486.List,
+                                                                        _ast486.Tuple)) else
+                                    [_v for _m, _md, _v in _bd541 if _m == _e.value.id]
+                                    if isinstance(_e.value, _ast486.Name)
+                                    and _e.value.id in _loc541 and _e.value.id not in _dcl541
+                                    and all(_md == "v" for _m, _md, _v in _bd541
+                                            if _m == _e.value.id)
+                                    and not any(_q[0] == _e.value.id for _q in _ins541)
+                                    else []))
+                    or (isinstance(_e, _ast486.IfExp) and _iem560(_e.body, _n - 1)
+                        and _iem560(_e.orelse, _n - 1))
+                    or (isinstance(_e, _ast486.NamedExpr) and _iem560(_e.value, _n - 1))))
+                for _n556 in _ast486.walk(_fd541):
+                    _ops556 = []
+                    if isinstance(_n556, _ast486.Compare):
+                        _ops556 = [(_c, "the container of `in` / `not in`")
+                                   for _o, _c in zip(_n556.ops, _n556.comparators)
+                                   if isinstance(_o, (_ast486.In, _ast486.NotIn))]
+                    elif isinstance(_n556, (_ast486.For, _ast486.AsyncFor,
+                                            _ast486.comprehension)):
+                        _ops556 = [(_n556.iter, "the iterable of a `for` / comprehension")]
+                    elif isinstance(_n556, (_ast486.YieldFrom, _ast486.Starred)):
+                        _ops556 = [(_n556.value, "an unpacked / delegated iterable")]
+                    elif (isinstance(_n556, _ast486.Subscript)
+                          and isinstance(_n556.ctx, _ast486.Load)):
+                        _ops556 = [(_n556.value, "a subscripted value")]
+                    elif (isinstance(_n556, _ast486.Assign) and any(
+                            isinstance(_t, (_ast486.Tuple, _ast486.List))
+                            for _t in _n556.targets)
+                          and not isinstance(_n556.value, (_ast486.Tuple, _ast486.List))):
+                        _ops556 = [(_n556.value, "an unpacked value")]
+                    elif (isinstance(_n556, _ast486.Call) and isinstance(_n556.func, _ast486.Name)
+                          and _n556.func.id not in _bnd556 and not _star556):
+                        _fi556 = _n556.func.id
+                        if (_fi556 in ("len", "list", "tuple", "set", "frozenset", "sorted",
+                                       "reversed", "sum", "any", "all", "enumerate", "dict")
+                                and len(_n556.args) >= 1) or (
+                                    _fi556 in ("min", "max", "iter") and len(_n556.args) == 1):
+                            _ops556 = [(_n556.args[0], f"the argument of `{_fi556}`")]
+                        elif _fi556 == "zip":
+                            _ops556 = [(_y, "an argument of `zip`") for _y in _n556.args]
+                        elif _fi556 in ("map", "filter") and len(_n556.args) >= 2:
+                            _ops556 = [(_y, f"an iterable argument of `{_fi556}`")
+                                       for _y in _n556.args[1:]]
+                    elif (isinstance(_n556, _ast486.Call)
+                          and isinstance(_n556.func, _ast486.Attribute)
+                          and _n556.func.attr == "join" and len(_n556.args) == 1
+                          and _T541.get(id(_n556.func.value), _UT541)[0] == frozenset(["str"])):
+                        _ops556 = [(_n556.args[0], "the argument of `str.join`")]
+                    for _y556, _w556 in _ops556:
+                        if isinstance(_y556, _ast486.Starred):
+                            continue
+                        _os556 = _ob556(_y556, 4)
+                        _sb556 = _w556 == "a subscripted value"
+                        if _os556 and all(
+                                (isinstance(_o, (_ty556.ModuleType, _ty556.BuiltinFunctionType,
+                                                 _ty556.FunctionType)) if _sb556
+                                 else _nc556(_o)) for _o in _os556):
+                            _reps541.append((
+                                "PYCSL-R556-BUILTIN-OBJECT-OPERAND", _y556,
+                                f"`{_ast486.unparse(_y556).strip()[:60]}` is {_w556} and is the "
+                                f"object {', '.join(sorted({repr(_o)[:40] for _o in _os556}))}, "
+                                f"which CPython cannot "
+                                f"{'subscript' if _sb556 else 'iterate or search'}"))
+                            break
+                        if _iem560(_y556, 4):
+                            _reps541.append((
+                                "PYCSL-R560-INTENUM-MEMBER-OPERAND", _y556,
+                                f"`{_ast486.unparse(_y556).strip()[:60]}` is {_w556} and is an "
+                                f"IntEnum member, an int that CPython cannot "
+                                f"{'subscript' if _sb556 else 'iterate or search'}"))
+                            break
+                    if _reps541:
+                        break
+            if not _reps541:
+                _BW558 = ("bytes", "bytearray", "ByteString", "Buffer", "memoryview", "Any",
+                          "object")
+                _bym558 = lambda _a: _a is not None and any(
+                    (isinstance(_y, _ast486.Name) and _y.id in _BW558)
+                    or (isinstance(_y, _ast486.Attribute) and _y.attr in _BW558)
+                    or (isinstance(_y, _ast486.Constant) and isinstance(_y.value, str)
+                        and any(_w in _y.value for _w in _BW558))
+                    for _y in _ast486.walk(_a))
+                _by558 = (lambda _e, _n: _n > 0 and (
+                    (isinstance(_e, _ast486.Call) and isinstance(_e.func, _ast486.Name)
+                     and _e.func.id in ("bytes", "bytearray") and _e.func.id not in _bnd556
+                     and not _star556)
+                    or (isinstance(_e, _ast486.IfExp) and (_by558(_e.body, _n - 1)
+                                                            or _by558(_e.orelse, _n - 1)))
+                    or (isinstance(_e, _ast486.BoolOp) and any(_by558(_v, _n - 1)
+                                                                for _v in _e.values))
+                    or (isinstance(_e, _ast486.NamedExpr) and _by558(_e.value, _n - 1))
+                    or (isinstance(_e, _ast486.Name) and _e.id in _loc541
+                        and _e.id not in _dcl541 and any(
+                            _md == "v" and _v is not None and _by558(_v, _n - 1)
+                            for _m, _md, _v in _bd541 if _m == _e.id))))
+                # the declared annotation of a container local / parameter / field
+                _lan558 = {_y.target.id: _y.annotation for _y in _ast486.walk(_fd541)
+                           if isinstance(_y, _ast486.AnnAssign)
+                           and isinstance(_y.target, _ast486.Name)}
+                _fan558 = (lambda _rv: next((
+                    _z.annotation for _k in _T541.get(id(_rv.value), _UT541)[0]
+                    if _k.startswith("c:") for _a in _lin552.get(_k[2:], [])
+                    for _z in _ast486.walk(_cls541[_a]) if isinstance(_z, _ast486.AnnAssign)
+                    and ((isinstance(_z.target, _ast486.Name) and _z.target.id == _rv.attr)
+                         or (isinstance(_z.target, _ast486.Attribute)
+                             and isinstance(_z.target.value, _ast486.Name)
+                             and _z.target.value.id == "self" and _z.target.attr == _rv.attr))),
+                    None) if isinstance(_rv, _ast486.Attribute) else None)
+                # a domain bytes does not fit: established, not a container kind
+                _bd558 = lambda _d: ("unk" not in _d and not (_d & _CK556))
+                _st558 = None
+                # (a) a display element / dict display value
+                for _n558 in _ast486.walk(_fd541):
+                    _el558 = (list(_n558.elts) if isinstance(_n558, (
+                        _ast486.List, _ast486.Set, _ast486.Tuple)) and isinstance(
+                            getattr(_n558, "ctx", _ast486.Load()), _ast486.Load) else
+                              list(_n558.values) if isinstance(_n558, _ast486.Dict) else [])
+                    _by0558 = next((_y for _y in _el558 if not isinstance(_y, _ast486.Starred)
+                                    and _by558(_y, 4)), None)
+                    if _by0558 is None:
+                        continue
+                    _p558 = _par552.get(id(_n558))
+                    _an558 = (_p558.annotation if isinstance(_p558, _ast486.AnnAssign) else
+                              _lan558.get(_p558.targets[0].id) if isinstance(
+                                  _p558, _ast486.Assign) and len(_p558.targets) == 1
+                              and isinstance(_p558.targets[0], _ast486.Name) else
+                              _fan558(_p558.targets[0]) if isinstance(_p558, _ast486.Assign)
+                              and len(_p558.targets) == 1 else
+                              getattr(_fd541, "returns", None)
+                              if isinstance(_p558, _ast486.Return) else None)
+                    if _bym558(_an558) or (_an558 is not None and (
+                            _ANN541(_an558)[1] | _ANN541(_an558)[2]) & _CK556) or (
+                                isinstance(_p558, _ast486.Compare) and all(
+                            isinstance(_o, (_ast486.Eq, _ast486.NotEq, _ast486.Is,
+                                            _ast486.IsNot, _ast486.In, _ast486.NotIn))
+                            for _o in _p558.ops)):
+                        continue
+                    _st558 = (_by0558, f"`{_ast486.unparse(_by0558).strip()[:40]}` is an element "
+                                       f"of the display `{_ast486.unparse(_n558).strip()[:60]}`")
+                    break
+                # (b) an insertion into a container of a non-container element domain
+                for _nm558, _md558, _vn558, _ss558, _rv558 in (
+                        _ins541 if _st558 is None else []):
+                    if _md558 not in ("v", "d") or not _by558(_vn558, 4):
+                        continue
+                    _an558 = (_lan558.get(_nm558) if _nm558 is not None and _nm558 in _dcl541
+                              else _pan552.get(_nm558) if _nm558 is not None
+                              and _nm558 in _prm541 and _nm558 not in _loc541
+                              else _fan558(_rv558) if _nm558 is None else None)
+                    if _an558 is not None:
+                        if _bym558(_an558):
+                            continue
+                        _d558 = _ANN541(_an558)
+                    elif _nm558 is not None and _nm558 in _dom541 and not any(
+                            isinstance(_y, _ast486.Constant) and isinstance(_y.value, bytes)
+                            or _by558(_y, 2) for _m, _md, _v in _bd541
+                            if _m == _nm558 and _v is not None for _y in _ast486.walk(_v)):
+                        _d558 = _dom541[_nm558]
+                    else:
+                        continue
+                    if len(_d558[0]) != 1:
+                        continue
+                    _dk558 = next(iter(_d558[0]))
+                    _ed558 = (_d558[1] if _dk558 in ("list", "set") else
+                              _d558[2] if _dk558 == "dict" and _md558 == "d" else None)
+                    if _ed558 is None or not _bd558(_ed558):
+                        continue
+                    _st558 = (_ss558, f"`{_ast486.unparse(_ss558).strip()[:60]}` stores a bytes "
+                                      f"value into `{_ast486.unparse(_rv558).strip()[:40]}`, "
+                                      f"whose {'values are' if _dk558 == 'dict' else 'elements are'}"
+                                      f" {_KN541(_ed558) or 'of no kind yet'}")
+                    break
+                # (c) a binding of an annotated local / field of a non-container domain
+                for _n558 in (_ast486.walk(_fd541) if _st558 is None else []):
+                    _an558 = (_n558.annotation if isinstance(_n558, _ast486.AnnAssign)
+                              and _n558.value is not None else
+                              _lan558.get(_n558.targets[0].id) if isinstance(
+                                  _n558, _ast486.Assign) and len(_n558.targets) == 1
+                              and isinstance(_n558.targets[0], _ast486.Name) else None)
+                    if (_an558 is None or _bym558(_an558) or not _by558(_n558.value, 4)
+                            or not _bd558(_ANN541(_an558)[0] - frozenset(["none"]))
+                            or not _ANN541(_an558)[0] - frozenset(["none"])):
+                        continue
+                    _st558 = (_n558, f"`{_ast486.unparse(_n558).strip()[:60]}` binds a bytes "
+                                     f"value to a local annotated "
+                                     f"{_KN541(_ANN541(_an558)[0])}")
+                    break
+                if _st558 is not None:
+                    _reps541.append(("PYCSL-R558-BYTES-VALUE-KIND", _st558[0], _st558[1]))
         if _reps541:
             _rc541, _rv541, _rm541 = _reps541[0]
             _ln541 = getattr(_rv541, "lineno", 0)
@@ -21664,6 +22003,38 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"(`c = k < len(t)` then `w = (1, c)`), on operands of the kinds the "
                     f"operator accepts.",
                     stage="ir-semantic", code="PYCSL-R564-DISPLAY-ELEMENT-KIND")
+            if _rc541 == "PYCSL-R556-BUILTIN-OBJECT-OPERAND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R556-BUILTIN-OBJECT-OPERAND: {_rm541}. The value "
+                    f"model lowers a builtin function / type object and a module (or its "
+                    f"function / constant) to an opaque Why3 `int` constant, and `in` / `for` "
+                    f"over it to the TOTAL opaque `contains_check` / `iter_length`, so the "
+                    f"claim proved while CPython raises TypeError (route #556; measured: `k in "
+                    f"len`, `for x in print`, `sum(1 for x in math)`, `k in os.getcwd`, `k in "
+                    f"type(None)` proved `no_exception \\all`). Iterate / search the value you "
+                    f"mean (`for x in range(k)`, `\"a\" in t` of `t: str`, `\"k\" in d` of a dict).",
+                    stage="ir-semantic", code="PYCSL-R556-BUILTIN-OBJECT-OPERAND")
+            if _rc541 == "PYCSL-R560-INTENUM-MEMBER-OPERAND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R560-INTENUM-MEMBER-OPERAND: {_rm541}. An IntEnum "
+                    f"member is an int field of the class record and `in` / `for` over it is the "
+                    f"TOTAL opaque `contains_check` / `iter_length`, so the claim proved while "
+                    f"CPython raises TypeError ('IE' object is not iterable) (route #560; "
+                    f"measured: `k in IE.B`, `for x in IE.B`, `sum(1 for x in e)` of `e: IE` "
+                    f"proved `no_exception \\all`). Compare the member as an int (`k == IE.B`, "
+                    f"`k in (IE.A, IE.B)`), or iterate the class itself (`for m in IE`).",
+                    stage="ir-semantic", code="PYCSL-R560-INTENUM-MEMBER-OPERAND")
+            if _rc541 == "PYCSL-R558-BYTES-VALUE-KIND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R558-BYTES-VALUE-KIND: {_rm541}. The value model "
+                    f"lowers `bytes(n)` / `bytearray(n)` to an opaque `any int`, which fits a "
+                    f"str (hash) slot and a number slot alike, so a later str / number use of "
+                    f"the element proved while CPython raises TypeError (route #558; measured: "
+                    f"`xs: List[str] = [\"a\"]; xs.append(bytes(2)); x = xs[1]; len(x + \"c\")` "
+                    f"and `xs: List[int] = [bytes(2)]; xs[0] + 1` proved `no_exception "
+                    f"\\all`). Store a value of the element kind (`xs.append(\"b\")`), or "
+                    f"declare the container as holding bytes (`xs: List[bytes] = []`).",
+                    stage="ir-semantic", code="PYCSL-R558-BYTES-VALUE-KIND")
             if _rc541 == "PYCSL-R541-ELEMENT-KIND":
                 raise _PyCSLSemErr541(
                     f"line {_ln541}: PYCSL-R541-ELEMENT-KIND: {_rm541}. The value model "
