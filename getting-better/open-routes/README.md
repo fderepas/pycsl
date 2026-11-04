@@ -39,6 +39,8 @@
 ##   in Optional / Union / a container keeps the union of slots; caller taint by positional argument only; a None-returning method matched by name.
 
 ## run #4 (2026-11-04): #550 / #551 / #552 REPAIRED (executor u23 off 5627aee66 = int28 + route docs, a54daa5a0 + its ledger / docs commit; inline
+
+## run #4 (2026-11-04): #550 / #551 / #552 REPAIRED (executor u23 off 5627aee66 = int28 + route docs, a54daa5a0 + 835371309 (ledgers / docs) + 1ba29d650 (CTXBIND); inline
 ##   in `_run_pipeline`, mirror twin `\trusted`, lambdas only, no new def, no axiom, emitter untouched; annotations §7.550). #550 (inside route
 ##   #529's kind-flow judge): a user `__iter__` / `__len__` / `__bool__` counts only when JUDGED (one undecorated `def <name>(self)` returning a
 ##   literal / `len(self.<sized field>)` / a number comparison / `iter(self.<field>)`); a truth test of an instance consults `__bool__`, else
