@@ -1,5 +1,12 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-04): #546-#555 OPENED (red team 52 on 2ad6cfd15: 1914 probes / 263 confirmed (probe, mode) pairs in 10 families): #546 #526's
+##   return-depth rule collapses a Tuple's slots (25); #547 a method / function -> int returning None unjudged at the use (22); #548 slice store of a
+##   None-holding source (14); #549 a None argument not classed may-be-None (49, all models); #550 #529 counts user __iter__ / __len__ / __bool__ as
+##   total (20); #551 an Any local into a constructor's str parameter (6); #552 range / dict views / copies / slices / sorted lowered to an opaque int
+##   accepted as an int (46); #553 a callee's item store of None into its container parameter (18); #554 #449's argument binding stops at the file
+##   (32, all models); #555 an imported function's None result never may-be-None (31, all models). Driver repro 10/10 on int28.
+
 ## run #4 (2026-11-03): #540-#545 OPENED (red team 51 on 9c8c5cf4a: 2713 probes / 301 confirmed in 6 families, default mode): #540 unary `+`
 ##   lowered as the identity and judged by nothing (59); #541 local lists whose elements the model int-erases accept append(None) / append(int)
 ##   unchecked (112; its exemplars no longer prove on int26 = + the #521-#526 fence); #542 an int-modelled `in` haystack / for iterable never
