@@ -1147,6 +1147,85 @@ class ControlFlowStmtMixin:
         inner_indent = loop_indent + "  "
 
         tuple_targets = getattr(stmt, "tuple_targets", None)
+        # lvA (proof2why3 normalize cluster): `for k, v in NAME.items()` over a module
+        # constant str->str dict literal, or `for a, b in NAME` over a module constant
+        # list/tuple of str 2-tuples (`module_const_str_pair_loops`, collected fail-closed in
+        # Module 5: never rebound, aliased, mutated or read other than as this iterable).
+        # The iteration is a FIXED finite sequence of string pairs, so the loop is UNROLLED:
+        # one copy of the body per pair, in iteration order, with each target name replaced
+        # by its string literal. Exact Python semantics when (all checked here) the body
+        # never leaves the loop early (no break / continue / return / yield / await), never
+        # rebinds or captures a target (no other occurrence of the name string than a
+        # plain `Var` read, no lambda / comprehension / nested def that could close over
+        # it), and the target names are used NOWHERE outside such loops in the function
+        # (`_cpl_outside_names`: Python leaves them bound to the last pair, which the
+        # unrolled code never binds). Byte-inert for every program without such a constant.
+        _cpl_map = ((getattr(self, "ir", {}) or {}).get("module_const_str_pair_loops") or {})
+        _cpl_nm = None
+        if isinstance(iter_ir, dict) and iter_ir.get("type") == "Var":
+            _cpl_nm = iter_ir.get("name")
+            if not (_cpl_nm in _cpl_map and _cpl_map[_cpl_nm].get("kind") == "seq"):
+                _cpl_nm = None
+        elif (isinstance(iter_ir, dict) and iter_ir.get("type") == "Call"
+                and iter_ir.get("receiver") is None and not iter_ir.get("args")
+                and not iter_ir.get("keywords") and isinstance(iter_ir.get("func"), str)
+                and iter_ir["func"].endswith(".items")):
+            _cpl_nm = iter_ir["func"][:-len(".items")]
+            if not (_cpl_nm in _cpl_map and _cpl_map[_cpl_nm].get("kind") == "dict"):
+                _cpl_nm = None
+        if (_cpl_nm is not None and isinstance(tuple_targets, list)
+                and len(tuple_targets) == 2
+                and all(isinstance(_t, str) and _t != "_" and _t != target
+                        and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", _t) for _t in tuple_targets)
+                and tuple_targets[0] != tuple_targets[1]
+                and _cpl_nm not in (getattr(self, "_current_symbol_table", {}) or {})
+                and not (set(tuple_targets)
+                         & (getattr(self, "_cpl_outside_names", None) or set()))
+                and not getattr(stmt, "invariants", None)
+                and not getattr(stmt, "variants", None)
+                and 1 <= len(_cpl_map[_cpl_nm].get("pairs") or []) <= 64):
+            _cpl_body = [s.to_dict() for s in stmt.body]
+            _cpl_ok = True
+            _cpl_w = [_cpl_body]
+            while _cpl_w and _cpl_ok:
+                _cpl_x = _cpl_w.pop()
+                if isinstance(_cpl_x, dict):
+                    if (_cpl_x.get("stmt") in ("Break", "Continue", "Return", "FunctionDef",
+                                               "ClassDef", "Global", "Nonlocal")
+                            or _cpl_x.get("type") in ("Lambda", "GenExp", "ListComp",
+                                                      "SetComp", "DictComp", "Yield",
+                                                      "YieldFrom", "Await", "NamedExpr")):
+                        _cpl_ok = False
+                    elif _cpl_x.get("type") == "Var" and _cpl_x.get("name") in tuple_targets:
+                        continue
+                    _cpl_w.extend(_cpl_x.values())
+                elif isinstance(_cpl_x, (list, tuple)):
+                    _cpl_w.extend(_cpl_x)
+                elif isinstance(_cpl_x, str) and _cpl_x.split(".")[0] in tuple_targets:
+                    _cpl_ok = False
+            if _cpl_ok:
+                _cpl_unrolled: List[Dict[str, Any]] = []
+                for _cpl_k, _cpl_v in _cpl_map[_cpl_nm]["pairs"]:
+                    import copy as _cpl_cpm
+                    _cpl_copy = _cpl_cpm.deepcopy([s.to_dict() for s in stmt.body])
+                    _cpl_w = [_cpl_copy]
+                    while _cpl_w:
+                        _cpl_x = _cpl_w.pop()
+                        if isinstance(_cpl_x, dict):
+                            if (_cpl_x.get("type") == "Var"
+                                    and _cpl_x.get("name") in tuple_targets):
+                                _cpl_lit = (_cpl_k if _cpl_x["name"] == tuple_targets[0]
+                                            else _cpl_v)
+                                _cpl_x.clear()
+                                _cpl_x["type"] = "String"
+                                _cpl_x["value"] = _cpl_lit
+                                continue
+                            _cpl_w.extend(_cpl_x.values())
+                        elif isinstance(_cpl_x, list):
+                            _cpl_w.extend(_cpl_x)
+                    _cpl_unrolled.extend(_cpl_copy)
+                return self._stmts_to_whyml(_cpl_unrolled + list(rest), local_refs,
+                                            declared_refs, indent, in_loop)
         str_ci = (self._string_char_iter(iter_ir, target, tuple_targets, local_refs)
                   if self._value_semantic else None)
         # self-tcb-reduction (union/match cluster): `for i, x in enumerate(<seq local>)`.

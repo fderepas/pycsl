@@ -321,6 +321,84 @@ class FunctionEmissionMixin:
     def _reset_function_state(self, func: Dict[str, Any],
                                body_stmts: List[Dict[str, Any]]) -> Tuple[Set[str], Set[str]]:
         """Reset all per-function instance variables. Returns (local_refs, ghost_vars)."""
+        # lvA: locals bound EXACTLY ONCE, by `<v> = re.compile(<str literal>)`, whose name
+        # occurs NOWHERE else in the function (no other binding form, no read, no
+        # `global`/`nonlocal`, no parameter) except as the `<v>.sub` callee -- so a
+        # `<v>.sub(..)` that runs can only be the compiled pattern's method
+        # (`_is_re_str_call`). Fail-closed: ANY other occurrence of the name string
+        # disqualifies it.
+        # lvA: the const-str-pair loop unroll (`_handle_for_stmt`) substitutes the pair
+        # strings for the two tuple-target names INSIDE the loop body, which is exact only
+        # if neither name is used anywhere OUTSIDE such a loop (Python leaves them bound to
+        # the last pair afterwards). Every string occurring outside those loops' subtrees
+        # is collected; a target name among them disables the unroll for that name.
+        self._cpl_outside_names = set()
+        _cpl_m = ((getattr(self, "ir", {}) or {}).get("module_const_str_pair_loops") or {})
+        if _cpl_m:
+            _cpl_w = [(body_stmts, frozenset())] + [
+                (func.get(_cpl_pk), frozenset()) for _cpl_pk in (
+                    "formal_params", "kwonly_params", "posonly_params", "kwarg_param",
+                    "vararg_param", "params", "args", "nonlocal_writes", "global_writes",
+                    "with_bindings")]
+            while _cpl_w:
+                _cpl_x, _cpl_enc = _cpl_w.pop()
+                if isinstance(_cpl_x, dict):
+                    _cpl_it = _cpl_x.get("iter")
+                    if (_cpl_x.get("stmt") == "For" and _cpl_x.get("tuple_targets")
+                            and isinstance(_cpl_it, dict)
+                            and ((_cpl_it.get("type") == "Var"
+                                  and _cpl_it.get("name") in _cpl_m)
+                                 or (_cpl_it.get("type") == "Call"
+                                     and isinstance(_cpl_it.get("func"), str)
+                                     and _cpl_it["func"].endswith(".items")
+                                     and _cpl_it["func"][:-6] in _cpl_m))):
+                        _cpl_enc = _cpl_enc | set(_cpl_x["tuple_targets"])
+                    _cpl_w.extend((_v, _cpl_enc) for _k, _v in _cpl_x.items()
+                                  if _k != "tuple_targets")
+                elif isinstance(_cpl_x, (list, tuple)):
+                    _cpl_w.extend((_v, _cpl_enc) for _v in _cpl_x)
+                elif isinstance(_cpl_x, str) and _cpl_x.split(".")[0] not in _cpl_enc:
+                    self._cpl_outside_names.add(_cpl_x.split(".")[0])
+        self._re_compiled_locals = {}
+        _rc_cand = {}
+        for _rc_s in body_stmts:
+            if (isinstance(_rc_s, dict) and _rc_s.get("stmt") == "Assign"
+                    and isinstance(_rc_s.get("target"), str)
+                    and isinstance(_rc_s.get("value"), dict)
+                    and _rc_s["value"].get("type") == "Call"
+                    and _rc_s["value"].get("func") == "re.compile"
+                    and _rc_s["value"].get("receiver") is None
+                    and not _rc_s["value"].get("keywords")
+                    and len(_rc_s["value"].get("args") or []) == 1
+                    and isinstance(_rc_s["value"]["args"][0], dict)
+                    and _rc_s["value"]["args"][0].get("type") == "String"
+                    and isinstance(_rc_s["value"]["args"][0].get("value"), str)):
+                _rc_cand.setdefault(_rc_s["target"], []).append(_rc_s)
+        for _rc_n, _rc_defs in _rc_cand.items():
+            if len(_rc_defs) != 1:
+                continue
+            _rc_ok = True
+            _rc_work = [body_stmts] + [func.get(_rc_pk) for _rc_pk in (
+                "formal_params", "kwonly_params", "posonly_params", "kwarg_param",
+                "vararg_param", "params", "args", "nonlocal_writes", "global_writes",
+                "with_bindings")]
+            while _rc_work and _rc_ok:
+                _rc_x = _rc_work.pop()
+                if _rc_x is _rc_defs[0]:
+                    _rc_work.append(_rc_x["value"])
+                    continue
+                if isinstance(_rc_x, dict):
+                    if _rc_x.get("type") == "Call" and _rc_x.get("func") == _rc_n + ".sub":
+                        _rc_work.extend(_v for _k, _v in _rc_x.items() if _k != "func")
+                        continue
+                    _rc_work.extend(_rc_x.values())
+                elif isinstance(_rc_x, (list, tuple)):
+                    _rc_work.extend(_rc_x)
+                elif isinstance(_rc_x, str) and (_rc_x == _rc_n
+                                                 or _rc_x.startswith(_rc_n + ".")):
+                    _rc_ok = False
+            if _rc_ok:
+                self._re_compiled_locals[_rc_n] = _rc_defs[0]["value"]["args"][0]
         # (#49) ROUTE #232 — A READ `**kwargs` PARAMETER IN AN EMITTED BODY. The parameter
         # is not modelled (it is not in the signature), so the read would lower to an
         # auto-declared opaque `val constant <name> : int` SHARED by every call: measured,
