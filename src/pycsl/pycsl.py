@@ -20648,7 +20648,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                               "operator", "collections", "typing", "enum", "re", "json",
                               "random", "time", "copy", "heapq", "bisect", "statistics",
                               "decimal", "fractions", "dataclasses", "abc", "numbers",
-                              "keyword", "types"])
+                              "keyword", "types", "builtins"])
         _imo556 = {}
         for _x556 in _tr486.body:
             _al556 = []
@@ -21679,13 +21679,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             # into an opaque Why3 `int` whose kind the judge above does not establish:
             # - PYCSL-R556-BUILTIN-OBJECT-OPERAND: a builtin function / type object, a module
             #   or a module attribute (`len`, `int`, `ValueError`, `math`, `math.sqrt`,
-            #   `os.path`, `Optional`, `type(None)`, a local bound only to one) whose runtime
+            #   `os.path`, `builtins.len`, `str.upper`, `Optional`, `type(None)`, a local bound
+            #   only to one) whose runtime
             #   type defines neither `__iter__` nor `__contains__`, at an iterating /
             #   membership-haystack position of route #542 (`k in len`, `for x in print`,
             #   `sum(1 for x in math)`) or as a subscript receiver when it is a function /
             #   module -- `contains_check` / `iter_length` are total over the int constant;
             # - PYCSL-R560-INTENUM-MEMBER-OPERAND: an IntEnum member (`IE.B`, `IE(1)`, `IE["B"]`,
-            #   an `IE` parameter, a local or a display element bound only to one) -- an int at
+            #   an `IE` / `Optional[IE]` parameter, a local or a display element bound only to
+            #   one) -- an int at
             #   runtime -- at the same positions (`k in IE.B`, `for x in IE.B`, `IE.B[0]`);
             # - PYCSL-R558-BYTES-VALUE-KIND: a `bytes(..)` / `bytearray(..)` value (lowered to
             #   an opaque `any int`) as a list / set / tuple display element or dict display
@@ -21713,7 +21715,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                      if _e.id in _loc541 and _e.id not in _dcl541 and _e.id not in _prm541
                      else None) if isinstance(_e, _ast486.Name) else
                     (lambda _bs: None if not _bs or not all(
-                        isinstance(_b, _ty556.ModuleType) and hasattr(_b, _e.attr)
+                        (isinstance(_b, _ty556.ModuleType) or (isinstance(_b, type) and getattr(
+                            _b, "__module__", "") == "builtins")) and hasattr(_b, _e.attr)
                         for _b in _bs) else [getattr(_b, _e.attr) for _b in _bs])(
                             _ob556(_e.value, _n - 1)) if isinstance(_e, _ast486.Attribute) else
                     ([type(_e.args[0].value)] if isinstance(_e.args[0], _ast486.Constant) else
@@ -21738,9 +21741,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         and _e.func.id in _ie560 and not _shd560(_e.func.id))
                     or (isinstance(_e, _ast486.Subscript) and isinstance(_e.value, _ast486.Name)
                         and _e.value.id in _ie560 and not _shd560(_e.value.id))
-                    or (lambda _k: bool(_k) and all(
-                        _x.startswith("c:") and _x[2:] in _ie560 for _x in _k))(
-                            _T541.get(id(_e), _UT541)[0])
+                    or (lambda _k: any(_x.startswith("c:") and _x[2:] in _ie560 for _x in _k)
+                        and all((_x.startswith("c:") and _x[2:] in _ie560) or _x == "none"
+                                for _x in _k))(_T541.get(id(_e), _UT541)[0])
                     or (isinstance(_e, _ast486.Name) and _e.id in _loc541
                         and _e.id not in _dcl541 and (lambda _vs: bool(_vs) and all(
                             _md == "v" and _v is not None and _iem560(_v, _n - 1)
