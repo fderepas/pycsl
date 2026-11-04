@@ -7921,6 +7921,174 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if _a449 in _cls341:
                     _sub449.setdefault(_a449, []).append(_cn449)
         _umro449 = {_cn449 for _cn449 in _cls341 if not _mro363.get(_cn449)}
+        # (run #4) ROUTES #549 / #555 (u22, red team 52): the callables of the PROGRAM'S OWN
+        # modules (this file's directory and the `--import-path` roots, never the standard
+        # library), read STATICALLY from their source so a call of an imported def / class
+        # is judged as a file one is. `_xc549[id(call)]` = the `def` / `class` statement a
+        # call of THIS file reaches through `from M import n [as a]` (the alias imported
+        # once, never otherwise bound in this file) or `import M [as a]` / `import P.M`
+        # (`a.n(..)`, `P.M.n(..)`), when M binds n exactly once, by a top-level `def` /
+        # `class` (any other module-level binding, a `global` or a `del` of n, a store into
+        # the module from this file: not resolved, not judged here). Inline (no nested def:
+        # check-mirror-coverage); `_run_pipeline`'s mirror twin is `\trusted`.
+        import os as _os549
+        import sys as _sy549
+        _xc549 = {}
+        _xr549 = {}
+        _xa549 = {}
+        _ic549 = {}
+        _xd549 = {}
+        _rn555 = set()
+        _fp549 = (_os549.path.abspath(str(args.file)) if getattr(args, "file", None) else "")
+        _rt549 = ([_os549.path.dirname(_fp549)] if _fp549 else []) + [
+            _os549.path.abspath(str(_d)) for _d in (getattr(args, "import_path", None) or [])]
+        for _z549 in _ast341.walk(_t341):
+            if isinstance(_z549, (_ast341.Import, _ast341.ImportFrom)):
+                for _a549 in _z549.names:
+                    _k549 = (_a549.asname or _a549.name).split(".")[0]
+                    _ic549[_k549] = _ic549.get(_k549, 0) + 1
+                    if isinstance(_z549, _ast341.Import) and _a549.asname:
+                        _xa549[_a549.asname] = _a549.name
+                    elif isinstance(_z549, _ast341.Import):
+                        _p549 = _a549.name.split(".")
+                        for _j549 in range(1, len(_p549) + 1):
+                            _xa549[".".join(_p549[:_j549])] = ".".join(_p549[:_j549])
+                    elif not _z549.level and _z549.module and _a549.name != "*":
+                        _xr549[_a549.asname or _a549.name] = (_z549.module, _a549.name)
+        _sm549 = set()
+        for _z549 in _ast341.walk(_t341):
+            if isinstance(_z549, (_ast341.Attribute, _ast341.Subscript)) and not isinstance(
+                    _z549.ctx, _ast341.Load):
+                _w549 = _z549.value
+                while isinstance(_w549, (_ast341.Attribute, _ast341.Subscript)):
+                    _w549 = _w549.value
+                if isinstance(_w549, _ast341.Name):
+                    _sm549.add(_w549.id)
+            elif (isinstance(_z549, _ast341.Call) and isinstance(_z549.func, _ast341.Name)
+                  and _z549.func.id in ("setattr", "delattr") and _z549.args
+                  and isinstance(_z549.args[0], _ast341.Name)):
+                _sm549.add(_z549.args[0].id)
+        _mq549 = sorted(set(_xa549.values()) | {_m for _m, _n in _xr549.values()}
+                        | {_m + "." + _n for _m, _n in _xr549.values()})
+        if _mq549 and _fp549:
+            from frontend.ir_resolve import _resolve_module_path as _rmp549
+            for _mn549 in _mq549:
+                if (_mn549.split(".")[0] in _sy549.stdlib_module_names
+                        or _mn549.split(".")[0] in _sy549.builtin_module_names):
+                    continue
+                try:
+                    _pa549 = _rmp549(_mn549, 0, _fp549)
+                except Exception:
+                    _pa549 = None
+                if not _pa549:
+                    continue
+                _pa549 = _os549.path.abspath(_pa549)
+                if not any(_pa549.startswith(_r + _os549.sep) for _r in _rt549):
+                    continue
+                try:
+                    with open(_pa549, encoding="utf-8") as _fh549:
+                        _mt549 = _ast341.parse(_fh549.read())
+                except Exception:
+                    continue
+                _bm549 = {}
+                for _s549 in _mt549.body:
+                    if isinstance(_s549, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                          _ast341.ClassDef)):
+                        _bm549.setdefault(_s549.name, []).append(_s549)
+                        continue
+                    for _y549 in _ast341.walk(_s549):
+                        if isinstance(_y549, _ast341.Name) and not isinstance(
+                                _y549.ctx, _ast341.Load):
+                            _bm549.setdefault(_y549.id, []).append(None)
+                        elif isinstance(_y549, (_ast341.Import, _ast341.ImportFrom)):
+                            for _a549 in _y549.names:
+                                _bm549.setdefault((_a549.asname or _a549.name).split(".")[0],
+                                                  []).append(None)
+                        elif isinstance(_y549, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                                _ast341.ClassDef)):
+                            _bm549.setdefault(_y549.name, []).append(None)
+                for _y549 in _ast341.walk(_mt549):
+                    if isinstance(_y549, (_ast341.Global, _ast341.Nonlocal)):
+                        for _w549 in _y549.names:
+                            _bm549.setdefault(_w549, []).append(None)
+                    elif isinstance(_y549, _ast341.NamedExpr) and isinstance(
+                            _y549.target, _ast341.Name):
+                        _bm549.setdefault(_y549.target.id, []).append(None)
+                _xd549[_mn549] = {_k: _v[0] for _k, _v in _bm549.items()
+                                  if len(_v) == 1 and _v[0] is not None}
+                _xd549[_mn549][" names"] = set(_bm549)
+                # (#555) a def of the module whose result MAY BE None: its return annotation
+                # is absent or admits None / Any / object (route #545's file-def rule), or
+                # its own body returns a None literal, a bare `return`, or a module name the
+                # module binds to a None literal (`ZI: int = None; def g() -> int: return ZI`)
+                _zn549 = {_t.id for _s in _mt549.body
+                          if isinstance(_s, (_ast341.Assign, _ast341.AnnAssign))
+                          and isinstance(_s.value, _ast341.Constant) and _s.value.value is None
+                          for _t in (_s.targets if isinstance(_s, _ast341.Assign)
+                                     else [_s.target]) if isinstance(_t, _ast341.Name)}
+                for _s549 in _mt549.body:
+                    if not isinstance(_s549, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                        continue
+                    _rn549 = _s549.returns
+                    _v549 = _rn549 is None or any(
+                        (isinstance(_w, _ast341.Constant) and (_w.value is None or (
+                            isinstance(_w.value, str) and any(
+                                _q in _w.value for _q in ("None", "Optional", "Any",
+                                                          "object")))))
+                        or (isinstance(_w, _ast341.Name) and _w.id in (
+                            "None", "NoneType", "Optional", "Any", "object"))
+                        or (isinstance(_w, _ast341.Attribute) and _w.attr in (
+                            "NoneType", "Optional", "Any"))
+                        for _w in _ast341.walk(_rn549))
+                    _lo549 = {_w.id for _w in _ast341.walk(_s549) if isinstance(
+                        _w, _ast341.Name) and not isinstance(_w.ctx, _ast341.Load)} | {
+                            _w.arg for _w in _ast341.walk(_s549.args)
+                            if isinstance(_w, _ast341.arg)}
+                    _sk549 = list(_s549.body)
+                    while _sk549 and not _v549:
+                        _y549 = _sk549.pop()
+                        if isinstance(_y549, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                              _ast341.ClassDef, _ast341.Lambda)):
+                            continue
+                        if isinstance(_y549, _ast341.Return) and (
+                                _y549.value is None
+                                or (isinstance(_y549.value, _ast341.Constant)
+                                    and _y549.value.value is None)
+                                or (isinstance(_y549.value, _ast341.Name)
+                                    and _y549.value.id in _zn549
+                                    and _y549.value.id not in _lo549)):
+                            _v549 = True
+                        _sk549.extend(_ast341.iter_child_nodes(_y549))
+                    if _v549:
+                        _rn555.add(id(_s549))
+            for _k549, (_m549, _n549) in list(_xr549.items()):
+                if (_m549 + "." + _n549 in _xd549 and _m549 in _xd549
+                        and _n549 not in _xd549[_m549][" names"]):
+                    _xa549[_k549] = _m549 + "." + _n549
+            for _z549 in _ast341.walk(_t341):
+                if not isinstance(_z549, _ast341.Call):
+                    continue
+                _ch549 = []
+                _w549 = _z549.func
+                while isinstance(_w549, _ast341.Attribute):
+                    _ch549.insert(0, _w549.attr)
+                    _w549 = _w549.value
+                if not isinstance(_w549, _ast341.Name):
+                    continue
+                _k549 = _w549.id
+                if (_ic549.get(_k549) != 1 or _k549 in _bound341 or _k549 in _cls341
+                        or _k549 in _md369 or _k549 in _gn449 or _k549 in _sm549):
+                    continue
+                _D549 = None
+                if not _ch549 and _k549 in _xr549 and _k549 not in _xa549:
+                    _D549 = _xd549.get(_xr549[_k549][0], {}).get(_xr549[_k549][1])
+                elif _ch549 and _k549 in _xa549:
+                    _md549 = _xa549.get(".".join([_k549] + _ch549[:-1]))
+                    if _md549 is not None:
+                        _D549 = _xd549.get(_md549, {}).get(_ch549[-1])
+                if isinstance(_D549, (_ast341.FunctionDef, _ast341.AsyncFunctionDef,
+                                      _ast341.ClassDef)):
+                    _xc549[id(_z549)] = _D549
         # (#49) gen #38, ROUTES #444 / #445 / #446 / #453 / #457 / #458 (red team 36; MEASURED
         # PROVED on 8fe7204c3 under `#@ no_exception \all`, CPython NameError / AttributeError /
         # TypeError / OSError). THE OPAQUE FALLBACKS: a construct Module 6 does not recognise is
@@ -10120,11 +10288,30 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             _v545 = isinstance(_z545.ctx, _ast341.Load) and (
                                 _z545.id in _nl545 or _z545.id in _pd432)
                         elif isinstance(_z545, _ast341.Call):
+                            # (u22, routes #549 / #555) also: a call of an imported def
+                            # whose result may be None (`_rn555`), `print(..)`, and a
+                            # builtin container mutator (`xs.append(..)`, `d.update(..)`)
                             _v545 = ((isinstance(_z545.func, _ast341.Name)
                                       and _z545.func.id in _dn545
                                       and _z545.func.id not in _cls341)
                                      or (isinstance(_z545.func, _ast341.Attribute)
-                                         and _z545.func.attr in _dn545))
+                                         and _z545.func.attr in _dn545)
+                                     or id(_xc549.get(id(_z545))) in _rn555
+                                     or (isinstance(_z545.func, _ast341.Name)
+                                         and _z545.func.id == "print"
+                                         and "print" not in _bound341
+                                         and "print" not in _imp341)
+                                     or (isinstance(_z545.func, _ast341.Attribute)
+                                         and _z545.func.attr in (
+                                             "append", "extend", "insert", "remove", "sort",
+                                             "reverse", "clear", "update", "add", "discard")
+                                         and bool(set(_ex346.get(id(_z545.func.value), set()))
+                                                  | set(_eh372.get(id(_z545.func.value),
+                                                                   set())))
+                                         and (set(_ex346.get(id(_z545.func.value), set()))
+                                              | set(_eh372.get(id(_z545.func.value), set())))
+                                         <= {"list", "List", "dict", "Dict", "set", "Set",
+                                             "bytearray"}))
                         elif isinstance(_z545, _ast341.IfExp):
                             _v545 = bool(_ns545.get(id(_z545.body))
                                          or _ns545.get(id(_z545.orelse)))
@@ -10247,6 +10434,338 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _pm432[id(_x527)] = _z545
                         _s527.append(_x527)
                         _i545.add(id(_x527))
+                # (run #4) ROUTES #549 / #555 (u22, red team 52; MEASURED PROVED on int28
+                # under `#@ no_exception \all`, CPython TypeError, in every model). (#555) a
+                # program module's def is a bodyless `val` of its annotation's model type, so
+                # `gopt(k) + 1` over `def gopt(k) -> Optional[int]` (and a `-> None` def, a
+                # def returning a None module constant) was integer arithmetic: route #527's
+                # census only read derived classes, which never hold an imported result's
+                # None. (#549) a None SOURCE (route #545's `_ns545`: a None literal, a local /
+                # walrus bound from one, a `-> None` / Optional call, `print(..)`, a builtin
+                # mutator's result; plus an element read of a container local holding one)
+                # passed as the argument of a parameter that does not admit None -- of a
+                # file def / method / constructor or an imported one (`_xc549`) -- reached the
+                # callee's `int` slot as `pycsl_none` with nothing owed. RULE (same claim
+                # gate and FLOW NARROWING as #527 / #545): each such operand (#555: the
+                # #527 operand positions, when its None comes from an imported may-be-None
+                # result, `_ni555`) and each such argument (#549) is a #527 synthetic
+                # operand, admitted iff narrowing removes None, else PYCSL-R555-IMPORTED-
+                # NONE-RESULT / PYCSL-R549-NONE-ARGUMENT. A parameter admits None when it is
+                # unannotated, defaults to None, or its annotation is not made only of known
+                # non-None classes (Optional / `| None` / Any / object / a TypeVar / an alias
+                # admit). A literal None for a file def's int / float / bool / complex slot
+                # stays route #490's. INLINE: `_run_pipeline`'s mirror twin is `\trusted`.
+                _i549 = set()
+                _i555 = set()
+                _cf549 = {}
+                _ni555 = {}
+                _nl555 = set()
+                for _g555 in range(8):
+                    _nn555 = len(_nl555)
+                    for _z555 in _rv545:
+                        _v555 = False
+                        if isinstance(_z555, _ast341.Call):
+                            _v555 = id(_xc549.get(id(_z555))) in _rn555
+                        elif isinstance(_z555, _ast341.Name):
+                            _v555 = (isinstance(_z555.ctx, _ast341.Load)
+                                     and _z555.id in _nl555)
+                        elif isinstance(_z555, _ast341.IfExp):
+                            _v555 = bool(_ni555.get(id(_z555.body))
+                                         or _ni555.get(id(_z555.orelse)))
+                        elif isinstance(_z555, _ast341.BoolOp):
+                            _v555 = bool(_ni555.get(id(_z555.values[-1])) or (
+                                isinstance(_z555.op, _ast341.And) and any(
+                                    _ni555.get(id(_w)) for _w in _z555.values)))
+                        elif isinstance(_z555, _ast341.NamedExpr):
+                            _v555 = bool(_ni555.get(id(_z555.value)))
+                            if _v555:
+                                _nl555.add(_z555.target.id)
+                        elif isinstance(_z555, (_ast341.Assign, _ast341.AnnAssign)):
+                            if _z555.value is not None and _ni555.get(id(_z555.value)):
+                                _nl555 |= {_t.id for _t in (
+                                    _z555.targets if isinstance(_z555, _ast341.Assign)
+                                    else [_z555.target]) if isinstance(_t, _ast341.Name)}
+                            if (isinstance(_z555, _ast341.Assign)
+                                    and isinstance(_z555.value, _ast341.Tuple)):
+                                for _t555 in _z555.targets:
+                                    if (isinstance(_t555, _ast341.Tuple)
+                                            and len(_t555.elts) == len(_z555.value.elts)):
+                                        _nl555 |= {_t.id for _t, _w in zip(
+                                            _t555.elts, _z555.value.elts)
+                                                   if isinstance(_t, _ast341.Name)
+                                                   and _ni555.get(id(_w))}
+                        _ni555[id(_z555)] = _v555
+                    if len(_nl555) == _nn555 and _g555:
+                        break
+                for _z555 in (_al432 if _te432 else []):
+                    _o555 = []
+                    if isinstance(_z555, _ast341.BinOp) and not isinstance(_z555.op,
+                                                                          _ast341.BitOr):
+                        _o555 = ([_z555.left] if isinstance(_z555.op, _ast341.Mod)
+                                 else [_z555.left, _z555.right])
+                    elif isinstance(_z555, _ast341.Compare):
+                        _cp555 = [_z555.left] + list(_z555.comparators)
+                        for _j555, _q555 in enumerate(_z555.ops):
+                            if isinstance(_q555, (_ast341.In, _ast341.NotIn)):
+                                _o555.append(_cp555[_j555 + 1])
+                            elif isinstance(_q555, (_ast341.Lt, _ast341.LtE, _ast341.Gt,
+                                                    _ast341.GtE)):
+                                _o555 += [_cp555[_j555], _cp555[_j555 + 1]]
+                    elif isinstance(_z555, (_ast341.For, _ast341.AsyncFor,
+                                            _ast341.comprehension)):
+                        _o555 = [_z555.iter]
+                    elif (isinstance(_z555, _ast341.Subscript)
+                          and isinstance(_z555.ctx, _ast341.Load)):
+                        _o555 = [_z555.value]
+                    for _v555 in _o555:
+                        if (id(_v555) in _anx365 or id(_z555) in _anx365
+                                or not _ni555.get(id(_v555))
+                                or not isinstance(_v555, (
+                                    _ast341.Name, _ast341.Attribute, _ast341.Subscript,
+                                    _ast341.Call, _ast341.BoolOp, _ast341.IfExp,
+                                    _ast341.NamedExpr, _ast341.Await))
+                                or ((set(_ex346.get(id(_v555), set()))
+                                     | set(_eh372.get(id(_v555), set())))
+                                    & {"None", "NoneType"})):
+                            continue
+                        _nb545[id(_v555)] = set(_nb545.get(id(_v555), set())) | {"None"}
+                        _x527 = _ast341.Attribute(value=_v555, attr="__r555__",
+                                                  ctx=_ast341.Load())
+                        _ast341.copy_location(_x527, _v555)
+                        _pm432[id(_x527)] = _z555
+                        _s527.append(_x527)
+                        _i555.add(id(_x527))
+                # (#549) container locals holding a None source: name -> the tuple display's
+                # elements (bound once) or None (any element may be None)
+                _ca549 = {}
+                _sc549 = {}
+                for _z549 in (_al432 if _te432 else []):
+                    if isinstance(_z549, _ast341.Name) and not isinstance(_z549.ctx,
+                                                                         _ast341.Load):
+                        _sc549[_z549.id] = _sc549.get(_z549.id, 0) + 1
+                for _z549 in (_al432 if _te432 else []):
+                    _tv549 = []
+                    if isinstance(_z549, (_ast341.Assign, _ast341.AnnAssign)) and (
+                            _z549.value is not None):
+                        _w549 = _z549.value
+                        _el549 = ([_w549.elt] if isinstance(_w549, (
+                            _ast341.ListComp, _ast341.SetComp, _ast341.GeneratorExp))
+                            else [_w549.value] if isinstance(_w549, _ast341.DictComp)
+                            else list(_w549.values) if isinstance(_w549, _ast341.Dict)
+                            else list(_w549.elts) if isinstance(_w549, (
+                                _ast341.List, _ast341.Tuple, _ast341.Set)) else [])
+                        if any(_ns545.get(id(_q)) for _q in _el549):
+                            for _t549 in (_z549.targets if isinstance(_z549, _ast341.Assign)
+                                          else [_z549.target]):
+                                if isinstance(_t549, _ast341.Name):
+                                    _tv549.append((_t549.id, list(_w549.elts) if isinstance(
+                                        _w549, _ast341.Tuple) else None))
+                                elif (isinstance(_t549, _ast341.Subscript)
+                                      and isinstance(_t549.value, _ast341.Name)):
+                                    _tv549.append((_t549.value.id, None))
+                        elif _ns545.get(id(_w549)):
+                            for _t549 in (_z549.targets if isinstance(_z549, _ast341.Assign)
+                                          else [_z549.target]):
+                                if (isinstance(_t549, _ast341.Subscript)
+                                        and isinstance(_t549.value, _ast341.Name)):
+                                    _tv549.append((_t549.value.id, None))
+                    elif (isinstance(_z549, _ast341.Call)
+                          and isinstance(_z549.func, _ast341.Attribute)
+                          and isinstance(_z549.func.value, _ast341.Name)
+                          and _z549.func.attr in ("append", "add", "insert", "setdefault",
+                                                  "extend", "update")
+                          and any(_ns545.get(id(_q)) for _q in _z549.args)):
+                        _tv549.append((_z549.func.value.id, None))
+                    for _n549, _e549 in _tv549:
+                        _ca549[_n549] = (_e549 if _e549 is not None and _n549 not in _ca549
+                                         and _sc549.get(_n549, 0) == 1 else None)
+                # an argument that MAY BE None: a None source, an element read of such a
+                # container, and a local / walrus / ternary / `and` / `or` of one
+                _q549 = {}
+                _nv549 = set()
+                for _g549 in range(8):
+                    _nn549 = len(_nv549)
+                    for _z549 in _rv545:
+                        _v549 = bool(_ns545.get(id(_z549)))
+                        if (isinstance(_z549, _ast341.Subscript)
+                                and isinstance(_z549.ctx, _ast341.Load)
+                                and isinstance(_z549.value, _ast341.Name)
+                                and _z549.value.id in _ca549
+                                and not isinstance(_z549.slice, _ast341.Slice)):
+                            _e549 = _ca549[_z549.value.id]
+                            if (_e549 is not None and isinstance(_z549.slice, _ast341.Constant)
+                                    and type(_z549.slice.value) is int
+                                    and -len(_e549) <= _z549.slice.value < len(_e549)):
+                                _v549 = _v549 or bool(_ns545.get(id(_e549[_z549.slice.value])))
+                            else:
+                                _v549 = True
+                        elif (isinstance(_z549, _ast341.Call)
+                              and isinstance(_z549.func, _ast341.Attribute)
+                              and isinstance(_z549.func.value, _ast341.Name)
+                              and _z549.func.value.id in _ca549
+                              and _z549.func.attr in ("get", "pop", "setdefault")):
+                            _v549 = True
+                        elif isinstance(_z549, _ast341.Name):
+                            _v549 = _v549 or (isinstance(_z549.ctx, _ast341.Load)
+                                              and _z549.id in _nv549)
+                        elif isinstance(_z549, _ast341.IfExp):
+                            _v549 = _v549 or bool(_q549.get(id(_z549.body))
+                                                  or _q549.get(id(_z549.orelse)))
+                        elif isinstance(_z549, _ast341.BoolOp):
+                            _v549 = _v549 or bool(_q549.get(id(_z549.values[-1])) or (
+                                isinstance(_z549.op, _ast341.And) and any(
+                                    _q549.get(id(_w)) for _w in _z549.values)))
+                        elif isinstance(_z549, _ast341.NamedExpr):
+                            _v549 = _v549 or bool(_q549.get(id(_z549.value)))
+                            if _v549:
+                                _nv549.add(_z549.target.id)
+                        elif isinstance(_z549, (_ast341.Assign, _ast341.AnnAssign)):
+                            if _z549.value is not None and _q549.get(id(_z549.value)):
+                                _nv549 |= {_t.id for _t in (
+                                    _z549.targets if isinstance(_z549, _ast341.Assign)
+                                    else [_z549.target]) if isinstance(_t, _ast341.Name)}
+                            if (isinstance(_z549, _ast341.Assign)
+                                    and isinstance(_z549.value, _ast341.Tuple)):
+                                for _t549 in _z549.targets:
+                                    if (isinstance(_t549, _ast341.Tuple)
+                                            and len(_t549.elts) == len(_z549.value.elts)):
+                                        _nv549 |= {_t.id for _t, _w in zip(
+                                            _t549.elts, _z549.value.elts)
+                                                   if isinstance(_t, _ast341.Name)
+                                                   and _q549.get(id(_w))}
+                        _q549[id(_z549)] = _v549
+                    if len(_nv549) == _nn549 and _g549:
+                        break
+                _kc549 = set(_cls341) | {_y.name for _m in _xd549.values()
+                                         for _y in _m.values()
+                                         if isinstance(_y, _ast341.ClassDef)}
+                for _z549 in (_al432 if _te432 else []):
+                    if (not isinstance(_z549, _ast341.Call) or id(_z549) in _anx365
+                            or any(isinstance(_a, _ast341.Starred) for _a in _z549.args)
+                            or any(_k.arg is None for _k in _z549.keywords)
+                            or not any(_q549.get(id(_a)) for _a in list(_z549.args) + [
+                                _k.value for _k in _z549.keywords])):
+                        continue
+                    _fx549 = _z549.func
+                    _K549 = []
+                    if id(_z549) in _xc549:
+                        _K549 = [(_xc549[id(_z549)], 0, False)]
+                    elif (isinstance(_fx549, _ast341.Name) and _fx549.id not in _lb383
+                          and _fx549.id not in _ln394):
+                        if (_fx549.id in _mdf449
+                                and _dk449.get(id(_mdf449[_fx549.id])) in ("plain", "static")):
+                            _K549 = [(_mdf449[_fx549.id], 0, True)]
+                        elif (_fx549.id in _cls341 and len(_cls341[_fx549.id]) == 1
+                              and _md369.get(_fx549.id) == ["class"]):
+                            _K549 = [(_cls341[_fx549.id][0], 0, True)]
+                    elif isinstance(_fx549, _ast341.Attribute):
+                        _rv549 = _fx549.value
+                        _cs549 = []
+                        _st549 = False
+                        if (isinstance(_rv549, _ast341.Name) and _self346 is not None
+                                and _rv549.id == _self346 and _rv549.id not in _lb383
+                                and _ec346 is not None):
+                            _cs549 = list(_sub449.get(_ec346, [_ec346]))
+                        elif (isinstance(_rv549, _ast341.Name) and _rv549.id in _cls341
+                              and _rv549.id not in _lb383 and _rv549.id not in _ln394
+                              and _rv549.id not in _bound341 and _rv549.id not in _imp341):
+                            _cs549 = [_rv549.id]
+                            _st549 = True
+                        else:
+                            _dc549 = (set(_ex346.get(id(_rv549), set()))
+                                      | set(_eh372.get(id(_rv549), set()))) - {"None",
+                                                                                "NoneType"}
+                            if _dc549 and all(_c in _cls341 for _c in _dc549):
+                                _cs549 = sorted({_s for _c in _dc549
+                                                 for _s in _sub449.get(_c, [_c])})
+                        for _S549 in _cs549:
+                            if _S549 in _umro449:
+                                continue
+                            for _T549 in (_mro363.get(_S549) or []):
+                                if _T549 in _cls341:
+                                    if _fx549.attr in _cbd449.get(_T549, {}):
+                                        _D549 = _cbd449[_T549][_fx549.attr]
+                                        _k549 = _dk449.get(id(_D549)) if _D549 is not None else None
+                                        if _k549 in ("plain", "static", "class") and len(
+                                                _cls341[_T549]) == 1:
+                                            _K549.append((_D549, 0 if _k549 == "static" or (
+                                                _st549 and _k549 == "plain") else 1, True))
+                                        break
+                                elif _T549 not in ("object", "Generic", "Protocol", "ABC"):
+                                    break
+                    for _D549, _dr549, _fl549 in _K549:
+                        _pp549 = None
+                        _kk549 = []
+                        if isinstance(_D549, _ast341.ClassDef):
+                            _in549 = next((_m for _m in _D549.body if isinstance(
+                                _m, (_ast341.FunctionDef, _ast341.AsyncFunctionDef))
+                                and _m.name == "__init__"), None)
+                            _nt549 = any(_ast341.unparse(_b).split(".")[-1] == "NamedTuple"
+                                         for _b in _D549.bases)
+                            if _in549 is not None and not _in549.decorator_list:
+                                _D549, _dr549 = _in549, 1
+                            elif _in549 is None and ((not _D549.bases and any(
+                                    "dataclass" in _ast341.unparse(_d)
+                                    for _d in _D549.decorator_list)) or _nt549):
+                                _fd549 = [_m for _m in _D549.body
+                                          if isinstance(_m, _ast341.AnnAssign)
+                                          and isinstance(_m.target, _ast341.Name)
+                                          and "ClassVar" not in _ast341.unparse(_m.annotation)]
+                                if not any("KW_ONLY" in _ast341.unparse(_m.annotation)
+                                           or (isinstance(_m.value, _ast341.Call)
+                                               and _m.value.keywords)
+                                           or "kw_only" in _ast341.unparse(_D549)
+                                           for _m in _fd549):
+                                    _pp549 = [(_m.target.id, _m.annotation, _m.value)
+                                              for _m in _fd549]
+                        if isinstance(_D549, (_ast341.FunctionDef, _ast341.AsyncFunctionDef)):
+                            if _D549.decorator_list and not _fl549:
+                                continue
+                            _ps549 = list(_D549.args.posonlyargs) + list(_D549.args.args)
+                            _df549 = [None] * (len(_ps549) - len(_D549.args.defaults)) + list(
+                                _D549.args.defaults)
+                            _pp549 = [(_p.arg, _p.annotation, _d)
+                                      for _p, _d in zip(_ps549, _df549)][_dr549:]
+                            _kk549 = [(_p.arg, _p.annotation, _d) for _p, _d in zip(
+                                _D549.args.kwonlyargs, _D549.args.kw_defaults)]
+                        if _pp549 is None:
+                            continue
+                        _bn549 = list(zip(_z549.args, _pp549))
+                        for _w549 in _z549.keywords:
+                            _bn549 += [(_w549.value, _q) for _q in _pp549 + _kk549
+                                       if _q[0] == _w549.arg][:1]
+                        for _a549, (_pn549, _an549, _dv549) in _bn549:
+                            if not _q549.get(id(_a549)) or id(_a549) in _anx365:
+                                continue
+                            if _an549 is None or (isinstance(_dv549, _ast341.Constant)
+                                                  and _dv549.value is None):
+                                continue
+                            _tx549 = _ast341.unparse(_an549).replace(" ", "").strip("'\"")
+                            _tx549 = _tx549.replace("typing.", "")
+                            if _tx549.startswith("Optional["):
+                                continue
+                            _hd549 = [_h.split("[")[0].strip("]").split(".")[-1] for _h in (
+                                _tx549[len("Union["):-1].split(",")
+                                if _tx549.startswith("Union[") else _tx549.split("|"))]
+                            if not _hd549 or any(_h not in _kc549 and _h not in (
+                                    "int", "float", "bool", "complex", "str", "bytes",
+                                    "bytearray", "list", "List", "dict", "Dict", "set", "Set",
+                                    "frozenset", "FrozenSet", "tuple", "Tuple", "Sequence",
+                                    "MutableSequence", "Mapping", "MutableMapping", "Iterable",
+                                    "Iterator", "Callable", "range") for _h in _hd549):
+                                continue
+                            if (_fl549 and isinstance(_a549, _ast341.Constant)
+                                    and set(_hd549) <= {"int", "float", "bool", "complex"}):
+                                continue    # route #490's slot check
+                            _nb545[id(_a549)] = set(_nb545.get(id(_a549), set())) | {"None"}
+                            _x527 = _ast341.Attribute(value=_a549, attr="__r549__",
+                                                      ctx=_ast341.Load())
+                            _ast341.copy_location(_x527, _a549)
+                            _pm432[id(_x527)] = _z549
+                            _s527.append(_x527)
+                            _i549.add(id(_x527))
+                            _cf549[id(_x527)] = (_pn549, _ast341.unparse(_fx549),
+                                                 "imported" if not _fl549 else "file")
                 _i527 = {id(_x) for _x in _s527}
                 for _a432 in (_al432 if _ae432 else []) + _s527:
                     if not (isinstance(_a432, _ast341.Attribute)
@@ -10265,7 +10784,7 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                           id(_r432.values[-1]), set()))
                     if isinstance(_r432, _ast341.Name) and _r432.id in _pd432:
                         _cs432.add("None")
-                    if id(_a432) in _i545:
+                    if id(_a432) in _i545 or id(_a432) in _i549 or id(_a432) in _i555:
                         _cs432 |= _nb545.get(id(_r432), set())
                     _fs432 = set(_cs432)
                     # (#443) an UNDERIVABLE receiver -- no derived class, an underivable mark
@@ -10335,6 +10854,55 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                                                  _ast341.For,
                                                                  _ast341.AsyncFor))
                                           else _ast341.unparse(_pz527))
+                                if id(_a432) in _i549:
+                                    _pn549, _ow549, _wh549 = _cf549[id(_a432)]
+                                    raise _PyCSLSemErr341(
+                                        f"'{_f346.name}' line "
+                                        f"{getattr(_a432, 'lineno', 0)}: "
+                                        f"PYCSL-R549-NONE-ARGUMENT: the argument "
+                                        f"`{_ast341.unparse(_r432)}` of `{_pz527}` may be "
+                                        f"`None` here (a None literal, a name / walrus bound "
+                                        f"from one, a call whose result may be None -- a "
+                                        f"`-> None` / `Optional` def, `print(..)`, a "
+                                        f"container mutator --, or an element of a container "
+                                        f"holding one), and it is bound to the parameter "
+                                        f"'{_pn549}' of the {_wh549} callee `{_ow549}`, whose "
+                                        f"annotation does not admit None, while this function "
+                                        f"claims `#@ no_exception` covering TypeError and the "
+                                        f"model hands the callee None as the int "
+                                        f"`pycsl_none` with nothing owed (route #549; "
+                                        f"measured: `from dep import g; g(None)`, `v = None; "
+                                        f"g(v)`, `g(nothing())` over `def g(x: int) -> int: "
+                                        f"return x + 1` under `#@ no_exception \\all` proved, "
+                                        f"CPython TypeError in `g`). Narrow it first (`if "
+                                        f"{_ast341.unparse(_r432)} is not None:`, or an early "
+                                        f"`return` when it is `None`, with no rebinding in "
+                                        f"between), pass a non-None value, annotate the "
+                                        f"parameter `Optional[..]`, or drop the claim.",
+                                        stage="ir-semantic", code="PYCSL-R549-NONE-ARGUMENT")
+                                if id(_a432) in _i555:
+                                    raise _PyCSLSemErr341(
+                                        f"'{_f346.name}' line "
+                                        f"{getattr(_a432, 'lineno', 0)}: "
+                                        f"PYCSL-R555-IMPORTED-NONE-RESULT: the operand "
+                                        f"`{_ast341.unparse(_r432)}` of `{_pz527}` may be "
+                                        f"`None` here: it is (or is bound from) the result of "
+                                        f"a program module's function whose return annotation "
+                                        f"is absent or admits None (`Optional[..]`, `None`, "
+                                        f"`| None`, `Any`, `object`) or whose body returns "
+                                        f"None, and this operation raises TypeError on None "
+                                        f"in CPython, while this function claims "
+                                        f"`#@ no_exception` covering TypeError and the model "
+                                        f"lowers the imported result as a value of its "
+                                        f"annotation's model type with no None case (route "
+                                        f"#555; measured: `from dep import gnone; return "
+                                        f"gnone() + 1` over `def gnone() -> Optional[int]: "
+                                        f"return None` under `#@ no_exception \\all` proved). "
+                                        f"Bind the result to a name and narrow it first (`if "
+                                        f"v is not None:`, or an early `return` when it is "
+                                        f"`None`), or drop the claim.",
+                                        stage="ir-semantic",
+                                        code="PYCSL-R555-IMPORTED-NONE-RESULT")
                                 if id(_a432) in _i545:
                                     raise _PyCSLSemErr341(
                                         f"'{_f346.name}' line "
@@ -31505,6 +32073,115 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _cx466 = _rc444.get(id(_d466))
                 if not _cx466 or _rf466 is not None:
                     continue
+                # (run #4) ROUTE #554 (u22, red team 52; MEASURED PROVED on int28 under `#@
+                # no_exception \all`, CPython TypeError, in every model): route #449's binding
+                # check stopped at the file, so `g(k, k)` / `g(k, x=k)` of an imported `def
+                # g(x)` and `DC()` / `DC(k, k)` / `DC(z=k)` of an imported class were lowered
+                # by dropping / defaulting the mismatch. RULE (under a claim covering
+                # TypeError, own or a caller's, `_rc444`): a call whose callee is a function
+                # or class of a program module -- a name this file imports (never otherwise
+                # bound here) or a module attribute chain, resolved on the import run above --
+                # must BIND by CPython's algorithm: a function against its `def` (no
+                # decorator), a class against what `type.__call__` runs: the first `__init__`
+                # / `__new__` of its MRO that is not `object`'s (a program `def` read from its
+                # statement, a generated dataclass / NamedTuple one by `inspect.signature`;
+                # both `object`'s: no argument), as `inspect.Signature.bind` decides.
+                # Otherwise PYCSL-R554-IMPORTED-CALL-SIGNATURE. A `*` / `**` argument is
+                # route #379's; a decorated def, a metaclass with its own `__call__`, and a
+                # builtin base's slot are not judged (named residuals). Inline; the mirror
+                # twin is `\trusted`.
+                if _cx466 & {"\\all", "TypeError", "Exception", "BaseException"}:
+                    import inspect as _in554
+                    _P554 = _in554.Parameter
+                    for _y554 in _a466.walk(_d466):
+                        if (not isinstance(_y554, _a466.Call) or _rf466 is not None
+                                or any(isinstance(_q, _a466.Starred) for _q in _y554.args)
+                                or any(_q.arg is None for _q in _y554.keywords)):
+                            continue
+                        _ch554 = []
+                        _rt554 = _y554.func
+                        while isinstance(_rt554, _a466.Attribute):
+                            _ch554.insert(0, _rt554.attr)
+                            _rt554 = _rt554.value
+                        if (not isinstance(_rt554, _a466.Name) or _rt554.id not in _md466
+                                or _rt554.id in _bound341):
+                            continue
+                        _ov554 = _md466[_rt554.id]
+                        for _at554 in _ch554:
+                            _ov554 = (_ov554.__dict__.get(_at554) if isinstance(
+                                _ov554, _ty466.ModuleType) else None)
+                        _js554 = []
+                        if id(_ov554) in _pd466:
+                            if not _pd466[id(_ov554)][1].decorator_list:
+                                _js554 = [(_pd466[id(_ov554)][1], 0)]
+                        elif (isinstance(_ov554, type) and type(_ov554).__call__ is type.__call__
+                              and any(id(_b) in _cls466 for _b in _ov554.__mro__)):
+                            _fi554 = next((_b.__dict__["__init__"] for _b in _ov554.__mro__
+                                           if "__init__" in _b.__dict__), None)
+                            _fn554 = next((_b.__dict__["__new__"] for _b in _ov554.__mro__
+                                           if "__new__" in _b.__dict__), None)
+                            _js554 = []
+                            for _fo554, _ob554 in ((_fi554, object.__dict__["__init__"]),
+                                                   (_fn554, object.__dict__["__new__"])):
+                                if _fo554 is _ob554 or _js554 is None:
+                                    continue
+                                if isinstance(_fo554, (staticmethod, classmethod)):
+                                    _fo554 = _fo554.__func__
+                                if id(_fo554) in _pd466:
+                                    _js554 = (_js554 + [(_pd466[id(_fo554)][1], 1)]
+                                              if not _pd466[id(_fo554)][1].decorator_list
+                                              else None)
+                                elif isinstance(_fo554, _ty466.FunctionType):
+                                    try:
+                                        _sx554 = _in554.signature(_fo554)
+                                        _js554.append((_sx554.replace(parameters=list(
+                                            _sx554.parameters.values())[1:]), 0))
+                                    except (TypeError, ValueError):
+                                        _js554 = None
+                                else:
+                                    _js554 = None
+                            if _js554 is not None and not _js554:
+                                _js554 = [(_in554.Signature([]), 0)]
+                            _js554 = _js554 or []
+                        for _jn554, _jd554 in _js554:
+                            if isinstance(_jn554, _in554.Signature):
+                                _sg554 = _jn554
+                            else:
+                                _ja554 = _jn554.args
+                                _pl554 = []
+                                _po554 = list(_ja554.posonlyargs) + list(_ja554.args)
+                                _nd554 = len(_po554) - len(_ja554.defaults)
+                                for _i554, _q554 in enumerate(_po554):
+                                    _pl554.append(_P554(
+                                        _q554.arg, _P554.POSITIONAL_ONLY
+                                        if _i554 < len(_ja554.posonlyargs)
+                                        else _P554.POSITIONAL_OR_KEYWORD,
+                                        default=_P554.empty if _i554 < _nd554 else 0))
+                                _pl554 = _pl554[_jd554:]
+                                if _ja554.vararg is not None:
+                                    _pl554.append(_P554(_ja554.vararg.arg, _P554.VAR_POSITIONAL))
+                                for _q554, _e554 in zip(_ja554.kwonlyargs, _ja554.kw_defaults):
+                                    _pl554.append(_P554(_q554.arg, _P554.KEYWORD_ONLY,
+                                                        default=_P554.empty if _e554 is None
+                                                        else 0))
+                                if _ja554.kwarg is not None:
+                                    _pl554.append(_P554(_ja554.kwarg.arg, _P554.VAR_KEYWORD))
+                                try:
+                                    _sg554 = _in554.Signature(_pl554)
+                                except ValueError:
+                                    continue
+                            try:
+                                _sg554.bind(*([None] * len(_y554.args)),
+                                            **{_q.arg: None for _q in _y554.keywords})
+                            except TypeError as _e554:
+                                _rf466 = ("B", f"PYCSL-R554-IMPORTED-CALL-SIGNATURE: "
+                                               f"`{_d466.name}` (line {_y554.lineno}): the call "
+                                               f"`{_a466.unparse(_y554)[:80]}` does not bind "
+                                               f"against `{_a466.unparse(_y554.func)}"
+                                               f"{_sg554}` of a program module ({_e554})")
+                                break
+                    if _rf466 is not None:
+                        break
                 _tg466 = []
                 for _y466 in _a466.walk(_d466):
                     _vv466 = []
@@ -31700,6 +32377,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"`#@ no_exception` claim covering the caller's (it is verified when its "
                     f"module is), or drop the exception from this function's claim.",
                     stage="ir-semantic", code="PYCSL-R467-IMPORTED-UNCLAIMED")
+            if _rf466[0] == "B":
+                raise _PyCSLSemErr466(
+                    f"{_rf466[1]}. CPython raises TypeError there before the callee runs, while "
+                    f"the model binds the arguments it can, drops / defaults the rest and "
+                    f"verifies the call as succeeding (route #554, route #449 across the import; "
+                    f"measured: `g(k, k)` and `g(k, x=k)` over an imported `def g(x: int)`, "
+                    f"`DC()` / `DC(k, k)` / `DC(z=k)` of an imported class, PROVED under `#@ "
+                    f"no_exception \\all`). Call the function or class with exactly its "
+                    f"parameters, by position or by their names.",
+                    stage="ir-semantic", code="PYCSL-R554-IMPORTED-CALL-SIGNATURE")
             if _rf466[0] == "P":
                 raise _PyCSLSemErr466(
                     f"{_rf466[1]}. The verified program runs under ITS OWN module path -- this "
