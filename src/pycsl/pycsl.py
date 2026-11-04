@@ -20277,9 +20277,47 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                   **{_k: "dict" for _k in ("Dict", "dict", "DefaultDict", "defaultdict",
                                            "OrderedDict", "Counter")},
                   **{_k: "set" for _k in ("Set", "set", "FrozenSet", "frozenset")}}
+        # (run #4, routes #551 / #552) the top-level functions of the modules this file imports
+        # by `from M import g [as h]` / `import M [as m]` (level 0, found beside the file or on
+        # `--import-path`): their parameter annotations are the domains route #552 judges an
+        # argument against (the annotation nodes join step 1 below).
+        import os as _os552
+        _dd552 = [_os552.path.dirname(_os552.path.abspath(str(getattr(args, "file", "") or ".")))
+                  ] + [str(_p) for _p in (getattr(args, "import_path", None) or [])]
+        _dtr552, _imf552, _imm552 = [], {}, {}
+        for _x552 in _tr486.body:
+            _ms552 = ([(_x552.module, _x552.names)] if isinstance(_x552, _ast486.ImportFrom)
+                      and _x552.level == 0 and _x552.module else
+                      [(_a.name, [_a]) for _a in _x552.names]
+                      if isinstance(_x552, _ast486.Import) else [])
+            for _mn552, _al552 in _ms552:
+                _t552 = None
+                for _d552 in _dd552:
+                    _pf552 = _os552.path.join(_d552, *_mn552.split(".")) + ".py"
+                    if _os552.path.isfile(_pf552):
+                        try:
+                            with open(_pf552, encoding="utf-8") as _fh552:
+                                _t552 = _ast486.parse(_fh552.read())
+                        except Exception:
+                            _t552 = None
+                        break
+                if _t552 is None:
+                    continue
+                _tf552 = {_y.name: _y for _y in _t552.body
+                          if isinstance(_y, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))}
+                _dtr552.extend(_p.annotation for _y in _tf552.values() for _p in (
+                    _y.args.posonlyargs + _y.args.args + _y.args.kwonlyargs)
+                               if _p.annotation is not None)
+                for _a552 in _al552:
+                    if isinstance(_x552, _ast486.ImportFrom) and _a552.name in _tf552:
+                        _imf552[_a552.asname or _a552.name] = _tf552[_a552.name]
+                    elif isinstance(_x552, _ast486.Import) and (_a552.asname
+                                                                or "." not in _a552.name):
+                        _imm552[_a552.asname or _a552.name] = _tf552
         # 1. the meaning of every node read AS AN ANNOTATION (children first)
         _am541 = {}
-        for _n541 in reversed(list(_ast486.walk(_tr486))):
+        for _n541 in [*reversed(list(_ast486.walk(_tr486))),
+                      *[_y for _t in _dtr552 for _y in reversed(list(_ast486.walk(_t)))]]:
             _r541 = _UT541
             if isinstance(_n541, _ast486.Constant) and _n541.value is None:
                 _r541 = _K541(["none"])
@@ -20434,6 +20472,144 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _fds541.append((_x541, ""))
             elif not isinstance(_x541, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
                 _lam541.extend(_ast486.iter_child_nodes(_x541))
+        # (routes #551 / #552) parameter lists ([(name, annotation)] positional, keyword-only)
+        # of the file functions and imported functions bound once, of the methods of the file
+        # classes, and of each file class's constructor: its nearest file `__init__`, else the
+        # fields of a synthesized @dataclass (bases first; ClassVar / `init=False` dropped,
+        # InitVar[T] read as T, KW_ONLY / `kw_only=True` keyword-only) or a NamedTuple.
+        _sig552 = lambda _f, _m: None if any(not (
+            isinstance(_d, _ast486.Name) and _d.id in ("staticmethod", "classmethod") and _m)
+            for _d in _f.decorator_list) else (
+            [(_p.arg, _p.annotation) for _p in (list(_f.args.posonlyargs) + list(
+                _f.args.args))[(1 if _m and not any(isinstance(_d, _ast486.Name)
+                                                    and _d.id == "staticmethod"
+                                                    for _d in _f.decorator_list) else 0):]],
+            [(_p.arg, _p.annotation) for _p in _f.args.kwonlyargs])
+        _hn552 = lambda _a: (_a.id if isinstance(_a, _ast486.Name) else _a.attr
+                             if isinstance(_a, _ast486.Attribute) else _hn552(_a.value)
+                             if isinstance(_a, _ast486.Subscript) else _hn552(_a.func)
+                             if isinstance(_a, _ast486.Call) else None)
+        _bs552 = {_c: [_hn552(_b) for _b in _cd.bases] for _c, _cd in _cls541.items()}
+        _lin552 = {}
+        for _c552 in _cls541:
+            _q552, _lin552[_c552] = [_c552], []
+            while _q552:
+                _x552 = _q552.pop(0)
+                if _x552 in _cls541 and _x552 not in _lin552[_c552]:
+                    _lin552[_c552].append(_x552)
+                    _q552.extend(_bs552[_x552])
+        _fb552 = {_c: any(_b not in _cls541 and _b not in ("object", "Generic", "Protocol",
+                                                          "ABC")
+                          for _a in _lin552[_c] for _b in _bs552[_a]) for _c in _cls541}
+        _fsg552 = {_y.name: _sig552(_y, False) for _y in _tr486.body
+                   if isinstance(_y, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                   and _mcnt541.get(_y.name) == 2}
+        _msg552 = {_c: {_y.name: _sig552(_y, True) for _y in _cd.body
+                        if isinstance(_y, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                        and [_hn552(_w) if isinstance(_z, (_ast486.Assign, _ast486.AnnAssign))
+                             else getattr(_z, "name", None) for _z in _cd.body
+                             for _w in (_z.targets if isinstance(_z, _ast486.Assign) else
+                                        [_z.target] if isinstance(_z, _ast486.AnnAssign)
+                                        else [None])].count(_y.name) == 1}
+                   for _c, _cd in _cls541.items()}
+        _dcd552 = lambda _cd: next((_d for _d in _cd.decorator_list
+                                    if _hn552(_d) == "dataclass"), None)
+        _csg552 = {}
+        for _c552 in _cls541:
+            _ih552 = next((_a for _a in _lin552[_c552] if "__init__" in _msg552[_a]
+                           or any(getattr(_z, "name", None) == "__init__"
+                                  for _z in _cls541[_a].body)), None)
+            if _ih552 is not None:
+                _csg552[_c552] = _msg552[_ih552].get("__init__")
+                continue
+            if any(_hn552(_b) in ("NamedTuple",) for _b in _cls541[_c552].bases) and len(
+                    _lin552[_c552]) == 1:
+                _csg552[_c552] = ([(_z.target.id, _z.annotation) for _z in _cls541[_c552].body
+                                   if isinstance(_z, _ast486.AnnAssign)
+                                   and isinstance(_z.target, _ast486.Name)], [])
+                continue
+            if _fb552[_c552] or _dcd552(_cls541[_c552]) is None or any(
+                    _dcd552(_cls541[_a]) is None for _a in _lin552[_c552]):
+                continue
+            _ps552, _kwo552, _bad552 = {}, set(), False
+            for _a552 in reversed(_lin552[_c552]):
+                _dk552 = {_k.arg: _k.value for _k in getattr(_dcd552(_cls541[_a552]),
+                                                            "keywords", [])}
+                if "init" in _dk552:
+                    _bad552 = True
+                _ko552 = ("kw_only" in _dk552 and not (isinstance(
+                    _dk552["kw_only"], _ast486.Constant) and _dk552["kw_only"].value is False))
+                for _z552 in _cls541[_a552].body:
+                    if not (isinstance(_z552, _ast486.AnnAssign)
+                            and isinstance(_z552.target, _ast486.Name)):
+                        continue
+                    _h552 = _hn552(_z552.annotation)
+                    if _h552 == "ClassVar":
+                        continue
+                    if _h552 == "KW_ONLY":
+                        _ko552 = True
+                        continue
+                    if isinstance(_z552.value, _ast486.Call) and _hn552(
+                            _z552.value.func) == "field" and any(
+                                _k.arg in ("init", "kw_only") for _k in _z552.value.keywords):
+                        _bad552 = True
+                    _an552 = (_z552.annotation.slice if _h552 == "InitVar" and isinstance(
+                        _z552.annotation, _ast486.Subscript) else _z552.annotation)
+                    _ps552[_z552.target.id] = _an552
+                    if _ko552:
+                        _kwo552.add(_z552.target.id)
+            if not _bad552:
+                _csg552[_c552] = ([(_n, _a) for _n, _a in _ps552.items() if _n not in _kwo552],
+                                  [(_n, _a) for _n, _a in _ps552.items() if _n in _kwo552])
+        # (#552) parents (this file and the imported functions' bodies), the call sites of each
+        # name, and the NUMBER USES: an operand of an arithmetic / bitwise operator, of unary `-`
+        # `+` `~`, of an ordering, of an augmented assignment, an index, the argument of a builtin
+        # that needs a number, a value with a format spec -- through a ternary arm / `and` / `or`
+        # operand / walrus
+        _par552 = {}
+        for _t552 in [_tr486] + [*_imf552.values()] + [_y for _d in _imm552.values()
+                                                        for _y in _d.values()]:
+            for _y552 in _ast486.walk(_t552):
+                for _z552 in _ast486.iter_child_nodes(_y552):
+                    _par552[id(_z552)] = _y552
+        _cs552 = {}
+        for _y552 in _ast486.walk(_tr486):
+            if isinstance(_y552, _ast486.Call):
+                _q552 = (_y552.func.id if isinstance(_y552.func, _ast486.Name) else
+                         _y552.func.attr if isinstance(_y552.func, _ast486.Attribute) else None)
+                if _q552:
+                    _cs552.setdefault(_q552, []).append(_y552)
+        _NB552 = ("abs", "chr", "hex", "oct", "bin", "round", "range", "divmod", "pow", "int",
+                  "float", "complex")
+        _nu552 = (lambda _e, _n: _n > 0 and (lambda _p: _p is not None and (
+            isinstance(_p, (_ast486.BinOp, _ast486.AugAssign))
+            or (isinstance(_p, _ast486.UnaryOp) and not isinstance(_p.op, _ast486.Not))
+            or (isinstance(_p, _ast486.Compare) and any(isinstance(_o, (
+                _ast486.Lt, _ast486.LtE, _ast486.Gt, _ast486.GtE)) for _o in _p.ops))
+            or (isinstance(_p, _ast486.Subscript) and _p.slice is _e)
+            or (isinstance(_p, _ast486.Call) and isinstance(_p.func, _ast486.Name)
+                and _p.func.id in _NB552 and _e in _p.args)
+            or (isinstance(_p, _ast486.FormattedValue) and _p.format_spec is not None)
+            or (isinstance(_p, (_ast486.IfExp, _ast486.BoolOp, _ast486.NamedExpr))
+                and getattr(_p, "test", None) is not _e and _nu552(_p, _n - 1))))(
+            _par552.get(id(_e))))
+        # the enclosing function of a node, and a call bound to a local used as a number
+        _ef552 = (lambda _e: (lambda _p: None if _p is None else _p if isinstance(_p, (
+            _ast486.FunctionDef, _ast486.AsyncFunctionDef, _ast486.Lambda)) else _ef552(_p))(
+            _par552.get(id(_e))))
+        _bu552 = (lambda _c: (lambda _p, _f: isinstance(_p, (_ast486.Assign, _ast486.AnnAssign))
+                  and _f is not None and any(
+                      isinstance(_w, _ast486.Name) and isinstance(_w.ctx, _ast486.Load)
+                      and _w.id in {_t.id for _t in (_p.targets if isinstance(_p, _ast486.Assign)
+                                                     else [_p.target])
+                                    if isinstance(_t, _ast486.Name)} and _nu552(_w, 3)
+                      for _w in _ast486.walk(_f)))(_par552.get(id(_c)), _ef552(_c)))
+        # a parameter the callee uses as a number (or rebinds: not followed)
+        _pu552 = (lambda _fd, _pn: any(
+            isinstance(_w, _ast486.Name) and _w.id == _pn and (
+                isinstance(_w.ctx, _ast486.Store) or (
+                    isinstance(_w.ctx, _ast486.Load) and _nu552(_w, 3)))
+            for _w in _ast486.walk(_fd)))
         _STRM541 = ("upper", "lower", "strip", "lstrip", "rstrip", "title", "capitalize",
                     "casefold", "swapcase", "replace", "join", "format", "center", "ljust",
                     "rjust", "zfill", "expandtabs", "removeprefix", "removesuffix")
@@ -20965,6 +21141,236 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _reps541.append(_rep541)
                     _rep541 = None
                     break
+            if _reps541:
+                break
+            # (run #4, routes #551 / #552) the uses at which the model reads a value as the
+            # declared kind without asking what it is. The value model lowers a range, a dict
+            # view, `xs.copy()`, a slice, `sorted(..)` (and any record / container it erases)
+            # to an opaque Why3 `int`, so an int comparison, an int argument, an int return
+            # type-check and carry no obligation (#552); a program-class construction lowers to
+            # a record literal and its constructor body is never emitted, so the declared kinds
+            # of its parameters are the judge's PREMISE, never checked at the call (#551).
+            # REFUSED (own scope of every judged body; nested scopes are judged as their own):
+            # - PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND: an argument of a file-class construction
+            #   bound to a parameter (a synthesized dataclass / NamedTuple field) of established
+            #   declared kinds whose kinds are not established (Any / object / unannotated) or do
+            #   not fit them (list / set elements included);
+            # - PYCSL-R552-VALUE-KIND-MISMATCH: a container / iterator / function / record value
+            #   bound to a parameter (file / imported function, method) or returned from a
+            #   function whose declared kinds do not admit it; an ordering operand that is an
+            #   iterator / range / dict view / dict, or a list / tuple / set / function ordered
+            #   against a number.
+            _own552, _sk552 = [], list(_ast486.iter_child_nodes(_fd541))
+            while _sk552:
+                _y552 = _sk552.pop()
+                _own552.append(_y552)
+                if not isinstance(_y552, (_ast486.FunctionDef, _ast486.AsyncFunctionDef,
+                                          _ast486.Lambda, _ast486.ClassDef)):
+                    _sk552.extend(_ast486.iter_child_nodes(_y552))
+            _own552.sort(key=lambda _y: (getattr(_y, "lineno", 0), getattr(_y, "col_offset", 0)))
+            _NS552 = frozenset(["unk", "num", "str", "none"])
+            # a record of a class with a foreign base (IntEnum, an int subclass) may be a number
+            _dk552 = lambda _k, _d: frozenset(_x for _x in _k if not (
+                _x.startswith("c:") and _fb552.get(_x[2:], True) and _x not in _d))
+            _ret552 = (_ANN541(_fd541.returns) if not isinstance(_fd541, _ast486.Lambda)
+                       else _UT541)
+            _gen552 = any(isinstance(_y, (_ast486.Yield, _ast486.YieldFrom, _ast486.Await))
+                          for _y in _own552)
+            # (#551) an ERASED argument: a name declared `Any` / `object` (local, parameter) or
+            # an unannotated parameter, a local bound from one, the result of a file / imported
+            # function or method declared `-> Any` / `-> object` or unannotated, a field
+            # declared `Any` / `object`, or a ternary / `and` / `or` / walrus arm that is one
+            _ea552 = lambda _a: _a is None or _hn552(_a) in ("Any", "object")
+            _pan552 = ({} if isinstance(_fd541, _ast486.Lambda) else {
+                _p.arg: _p.annotation for _p in (_fd541.args.posonlyargs + _fd541.args.args
+                                                 + _fd541.args.kwonlyargs)
+                if not (_cn541 and _p is (_fd541.args.posonlyargs + _fd541.args.args or [None])[0])})
+            _lan552 = {_y.target.id: _y.annotation for _y in _own552
+                       if isinstance(_y, _ast486.AnnAssign) and isinstance(_y.target, _ast486.Name)}
+            _er552 = (lambda _e, _n: _n > 0 and (
+                (isinstance(_e, _ast486.Name) and (
+                    (_e.id in _lan552 and _ea552(_lan552[_e.id]))
+                    or (_e.id in _pan552 and _e.id not in _loc541 and _ea552(_pan552[_e.id]))
+                    or (_e.id in _loc541 and _e.id not in _lan552 and any(
+                        _er552(_v, _n - 1) for _m, _md, _v in _bd541
+                        if _m == _e.id and _md == "v" and _v is not None))))
+                or (isinstance(_e, _ast486.Call) and isinstance(_e.func, _ast486.Name)
+                    and _e.func.id not in _loc541 and _e.func.id not in _prm541
+                    and _mcnt541.get(_e.func.id) == 2 and (
+                        any(isinstance(_y, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                            and _y.name == _e.func.id and _ea552(_y.returns)
+                            for _y in _tr486.body)
+                        or (_e.func.id in _imf552 and _ea552(_imf552[_e.func.id].returns))))
+                or (isinstance(_e, _ast486.Call) and isinstance(_e.func, _ast486.Attribute)
+                    and (lambda _ks: bool(_ks) and all(_k.startswith("c:") for _k in _ks) and any(
+                        isinstance(_y, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                        and _y.name == _e.func.attr and _ea552(_y.returns)
+                        for _k in _ks for _a in _lin552.get(_k[2:], [])
+                        for _y in _cls541[_a].body))(_T541.get(id(_e.func.value), _UT541)[0]))
+                or (isinstance(_e, _ast486.Attribute)
+                    and (lambda _ks: bool(_ks) and all(_k.startswith("c:") for _k in _ks) and any(
+                        isinstance(_y, _ast486.AnnAssign) and isinstance(_y.target, _ast486.Name)
+                        and _y.target.id == _e.attr and _ea552(_y.annotation)
+                        for _k in _ks for _a in _lin552.get(_k[2:], [])
+                        for _y in _cls541[_a].body))(_T541.get(id(_e.value), _UT541)[0]))
+                or (isinstance(_e, _ast486.IfExp)
+                    and (_er552(_e.body, _n - 1) or _er552(_e.orelse, _n - 1)))
+                or (isinstance(_e, _ast486.BoolOp) and any(_er552(_v, _n - 1) for _v in _e.values))
+                or (isinstance(_e, _ast486.NamedExpr) and _er552(_e.value, _n - 1))))
+            for _n552 in _own552:
+                if _reps541:
+                    break
+                if isinstance(_n552, _ast486.Call):
+                    _f552, _sg552, _ct552, _cn552 = _n552.func, None, False, ""
+                    _cfd552 = None
+                    if (isinstance(_f552, _ast486.Name) and _f552.id not in _loc541
+                            and _f552.id not in _prm541 and _mcnt541.get(_f552.id) == 2):
+                        if _f552.id in _cls541:
+                            _sg552, _ct552, _cn552 = _csg552.get(_f552.id), True, _f552.id
+                        elif _f552.id in _fsg552:
+                            _sg552, _cn552 = _fsg552[_f552.id], _f552.id
+                            _cfd552 = next((_y for _y in _tr486.body if isinstance(_y, (
+                                _ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                                and _y.name == _f552.id), None)
+                        elif _f552.id in _imf552:
+                            _sg552, _cn552 = _sig552(_imf552[_f552.id], False), _f552.id
+                            _cfd552 = _imf552[_f552.id]
+                    elif isinstance(_f552, _ast486.Attribute):
+                        _rv552 = _f552.value
+                        if (isinstance(_rv552, _ast486.Name) and _rv552.id in _imm552
+                                and _rv552.id not in _loc541 and _rv552.id not in _prm541
+                                and _mcnt541.get(_rv552.id) == 2
+                                and _f552.attr in _imm552[_rv552.id]):
+                            _sg552 = _sig552(_imm552[_rv552.id][_f552.attr], False)
+                            _cfd552 = _imm552[_rv552.id][_f552.attr]
+                            _cn552 = f"{_rv552.id}.{_f552.attr}"
+                        else:
+                            _rk552 = _T541.get(id(_rv552), _UT541)[0]
+                            if len(_rk552) == 1 and next(iter(_rk552)).startswith("c:"):
+                                _rc552 = next(iter(_rk552))[2:]
+                                _mc552 = next((_a for _a in _lin552.get(_rc552, [])
+                                               if _f552.attr in _msg552[_a]), None)
+                                if _mc552 is not None and not _fb552.get(_rc552, True):
+                                    _sg552 = _msg552[_mc552][_f552.attr]
+                                    _cfd552 = next((_y for _y in _cls541[_mc552].body
+                                                    if isinstance(_y, (_ast486.FunctionDef,
+                                                                       _ast486.AsyncFunctionDef))
+                                                    and _y.name == _f552.attr), None)
+                                    _cn552 = f"{_mc552}.{_f552.attr}"
+                    # a builtin that needs a number (or, for `int` / `float`, a number or a str)
+                    if (_sg552 is None and isinstance(_f552, _ast486.Name)
+                            and _f552.id not in _loc541 and _f552.id not in _prm541
+                            and _f552.id not in _mcnt541 and _f552.id in (
+                                "abs", "chr", "hex", "oct", "bin", "round", "range", "divmod",
+                                "pow", "int", "float", "complex")):
+                        for _a552 in _n552.args:
+                            _k552 = (_T541.get(id(_a552), _UT541)[0]
+                                     & frozenset(["list", "tuple", "dict", "set", "iter", "fn"]))
+                            if _k552 and not isinstance(_a552, _ast486.Starred):
+                                _reps541.append((
+                                    "PYCSL-R552-VALUE-KIND-MISMATCH", _n552,
+                                    f"`{_ast486.unparse(_a552).strip()[:60]}` is an argument of "
+                                    f"`{_f552.id}`, which needs a number, and may be "
+                                    f"{_KN541(_k552)}"))
+                                break
+                        continue
+                    if _sg552 is None:
+                        continue
+                    if _ct552 and (any(isinstance(_a, _ast486.Starred) for _a in _n552.args)
+                                   or any(_k.arg is None for _k in _n552.keywords)):
+                        _reps541.append((
+                            "PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND", _n552,
+                            f"`{_ast486.unparse(_n552).strip()[:60]}` passes `*` / `**` "
+                            f"arguments to the constructor of `{_cn552}`, whose parameters "
+                            f"they bind is not known, and may be of any kind"))
+                        break
+                    _pp552 = []
+                    for _i552, _a552 in enumerate(_n552.args):
+                        if isinstance(_a552, _ast486.Starred):
+                            break
+                        if _i552 < len(_sg552[0]):
+                            _pp552.append((_a552, _sg552[0][_i552]))
+                    _pd552 = {_p[0]: _p for _p in _sg552[0] + _sg552[1]}
+                    _pp552.extend((_k.value, _pd552[_k.arg]) for _k in _n552.keywords
+                                  if _k.arg in _pd552)
+                    for _a552, (_pn552, _an552) in _pp552:
+                        _d552 = _ANN541(_an552)
+                        if _an552 is None or "unk" in _d552[0] or not _d552[0]:
+                            continue
+                        _t552 = _T541.get(id(_a552), _UT541)
+                        _k552 = _dk552(_t552[0], _d552[0])
+                        _w552 = None
+                        if _ct552:
+                            if "unk" in _k552 and _er552(_a552, 4):
+                                _w552 = ("an ERASED value (declared `Any` / `object`, an "
+                                         "unannotated parameter, or the result of such a "
+                                         "function), whose real kind is never checked")
+                            elif not _FIT541(_k552, _d552[0]):
+                                _w552 = _KN541(_k552 - _d552[0])
+                            elif (_d552[0] <= frozenset(["list", "set"])
+                                  and "unk" not in _d552[1] and _d552[1]
+                                  and not _FIT541(_t552[1] - _U541, _d552[1])):
+                                _w552 = ("a container whose elements may be "
+                                         + _KN541(_t552[1] - _U541))
+                        elif (_d552[0] - frozenset(["none"]) <= frozenset(["num"])
+                              and not _FIT541(_k552 - _NS552, _d552[0])
+                              and _cfd552 is not None and _pu552(_cfd552, _pn552)):
+                            _w552 = (_KN541((_k552 - _NS552) - _d552[0])
+                                     + f", and `{_cn552}` uses `{_pn552}` as a number")
+                        if _w552 is not None:
+                            _reps541.append((
+                                "PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND" if _ct552
+                                else "PYCSL-R552-VALUE-KIND-MISMATCH", _n552,
+                                f"`{_ast486.unparse(_a552).strip()[:60]}` is passed to the "
+                                f"parameter `{_pn552}` of `{_cn552}`, declared "
+                                f"{_KN541(_d552[0])}, and may be {_w552}"))
+                            break
+                elif (isinstance(_n552, _ast486.Subscript)
+                      and not isinstance(_n552.slice, _ast486.Slice)
+                      and _T541.get(id(_n552.value), _UT541)[0]
+                      and _T541.get(id(_n552.value), _UT541)[0] <= frozenset(
+                          ["list", "tuple", "str"])):
+                    _k552 = (_T541.get(id(_n552.slice), _UT541)[0]
+                             & frozenset(["list", "tuple", "dict", "set", "iter", "fn"]))
+                    if _k552:
+                        _reps541.append((
+                            "PYCSL-R552-VALUE-KIND-MISMATCH", _n552,
+                            f"`{_ast486.unparse(_n552.slice).strip()[:60]}` indexes "
+                            f"`{_ast486.unparse(_n552.value).strip()[:40]}` and may be "
+                            f"{_KN541(_k552)}"))
+                elif (isinstance(_n552, _ast486.Return) and _n552.value is not None
+                      and not _gen552 and "unk" not in _ret552[0] and _ret552[0]
+                      and _ret552[0] - frozenset(["none"]) <= frozenset(["num"])):
+                    _k552 = _dk552(_T541.get(id(_n552.value), _UT541)[0], _ret552[0]) - _NS552
+                    if not _FIT541(_k552, _ret552[0]) and any(
+                            _nu552(_c, 3) or _bu552(_c)
+                            for _c in _cs552.get(getattr(_fd541, "name", None), [])):
+                        _reps541.append((
+                            "PYCSL-R552-VALUE-KIND-MISMATCH", _n552,
+                            f"`{_ast486.unparse(_n552.value).strip()[:60]}` is returned from "
+                            f"`{getattr(_fd541, 'name', 'lambda')}`, declared to return "
+                            f"{_KN541(_ret552[0])}, and may be {_KN541(_k552 - _ret552[0])}, and a "
+                            f"call of it is used as a number"))
+                elif isinstance(_n552, _ast486.Compare):
+                    _xs552 = [_n552.left] + list(_n552.comparators)
+                    for _i552, _o552 in enumerate(_n552.ops):
+                        if not isinstance(_o552, (_ast486.Lt, _ast486.LtE, _ast486.Gt,
+                                                  _ast486.GtE)):
+                            continue
+                        _ka552 = _T541.get(id(_xs552[_i552]), _UT541)[0] - _U541
+                        _kb552 = _T541.get(id(_xs552[_i552 + 1]), _UT541)[0] - _U541
+                        _cb552 = frozenset(["list", "tuple", "set", "fn"])
+                        _w552 = (_KN541((_ka552 | _kb552) & frozenset(["iter", "dict"]))
+                                 if (_ka552 | _kb552) & frozenset(["iter", "dict"]) else
+                                 _KN541((_ka552 | _kb552) & _cb552) + " and a number"
+                                 if ((_ka552 & _cb552 and "num" in _kb552)
+                                     or (_kb552 & _cb552 and "num" in _ka552)) else None)
+                        if _w552 is not None:
+                            _reps541.append((
+                                "PYCSL-R552-VALUE-KIND-MISMATCH", _n552,
+                                f"the ordering `{_ast486.unparse(_n552).strip()[:60]}` has "
+                                f"operands that may be {_w552}"))
+                            break
         if _reps541:
             _rc541, _rv541, _rm541 = _reps541[0]
             _ln541 = getattr(_rv541, "lineno", 0)
@@ -20994,6 +21400,31 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"you store (`a: List[Optional[str]]`) and test each element before "
                     f"using it as that kind (`if p is not None: ...`).",
                     stage="ir-semantic", code="PYCSL-R541-ELEMENT-KIND")
+            if _rc541 == "PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND: {_rm541}. A "
+                    f"program-class construction is lowered to a record literal and its "
+                    f"constructor body is judged at the DECLARED kinds of its parameters, "
+                    f"never emitted, so an argument of another kind is never checked: CPython "
+                    f"runs the body on the real value and raises (route #551; measured: `v: "
+                    f"Any = k; c = C(v)` with `def __init__(self, s: str): self.n = len(s)` "
+                    f"proved `no_exception \\all`, CPython TypeError). Pass a value of the "
+                    f"declared kind (a parameter / local annotated with it, a literal), or "
+                    f"declare the parameter as what you pass.",
+                    stage="ir-semantic", code="PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND")
+            if _rc541 == "PYCSL-R552-VALUE-KIND-MISMATCH":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R552-VALUE-KIND-MISMATCH: {_rm541}. The value "
+                    f"model lowers a range, a dict view, a list copy / slice, `sorted(..)` "
+                    f"(and the records and containers it erases) to an opaque Why3 `int`, so "
+                    f"an int comparison, an int argument or an int return of it type-checks "
+                    f"and carries no obligation, while CPython raises TypeError at the "
+                    f"ordering or at the receiver's arithmetic (route #552; measured: "
+                    f"`range(k) < range(k)`, `d.keys() < 3`, `h(range(k))` / `h(xs.copy())` "
+                    f"into `def h(x: int)`, `return d.items()` from `-> int` proved "
+                    f"`no_exception \\all`). Pass / return / compare a value of the declared "
+                    f"kind instead (`len(xs.copy())`, `k`).",
+                    stage="ir-semantic", code="PYCSL-R552-VALUE-KIND-MISMATCH")
             raise _PyCSLSemErr541(
                 f"line {_ln541}: PYCSL-R543-ANNOTATED-BINDING-KIND: {_rm541}. The value "
                 f"model erases a one-field record / an enum / a container to a Why3 `int` "
@@ -23304,14 +23735,91 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                   if _k[0] == "tuple"
                   else ("str",) if _k[0] == "str"
                   else ("int",) if _k[0] in ("bytes", "range") else None)
-        # a program class with a user `__iter__` / `__len__` (its body is the implicit-dunder
-        # routes' business, #489-#495) is iterable / sized
+        # (run #4) ROUTE #550 -- route #529 counted a program class with a user `__iter__` /
+        # `__len__` as iterable / sized, and the truth of any instance as total, WITHOUT READING
+        # THE DUNDER: `__iter__` returning 5 / None, `__len__` returning -1 / 2 ** 70 / None,
+        # `__bool__` returning 2 / None made `[x for x in It()]`, `len(L())`, `1 if Bo() else
+        # 0`, `not Bo()`, `bool(Bo())`, `any(It())` raise in a constructor (TypeError /
+        # ValueError / OverflowError) under a proved `no_exception \all` (red team 52). A user
+        # protocol dunder now counts only when it is JUDGED: the nearest class of the MRO that
+        # binds the name binds it exactly once, to an undecorated `def <name>(self)` whose body
+        # (docstring aside) is ONE statement over constants and the instance's declared
+        # (synthesized-dataclass) fields: `__len__` -> `return <int literal 0..2**31>` /
+        # `return len(self.<sized field>)`; `__bool__` -> `return True|False` / `return
+        # self.<bool field>` / `return <a> <cmp> <b>` over number literals, number fields and
+        # `len(self.<sized field>)` (`is` / `is not` over fields / literals); `__iter__` ->
+        # `return iter(self.<iterable field>)` / `yield from self.<iterable field>` (or of a
+        # display of literals). A truth test of an instance consults `__bool__`, else
+        # `__len__`, else is total; a class with a foreign base is not judged. Anything else
+        # makes the constructor unmodelled (route #315 / #529's refusal).
+        _sf550 = (lambda _c, _s, _e: _fk529(_c, _e.attr) if (
+            isinstance(_e, _ast175.Attribute) and isinstance(_e.value, _ast175.Name)
+            and _e.value.id == _s) else _ck529(_e.value) if isinstance(_e, _ast175.Constant)
+            else None)
+        _SZ550 = ("list", "seq", "set", "tuple*", "tuple", "dict", "str", "bytes")
+        _ln550 = (lambda _c, _s, _e: isinstance(_e, _ast175.Call)
+                  and isinstance(_e.func, _ast175.Name) and _e.func.id == "len"
+                  and "len" not in _mbc529 and len(_e.args) == 1 and not _e.keywords
+                  and (_sf550(_c, _s, _e.args[0]) or ("",))[0] in _SZ550)
+        _nu550 = (lambda _c, _s, _e: _ln550(_c, _s, _e) or _nm529(_sf550(_c, _s, _e)))
+        _jb550 = (lambda _c, _s, _e: (
+            isinstance(_e, _ast175.Constant) and type(_e.value) is bool)
+            or _sf550(_c, _s, _e) == ("bool",)
+            or (isinstance(_e, _ast175.Compare) and len(_e.ops) == 1 and (
+                (isinstance(_e.ops[0], (_ast175.Eq, _ast175.NotEq, _ast175.Lt, _ast175.LtE,
+                                        _ast175.Gt, _ast175.GtE))
+                 and _nu550(_c, _s, _e.left) and _nu550(_c, _s, _e.comparators[0]))
+                or (isinstance(_e.ops[0], (_ast175.Is, _ast175.IsNot))
+                    and all(_sf550(_c, _s, _x) is not None
+                            for _x in (_e.left, _e.comparators[0]))))))
+        _ji550 = (lambda _c, _s, _e: (
+            (_sf550(_c, _s, _e) or ("",))[0] in _SZ550 + ("range",))
+            or (isinstance(_e, (_ast175.List, _ast175.Tuple))
+                and all(isinstance(_x, _ast175.Constant) for _x in _e.elts)))
+        _dm550 = (lambda _c, _n: (lambda _a: None if _a is None or len(_cdefs315[_a]) != 1 else (
+            lambda _bs: _bs[0] if len(_bs) == 1 and isinstance(_bs[0], _ast175.FunctionDef)
+            and not _bs[0].decorator_list and len(_bs[0].args.args) == 1
+            and not (_bs[0].args.posonlyargs or _bs[0].args.vararg or _bs[0].args.kwonlyargs
+                     or _bs[0].args.kwarg) else None)(
+                [_z for _z in _cdefs315[_a][0].body
+                 if (isinstance(_z, (_ast175.FunctionDef, _ast175.AsyncFunctionDef,
+                                     _ast175.ClassDef)) and _z.name == _n)
+                 or (isinstance(_z, (_ast175.Assign, _ast175.AnnAssign, _ast175.AugAssign))
+                     and _n in {_w.id for _t in (_z.targets if isinstance(_z, _ast175.Assign)
+                                                 else [_z.target])
+                                for _w in _ast175.walk(_t) if isinstance(_w, _ast175.Name)})]))(
+            next((_a for _a in _anc529[_c] if _n in _cb529[_a]), None)))
+        _jd550 = (lambda _c, _n: (lambda _m: _m is not None and (lambda _s, _b: len(_b) == 1 and (
+            (isinstance(_b[0], _ast175.Return) and _b[0].value is not None and (
+                (_n == "__len__" and ((isinstance(_b[0].value, _ast175.Constant)
+                                       and type(_b[0].value.value) in (int, bool)
+                                       and 0 <= _b[0].value.value <= 2147483648)
+                                      or _ln550(_c, _s, _b[0].value)))
+                or (_n == "__bool__" and _jb550(_c, _s, _b[0].value))
+                or (_n == "__iter__" and isinstance(_b[0].value, _ast175.Call)
+                    and isinstance(_b[0].value.func, _ast175.Name)
+                    and _b[0].value.func.id == "iter" and "iter" not in _mbc529
+                    and len(_b[0].value.args) == 1 and not _b[0].value.keywords
+                    and _ji550(_c, _s, _b[0].value.args[0]))))
+            or (_n == "__iter__" and isinstance(_b[0], _ast175.Expr)
+                and isinstance(_b[0].value, _ast175.YieldFrom)
+                and _ji550(_c, _s, _b[0].value.value))))(
+            _m.args.args[0].arg, [_z for _i, _z in enumerate(_m.body) if not (
+                _i == 0 and isinstance(_z, _ast175.Expr) and isinstance(_z.value, _ast175.Constant)
+                and isinstance(_z.value.value, str))]))(_dm550(_c, _n)))
+        # truth of a value: an instance consults its judged `__bool__`, else `__len__`
+        _tt550 = (lambda _k: _k is None or _k[0] != "obj" or _k[1] not in _cdefs315 or (
+            not _fba529[_k[1]] and (
+                _jd550(_k[1], "__bool__") if "__bool__" in _cba529[_k[1]]
+                else _jd550(_k[1], "__len__") if "__len__" in _cba529[_k[1]] else True)))
         _it529 = lambda _k: _k is not None and (_k[0] in (
             "list", "seq", "iter", "set", "tuple*", "tuple", "dict", "str", "bytes", "range")
-            or (_k[0] == "obj" and "__iter__" in _cba529.get(_k[1], ())))
+            or (_k[0] == "obj" and _k[1] in _cdefs315 and "__iter__" in _cba529.get(_k[1], ())
+                and _jd550(_k[1], "__iter__")))
         _sz529 = lambda _k: _k is not None and (_k[0] in (
             "list", "seq", "set", "tuple*", "tuple", "dict", "str", "bytes")
-            or (_k[0] == "obj" and "__len__" in _cba529.get(_k[1], ())))
+            or (_k[0] == "obj" and _k[1] in _cdefs315 and "__len__" in _cba529.get(_k[1], ())
+                and _jd550(_k[1], "__len__")))
         _nm529 = lambda _k: _k in (("int",), ("bool",), ("float",))
         _in529 = lambda _k: _k in (("int",), ("bool",))
         # hashable program classes: no (unfrozen, eq) dataclass ancestor, no __eq__ without
@@ -24324,6 +24832,21 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 for _z in _ast175.walk(_m315)):
                             _r529 = (f"a store to `{_sf529}` in a hook of a frozen dataclass "
                                      f"(FrozenInstanceError)")
+                        # (route #550) the expressions this hook tests for truth
+                        _tts550 = {id(_x) for _w in _ast175.walk(_m315) for _x in (
+                            [_w.test] if isinstance(_w, (_ast175.If, _ast175.IfExp,
+                                                         _ast175.While, _ast175.Assert))
+                            else list(_w.values) if isinstance(_w, _ast175.BoolOp)
+                            else [_w.operand] if (isinstance(_w, _ast175.UnaryOp)
+                                                  and isinstance(_w.op, _ast175.Not))
+                            else list(_w.ifs) if isinstance(_w, _ast175.comprehension)
+                            else [_w.guard] if (isinstance(_w, _ast175.match_case)
+                                                and _w.guard is not None)
+                            else [_w.args[0]] if (isinstance(_w, _ast175.Call)
+                                                  and isinstance(_w.func, _ast175.Name)
+                                                  and _w.func.id == "bool"
+                                                  and len(_w.args) == 1)
+                            else [])}
                         for _s529, _dd529 in _pairs529:
                             if _r529:
                                 break
@@ -24417,6 +24940,20 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     _u529 = _ast175.unparse(_n529) if isinstance(
                                         _n529, _ast175.expr) else ""
                                     if isinstance(_n529, _ast175.Lambda):
+                                        continue
+                                    if (id(_n529) in _tts550 and not _tt550(
+                                            _kx529(_n529, _ev529))) or (
+                                                isinstance(_n529, _ast175.Call)
+                                                and isinstance(_n529.func, _ast175.Name)
+                                                and _n529.func.id in ("any", "all")
+                                                and len(_n529.args) == 1 and not _tt550(
+                                                    _el529(_kx529(_n529.args[0], _ev529)))):
+                                        _r529 = (f"the truth test of `{_u529}` (line "
+                                                 f"{_ln529}) (or of its elements): an instance "
+                                                 f"whose user `__bool__` / `__len__` is not "
+                                                 f"judged to return a bool / a non-negative "
+                                                 f"small int (TypeError / ValueError; route "
+                                                 f"#550)")
                                         continue
                                     if isinstance(_n529, (_ast175.ListComp, _ast175.SetComp,
                                                           _ast175.DictComp, _ast175.GeneratorExp)):
