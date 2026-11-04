@@ -1,0 +1,24 @@
+r"""Test 8632 -- route #548 (expected FAIL: PROVED at base int28, now NOT PROVED on a `PyCSL-R521` obligation; red team 52 probe g1314_bo1213_none_local_src): `src = [None]; xs[0:1] = src`, then `xs[0] + 1`; CPython TypeError
+"""
+# pycsl-expected: FAIL
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Iterator, Sequence, FrozenSet
+from dataclasses import dataclass
+
+def nothing() -> None:
+    return None
+
+
+#@ no_exception \all
+def f(d: Dict[str, int], k: str, os_: List[Optional[int]], ys: List[int], o: Optional[int] = None) -> int:
+    src = [None]
+    xs = [1, 2]
+    xs[0:1] = src
+    return xs[0] + 1
+
+
+if __name__ == "__main__":
+    try:
+        r = f({}, "a", [None], [1, 2])
+        print('result', r)
+    except Exception as e:
+        print("VIOLATION", type(e).__name__, e)

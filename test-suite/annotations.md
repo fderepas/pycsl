@@ -5345,6 +5345,59 @@ an instance of an imported class, a nested def / closure callee, a `*` / `**` ar
 imported `-> int` def that falls off its end; a may-be-None value whose derived classes hold None (a `.get`)
 passed as an argument stays route #521's Module 6 obligation.
 
+### 7.546 A None is judged per tuple slot, at a numeric method result, through a slice store, and through a callee's store into a parameter (routes #546 / #547 / #548 / #553, run #4)
+
+Route #526's record (§7.521) collapsed a return annotation to ONE `admit` set / ONE `any_from` depth, so the
+`Any` in slot 0 of `-> Tuple[Any, int]` admitted `return (1, None)` for slot 1 (#546, 25 witnesses); route
+#490's caller-side rule (§7.390: "a bare `return None` from a function annotated as a number makes each CALL of
+it number-or-None") covered only FILE functions at operand positions, so a `-> int` / `-> bool` METHOD returning
+None (`Q.m()`, `Q.m(k)`, `Q().m(k)`, `self.m()`) and `range(g(k))` proved (#547, 22); a slice store
+`xs[a:b] = [None]` did not taint the local list (#548, 14); and an item / slice store of None into a callee's
+`List[int]` / `Dict[str, int]` PARAMETER was no escape, so the caller's own list stayed "not None" after
+`g(xs)` (#553, 18). Red team 52 measured all of them PROVED `no_exception \all` while CPython raises TypeError.
+
+RULE (no new def in a mirrored body, no axiom). (#546) Module 5 computes an annotation's None depths by a
+post-order walk, each node relative to its own depth: `None` / `Optional[X]` admit 0; `Any` / `object` / `PyVal`
+admit 0 and below; `Union` / `|` / `Annotated[X, ..]` / `Final` / `ClassVar` are the UNION of their arms; a
+container is its slots' union one level down, except a mapping (`Dict[K, V]`: V only, what a subscript reads)
+and a fixed TOP-LEVEL `Tuple[A, B, ..]`, the INTERSECTION of its slots (a read `t[i]` is typed by slot i alone). It
+keeps its per-slot depths (`r526_return_none_depths.slots`), and Module 6 judges a
+returned tuple DISPLAY slot by slot: an element that may be None owes the ordinary (narrowable) obligation -- a
+None literal an unprovable one -- unless ITS slot admits None, and an element holding None at a depth its slot
+does not admit is owed. Any other returned value (a tuple local, a call) is judged against the intersection.
+(#547) Route #490's judge (`_run_pipeline`) also makes every call `<recv>.m(..)` of a METHOD of a file class
+annotated as a number (`int` / `bool` / `float` / `complex`) whose body has a `return None` / bare `return`
+number-or-None (by method name, any receiver: fail-closed), and judges the arguments of the number-only builtins
+`range` / `abs` / `round` / `divmod` / `pow` / `chr` / `hex` / `oct` / `bin` like an arithmetic operand: REFUSED
+`PYCSL-R490-LITERAL-INT-HASH` unless a guard (`if v is None: return ..`) narrows the local. A zero-argument
+`Q.m()` still lowers to a receiver-less abstract value (`val q_m_0 () : int`): it is unconstrained, so it can
+only lose proofs, and the None it might be is refused here. (#548) A slice store `xs[a:b] = src` (`ArraySliceSet`)
+taints the local `xs` like `xs.extend(src)` (one level down per subscript of the target chain); a repetition
+`[e] * n` is read as its display, and an element calling a file def annotated `-> None` / `Optional` as a None. (#553) An item
+store / slice store whose target is rooted at a PARAMETER of the function is an ESCAPE (owed always, a None
+literal counted): the stored value lands at depth L + 1 of the parameter (L: the target's subscript chain) and is
+owed unless the parameter's annotation admits None there (Module 5's `r553_param_none_depths`, the same walk; an
+unannotated parameter admits nothing); a slice store into a container the record does not follow (a field) is an
+escape too. On the CALLER side, a local container handed to a function / method whose parameter admits None
+inside (`xs: List[Optional[int]]`), or whose body STORES a None into that parameter (Module 5's
+`r553_param_none_stores`, syntactic: an item / slice store rooted at the parameter of a None literal, a `.get`
+with no / a None default, or a display / repetition holding one -- read also for an IMPORTED stub, whose body
+this run does not verify), is tainted at those depths after the call.
+
+Witnesses `witnesses-r546/` (25), `witnesses-r547/` (22), `witnesses-r548/` (14), `witnesses-r553/` (18) x
+default / typed / store: REFUSED (#547) or NOT PROVED on a `PyCSL-R521` obligation; corpus `8620`-`8638` (FAIL;
+`8638`: the caller-side twin, an honest `List[Optional[int]]` callee), controls `8640`-`8649` (PASS: a None in the
+`Any` / `Optional` slot, a guarded Optional slot, int methods, a guarded None-returning method, `range` of an int
+call, a slice store of ints, a guarded slice-stored None, a callee's int store, a guarded Optional-parameter
+callee). Residuals (named): a tuple NESTED in an `Optional` / `Union` / container annotation (`-> Optional[Tuple[str,
+Any]]`) keeps u18's union of its slots (the mirror's `_match_subject_union_info` returns a `.get` in its `str` slot
+under that annotation, an obligation its model cannot discharge); a returned tuple that is not a display is judged against the slots' intersection (an
+honest `t = (None, 1); return t` from `-> Tuple[Any, int]` is owed); a None-returning method is matched by NAME;
+the caller-side taint follows positional arguments only, and an imported callee's store is recognised only in
+the syntactic shapes above (a store it forwards to a second imported callee is not followed); a repetition or a
+None-returning call inside a source stored into a PARAMETER is not normalised (the escape judges the evaluator's
+shapes).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

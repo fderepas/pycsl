@@ -4737,6 +4737,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             # the candidates: (operand, why when it may be None, why when it holds a None
             # (None: not judged), the obligation is unconditional)
             _c521s: List[Any] = []
+            _lit553s: List[Any] = []
             # (u18) a RETURN is judged against the depths its annotation admits None at
             # (Module 5's `r526_return_none_depths`; a top-level Optional / Union admits
             # depth 0, `Any` / `object` every depth): None at depth 0, or a container
@@ -4753,7 +4754,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                "does not admit None hands None to callers"),
                                "returning a container that may hold None from a function whose "
                                "return annotation does not admit None at that depth",
-                               (_ad521s, _af521s)))
+                               (_ad521s, _af521s, _rd521s.get("slots"))))
             elif _k521s in ("FieldAssign", "FieldAugAssign") and isinstance(_v521s, dict):
                 _ob521s = str(stmt_d.get("object") or "")
                 _cl521s = (getattr(self, "_current_self_type", None) if _ob521s == "self"
@@ -4791,16 +4792,49 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _c521s.append((stmt_d.get("iter"), "iterating None raises TypeError", None, None))
             elif _k521s == "TupleUnpack":
                 _c521s.append((_v521s, "unpacking None raises TypeError", None, None))
-            elif _k521s == "ArraySet" and isinstance(_v521s, dict):
+            elif _k521s in ("ArraySet", "ArraySliceSet") and isinstance(_v521s, dict):
                 _ar521s = stmt_d.get("array")
+                _L521s = 0
                 while isinstance(_ar521s, dict) and _ar521s.get("type") == "Subscript":
                     _ar521s = _ar521s.get("value")
-                if not (isinstance(_ar521s, dict) and _ar521s.get("type") == "Var"):
-                    _c521s.append((_v521s, "storing it into an item of a container the record "
-                                   "does not follow",
+                    _L521s += 1
+                # (u21) route #553: an item / slice store into a PARAMETER container is an
+                # ESCAPE as well -- the caller's own list / dict is that container, and its
+                # record does not follow the callee's stores (`g(xs)` with `xs[0] = None` in
+                # g proved the caller's `xs[0] + 1`). The stored value lands at depth L + 1 of
+                # the parameter (L: the subscript chain), the elements of a slice store's
+                # source at L + 1 too; it is owed unless the parameter's annotation admits
+                # None there (Module 5's `r553_param_none_depths`; an unannotated parameter
+                # admits nothing). A None LITERAL counts here (the caller reads it back).
+                _pn521s = (_ar521s.get("name") if isinstance(_ar521s, dict)
+                           and _ar521s.get("type") == "Var" else None)
+                if _pn521s is not None and _pn521s in (_fn521s.get("formal_params") or []):
+                    _pd521s = (_fn521s.get("r553_param_none_depths") or {}).get(_pn521s) or {}
+                    _K521s = _L521s + (0 if _k521s == "ArraySliceSet" else 1)
+                    _pad521s = {_d - _K521s for _d in (_pd521s.get("admit") or [])
+                                if _d - _K521s >= 0}
+                    _paf521s = _pd521s.get("any_from")
+                    _paf521s = (None if _paf521s is None else max(_paf521s - _K521s, 0))
+                    if _paf521s != 0:
+                        if (_k521s == "ArraySet" and _v521s.get("type") == "None"
+                                and 0 not in _pad521s):
+                            _lit553s.append((_bad521s, "storing None into an item of the "
+                                             "parameter '%s', whose annotation does not admit "
+                                             "None there: the caller reads it back" % _pn521s))
+                        _c521s.append((_v521s, None if (_k521s == "ArraySliceSet"
+                                                        or 0 in _pad521s) else (
+                                       "storing it into an item of the parameter '%s', whose "
+                                       "annotation does not admit None there" % _pn521s),
+                                       "storing a container that may hold None into the "
+                                       "parameter '%s', whose annotation does not admit None "
+                                       "at that depth" % _pn521s, (_pad521s, _paf521s)))
+                elif not (isinstance(_ar521s, dict) and _ar521s.get("type") == "Var"):
+                    _c521s.append((_v521s, None if _k521s == "ArraySliceSet" else (
+                                   "storing it into an item of a container the record "
+                                   "does not follow"),
                                    "storing a container that may hold None into a container "
                                    "the record does not follow", None))
-            _g521: List[Any] = []
+            _g521: List[Any] = list(_lit553s)
             if _c521s:
                 _q5_rec = _r521s
                 _q5_qs = [(_x521s[0], False) for _x521s in _c521s]
@@ -4943,7 +4977,40 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 for _i521s, ((_x521s, _y521s, _z521s, _w521s), _mbv521s, _cdv521s) in enumerate(
                         zip(_c521s, _q5_mbr, _q5_cdr)):
                     # the depths the annotation admits None at: `_ad` exactly, `_af` and below
-                    _ad521s, _af521s = _w521s if _w521s is not None else (set(), None)
+                    _ad521s, _af521s = _w521s[:2] if _w521s is not None else (set(), None)
+                    # (u21) route #546: a returned tuple DISPLAY of a `-> Tuple[A, B, ..]` is
+                    # judged SLOT BY SLOT (Module 5's `slots`: each slot's admitted depths,
+                    # relative to the element): an element that may be None owes the ordinary
+                    # obligation (a None literal: an unprovable one) unless its slot admits
+                    # None, and an element holding None at a depth its slot does not admit is
+                    # owed, whatever the other slots admit (`Tuple[Any, int]` admitted
+                    # `(1, None)` through slot 0's `Any`).
+                    _sl521s = _w521s[2] if _w521s is not None and len(_w521s) > 2 else None
+                    _es521s = [(_e, _m, _c) for (_j, _e), _m, _c in zip(
+                        _el521s, _q5_mbr[len(_c521s):], _q5_cdr[len(_c521s):])
+                        if _j == _i521s]
+                    if (_sl521s and isinstance(_x521s, dict)
+                            and _x521s.get("type") in ("Tuple", "MkTuple")
+                            and len(_es521s) == len(_sl521s)):
+                        for (_e, _m, _c), (_sad521s, _saf521s) in zip(_es521s, _sl521s):
+                            _m = _m or (isinstance(_e, dict) and _e.get("type") == "Var"
+                                        and _e.get("name") in (_r521s.get("none_loc") or ()))
+                            if _m and not (0 in _sad521s or _saf521s == 0):
+                                _g521.append((_e, _z521s) if isinstance(_e, dict)
+                                             and _e.get("type") != "None"
+                                             else (_bad521s, _z521s))
+                            if any(not (_d in _sad521s or (_saf521s is not None
+                                                           and _d >= _saf521s)) for _d in _c):
+                                _g521.append((_bad521s, _z521s))
+                        continue
+                    # (u21) a None-bound LOCAL element of an escaping display (`v = None;
+                    # return (k, v)`) is an element that may be None (the record does not
+                    # count a None literal binding), owed unless depth 1 is admitted
+                    if _z521s is not None and not (1 in _ad521s or (
+                            _af521s is not None and _af521s <= 1)):
+                        _g521 += [(_e, _z521s) for _e, _m, _c in _es521s
+                                  if not _m and isinstance(_e, dict) and _e.get("type") == "Var"
+                                  and _e.get("name") in (_r521s.get("none_loc") or ())]
                     _cdv521s = {_d for _d in _cdv521s if not (
                         _d in _ad521s or (_af521s is not None and _d >= _af521s))}
                     if _mbv521s and _y521s is not None:

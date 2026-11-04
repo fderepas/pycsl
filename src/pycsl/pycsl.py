@@ -19552,6 +19552,30 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         _rn490.add(_n490.name)
                         break
                     _st490.extend(_ast486.iter_child_nodes(_x490))
+        # (u21) route #547: the same for a METHOD of a file class (`@staticmethod` / instance /
+        # class method) -- its call `Q.m()`, `Q.m(k)`, `Q().m(k)`, `self.m()`, `o.m()` is judged
+        # by the method NAME (any receiver: fail-closed), at every operand position below
+        _rnm490 = set()
+        for _c490 in _ast486.walk(_tr486):
+            if not isinstance(_c490, _ast486.ClassDef):
+                continue
+            for _n490 in _c490.body:
+                if not (isinstance(_n490, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                        and _n490.returns is not None
+                        and _al490.get(id(_n490.returns)) == frozenset(["num"])):
+                    continue
+                _st490 = list(_n490.body)
+                while _st490:
+                    _x490 = _st490.pop()
+                    if isinstance(_x490, (_ast486.FunctionDef, _ast486.AsyncFunctionDef,
+                                          _ast486.ClassDef, _ast486.Lambda)):
+                        continue
+                    if isinstance(_x490, _ast486.Return) and (
+                            _x490.value is None or (isinstance(_x490.value, _ast486.Constant)
+                                                    and _x490.value.value is None)):
+                        _rnm490.add(_n490.name)
+                        break
+                    _st490.extend(_ast486.iter_child_nodes(_x490))
         _fds490 = []
         for _x490 in _ast486.walk(_tr486):
             if isinstance(_x490, (_ast486.FunctionDef, _ast486.AsyncFunctionDef)):
@@ -19791,7 +19815,9 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                         elif isinstance(_f490, _ast486.Attribute):
                             _rv490 = _E490.get(id(_f490.value), _UNK490)
                             _md490 = _f490.attr
-                            if _md490 == "get" and _n490.args:
+                            if _md490 in _rnm490:
+                                _k490 = frozenset(["num", "none"])
+                            elif _md490 == "get" and _n490.args:
                                 _k490 = _rv490 | (
                                     frozenset(["cnone"]) if len(_n490.args) > 1
                                     and isinstance(_n490.args[1], _ast486.Constant)
@@ -19948,6 +19974,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                      "a call argument", _m490)
                                     for _y in list(_n490.args) + list(_n490.keywords)
                                     for _m490 in ("hash", "esc")]
+                        # (u21) route #547: a builtin that takes NUMBERS only raises TypeError
+                        # on any non-number argument (`range(g(k))` for a `-> int` g that can
+                        # return None), as an arithmetic operand does
+                        if isinstance(_f490, _ast486.Name) and _f490.id in (
+                                "range", "abs", "round", "divmod", "pow", "chr", "hex", "oct",
+                                "bin"):
+                            _uses490 += [(_y, "an argument of `" + _f490.id + "`", "arith")
+                                         for _y in _n490.args
+                                         if not isinstance(_y, _ast486.Starred)]
                     # slot check: an annotated scalar parameter of a file function / class
                     if isinstance(_f490, _ast486.Name) and _f490.id in _sig490:
                         _pp490, _kw490, _va490 = _sig490[_f490.id]

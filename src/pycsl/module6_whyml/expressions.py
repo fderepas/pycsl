@@ -21780,7 +21780,14 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             continue
                         _c521.append((_x521, "passing None to `%s` raises or breaks its "
                                       "parameter's type" % _f521, "mba" if _bi521 else "mbu"))
-                        if _ctr521 and not _bi521:
+                        if _ctr521 and not _bi521 and not (
+                                _fi521 is not None and any(
+                                    _i521 in (_i553, _pn553) for _i553, _pn553 in enumerate(
+                                        _fi521.get("formal_params") or [])
+                                    if _pn553 in (_fi521.get("r553_param_none_depths") or {}))):
+                            # (u21) a parameter whose annotation admits None INSIDE (`List[Any]`,
+                            # `Dict[str, PyVal]`, `List[Optional[int]]`: Module 5's
+                            # `r553_param_none_depths`) takes a container holding None
                             # a container holding None handed to a FILE function / constructor
                             # leaves the record; a builtin over it (`sorted`, `sum`, ...) is the
                             # builtin's own exception model's (route #437)

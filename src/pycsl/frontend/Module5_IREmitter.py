@@ -7437,50 +7437,161 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                     _r524_st.append((_r524_n.right, _r524_d))
             if _r524_ds and _r524_ds != {1}:
                 _r524_depths[_r230_nm] = sorted(_r524_ds)
+        # (#49) driver run #4, ROUTES #526 / #546 / #553 (u21): the None DEPTHS an annotation
+        # admits, computed PER SLOT. u18's walk kept ONE `admit` set / ONE `any_from` per
+        # annotation, so the `Any` in slot 0 of `-> Tuple[Any, int]` admitted depth 1 for slot 1
+        # too and `return (1, None)` was no escape (route #546: `t = g(k); t[1] + 1` PROVED
+        # `no_exception \all`, CPython TypeError). Post-order over the annotation, each node's
+        # (admit, any_from) RELATIVE to its own depth: `None` / an `Optional`-or-`None`-spelling
+        # forward reference admits 0; `Any` / `object` / `PyVal` admits 0 and below; `Optional[X]`
+        # = X plus 0; `Union` / `|` / `Annotated[X, ..]` / `Final` / `ClassVar` = the UNION of
+        # their arms; a container `C[X, ..]` = its slots' union one level down, except a
+        # MAPPING (`Dict[K, V]` ...: what a subscript reads is V only) and a fixed TUPLE
+        # (`Tuple[A, B]`: the INTERSECTION of its slots, since a read `t[i]` is typed by slot i
+        # alone), whose per-slot results are kept in `slots` for a top-level tuple so Module 6
+        # can judge a returned tuple display slot by slot. The same walk gives every
+        # subscripted PARAMETER its admitted depths (`r553_param_none_depths`): route #553's
+        # escape -- an item / slice store of None into a parameter container -- is owed unless
+        # the parameter admits None there. Inline (this method's mirror twin is `\trusted`).
         _r526_nd: Dict[str, Any] = {}
-        if node.returns is not None and isinstance(node.returns, ast.Subscript):
-            _r526_ad: set = set()
-            _r526_af: List[int] = []
-            _r526_st: list = [(node.returns, 0)]
+        _r553_pd: Dict[str, Any] = {}
+        _r526_jobs: list = ([("", node.returns)] if isinstance(node.returns, ast.Subscript)
+                            else []) + [
+            (_a.arg, _a.annotation) for _a in (list(node.args.posonlyargs) + list(node.args.args)
+                                               + list(node.args.kwonlyargs))
+            if isinstance(_a.annotation, ast.Subscript)]
+        for _r526_key, _r526_root in _r526_jobs:
+            _r526_res: Dict[int, Any] = {}
+            _r526_top: Any = None
+            _r526_st: list = [(_r526_root, False)]
             while _r526_st:
-                _r526_n, _r526_d = _r526_st.pop()
-                if isinstance(_r526_n, ast.Constant) and isinstance(_r526_n.value, str):
-                    # a string (forward-reference) annotation is not parsed: it admits None
-                    # at its own depth only when it spells `None` / `Optional` (deeper
-                    # Nones are then owed: the fail-closed direction)
-                    if "None" in _r526_n.value or "Optional" in _r526_n.value:
-                        _r526_ad.add(_r526_d)
-                    continue
-                if ((isinstance(_r526_n, ast.Constant) and _r526_n.value is None)
-                        or (isinstance(_r526_n, ast.Name) and _r526_n.id == "None")):
-                    _r526_ad.add(_r526_d)
-                    continue
-                _r526_nm = (_r526_n.id if isinstance(_r526_n, ast.Name) else
-                            _r526_n.attr if isinstance(_r526_n, ast.Attribute) else "")
-                if _r526_nm in ("Any", "object", "PyVal"):
-                    _r526_af.append(_r526_d)
-                    continue
+                _r526_n, _r526_done = _r526_st.pop()
+                _r526_kind, _r526_ch = "leaf", []
                 if isinstance(_r526_n, ast.Subscript):
                     _r526_b = _r526_n.value
                     _r526_bn = (_r526_b.id if isinstance(_r526_b, ast.Name) else
                                 _r526_b.attr if isinstance(_r526_b, ast.Attribute) else "")
+                    _r526_ch = (list(_r526_n.slice.elts) if isinstance(_r526_n.slice, ast.Tuple)
+                                else [_r526_n.slice])
                     if _r526_bn == "Optional":
-                        _r526_ad.add(_r526_d)
-                        _r526_st.append((_r526_n.slice, _r526_d))
-                    elif _r526_bn in ("Union", "Annotated", "Final", "ClassVar"):
-                        _r526_st.append((_r526_n.slice, _r526_d))
+                        _r526_kind = "opt"
+                    elif _r526_bn == "Union":
+                        _r526_kind = "union"
+                    elif _r526_bn in ("Annotated", "Final", "ClassVar"):
+                        _r526_kind, _r526_ch = "union", _r526_ch[:1]
+                    elif _r526_bn in ("Tuple", "tuple") and _r526_n is _r526_root and not (
+                            len(_r526_ch) == 2 and isinstance(_r526_ch[1], ast.Constant)
+                            and _r526_ch[1].value is Ellipsis):
+                        # a TOP-LEVEL fixed tuple only: one nested in an Optional / Union /
+                        # container keeps u18's union of its slots (named residual; the
+                        # mirror's `-> Optional[Tuple[str, PyVal]]` returns stay byte-inert)
+                        _r526_kind = "tuple"
+                    elif _r526_bn in ("Dict", "dict", "Mapping", "MutableMapping", "DefaultDict",
+                                      "defaultdict", "OrderedDict") and len(_r526_ch) == 2:
+                        _r526_kind, _r526_ch = "cont", _r526_ch[1:]
                     else:
-                        _r526_st.append((_r526_n.slice, _r526_d + 1))
+                        _r526_kind = "cont"
+                        _r526_ch = [_c for _c in _r526_ch
+                                    if not (isinstance(_c, ast.Constant) and _c.value is Ellipsis)]
+                elif isinstance(_r526_n, ast.Tuple):
+                    _r526_kind, _r526_ch = "union", list(_r526_n.elts)
+                elif isinstance(_r526_n, ast.BinOp) and isinstance(_r526_n.op, ast.BitOr):
+                    _r526_kind, _r526_ch = "union", [_r526_n.left, _r526_n.right]
+                if not _r526_done and _r526_ch:
+                    _r526_st.append((_r526_n, True))
+                    _r526_st.extend((_c, False) for _c in _r526_ch)
                     continue
-                if isinstance(_r526_n, ast.Tuple):
-                    _r526_st.extend((_e, _r526_d) for _e in _r526_n.elts)
-                    continue
-                if isinstance(_r526_n, ast.BinOp) and isinstance(_r526_n.op, ast.BitOr):
-                    _r526_st.append((_r526_n.left, _r526_d))
-                    _r526_st.append((_r526_n.right, _r526_d))
-            if _r526_af or any(_x >= 1 for _x in _r526_ad):
-                _r526_nd = {"admit": sorted(_r526_ad),
-                            "any_from": min(_r526_af) if _r526_af else None}
+                _r526_nm = (_r526_n.id if isinstance(_r526_n, ast.Name) else
+                            _r526_n.attr if isinstance(_r526_n, ast.Attribute) else "")
+                _r526_rs = [_r526_res.get(id(_c), (set(), None)) for _c in _r526_ch]
+                if _r526_kind == "leaf":
+                    if isinstance(_r526_n, ast.Constant) and isinstance(_r526_n.value, str):
+                        # a string (forward-reference) annotation is not parsed: it admits None
+                        # at its own depth only when it spells `None` / `Optional` (deeper
+                        # Nones are then owed: the fail-closed direction)
+                        _r526_r = (({0} if ("None" in _r526_n.value
+                                            or "Optional" in _r526_n.value) else set()), None)
+                    elif ((isinstance(_r526_n, ast.Constant) and _r526_n.value is None)
+                          or _r526_nm == "None" and isinstance(_r526_n, ast.Name)):
+                        _r526_r = ({0}, None)
+                    elif _r526_nm in ("Any", "object", "PyVal"):
+                        _r526_r = (set(), 0)
+                    else:
+                        _r526_r = (set(), None)
+                elif _r526_kind == "tuple":
+                    _r526_afs = [_x[1] for _x in _r526_rs]
+                    _r526_af = (max(_r526_afs) if _r526_rs and None not in _r526_afs
+                                else None)
+                    _r526_cand = set().union(*[_x[0] for _x in _r526_rs]) | set(range(
+                        max([_x for _x in _r526_afs if _x is not None] or [0]) + 1))
+                    _r526_ad = {_d for _d in _r526_cand if all(
+                        _d in _x[0] or (_x[1] is not None and _d >= _x[1]) for _x in _r526_rs)
+                        and (_r526_af is None or _d < _r526_af)}
+                    _r526_r = ({_d + 1 for _d in _r526_ad},
+                               None if _r526_af is None else _r526_af + 1)
+                    if _r526_n is _r526_root:
+                        _r526_top = [[sorted(_x[0]), _x[1]] for _x in _r526_rs]
+                else:
+                    _r526_ad = set().union(*[_x[0] for _x in _r526_rs]) if _r526_rs else set()
+                    _r526_afs = [_x[1] for _x in _r526_rs if _x[1] is not None]
+                    _r526_af = min(_r526_afs) if _r526_afs else None
+                    if _r526_kind == "opt":
+                        _r526_ad = _r526_ad | {0}
+                    elif _r526_kind == "cont":
+                        _r526_ad = {_d + 1 for _d in _r526_ad}
+                        _r526_af = None if _r526_af is None else _r526_af + 1
+                    _r526_r = (_r526_ad, _r526_af)
+                _r526_res[id(_r526_n)] = _r526_r
+            _r526_ad, _r526_af = _r526_res.get(id(_r526_root), (set(), None))
+            if (_r526_af is not None or any(_x >= 1 for _x in _r526_ad)
+                    or (_r526_top and any(_x[0] or _x[1] is not None for _x in _r526_top))):
+                _r526_rec = {"admit": sorted(_r526_ad), "any_from": _r526_af}
+                if _r526_key:
+                    _r553_pd[_r526_key] = _r526_rec
+                else:
+                    _r526_nd = _r526_rec
+                    if _r526_top and any(_x[0] or _x[1] is not None for _x in _r526_top):
+                        _r526_nd["slots"] = _r526_top
+        # (u21) route #553: the parameters this body STORES a None into, syntactically (an item
+        # / slice store rooted at the parameter whose value is a None literal, a `.get` with no
+        # / a None default, or a display / repetition holding one), with the depths it lands
+        # at. A caller's container handed to such a parameter is tainted at those depths --
+        # also when the callee is an IMPORTED stub whose body this run never verifies.
+        _r553_ns: Dict[str, List[int]] = {}
+        _r553_pn = {_a.arg for _a in (list(node.args.posonlyargs) + list(node.args.args)
+                                      + list(node.args.kwonlyargs))}
+        _r553_st: list = list(node.body)
+        while _r553_st:
+            _r553_n = _r553_st.pop()
+            if isinstance(_r553_n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef,
+                                    ast.Lambda)):
+                continue
+            _r553_st.extend(ast.iter_child_nodes(_r553_n))
+            if not isinstance(_r553_n, ast.Assign):
+                continue
+            _r553_v = _r553_n.value
+            if (isinstance(_r553_v, ast.BinOp) and isinstance(_r553_v.op, ast.Mult)):
+                _r553_v = (_r553_v.left if isinstance(_r553_v.left, (ast.List, ast.Tuple))
+                           else _r553_v.right)
+            _r553_vs = (list(_r553_v.elts) if isinstance(_r553_v, (ast.List, ast.Tuple, ast.Set))
+                        else [_r553_v])
+            if not any((isinstance(_y, ast.Constant) and _y.value is None)
+                       or (isinstance(_y, ast.Call) and isinstance(_y.func, ast.Attribute)
+                           and _y.func.attr == "get" and (
+                               len(_y.args) < 2 or (isinstance(_y.args[1], ast.Constant)
+                                                    and _y.args[1].value is None)))
+                       for _y in _r553_vs):
+                continue
+            for _r553_t in _r553_n.targets:
+                _r553_L = 0
+                while isinstance(_r553_t, ast.Subscript):
+                    _r553_t = _r553_t.value
+                    _r553_L += 1
+                if (_r553_L and isinstance(_r553_t, ast.Name) and _r553_t.id in _r553_pn
+                        and _r553_t.id != "self"):
+                    _r553_ns.setdefault(_r553_t.id, [])
+                    if _r553_L not in _r553_ns[_r553_t.id]:
+                        _r553_ns[_r553_t.id].append(_r553_L)
         # (#49) ROUTE #249 — CONTAINERS WHOSE ELEMENTS ARE `Any`. `List[Any]`, `Dict[str, Any]`,
         # `Set[Any]`, `Tuple[Any, int]`, or a TypeVar element: `param_annotations` keeps only `"list"`/`"dict"`, so Module 6 could not
         # tell `xs[0] == xs[1]` on a `List[Any]` from the same read on a `List[int]`, and
@@ -7608,6 +7719,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             # subscripted annotation admitting None below the top (a top-level Optional /
             # Union alone is already `_union_*`), so IR goldens hold.
             **({"r526_return_none_depths": _r526_nd} if _r526_nd else {}),
+            # (u21) route #553: the depths each subscripted PARAMETER admits None at (same walk)
+            **({"r553_param_none_depths": _r553_pd} if _r553_pd else {}),
+            **({"r553_param_none_stores": {_k: sorted(_v) for _k, _v in _r553_ns.items()}}
+               if _r553_ns else {}),
             **({"r249_erased_containers": dict(sorted(_r249_cont.items()))}
                if _r249_cont else {}),
             # (#34) emitted ONLY when non-empty, so the IR of every function without a

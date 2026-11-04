@@ -10473,6 +10473,11 @@ class FunctionEmissionMixin:
         _q5_rec: Dict[str, Any] = {"mb_locals": _r521_loc, "mb_cont": _r521_cont,
                                    "none_loc": set(), "dicts": _r230_dicts,
                                    "dvt": func.get("dict_value_types") or {}, "fget": _r521_fget}
+        # (u21) route #553: the file functions with a parameter admitting None inside
+        # or one its body stores a None into (`r553_param_none_stores`; an imported stub too)
+        _r553_cal = [_fx for _fx in ((getattr(self, "ir", None) or {}).get("functions") or [])
+                     if isinstance(_fx, dict) and (_fx.get("r553_param_none_depths")
+                                                   or _fx.get("r553_param_none_stores"))]
         for _r521_round in range(32):
             # one round: collect every binding the body makes, evaluate its value, apply.
             # requests: (kind, target(s), value, a None literal counts)
@@ -10509,6 +10514,33 @@ class FunctionEmissionMixin:
                         _r = _r.get("value")
                     if isinstance(_r, dict) and _r.get("type") == "Var":
                         _r521_rq.append(("cont", (_r.get("name"), _L + 1), _v, True))
+                elif _s == "ArraySliceSet":
+                    # (u21) route #548: a slice store `xs[a:b] = src` puts src's ELEMENTS into
+                    # xs, like `extend(src)` (one level down per subscript of the target chain)
+                    _r, _L = _n.get("array"), 0
+                    while isinstance(_r, dict) and _r.get("type") == "Subscript":
+                        _L += 1
+                        _r = _r.get("value")
+                    # the source's None-holding shapes the evaluator does not read: the
+                    # display of a repetition `[e] * n` / `n * [e]`, and an element that is a
+                    # call of a file def whose return annotation is `None` / Optional
+                    if (isinstance(_v, dict) and _v.get("type") == "BinOp"
+                            and _v.get("op") == "*"):
+                        _v = next((_y for _y in (_v.get("left"), _v.get("right"))
+                                   if isinstance(_y, dict) and _y.get("type") in (
+                                       "ArrayLit", "ListLit", "List", "Tuple", "MkTuple",
+                                       "MkList")), _v)
+                    if isinstance(_v, dict) and isinstance(_v.get("elts"), list):
+                        _v = dict(_v, elts=[{"type": "None"} if (
+                            isinstance(_y, dict) and _y.get("type") == "Call" and any(
+                                isinstance(_fx, dict) and _fx.get("name") == _y.get("func")
+                                and (str(_fx.get("return_annotation")) in ("None", "NoneType")
+                                     or "Optional" in str(_fx.get("return_annotation")))
+                                for _fx in ((getattr(self, "ir", None) or {})
+                                            .get("functions") or []))) else _y
+                            for _y in _v["elts"]])
+                    if isinstance(_r, dict) and _r.get("type") == "Var":
+                        _r521_rq.append(("contcd", (_r.get("name"), _L), _v, False))
                 elif _s == "AugAssign" and isinstance(_n.get("target"), str):
                     _r521_rq.append(("contcd", (_n["target"], 0), _v, False))
                 if _t == "NamedExpr":
@@ -10521,6 +10553,27 @@ class FunctionEmissionMixin:
                     _f = str(_n.get("func", ""))
                     _a = _n.get("args") or []
                     _rv, _m = (_f.rsplit(".", 1) if "." in _f else ("", _f))
+                    # (u21) route #553, the CALLER side: a local container handed to a function
+                    # / method whose parameter admits None inside by an EXPLICIT `Optional` /
+                    # `None` (`xs: List[Optional[int]]`, Module 5's `r553_param_none_depths`
+                    # `admit`), or whose body stores a None into it (`r553_param_none_stores`),
+                    # may come back holding None at those depths. An `Any` / `object` / `PyVal`
+                    # element is not a taint source by itself (the honest `Dict[str, Any]`
+                    # pass-through: corpus 3472 / 6464); its stores are read syntactically.
+                    for _fx in _r553_cal:
+                        if not (_fx.get("name") == _f or (_rv and (
+                                _fx.get("name") == _m
+                                or str(_fx.get("name", "")).endswith("__" + _m)))):
+                            continue
+                        _pd = _fx.get("r553_param_none_depths") or {}
+                        _ps = _fx.get("r553_param_none_stores") or {}
+                        for _i, _pn in enumerate(_fx.get("formal_params") or []):
+                            if (_i < len(_a) and (_pn in _pd or _pn in _ps)
+                                    and isinstance(_a[_i], dict)
+                                    and _a[_i].get("type") == "Var"):
+                                _r521_rq.append(("contadd", (_a[_i].get("name"), {
+                                    _d for _d in ((_pd.get(_pn) or {}).get("admit") or [])
+                                    if _d >= 1} | set(_ps.get(_pn) or [])), None, False))
                     if _rv and "." not in _rv and _a:
                         if _m in ("append", "insert", "add", "setdefault", "appendleft"):
                             _r521_rq.append(("cont", (_rv, 1), _a[-1], True))
@@ -10678,7 +10731,9 @@ class FunctionEmissionMixin:
                     _r521_ca.append((_nm, ({_k} if _mbv else set())
                                      | {_d + _k for _d in _cdv}))
                 elif _x[0] == "contcd":
-                    _r521_ca.append((_x[1][0], set(_cdv)))
+                    _r521_ca.append((_x[1][0], {_d + _x[1][1] for _d in _cdv}))
+                elif _x[0] == "contadd":
+                    _r521_ca.append((_x[1][0], set(_x[1][1])))
             for _tg, _mbv, _cdv in _r521_bn:
                 for _nm in (_tg if isinstance(_tg, list) else [_tg]):
                     if isinstance(_nm, dict):
