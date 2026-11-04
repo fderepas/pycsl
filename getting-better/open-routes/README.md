@@ -26,6 +26,18 @@
 ##   mirror 53/53 0 / 0 / 0 (nothing owed); rt43 / rt44 150 honest probes: 0 changed. Residuals: re-exported names, decorated imported defs,
 ##   methods of imported-class instances, nested-def callees, `*` / `**` arguments; a `.get`-derived None argument stays #521's obligation.
 
+## run #4 (2026-11-04): #546 / #547 / #548 / #553 REPAIRED (executor u21 off int28 5627aee66, 9107a22b2 + its ledger / docs commit; Module 5
+##   `_build_function_ir` / `_stmts_to_whyml` / `_run_pipeline` twins `\trusted`, functions.py record no twin; no new def, no axiom; annotations
+##   §7.546). #546: return / parameter None depths per node, a TOP-LEVEL `Tuple[..]` the intersection of its slots, a returned tuple display judged
+##   slot by slot. #547: route #490's judge makes a number-annotated METHOD with a `return None` number-or-None at every `<recv>.m(..)` and judges
+##   `range` / `abs` / ... arguments as arithmetic (PYCSL-R490-LITERAL-INT-HASH). #548: a slice store taints like `extend`. #553: an item / slice
+##   store into a PARAMETER is an escape unless its annotation admits None there; the caller's local is tainted by an Optional parameter or a
+##   callee (also imported) that stores None into it. Witnesses 79: #546 / #548 / #553 57/57 NOT PROVED (default; typed / store fail Why3 typing at
+##   base and HEAD), #547 22 x 3 modes = 66/66 REFUSED. Corpus 8620-8638 FAIL, controls 8640-8649 PASS. Byte-diff root 0 / 0 / 0 (24 new), pyref
+##   0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed; a first draft moved stmt_control_flow and corpus 3472 / 3473 / 6464 -- the nested-tuple
+##   intersection and an `Any`-parameter caller taint, both withdrawn). rt43 / rt44 37 honest controls emission-identical. Residuals: a tuple nested
+##   in Optional / Union / a container keeps the union of slots; caller taint by positional argument only; a None-returning method matched by name.
+
 ## run #4 (2026-11-03): #540 / #544 / #545 REPAIRED (executor u19 off ac07b8bb0 = int26 + route docs, d063311e4 + f8f075847 + 2ee31a2a9 + its
 ##   ledger / docs commit; inline in route #432 / #527's engine and route #441's `CL` row in `_run_pipeline`, mirror twin `\trusted`, no new def, no
 ##   axiom, emission byte-identical; annotations §7.540). Under a TypeError claim: a unary `+` operand must be derived numeric (PYCSL-R540-UNARY-
