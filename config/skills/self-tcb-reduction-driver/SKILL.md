@@ -532,6 +532,16 @@ START (standing), not as an interrupt. Rules:
   Every brief says: CPython runs of probes go through heavy.sh (or `timeout` + `ulimit -v`), and any python that
   imports pycsl or walks the corpus runs AS heavy.sh.
 
+- **CARVE-OUT (driver run #4, 2026-11-03) — PARALLEL REFUSE-BY-DEFAULT REPAIRS INTERACT IN THE MERGE.** Four times
+  (8486: #534 x #539; 8367: #527 x #526; mirror identifiers.py: lv6 x #542; the #315 judge hand merge #529 x #533)
+  two executors' repairs, each green on its own tree, over-refused the OTHER executor's control or a mirror file once
+  integrated. The integration battery therefore re-runs EVERY executor's new corpus files (controls included) and a
+  FULL mirror sweep on the integrated tree; a fix is the driver's own recorded commit (control rewritten to keep its
+  subject, or a false mirror annotation corrected), never a loosened rule.
+- **CARVE-OUT (driver run #4) — EXECUTORS MUST NOT END A TURN WAITING ON A MONITOR.** rt50 sat idle twice for 2 h with
+  its jobs finished because the notification it waited for had already fired. Every brief says: poll your own
+  outputs with bounded loops and keep going until the final report is sent.
+
 ### A.5 WHY the heartbeat exists (read this before deciding it is ceremony)
 
 **Observed failure, run #6, 2026-07-22.** A 13-hour run was authorized four separate times and stalled

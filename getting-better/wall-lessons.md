@@ -8984,3 +8984,11 @@ probed against any swallow channel.
 - Erasing a str literal to match an erased-int operand is UNSOUND: `(0 or "?") * 0 == 0` proves, CPython False.
 - Reopening: a type- and truthiness-tracking model of erased values (= the int-erasure seam). Measurement:
   scratchpad bv1/ (session) — strip.tsv, spk/shapes.mlw.
+
+## (driver run #4, 2026-11-03) Parallel refuse-by-default repairs interact in the merge
+Evidence: int25 (8486 refused by #534 beside #539's admission), int26 (8367 refused by #527 beside #526), v35 (the
+mirror identifiers.py refused by #542 once lv6 verified whyml_ident — a false `int` annotation on WHYML_RESERVED),
+int25 (#529 / #533 blocks appended after the same lines of the #315 judge, merged by hand). Each executor was green on
+its own tree. Lesson: an integration battery is not the union of the executors' gates — it re-runs every executor's
+controls and the full mirror sweep on the integrated tree, and the fix is a recorded driver commit (control rewritten
+to keep its subject, a false mirror annotation corrected), never a loosened rule.
