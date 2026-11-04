@@ -18,7 +18,7 @@ TC-OK; then `--fun` (NORMAL) and an honesty read of the emitted body. Probe outp
 | `_nat_to_int_with_sidecond` | normalize | L3-TC int vs string: `pattern.sub(repl, s)`, `repl` a nested `def` (cap-re-compiled + named-def callable, spiked) | L3-TC: `val constant repl` vs the lifted `let repl` (fixed: callable arg never lowered) | `--fun` 1/1 Valid | honesty: the LIFTED `repl` becomes a verified `let` whose body is a facade (`m: re.Match` erased to int, `m_group_1 1` ignores `m`) | **REFUSED** (honesty: would put an input-blind lifted helper in the verified perimeter; needs a `re.Match` model) |
 | `_alpha_rename` | normalize | `sorted(.., key=<lambda with a len call>)` | (sorted patched away) `re.match` -> opaque `Optional[Match]`, `.group(1).split()`, dict comprehension, `.items()` loop with str targets, `re.escape` in an f-string pattern | -- | -- | **REFUSED** (5+ links: Match/Optional, list-of-str split, dict model, sorted-key) |
 | `normalize_surface` | parser | L3-TC: `_UNICODE_OPS.items()` / `_LIBRARY_PREFIX_STRIPS` targets `any int` (cap-pair-unroll) | L3-TC: `prev = None` then `prev = out` (int vs string) (cap-optstr-sentinel, spiked) | TERMINATION: fixpoint `while prev != out` over a law-free `re_sub_op` has no variant | -- | **REFUSED** -- needs `#@ \diverges` (weakening; its caller `parse_type_expr` is `\trusted`) |
-| `_sexp_tokens` | sertop | TC-OK (a generator: each `yield` lowers to a discarded value) | needs loop variants (`n - i`; `n - j` x2 with `i + 1 <= j` / `i <= j`) | -- | -- | **CONVERTED** (`--fun` 20/20 Valid; the yielded tokens are outside the model, the claim is type-safety + termination of the scan) |
+| `_sexp_tokens` | sertop | TC-OK (a generator: each `yield` lowers to a discarded value) | needs loop variants (`n - i`; `n - j` x2 with `i + 1 <= j` / `i <= j`): `--fun` 20/20 Valid, whole-file sertop 41/41, mutation `i = j` -> `i = i` caught (variant) | plane `check-yield-erasure` RED (max 0 converted generators dropping yielded values) | -- | **REFUSED** (yield-erasure: needs a generator-sequence model; the annotated port is in this file's history) |
 | `CrossCheckResult.diagnostic` | crosscheck | L3-TC: `for label, ok in self.pairwise.items()` over a property `Dict[str, bool]` lowered `map int (option int)` (no domain to iterate) | -- | -- | -- | REFUSED (vm-seam dict iteration) |
 | `_load_axiom_registry` x2 | crosscheck, crosscheck_ir | L3-TC str erasure | body = `Path.read_text` + `ast.parse` / `ast.walk` / `literal_eval`: all opaque | -- | -- | REFUSED (honesty: input-blind facade) |
 | `crosscheck_file` / `crosscheck_file_ir` | crosscheck, crosscheck_ir | `sorted(key=)` | subprocess-driven extractors, `Path.glob`, dict-of-str model | -- | -- | REFUSED (cost + honesty) |
@@ -42,7 +42,9 @@ Capabilities built (all emitter-local, law-free, axiom-free):
   as that iterable (Module 5 `module_const_str_pair_loops`), UNROLLED over the real pairs.
 
 Cover: {re-count, re-callable, pair-unroll} covers `normalize_prover_output` + `normalize_whyml_axiom`
-completely; `_sexp_tokens` needs no capability (loop variants only). 3 conversions.
+completely (cap-re-compiled is built and witnessed but its only consumers here are blocked further
+down). 2 conversions. `_sexp_tokens` (no capability, loop variants only) proved but is refused by the
+yield-erasure plane.
 
 Spiked but NOT landed (no conversion consumes them in this batch): the `_handle_while_stmt`
 `Return_str` / `absurd` fix (VERIFIED twin: would owe the stmt_control_flow whole-file proof),

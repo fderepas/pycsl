@@ -3531,12 +3531,148 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             return False
         fn = expr.get("func")
         n = self._RE_STR_FUNCS.get(fn) if isinstance(fn, str) else None
-        if n is None or expr.get("receiver") is not None or expr.get("keywords"):
+        if n is not None and expr.get("receiver") is None and not expr.get("keywords"):
+            a = expr.get("args") or []
+            if len(a) == n and all(self._is_string_expr(x) for x in a):
+                return True
+            if fn != "re.sub" or len(a) != 3:
+                return False
+        # lvA (proof2why3 normalize cluster): three MORE `re` substitution shapes, each
+        # fail-closed. CPython's `re.sub(p, r, s, count=k)` / `<compiled>.sub(r, s,
+        # count=k)` returns a `str` or raises (re.error, a raise from a callable `r`, a
+        # TypeError from a non-str result) -- never another type, so a `string`-typed op
+        # claims nothing CPython can contradict on a normal return (implicit exceptions
+        # are abnormal termination, the same footing as `re_sub_op`; route #287 refuses a
+        # dropped body only where `no_exception` / a handler relies on its freedom).
+        #   (1) a `count=<int literal >= 0>` keyword (the ONLY keyword; `flags=` refused);
+        #   (2) a CALLABLE repl that is a CLOSED, PURE one-parameter `lambda`: every name
+        #       it reads is its parameter or a generator target of its own, every call is a
+        #       method of such a value (so of a stdlib `re.Match` / `str` / `list` value --
+        #       never user code), an `re.<search|match|fullmatch|escape|sub>` call, or a
+        #       `len`/`str` builtin; no walrus / nested lambda / yield / await. Its result
+        #       depends on the matches, which this model cannot see, so it lowers to a
+        #       PLAIN `val` (not a `val function`: no determinism is claimed either);
+        #   (3) a receiver `<v>.sub(..)` where `<v>` is a local bound EXACTLY ONCE in the
+        #       function, by `<v> = re.compile(<str literal>)`, and named nowhere else
+        #       (`_re_compiled_locals`, computed in `_reset_function_state`).
+        # `re` must RESOLVE to the stdlib module (route #323 import test, as for
+        # `unicodedata`). Everything else keeps the opaque-int lowering.
+        if not isinstance(fn, str) or expr.get("receiver") is not None:
+            return False
+        _imps = ((self.ir.get("imports") or [])
+                 if isinstance(getattr(self, "ir", None), dict) else [])
+        if not ("re" not in (getattr(self, "_module_method_return_types", {}) or {})
+                and "re" not in (getattr(self, "_current_symbol_table", {}) or {})
+                and bool([_i for _i in _imps
+                          if isinstance(_i, (list, tuple)) and len(_i) >= 5 and _i[0] == "re"])
+                and all(_i[2] == "re" and _i[4] and _i[1] == "re" for _i in _imps
+                        if isinstance(_i, (list, tuple)) and len(_i) >= 5 and _i[0] == "re")):
             return False
         a = expr.get("args") or []
-        if len(a) != n:
+        if fn == "re.sub" and len(a) == 3:
+            _rpat, _rrep, _rsub = a
+            if not self._is_string_expr(_rpat):
+                return False
+        elif (fn.endswith(".sub") and fn.count(".") == 1 and len(a) == 2
+              and fn[:-4] in (getattr(self, "_re_compiled_locals", None) or {})):
+            _rrep, _rsub = a
+        else:
             return False
-        return all(self._is_string_expr(x) for x in a)
+        _kws = expr.get("keywords") or []
+        if len(_kws) > 1:
+            return False
+        for _kw in _kws:
+            _kv = _kw.get("value") if isinstance(_kw, dict) else None
+            if not (isinstance(_kw, dict) and _kw.get("arg") == "count"
+                    and isinstance(_kv, dict) and _kv.get("type") == "Number"
+                    and type(_kv.get("value")) is int and _kv.get("value") >= 0):
+                return False
+        if not self._is_string_expr(_rsub):
+            return False
+        if self._is_string_expr(_rrep):
+            return True
+        if not (isinstance(_rrep, dict) and _rrep.get("type") == "Lambda"
+                and len(_rrep.get("params") or []) == 1
+                and isinstance(_rrep["params"][0], str)):
+            return False
+        _rbody = _rrep.get("body")
+        _bound = {_rrep["params"][0]}
+        _rbound0 = frozenset(_bound)
+        _pure_fns = {"re.search", "re.match", "re.fullmatch", "re.escape", "re.sub",
+                     "len", "str"}
+        _work = [_rbody]
+        while _work:
+            _x = _work.pop()
+            if isinstance(_x, list):
+                _work.extend(_x)
+                continue
+            if not isinstance(_x, dict):
+                continue
+            _xt = _x.get("type")
+            # ALLOW-list of expression kinds (fail-closed: an `UnknownPyExpr` / any
+            # construct the front end did not translate could hide a call or a binding).
+            if _xt is not None and _xt not in (
+                    "Var", "String", "Number", "Bool", "None", "Call", "Attribute",
+                    "FieldGet", "FString", "FormattedValue", "Subscript", "SliceAccess",
+                    "Slice", "BinOp", "UnaryOp", "IfExpr", "Tuple", "ArrayLit", "ListLit",
+                    "GenExp", "ListComp", "SetComp", "DictComp"):
+                return False
+            if _xt in ("GenExp", "ListComp", "SetComp", "DictComp"):
+                for _g in (_x.get("generators") or []):
+                    _gt = _g.get("target") if isinstance(_g, dict) else None
+                    if not isinstance(_gt, str) or _gt == "_comp_var" or "." in _gt:
+                        return False
+                    _bound.add(_gt)
+            if _xt == "Var" and _x.get("name") not in _bound:
+                return False
+            if _xt == "Call":
+                _cf = _x.get("func")
+                if not isinstance(_cf, str):
+                    return False
+                if _x.get("receiver") is None:
+                    if _cf in _pure_fns:
+                        if "." not in _cf and (
+                                _cf in (getattr(self, "_module_method_return_types", {}) or {})
+                                or _cf in (getattr(self, "_current_symbol_table", {}) or {})):
+                            return False
+                    elif not (_cf.count(".") == 1 and _cf.split(".")[0] in _bound):
+                        return False
+            _work.extend(_v for _k, _v in _x.items() if isinstance(_v, (dict, list)))
+        # generator targets are bound only once their generator is seen; a read of one
+        # OUTSIDE its comprehension would be a free variable the walk above accepted if
+        # the comprehension was visited first -- re-walk with the parameter alone bound
+        # outside comprehensions to close that gap.
+        _work = [(_rbody, _rbound0)]
+        while _work:
+            _x, _sc = _work.pop()
+            if isinstance(_x, list):
+                _work.extend((_y, _sc) for _y in _x)
+                continue
+            if not isinstance(_x, dict):
+                continue
+            if _x.get("type") in ("GenExp", "ListComp", "SetComp", "DictComp"):
+                # Python scoping: a generator's `iter` sees only the targets of the
+                # generators BEFORE it (the first one is evaluated in the enclosing scope);
+                # its `ifs` and the element see its own target too.
+                if set(_x) - {"type", "elt", "key", "value", "generators"}:
+                    return False
+                _gsc = _sc
+                for _g in (_x.get("generators") or []):
+                    if not isinstance(_g, dict):
+                        return False
+                    _work.append((_g.get("iter"), _gsc))
+                    _gsc = _gsc | {_g.get("target")}
+                    _work.append((_g.get("ifs"), _gsc))
+                _work.extend((_x.get(_k), _gsc) for _k in ("elt", "key", "value"))
+                continue
+            if _x.get("type") == "Var" and _x.get("name") not in _sc:
+                return False
+            if (_x.get("type") == "Call" and _x.get("receiver") is None
+                    and isinstance(_x.get("func"), str) and _x["func"].count(".") == 1
+                    and _x["func"] not in _pure_fns and _x["func"].split(".")[0] not in _sc):
+                return False
+            _work.extend((_v, _sc) for _k, _v in _x.items() if isinstance(_v, (dict, list)))
+        return True
 
     _OS_PATH_SPLIT_SLOTS = {
         "splitext": ("path_splitext_root_op", "path_splitext_ext_op"),
@@ -3635,9 +3771,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "val function re_escape_op (s: string) : string\n"
                 "    ensures { String.length result >= String.length s }")
             return f"(re_escape_op {args[0]})"
+        # lvA: the compiled-pattern receiver / `count=` / callable-repl shapes (see
+        # `_is_re_str_call`). The pattern of `<v>.sub` is the literal `<v>` was compiled
+        # from; `args` holds the lowered POSITIONAL arguments only.
+        if fn in ("re.sub", "_re.sub"):
+            _rpw, _rrep_ir, _rsw = args[0], (expr.get("args") or [None, None])[1], args[2]
+            _rrw = args[1]
+        else:
+            _rpw = self._expr_to_whyml(self._re_compiled_locals[fn[:-4]], set())
+            _rrep_ir, _rrw, _rsw = (expr.get("args") or [None])[0], args[0], args[1]
+        if not self._is_string_expr(_rrep_ir):
+            self._add_abstract_op("val re_sub_callable_op (pat s: string) : string")
+            return f"(re_sub_callable_op {_rpw} {_rsw})"
+        _kws = expr.get("keywords") or []
+        if _kws:
+            self._add_abstract_op(
+                "val function re_sub_count_op (pat rep s: string) (count: int) : string")
+            return f"(re_sub_count_op {_rpw} {_rrw} {_rsw} {_kws[0]['value']['value']})"
         self._add_abstract_op(
             "val function re_sub_op (pat rep s: string) : string")
-        return f"(re_sub_op {args[0]} {args[1]} {args[2]})"
+        return f"(re_sub_op {_rpw} {_rrw} {_rsw})"
 
     # lv6 (str-iteration chain, `whyml_ident`): `unicodedata.normalize(<form>, <str>)`.
     # CPython: a `str` result for a `str` argument and one of the four form names; any
@@ -10768,7 +10921,19 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             except Exception:
                 _pt_for_args = []
         args = []
+        # lvA: the CALLABLE (lambda) repl of a recognized `re` substitution is never
+        # lowered: its value is not part of the model (`_handle_re_str_call`), exactly as
+        # the dropped `sorted(key=<lambda>)` body (route #275).
+        _rcs_idx = -1
+        if self._is_re_str_call(expr) and isinstance(func_name, str):
+            _rcs_i = 1 if func_name in ("re.sub", "_re.sub") else 0
+            if (len(expr["args"]) > _rcs_i
+                    and not self._is_string_expr(expr["args"][_rcs_i])):
+                _rcs_idx = _rcs_i
         for _ai, _airr in enumerate(expr["args"]):
+            if _ai == _rcs_idx:
+                args.append("()")
+                continue
             _want_pymap = (_ai < len(_pt_for_args)
                            and _pt_for_args[_ai] == "map string (option hval)")
             _saved_wp = getattr(self, "_todict_arg_wants_pymap", False)

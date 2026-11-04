@@ -10,12 +10,97 @@ import re
 from typing import List, Tuple
 _UNICODE_OPS = {'∀': 'forall', '→': '->', '≥': '>=', '≤': '<=', '∨': '\\/', '∧': '/\\\\', '≠': '<>', '¬': 'not', '≡': '='}
 _PREFIX_STRIPS: List[int] = [('PeanoNat.Nat.gcd', 'gcd'), ('PeanoNat.Nat.modulo', 'mod'), ('PeanoNat.Nat.add', 'add'), ('PeanoNat.Nat.mul', 'mul'), ('PeanoNat.Nat.sub', 'sub'), ('Nat.gcd', 'gcd'), ('Nat.modulo', 'mod'), ('Nat.mod', 'mod'), ('Nat.add', 'add'), ('Nat.mul', 'mul'), ('Nat.sub', 'sub'), ('BinNat.N.gcd', 'gcd'), ('BinNat.N.modulo', 'mod'), ('Init.Nat.gcd', 'gcd')]
-#@ \trusted reviewer: pycsl-self-annotate
+# CONVERTED (run #5 lvA). Verbatim body port of the LIVE `normalize_prover_output`: the `for k, v in _UNICODE_OPS.items()` / `for src, dst in _PREFIX_STRIPS` loops are
+# UNROLLED over the module constants' literal pairs (`module_const_str_pair_loops`), and the
+# `re.sub(..., count=1)` / callable-`lambda` repl calls lower to the law-free
+# `re_sub_count_op` / `re_sub_callable_op` (lvA capabilities); the callees in this file are
+# called through their own contracts..
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def normalize_prover_output(s: str) -> str:
-    return ""
+    out = s.strip()
+    # 1. Unicode → ASCII operators
+    for u, a in _UNICODE_OPS.items():
+        out = out.replace(u, a)
+    # 2. Library-prefix strips
+    for src, dst in _PREFIX_STRIPS:
+        out = out.replace(src, dst)
+    # 3. Lean dot notation: a.gcd b → (gcd a b), a.mod b → (mod a b).
+    #    Pattern: `<var>.<fn>` becomes `(fn <var>` then one argument
+    #    is consumed via a balanced lookahead; we approximate by
+    #    inserting an opening paren before fn and a closing paren
+    #    after the next token (which is the second arg).
+    for fn in ("gcd", "mod", "add", "mul", "sub"):
+        # `a.fn b` → `(fn a b)` — preserve grouping for downstream
+        # infix rewrites (e.g., `%`) and for paren-aware comparison
+        # with Coq's pretty-printer output.
+        out = re.sub(
+            rf"\b([a-zA-Z_][a-zA-Z0-9_]*)\.{fn}\s+([a-zA-Z_][a-zA-Z0-9_]*)",
+            rf"({fn} \1 \2)", out,
+        )
+        # Same with paren'd second arg: `a.fn (X)` → `(fn a (X))`.
+        out = re.sub(
+            rf"\b([a-zA-Z_][a-zA-Z0-9_]*)\.{fn}\s+(\([^()]+\))",
+            rf"({fn} \1 \2)", out,
+        )
+    # 4. Lean's `%` infix operator → `mod` prefix.
+    #    `a % b` → `mod a b` for simple operands; `a % (E)` → `mod a (E)`.
+    out = re.sub(
+        r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s*%\s*(\([^()]+\))",
+        r"(mod \1 \2)", out,
+    )
+    out = re.sub(
+        r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s*%\s*([a-zA-Z_][a-zA-Z0-9_]*)",
+        r"(mod \1 \2)", out,
+    )
+    # 5a. Expand anonymous-binder arrows (forall ... (_ : H), → H ->).
+    out = _expand_anon_binders(out)
+    # 5b. Normalize parens/spaces in binders: `forall (a b : nat),` → `forall a b : nat,`.
+    out = re.sub(
+        r"forall\s*\(\s*([^()]+?)\s*\)\s*,",
+        r"forall \1,",
+        out,
+    )
+    # 6. nat → int with side conditions:
+    #    `forall a : nat, P(a)` → `forall a : int, a >= 0 -> P(a)`.
+    #    `forall a b : nat, P(a, b)` → `forall a b : int, a >= 0 -> b >= 0 -> P(a, b)`.
+    out = _nat_to_int_with_sidecond(out)
+    # 7a. Strip redundant parens around top-level disjunctions/conjunctions
+    #     appearing as an `->` hypothesis: `... -> (P \/ Q) -> ...` →
+    #     `... -> P \/ Q -> ...`.
+    out = re.sub(
+        r"->\s*\(\s*([^()]+?(?:\s*[\\/]+\s*[^()]+?)+)\s*\)\s*->",
+        r"-> \1 ->",
+        out,
+    )
+    # 7b. Normalize comparison direction: `0 <= x` → `x >= 0`,
+    #     `0 < x` → `x > 0`. Two-arg version only.
+    out = re.sub(
+        r"\b(\w+(?:\s+\w+)*)\s*<=\s*(\w+(?:\s+\w+)*)",
+        lambda m: f"{m.group(2)} >= {m.group(1)}"
+                  if not re.search(r"\b(forall|exists)\b", m.group(1))
+                  else m.group(0),
+        out, count=1,
+    )
+    # 7c. Lean's `a.gcd 0` case where second token is a literal.
+    out = re.sub(
+        r"\b([a-zA-Z_][a-zA-Z0-9_]*)\.gcd\s+(\d+)",
+        r"(gcd \1 \2)", out,
+    )
+    # 7d. Paren strip BEFORE the <= rewrite so `k <= (gcd a b)` collapses
+    #     to `k <= gcd a b` and the <= rule below can fire.
+    out = _strip_all_parens(out)
+    # 7e. <= rewrite (re-applied post-paren-strip with broader RHS).
+    out = re.sub(
+        r"\b(\w+)\s*<=\s*(\w+(?:\s+\w+)*)",
+        r"\2 >= \1",
+        out, count=1,
+    )
+    # 8. Whitespace collapse + alpha rename.
+    out = re.sub(r"\s+", " ", out).strip()
+    out = _alpha_rename(out)
+    return out
 
 #@ requires True
 #@ ensures True
@@ -49,10 +134,32 @@ def _expand_anon_binders(s: str) -> str:
 def _alpha_rename(s: str) -> str:
     return ""
 
-#@ \trusted reviewer: pycsl-self-annotate
+# CONVERTED (run #5 lvA). Verbatim body port of the LIVE `normalize_whyml_axiom`: the `re.sub(<pat>, <lambda>, out, count=1)` call lowers to the law-free
+# plain `re_sub_callable_op` (lvA capability).
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def normalize_whyml_axiom(body: str) -> str:
-    return ""
+    out = body.strip()
+    # Collapse Why3 `forall x y : int.` (dot) to `forall x y : int,` (comma).
+    out = out.replace(" : int.", " : int,")
+    # Strip redundant parens around top-level disjunctions appearing
+    # as -> hypotheses (mirror prover-side rule 7a).
+    out = re.sub(
+        r"->\s*\(\s*([^()]+?(?:\s*[\\/]+\s*[^()]+?)+)\s*\)\s*->",
+        r"-> \1 ->",
+        out,
+    )
+    # Normalize `0 <= x` → `x >= 0` to match the prover side.
+    out = re.sub(
+        r"\b(\w+(?:\s+\w+)*)\s*<=\s*(\w+(?:\s+\w+)*)",
+        lambda m: f"{m.group(2)} >= {m.group(1)}"
+                  if not re.search(r"\b(forall|exists)\b", m.group(1))
+                  else m.group(0),
+        out, count=1,
+    )
+    out = re.sub(r"\s+", " ", out)
+    out = _strip_all_parens(out)
+    out = _alpha_rename(out)
+    return out
 
