@@ -7986,8 +7986,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 if not any(_pa549.startswith(_r + _os549.sep) for _r in _rt549):
                     continue
                 try:
-                    with open(_pa549, encoding="utf-8") as _fh549:
-                        _mt549 = _ast341.parse(_fh549.read())
+                    _mt549 = _ast341.parse(__import__("pathlib").Path(_pa549).read_text(
+                        encoding="utf-8"))
                 except Exception:
                     continue
                 _bm549 = {}
