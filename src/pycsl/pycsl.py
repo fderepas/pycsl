@@ -20296,8 +20296,8 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     _pf552 = _os552.path.join(_d552, *_mn552.split(".")) + ".py"
                     if _os552.path.isfile(_pf552):
                         try:
-                            with open(_pf552, encoding="utf-8") as _fh552:
-                                _t552 = _ast486.parse(_fh552.read())
+                            import pathlib as _pl552
+                            _t552 = _ast486.parse(_pl552.Path(_pf552).read_text(encoding="utf-8"))
                         except Exception:
                             _t552 = None
                         break
