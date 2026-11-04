@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #5 (2026-11-04): #556 / #558 / #560 REPAIRED (executor u25 off 40cf96df0, 0e234e693 + 03b5bf61e + the ledger / docs commit; inline in `_run_pipeline`
+##   after route #564's judge, on the §7.541 kinds, file-wide tables built once before the judged-body loop, mirror twin `\trusted`, lambdas only, no
+##   new def, no axiom, emitter untouched; annotations §7.556). #556: a builtin function / type / module object (an unbound builtin name, an
+##   allow-listed stdlib import (builtins included) or its / a builtin type's attribute, `type(..)`, a local bound only to one) whose runtime type has neither `__iter__` nor `__contains__`,
+##   at a route #542 iterating / haystack position, is refused PYCSL-R556-BUILTIN-OBJECT-OPERAND. #560: an IntEnum member (`IE.B`, `IE(..)`, an `IE`
+##   parameter, a local / display element bound only to one) at those positions is refused PYCSL-R560-INTENUM-MEMBER-OPERAND. #558: `bytes(..)` /
+##   `bytearray(..)` as a display element, inserted into a container of a non-container non-bytes element domain, or bound to such an annotated
+##   local is refused PYCSL-R558-BYTES-VALUE-KIND. Witnesses 110 (78 / 17 / 15) x default / typed / store = 330/330 REFUSED (11 #558 append
+##   witnesses refused in typed / store by the mutation guard first). Corpus 8780-8794 / 8795-8805 / 8806-8813 FAIL (34, PROVED at base; 8794 `k in builtins.len`,
+##   8804 / 8805 unannotated displays: three new false proofs), controls 8815-8817 PASS (base + HEAD). Byte-diff vs 40cf96df0: root 2885 -> 2888 0 MOVED / 0 GONE /
+##   0 APPEARED, python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0. rt43 / rt44 149 controls: verdicts identical. Residuals: objects / members
+##   reached through calls, fields or containers; modules outside the allow-list; `bytes(..)` as an argument / return / extend (left to Why3
+##   typing, measured not proved).
+
 ## run #4 (2026-11-04): #557 / #559 / #563 / #564 REPAIRED (executor u24 off fb3880c2a = int30 + the #556-#564 route docs, 48de7b7ab + its ledger /
 ##   docs commit; inline in `_run_pipeline` after route #552's judge, on the §7.541 kinds, mirror twin `\trusted`, lambdas only, no new def, no
 ##   axiom, emitter untouched; annotations §7.557). #557: a subscript (store / del / augmented / read) whose receiver may be a set / frozenset is
