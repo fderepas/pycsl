@@ -5524,6 +5524,67 @@ a container / record handle at a NUMBER method parameter stays route #552's use-
 of an unknown kind (a value the §7.541 kinds do not establish) is left to Why3 typing and the display's
 opaque fallback; comprehensions are routes #561 / #562.
 
+### 7.556 A builtin / module object and an IntEnum member are not searched or iterated; `bytes(n)` is not a str / number element (routes #556 / #558 / #560, run #5)
+
+Three values the value model lowers to an opaque Why3 `int` whose kind §7.541's judge never established. Red team 53
+measured on 3833d61d4 (driver repro on int30; still PROVED on 40cf96df0), PROVED `no_exception \all` while CPython
+raises TypeError: (#556, 78) a builtin function / type object or a module (`len`, `print`, `sorted`, `int`, `str`,
+`ValueError`, `Optional`, `type(None)`, `math`, `os`, `math.sqrt`, `os.getcwd`, `os.path`, `g = len`) as the
+haystack of `in` / `not in` or the iterable of a `for` / comprehension / generator (`k in len`, `for x in print`,
+`sum(1 for x in math)`, in a claimed or unclaimed callee, with a str needle) -- `val constant len : int` and a
+total `contains_check` / `iter_length`; (#558, 17) `bytes(n)` / `bytearray(n)` -- an `any int` -- stored into an
+established `List[str]` (append / display) or number container (`List[int]` append / item store / `+=` / display,
+`Dict[str, int]` store) and the element then used as a str / number (`x + "c"`, `"-".join([x])`, `x + 1`); (#560,
+15) an IntEnum member (`IE.B`, a local bound to one, `[IE.B][0]`, `IE(1)`, an `IE` parameter) -- an int at
+runtime, an int field of the class record in the model -- as the haystack / iterable.
+
+RULE (inline in `_run_pipeline`, after route #564's judge, on the kinds of §7.541, every judged body; file-wide
+tables built once before the judged-body loop; mirror twin `\trusted`, lambdas only, no new def, no axiom,
+emitter untouched):
+- `PYCSL-R556-BUILTIN-OBJECT-OPERAND`: at an iterating / membership-haystack position of route #542 (`in`
+  container, `for` / comprehension iterable, `*x`, `yield from`, unpacking, the argument of `len` / `list` /
+  `sorted` / `sum` / `any` / `all` / `enumerate` / `dict` / `zip` / `map` / `filter` / `str.join`, one-argument
+  `min` / `max` / `iter`), an operand that resolves to Python objects whose runtime type defines neither
+  `__iter__` nor `__contains__`: a builtin name the file never binds (no `from M import *`), a name bound once by
+  a top-level `import` of an allow-listed standard-library module (math, os, sys, typing, string, functools,
+  itertools, collections, enum, re, builtins, ... -- not shadowed by a file beside the program), an attribute of
+  such a module or of a builtin type (`builtins.len`, `os.path.join`, `str.upper`), `type(<literal>)` / `type(e)` of a builtin-kind `e`, a local bound only to such objects, a ternary of
+  two. A subscript receiver is judged only when the object is a function or a module (a type / typing form may
+  be subscripted: `list[int]`, `Optional[int]`).
+- `PYCSL-R560-INTENUM-MEMBER-OPERAND`: at the same positions and as a subscript receiver, an IntEnum member of
+  a file class whose lineage has an `IntEnum` (or `int` + `Enum`) base and no Flag / IntFlag / StrEnum / str
+  base nor its own `__iter__` / `__contains__` / `__getitem__`: `IE.B` (a class-body assignment), `IE(..)`,
+  `IE[..]`, a value whose kinds are `c:IE` (and None: `Optional[IE]`; a parameter / local / field annotated `IE`), a local bound only to members, a
+  subscript of a display (or of a local bound only to displays, never inserted into) of members.
+- `PYCSL-R558-BYTES-VALUE-KIND`: a value that may be `bytes(..)` / `bytearray(..)` (the builtin, unshadowed;
+  through a ternary arm / `and` / `or` operand / walrus / a local bound from one) (a) as a list / set / tuple
+  display element or a dict display value, unless the display is the value of a binding / return whose
+  annotation names bytes (`bytes` / `bytearray` / `ByteString` / `Buffer` / `memoryview` / `Any` / `object`) or
+  whose element / value domain is a container kind, or an equality / membership comparand; (b) stored by
+  append / add / insert / item store / setdefault into a container whose declared (annotated local / parameter
+  / field) or displayed element (dict: value) domain is established, is not a container kind and names no
+  bytes (a displayed domain holding a bytes literal / call admits bytes); (c) bound to a local / field whose
+  annotation is established, not a container kind (`self.buf: list = bytearray(n)`, the corpus idiom, stays
+  admitted) and names no bytes.
+
+Witnesses `witnesses-r556/` (78), `witnesses-r558/` (17), `witnesses-r560/` (15) x default / typed / store: 330/330
+REFUSED (default 110/110 by the three codes; typed / store 99 by the three codes + 11 append witnesses of #558
+already refused by the typed / store mutation guard). Corpus `8780`-`8794` (#556; 8794 `k in builtins.len`, a new false proof beyond rt53's family), `8795`-`8805` (#558; 8804 an
+UNANNOTATED display `xs = [1, bytes(2)]` and 8805 an unannotated display-bound list -- two new false proofs beyond
+rt53's family), `8806`-`8813` (#560) FAIL (PROVED at base 40cf96df0, REFUSED); controls `8815`-`8817` (builtins
+called, `in` / `for` over a dict / str / range / list; IntEnum members computed and compared as ints;
+`bytearray(n)` read as bytes) PASS at base and HEAD. Advice probes `witnesses-r556/advice` (a556_range /
+a556_str), `witnesses-r558/advice` (a558_str / a558_bytes), `witnesses-r560/advice` (a560_eq / a560_tuple /
+a560_class) VERIFY `no_exception \all` at base and HEAD.
+Byte-diff vs a worktree at 40cf96df0: root 2885 -> 2888 0 MOVED / 0 GONE / 0 APPEARED (+3 controls),
+python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed); rt43 / rt44 149 controls: front-end verdicts
+identical base / HEAD.
+Residuals (named): a builtin / module object reached through a call result, a field, a container element or a
+parameter is not resolved; a module outside the allow-list (or a file module) is not resolved; a builtin type
+as a subscript receiver is not judged; `bytes(..)` passed as a call argument / returned / extended (`xs +=
+bytes(2)` iterates ints) is left to Why3 typing (measured not proved); an IntEnum member reached through a
+field / call is not followed; comprehensions are routes #561 / #562.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
