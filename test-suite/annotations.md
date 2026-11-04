@@ -5293,6 +5293,58 @@ Residuals (named): narrowing is not modelled (a `Union[int, List[int]]` iterated
 refused); a list aliased through a call or a container is not followed; a None member of a name's join and a
 non-number into a number container are the value fences' / route #490's.
 
+### 7.549 A None argument is judged at every callee whose parameter does not admit it; an imported callee binds and returns as a file one does (routes #549 / #554 / #555, run #4)
+
+Red team 52 measured PROVED `no_exception \all` in default, `typed` and `store` while CPython raises TypeError:
+(#549, 49) a None SOURCE route #526 / #490 do not class may-be-None -- a None literal, a local / walrus bound
+to None, a `-> None` call (`nothing()`, `print()`), a display element / dict value / unpack slot of one --
+passed to an `int` parameter of an IMPORTED function or constructor (`from dep import g; g(None)`,
+`rt52dep.g(None)`, `pk.mod.g(None)`, `DC(None)`) or, for the non-literal shapes, of a FILE function / method
+(`g(nothing())`, `v = None; g(v)`, `Q().m(v)`); (#554, 32) route #449's binding check stopped at the file:
+`g(k, k)` / `g(k, x=k)` of an imported `def g(x)`, `DC()` / `DC(k, k)` / `DC(z=k)` of an imported class
+(plain, `@dataclass`, `NamedTuple`) were lowered by dropping / defaulting the mismatch; (#555, 31) an
+imported def is a bodyless `val` of its annotation's model type, so `gnone() + 1` over `def gnone() ->
+Optional[int]`, `gn() + 1` over `def gn() -> None`, `gpipe(k) < 3` over `-> int | None` and `gintnone() + 1`
+over a `-> int` returning the dependency's `ZI: int = None` were integer arithmetic.
+
+RULE (inline in `_run_pipeline`; mirror twin `\trusted`, no new def, no axiom, emission byte-identical). The
+program's own modules (this file's directory and the `--import-path` roots, never the standard library) are
+read STATICALLY: a call reaches an imported `def` / `class` when its name is imported once and never otherwise
+bound in this file (`from M import n [as a]`) or is a module attribute chain (`import M [as a]`, `import
+P.M`), and M binds the name exactly once, by a top-level `def` / `class` (`_xc549`). Under a claim covering
+TypeError (`\all`, `TypeError`, `Exception`, `BaseException`; own or reached), with route #527 / #545's FLOW
+NARROWING (`if v is not None:`, an early `return`, `isinstance`, `assert`, a rebinding from a non-None value):
+(#549) an argument that MAY BE None -- route #545's None source (now also a call of an imported def whose
+result may be None, `print(..)`, a builtin container mutator's result), an element read (`xs[i]`, `.get`,
+`.pop`) of a local container a display / item store / `append` / `insert` / `add` / `setdefault` / `extend`
+/ `update` filled with one (a tuple bound once read at a constant index: that slot only), a local / walrus /
+ternary arm / `and` / last `or` operand of one -- bound to a parameter that does not admit None (annotated,
+not defaulting to None, and made only of known non-None classes: builtin scalars / containers / `typing`
+collection ABCs / program classes; `Optional`, `| None`, `Any`, `object`, a TypeVar or an alias admit) of a
+file def, `self.m` (every file subclass), `C.m`, a method of a receiver derived as file classes, a file /
+imported constructor (`__init__`, else dataclass / NamedTuple fields) or an imported def, is REFUSED with
+`PYCSL-R549-NONE-ARGUMENT` unless narrowing removes None (a literal None for a file def's int / float / bool /
+complex slot stays route #490's). (#555) a #527 operand position (arithmetic, ordering, `in` haystack,
+subscript, iterable) whose value is, or is bound from, a call of an imported def whose return annotation is
+absent or admits None / `Any` / `object`, or whose own body returns a None literal, a bare `return` or a
+module name bound to a None literal, is REFUSED with `PYCSL-R555-IMPORTED-NONE-RESULT` unless narrowed (a
+unary / augmented operand of one is route #545's). (#554) on route #466's import run, a call whose callee is
+a function or class of a program module (an imported name never otherwise bound, or a module attribute
+chain) must bind by CPython's algorithm: a function against its (undecorated) `def`, a class against what
+`type.__call__` runs -- the first `__init__` / `__new__` of its MRO that is not `object`'s (a program `def` read
+from its statement, a generated dataclass / NamedTuple one by `inspect.signature`; both `object`'s: no
+argument) -- as `inspect.Signature.bind` decides; otherwise `PYCSL-R554-IMPORTED-CALL-SIGNATURE`.
+
+Witnesses `8660`-`8669` (#549), `8674`-`8679` (#554), `8681`-`8686` (#555; 8686 `-gn()` is route #545's
+refusal through the imported None source) (PROVED at base, REFUSED); controls `8670`-`8673`, `8680`, `8687`-
+`8689` (narrowed locals, an `Optional` parameter, a None-defaulted parameter after an early return, a tuple's
+int slot, binding calls of every callable kind, an early return / guarded ternary over an imported Optional,
+an imported `-> int` of an int constant). Residuals (named): a re-exported name (`from a import g` inside the
+dependency), a decorated imported def, a metaclass with its own `__call__`, a builtin base's slot, a method of
+an instance of an imported class, a nested def / closure callee, a `*` / `**` argument (route #379's), an
+imported `-> int` def that falls off its end; a may-be-None value whose derived classes hold None (a `.get`)
+passed as an argument stays route #521's Module 6 obligation.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

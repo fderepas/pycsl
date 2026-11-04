@@ -14,6 +14,18 @@
 ##   accepted as an int (46); #553 a callee's item store of None into its container parameter (18); #554 #449's argument binding stops at the file
 ##   (32, all models); #555 an imported function's None result never may-be-None (31, all models). Driver repro 10/10 on int28.
 
+## run #4 (2026-11-04): #549 / #554 / #555 REPAIRED (executor u22 off 5627aee66 = int28 + route docs, 7a1523851 + ad8f0864e; inline in `_run_pipeline`,
+##   mirror twin `\trusted`, no new def, no axiom, emission byte-identical; annotations §7.549). The program's own modules are read STATICALLY
+##   (`_xc549`: a call reaching an imported top-level def / class). Under a TypeError claim, with #432's flow narrowing: an argument that may be
+##   None (#545's None sources + imported may-be-None calls, `print()`, builtin mutator results, an element of a local container filled with one)
+##   bound to a parameter that does not admit None of a file / imported def, method or constructor (PYCSL-R549-NONE-ARGUMENT); a #527 operand
+##   from an imported def whose result may be None (Optional / None / `| None` / Any / absent annotation, or a body returning None / a None module
+##   constant) (PYCSL-R555-IMPORTED-NONE-RESULT); on route #466's import run, a call of a program module's function / class must bind by
+##   `inspect.Signature` (PYCSL-R554-IMPORTED-CALL-SIGNATURE). Witnesses 52 x default / typed / store = 156/156 REFUSED. Corpus 8660-8669 /
+##   8674-8679 / 8681-8686 FAIL (22/22 PROVED at base), controls 8670-8673 / 8680 / 8687-8689 PASS. Byte-diff root 0 / 0 / 0, pyref 0 / 0 / 0,
+##   mirror 53/53 0 / 0 / 0 (nothing owed); rt43 / rt44 150 honest probes: 0 changed. Residuals: re-exported names, decorated imported defs,
+##   methods of imported-class instances, nested-def callees, `*` / `**` arguments; a `.get`-derived None argument stays #521's obligation.
+
 ## run #4 (2026-11-03): #540 / #544 / #545 REPAIRED (executor u19 off ac07b8bb0 = int26 + route docs, d063311e4 + f8f075847 + 2ee31a2a9 + its
 ##   ledger / docs commit; inline in route #432 / #527's engine and route #441's `CL` row in `_run_pipeline`, mirror twin `\trusted`, no new def, no
 ##   axiom, emission byte-identical; annotations §7.540). Under a TypeError claim: a unary `+` operand must be derived numeric (PYCSL-R540-UNARY-
