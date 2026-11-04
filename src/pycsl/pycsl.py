@@ -21371,6 +21371,238 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 f"the ordering `{_ast486.unparse(_n552).strip()[:60]}` has "
                                 f"operands that may be {_w552}"))
                             break
+            # (run #4, routes #557 / #559 / #563 / #564; red team 53) four places where the
+            # lowering never asks what kind a value is, on the kinds above (own scope):
+            # - PYCSL-R557-SET-SUBSCRIPT: a subscript (an item store, `del`, an augmented
+            #   item store or a read) whose receiver may be a set / frozenset -- the set
+            #   shares the dict's map representation, so `s[0] = 1` lowered as a map update
+            #   (CPython TypeError: 'set' object does not support item assignment);
+            # - PYCSL-R559-BUILTIN-OBJECT-ELEMENT: a builtin function / type object (`int`,
+            #   `len`, `ValueError`, not rebound by the file) stored as a list / set / tuple
+            #   display element, a dict display value or an `append` / `add` / `insert`
+            #   argument -- the name is an opaque Why3 int constant, so `ys = [int]; ys[0] +
+            #   1` proved (a tuple of classes at `isinstance` / `issubclass` / `except`, and a
+            #   subscript slice -- a typing form -- are not values);
+            # - PYCSL-R563-METHOD-ARGUMENT-KIND: an argument of a call of a file method of a
+            #   known receiver class whose known kinds do not fit the declared parameter --
+            #   the resolver falls back to a fresh opaque `val <recv>_<m>_<n>` and the body
+            #   is never reached (a None argument is route #549's; a Protocol / foreign-base
+            #   class domain is not judged; at a NUMBER parameter only a str is judged here,
+            #   a container / record handle is route #552's use-based rule);
+            # - PYCSL-R564-DISPLAY-ELEMENT-KIND: inside a tuple / set display element, an
+            #   ordering of a pair CPython rejects, unary `-` / `+` / `~` of a non-number,
+            #   an arithmetic / bitwise operator over kinds it rejects (a record without the
+            #   dunder), `x in s` of a non-str needle in a str -- the display falls back to an
+            #   opaque `(any int)` and the element is never typed.
+            if not _reps541:
+                import builtins as _bi557
+                _BIN557 = frozenset(_x for _x in dir(_bi557) if not _x.startswith("_")
+                                    and callable(getattr(_bi557, _x))) - frozenset(
+                                        ["True", "False", "None"])
+                _dn557 = lambda _c, _ns: _c in _lin552 and not _fb552.get(_c, True) and any(
+                    isinstance(_z, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                    and _z.name in _ns for _a in _lin552[_c] for _z in _cls541[_a].body)
+                _ord557 = lambda _c: _dn557(_c, ("__lt__", "__le__", "__gt__", "__ge__")) or (
+                    _c in _lin552 and any(any(
+                        _k.arg == "order" and isinstance(_k.value, _ast486.Constant)
+                        and _k.value.value is True
+                        for _k in getattr(_dcd552(_cls541[_a]), "keywords", []))
+                        for _a in _lin552[_c]))
+                _fbk557 = lambda _x: _x.startswith("c:") and _fb552.get(_x[2:], True)
+                _BOD557 = {_ast486.Add: "add", _ast486.Sub: "sub", _ast486.Mult: "mul",
+                           _ast486.Div: "truediv", _ast486.FloorDiv: "floordiv",
+                           _ast486.Mod: "mod", _ast486.Pow: "pow", _ast486.LShift: "lshift",
+                           _ast486.RShift: "rshift", _ast486.BitOr: "or",
+                           _ast486.BitXor: "xor", _ast486.BitAnd: "and",
+                           _ast486.MatMult: "matmul"}
+                _NN557 = frozenset(["str", "list", "tuple", "dict", "set", "none", "fn", "iter"])
+
+                # may CPython evaluate `<_x> <_o> <_y>` / order `_x` against `_y` (kinds)?
+                _bop557 = lambda _o, _x, _y: (
+                    _fbk557(_x) or _fbk557(_y)
+                    or (_x.startswith("c:") and _dn557(
+                        _x[2:], ("__" + _BOD557.get(type(_o), "") + "__",)))
+                    or (_y.startswith("c:") and _dn557(
+                        _y[2:], ("__r" + _BOD557.get(type(_o), "") + "__",)))
+                    or (_x == _y == "num" and not isinstance(_o, _ast486.MatMult))
+                    or (_x == "str" and isinstance(_o, _ast486.Mod))
+                    or (_x == _y and _x in ("str", "list", "tuple")
+                        and isinstance(_o, _ast486.Add))
+                    or ({_x, _y} in ({"str", "num"}, {"list", "num"}, {"tuple", "num"})
+                        and isinstance(_o, _ast486.Mult))
+                    or (_x == _y == "set" and isinstance(_o, (
+                        _ast486.BitOr, _ast486.BitAnd, _ast486.BitXor, _ast486.Sub)))
+                    or (_x == _y == "dict" and isinstance(_o, _ast486.BitOr)))
+                _cmp557 = lambda _x, _y: (
+                    _fbk557(_x) or _fbk557(_y)
+                    or (_x.startswith("c:") and _ord557(_x[2:]))
+                    or (_y.startswith("c:") and _ord557(_y[2:]))
+                    or (_x == _y and _x in ("num", "str", "list", "tuple", "set")))
+                _k564 = lambda _v: _T541.get(id(_v), _UT541)[0] - _U541
+                _kn564 = lambda _v: bool(_k564(_v)) and not (
+                    _T541.get(id(_v), _UT541)[0] & _U541)
+                _UN564 = {_ast486.USub: "__neg__", _ast486.UAdd: "__pos__",
+                          _ast486.Invert: "__invert__"}
+                _bad564 = lambda _e: (
+                    next((("an ordering of operands CPython does not order"
+                           if isinstance(_o, (_ast486.Lt, _ast486.LtE, _ast486.Gt,
+                                              _ast486.GtE)) else
+                           "a membership test of a non-str needle in a str")
+                          for _o, _a, _b in zip(_e.ops, [_e.left] + list(_e.comparators),
+                                                _e.comparators)
+                          if _kn564(_a) and _kn564(_b) and (
+                              (isinstance(_o, (_ast486.Lt, _ast486.LtE, _ast486.Gt,
+                                               _ast486.GtE))
+                               and not all(_cmp557(_x, _y) for _x in _k564(_a)
+                                           for _y in _k564(_b)))
+                              or (isinstance(_o, (_ast486.In, _ast486.NotIn))
+                                  and _k564(_b) == frozenset(["str"])
+                                  and not _k564(_a) <= frozenset(["str"])))), None)
+                    if isinstance(_e, _ast486.Compare) else
+                    "a unary operator of an operand CPython rejects"
+                    if (isinstance(_e, _ast486.UnaryOp) and type(_e.op) in _UN564
+                        and _kn564(_e.operand) and any(
+                            _x in _NN557 or (_x.startswith("c:") and not _fbk557(_x)
+                                             and not _dn557(_x[2:], (_UN564[type(_e.op)],)))
+                            for _x in _k564(_e.operand))) else
+                    "an operator over operands CPython rejects"
+                    if (isinstance(_e, _ast486.BinOp) and _kn564(_e.left)
+                        and _kn564(_e.right) and not all(
+                            _bop557(_e.op, _x, _y) for _x in _k564(_e.left)
+                            for _y in _k564(_e.right))) else None)
+                _pr557 = {_c for _c in _cls541 if any(
+                    _b in ("Protocol", "ABC") for _a in _lin552[_c] for _b in _bs552[_a])}
+                for _n557 in _own552:
+                    if _reps541:
+                        break
+                    if isinstance(_n557, _ast486.Subscript) and "set" in _T541.get(
+                            id(_n557.value), _UT541)[0]:
+                        _reps541.append((
+                            "PYCSL-R557-SET-SUBSCRIPT", _n557,
+                            f"`{_ast486.unparse(_n557).strip()[:60]}` subscripts "
+                            f"`{_ast486.unparse(_n557.value).strip()[:40]}`, which may be a "
+                            f"set / frozenset"))
+                        break
+                    _el557 = []
+                    if isinstance(_n557, (_ast486.List, _ast486.Set, _ast486.Tuple)) and (
+                            isinstance(_n557.ctx, _ast486.Load)
+                            if hasattr(_n557, "ctx") else True):
+                        _el557 = list(_n557.elts)
+                        _q557 = _n557
+                        while isinstance(_q557, _ast486.Tuple) and isinstance(
+                                _par552.get(id(_q557)), _ast486.Tuple):
+                            _q557 = _par552.get(id(_q557))
+                        _p557 = _par552.get(id(_q557))
+                        if isinstance(_q557, _ast486.Tuple) and (
+                                (isinstance(_p557, _ast486.Call) and isinstance(
+                                    _p557.func, _ast486.Name) and _p557.func.id in (
+                                        "isinstance", "issubclass") and _q557 in _p557.args)
+                                or (isinstance(_p557, _ast486.ExceptHandler)
+                                    and _p557.type is _q557)):
+                            _el557 = []
+                        # a display compared by equality / identity / membership only is
+                        # never read as a value of its elements (`D.__mro__ == (D, object)`)
+                        if isinstance(_p557, _ast486.Compare) and all(isinstance(_o, (
+                                _ast486.Eq, _ast486.NotEq, _ast486.Is, _ast486.IsNot,
+                                _ast486.In, _ast486.NotIn)) for _o in _p557.ops):
+                            _el557 = []
+                        # a display inside an annotation / a subscript's slice is a typing
+                        # form (`Callable[[int], int]`, `Dict[str, int]`), not a value
+                        _c557, _u557 = _n557, _par552.get(id(_n557))
+                        while _u557 is not None and not isinstance(_u557, _ast486.stmt):
+                            if ((isinstance(_u557, _ast486.Subscript) and _u557.slice is _c557)
+                                    or isinstance(_u557, (_ast486.arg, _ast486.arguments))):
+                                _el557 = []
+                                break
+                            _c557, _u557 = _u557, _par552.get(id(_u557))
+                        if (isinstance(_u557, (_ast486.FunctionDef, _ast486.AsyncFunctionDef))
+                                and _c557 is _u557.returns) or (
+                                    isinstance(_u557, _ast486.AnnAssign)
+                                    and _c557 is _u557.annotation):
+                            _el557 = []
+                    elif isinstance(_n557, _ast486.Dict):
+                        _el557 = list(_n557.values)
+                    elif (isinstance(_n557, _ast486.Call)
+                          and isinstance(_n557.func, _ast486.Attribute)
+                          and _n557.func.attr in ("append", "add", "insert") and _n557.args):
+                        _el557 = [_n557.args[-1]]
+                    _bn557 = next((_y for _y in _el557 if isinstance(_y, _ast486.Name)
+                                   and _y.id in _BIN557 and _y.id not in _loc541
+                                   and _y.id not in _prm541 and _y.id not in _mcnt541
+                                   and _y.id not in _menv541 and _y.id not in _gl541), None)
+                    if _bn557 is not None:
+                        _reps541.append((
+                            "PYCSL-R559-BUILTIN-OBJECT-ELEMENT", _bn557,
+                            f"the builtin object `{_bn557.id}` is stored as an element of "
+                            f"`{_ast486.unparse(_n557).strip()[:60]}`"))
+                        break
+                    if isinstance(_n557, (_ast486.Tuple, _ast486.Set)) and (
+                            isinstance(_n557.ctx, _ast486.Load)
+                            if hasattr(_n557, "ctx") else True):
+                        _sk557 = list(_n557.elts)
+                        while _sk557 and not _reps541:
+                            _y557 = _sk557.pop()
+                            if isinstance(_y557, (_ast486.Lambda, _ast486.ListComp,
+                                                  _ast486.SetComp, _ast486.DictComp,
+                                                  _ast486.GeneratorExp)):
+                                continue
+                            _w557 = _bad564(_y557)
+                            if _w557 is not None:
+                                _reps541.append((
+                                    "PYCSL-R564-DISPLAY-ELEMENT-KIND", _y557,
+                                    f"`{_ast486.unparse(_y557).strip()[:60]}`, an element of "
+                                    f"the display `{_ast486.unparse(_n557).strip()[:60]}`, is "
+                                    f"{_w557}"))
+                                break
+                            _sk557.extend(_ast486.iter_child_nodes(_y557))
+                        if _reps541:
+                            break
+                    if not (isinstance(_n557, _ast486.Call)
+                            and isinstance(_n557.func, _ast486.Attribute)):
+                        continue
+                    _rk557 = _T541.get(id(_n557.func.value), _UT541)[0]
+                    if not (len(_rk557) == 1 and next(iter(_rk557)).startswith("c:")):
+                        continue
+                    _rc557 = next(iter(_rk557))[2:]
+                    _mc557 = next((_a for _a in _lin552.get(_rc557, [])
+                                   if _n557.func.attr in _msg552[_a]), None)
+                    if _mc557 is None or _fb552.get(_rc557, True):
+                        continue
+                    _sg557 = _msg552[_mc557][_n557.func.attr]
+                    if _sg557 is None:
+                        continue
+                    _pp557 = []
+                    for _i557, _a557 in enumerate(_n557.args):
+                        if isinstance(_a557, _ast486.Starred):
+                            break
+                        if _i557 < len(_sg557[0]):
+                            _pp557.append((_a557, _sg557[0][_i557]))
+                    _pd557 = {_p[0]: _p for _p in _sg557[0] + _sg557[1]}
+                    _pp557.extend((_k.value, _pd557[_k.arg]) for _k in _n557.keywords
+                                  if _k.arg in _pd557)
+                    for _a557, (_pn557, _an557) in _pp557:
+                        _d557 = _ANN541(_an557)
+                        if (_an557 is None or "unk" in _d557[0] or not _d557[0]
+                                or any(_x.startswith("c:") and (_fb552.get(_x[2:], True)
+                                                                or _x[2:] in _pr557)
+                                       for _x in _d557[0])):
+                            continue
+                        _t557 = _T541.get(id(_a557), _UT541)
+                        _k557 = _dk552(_t557[0], _d557[0]) - _U541 - frozenset(["none"])
+                        # a container / record handle at a NUMBER parameter is route #552's
+                        # (use-based: the self-annotation mirror declares such handles `int`)
+                        if _d557[0] - frozenset(["none"]) <= frozenset(["num"]):
+                            _k557 = _k557 & frozenset(["str"])
+                        _w557 = (_KN541(_k557 - _d557[0]) if not _FIT541(_k557, _d557[0])
+                                 else None)
+                        if _w557 is not None:
+                            _reps541.append((
+                                "PYCSL-R563-METHOD-ARGUMENT-KIND", _n557,
+                                f"`{_ast486.unparse(_a557).strip()[:60]}` is passed to the "
+                                f"parameter `{_pn557}` of the method `{_mc557}."
+                                f"{_n557.func.attr}`, declared {_KN541(_d557[0])}, and may be "
+                                f"{_w557}"))
+                            break
         if _reps541:
             _rc541, _rv541, _rm541 = _reps541[0]
             _ln541 = getattr(_rv541, "lineno", 0)
@@ -21387,6 +21619,51 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"(`for c in range(k)`, `\"a\" in s` of `s: str`), or fix the annotation "
                     f"that declares the operand a number / None.",
                     stage="ir-semantic", code="PYCSL-R542-NON-CONTAINER-OPERAND")
+            if _rc541 == "PYCSL-R557-SET-SUBSCRIPT":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R557-SET-SUBSCRIPT: {_rm541}. A set shares the "
+                    f"dict's map representation, so an item store / `del` / read of it is "
+                    f"lowered as a map update or lookup, while CPython raises TypeError "
+                    f"('set' object does not support item assignment / is not subscriptable) "
+                    f"(route #557; measured: `s[0] = 1` on `s: Set[int]` / `fs: "
+                    f"FrozenSet[int]` / `u = set()` proved `no_exception \\all`). Use the "
+                    f"set operations (`s.add(1)`, `s.discard(1)`, `1 in s`), or declare and "
+                    f"build the container you index (`d: Dict[int, int] = {{}}`).",
+                    stage="ir-semantic", code="PYCSL-R557-SET-SUBSCRIPT")
+            if _rc541 == "PYCSL-R559-BUILTIN-OBJECT-ELEMENT":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R559-BUILTIN-OBJECT-ELEMENT: {_rm541}. The value "
+                    f"model lowers a builtin function / type object to an opaque Why3 `int` "
+                    f"constant, so an element read of it type-checks as a number and "
+                    f"carries no obligation, while CPython raises TypeError at its use "
+                    f"(route #559; measured: `ys = [int]; return ys[0] + 1` proved "
+                    f"`no_exception \\all`). Store the value you mean (`ys = [k]`, "
+                    f"`ys = [len(xs)]`), or test kinds with a classinfo tuple at the "
+                    f"`isinstance` call itself (`isinstance(x, (int, str))`).",
+                    stage="ir-semantic", code="PYCSL-R559-BUILTIN-OBJECT-ELEMENT")
+            if _rc541 == "PYCSL-R563-METHOD-ARGUMENT-KIND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R563-METHOD-ARGUMENT-KIND: {_rm541}. A method "
+                    f"call whose argument does not fit the declared parameter is lowered to "
+                    f"a fresh opaque function of the argument, never to the method body, "
+                    f"so no obligation of the body is checked while CPython runs it on the "
+                    f"real value and raises (route #563; measured: `p.m(t)` with `t: str` "
+                    f"into `def m(self, y: int) -> int: return self.a + y` proved "
+                    f"`no_exception \\all`, CPython TypeError). Pass a value of the declared "
+                    f"kind (`p.m(len(t))`, `p.m(k)`), or declare the parameter as what you "
+                    f"pass.",
+                    stage="ir-semantic", code="PYCSL-R563-METHOD-ARGUMENT-KIND")
+            if _rc541 == "PYCSL-R564-DISPLAY-ELEMENT-KIND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R564-DISPLAY-ELEMENT-KIND: {_rm541}. A tuple / set "
+                    f"display whose element does not type is lowered to an opaque `(any "
+                    f"int)` without lowering the element, so the operation CPython rejects "
+                    f"(TypeError) carries no obligation (route #564; measured: `w = (1, k < "
+                    f"t)` with `t: str`, `w = (1, -t)`, `w = {{1, p + p}}` of a record proved "
+                    f"`no_exception \\all`). Compute the element in a plain statement first "
+                    f"(`c = k < len(t)` then `w = (1, c)`), on operands of the kinds the "
+                    f"operator accepts.",
+                    stage="ir-semantic", code="PYCSL-R564-DISPLAY-ELEMENT-KIND")
             if _rc541 == "PYCSL-R541-ELEMENT-KIND":
                 raise _PyCSLSemErr541(
                     f"line {_ln541}: PYCSL-R541-ELEMENT-KIND: {_rm541}. The value model "
