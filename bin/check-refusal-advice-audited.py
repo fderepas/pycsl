@@ -925,6 +925,15 @@ AUDITED = {
         "Route #543. 'Bind a value of the declared kind (`x: P = P(k)`), or declare `x: Optional[P] = None` and test it': witness ad1200 as "
         "`x: P = P(k)` (getting-better/open-routes/witnesses-r543/advice/a543_ctor) and as `Optional[P]` tested `if x is None: return 0` "
         "(a543_optional) VERIFY `no_exception \\all`; control 8607 VERIFIES."),
+    # driver run #4 -- routes #551 / #552 (u23, red team 52): constructor arguments / opaque-int values at number uses.
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND: {_rm541}. A program-class construction is lowered to a record literal"): (FOLLOWABLE,
+        "Route #551. 'Pass a value of the declared kind (a parameter / local annotated with it, a literal), or declare the parameter as what "
+        "you pass': witness bd1246 as `C(s)` of `s: str` (getting-better/open-routes/witnesses-r551/advice/a551_declared), as `C(\"ab\")` "
+        "(a551_literal), and with the parameter declared `Any` (a551_declare) VERIFY `no_exception \\all`; control 8731 VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"line {_ln541}: PYCSL-R552-VALUE-KIND-MISMATCH: {_rm541}. The value model lowers a range, a dict view, a list copy / slice,'): (FOLLOWABLE,
+        "Route #552. 'Pass / return / compare a value of the declared kind instead (`len(xs.copy())`, `k`)': witness cl1212 as "
+        "`h(len(xs.copy()))` (getting-better/open-routes/witnesses-r552/advice/a552_len) and as `h(k)` (a552_value) VERIFY "
+        "`no_exception \\all`; control 8732 VERIFIES."),
     # driver run #4 -- route #538 (u17, red team 50): an ordering comparison of tuples / lists.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` orders tuples / lists whose components may b'): (FOLLOWABLE,
         "Route #538. 'Compare components declared with such a type instead (e.g. `t[0] < u[0]` of `Tuple[int, int]` parameters), or "
@@ -1349,6 +1358,9 @@ AUDITED_HASH = {
     ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R541-ELEMENT-KIND: {_rm541}. The value model erases such an element to a Why3 `int`, so a later `len("): '9a82eb9a3d17',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R542-NON-CONTAINER-OPERAND: {_rm541}. CPython cannot iterate, search or index a number or None (TypeE"): '8c47e3d8afdd',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R543-ANNOTATED-BINDING-KIND: {_rm541}. The value model erases a one-field record / an enum / a contai"): '655694273384',
+    # driver run #4 (u23) -- routes #551 / #552
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND: {_rm541}. A program-class construction is lowered to a record literal"): 'f04044bf2a23',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"line {_ln541}: PYCSL-R552-VALUE-KIND-MISMATCH: {_rm541}. The value model lowers a range, a dict view, a list copy / slice,'): 'cc26bb758d90',
     # driver run #4 (u17) -- route #538
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` orders tuples / lists whose components may b'): 'ad1afca1af36',
     # driver run #4 (u12) -- route #510 residual

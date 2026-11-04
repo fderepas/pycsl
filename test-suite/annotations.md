@@ -5398,6 +5398,83 @@ the syntactic shapes above (a store it forwards to a second imported callee is n
 None-returning call inside a source stored into a PARAMETER is not normalised (the escape judges the evaluator's
 shapes).
 
+### 7.550 A user protocol dunder counts only when judged; a construction's arguments are judged against the declared parameter kinds; a value the model lowers to an opaque int is refused at an int use (routes #550 / #551 / #552, run #4)
+
+Route #529's kind-flow judge (§7.529) counted a program class with a user `__iter__` / `__len__` as
+iterable / sized and the truth of every instance as total without reading the dunder; it read a
+constructor's parameters at their DECLARED kinds without checking any caller's argument (§7.519); and
+the value model lowers a `range`, a dict view (`d.keys()` / `d.values()` / `d.items()`), `xs.copy()`,
+`d.copy()`, a list slice and `sorted(..)` to an opaque Why3 `int` (`val py_range_1 (x0: int) : int`),
+so an int comparison / argument / return type-checks with no obligation (route #325's fallback refuses
+it only when the same function uses it arithmetically). Red team 52 measured on 2ad6cfd15, PROVED
+`no_exception \all` while CPython raises: (#550, 20) `[x for x in It()]` / `for x in It()` / `list` /
+`tuple` / `[*It()]` / `any` / `enumerate` of an `It` whose `__iter__` returns 5 / None, `len(L())`
+with `__len__` returning -1 / 2 ** 70 / None, `1 if Bo() else 0` / `not Bo()` / `Bo() and 1` /
+`bool(Bo())` with `__bool__` returning 2 / None, in an `__init__` / `__post_init__` (TypeError /
+ValueError / OverflowError); (#551, 6) an `Any` local (an int, None, `["a"]`) or a `-> Any` call passed
+to a constructor parameter `s: str` / `xs: List[int]`, positionally or by keyword (TypeError in
+`len(s)` / `sum(xs)`); (#552, 46) `range(k) < range(k)`, `range(k) < 3`, `d.keys() < 3`, `d.copy() <
+3`, `h(range(k))` / `h(xs.copy())` / `h(xs[0:1])` / `h(sorted(xs))` / `gi(d.keys())` into a file or
+imported `def h(x: int)`, `R(d.keys())` for a dataclass field `a: int`, `return d.items()` from `->
+int` (TypeError at the ordering / at the receiver's `x + 1`).
+
+RULE (inline in `_run_pipeline`, mirror twin `\trusted`, lambdas only, no new def, no axiom, emitter
+untouched):
+- (#550, inside route #529's judge) a user protocol dunder counts only when JUDGED: the nearest class
+  of the MRO binding the name binds it exactly once, to an undecorated `def <name>(self)` whose body
+  (docstring aside) is one statement over literals and the instance's synthesized-dataclass fields:
+  `__len__` -> `return <int literal 0..2**31>` / `return len(self.<sized field>)`; `__bool__` ->
+  `return True|False` / `return self.<bool field>` / `return <a> <cmp> <b>` over number literals,
+  number fields and `len(self.<sized field>)` (`is` / `is not` over fields / literals); `__iter__` ->
+  `return iter(self.<iterable field>)` / `yield from self.<iterable field>` (or of a display of
+  literals). Iteration needs a judged `__iter__`, `len` a judged `__len__`; a truth test (`if` /
+  ternary / `while` / `assert` test, `and` / `or` operand, `not`, `bool(x)`, a comprehension `if`, a
+  `match` guard, the elements of `any` / `all`) of an instance consults its `__bool__`, else its
+  `__len__`, else is total; a class with a foreign base is not judged. Otherwise the constructor is
+  unmodelled: `PYCSL-R315-UNMODELLED-CONSTRUCTOR` (`route #529-#539 kind-flow judge`).
+- (#551 / #552, after route #541's judge, on the kinds of §7.541, own scope of every judged body):
+  `PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND` -- an argument of a file-class construction bound to a
+  parameter (its nearest file `__init__`, else a synthesized @dataclass's fields -- bases first,
+  ClassVar / `init=False` dropped, InitVar[T] as T, KW_ONLY keyword-only -- or a NamedTuple's) whose
+  declared kinds are established, when the argument is ERASED (a name declared `Any` / `object`, an
+  unannotated parameter, a local bound from one, the result of a file / imported function or method
+  declared `-> Any` / `-> object` or unannotated, a field declared `Any` / `object`, a ternary / `and` /
+  `or` / walrus arm that is one) or its known kinds do not fit (list / set elements included); a
+  construction with `*` / `**` arguments (the parameters they bind are not known).
+  `PYCSL-R552-VALUE-KIND-MISMATCH` -- a list / tuple / dict / set / iterator / function / record value
+  (a record of a class with a foreign base may be a number) bound to a NUMBER-declared parameter of
+  a file function, an imported function (`from M import g [as h]`, `import M [as m]`; M's source found
+  beside the file or on `--import-path`) or a method of a known receiver class that the callee USES AS
+  A NUMBER (or rebinds), or returned from a non-generator NUMBER-declared function a call of which is
+  used as a number (directly, or through a local it is bound to); such a value as the argument of a
+  builtin that needs a number (`abs` `chr` `hex` `oct` `bin` `round` `range` `divmod` `pow` `int`
+  `float` `complex`) or as the index of a list / tuple / str; an ordering operand (`<` `<=` `>` `>=`)
+  that may be an iterator (range, dict view, generator, `enumerate` / `zip`) or a dict, or a list /
+  tuple / set / function ordered against a number. A NUMBER USE is an operand of an arithmetic /
+  bitwise / unary `-` `+` `~` operator, of an ordering, of an augmented assignment, an index, the
+  argument of such a builtin, a value with a format spec, through a ternary arm / `and` / `or` operand
+  / walrus.
+An unestablished declared kind (Any, object, Sequence, Iterable, a TypeVar, no annotation) is not a
+domain. The use-based form of #552's parameter / return rule is measured: the self-annotation mirror
+declares opaque record / container handles `int` on purpose (`def _py_expr_unaryop(...) -> int:
+return {"type": "UnaryOp", ...}` with `ensures \result["type"] == "UnaryOp"`, `ref_params: int`
+receiving `set()`), and a declaration-only rule refused three mirror files that never use such a
+handle as a number.
+
+Witnesses `witnesses-r550/` (20), `witnesses-r551/` (6), `witnesses-r552/` (46) x default / typed / store:
+216/216 REFUSED (PROVED at base: red team 52 census, driver repro on int28); corpus `8700`-`8708` (#550,
+`PYCSL-R315-UNMODELLED-CONSTRUCTOR`), `8710`-`8714` (#551), `8716`-`8727` (#552; `8720` `R(d.keys())` is
+refused as a constructor argument) FAIL; controls `8730`-`8732` (judged dunders, constructor arguments of the
+declared kinds, ranges / views used at their kinds and numbers derived from them, a list copy at an int
+parameter the callee never uses as a number) PASS at base and HEAD. Byte-diff: root 0 MOVED / 2 GONE (`1044`
+`<generator> < 1` and `8344` `R(d.get("k"))`, expected FAIL, NOT PROVED at base, now refused) / 0 APPEARED,
+python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0; rt43 / rt44 150 honest controls unchanged.
+Residuals (named): an unknown argument kind that is not ERASED (an unmodelled source: an attribute of an
+unknown value, an un-narrowed union) is not judged at a construction; a container returned through an
+imported function and used as a number in the importer is not followed; the truth of an unknown-kind value
+in a constructor; a user dunder reached outside a constructor hook stays the implicit-dunder routes'
+(#489-#495); judged dunders read only literals and synthesized-dataclass fields.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

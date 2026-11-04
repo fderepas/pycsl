@@ -24,7 +24,7 @@ def f(k: int, xs: List[int], d: Dict[str, int]) -> int:
 
 #@ no_exception \all
 def g(xs: List[int], d: Dict[str, int]) -> int:
-    return 1 if len(d) < 3 else 0
+    return 1 if len(xs) < 3 else 0
 
 
 #@ no_exception \all

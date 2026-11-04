@@ -38,6 +38,24 @@
 ##   intersection and an `Any`-parameter caller taint, both withdrawn). rt43 / rt44 37 honest controls emission-identical. Residuals: a tuple nested
 ##   in Optional / Union / a container keeps the union of slots; caller taint by positional argument only; a None-returning method matched by name.
 
+## run #4 (2026-11-04): #550 / #551 / #552 REPAIRED (executor u23 off 5627aee66 = int28 + route docs, a54daa5a0 + its ledger / docs commit; inline
+##   in `_run_pipeline`, mirror twin `\trusted`, lambdas only, no new def, no axiom, emitter untouched; annotations §7.550). #550 (inside route
+##   #529's kind-flow judge): a user `__iter__` / `__len__` / `__bool__` counts only when JUDGED (one undecorated `def <name>(self)` returning a
+##   literal / `len(self.<sized field>)` / a number comparison / `iter(self.<field>)`); a truth test of an instance consults `__bool__`, else
+##   `__len__` (else PYCSL-R315-UNMODELLED-CONSTRUCTOR). #551: a file-class construction's ERASED argument (Any / object / unannotated / such a
+##   function's result) or known-kind mismatch at a parameter / dataclass field of established kinds, or `*` / `**` arguments, is refused
+##   PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND. #552: a container / iterator / record value at a number-declared parameter the callee USES as a number
+##   (file / imported / method), returned from a number-declared function whose call is used as a number, at a builtin needing a number, as a
+##   list / tuple / str index, or an iterator / dict ordering operand (container vs number ordering) is refused PYCSL-R552-VALUE-KIND-MISMATCH.
+##   Witnesses 72 (20 / 6 / 46) x default / typed / store = 216/216 REFUSED (base: PROVED, rt52 census / driver repro). Corpus 8700-8708 /
+##   8710-8714 / 8716-8727 FAIL (26), controls 8730-8732 PASS (base + HEAD). Byte-diff root 0 MOVED / 2 GONE (1044 `<generator> < 1`, 8344
+##   `R(d.get("k"))`: expected-FAIL CPython TypeError, VERIFY-FAIL at base, now refused; census rows re-measured) / 0 APPEARED (3 new controls),
+##   pyref 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed). rt43 / rt44 150 honest controls: 0 changed. A first draft (declared-kind only) refused
+##   20 corpus files (term-ADT constructor args of unknown kind, `-> bytes` returning a list) and three mirror files that declare opaque
+##   record / set handles `int` (Module5_IREmitter, monomorphize, functions): narrowed to erased arguments and number USES. Residuals: an
+##   unmodelled (non-erased) unknown argument kind is not judged; a value returned through an imported function is not followed; a truth test of
+##   an unknown-kind value; a user dunder outside a constructor hook is the implicit-dunder routes'.
+
 ## run #4 (2026-11-03): #540 / #544 / #545 REPAIRED (executor u19 off ac07b8bb0 = int26 + route docs, d063311e4 + f8f075847 + 2ee31a2a9 + its
 ##   ledger / docs commit; inline in route #432 / #527's engine and route #441's `CL` row in `_run_pipeline`, mirror twin `\trusted`, no new def, no
 ##   axiom, emission byte-identical; annotations §7.540). Under a TypeError claim: a unary `+` operand must be derived numeric (PYCSL-R540-UNARY-
