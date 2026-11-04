@@ -967,6 +967,21 @@ AUDITED = {
         "`n += v` over an `Optional[int]` parameter, and `-v`, under `if v is not None:` (getting-better/open-routes/witnesses-r545/"
         "advice/a545_narrow) VERIFIES under "
         "`no_exception \\all`; controls 8562 (`+r.n` under the guard), 8564 / 8565 (early return, unary and `+=`) VERIFY."),
+    # driver run #4 -- routes #549 / #554 / #555 (u22): R549's advice IS control 8670 and witnesses-r549/advice/a549_narrow;
+    # R554's IS control 8680 and witnesses-r554/advice/a554_exact_params; R555's IS control 8687 and witnesses-r555/advice/a555_narrow.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R549-NONE-ARGUMENT: the argument `{_ast341.unparse(_r432)}` of `{'): (FOLLOWABLE,
+        "Route #549. 'Narrow it first (`if v is not None:` ...)': witness g1313_bn1210 (`v = None; g(v)` of an imported "
+        "`def g(x: int)`) with `v` possibly rebound and the call under `if v is not None:` (getting-better/open-routes/"
+        "witnesses-r549/advice/a549_narrow) VERIFIES under `no_exception \\all`; controls 8670 (the same, corpus) and 8672 "
+        "(early return) VERIFY; 'annotate the parameter `Optional[..]`' is control 8671."),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr466(f'{_rf466[1]}. CPython raises TypeError there before the callee runs, while the model binds the arguments it can, drops / de"): (FOLLOWABLE,
+        "Route #554. 'Call the function or class with exactly its parameters': witnesses g1319_bt1200 / bt1204 / bt1210 "
+        "with `g(k)` and `DC(k)` (getting-better/open-routes/witnesses-r554/advice/a554_exact_params) VERIFY under "
+        "`no_exception \\all`; control 8680 (every callable kind, by position and by name) VERIFIES."),
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R555-IMPORTED-NONE-RESULT: the operand `{_ast341.unparse(_r432)}`'): (FOLLOWABLE,
+        "Route #555. 'Bind the result to a name and narrow it first': witness g1327_cb1200 (`gopt(k) + 1`) with "
+        "`v = gopt(k); if v is None: return 0` (getting-better/open-routes/witnesses-r555/advice/a555_narrow) VERIFIES "
+        "under `no_exception \\all`; controls 8687 (early return) and 8689 (guarded ternary) VERIFY."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit
@@ -1346,6 +1361,10 @@ AUDITED_HASH = {
     # driver run #4 -- routes #540 / #545 (u19)
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_z545, \'lineno\', 0)}: PYCSL-R540-UNARY-PLUS-OPERAND: the operand `{_ast341.unparse(_z545.oper'): '2c1cbb6f5b9f',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R545-NONE-OPERAND: the operand `{_ast341.unparse(_r432)}` of `{_p'): '5d9812ac259d',
+    # driver run #4 -- routes #549 / #554 / #555 (u22)
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R549-NONE-ARGUMENT: the argument `{_ast341.unparse(_r432)}` of `{'): '205c5b0dd5e8',
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr466(f'{_rf466[1]}. CPython raises TypeError there before the callee runs, while the model binds the arguments it can, drops / de"): 'a679999cef18',
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_a432, \'lineno\', 0)}: PYCSL-R555-IMPORTED-NONE-RESULT: the operand `{_ast341.unparse(_r432)}`'): '934289c53376',
 }
 
 
