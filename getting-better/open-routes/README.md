@@ -1,5 +1,12 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-04): #556-#564 OPENED, NOT REPAIRED THIS RUN (red team 53 on 3833d61d4: 2695 probes / 252 confirmed in 9 families, default mode):
+##   #556 a builtin function / type / module object as an `in` haystack or iterable (78); #557 item store into a set / frozenset (13); #558 bytes(n) /
+##   bytearray(n) lowered to any int (17); #559 the type object `int` as a list element (1); #560 an IntEnum member as haystack / iterable (15);
+##   #561 a generator consumed by sum / any / all / max / tuple, opaque list-comprehension bodies (18); #562 comprehension bodies judged only by
+##   trigger rows (68); #563 a wrong-kind method argument falls back to a fresh opaque val (16); #564 an ill-kinded element in a tuple / set display (26).
+##   Driver repro 9/9 on int30 (main + #546-#555).
+
 ## run #4 (2026-11-04): #546-#555 OPENED (red team 52 on 2ad6cfd15: 1914 probes / 263 confirmed (probe, mode) pairs in 10 families): #546 #526's
 ##   return-depth rule collapses a Tuple's slots (25); #547 a method / function -> int returning None unjudged at the use (22); #548 slice store of a
 ##   None-holding source (14); #549 a None argument not classed may-be-None (49, all models); #550 #529 counts user __iter__ / __len__ / __bool__ as
