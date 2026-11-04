@@ -4,7 +4,6 @@ r"""Test 8773 -- route #564 (control, expected PASS): tuple / set displays whose
 from typing import List
 
 
-#@ requires True
 #@ ensures \result == 1
 def f(k: int, t: str, xs: List[int]) -> int:
     w = (1, k < 2)

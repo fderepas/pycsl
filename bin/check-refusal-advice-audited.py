@@ -934,6 +934,19 @@ AUDITED = {
         "Route #552. 'Pass / return / compare a value of the declared kind instead (`len(xs.copy())`, `k`)': witness cl1212 as "
         "`h(len(xs.copy()))` (getting-better/open-routes/witnesses-r552/advice/a552_len) and as `h(k)` (a552_value) VERIFY "
         "`no_exception \\all`; control 8732 VERIFIES."),
+    # driver run #4 -- routes #557 / #559 / #563 (u24, red team 53): set subscripts, builtin objects as elements, method argument kinds.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"line {_ln541}: PYCSL-R557-SET-SUBSCRIPT: {_rm541}. A set shares the dict\'s map representation, so an item store / `del` / '): (FOLLOWABLE,
+        "Route #557. 'Use the set operations (`s.add(1)`, `s.discard(1)`, `1 in s`), or declare and build the container you index': "
+        "witness df1202 as `s.add(1)` (getting-better/open-routes/witnesses-r557/advice/a557_add) and as a `d: Dict[int, int] = {}; "
+        "d[0] = 1` (a557_dict) VERIFY `no_exception \\all`; control 8770 VERIFIES."),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R559-BUILTIN-OBJECT-ELEMENT: {_rm541}. The value model lowers a builtin function / type object to an "): (FOLLOWABLE,
+        "Route #559. 'Store the value you mean (`ys = [k]`, `ys = [len(xs)]`), or test kinds with a classinfo tuple at the `isinstance` "
+        "call itself': witness do1232 as `ys = [k]` (getting-better/open-routes/witnesses-r559/advice/a559_value) and `isinstance(k, (int, "
+        "bool))` (a559_classinfo) VERIFY `no_exception \\all`; control 8771 VERIFIES."),
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R563-METHOD-ARGUMENT-KIND: {_rm541}. A method call whose argument does not fit the declared parameter"): (FOLLOWABLE,
+        "Route #563. 'Pass a value of the declared kind (`p.m(len(t))`, `p.m(k)`), or declare the parameter as what you pass': witness "
+        "ef1200 as `p.m(len(t))` (getting-better/open-routes/witnesses-r563/advice/a563_len) and with `def m(self, y: str)` using "
+        "`len(y)` (a563_declare) VERIFY `no_exception \\all`; control 8772 VERIFIES."),
     # driver run #4 -- route #538 (u17, red team 50): an ordering comparison of tuples / lists.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` orders tuples / lists whose components may b'): (FOLLOWABLE,
         "Route #538. 'Compare components declared with such a type instead (e.g. `t[0] < u[0]` of `Tuple[int, int]` parameters), or "
@@ -1361,6 +1374,10 @@ AUDITED_HASH = {
     # driver run #4 (u23) -- routes #551 / #552
     ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND: {_rm541}. A program-class construction is lowered to a record literal"): 'f04044bf2a23',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"line {_ln541}: PYCSL-R552-VALUE-KIND-MISMATCH: {_rm541}. The value model lowers a range, a dict view, a list copy / slice,'): 'cc26bb758d90',
+    # driver run #4 (u24) -- routes #557 / #559 / #563
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"line {_ln541}: PYCSL-R557-SET-SUBSCRIPT: {_rm541}. A set shares the dict\'s map representation, so an item store / `del` / '): '70dfc2804047',
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R559-BUILTIN-OBJECT-ELEMENT: {_rm541}. The value model lowers a builtin function / type object to an "): '07472df0fd64',
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R563-METHOD-ARGUMENT-KIND: {_rm541}. A method call whose argument does not fit the declared parameter"): 'e5921f57439c',
     # driver run #4 (u17) -- route #538
     ('src/pycsl/pycsl.py', '_PyCSLSemErr341(f"\'{_f346.name}\' line {getattr(_n432, \'lineno\', 0)}: `{_ast341.unparse(_n432)}` orders tuples / lists whose components may b'): 'ad1afca1af36',
     # driver run #4 (u12) -- route #510 residual

@@ -4,7 +4,6 @@ r"""Test 8771 -- route #559 (control, expected PASS): builtin type objects only 
 from typing import List
 
 
-#@ requires True
 #@ ensures \result >= 0
 def f(k: int, xs: List[int]) -> int:
     ys = [len(xs), 1]

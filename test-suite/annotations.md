@@ -5475,6 +5475,55 @@ imported function and used as a number in the importer is not followed; the trut
 in a constructor; a user dunder reached outside a constructor hook stays the implicit-dunder routes'
 (#489-#495); judged dunders read only literals and synthesized-dataclass fields.
 
+### 7.557 A set is not subscripted; a builtin object is not a stored element; a method argument fits its parameter; a tuple / set display element is typed (routes #557 / #559 / #563 / #564, run #4)
+
+Four lowerings never asked what kind a value is. Red team 53 measured on 3833d61d4 (driver repro on int30),
+PROVED `no_exception \all` while CPython raises TypeError: (#557, 13) an item store into a set / frozenset
+(`s[0] = 1` of a `Set[int]` / `FrozenSet[int]` parameter, `ws["a"] = "b"`, an `u = set()` / `u: Set[int] =
+set()` local, in a loop, under an `if`, chained `s[0] = a = 1`, in a callee on its set parameter) lowered as
+a map update (`s := map_update_some !s 0 1`: the set shares the dict's map representation); (#559, 1) `ys =
+[int]; return ys[0] + 1` -- the builtin type object is an opaque Why3 int constant; (#563, 16) a method call
+whose argument's kind does not fit the declared parameter (`p.m(t)` / `p.m("q")` / `p.m(y=t)` /
+`p.m(t.upper())` / `P(1).m(t)` / `q = P(k); q.m(t)` / a forwarding method, `t: str` into `def m(self, y:
+int)`) lowered to a fresh abstract `val p_m_1 (x0: int) : int` of the argument's hash, the method body never
+reached; (#564, 26) a tuple / set display holding an element CPython cannot evaluate (`w = (1, k < t)` of `t:
+str`, `(1, -t)`, `{1, ~t}`, `(1, -xs)`, `(1, p < p)` / `(1, p + p)` of a record, `(1, k in t)`) lowered to a
+fresh `(any int)` without lowering its elements.
+
+RULE (inline in `_run_pipeline`, after route #552's judge, on the kinds of §7.541, own scope of every judged
+body; mirror twin `\trusted`, lambdas only, no new def, no axiom, emitter untouched):
+- `PYCSL-R557-SET-SUBSCRIPT`: a subscript -- an item store, `del`, an augmented item store or a read --
+  whose receiver's kinds include set (a `Set` / `FrozenSet` / `set` / `frozenset` annotation, a set display /
+  comprehension, `set(..)` / `frozenset(..)`).
+- `PYCSL-R559-BUILTIN-OBJECT-ELEMENT`: a name bound to a builtin function / type object (`int`, `len`,
+  `ValueError` ...; not bound by the file, not a parameter / local) as a direct element of a list / set /
+  tuple display, a dict display value, or the stored argument of `append` / `add` / `insert`. A tuple that
+  is the classinfo of `isinstance` / `issubclass` (nested tuples included), the type of an `except` clause,
+  or a subscript's slice (a typing form) is not a value.
+- `PYCSL-R563-METHOD-ARGUMENT-KIND`: an argument (positional or keyword) of a call of a method of a file
+  class, the receiver of ONE known class (no foreign base), whose declared parameter kinds are established
+  and whose known kinds (None aside: route #549's) do not fit them (a record of a subclass fits its base).
+  A Protocol / ABC / foreign-base class domain is not judged; at a NUMBER parameter only a str argument is
+  judged here -- a container / record handle there is route #552's use-based rule (the self-annotation
+  mirror declares such handles `int`: a declaration-only rule refused `auto_trust` / `functions`, measured).
+- `PYCSL-R564-DISPLAY-ELEMENT-KIND`: inside an element of a tuple / set display (any depth, lambdas and
+  comprehensions aside), on operands whose kinds are all known: an ordering (`<` `<=` `>` `>=`) of a pair
+  CPython does not order (only num / num, str / str, list / list, tuple / tuple, set / set, or a record of a
+  class with an ordering dunder or `@dataclass(order=True)`); unary `-` / `+` / `~` of a str / list / tuple /
+  dict / set / None / function / iterator or of a record without the dunder; an arithmetic / bitwise
+  operator over kinds CPython rejects (a record without the dunder / reflected dunder); `x in s` / `x not in
+  s` of a non-str needle in a str. A record of a class with a foreign base may be a number: not judged.
+
+Witnesses `witnesses-r557/` (13), `witnesses-r559/` (1), `witnesses-r563/` (16), `witnesses-r564/` (26) x default /
+typed / store: 168/168 REFUSED (base int30: 50 PROVED, the six dict-ordering / list-argument rows already refused by route #552); corpus `8740`-`8744` (#557), `8746` (#559), `8748`-`8752` (#563), `8754`-`8760` (#564)
+FAIL; controls `8770`-`8773` (set operations beside a dict item store, a classinfo tuple / `except` tuple, method
+arguments of the declared kinds, displays of elements CPython evaluates) PASS at base and HEAD. Byte-diff vs int30 (driver v37): root 0 MOVED / 2 GONE (`1679` / `1680`, expected FAIL: an int `0` into an `Optional[Tok]` method parameter, VERIFY-FAIL at base, now PYCSL-R563; census rows re-measured) / 0 APPEARED (4 new controls), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed).
+Residuals (named): a set reached through an unknown-kind value (an `Any` local, an unannotated parameter) is not
+judged; a builtin object reached through a call or a name it is first bound to (`t = int; ys = [t]`) is not;
+a container / record handle at a NUMBER method parameter stays route #552's use-based rule; a display element
+of an unknown kind (a value the §7.541 kinds do not establish) is left to Why3 typing and the display's
+opaque fallback; comprehensions are routes #561 / #562.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

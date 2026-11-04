@@ -1,5 +1,20 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #4 (2026-11-04): #557 / #559 / #563 / #564 REPAIRED (executor u24 off fb3880c2a = int30 + the #556-#564 route docs, 48de7b7ab + its ledger /
+##   docs commit; inline in `_run_pipeline` after route #552's judge, on the §7.541 kinds, mirror twin `\trusted`, lambdas only, no new def, no
+##   axiom, emitter untouched; annotations §7.557). #557: a subscript (store / del / augmented / read) whose receiver may be a set / frozenset is
+##   refused PYCSL-R557-SET-SUBSCRIPT. #559: a builtin function / type object (not bound by the file) as a list / set / tuple display element, a
+##   dict display value or an append / add / insert argument is refused PYCSL-R559-BUILTIN-OBJECT-ELEMENT (classinfo / except tuples, typing
+##   forms, equality-only comparands excluded). #563: a method argument of a known receiver class whose known kinds do not fit the declared
+##   parameter is refused PYCSL-R563-METHOD-ARGUMENT-KIND (at a number parameter only a str: container handles stay #552's use-based rule).
+##   #564: inside a tuple / set display element, an ordering / unary / binary operator / str membership over known kinds CPython rejects is
+##   refused PYCSL-R564-DISPLAY-ELEMENT-KIND. Witnesses 56 (13 / 1 / 16 / 26) x default / typed / store = 168/168 REFUSED (base: 50 PROVED, 6
+##   already R552). Corpus 8740-8744 / 8746 / 8748-8752 / 8754-8760 FAIL (18), controls 8770-8773 PASS (base + HEAD). Byte-diff vs int30 (driver v37): root 0 MOVED / 2 GONE (`1679` / `1680`, expected FAIL: an int `0` into an `Optional[Tok]` method parameter, VERIFY-FAIL at base, now PYCSL-R563; census rows re-measured) / 0 APPEARED (4 new controls), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed). rt43 / rt44 149
+##   honest controls: 0 newly refused. A first draft refused two mirror files (a declaration-only R563: `List[int]` into `List[Dict]`, `set()`
+##   into an `int` handle) and, by R559, 1853 / 2586 (`Callable[[int], int]` annotations) and pyref 0081 (`D.__mro__ == (D, ..., object)`): narrowed.
+##   Residuals: a set / builtin object reached through an unknown-kind value or an alias name; a container handle at a number method parameter
+##   (#552's); a display element of unknown kind; comprehensions (#561 / #562).
+
 ## run #4 (2026-11-04): #556-#564 OPENED, NOT REPAIRED THIS RUN (red team 53 on 3833d61d4: 2695 probes / 252 confirmed in 9 families, default mode):
 ##   #556 a builtin function / type / module object as an `in` haystack or iterable (78); #557 item store into a set / frozenset (13); #558 bytes(n) /
 ##   bytearray(n) lowered to any int (17); #559 the type object `int` as a list element (1); #560 an IntEnum member as haystack / iterable (15);
