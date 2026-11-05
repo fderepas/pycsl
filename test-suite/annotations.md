@@ -5585,6 +5585,72 @@ as a subscript receiver is not judged; `bytes(..)` passed as a call argument / r
 bytes(2)` iterates ints) is left to Why3 typing (measured not proved); an IntEnum member reached through a
 field / call is not followed; comprehensions are routes #561 / #562.
 
+### 7.561 A comprehension / generator iterates only an iterable, and its element / filter kinds are judged (routes #561 / #562, run #5)
+
+A list / set / dict comprehension and a generator expression lower OPAQUELY: a generator consumed by `sum` / `any`
+/ `all` / `max(.., default=0)` / `min` / `tuple` becomes a fresh value (`sum_1 (any int)`), a comprehension a
+`list_comp 0`, and the element, the key / value, the filters and the later `for` clauses are judged by the
+exception-trigger rows only (subscript, division, `int(str)`, precondition-carrying callees), never Why3-typed
+nor obliged as a statement is. Red team 53 measured on 3833d61d4 (driver repro on int30; still PROVED on
+46040203d), PROVED `no_exception \all` while CPython raises TypeError: (#561, 18) a `for` / `in` over a value
+CPython cannot iterate -- a dataclass parameter `p: P`, a plain-class instance `KI(k)` or a local bound to one,
+a file function `h` -- inside a generator consumed by `sum` / `any` / `all` / `max` / `tuple` (`sum(1 for x in
+p)`) or inside a list comprehension's body (`[1 in p for x in xs]`, `[y for x in xs for y in p]`, `[[y for y in
+p] for x in xs]`); (#562, 68) an element / filter CPython rejects -- a file callee given a wrong-kind argument
+(`h(t)` of `def h(x: int)` and `t: str`, `hs(k)` of `def hs(x: str)`), an ordering of a pair CPython rejects (`x <
+t`, `t > x`, `1 < x < t`, `x < None`, `p < p` of records, `d < d` of dicts), `p + p` of records, unary `-` / `~`
+of a str / list / dict, `x in t` of an int needle in a str, a wrong-kind constructor / method argument -- in
+`[..]` / `{..}` / `{x: ..}` / `sum` / `any` / `all` / `max` / `min` / `tuple` / a filter / a generator bound to a
+local. Six of the 68 (`P(t).a`, `p.m(t)`, `d < d`) were already refused at the base by R551 / R563 / R552.
+
+RULE (inline in `_run_pipeline`, after route #558's judge, on the kinds of §7.541, every judged body; at every
+node INSIDE a comprehension / generator expression of the body's own scope -- the bodies of nested lambdas /
+defs / classes excluded; the comprehension targets carry the element kinds of their iterables (§7.541), else
+unknown; mirror twin `\trusted`, lambdas only, no new def, no axiom, emitter untouched):
+- `PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND`: the iterable of a `for` clause, the haystack of `in` / `not
+  in`, an unpacked value (`*x`) or the argument of an iterating builtin (route #542's positions: `len` / `list` /
+  `tuple` / `set` / `sorted` / `sum` / `any` / `all` / `enumerate` / `iter` / `dict` / `zip` / `map` / `filter`,
+  one-argument `min` / `max`) that may be a function (a lambda; a file function named directly, undecorated, not
+  rebound) or an instance of a file class with no foreign base whose lineage -- and the lineage of every file
+  subclass of it -- defines no `__iter__` / `__getitem__` (for a haystack, nor `__contains__`), or that is a file
+  class OBJECT named directly (no foreign base, no `metaclass=` keyword, no decorator but `@dataclass` in its
+  lineage: its metaclass is `type`, which does not iterate). A NamedTuple / Enum / foreign-base class, a
+  TypedDict (a dict) and a class with its own `__iter__` stay admitted.
+- `PYCSL-R562-COMPREHENSION-ELEMENT-KIND`: (a) the shapes §7.557 (route #564) judges in a tuple / set display
+  element, over known kinds: an ordering of a pair CPython does not order, unary `-` / `+` / `~` of a non-number
+  (a record without the dunder), an arithmetic / bitwise operator over kinds CPython rejects, `x in s` of a
+  non-str needle in a str; (b) an argument of a call of a file / imported function, a file-class constructor or
+  a method of a known file receiver class whose known kinds (None and unknown removed) do not fit the declared
+  parameter kinds -- at a NUMBER parameter only a str is judged (a container / record handle there is route
+  #552's use-based rule), and a foreign-base / Protocol class domain is not judged.
+
+Witnesses `witnesses-r561/` (18) and `witnesses-r562/` (68) x default / typed / store: 258/258 REFUSED (each
+model: 18 R561 / 62 R562 + 6 already refused at the base by R551 (`P(t).a`) / R563 (`p.m(t)`) / R552 (`d < d`)).
+Corpus `8860`-`8871` (#561) and `8872`-`8888` (#562) FAIL (29 witnesses, every one PROVED at base 46040203d,
+REFUSED in all three models), and five new false proofs beyond red team 53's family, PROVED at base and REFUSED:
+`8889` (`sum(1 for x in KI)`, a class object), `8894` (`g = lambda: 1; sum(1 for x in g)`), `8895` (`sum(h(x,
+y=t) for x in xs)`, a keyword argument), `8896` (`len({p < p for x in xs})`, a set comprehension), `8897`
+(`len({-t: x for x in xs})`, a dict-comprehension key); controls `8890` (genexps
+consumed by `sum` / `any` / `all` / `max(.., default=0)` / `tuple` over a list / range / str / dict), `8891`
+(file calls of the declared kinds, filters, two `for` clauses, a nested comprehension), `8892` (record field /
+method / constructor / `p.a in xs` in comprehensions), `8893` (unary of ints, str needle in a str, str ordering
+and concatenation) PASS at base and HEAD. Advice probes `witnesses-r561/advice` (a561_list / a561_field_in),
+`witnesses-r562/advice` (a562_kind / a562_neg) VERIFY `no_exception \all` at base and HEAD. Front-end only (not
+refused by the new codes; they do not verify at the base for other reasons): a class with its own `__iter__`
+iterated in a generator, `[h(y) for y in ys if y is not None]` over `List[Optional[int]]`, a chained-comparison
+filter `0 < x < 10`.
+Byte-diff vs a worktree at 46040203d: root 2888 -> 2892 0 MOVED / 0 GONE / 0 APPEARED (+4 controls),
+python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed; the mirror's comprehensions all pass);
+rt43 / rt44 149 controls: front-end verdicts identical base / HEAD. Fidelity (mirror sync, mirror check, doc coherency) rc 0;
+fast soundness planes 62/62 green (after the 34 census rows); `\trusted` 415, no proof / axiom file touched.
+Residuals (named): an iterable / element of UNKNOWN kind (an unannotated parameter, an unknown field, a call of
+unknown return) is not judged; a class object is judged only when named directly (an Enum class is
+iterable); the body of a lambda nested inside a comprehension is not judged; the
+kinds are flow-insensitive (a filter does not narrow them: a local joined over a str and an int binding is
+judged at both); a None argument is the value fences' (routes #230 / #521); a record reached through a field
+(`any(x > 0 for x in p.q)`) is refused but did not prove at the base (Why3-ill-typed), so it carries no corpus
+witness.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
