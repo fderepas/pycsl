@@ -934,6 +934,11 @@ AUDITED = {
         "Route #552. 'Pass / return / compare a value of the declared kind instead (`len(xs.copy())`, `k`)': witness cl1212 as "
         "`h(len(xs.copy()))` (getting-better/open-routes/witnesses-r552/advice/a552_len) and as `h(k)` (a552_value) VERIFY "
         "`no_exception \\all`; control 8732 VERIFIES."),
+    # driver run #5 -- route #558 (u25, red team 53): bytes(n) / bytearray(n) as a str / number element (R556 / R560 carry no advice verb).
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R558-BYTES-VALUE-KIND: {_rm541}. The value model lowers `bytes(n)` / `bytearray(n)` to an opaque `any"): (FOLLOWABLE,
+        "Route #558. 'Store a value of the element kind (`xs.append(\"b\")`), or declare the container as holding bytes (`xs: List[bytes] = []`)': "
+        "witness da1296 as `xs.append(\"b\")` (getting-better/open-routes/witnesses-r558/advice/a558_str) and as `xs: List[bytes] = []; "
+        "xs.append(bytes(2))` (a558_bytes) VERIFY `no_exception \\all`; control 8817 VERIFIES."),
     # driver run #4 -- routes #557 / #559 / #563 (u24, red team 53): set subscripts, builtin objects as elements, method argument kinds.
     ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"line {_ln541}: PYCSL-R557-SET-SUBSCRIPT: {_rm541}. A set shares the dict\'s map representation, so an item store / `del` / '): (FOLLOWABLE,
         "Route #557. 'Use the set operations (`s.add(1)`, `s.discard(1)`, `1 in s`), or declare and build the container you index': "
@@ -1374,6 +1379,8 @@ AUDITED_HASH = {
     # driver run #4 (u23) -- routes #551 / #552
     ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R551-CONSTRUCTOR-ARGUMENT-KIND: {_rm541}. A program-class construction is lowered to a record literal"): 'f04044bf2a23',
     ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"line {_ln541}: PYCSL-R552-VALUE-KIND-MISMATCH: {_rm541}. The value model lowers a range, a dict view, a list copy / slice,'): 'cc26bb758d90',
+    # driver run #5 (u25) -- route #558
+    ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R558-BYTES-VALUE-KIND: {_rm541}. The value model lowers `bytes(n)` / `bytearray(n)` to an opaque `any"): '859cdf7f3b3a',
     # driver run #4 (u24) -- routes #557 / #559 / #563
     ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"line {_ln541}: PYCSL-R557-SET-SUBSCRIPT: {_rm541}. A set shares the dict\'s map representation, so an item store / `del` / '): '70dfc2804047',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R559-BUILTIN-OBJECT-ELEMENT: {_rm541}. The value model lowers a builtin function / type object to an "): '07472df0fd64',
