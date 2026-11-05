@@ -89,3 +89,4 @@ claim-vacuity ratchet; the reworked 8926 proves `path + "" == path`.
 | witnesses 8920-8928 | candidate: 8920 / 8923 / 8926 PASS, the 6 others FAIL by non-Valid goals (0 type errors); base: all 9 FAIL (8920 / 8923 type errors, 8926 unprovable) |
 | `\trusted` grep | 413 -> 410 |
 | ledger | 3 (no axiom, no proof-axiom file touched) |
+| whole-file (LOW, run5-lvD 96f034bc7 = cand3) | proof2why3/crosscheck 21/21 Valid (105 s); pycsl 744/744 Valid (1618 s); frontend/pure_ast OWED (~1 h, over the small-file cap; the batch's only owed proof) |
