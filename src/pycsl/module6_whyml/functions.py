@@ -10903,6 +10903,15 @@ class FunctionEmissionMixin:
                     and all(_x == _y or (_x == "array int" and _y == "array string")
                             for _x, _y in zip(_tss_a, _tss_b))):
                 return_type = _tss
+        # cap-trusted-val-unit-return (run #5, lvF), DECLARATION half: a `\trusted` stub
+        # whose `pass` body gave `unit` announces the type `transpile` recorded for its call
+        # sites from the DECLARED annotation (see the CALL-SITE half there), so its `val` and
+        # every caller agree. The value stays unconstrained (no ensures added).
+        if (func.get("trusted") and return_type == "unit"
+                and isinstance(_tss, str) and _tss != "unit"
+                and func.get("return_annotation") not in (None, "None", "tuple")
+                and not func.get("lemma") and not func.get("is_noreturn")):
+            return_type = _tss
         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`): its
         # `Tuple[Set[str], str]` return is the `(seq string, string)` pair — the
         # `seq string` ref-params (the set modelled as a sequence, matching the body's

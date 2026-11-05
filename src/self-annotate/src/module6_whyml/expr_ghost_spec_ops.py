@@ -59,17 +59,20 @@ class GhostSpecOpsMixin:
     def _expr_to_whyml_string_ctx(self, ir: "ExprIR", lr: Set[str]) -> str:
         return ""
 
-    # Route #488: RE-TRUSTED. The live body calls the writing `self._e` inside a list
-    # comprehension, which PyCSL lowers opaquely and therefore REFUSES (ir-semantic: a writing
-    # call inside an opaque comprehension). Its former `assigns \nothing` proof held only because
-    # the local `_e` declaration understated `_e`'s definition frame. Honest contract: the
-    # transitive frame of `_e` (the definition's 22 fields). See trusted-reasons.tsv.
-    #@ \trusted reviewer: pycsl-self-annotate
+    # Route #488 (re-trusted then): the live body called the writing `self._e` inside a list
+    # comprehension, which PyCSL lowers opaquely and REFUSES (ir-semantic: a writing call inside
+    # an opaque comprehension). Run #5 (lvF): the LIVE body was rewritten to the equivalent
+    # explicit loop (append each `self._e(e, lr)` in order, then join) and ported verbatim, so
+    # the body is verified. Contract: the transitive frame of `_e` (the definition's 22 fields).
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _handle_mktuple_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
-        return ""
+        _ps: List[str] = []
+        for e in node.elts:
+            _ps.append(self._e(e, lr))
+        parts = ", ".join(_ps)
+        return f"({parts})"
 
     #@ requires True
     #@ ensures True

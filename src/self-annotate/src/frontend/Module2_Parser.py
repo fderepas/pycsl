@@ -997,18 +997,20 @@ class _ContractParser:
     def _try(self, fn):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
     def parse(self):
-        pass
+        node = self._parse_contract()
+        if not self.at_eof():
+            self._err("unexpected trailing input")
+        return node
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_contract(self):
+    def _parse_contract(self) -> Any:
         pass
 
     #@ requires True
