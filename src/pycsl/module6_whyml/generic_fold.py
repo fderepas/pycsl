@@ -8291,7 +8291,9 @@ def emit_wall2_items_walk_group(func: Dict[str, Any], desc: Dict[str, Any],
     the leaf's `ensures {true}` makes it formally irrelevant, the same soundness
     `emit_void_dispatch_group` relies on when it forwards an unconstrained
     opaque Cons element. The recognised leaves annotate `sub` as `dict`
-    (-> `map int (option int)`)."""
+    (-> `map int (option int)` for a `\\trusted` stub leaf; a VERIFIED leaf whose body
+    reads `sub.get("<str>")` is string-keyed, and the caller threads that emitted type
+    in as `desc["leaf_sub_type"]` -- run #5 lvC)."""
     n = whyml_ident(func["name"])
     leaf = whyml_ident(desc["leaf"])
     ctx = [whyml_ident(p) for p in desc["ctx_params"]]
@@ -8303,7 +8305,10 @@ def emit_wall2_items_walk_group(func: Dict[str, Any], desc: Dict[str, Any],
     gkey = desc["gkey"]
     tag = desc["tag"]
     gval_ctor = _irkey_ctor(gval)
-    leaf_sub_type = "map int (option int)"
+    # (run #5 lvC) the leaf's EMITTED first-parameter type, threaded by the caller
+    # (`_emit_function_block`): `map string (option int)` for a verified leaf reading
+    # `sub.get("<str>")`; the legacy default for a `\trusted` stub leaf (byte-identical).
+    leaf_sub_type = desc.get("leaf_sub_type") or "map int (option int)"
     out: List[str] = []
     # "<gkey>"-key program reader (K_dyn style, mirrors _emit_stmt_reader)
     out.append(f"  let rec {n}__get_key (d: pydict) : option string")

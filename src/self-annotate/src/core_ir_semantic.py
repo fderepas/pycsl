@@ -1321,12 +1321,21 @@ def _typeddict_walk_subscripts(stmts: list, td_vars: set, fname: str) -> None:
             elif isinstance(v, list):
                 _typeddict_walk_subscripts(v, td_vars, fname)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _typeddict_check_subscript(sub: dict, td_vars: set, fname: str) -> None:
-    pass
+    recv = sub.get("value", {})
+    if not (isinstance(recv, dict) and recv.get("type") == "Var"
+            and recv.get("name") in td_vars):
+        return
+    idx = sub.get("index", {})
+    if not (isinstance(idx, dict) and idx.get("type") == "String"):
+        warnings.warn(
+            f"Function '{fname}': TypedDict subscript index is not a string "
+            f"literal (T5 requires literal keys). Why3 will reject this.",
+            stacklevel=2,
+        )
 
 #@ requires True
 #@ ensures True
@@ -1393,12 +1402,21 @@ def _namedtuple_walk_subscripts(stmts: list, nt_vars: set, fname: str) -> None:
             elif isinstance(v, list):
                 _namedtuple_walk_subscripts(v, nt_vars, fname)
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
 def _namedtuple_check_subscript(sub: dict, nt_vars: set, fname: str) -> None:
-    pass
+    recv = sub.get("value", {})
+    if not (isinstance(recv, dict) and recv.get("type") == "Var"
+            and recv.get("name") in nt_vars):
+        return
+    idx = sub.get("index", {})
+    if not (isinstance(idx, dict) and idx.get("type") == "Number"):
+        warnings.warn(
+            f"Function '{fname}': NamedTuple subscript index is not an integer "
+            f"literal (N5 requires literal indices). Why3 will reject this.",
+            stacklevel=2,
+        )
 
 #@ requires True
 #@ ensures True
