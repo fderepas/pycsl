@@ -73,3 +73,13 @@ stubs alone, below the brief's >= 2 bar.
     declaration only), so no goal of those files changes.
 - witnesses (full proof): base 9004 PASS, all others FAIL (9000/9005/9006/9009 at L3-tc); candidate
   9000/9004/9005/9006/9009 PASS, 9001/9002/9003/9007/9008 FAIL at the postcondition (1 goal unproven each).
+- `--fun controlflowstmtmixin___handle_while_stmt` (re-ported verified twin, candidate tree): 3443/3443
+  Valid (3216 own sub-goals), rc 0, Verification SUCCESS (~2.2 h incl. the non-vacuity gate; a first try
+  with a 50-min timeout ran out inside the vacuity phase with 0 non-Valid).
+- fast planes 62/62 green (a first run was RED only on claim-vacuity: the witnesses' `requires True` /
+  `ensures True` stub clauses; dropped, the stubs keep `assigns \nothing`).
+
+OWED (driver's batched slots): whole-file `module6_whyml/stmt_control_flow.py` (~5 h) and
+`frontend/Module2_Parser.py` mirror proofs. Residual: `--fun` on the Module2 mirror is broken AT BASE
+(`unexpected 'variant' clause`: the --fun demotion keeps a `variant` on 3 vals); parse's own goals were
+discharged with why3 on that emission minus the 3 val variant lines (5/5 Valid, Alt-Ergo and Z3).
