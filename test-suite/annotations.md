@@ -5688,6 +5688,46 @@ judged at both); a None argument is the value fences' (routes #230 / #521); a re
 (`any(x > 0 for x in p.q)`) is refused but did not prove at the base (Why3-ill-typed), so it carries no corpus
 witness.
 
+### 7.565 Every binding form rebinds a None / NaN local; a nested `def` named like an enclosing local is a lift collision; an optional carrier's ambiguity is sticky (route #565, run #5)
+
+A local bound to `None` (or NaN) carries DECIDED facts in Module 6's `_erased_truthy_locals` record: `t is None`
+lowers to `pycsl_none = pycsl_none` (True), `if t:` to `false`, two such reads compare equal, NaN's `t == t` to
+`false`. The record was written / cleared by the plain single-name `Assign` only, and route #46's ambiguity
+pre-scan read plain `Assign`s only, so a REBINDING by any other form kept the decided fact: `t = None; if x > 0:
+t, u = 1, 2; if t is None: return 0; return 1` PROVED `\result == 0` (CPython 1), as did a top-level tuple unpack,
+a swap, a single-element tuple target, the `is not None` spelling, truthiness, `t == u` of two rebound Nones, a
+`for` target, a walrus, an unpack in an `else` / `try` body. Siblings found by the same sweep: a NESTED `def t`
+(the lift drops the binding of `t` in the enclosing function) and an `Optional[...]` carrier bound `None` on the
+last-emitted branch of a join (the carrier gate POPPED route #46's `AMBIG` mark and the recorder re-recorded
+`None#empty`: `if t:` decided `false` after `if x > 0: t = 5 else: t = None`).
+
+RULE (Module 6 pre-scan `_reset_function_state`, `Module3_Weaver.process` lift marks, `_handle_assign_stmt`'s
+recorder; all three mirror twins `\trusted`, no new def, no new code, no axiom):
+- every `TupleUnpack` target, `for` target (name or tuple components), walrus target and `match` capture name is
+  an OTHER binding at nested depth: a name also bound to `None` / NaN is `AMBIG` / `AMBIG#nan` for the whole
+  function -- its read is the ordinary `!t`, `is None` / truthiness are undecided, a NaN comparison is refused
+  (route #46's message). A comprehension target is not a binding of the enclosing scope (it does not leak).
+- a nested `def` whose name is also bound by an enclosing function (parameter, assignment / loop / walrus target,
+  import, except name) is a lifted-name collision, refused by the existing lift refusal.
+- a carrier (`Optional` union, `IrONone`, `IrSNone`, `emit_ir`) marked `AMBIG` is re-marked `AMBIG#opt#empty`
+  instead of popped; the mark survives every later binding and no consumer decides on it.
+
+Witness family `getting-better/open-routes/witnesses-r565/q*.py` (43 probes, each breached by CPython) x default /
+typed / store at base b432460d6: 41 PROVED (15 probes; `q27` nested def and `q28` call-returned tuple in default
+only), the rest refused upstream (list / starred / nested targets route #301, a tuple `for` target read after the
+loop, walrus in a comprehension #180, except-as #233, with-as, nonlocal / global, import-as, nested class) or not
+proved; at HEAD 0 PROVED (q11 / q22 NaN now refused; q27 refused). Controls `witnesses-r565/controls/` (14):
+every control proving at base proves at HEAD; `k06` (a walrus-bound local read back) newly PROVES (the base read
+the stale `pycsl_none`). Corpus `8980`-`8991` FAIL (12, every one PROVED at base in all three models except `8990`
+default only; NOT PROVED / REFUSED at HEAD in all three), controls `8992`-`8999` PASS at base and HEAD.
+Byte-diff vs a worktree at b432460d6: root 2929 -> 2948 0 MOVED / 0 GONE / 0 APPEARED (+19 new u28 files; 8990 is
+refused), python-reference 2191 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (no declared movers; nothing owed). rt43 / rt44 149 honest controls: front-end verdicts identical
+base / HEAD (22 emitted, 0 of their .mlw moved; 127 refused as at the base).
+Residuals (named): `with ... as`, `except ... as`, `nonlocal` / `global`, list / starred / nested targets stay
+REFUSED upstream (not modelled, so not folded); a `str`-declared `for` target's always-present `is None` answer is
+route #51's domain; an `Optional` carrier rebound by a tuple unpack / walrus is ill-typed (fails closed, not
+modelled).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
