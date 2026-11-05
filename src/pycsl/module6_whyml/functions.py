@@ -10161,6 +10161,25 @@ class FunctionEmissionMixin:
         # discipline.
         _w2a = recognize_wall2_items_walk(func)
         if _w2a is not None:
+            # (run #5 lvC) THE LEAF'S OWN `sub` TYPE. The walker hands the leaf an arbitrary
+            # well-typed `any <T>`; `<T>` must be the type the leaf's FIRST parameter is
+            # actually emitted at. A `\trusted` leaf (`pass` body) has no key-type evidence
+            # and stays `map int (option int)`; a VERIFIED leaf whose body reads
+            # `sub.get("<str>")` is κ=string (`map string (option int)`), computed by the
+            # same `_dict_param_whyml_type` its own header uses. Fail-closed: any other
+            # shape (not a `dict`-annotated first parameter) keeps the default. Sound for
+            # any leaf: the value is unconstrained, so a leaf precondition on it stays an
+            # unprovable call VC (8905).
+            for _lf_w2a in (self.ir.get("functions", []) or []):
+                if _lf_w2a.get("name") != _w2a.get("leaf"):
+                    continue
+                _lp_w2a = (_lf_w2a.get("formal_params") or [None])[0]
+                if (_lp_w2a is not None
+                        and (_lf_w2a.get("param_annotations") or {}).get(_lp_w2a) == "dict"):
+                    _w2a["leaf_sub_type"] = self._dict_param_whyml_type(
+                        _lp_w2a, _lf_w2a.get("dict_key_types", {}) or {},
+                        _lf_w2a.get("dict_value_types", {}) or {})
+                break
             lines = emit_wall2_items_walk_group(func, _w2a, whyml_ident)
             # SYMTAB-SET-DISPATCH driver(s) whose walker is THIS just-emitted
             # wall2 walker are appended once all their walker deps are emitted.

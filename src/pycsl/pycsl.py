@@ -30847,6 +30847,15 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         for _k325 in sorted(k for c in _cand325 for k in _pos325.get(c, ())):
             _tk325 = _toks325[_k325]
             _nm325 = _tk325.lstrip("!")
+            if _tk325 == "_":
+                # (run #5 lvC) THE WILDCARD IS A PATTERN, NEVER A READ. A discarded fallback
+                # (`warnings.warn(..)` as a statement) is bound `let _ = (<opaque> ..) in ()`,
+                # which tracked `_` as a tainted local; every later `_` token of the same
+                # declaration -- the wildcard of `match .. with Some _ -> ..` (a membership
+                # test), `| _ ->`, `fun _ ->` -- was then reported "used as an integer". In
+                # WhyML `_` is the reserved wildcard pattern: it can never be referenced, so no
+                # `_` token is a use of any value. Named bindings are untouched (8901).
+                continue
             _dd325 = _decl325[_k325]
             if _toks325[_dstart325[_dd325]] not in _PROG325:
                 continue
