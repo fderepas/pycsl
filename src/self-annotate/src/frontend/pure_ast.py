@@ -5486,12 +5486,14 @@ class _Unparser(NodeVisitor):
                 lambda: self.write(", "), self.traverse, node.patterns
             )
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._source
     def visit_MatchStar(self, node):
-        pass
+        name = node.name
+        if name is None:
+            name = "_"
+        self.write(f"*{name}")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True

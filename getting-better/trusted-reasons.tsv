@@ -242,7 +242,6 @@ frontend/pure_ast.py	_Unparser.visit_Lambda	unclassified	-
 frontend/pure_ast.py	_Unparser._str_literal_helper	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_JoinedStr	unclassified	-
 frontend/pure_ast.py	_Unparser._write_fstring_inner	unclassified	-
-frontend/pure_ast.py	_Unparser.visit_MatchStar	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_MatchMapping	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_MatchClass	unclassified	-
 frontend/pure_ast.py	unparse	unclassified	-
@@ -347,7 +346,6 @@ module6_whyml/struct_format.py	parse_format	cost-scale:in-place-mutator	THE IN-P
 module6_whyml/struct_format.py	calcsize	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 module6_whyml/types.py	TypeInferenceMixin._track_collection_metadata	unclassified	-
 module6_whyml/types.py	TypeInferenceMixin._collect_array_var_assigns	unclassified	-
-proof2why3/crosscheck.py	CrossCheckResult.diagnostic	unclassified	-
 proof2why3/crosscheck.py	_load_axiom_registry	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/crosscheck.py	crosscheck_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 proof2why3/crosscheck.py	main	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
@@ -379,7 +377,6 @@ proof2why3/sertop.py	run_sertop_batch	unclassified	-
 proof2why3/sertop.py	SertopSession.type_of_batch	unclassified	-
 proof2why3/sertop.py	extract_via_sertop	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof_axiom_allowlist.py	parse_rocq_assumptions_block	unclassified	-
-pycsl.py	_make_temp_mlw_path	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_generate_rocq_obligations	unclassified	-
 pycsl.py	_sha256_file	cost-scale:context-manager-model	A `with ... as` BINDING
 pycsl.py	_find_coqc	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
