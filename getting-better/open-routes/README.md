@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #5 (2026-11-04): #561 / #562 REPAIRED (executor u26 off 46040203d = int32, 8f1f84f42 + the docs commit; inline in `_run_pipeline` after route #558's judge,
+##   on the §7.541 kinds, at every node inside a comprehension / generator expression of a judged body's own scope, mirror twin `\trusted`, lambdas
+##   only, no new def, no axiom, emitter untouched; annotations §7.561). #561: a comprehension iterable / `in` haystack / iterating-builtin argument
+##   that may be a function (a lambda, a file function named directly), an instance of a file class with no foreign base and no `__iter__` /
+##   `__getitem__` (`__contains__`) in its or a subclass's lineage, or a file class object, is refused PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND.
+##   #562: inside a comprehension, route #564's display-element shapes (orderings / unary / binary operators / str membership CPython rejects) and a
+##   file / imported function, constructor or known-receiver method argument whose known kinds do not fit the declared parameter (at a number
+##   parameter only a str) are refused PYCSL-R562-COMPREHENSION-ELEMENT-KIND. Witnesses 86 (18 / 68) x default / typed / store = 258/258 REFUSED (6 #562
+##   witnesses already refused at the base by R551 / R552 / R563). Corpus 8860-8888 FAIL (29 witnesses, PROVED at base) + 8889 / 8894-8897 (five new
+##   false proofs: a class object, a lambda local, a keyword argument, a set comprehension, a dict-comprehension key), controls 8890-8893 PASS (base +
+##   HEAD). Byte-diff vs 46040203d: root 2888 -> 2892 0 MOVED / 0 GONE / 0 APPEARED, python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0. rt43 /
+##   rt44 149 controls: verdicts identical. Residuals: unknown-kind iterables / elements, class objects not named directly, lambda bodies nested in
+##   comprehensions, flow-insensitive kinds, None arguments (the value fences').
+
 ## run #5 (2026-11-04): #556 / #558 / #560 REPAIRED (executor u25 off 40cf96df0, 0e234e693 + 03b5bf61e + the ledger / docs commit; inline in `_run_pipeline`
 ##   after route #564's judge, on the §7.541 kinds, file-wide tables built once before the judged-body loop, mirror twin `\trusted`, lambdas only, no
 ##   new def, no axiom, emitter untouched; annotations §7.556). #556: a builtin function / type / module object (an unbound builtin name, an
