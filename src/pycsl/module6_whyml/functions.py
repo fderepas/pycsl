@@ -10649,8 +10649,11 @@ class FunctionEmissionMixin:
                             if (_i < len(_a) and (_pn in _pd or _pn in _ps)
                                     and isinstance(_a[_i], dict)
                                     and _a[_i].get("type") == "Var"):
+                                # (u27) `hold`: where the parameter MAY hold None (a
+                                # nested tuple's slots united), when it differs from `admit`
                                 _r521_rq.append(("contadd", (_a[_i].get("name"), {
-                                    _d for _d in ((_pd.get(_pn) or {}).get("admit") or [])
+                                    _d for _d in ((_pd.get(_pn) or {}).get(
+                                        "hold", (_pd.get(_pn) or {}).get("admit")) or [])
                                     if _d >= 1} | set(_ps.get(_pn) or [])), None, False))
                     if _rv and "." not in _rv and _a:
                         if _m in ("append", "insert", "add", "setdefault", "appendleft"):

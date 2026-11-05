@@ -7542,6 +7542,24 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
         for _r526_key, _r526_root in _r526_jobs:
             _r526_res: Dict[int, Any] = {}
             _r526_top: Any = None
+            # (u27, run #5) route #546 RESIDUAL: a fixed tuple NESTED in an Optional / Union /
+            # container is the INTERSECTION of its slots too (u21 kept that for a top-level
+            # tuple only, so `-> Optional[Tuple[Any, int]]` returning `(1, None)` and
+            # `-> List[Tuple[Any, int]]` returning `[(1, None)]` were no escape: the caller's
+            # `t[1] + 1` PROVED `no_exception \all`, CPython TypeError). Each tuple node keeps
+            # its per-slot results (`_r526_tsl`); an Optional / Union root whose tuple arms all
+            # have one length keeps their slot-wise intersection in `slots`, so Module 6 judges
+            # a returned / passed tuple display slot by slot. `_r526_hres` is the SAME walk with
+            # u21's union rule for a nested tuple (where None MAY be held, not where it is
+            # admitted): a parameter's `hold`, the caller-side taint source (functions.py).
+            _r526_tsl: Dict[int, Any] = {}
+            _r526_hres: Dict[int, Any] = {}
+            _r526_arm: Dict[int, Any] = {}
+            # (u27) a container whose ELEMENT (a mapping: whose value) is a fixed tuple keeps
+            # that tuple's slots (`elt_slots`), so a returned / passed list / set / dict display
+            # of tuple displays is judged slot by slot too (`[(None, k)]` from `-> List[Tuple
+            # [Any, int]]` is honest); an Optional / Union passes on its arms' one shape
+            _r526_esl: Dict[int, Any] = {}
             _r526_st: list = [(_r526_root, False)]
             while _r526_st:
                 _r526_n, _r526_done = _r526_st.pop()
@@ -7558,12 +7576,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         _r526_kind = "union"
                     elif _r526_bn in ("Annotated", "Final", "ClassVar"):
                         _r526_kind, _r526_ch = "union", _r526_ch[:1]
-                    elif _r526_bn in ("Tuple", "tuple") and _r526_n is _r526_root and not (
+                    elif _r526_bn in ("Tuple", "tuple") and not (
                             len(_r526_ch) == 2 and isinstance(_r526_ch[1], ast.Constant)
                             and _r526_ch[1].value is Ellipsis):
-                        # a TOP-LEVEL fixed tuple only: one nested in an Optional / Union /
-                        # container keeps u18's union of its slots (named residual; the
-                        # mirror's `-> Optional[Tuple[str, PyVal]]` returns stay byte-inert)
+                        # any FIXED tuple (u27: nested ones too, see above)
                         _r526_kind = "tuple"
                     elif _r526_bn in ("Dict", "dict", "Mapping", "MutableMapping", "DefaultDict",
                                       "defaultdict", "OrderedDict") and len(_r526_ch) == 2:
@@ -7583,6 +7599,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                 _r526_nm = (_r526_n.id if isinstance(_r526_n, ast.Name) else
                             _r526_n.attr if isinstance(_r526_n, ast.Attribute) else "")
                 _r526_rs = [_r526_res.get(id(_c), (set(), None)) for _c in _r526_ch]
+                _r526_hs = [_r526_hres.get(id(_c), (set(), None)) for _c in _r526_ch]
+                # (u27) the tuple arms (their slot lists) an Optional / Union node offers a
+                # tuple display: its own arms' and its nested Optional / Union arms'; any
+                # other arm offers none (a display matching it is judged by the depths)
+                _r526_arm[id(_r526_n)] = (
+                    [_r526_tsl[id(_r526_n)]] if id(_r526_n) in _r526_tsl else [] if
+                    _r526_kind not in ("opt", "union") else
+                    [_y for _c in _r526_ch for _y in _r526_arm.get(id(_c), [])])
                 if _r526_kind == "leaf":
                     if isinstance(_r526_n, ast.Constant) and isinstance(_r526_n.value, str):
                         # a string (forward-reference) annotation is not parsed: it admits None
@@ -7608,8 +7632,10 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         and (_r526_af is None or _d < _r526_af)}
                     _r526_r = ({_d + 1 for _d in _r526_ad},
                                None if _r526_af is None else _r526_af + 1)
+                    _r526_tsl[id(_r526_n)] = [[sorted(_x[0]), _x[1]] for _x in _r526_rs]
+                    _r526_arm[id(_r526_n)] = [_r526_tsl[id(_r526_n)]]
                     if _r526_n is _r526_root:
-                        _r526_top = [[sorted(_x[0]), _x[1]] for _x in _r526_rs]
+                        _r526_top = _r526_tsl[id(_r526_n)]
                 else:
                     _r526_ad = set().union(*[_x[0] for _x in _r526_rs]) if _r526_rs else set()
                     _r526_afs = [_x[1] for _x in _r526_rs if _x[1] is not None]
@@ -7620,17 +7646,65 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
                         _r526_ad = {_d + 1 for _d in _r526_ad}
                         _r526_af = None if _r526_af is None else _r526_af + 1
                     _r526_r = (_r526_ad, _r526_af)
+                    if _r526_kind == "cont" and len(_r526_ch) == 1 and id(_r526_ch[0]) in _r526_tsl:
+                        _r526_esl[id(_r526_n)] = _r526_tsl[id(_r526_ch[0])]
+                    elif _r526_kind in ("opt", "union"):
+                        _r526_es = [_r526_esl[id(_c)] for _c in _r526_ch if id(_c) in _r526_esl]
+                        if _r526_es and all(_x == _r526_es[0] for _x in _r526_es):
+                            _r526_esl[id(_r526_n)] = _r526_es[0]
                 _r526_res[id(_r526_n)] = _r526_r
+                # (u27) the HOLD walk: u21's rule (a nested tuple = the union of its slots one
+                # level down, a top-level one the intersection), byte-for-byte its old result
+                if _r526_kind == "tuple" and _r526_n is _r526_root:
+                    _r526_hres[id(_r526_n)] = _r526_r
+                elif _r526_kind == "leaf":
+                    _r526_hres[id(_r526_n)] = _r526_r
+                else:
+                    _r526_h = set().union(*[_x[0] for _x in _r526_hs]) if _r526_hs else set()
+                    _r526_hf = [_x[1] for _x in _r526_hs if _x[1] is not None]
+                    _r526_hf = min(_r526_hf) if _r526_hf else None
+                    if _r526_kind == "opt":
+                        _r526_h = _r526_h | {0}
+                    elif _r526_kind in ("cont", "tuple"):
+                        _r526_h = {_d + 1 for _d in _r526_h}
+                        _r526_hf = None if _r526_hf is None else _r526_hf + 1
+                    _r526_hres[id(_r526_n)] = (_r526_h, _r526_hf)
             _r526_ad, _r526_af = _r526_res.get(id(_r526_root), (set(), None))
+            _r526_h, _r526_hf = _r526_hres.get(id(_r526_root), (set(), None))
+            # (u27) an Optional / Union root: the slot-wise INTERSECTION of its tuple arms when
+            # they all have one length (a display of that length can match no other tuple arm)
+            _r526_as = _r526_arm.get(id(_r526_root)) or []
+            if (_r526_top is None and _r526_as
+                    and len({len(_x) for _x in _r526_as}) == 1):
+                _r526_top = []
+                for _r526_j in range(len(_r526_as[0])):
+                    _r526_rs = [(set(_x[_r526_j][0]), _x[_r526_j][1]) for _x in _r526_as]
+                    _r526_afs = [_x[1] for _x in _r526_rs]
+                    _r526_sf = (max(_r526_afs) if None not in _r526_afs else None)
+                    _r526_cand = set().union(*[_x[0] for _x in _r526_rs]) | set(range(
+                        max([_x for _x in _r526_afs if _x is not None] or [0]) + 1))
+                    _r526_top.append([sorted(_d for _d in _r526_cand if all(
+                        _d in _x[0] or (_x[1] is not None and _d >= _x[1]) for _x in _r526_rs)
+                        and (_r526_sf is None or _d < _r526_sf)), _r526_sf])
+            _r526_hd = sorted(_x for _x in _r526_h if _x >= 1)
+            _r526_es = _r526_esl.get(id(_r526_root))
+            if not (_r526_es and any(_x[0] or _x[1] is not None for _x in _r526_es)):
+                _r526_es = None
             if (_r526_af is not None or any(_x >= 1 for _x in _r526_ad)
-                    or (_r526_top and any(_x[0] or _x[1] is not None for _x in _r526_top))):
+                    or (_r526_top and any(_x[0] or _x[1] is not None for _x in _r526_top))
+                    or _r526_es
+                    or (_r526_key and _r526_hd != [_x for _x in sorted(_r526_ad) if _x >= 1])):
                 _r526_rec = {"admit": sorted(_r526_ad), "any_from": _r526_af}
+                if _r526_top and any(_x[0] or _x[1] is not None for _x in _r526_top):
+                    _r526_rec["slots"] = _r526_top
+                if _r526_es:
+                    _r526_rec["elt_slots"] = _r526_es
                 if _r526_key:
+                    if _r526_hd != [_x for _x in sorted(_r526_ad) if _x >= 1]:
+                        _r526_rec["hold"] = _r526_hd
                     _r553_pd[_r526_key] = _r526_rec
                 else:
                     _r526_nd = _r526_rec
-                    if _r526_top and any(_x[0] or _x[1] is not None for _x in _r526_top):
-                        _r526_nd["slots"] = _r526_top
         # (u21) route #553: the parameters this body STORES a None into, syntactically (an item
         # / slice store rooted at the parameter whose value is a None literal, a `.get` with no
         # / a None default, or a display / repetition holding one), with the depths it lands

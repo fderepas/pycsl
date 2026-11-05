@@ -5389,14 +5389,51 @@ default / typed / store: REFUSED (#547) or NOT PROVED on a `PyCSL-R521` obligati
 `8638`: the caller-side twin, an honest `List[Optional[int]]` callee), controls `8640`-`8649` (PASS: a None in the
 `Any` / `Optional` slot, a guarded Optional slot, int methods, a guarded None-returning method, `range` of an int
 call, a slice store of ints, a guarded slice-stored None, a callee's int store, a guarded Optional-parameter
-callee). Residuals (named): a tuple NESTED in an `Optional` / `Union` / container annotation (`-> Optional[Tuple[str,
-Any]]`) keeps u18's union of its slots (the mirror's `_match_subject_union_info` returns a `.get` in its `str` slot
-under that annotation, an obligation its model cannot discharge); a returned tuple that is not a display is judged against the slots' intersection (an
+callee). Residuals (named): ~~a tuple NESTED in an `Optional` / `Union` / container annotation (`-> Optional[Tuple[str,
+Any]]`) keeps u18's union of its slots~~ (CLOSED run #5 by u27, below); a returned tuple that is not a display is judged against the slots' intersection (an
 honest `t = (None, 1); return t` from `-> Tuple[Any, int]` is owed); a None-returning method is matched by NAME;
 the caller-side taint follows positional arguments only, and an imported callee's store is recognised only in
 the syntactic shapes above (a store it forwards to a second imported callee is not followed); a repetition or a
 None-returning call inside a source stored into a PARAMETER is not normalised (the escape judges the evaluator's
 shapes).
+
+
+**Residual closed (run #5, u27): a tuple NESTED in an `Optional` / `Union` / container annotation.** u21's walk made
+only a TOP-LEVEL `Tuple[..]` the intersection of its slots; one nested in `Optional` / `Union` / a container kept
+u18's union, so `-> Optional[Tuple[Any, int]]` returning `(1, None)` was no escape and the caller's `x = t[1]; x + 1`
+PROVED `no_exception \all` (CPython TypeError; 12 witnesses PROVED in the default model at run5-int34 06ad15036).
+RULE (no new def in a mirrored body, no axiom, no new code: `PyCSL-R521`). Module 5: EVERY fixed `Tuple[A, B, ..]`
+node is the intersection of its slots and keeps its per-slot depths; an `Optional` / `Union` ROOT whose tuple arms
+all have one length keeps their SLOT-WISE intersection in `slots` (a display of that length can match no other
+tuple arm; tuple arms of different lengths keep no `slots`, the intersection judges); a container whose element (a
+mapping: whose value) is a fixed tuple keeps that tuple's slots in `elt_slots` (an `Optional` / `Union` passes its
+arms' one shape on). A parameter's record also carries `hold` -- the same walk with u21's union rule, where None MAY
+be held -- when it differs from `admit`: the caller-side taint (`r553_param_none_depths`, functions.py) reads `hold`,
+so it is byte-for-byte u21's. Module 6: a RETURN is judged against the new depths; a returned tuple display under
+`slots` slot by slot (u21's rule, now for an Optional / Union root too); a returned list / set / dict (values) /
+variadic-tuple display under `elt_slots` element by element, each tuple display slot by slot, any other element
+against the display's depths one level down; an item store into a list parameter under `elt_slots` slot by slot.
+At a CALL of a file function, a container argument holding None is judged against the PARAMETER's depths (u21 let
+any parameter with a record take any container, and a top-level `Optional` / `Union` parameter skipped the judge):
+a tuple display under `slots` / a display of tuple displays under `elt_slots` slot by slot, anything else against
+`admit` / `any_from` (no record: no depth below the top admitted); an `Any` / `object` / unannotated parameter still
+takes anything, a constructor field as before. The mirror's `_match_subject_union_info` (`-> Optional[Tuple[str,
+PyVal]]`) returned a one-argument `.get` in its `str` slot, now owed and not dischargeable in its model: live and
+mirror now read `subj.get("name") or ""` (a nameless subject has no symbol-table entry either way: same result), so
+the mirror's `stmt_control_flow.py` emission moves (owed: its §10.4 whole-file re-proof).
+Witnesses `scratchpad/u27/wit2` / `wit3` (default model): 12/12 that PROVED at base NOT PROVED on the `PyCSL-R521`
+fence (typed / store: Why3 typing errors at base and HEAD); the other 18 `wit2` shapes (parameters, containers of
+tuples, a nested tuple, a tuple local) did not prove at base (Why3 typing errors in every model; `r04` fenced at base
+already, `r15` an unrelated division goal) and 16 of them now carry a new `PyCSL-R521` obligation (`r04` / `p09`
+had one at base). Corpus `8940`-`8951` (FAIL), controls
+`8952`-`8959` (PASS: a None / `.get` / None-bound local in the `Any` / `object` slot of an Optional / Union tuple,
+an all-int Union tuple, an honest `List[Optional[int]]` argument). Residuals (named): a tuple LOCAL / call (not a
+display) returned or passed is judged against the intersection (`q = (None, 1); h(q)` into `Optional[Tuple[Any,
+int]]` is owed); a tuple nested in a tuple slot is that slot's intersection (`(1, (None, 1))` into `Tuple[int,
+Tuple[Any, int]]` is owed); a union of tuple arms of different lengths, or of several container shapes, keeps no
+slot shape; a `X | None` (BitOr) ROOT annotation has no record (judged by the top-level union, unchanged); u21's
+`r553_param_none_stores` lands a callee's `xs[0] = (None, 1)` at depth 1 of the caller's list, so that caller's
+argument is now owed at the call (over-refusal, sound).
 
 ### 7.550 A user protocol dunder counts only when judged; a construction's arguments are judged against the declared parameter kinds; a value the model lowers to an opaque int is refused at an int use (routes #550 / #551 / #552, run #4)
 

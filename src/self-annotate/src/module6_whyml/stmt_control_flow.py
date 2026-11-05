@@ -1060,7 +1060,9 @@ class ControlFlowStmtMixin:
         subj = stmt.get("subject", {})
         if not isinstance(subj, dict) or subj.get("type") != "Var":
             return None
-        var_name = subj.get("name")
+        # (u27, route #546 residual) `or ""`: the `str` slot of the returned tuple holds a
+        # str; a nameless subject has no symbol-table entry either way (same result)
+        var_name = subj.get("name") or ""
         symtype = getattr(self, "_current_symbol_table", {}).get(var_name)
         if not symtype or not isinstance(symtype, str) or not symtype.startswith("_union_"):
             return None
