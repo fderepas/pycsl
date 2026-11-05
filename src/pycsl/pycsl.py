@@ -21945,6 +21945,170 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     break
                 if _st558 is not None:
                     _reps541.append(("PYCSL-R558-BYTES-VALUE-KIND", _st558[0], _st558[1]))
+            # (run #5, routes #561 / #562; red team 53) a list / set / dict comprehension and a
+            # generator expression (an argument of `sum` / `any` / `all` / `max` / `min` /
+            # `tuple`, or bound to a local) lower OPAQUELY (`list_comp 0`, `sum_1 (any int)`):
+            # the element, the key / value, the filters and the iterables are not lowered as a
+            # statement is, so neither Why3 typing nor an iteration obligation meets them. On the
+            # kinds above, at every node INSIDE a comprehension of this body's own scope (the
+            # bodies of nested lambdas / defs / classes excluded):
+            # - PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND: the iterable of a `for` clause, the
+            #   haystack of `in` / `not in`, an unpacked value or the argument of an iterating
+            #   builtin (route #542's positions) that may be a function (a lambda, a file
+            #   function named directly) or an instance of a file class with no foreign base
+            #   whose lineage -- and that of every file subclass of it -- defines none of
+            #   `__iter__` / `__getitem__` (for a haystack, nor `__contains__`): `sum(1 for x in
+            #   p)` of a dataclass `p: P`, `sum(1 for x in KI(k))`, `sum(1 for x in h)`, `[1 in
+            #   p for x in xs]`, `[y for x in xs for y in p]`;
+            # - PYCSL-R562-COMPREHENSION-ELEMENT-KIND: the shapes route #564 judges in a tuple /
+            #   set display element (an ordering of a pair CPython rejects, unary `-` / `+` /
+            #   `~` of a non-number, an operator over kinds it rejects, a non-str needle in a
+            #   str), and an argument of a call of a file / imported function, a file-class
+            #   constructor or a method of a known file receiver class whose known kinds do not
+            #   fit the declared parameter (None is the value fences'; at a NUMBER parameter
+            #   only a str is judged -- a container / record handle there is route #552's;
+            #   a foreign-base / Protocol class domain is not judged): `[h(t) for x in xs]` of
+            #   `def h(x: int)` and `t: str`, `sum(-t for x in xs)`, `[d < d for x in xs]`.
+            if not _reps541:
+                _cr561, _sk561 = {}, [_y for _y in _own552 if isinstance(_y, (
+                    _ast486.ListComp, _ast486.SetComp, _ast486.DictComp, _ast486.GeneratorExp))]
+                _sk561 = [_z for _y in _sk561 for _z in _ast486.iter_child_nodes(_y)]
+                while _sk561:
+                    _y561 = _sk561.pop()
+                    if id(_y561) in _cr561:
+                        continue
+                    _cr561[id(_y561)] = _y561
+                    if not isinstance(_y561, (_ast486.FunctionDef, _ast486.AsyncFunctionDef,
+                                              _ast486.Lambda, _ast486.ClassDef)):
+                        _sk561.extend(_ast486.iter_child_nodes(_y561))
+                _cr561 = sorted(_cr561.values(), key=lambda _y: (
+                    getattr(_y, "lineno", getattr(getattr(_y, "iter", None), "lineno", 0)),
+                    getattr(_y, "col_offset", getattr(getattr(_y, "iter", None),
+                                                      "col_offset", 0))))
+                # a kind CPython cannot iterate (`_ns`: the dunders that would make it iterable)
+                _ni561 = lambda _x, _ns: _x == "fn" or (
+                    _x.startswith("c:") and _x[2:] in _cls541 and all(
+                        not _fb552.get(_d, True) and not _dn557(_d, _ns)
+                        for _d in _cls541 if _x[2:] in _anc541.get(_d, ())))
+                for _y561 in _cr561:
+                    if _reps541:
+                        break
+                    _ops561 = []
+                    if isinstance(_y561, _ast486.comprehension):
+                        _ops561 = [(_y561.iter, "the iterable of a comprehension `for`", False)]
+                    elif isinstance(_y561, _ast486.Compare):
+                        _ops561 = [(_c, "the container of `in` / `not in`", True)
+                                   for _o, _c in zip(_y561.ops, _y561.comparators)
+                                   if isinstance(_o, (_ast486.In, _ast486.NotIn))]
+                    elif isinstance(_y561, (_ast486.Starred, _ast486.YieldFrom)):
+                        _ops561 = [(_y561.value, "an unpacked / delegated iterable", False)]
+                    elif (isinstance(_y561, _ast486.Call) and isinstance(_y561.func, _ast486.Name)
+                          and _y561.func.id not in _loc541 and _y561.func.id not in _prm541
+                          and _y561.func.id not in _mcnt541):
+                        _fi561 = _y561.func.id
+                        if (_fi561 in ("len", "list", "tuple", "set", "frozenset", "sorted",
+                                       "reversed", "sum", "any", "all", "enumerate", "iter",
+                                       "dict") and len(_y561.args) >= 1) or (
+                                           _fi561 in ("min", "max") and len(_y561.args) == 1):
+                            _ops561 = [(_y561.args[0], f"the argument of `{_fi561}`", False)]
+                        elif _fi561 == "zip":
+                            _ops561 = [(_a, "an argument of `zip`", False) for _a in _y561.args]
+                        elif _fi561 in ("map", "filter") and len(_y561.args) >= 2:
+                            _ops561 = [(_a, f"an iterable argument of `{_fi561}`", False)
+                                       for _a in _y561.args[1:]]
+                    for _e561, _w561, _hy561 in _ops561:
+                        _ns561 = (("__iter__", "__getitem__", "__contains__") if _hy561
+                                  else ("__iter__", "__getitem__"))
+                        _bk561 = sorted(_x for _x in _T541.get(id(_e561), _UT541)[0]
+                                        if _ni561(_x, _ns561))
+                        if (not _bk561 and isinstance(_e561, _ast486.Name)
+                                and _e561.id not in _loc541 and _e561.id not in _prm541
+                                and _fsg552.get(_e561.id) is not None):
+                            _bk561 = ["fn"]
+                        # a file class OBJECT (metaclass `type`: no foreign base, no
+                        # `metaclass=`, no decorator but `@dataclass`) is not iterable
+                        if (not _bk561 and isinstance(_e561, _ast486.Name)
+                                and _e561.id not in _loc541 and _e561.id not in _prm541
+                                and _e561.id in _cls541 and _mcnt541.get(_e561.id) == 2
+                                and not _fb552.get(_e561.id, True) and all(
+                                    not _cls541[_a].keywords and all(
+                                        _hn552(_d) == "dataclass"
+                                        for _d in _cls541[_a].decorator_list)
+                                    for _a in _lin552.get(_e561.id, []))):
+                            _bk561 = ["the class object `" + _e561.id + "`"]
+                        if _bk561:
+                            _reps541.append((
+                                "PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND", _e561,
+                                f"`{_ast486.unparse(_e561).strip()[:60]}` is {_w561} inside a "
+                                f"comprehension / generator expression and may be "
+                                f"{_KN541(frozenset(_bk561))}, which CPython cannot "
+                                f"{'search' if _hy561 else 'iterate'}"))
+                            break
+                    if _reps541:
+                        break
+                    _w562 = _bad564(_y561)
+                    if _w562 is not None:
+                        _reps541.append((
+                            "PYCSL-R562-COMPREHENSION-ELEMENT-KIND", _y561,
+                            f"`{_ast486.unparse(_y561).strip()[:60]}`, inside a comprehension / "
+                            f"generator expression, is {_w562}"))
+                        break
+                    if not isinstance(_y561, _ast486.Call):
+                        continue
+                    _f561, _sg561, _cn561 = _y561.func, None, ""
+                    if (isinstance(_f561, _ast486.Name) and _f561.id not in _loc541
+                            and _f561.id not in _prm541 and _mcnt541.get(_f561.id) == 2):
+                        if _f561.id in _cls541:
+                            _sg561, _cn561 = _csg552.get(_f561.id), _f561.id
+                        elif _f561.id in _fsg552:
+                            _sg561, _cn561 = _fsg552[_f561.id], _f561.id
+                        elif _f561.id in _imf552:
+                            _sg561, _cn561 = _sig552(_imf552[_f561.id], False), _f561.id
+                    elif isinstance(_f561, _ast486.Attribute):
+                        _rv561 = _f561.value
+                        if (isinstance(_rv561, _ast486.Name) and _rv561.id in _imm552
+                                and _rv561.id not in _loc541 and _rv561.id not in _prm541
+                                and _mcnt541.get(_rv561.id) == 2
+                                and _f561.attr in _imm552[_rv561.id]):
+                            _sg561 = _sig552(_imm552[_rv561.id][_f561.attr], False)
+                            _cn561 = f"{_rv561.id}.{_f561.attr}"
+                        else:
+                            _rk561 = _T541.get(id(_rv561), _UT541)[0]
+                            if len(_rk561) == 1 and next(iter(_rk561)).startswith("c:"):
+                                _rc561 = next(iter(_rk561))[2:]
+                                _mc561 = next((_a for _a in _lin552.get(_rc561, [])
+                                               if _f561.attr in _msg552[_a]), None)
+                                if _mc561 is not None and not _fb552.get(_rc561, True):
+                                    _sg561 = _msg552[_mc561][_f561.attr]
+                                    _cn561 = f"{_mc561}.{_f561.attr}"
+                    if _sg561 is None or any(isinstance(_a, _ast486.Starred)
+                                             for _a in _y561.args) or any(
+                                                 _k.arg is None for _k in _y561.keywords):
+                        continue
+                    _pd561 = {_p[0]: _p for _p in _sg561[0] + _sg561[1]}
+                    _pp561 = [(_a, _sg561[0][_i]) for _i, _a in enumerate(_y561.args)
+                              if _i < len(_sg561[0])] + [
+                                  (_k.value, _pd561[_k.arg]) for _k in _y561.keywords
+                                  if _k.arg in _pd561]
+                    for _a561, (_pn561, _an561) in _pp561:
+                        _d561 = _ANN541(_an561)
+                        if (_an561 is None or "unk" in _d561[0] or not _d561[0]
+                                or any(_x.startswith("c:") and (_fb552.get(_x[2:], True)
+                                                                or _x[2:] in _pr557)
+                                       for _x in _d561[0])):
+                            continue
+                        _k561 = (_dk552(_T541.get(id(_a561), _UT541)[0], _d561[0]) - _U541
+                                 - frozenset(["none"]))
+                        if _d561[0] - frozenset(["none"]) <= frozenset(["num"]):
+                            _k561 = _k561 & frozenset(["str"])
+                        if _k561 and not _FIT541(_k561, _d561[0]):
+                            _reps541.append((
+                                "PYCSL-R562-COMPREHENSION-ELEMENT-KIND", _y561,
+                                f"`{_ast486.unparse(_a561).strip()[:60]}` is passed, inside a "
+                                f"comprehension / generator expression, to the parameter "
+                                f"`{_pn561}` of `{_cn561}`, declared {_KN541(_d561[0])}, and "
+                                f"may be {_KN541(_k561 - _d561[0])}"))
+                            break
         if _reps541:
             _rc541, _rv541, _rm541 = _reps541[0]
             _ln541 = getattr(_rv541, "lineno", 0)
@@ -22027,6 +22191,32 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"proved `no_exception \\all`). Compare the member as an int (`k == IE.B`, "
                     f"`k in (IE.A, IE.B)`), or iterate the class itself (`for m in IE`).",
                     stage="ir-semantic", code="PYCSL-R560-INTENUM-MEMBER-OPERAND")
+            if _rc541 == "PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND: {_rm541}. "
+                    f"A generator expression consumed by `sum` / `any` / `all` / `max` / "
+                    f"`tuple` lowers to an opaque value (`sum_1 (any int)`) and a comprehension's "
+                    f"element, filters and later `for` clauses are not lowered, so the "
+                    f"iteration / search of a value CPython cannot iterate is never type-checked "
+                    f"nor obliged and the claim proved while CPython raises TypeError (route "
+                    f"#561; measured: `sum(1 for x in p)` of a dataclass `p: P`, `sum(1 for x in "
+                    f"KI(k))`, `sum(1 for x in h)` of a file function, `[1 in p for x in xs]` "
+                    f"proved `no_exception \\all`). Iterate / search a container, a str or a "
+                    f"range: use `sum(1 for x in xs)` of `xs: List[int]`, or `p.a in xs`.",
+                    stage="ir-semantic", code="PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND")
+            if _rc541 == "PYCSL-R562-COMPREHENSION-ELEMENT-KIND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R562-COMPREHENSION-ELEMENT-KIND: {_rm541}. A "
+                    f"comprehension / generator expression lowers to an opaque value "
+                    f"(`list_comp 0`, `sum_1 (any int)`): its element and filters are judged by "
+                    f"the exception-trigger rows only, never Why3-typed, so a call argument of "
+                    f"the wrong kind or an operator CPython rejects proved while CPython raises "
+                    f"TypeError (route #562; measured: `len([h(t) for x in xs])` of `def h(x: "
+                    f"int)` and `t: str`, `sum(-t for x in xs)`, `[d < d for x in xs]` of a "
+                    f"dict `d` proved `no_exception \\all`). Pass a value of the declared kind "
+                    f"(`[h(x) for x in xs]` of `xs: List[int]`), or apply the operator to "
+                    f"operands CPython accepts instead (`[-x for x in xs]`).",
+                    stage="ir-semantic", code="PYCSL-R562-COMPREHENSION-ELEMENT-KIND")
             if _rc541 == "PYCSL-R558-BYTES-VALUE-KIND":
                 raise _PyCSLSemErr541(
                     f"line {_ln541}: PYCSL-R558-BYTES-VALUE-KIND: {_rm541}. The value model "
