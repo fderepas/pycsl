@@ -855,6 +855,85 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
             if _msl_ok:
                 self.program_ir["module_const_str_lists"] = _msl_ok
 
+        # lvA (proof2why3 normalize cluster): module-level constant str->str DICT literals
+        # (`_UNICODE_OPS = {"∀": "forall", ...}`) read ONLY as `for k, v in NAME.items()`,
+        # and LIST/TUPLE literals of str 2-TUPLES (`_PREFIX_STRIPS = [("Nat.gcd", "gcd"),
+        # ...]`) read ONLY as `for a, b in NAME`. Recorded as `{NAME: {"kind": "dict"|"seq",
+        # "pairs": [[k, v], ...]}}` under `module_const_str_pair_loops`, in
+        # ITERATION order (a dict literal through `dict(...)` itself: first-occurrence
+        # order, last value wins) so Module 6 can unroll the loop over the real pairs
+        # (`_handle_for_stmt`). Same fail-closed discipline as the str-list collector
+        # above: bound exactly once at module top level by a plain Name target, never
+        # `#@ shared` / `global` / a parameter / a def or class name, no other Store/Del,
+        # and EVERY Load is that loop iterable (so nothing can alias or mutate it).
+        _msp_cand: Dict[str, Any] = {}
+        for _msp_child in getattr(node, "body", []):
+            _msp_t, _msp_v = None, None
+            if (isinstance(_msp_child, ast.Assign) and len(_msp_child.targets) == 1
+                    and isinstance(_msp_child.targets[0], ast.Name)):
+                _msp_t, _msp_v = _msp_child.targets[0].id, _msp_child.value
+            elif (isinstance(_msp_child, ast.AnnAssign)
+                    and isinstance(_msp_child.target, ast.Name)):
+                _msp_t, _msp_v = _msp_child.target.id, _msp_child.value
+            if _msp_t is None:
+                continue
+            if (isinstance(_msp_v, ast.Dict) and _msp_v.keys
+                    and all(isinstance(_e, ast.Constant) and type(_e.value) is str
+                            for _e in list(_msp_v.keys) + list(_msp_v.values))):
+                _msp_cand[_msp_t] = ("dict", [[_k, _v] for _k, _v in dict(
+                    (_a.value, _b.value) for _a, _b in zip(_msp_v.keys, _msp_v.values)).items()])
+            elif (isinstance(_msp_v, (ast.List, ast.Tuple)) and _msp_v.elts
+                    and all(isinstance(_e, ast.Tuple) and len(_e.elts) == 2
+                            and all(isinstance(_c, ast.Constant) and type(_c.value) is str
+                                    for _c in _e.elts) for _e in _msp_v.elts)):
+                _msp_cand[_msp_t] = ("seq", [[_e.elts[0].value, _e.elts[1].value]
+                                             for _e in _msp_v.elts])
+        if _msp_cand and not _nsx523:
+            _msp_bad: Set[str] = {d.variable for d in getattr(node, "csl_shared_decls", [])}
+            _msp_iters: Set[int] = set()
+            _msp_stores: Dict[str, int] = {}
+            _msp_reads: Set[str] = set()
+            for _msp_n in ast.walk(node):
+                if isinstance(_msp_n, ast.For) and isinstance(_msp_n.iter, ast.Name):
+                    _msp_iters.add(id(_msp_n.iter))
+                elif (isinstance(_msp_n, ast.For) and isinstance(_msp_n.iter, ast.Call)
+                        and not _msp_n.iter.args and not _msp_n.iter.keywords
+                        and isinstance(_msp_n.iter.func, ast.Attribute)
+                        and _msp_n.iter.func.attr == "items"
+                        and isinstance(_msp_n.iter.func.value, ast.Name)):
+                    _msp_iters.add(id(_msp_n.iter.func.value))
+                elif isinstance(_msp_n, ast.Global):
+                    _msp_bad.update(_msp_n.names)
+                elif isinstance(_msp_n, ast.Nonlocal):
+                    _msp_bad.update(_msp_n.names)
+                elif isinstance(_msp_n, ast.arg):
+                    _msp_bad.add(_msp_n.arg)
+                elif isinstance(_msp_n, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                         ast.ClassDef)):
+                    _msp_bad.add(_msp_n.name)
+            _msp_itemsiters: Set[int] = set()
+            for _msp_n in ast.walk(node):
+                if (isinstance(_msp_n, ast.For) and isinstance(_msp_n.iter, ast.Call)
+                        and isinstance(_msp_n.iter.func, ast.Attribute)
+                        and isinstance(_msp_n.iter.func.value, ast.Name)):
+                    _msp_itemsiters.add(id(_msp_n.iter.func.value))
+            for _msp_n in ast.walk(node):
+                if isinstance(_msp_n, ast.Name) and _msp_n.id in _msp_cand:
+                    _msp_ctx = type(getattr(_msp_n, "ctx", None)).__name__
+                    _msp_dict = _msp_cand[_msp_n.id][0] == "dict"
+                    if _msp_ctx == "Store":
+                        _msp_stores[_msp_n.id] = _msp_stores.get(_msp_n.id, 0) + 1
+                    elif (_msp_ctx != "Load" or id(_msp_n) not in _msp_iters
+                            or _msp_dict != (id(_msp_n) in _msp_itemsiters)):
+                        _msp_bad.add(_msp_n.id)
+                    else:
+                        _msp_reads.add(_msp_n.id)
+            _msp_ok = {_k: {"kind": _v[0], "pairs": _v[1]} for _k, _v in _msp_cand.items()
+                       if _msl_counts.get(_k, 0) == 1 and _msp_stores.get(_k, 0) == 1
+                       and _k not in _msp_bad and _k in _msp_reads}
+            if _msp_ok:
+                self.program_ir["module_const_str_pair_loops"] = _msp_ok
+
         # (#49) ROUTE #523 — the LOCAL twin. Module 6's faithful for-over-literal
         # (`_collect_str_literal_seq_locals` -> `_str_lit_seq_elts`) binds `for p in a` to
         # the Seq.cons chain of `a`'s literal; it is admitted only for a binding recorded

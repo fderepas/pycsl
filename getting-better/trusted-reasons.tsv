@@ -366,11 +366,9 @@ proof2why3/from_sexp.py	_construct_indices	cost-scale:int-erasure-seam	THE INT-E
 proof2why3/from_sexp.py	_find_construct_idx	unclassified	-
 proof2why3/from_sexp.py	_project_app	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/from_sexp.py	project_constr	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-proof2why3/normalize.py	normalize_prover_output	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/normalize.py	_nat_to_int_with_sidecond	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/normalize.py	_expand_anon_binders	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/normalize.py	_alpha_rename	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-proof2why3/normalize.py	normalize_whyml_axiom	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/parser.py	normalize_surface	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/parser.py	parse_type_expr	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/sertop.py	sertop_version	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
