@@ -3445,3 +3445,15 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 8949_u27_r546_s06_opt_tup_none_local.py	VERIFY-FAIL	
 8950_u27_r546_s08_opt_tup_neg.py	VERIFY-FAIL	
 8951_u27_r546_s10_opt_tup_ifexp.py	VERIFY-FAIL	
+8980_u28_r565_w01_tuple_nested_if.py	VERIFY-FAIL	
+8981_u28_r565_w02_tuple_toplevel.py	VERIFY-FAIL	
+8982_u28_r565_w03_tuple_is_not_none.py	VERIFY-FAIL	
+8983_u28_r565_w04_for_target.py	VERIFY-FAIL	
+8984_u28_r565_w05_walrus.py	VERIFY-FAIL	
+8985_u28_r565_w06_tuple_swap.py	VERIFY-FAIL	
+8986_u28_r565_w07_two_none_eq.py	VERIFY-FAIL	
+8987_u28_r565_w08_tuple_truthy.py	VERIFY-FAIL	
+8988_u28_r565_w09_tuple_in_else.py	VERIFY-FAIL	
+8989_u28_r565_w10_single_elem_tuple.py	VERIFY-FAIL	
+8990_u28_r565_w11_nested_def_rebind.py	REFUSAL	nested function 't' is lifted to a sibling of its enclosing function, and the lift is not faithful here: another function in the file has the same name. A lifted body reads a captured name as ONE global opaque constant shared by every call, and two lifted helpers with the same name collapse to one. Pass the captured values as parameters and give the helper a unique name, or move it to module level.
+8991_u28_r565_w12_optional_join_truthy.py	VERIFY-FAIL	
