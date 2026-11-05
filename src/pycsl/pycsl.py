@@ -1132,6 +1132,72 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         from errors import PyCSLParseError as _PyCSLParseErr45
         raise _PyCSLParseErr45(str(_exc_parse), stage="parse") from _exc_parse
 
+    # (#49) ROUTE #465 PLACEMENT (u29, run #5): this check used to run after Module 6's
+    # emission; on a 25-deep nest (corpus 7341) CPython refuses in milliseconds while the
+    # emission takes 370-400 s under load, past the internal-crash-free plane's 300 s limit.
+    # It runs right after the parse (a file `ast.parse` rejects keeps its parse refusal), so
+    # the refusal is reached before any expensive pass; its text and code are unchanged.
+    # It reads only `args.file` and `source_code`, which nothing in between reassigns.
+    # (#49) ROUTE #465 (red team 38; MEASURED PROVED on a9eac4a08: `def f(n): global n`, a
+    # late `from __future__`, `__debug__` as a target / parameter, `await` / `yield` outside
+    # their scope, a duplicate type parameter, 25 nested blocks, an `ascii` coding cookie over
+    # non-ASCII text -- CPython refuses to COMPILE each module). The file was only ever read
+    # with `ast.parse`, which stops before CPython's future / symtable / compiler passes, and
+    # decoded as UTF-8 whatever its PEP 263 cookie says. RULE (no claim gating: a module that
+    # does not compile runs nothing): the claimed file's BYTES are decoded by CPython's own
+    # `tokenize.detect_encoding` (the cookie and the BOM), the decoded text must be the text
+    # verified here, and CPython's own `compile(bytes, file, "exec", dont_inherit=True)` must
+    # succeed; any SyntaxError / ValueError is CPython's verdict. A SyntaxWarning is CPython's
+    # default (the module still runs) and is not refused. Inline; the mirror twin is `\trusted`.
+    _fp465 = str(args.file) if getattr(args, "file", None) else ""
+    _er465 = None
+    _fb465 = None
+    if _fp465 and os.path.isfile(_fp465):
+        try:
+            _fb465 = __import__("pathlib").Path(_fp465).read_bytes()
+        except OSError:
+            _fb465 = None
+    import tokenize as _tk465
+    import io as _io465
+    import warnings as _wn465
+    if _fb465 is not None:
+        try:
+            _en465 = _tk465.detect_encoding(_io465.BytesIO(_fb465).readline)[0]
+            _dc465 = _fb465.decode(_en465)
+        except (SyntaxError, LookupError, ValueError) as _x465:
+            _er465 = f"the source cannot be decoded as CPython decodes it ({type(_x465).__name__}: {_x465})"
+        else:
+            _nz465 = (lambda _s: _s.lstrip("﻿").replace("\r\n", "\n").replace("\r", "\n"))
+            if _nz465(_dc465) != _nz465(source_code):
+                _er465 = (f"CPython decodes this file as `{_en465}` (its PEP 263 coding cookie / "
+                          f"BOM), which is not the text verified here (read as UTF-8)")
+    if _er465 is None:
+        try:
+            with _wn465.catch_warnings():
+                _wn465.simplefilter("ignore")
+                compile(_fb465 if _fb465 is not None else source_code, _fp465 or "<pycsl>", "exec",
+                        dont_inherit=True, optimize=0)
+        except (SyntaxError, ValueError) as _x465:
+            _er465 = (f"CPython refuses to compile this module ({type(_x465).__name__}: "
+                      f"{getattr(_x465, 'msg', None) or _x465}"
+                      + (f", line {_x465.lineno}" if getattr(_x465, "lineno", None) else "") + ")")
+        except (RecursionError, MemoryError, OverflowError) as _x465:
+            _er465 = f"CPython's compiler fails on this module ({type(_x465).__name__}: {_x465})"
+    if _er465 is not None:
+        from errors import PyCSLSemanticError as _PyCSLSemErr465
+        raise _PyCSLSemErr465(
+            f"{_er465}, so the module never runs and none of its functions can be called as "
+            f"verified (route #465; measured: `def f(n): global n`, a late `from __future__`, a "
+            f"`__debug__` parameter, an `await` outside `async def` and an `ascii` coding cookie "
+            f"over non-ASCII text each PROVED `no_exception \\all` of a function of the module, "
+            f"CPython raises SyntaxError before any code runs). The verifier reads the file with "
+            f"`ast.parse`, which does not run CPython's symbol-table and compiler checks, so the "
+            f"file is also compiled by CPython itself. Fix the construct CPython names (drop the "
+            f"`global` of a parameter, move `from __future__` imports to the top, rename "
+            f"`__debug__`, keep `await` / `yield` inside their function, flatten deep nesting), "
+            f"or make the coding cookie match the file's real encoding.",
+            stage="ir-semantic", code="PYCSL-R465-COMPILE-ERROR")
+
     parser_mod = Module2_Parser()
     weaver = Module3_Weaver(source_code, extracted_data, parser_mod)
     unified_ast = weaver.process()
@@ -31535,65 +31601,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
             _res411.append(_l411)
             _k411 += 1
         _mlw = "\n".join(_res411)
-    # (#49) ROUTE #465 (red team 38; MEASURED PROVED on a9eac4a08: `def f(n): global n`, a
-    # late `from __future__`, `__debug__` as a target / parameter, `await` / `yield` outside
-    # their scope, a duplicate type parameter, 25 nested blocks, an `ascii` coding cookie over
-    # non-ASCII text -- CPython refuses to COMPILE each module). The file was only ever read
-    # with `ast.parse`, which stops before CPython's future / symtable / compiler passes, and
-    # decoded as UTF-8 whatever its PEP 263 cookie says. RULE (no claim gating: a module that
-    # does not compile runs nothing): the claimed file's BYTES are decoded by CPython's own
-    # `tokenize.detect_encoding` (the cookie and the BOM), the decoded text must be the text
-    # verified here, and CPython's own `compile(bytes, file, "exec", dont_inherit=True)` must
-    # succeed; any SyntaxError / ValueError is CPython's verdict. A SyntaxWarning is CPython's
-    # default (the module still runs) and is not refused. Inline; the mirror twin is `\trusted`.
-    _fp465 = str(args.file) if getattr(args, "file", None) else ""
-    _er465 = None
-    _fb465 = None
-    if _fp465 and os.path.isfile(_fp465):
-        try:
-            _fb465 = __import__("pathlib").Path(_fp465).read_bytes()
-        except OSError:
-            _fb465 = None
-    import tokenize as _tk465
-    import io as _io465
-    import warnings as _wn465
-    if _fb465 is not None:
-        try:
-            _en465 = _tk465.detect_encoding(_io465.BytesIO(_fb465).readline)[0]
-            _dc465 = _fb465.decode(_en465)
-        except (SyntaxError, LookupError, ValueError) as _x465:
-            _er465 = f"the source cannot be decoded as CPython decodes it ({type(_x465).__name__}: {_x465})"
-        else:
-            _nz465 = (lambda _s: _s.lstrip("﻿").replace("\r\n", "\n").replace("\r", "\n"))
-            if _nz465(_dc465) != _nz465(source_code):
-                _er465 = (f"CPython decodes this file as `{_en465}` (its PEP 263 coding cookie / "
-                          f"BOM), which is not the text verified here (read as UTF-8)")
-    if _er465 is None:
-        try:
-            with _wn465.catch_warnings():
-                _wn465.simplefilter("ignore")
-                compile(_fb465 if _fb465 is not None else source_code, _fp465 or "<pycsl>", "exec",
-                        dont_inherit=True, optimize=0)
-        except (SyntaxError, ValueError) as _x465:
-            _er465 = (f"CPython refuses to compile this module ({type(_x465).__name__}: "
-                      f"{getattr(_x465, 'msg', None) or _x465}"
-                      + (f", line {_x465.lineno}" if getattr(_x465, "lineno", None) else "") + ")")
-        except (RecursionError, MemoryError, OverflowError) as _x465:
-            _er465 = f"CPython's compiler fails on this module ({type(_x465).__name__}: {_x465})"
-    if _er465 is not None:
-        from errors import PyCSLSemanticError as _PyCSLSemErr465
-        raise _PyCSLSemErr465(
-            f"{_er465}, so the module never runs and none of its functions can be called as "
-            f"verified (route #465; measured: `def f(n): global n`, a late `from __future__`, a "
-            f"`__debug__` parameter, an `await` outside `async def` and an `ascii` coding cookie "
-            f"over non-ASCII text each PROVED `no_exception \\all` of a function of the module, "
-            f"CPython raises SyntaxError before any code runs). The verifier reads the file with "
-            f"`ast.parse`, which does not run CPython's symbol-table and compiler checks, so the "
-            f"file is also compiled by CPython itself. Fix the construct CPython names (drop the "
-            f"`global` of a parameter, move `from __future__` imports to the top, rename "
-            f"`__debug__`, keep `await` / `yield` inside their function, flatten deep nesting), "
-            f"or make the coding cookie match the file's real encoding.",
-            stage="ir-semantic", code="PYCSL-R465-COMPILE-ERROR")
     # (#49) gen #39, ROUTES #461 / #462 (red team 37; MEASURED PROVED on 370db7dc2 under `#@
     # no_exception \all`, CPython raises AT IMPORT / at construction). A claimed function of
     # a module whose IMPORT raises is never callable: class-creation errors (an instance
