@@ -55,12 +55,20 @@ class CrossCheckResult:
                               and self.lean_norm == self.registry_norm,
         }
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def diagnostic(self) -> str:
-        return ""
+        lines = [f"--- {self.qualname} ---"]
+        lines.append(f"  rocq raw:      {self.rocq_raw}")
+        lines.append(f"  lean raw:      {self.lean_raw}")
+        lines.append(f"  registry raw:  {self.registry_raw}")
+        lines.append(f"  rocq norm:     {self.rocq_norm}")
+        lines.append(f"  lean norm:     {self.lean_norm}")
+        lines.append(f"  registry norm: {self.registry_norm}")
+        for label, ok in self.pairwise.items():
+            lines.append(f"  {label}: {'PASS' if ok else 'FAIL'}")
+        return "\n".join(lines)
 
 
 #@ \trusted reviewer: pycsl-self-annotate

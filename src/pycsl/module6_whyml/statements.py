@@ -1716,6 +1716,15 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return code
         if self._val_is_bool(val_ir):
             val = f"(if {val} then 1 else 0)"
+        # lvD C2: a string LITERAL into an int-hash `ref 0` local (see `_emit_body_code`)
+        # is the literal's `stable_hash` -- the exact text `_coerce_to_int` folds it to at
+        # every call-argument / literal-membership site, so `name = "_"` then
+        # `name in ("_", "*")` agree (`==` against a literal is the opaque `pycsl_py_eq`).
+        if (isinstance(val_ir, dict) and val_ir.get("type") == "String"
+                and target in getattr(self, "_lvd_int_predecl", set())
+                and target not in getattr(self, "_string_local_vars", set())
+                and val.startswith('"') and val.endswith('"')):
+            val = str(stable_hash(val))
         code = f"{indent}{safe_target} := {val}"
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
@@ -2392,6 +2401,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # correctly-typed `let py_underscore_k = ref …`. Only repeated `_` slots
         # rename — a single `_` (the only form the corpus emits today; multi-`_`
         # was a hard Why3 error) is untouched, so emission is byte-identical there.
+        _lvd_mk_let = None
         _du_seen = 0
         for _du_i, _du_t in enumerate(targets):
             if _du_t == "_":
@@ -2417,6 +2427,29 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     arity_fn = f"{safe_fn}_{nargs}"
             if arity_fn in self._abstract_ops:
                 tuple_ret = "(" + ", ".join(["int"] * len(targets)) + ")"
+                # lvD C3: `tempfile.mkstemp(..)` is an `(int, str)` pair; its path target is
+                # the let-bound string local `_typed_local_vars` admitted (same gate: that
+                # set is non-empty only for a top-level, stdlib-resolved mkstemp unpack).
+                # The path target must be the string local `_typed_local_vars` admitted (it
+                # is let-bound here unless a @mutable_state body pre-declared it `ref ""`);
+                # the stdlib import test is repeated inline.
+                _lvd_imps = [_i for _i in ((self.ir.get("imports") or [])
+                                           if isinstance(getattr(self, "ir", None), dict) else [])
+                             if isinstance(_i, (list, tuple)) and len(_i) >= 5
+                             and _i[0] == "tempfile"]
+                if (func_name == "tempfile.mkstemp" and len(targets) == 2
+                        and val_ir.get("receiver") is None
+                        and isinstance(targets[1], str) and targets[1] != "_"
+                        and targets[1] in getattr(self, "_string_local_vars", set())
+                        and _lvd_imps and all(_i[2] == "tempfile" and _i[4]
+                                              and _i[1] == "tempfile" for _i in _lvd_imps)
+                        and "tempfile" not in (getattr(self, "_module_method_return_types", {})
+                                               or {})
+                        and "tempfile" not in (getattr(self, "_current_symbol_table", {}) or {})):
+                    tuple_ret = "(int, string)"
+                    if (safe_targets[1] not in declared_refs
+                            and targets[1] not in declared_refs):
+                        _lvd_mk_let = safe_targets[1]
                 # item34.md CF4: use the callee's DECLARED signature (e.g.
                 # `_classify_iterable`'s `Tuple[str,str,bool]` → `(string,string,int)` and its
                 # `(ExprIR, Set, str)` params) instead of the homogeneous-int default, so a
@@ -2531,7 +2564,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         while i_tu < n_tu:
             tmp = tmp_names[i_tu]
             st = safe_targets[i_tu]
-            if st in local_refs:
+            # lvD C3: the admitted mkstemp path target is let-bound at its only binding
+            # (never pre-declared -- see `_typed_local_vars`), so its ref is `string`.
+            if st in local_refs and st != _lvd_mk_let:
                 lines.append(f"{indent}{st} := {tmp};")
             else:
                 local_refs.add(st)
@@ -8614,7 +8649,59 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # it from the `ref 0` pre-declaration so no dead `let tparams = ref 0` is emitted.
         tparam_alias_vars = (set(getattr(self, "_tparam_list_aliases", {}))
                              - set(self._formal_params))
+        # lvD (str value-model seam, C3): `fd, path = tempfile.mkstemp(..)` -- CPython returns
+        # an `(int, str)` pair (an OS-level fd and the absolute path of the new file). The
+        # PATH target is a `string`: let-bound by the unpack from the `(int, string)` slot
+        # (`_handle_tuple_unpack_stmt`), never the int `ref 0`. Only a TOP-LEVEL statement
+        # of the body, the path target bound NOWHERE else (no other assignment / loop /
+        # with / unpack target, not a formal), and `tempfile` resolving to the stdlib module
+        # (every import binding of the name is `import tempfile`, no user definition) --
+        # the route #323 import test of the `unicodedata.normalize` recognizer.
+        _lvd_mk: Set[str] = set()
+        _lvd_imps = [_i for _i in ((self.ir.get("imports") or [])
+                                   if isinstance(getattr(self, "ir", None), dict) else [])
+                     if isinstance(_i, (list, tuple)) and len(_i) >= 5 and _i[0] == "tempfile"]
+        if (_lvd_imps and all(_i[2] == "tempfile" and _i[4] and _i[1] == "tempfile"
+                              for _i in _lvd_imps)
+                and "tempfile" not in (getattr(self, "_module_method_return_types", {}) or {})
+                and "tempfile" not in (getattr(self, "_current_symbol_table", {}) or {})):
+            _lvd_bind: Dict[str, int] = {}
+            _lvd_stack: List[Any] = list(body_stmts)
+            while _lvd_stack:
+                _lvd_n = _lvd_stack.pop()
+                if isinstance(_lvd_n, list):
+                    _lvd_stack.extend(_lvd_n)
+                    continue
+                if not isinstance(_lvd_n, dict):
+                    continue
+                if _lvd_n.get("stmt") is not None:
+                    for _lvd_k in ("target", "targets", "tuple_targets", "name", "var"):
+                        _lvd_x = _lvd_n.get(_lvd_k)
+                        for _lvd_t in ([_lvd_x] if isinstance(_lvd_x, str) else
+                                       (_lvd_x if isinstance(_lvd_x, list) else [])):
+                            if isinstance(_lvd_t, str):
+                                _lvd_bind[_lvd_t] = _lvd_bind.get(_lvd_t, 0) + 1
+                _lvd_stack.extend(_lvd_n.values())
+            for _lvd_s in body_stmts:
+                _lvd_v = _lvd_s.get("value") if isinstance(_lvd_s, dict) else None
+                _lvd_tg = _lvd_s.get("targets") if isinstance(_lvd_s, dict) else None
+                if (_lvd_s.get("stmt") == "TupleUnpack" and isinstance(_lvd_v, dict)
+                        and _lvd_v.get("type") == "Call"
+                        and _lvd_v.get("func") == "tempfile.mkstemp"
+                        and _lvd_v.get("receiver") is None
+                        and isinstance(_lvd_tg, list) and len(_lvd_tg) == 2
+                        and all(isinstance(_t, str) for _t in _lvd_tg)
+                        and _lvd_tg[1] != "_" and _lvd_tg[0] != _lvd_tg[1]
+                        and _lvd_bind.get(_lvd_tg[1]) == 1
+                        and _lvd_tg[1] not in set(self._formal_params)):
+                    _lvd_mk.add(_lvd_tg[1])
+        # ... and it is a STRING local for the expression layer (`path + ".x"`, `path ==
+        # q` route through the string ops, never the int-hash ones). `_string_local_vars`
+        # is already written above (no frame moves).
+        if _lvd_mk:
+            self._string_local_vars = set(getattr(self, "_string_local_vars", set())) | _lvd_mk
         return (array_vars | dict_vars | lambda_vars | record_vars | variant_vars
+                | _lvd_mk
                 | set(tuple_vars) | string_vars | seq_local_vars | _union_locals
                 | pyval_read_vars | tparam_alias_vars
                 | getattr(self, "_str_set_locals", set())
@@ -9492,6 +9579,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             initial_declared = {whyml_ident(v) for v in pre_decl_vars}
         else:
             initial_declared = set(ref_params) | {whyml_ident(v) for v in pre_decl_vars}
+        # lvD (str value-model seam, C2): the pre-declared locals that fall to the INT
+        # `ref 0` arm of the pre-decl chain below (no typed carrier, not a parameter). Such
+        # a local is an int-HASH slot (the documented A7 string collapse: `self.write("_")`
+        # passes `stable_hash('"_"')`, `x == "_"` compares against it), so a string LITERAL
+        # assigned to it is that same hash (`_handle_assign_stmt`), not the Why3 string --
+        # `name := "_"` against `ref 0` was ill-typed, the only emission this replaces.
+        # Read only by `_handle_assign_stmt` for a bare `String` RHS. Saved / restored by
+        # the caller-visible value so a nested body cannot leak its set outwards.
+        _lvd_int_prev = getattr(self, "_lvd_int_predecl", set())
+        self._lvd_int_predecl = {
+            v for v in pre_decl_vars
+            if v not in self._formal_params and v not in self._seq_locals
+            and not any(v in _lvd_s for _lvd_s in (
+                _str_predecl, _pyconst_val_predecl, _term_predecl,
+                getattr(self, "_iropt_str_local_vars", set()),
+                getattr(self, "_iropt_ir_local_vars", set()),
+                _emit_ir_predecl, _seqir_predecl, _irlist_predecl, _optstr_predecl,
+                getattr(self, "_optmap_getter_locals", set()), _hvalmap_predecl,
+                _bpl_seqstr_predecl, _seqrec_predecl, _rec_predecl, _union_predecl))}
 
         # Phase 2.3b of missing-bytes-struct-feature.md: do NOT hoist
         # struct-unpack array-typed targets to a function-top ref —
@@ -9523,6 +9629,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 - {whyml_ident(v) for v in _uput},
             "    ",
         )
+        self._lvd_int_predecl = _lvd_int_prev
 
         pfx = f"(0 : int{bounded_int})" if bounded_int else "0"
         # Formal parameters that are mutated in the body need their

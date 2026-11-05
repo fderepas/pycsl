@@ -19589,12 +19589,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { result = (concat a b) }\n"
                 "    ensures { String.length result = String.length a + String.length b }")
 
-            acc = self._fstring_str_part(parts[0], local_refs, invariant_ctx, subst)
+            # lvD (str value-model seam, C1): an interpolated TERNARY whose BOTH arms are
+            # string-typed (`f"{'PASS' if ok else 'FAIL'}"`) is a Python `str` whatever the
+            # test, so it is the segment ITSELF -- `(if t then a else b)`, a Why3 `string`
+            # -- never `int_to_string (<string>)` (ill-typed: the only emission this replaces,
+            # so every f-string that type-checked before is byte-identical). Exact, no op.
+            # (Inlined: `_fstring_str_part`'s mirror twin is VERIFIED and stays untouched.)
+            _lvd_tern = [isinstance(_pp, dict) and _pp.get("type") == "IfExpr"
+                         and isinstance(_pp.get("body"), dict)
+                         and isinstance(_pp.get("orelse"), dict)
+                         and self._is_string_expr(_pp["body"])
+                         and self._is_string_expr(_pp["orelse"])
+                         for _pp in parts]
+            acc = (self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst)
+                   if _lvd_tern[0] else
+                   self._fstring_str_part(parts[0], local_refs, invariant_ctx, subst))
             # (#49) ROUTE #281 — every int segment is rendered in decimal: its bound is
             # asserted ahead of the FIRST segment, so the term keeps its head.
             _p281 = ""
-            for pp in parts:
-                if not (isinstance(pp, dict) and self._is_string_expr(pp)):
+            for _lvd_i, pp in enumerate(parts):
+                if not (isinstance(pp, dict) and self._is_string_expr(pp)) and not _lvd_tern[_lvd_i]:
                     _w281 = self._coerce_to_int(
                         self._expr_to_whyml(pp, local_refs, invariant_ctx, subst))
                     if not self._expr_is_pyval(pp):
@@ -19603,8 +19617,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _p281 = (_p281 + " " + _q281).strip() if _q281 else _p281
             if _p281:
                 acc = f"(begin {_p281} {acc} end)"
-            for pp in parts[1:]:
-                acc = f"(str_concat_op {acc} {self._fstring_str_part(pp, local_refs, invariant_ctx, subst)})"
+            for _lvd_i, pp in enumerate(parts):
+                if _lvd_i == 0:
+                    continue
+                _lvd_w = (self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
+                          if _lvd_tern[_lvd_i] else
+                          self._fstring_str_part(pp, local_refs, invariant_ctx, subst))
+                acc = f"(str_concat_op {acc} {_lvd_w})"
             return acc
         # THE INT-MODEL F-STRING JOINER. `_coerce_str_arg` folds a string LITERAL to its
         # `stable_hash` constant and hands everything else through RAW — so a part that is
