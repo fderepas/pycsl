@@ -1,0 +1,9 @@
+[!]   MOVED frontend__Module2_Parser.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend__Module2_Parser.
+[!]   MOVED frontend____init__.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend____init__.
+[!]   MOVED frontend__ir_resolve.mlw — if that is an intended SOURCE repair, pass --expect-moved frontend__ir_resolve.
+[!]   MOVED module6_whyml__expr_ghost_spec_ops.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__expr_ghost_spec_ops.
+[!]   MOVED module6_whyml__expressions.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__expressions.
+[!]   MOVED module6_whyml__statements.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__statements.
+[!]   MOVED module6_whyml__stmt_control_flow.mlw — if that is an intended SOURCE repair, pass --expect-moved module6_whyml__stmt_control_flow.
+[!] byte-diff-compare: NOT BYTE-INERT.
+[*] byte-diff-compare: 53 baseline / 53 candidate .mlw; 7 MOVED (7 unexpected), 0 GONE (0 unexpected), 0 APPEARED.

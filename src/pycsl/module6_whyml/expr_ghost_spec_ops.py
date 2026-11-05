@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional, Set
+from typing import Any, Dict, List, Optional, Set
 
 
 class GhostSpecOpsMixin:
@@ -18,7 +18,10 @@ class GhostSpecOpsMixin:
     (which stay in `ExpressionEmissionMixin`)."""
 
     def _handle_mktuple_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
-        parts = ", ".join([self._e(e, lr) for e in node.elts])
+        _ps: List[str] = []
+        for e in node.elts:
+            _ps.append(self._e(e, lr))
+        parts = ", ".join(_ps)
         return f"({parts})"
 
     def _handle_fst_expr(self, node: "ExprIR", lr: Set[str], _ic: bool, _sub: Optional[Dict[str, str]]) -> str:
