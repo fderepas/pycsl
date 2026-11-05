@@ -21793,6 +21793,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 #    the comprehension positions whose raising operands are looked for (`_w521`).
                 _c521: List[Any] = []
                 _w521: List[Any] = []
+                # (u27) a "cd!" candidate judged against a FILE function parameter's admitted
+                # depths (by candidate index: (admit, any_from, slots)) and the elements of a
+                # tuple display argument judged slot by slot ((candidate index, element))
+                _dp546: Dict[int, Any] = {}
+                _el546: List[Any] = []
                 if _k521 == "UnaryOp" and _o521 in ("-", "+", "~", "USub", "UAdd", "Invert"):
                     _c521.append((_d521.get("expr"), "a unary `%s` raises TypeError on None"
                                   % _o521, "mb"))
@@ -21941,21 +21946,61 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                 (getattr(self, "ir", None) or {}).get("functions") or [])
                             if isinstance(_fx, dict)])))
                     for _i521, _x521 in _as521:
-                        if not _chk521 or _adm521.get(_i521, False):
+                        if not _chk521:
                             continue
-                        _c521.append((_x521, "passing None to `%s` raises or breaks its "
-                                      "parameter's type" % _f521, "mba" if _bi521 else "mbu"))
-                        if _ctr521 and not _bi521 and not (
-                                _fi521 is not None and any(
-                                    _i521 in (_i553, _pn553) for _i553, _pn553 in enumerate(
-                                        _fi521.get("formal_params") or [])
-                                    if _pn553 in (_fi521.get("r553_param_none_depths") or {}))):
-                            # (u21) a parameter whose annotation admits None INSIDE (`List[Any]`,
-                            # `Dict[str, PyVal]`, `List[Optional[int]]`: Module 5's
-                            # `r553_param_none_depths`) takes a container holding None
+                        # (u27) route #546 residual: the FILE function's parameter, its
+                        # annotation, and the depths it admits None at (Module 5's
+                        # `r553_param_none_depths`; none recorded: no depth below the top)
+                        _pn546 = next((_pn for _j, _pn in enumerate(
+                            (_fi521.get("formal_params") or []) if _fi521 is not None else [])
+                            if _i521 in (_j, _pn)), None)
+                        _an546 = (str((_fi521.get("param_annotations") or {}).get(_pn546, ""))
+                                  if _pn546 is not None else "")
+                        if _adm521.get(_i521, False) and not (
+                                _pn546 is not None and _an546 not in ("Any", "object", "")):
+                            continue
+                        if not _adm521.get(_i521, False):
+                            _c521.append((_x521, "passing None to `%s` raises or breaks its "
+                                          "parameter's type" % _f521,
+                                          "mba" if _bi521 else "mbu"))
+                        if _ctr521 and not _bi521:
                             # a container holding None handed to a FILE function / constructor
                             # leaves the record; a builtin over it (`sorted`, `sum`, ...) is the
-                            # builtin's own exception model's (route #437)
+                            # builtin's own exception model's (route #437). (u27) A FILE
+                            # function's parameter takes it at the depths its annotation admits
+                            # None at (u21 let ANY parameter admitting None inside take any
+                            # container: `h((1, None))` into `p: Optional[Tuple[Any, int]]` /
+                            # `h([(1, None)])` into `List[Tuple[Any, int]]` proved the callee's
+                            # `p[1] + 1`, CPython TypeError); a tuple display into a parameter
+                            # with `slots` of its length is judged slot by slot.
+                            if _pn546 is not None:
+                                _pr546 = ((_fi521.get("r553_param_none_depths") or {})
+                                          .get(_pn546) or {})
+                                _dp546[len(_c521)] = (set(_pr546.get("admit") or []),
+                                                      _pr546.get("any_from"),
+                                                      _pr546.get("slots"),
+                                                      _pr546.get("elt_slots"))
+                                # the queried parts: (candidate, element (-1: the slots of the
+                                # argument itself), slot (-1: the element itself), expr)
+                                if (_pr546.get("slots") and isinstance(_x521, dict)
+                                        and _x521.get("type") in ("Tuple", "MkTuple")
+                                        and len(_x521.get("elts") or [])
+                                        == len(_pr546.get("slots"))):
+                                    _el546 += [(len(_c521), -1, _j, _e)
+                                               for _j, _e in enumerate(_x521.get("elts"))]
+                                elif (_pr546.get("elt_slots") and isinstance(_x521, dict)
+                                      and _x521.get("type") in (
+                                          "ArrayLit", "ListLit", "SetLit", "MkList", "List",
+                                          "Set", "DictLit", "Tuple", "MkTuple")):
+                                    for _k, _e in enumerate(list(_x521.get("elts") or [])
+                                                            + list(_x521.get("values") or [])):
+                                        _el546.append((len(_c521), _k, -1, _e))
+                                        if (isinstance(_e, dict)
+                                                and _e.get("type") in ("Tuple", "MkTuple")
+                                                and len(_e.get("elts") or [])
+                                                == len(_pr546.get("elt_slots"))):
+                                            _el546 += [(len(_c521), _k, _j, _z) for _j, _z
+                                                       in enumerate(_e.get("elts"))]
                             _c521.append((_x521, "a container holding None passed to `%s`, whose "
                                           "parameter does not admit None" % _f521, "cd!"))
                 # A comprehension whose element / filter RAISES on a may-be-None value is guarded
@@ -21992,6 +22037,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # 2. evaluate them (the record's rule, `functions.py::_emit_function_block`)
                 _q5_rec = _r521
                 _q5_qs = [(_x521[0], False) for _x521 in _c521] + [(_x521, False) for _x521 in _w521]
+                _q5_qs += [(_x546[3], True) for _x546 in _el546]
                 # ---- THE R521 EVALUATOR (routes #521-#526). KEPT TEXTUALLY IDENTICAL in
                 # functions.py `_emit_function_block`, expressions.py `_expr_to_whyml` and statements.py
                 # `_stmts_to_whyml` (no helper `def`: check-mirror-coverage). In: `_q5_rec` (the record
@@ -22115,8 +22161,43 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     _q5_cdr.append(_q5_cd)
                 # ---- end of the R521 evaluator
                 # 3. the obligations
-                for (_x521, _y521, _z521), _mbv521, _cdv521 in zip(_c521, _q5_mbr, _q5_cdr):
-                    if _z521 == "cd!":
+                for _i546, ((_x521, _y521, _z521), _mbv521, _cdv521) in enumerate(
+                        zip(_c521, _q5_mbr, _q5_cdr)):
+                    if _z521 == "cd!" and _i546 in _dp546:
+                        # (u27) judged against the parameter's depths; a tuple display with
+                        # `slots` element by element (an element that may be None owes the
+                        # ordinary obligation unless its slot admits None at its top)
+                        _ad546, _af546, _sl546, _esl546 = _dp546[_i546]
+                        _es546 = [(_k, _j, _e, _m, _c) for (_i, _k, _j, _e), _m, _c in zip(
+                            _el546, _q5_mbr[len(_c521) + len(_w521):],
+                            _q5_cdr[len(_c521) + len(_w521):]) if _i == _i546]
+                        if _es546:
+                            for _k, _j, _e, _m, _c in _es546:
+                                _m = _m or (isinstance(_e, dict) and _e.get("type") == "Var"
+                                            and _e.get("name") in (_r521.get("none_loc") or ()))
+                                if _k < 0:
+                                    _sad546, _saf546 = _sl546[_j]
+                                elif _j >= 0:
+                                    _sad546, _saf546 = _esl546[_j]
+                                elif any(_x[0] == _k and _x[1] >= 0 for _x in _es546):
+                                    continue
+                                else:
+                                    # an element that is no tuple display of the slots' length:
+                                    # the parameter's own depths one level down
+                                    _sad546 = {_d - 1 for _d in _ad546 if _d >= 1}
+                                    _saf546 = (None if _af546 is None else max(_af546 - 1, 0))
+                                if _m and not (0 in _sad546 or _saf546 == 0):
+                                    _g521.append((_e, _y521) if isinstance(_e, dict)
+                                                 and _e.get("type") != "None"
+                                                 else (_bad521, _y521))
+                                if any(not (_d in _sad546 or (_saf546 is not None
+                                                              and _d >= _saf546)) for _d in _c):
+                                    _g521.append((_bad521, _y521))
+                        elif any(not (_d in _ad546 or (_af546 is not None and _d >= _af546))
+                                 for _d in _cdv521) and not any(
+                                     _e521[0] is _x521 for _e521 in _g521):
+                            _g521.append((_bad521, _y521))
+                    elif _z521 == "cd!":
                         if _cdv521 and not any(_e521[0] is _x521 for _e521 in _g521):
                             _g521.append((_bad521, _y521))
                     elif _mbv521 and (_z521 == "mbu"
@@ -22124,7 +22205,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                       or (_z521 == "mba" and (_te521 or _ae521))
                                       or (_z521 in ("mb", "mb?") and _te521)):
                         _g521.append((_x521 if _z521 != "mb?" else _bad521, _y521))
-                _cmp521 = _te521 and any(_q5_mbr[len(_c521):])
+                _cmp521 = _te521 and any(_q5_mbr[len(_c521):len(_c521) + len(_w521)])
             if _g521 or _cmp521:
                 _low521 = self._expr_to_whyml(dict(_d521, _pycsl_r521n=True,
                                                    **({"_pycsl_r358n": True} if _nr358 else {})),

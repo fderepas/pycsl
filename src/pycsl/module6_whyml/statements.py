@@ -4754,7 +4754,8 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                "does not admit None hands None to callers"),
                                "returning a container that may hold None from a function whose "
                                "return annotation does not admit None at that depth",
-                               (_ad521s, _af521s, _rd521s.get("slots"))))
+                               (_ad521s, _af521s, _rd521s.get("slots"),
+                                _rd521s.get("elt_slots"))))
             elif _k521s in ("FieldAssign", "FieldAugAssign") and isinstance(_v521s, dict):
                 _ob521s = str(stmt_d.get("object") or "")
                 _cl521s = (getattr(self, "_current_self_type", None) if _ob521s == "self"
@@ -4827,7 +4828,9 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                                        "annotation does not admit None there" % _pn521s),
                                        "storing a container that may hold None into the "
                                        "parameter '%s', whose annotation does not admit None "
-                                       "at that depth" % _pn521s, (_pad521s, _paf521s)))
+                                       "at that depth" % _pn521s, (_pad521s, _paf521s, (
+                                           _pd521s.get("elt_slots") if _K521s == 1
+                                           and _k521s == "ArraySet" else None))))
                 elif not (isinstance(_ar521s, dict) and _ar521s.get("type") == "Var"):
                     _c521s.append((_v521s, None if _k521s == "ArraySliceSet" else (
                                    "storing it into an item of a container the record "
@@ -4852,6 +4855,26 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                         for _y521s in (_x521s[0].get("elts") or []):
                             _el521s.append((_i521s, _y521s))
                             _q5_qs.append((_y521s, True))
+                # (u27) route #546 residual: the elements of a returned list / set / dict (its
+                # VALUES) / variadic-tuple display under an annotation whose element is a fixed
+                # tuple (Module 5's `elt_slots`), and the slots of each element that is a tuple
+                # display of that length: (candidate, element, slot or -1, expr)
+                _ge546: List[Any] = []
+                for _i521s, _x521s in enumerate(_c521s):
+                    _es546 = (_x521s[3][3] if _x521s[3] is not None and len(_x521s[3]) > 3
+                              else None)
+                    if not (_es546 and isinstance(_x521s[0], dict) and _x521s[0].get("type") in (
+                            "ArrayLit", "ListLit", "SetLit", "MkList", "List", "Set", "DictLit",
+                            "Tuple", "MkTuple")):
+                        continue
+                    for _k546, _y546 in enumerate(list(_x521s[0].get("elts") or [])
+                                                  + list(_x521s[0].get("values") or [])):
+                        _ge546.append((_i521s, _k546, -1, _y546))
+                        if (isinstance(_y546, dict) and _y546.get("type") in ("Tuple", "MkTuple")
+                                and len(_y546.get("elts") or []) == len(_es546)):
+                            _ge546 += [(_i521s, _k546, _j546, _z546)
+                                       for _j546, _z546 in enumerate(_y546.get("elts"))]
+                _q5_qs += [(_x546[3], True) for _x546 in _ge546]
                 # ---- THE R521 EVALUATOR (routes #521-#526). KEPT TEXTUALLY IDENTICAL in
                 # functions.py `_emit_function_block`, expressions.py `_expr_to_whyml` and statements.py
                 # `_stmts_to_whyml` (no helper `def`: check-mirror-coverage). In: `_q5_rec` (the record
@@ -4986,6 +5009,33 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                     # owed, whatever the other slots admit (`Tuple[Any, int]` admitted
                     # `(1, None)` through slot 0's `Any`).
                     _sl521s = _w521s[2] if _w521s is not None and len(_w521s) > 2 else None
+                    # (u27) a display of tuple displays judged element by element, each tuple
+                    # display slot by slot against `elt_slots`; an element that is not one is
+                    # judged against the display's own depths one level down
+                    _ee546 = [(_k, _j, _e, _m, _c) for (_i, _k, _j, _e), _m, _c in zip(
+                        _ge546, _q5_mbr[len(_c521s) + len(_el521s):],
+                        _q5_cdr[len(_c521s) + len(_el521s):]) if _i == _i521s]
+                    if _ee546 and not (_sl521s and _x521s.get("type") in ("Tuple", "MkTuple")):
+                        _esl546 = _w521s[3]
+                        for _k, _j, _e, _m, _c in _ee546:
+                            _m = _m or (isinstance(_e, dict) and _e.get("type") == "Var"
+                                        and _e.get("name") in (_r521s.get("none_loc") or ()))
+                            _tup546 = any(_x[0] == _k and _x[1] >= 0 for _x in _ee546)
+                            if _j >= 0:
+                                _sad546, _saf546 = _esl546[_j]
+                            elif _tup546:
+                                continue
+                            else:
+                                _sad546 = {_d - 1 for _d in _ad521s if _d >= 1}
+                                _saf546 = (None if _af521s is None else max(_af521s - 1, 0))
+                            if _m and not (0 in _sad546 or _saf546 == 0):
+                                _g521.append((_e, _z521s) if isinstance(_e, dict)
+                                             and _e.get("type") != "None"
+                                             else (_bad521s, _z521s))
+                            if any(not (_d in _sad546 or (_saf546 is not None
+                                                          and _d >= _saf546)) for _d in _c):
+                                _g521.append((_bad521s, _z521s))
+                        continue
                     _es521s = [(_e, _m, _c) for (_j, _e), _m, _c in zip(
                         _el521s, _q5_mbr[len(_c521s):], _q5_cdr[len(_c521s):])
                         if _j == _i521s]
