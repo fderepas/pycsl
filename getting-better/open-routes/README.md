@@ -1,5 +1,16 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #5 (2026-11-05): #565 REPAIRED (executor u28 off b432460d6 = run5-int36; annotations §7.565). Root cause: Module 6's `_erased_truthy_locals`
+##   record (a None-bound local reads `pycsl_none`, so `t is None` folds True / truthiness `false`; NaN's `t == t` folds False) was
+##   written / cleared and ambiguity-scanned (route #46) for the plain single-name `Assign` ONLY, so a tuple unpack, swap, single-element
+##   tuple target, `for` target, walrus or `match` capture left the decided fact in place (even at top level). Repair: the route #46
+##   pre-scan (`_reset_function_state`, twin `\trusted`) records every such target as an OTHER binding -> `AMBIG` / `AMBIG#nan`;
+##   a nested `def` named like an enclosing local is a lift collision (`Module3_Weaver.process`, twin `\trusted`); a carrier's dropped
+##   `AMBIG` mark is sticky `AMBIG#opt#empty` (`_handle_assign_stmt`, twin `\trusted`; closes an Optional-join sibling). No new def /
+##   code / axiom. Witnesses 43 x default / typed / store: base 41 PROVED (15 probes) -> HEAD 0. Corpus 8980-8991 FAIL, 8992-8999 PASS
+##   (base + HEAD). Byte-diff vs b432460d6: root 2929 -> 2948 0 MOVED / 0 GONE / 0 APPEARED,
+##   python-reference 2191 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (no movers, nothing owed). rt43 / rt44 149 controls: verdicts identical, 0 .mlw moved.
+
 ## run #5 (2026-11-04): #561 / #562 REPAIRED (executor u26 off 46040203d = int32, 8f1f84f42 + the docs commit; inline in `_run_pipeline` after route #558's judge,
 ##   on the §7.541 kinds, at every node inside a comprehension / generator expression of a judged body's own scope, mirror twin `\trusted`, lambdas
 ##   only, no new def, no axiom, emitter untouched; annotations §7.561). #561: a comprehension iterable / `in` haystack / iterating-builtin argument

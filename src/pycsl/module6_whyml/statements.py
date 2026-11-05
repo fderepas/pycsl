@@ -1074,8 +1074,18 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                      or target in getattr(self, "_iropt_ir_local_vars", set())
                      or target in getattr(self, "_iropt_str_local_vars", set())
                      or target in getattr(self, "_emit_ir_local_vars", set()))):
-            self._erased_truthy_locals.pop(target, None)
-        if self._erased_truthy_locals.get(target) in ("AMBIG", "AMBIG#nan"):
+            # (#49) ROUTE #565 — THE DROP MUST BE STICKY. It used to `pop` the mark, and
+            # the chain below then RE-RECORDED `None#empty` at the name's next `None`
+            # binding, so a carrier bound `None` on the LAST-EMITTED branch of a join
+            # (`t: Optional[int] = None; if x > 0: t = 5 else: t = None; if t:`) kept the
+            # DECIDED truthiness `false` after the join and proved `\result == 0`
+            # (CPython 1). The carrier models `None` exactly, so the record must say
+            # NOTHING about it for the whole function: `AMBIG#opt#empty` survives every
+            # rebinding (below), is skipped by `_to_bool` (the `#empty` suffix) and is
+            # not `None#empty` at the read site, so every consumer reads the carrier.
+            self._erased_truthy_locals[target] = "AMBIG#opt#empty"
+        if self._erased_truthy_locals.get(target) in ("AMBIG", "AMBIG#nan",
+                                                      "AMBIG#opt#empty"):
             pass
         elif _r45_nan:
             self._erased_truthy_locals[target] = "NaN"

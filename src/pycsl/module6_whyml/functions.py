@@ -2946,6 +2946,37 @@ class FunctionEmissionMixin:
                 if not _amb_kinds and not _amb_vars:
                     _amb_kinds.add("OTHER")
                 _amb_asgs.append((_amb_n.get("target"), _amb_kinds, _amb_vars, _amb_d))
+            # (#49) ROUTE #565 — EVERY OTHER BINDING FORM IS A REBINDING. The LINEAR record
+            # (`statements.py`) is written and cleared ONLY by a plain single-name `Assign`,
+            # and this pre-scan collected ONLY plain `Assign`s, so a name bound to `None`
+            # (or NaN) and then rebound by ANY other form kept its decided record across the
+            # rebinding: `t = None; if x > 0: t, u = 1, 2; if t is None: return 0` folded the
+            # test to `pycsl_none = pycsl_none` and proved `\result == 0` (CPython 1). The
+            # same held for a `for` target (name or tuple), a walrus `(t := ...)` and a
+            # `match` capture, and for every DECIDED consumer of the record (`is None` /
+            # `is not None`, truthiness `false`, two `None` reads compared equal, NaN's `==`).
+            # Each such binding is recorded here as an OTHER binding, and as NESTED whatever
+            # its depth, because the linear record never sees it even at the top level; a
+            # name that is also bound to `None`/NaN therefore becomes AMBIGUOUS, whose
+            # value read is the ordinary `!t` and whose truthiness / NaN comparison are left
+            # undecided or refused, never decided. Comprehension targets are deliberately
+            # NOT collected: they do not leak into the function scope (PEP 572 walrus inside
+            # a comprehension does, and is refused upstream, route #180). The sixth form, a
+            # NESTED `def` rebinding the name, never reaches this IR (the lift drops it) and
+            # is refused in `Module3_Weaver` as a lifted-name collision.
+            _r565_nm = []
+            if _amb_n.get("stmt") == "TupleUnpack":
+                _r565_nm.extend(_amb_n.get("targets") or [])
+            elif _amb_n.get("stmt") == "For":
+                _r565_nm.append(_amb_n.get("target"))
+                _r565_nm.extend(_amb_n.get("tuple_targets") or [])
+            elif _amb_n.get("type") == "NamedExpr":
+                _r565_nm.append(_amb_n.get("target"))
+            elif _amb_n.get("pattern") == "Capture":
+                _r565_nm.append(_amb_n.get("name"))
+            for _r565_t in _r565_nm:
+                if isinstance(_r565_t, str) and _r565_t:
+                    _amb_asgs.append((_r565_t, {"OTHER"}, set(), _amb_d + 1))
             for _amb_v in _amb_n.values():
                 if isinstance(_amb_v, (list, dict)):
                     _amb_stack.append((_amb_v, _amb_d + 1))

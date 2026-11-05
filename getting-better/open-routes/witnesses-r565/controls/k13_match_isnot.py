@@ -1,0 +1,21 @@
+# u28 route #565 CONTROL: k13_match_isnot. The claim is TRUE of the program and must keep proving.
+from __future__ import annotations
+
+
+#@ ensures \result >= 0
+#@ assigns \nothing
+def f(x: int) -> int:
+    t = None
+    match x:
+        case 0:
+            pass
+        case t:
+            pass
+    if t is not None:
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    for a in (-1, 0, 1, 3):
+        print(a, f(a))
