@@ -2477,6 +2477,11 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # reads `self.program_ir.get("typevar_registry")` -> Map.get (K6), `or {}` -> empty
     # PMap (#5), `registry.get(nm,{})`/`info.get("bound")` -> PMap-match (K7).
     # isinstance_op=0, get___name__=0, get_bases=0, no int-hash. `PyVal`~Any sentinel.
+    # (run #5 u32) RE-TRUSTED, route #574: `b.value.id` is read on `b`, a `for` target over
+    # `node.bases` with `node` narrowed by `isinstance(node, ast.ClassDef)` to a non-IR class (the
+    # alias-closed #567 narrowing: an element of a narrowed object's field has an unknown class);
+    # no equivalent rewrite avoids the read.
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
