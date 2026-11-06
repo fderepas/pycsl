@@ -270,7 +270,6 @@ module6_whyml/expressions.py	ExpressionEmissionMixin._handle_dotted_call	unclass
 module6_whyml/expressions.py	ExpressionEmissionMixin._coerce_dotted_args	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._dotted_ensures_suffix	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._handle_struct_call	unclassified	-
-module6_whyml/expressions.py	ExpressionEmissionMixin._emit_contract_logic_symbol	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._linear_form	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._static_width	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._handle_call_expr	unclassified	-

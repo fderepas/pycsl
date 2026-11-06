@@ -1735,6 +1735,22 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 and target not in getattr(self, "_string_local_vars", set())
                 and val.startswith('"') and val.endswith('"')):
             val = str(stable_hash(val))
+        # run #5 lvJ (a) EMPTY-DICT REBIND TYPED BY THE LOCAL'S ANNOTATION: `x = {}` rebinding
+        # a dict local declared `x: Dict[K, V]` with a non-int value type V. The first
+        # assignment already takes the V-typed empty base (`_emit_first_assign`,
+        # `_dv_empty_default`); the REBIND kept the int-annotated `(const (None: option
+        # int))` and failed L3-tc against the `map K (option V)` ref. Same value (the
+        # everywhere-None map), the annotation's type. An int-valued / unannotated dict
+        # (`_dv_empty_default` -> "") keeps its emission byte-identical. INLINE (the twin
+        # is `\trusted`).
+        if (isinstance(val_ir, dict) and val_ir.get("type") == "DictLit"
+                and not val_ir.get("keys")
+                and target in getattr(self, "_dict_locals", set())
+                and val.strip() == "(const (None: option int))"):
+            _lvj_e = self._dv_empty_default(
+                (getattr(self, "_dict_value_types", {}) or {}).get(target))
+            if _lvj_e:
+                val = _lvj_e
         code = f"{indent}{safe_target} := {val}"
         if rest:
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
