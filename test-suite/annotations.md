@@ -5816,6 +5816,72 @@ mirror function would need the store modelled / the narrowing view); an emit_ir 
 `x.__class__` tests are not narrowings for #567; the int-erased `typed` / `store` emission of these programs fails
 L3 (`unbound type symbol 'array'`) at the base, so the refusals there replace an L3 failure, not a proof.
 
+### 7.569 An object outside §7.556's table is not searched or iterated; an Enum member's `.name` is a str; a call-bound `Any` element is erased (routes #569 / #570 / #571 / #573, run #5)
+
+Red team 54 (on 841d5efba = int41; driver repro on int44 8358d5d31) measured four bypasses of this run's repairs, each
+PROVED `no_exception \all` in the default model while CPython raises TypeError (typed / store: Why3-ill-typed):
+(#569, 7) an object §7.556's resolver never established used as the haystack of `in` / the iterable of `for` --
+the literal `...` (Ellipsis), a file CLASS object `KI` (route #561 judged one only inside a comprehension),
+`__builtins__` (the resolver skipped `_`-names), and `os.sep`, a module str searched for an int needle
+(`contains_check k os_sep` is total over the opaque constant); (#570, 8) the same objects and a bound builtin
+METHOD of a value of known kind (`s.upper` of `s: str`, `{}.keys`) as the iterable of a generator / nested
+comprehension (`sum(1 for x in s.upper)`, `[y for x in xs for y in {}.keys]`); (#571, 8) an IntEnum member's
+`.value` (an int) as a haystack / iterable (`k in IE.A.value`), and its `.name` (a str, lowered to the record field
+`get_name`, an int) under `+ 1`, unary `-`, `< k` and as a haystack; (#573, 1) `t = g(k); return t[1] + 1` with
+`def g(k) -> Tuple[Any, ...]: return (1, None)` -- an honest return (`Any` admits None), but route #249 erased the
+elements of a PARAMETER / annotated local declared with an `Any` element only, never of a local bound from a call.
+
+RULE (no axiom, no new def in a mirrored body; `_run_pipeline` and `_reset_function_state` twins `\trusted`):
+- (#569 / #570, `_run_pipeline`, route #556's judge extended, `PYCSL-R556-BUILTIN-OBJECT-OPERAND`) the resolver
+  of §7.556 also resolves a literal constant to itself (`...`, a number, None), `__builtins__` (never bound by the
+  file) to the builtins module, and an attribute of a value whose §7.541 kinds are ONE builtin container / str kind
+  (`str` / `list` / `dict` / `set` / `tuple`) naming a method of that type to the method (`s.upper`, `{}.keys`,
+  `d.items`); every node of the body is walked, comprehensions included, so the generator / nested-comprehension
+  positions are judged by the same rule. A file class OBJECT named directly (route #561's metaclass-`type` test:
+  no foreign base, no `metaclass=`, no decorator but `@dataclass` in its lineage) is refused at every iterating /
+  haystack position, not only inside a comprehension. A module str object (resolved, not a literal) as the
+  haystack of `in` / `not in` is refused unless the needle's kinds are exactly `str`.
+- (#571, `_run_pipeline`) route #560's member test also takes a member's `.value` / `._value_` (an int at runtime):
+  `PYCSL-R560-INTENUM-MEMBER-OPERAND` at the same positions. New `PYCSL-R571-ENUM-MEMBER-NAME-KIND`: a read of
+  `.name` / `._name_` of an Enum member -- a member of a file IntEnum as route #560 resolves it (`IE.A`, a local
+  bound only to members, an `IE` parameter, ...) or `E.A` of any file class with an `Enum` / `IntEnum` / `Flag` /
+  `IntFlag` / `StrEnum` / `ReprEnum` base -- is refused unless it is a comparand of `==` / `!=` / `is` / `is not`
+  only (an uninterpreted int compared with a str decides nothing).
+- (#573, Module 6 `_reset_function_state`, route #249's prescan) a local bound (assignment / walrus) from a call
+  of a MODULE function whose Module 5 record `r526_return_none_depths` places `Any` / `object` below the top
+  (`any_from` >= 1, or an `elt_slots` slot) is a route-#249 container (`kv`; a dict return: `v`); when only fixed
+  tuple SLOTS are arbitrary (`slots[i][1]` set), a read of such a slot (a constant index naming one, any other
+  index) and an iteration of the local are erased; an unpack target in an arbitrary slot is erased; a direct read
+  `g(k)[i]` likewise. Route #252 then refuses the erased value's flow into the `-> int` return (or an `int`
+  parameter / field), and `_handle_binop` takes the laws off its operators.
+
+Witnesses `witnesses-r569/` (7), `witnesses-r570/` (8), `witnesses-r571/` (8), `witnesses-r573/` (1) x default /
+typed / store: 72/72 REFUSED (each model: 15 R556 -- #569 and #570 --, 4 R560, 4 R571, 1 route #252). Corpus
+`9150`-`9176` FAIL (27; REFUSED in all three models: 81/81): `9150`-`9169` and `9173` are 21 rt54 witnesses, every one
+PROVED at base 8358d5d31 in the default model (driver repro), and six NEW false proofs beyond rt54's family, each
+measured PROVED at base and REFUSED: `9170` (`m = IE.A; return m.name + 1`), `9171` (`n = IE.A.name; return n + 1`),
+`9172` (`E.A.name + 1` of a plain `Enum`), `9174` (`-> Tuple[Any, int]` returning `(None, 1)`, `t[0] + 1`), `9175`
+(`a, b = g(k); return b + 1`, variadic `Any`), `9176` (`-> Tuple[object, ...]`). Also measured (not landed): an
+`IntFlag` member's name, `sum(1 for x in d.items)` and `k in E.A.name` PROVED at base, REFUSED now. Controls
+`9177` (`for` / `in` over a list / str / tuple display, `"/" in os.sep`, `s in os.sep` of `s: str`, generators over
+`s.upper()` / `d.keys()` / nested comprehensions), `9178` (IntEnum `.value` in arithmetic / compared / in a searched
+display / bound; `.name == "A"`), `9179` (`-> Tuple[Any, int]` / `-> Tuple[int, Any]` read at the int slot) PASS at
+base and HEAD. Advice probes `witnesses-r571/advice` (a571_member: `IE.A + 1`; a571_eq: `IE.A.name == "A"`)
+VERIFY `no_exception \all` at base and HEAD (R556 / R560 / route #252 messages unchanged).
+Byte-diff vs a worktree at 8358d5d31: root 2989 -> 2992 0 MOVED / 0 GONE / 0 APPEARED (+3 controls; the 27 FAIL files
+are refused), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed); rt43 / rt44 149 controls: front-end verdicts
+identical base / HEAD. A first cut that resolved a method of ANY value of one builtin kind refused the mirror
+`frontend/Module5_IREmitter.py` (`expr: ast.Dict` is read as the dict kind by §7.541's annotation map, and
+`for k in expr.keys` iterates the node's FIELD): the #570 resolution was narrowed to literals / displays, parameters
+and annotated locals whose annotation head is a plain name or `typing.X`, and locals bound only to literals /
+displays. Fidelity (mirror sync, mirror check, doc coherency) rc 0; `\trusted` 404, no proof / axiom file touched.
+Residuals (named): an object reached through a call result, a field, a container element or a parameter of
+unknown kind (as §7.556); a bound method of a value of unknown / joined kind, of a field, a subscript or a call
+result; a module str searched with a needle of unknown kind is refused (fail-closed); an Enum member reached
+through a field / call; `.name` under `==` stays admitted (undecided, not false); route #573 follows MODULE
+functions only -- a METHOD returning an `Any`-element container (`self.m()`) and a call result stored into a
+container / field are not followed.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
