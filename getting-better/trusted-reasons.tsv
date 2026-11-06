@@ -191,7 +191,6 @@ frontend/pure_ast.py	_build_nodes	cost-scale:name-rebinding-model	A NAME REBOUND
 frontend/pure_ast.py	Ellipsis.__new__	unclassified	-
 frontend/pure_ast.py	_Tok.__repr__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_lex	cost-scale:nested-closure-lift	the nested-closure lift
-frontend/pure_ast.py	Comment.__init__	unclassified	-
 frontend/pure_ast.py	comments	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_Parser.__init__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_Parser._slice	unclassified	-
@@ -253,7 +252,6 @@ module6_whyml/auto_trust.py	AutoTrustMixin._should_auto_trust_tuple_return	uncla
 module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._handle_proj_expr	unclassified	-
 module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._handle_ctor_payload_expr	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._is_emit_ir_expr	unclassified	-
-module6_whyml/expressions.py	ExpressionEmissionMixin._e	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._to_bool	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._match_pattern_cond	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._emit_membership	unclassified	-
@@ -316,7 +314,6 @@ module6_whyml/preamble.py	PreambleEmissionMixin._emit_type_decls	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_opaque_class_aliases	unclassified	-
 module6_whyml/scc.py	compute_sccs	cost-scale:nested-closure-lift	the nested-closure lift
 module6_whyml/scc.py	sort_functions_by_scc	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-module6_whyml/statements.py	StatementEmissionMixin._resolve_dotted_signature	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._expr_to_whyml	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._track_collection_metadata	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_return_stmt	unclassified	-
@@ -326,7 +323,6 @@ module6_whyml/statements.py	StatementEmissionMixin._seq_init_expr	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_ghost_assign_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_tuple_unpack_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_array_set_stmt	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._handle_augassign_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_expr_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._stmts_to_whyml	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._emit_frame_condition	unclassified	-

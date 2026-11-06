@@ -128,12 +128,16 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns self._uses_pyast_parser_cache
     def _is_emit_ir_expr(self, ir: "ExprIR") -> bool:
         return False
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
-    def _e(self, ir: Dict, lr: Set[str]) -> str:
-        return ""
+    def _e(self, ir: "ExprIR", lr: Set[str]) -> str:
+        """Shorthand for _expr_to_whyml within ghost handlers."""
+        # An explicit empty `subst` (not the omitted `None` default): every `subst` consumer
+        # reads it by truthiness / `subst or {}` / forwarding, so `{}` and `None` behave
+        # identically; the typed local is what lets the mirror port type-check.
+        _sub: Dict[str, str] = {}
+        return self._expr_to_whyml(ir, lr, False, _sub)
 
     # SHADOWED-SELFCALL REPAIR (lesson (ay)): CONVERTED and PROVED, yet every
     # `self._whyml_string_literal(...)` call site in this file went through the receiver-less abstract
@@ -600,7 +604,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def _resolve_dotted_signature(self, func_name: str):
+    def _resolve_dotted_signature(self, func_name: str) -> Tuple[str, List[str], int, int]:
         pass
 
     #@ \trusted reviewer: pycsl-self-annotate
