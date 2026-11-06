@@ -3473,3 +3473,10 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 9027_r567_name_misprojection_tuple_class.py	REFUSAL	[module6-whyml]: PYCSL-R567-EMITIR-ATTR-ON-NONIR: `b.name` (in `em__is_x`) reads a field of a value this function also tests with `isinstance` against a class that is not an IR node class (route #567). The value is typed as an IR node (`emit_ir`), whose `.name` the model reads as the node's constructor tag / name, not the field of the tested class, so the read would be modelled wrongly. Annotate the value with the class it really has (a parameter or local of that record type), or test only IR node classes.
 9030_r566_control_no_store_precond_fails.py	VERIFY-FAIL	
 9034_r567_control_record_typed_false_claim.py	VERIFY-FAIL	
+9121_lvj_dict_rebind_empty_false_keeps.py	VERIFY-FAIL	
+9122_lvj_dict_rebind_empty_false_nonempty.py	VERIFY-FAIL	
+9124_lvj_ifexp_empty_dict_arm_false_keeps.py	VERIFY-FAIL	
+9126_lvj_ifexp_empty_dict_body_arm_false.py	VERIFY-FAIL	
+9127_lvj_ifexp_empty_dict_beside_set_not_typed.py	VERIFY-FAIL	
+9129_lvj_str_into_optional_str_param_false.py	VERIFY-FAIL	
+9130_lvj_str_into_optional_int_param_not_wrapped.py	REFUSAL	[ir-semantic]: line 25: PYCSL-R563-METHOD-ARGUMENT-KIND: `s` is passed to the parameter `x` of the method `Namer.tag`, declared None, a number, and may be a str. A method call whose argument does not fit the declared parameter is lowered to a fresh opaque function of the argument, never to the method body, so no obligation of the body is checked while CPython runs it on the real value and raises (route #563; measured: `p.m(t)` with `t: str` into `def m(self, y: int) -> int: return self.a + y` proved `no_exception \all`, CPython TypeError). Pass a value of the declared kind (`p.m(len(t))`, `p.m(k)`), or declare the parameter as what you pass.
