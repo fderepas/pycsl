@@ -5769,6 +5769,53 @@ whose method lives OUTSIDE the file (standard library / imported class), e.g. `f
 `getattr(f, "closed", 0)`; framing every unresolved call moved four mirror emissions and refused the `pycsl.py`
 mirror (route #310).
 
+### 7.566 An item store into an IR node value is refused; a tag / name projector is not applied to a value narrowed to another class (routes #566 / #567, run #5)
+
+Inside a `@mutable_state` class (an identity decorator any program may declare) the emitter models a value it types
+as an IR node -- a `-> "ExprIR"` result, a dict display carrying a `"type"` key, a parameter annotated `"ExprIR"` --
+as a term of the IMMUTABLE `emit_ir` sum. The independent vm-irnode review (getting-better/vm-irnode-wall-response.md
+§3) measured two lowerings that made a false claim provable:
+- #566: `d["k"] = v` on such a value lowered to `()` and RETURNED without lowering the rest of the block, so every
+  statement after the store vanished: `d = self.mk(an); d["act_name"] = an; self.need_empty(an)` PROVED although
+  `need_empty` requires `an == ""` (the control without the store reports the R167 precondition). Lowering the
+  continuation is not enough: the write itself is unmodelled, so a later read sees the OLD node --
+  `d = {"type": "Var", "name": ""}; if an == "x": d["name"] = an` then `self.need_empty(d.name)` PROVED
+  (witness s566_stale_lit, measured here).
+- #567: `.kind` / `.name` / `.op` / `.func` / `.var` / `.label` / `.base` / `.arr` / `.ctor` / `.id` / `.attr`
+  (`_EMIT_IR_STR_ATTRS`) on such a value lowered to the emit_ir projector (`kind_of`, `name_of`, ...) even when an
+  `isinstance` test narrowed it to a class that is not an IR node: `if isinstance(node, DictView): dv = node; if
+  dv.kind == "keys": return 1` read `kind_of dv`, no arm of which is `"keys"`, so `ensures \result == 0` was a
+  theorem of the model (CPython returns 1 for `DictView("d", "keys")`; the 110-arm proof is solver-bound, the
+  review's 3-arm spike proves it in 0.00 s).
+
+RULES (emitter, `statements.py::_handle_array_set_stmt` / `expressions.py::_handle_attribute_expr`, both mirror twins
+`\trusted`; inline, no new def, no new emitter field, no axiom, no new ADT arm):
+- `PYCSL-R566-EMITIR-ITEM-STORE`: an item store whose receiver the emitter types `emit_ir` in a `@mutable_state`
+  class. In the self-annotation mirror (the file under proof lies in `src/self-annotate/src/`, decided in
+  `_run_pipeline` on its real path -- the `declared_in` precedent), whose conversion contract is type-safety + frame
+  only, the store stays the unmodelled no-op but the CONTINUATION IS ALWAYS LOWERED (the one verified store,
+  `_handle_match_stmt`'s `c["pattern"] = ...`, is last in its block: emission unchanged).
+- `PYCSL-R567-EMITIR-ATTR-ON-NONIR`: a projector read whose receiver ACCESS PATH (`dv`, `node.collection`; a
+  subscript coarsens to its base) is, or extends through a field of, a path some `isinstance(path, C)` in the same
+  body tests against a class C that is not an IR class -- an IR class being an `ir_schema.IRNode` subclass named bare
+  and not declared by this file, or a class the isinstance-on-emit_ir recognizers model by a real discriminant
+  (`ast.<Node>` in `_AST_CLASS_TO_IR_KIND`, a bare CSL class in `_CSL_CLASS_TO_IR_KIND`) -- and C may carry the
+  attribute read (its record fields, an `ast` class's `_fields` / `_attributes`; an unknown class: every attribute).
+  Flow-insensitive over the IR body of the function being emitted (looked up read-only by `_current_emitting_func`;
+  a first placement that cached the table in a new emitter field tripped `check-assigns-underdeclaration`), closed
+  under plain assignment of the path or of a prefix of it. In the mirror only a
+  RECORD-modelled class narrows (a CSL `DictView`: `_csl_in`'s `dv.kind`, which therefore stays `\trusted`); the
+  mirror's `ast.<Node>` tests outside the recognizer map keep their loose emit_ir reading under the type-safety
+  contract (named residual).
+
+MEASUREMENTS: see the route docs (route566 / route567) for the witness tables, the corpus files, the byte-diff and the
+mirror sweep.
+Residuals (named): the mirror allowance of both rules (type-safety + frame contract only; a value contract on a
+mirror function would need the store modelled / the narrowing view); an emit_ir value's alias through a container (`xs =
+[d]`) is not tracked by #567's path closure (it is refused only when its own path is tested); `type(x) is C` /
+`x.__class__` tests are not narrowings for #567; the int-erased `typed` / `store` emission of these programs fails
+L3 (`unbound type symbol 'array'`) at the base, so the refusals there replace an L3 failure, not a proof.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

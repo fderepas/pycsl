@@ -25,6 +25,19 @@
 ##   (base + HEAD). Byte-diff vs b432460d6: root 2929 -> 2948 0 MOVED / 0 GONE / 0 APPEARED,
 ##   python-reference 2191 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (no movers, nothing owed). rt43 / rt44 149 controls: verdicts identical, 0 .mlw moved.
 
+## run #5 (2026-11-05): #566 / #567 REPAIRED (executor lvG off 0ce6ece57 = run5-int37, branch run5-lvG, the §1 commits; emitter-side, inline,
+##   mirror twins `\trusted`, no new def, no axiom, no new ADT arm; annotations §7.566; found by the independent vm-irnode review, H2 / H1).
+##   #566: an item store into a value the emitter types `emit_ir` in a `@mutable_state` class (`d = self.mk(an); d["act_name"] = an`) lowered
+##   to `()` and DROPPED the rest of the block; with the rest lowered it still left later reads on the old node. Refused
+##   PYCSL-R566-EMITIR-ITEM-STORE; the self-annotation mirror alone (path-decided, the `declared_in` precedent; type-safety + frame contract)
+##   keeps the no-op and now always lowers the continuation. #567: an `_EMIT_IR_STR_ATTRS` projector read (`dv.kind` -> `kind_of dv`) on a
+##   value an `isinstance` narrows to a non-IR class that may carry the attribute is refused PYCSL-R567-EMITIR-ATTR-ON-NONIR (mirror: only
+##   record-modelled classes narrow, so `_csl_in` stays `\trusted`). Witnesses 3 (r566) + 1 (r567) and the 6 corpus FAIL files x default / typed / store = 30/30 REFUSED; corpus 9020-9022
+##   (#566, PROVED at base: dropped precondition / dropped raise / stale read) and 9025-9027 (#567, model-level: VERIFY-FAIL at base by
+##   solver timeout) FAIL; controls 9030 / 9034 FAIL and 9031-9033 / 9035 PASS at base and HEAD. Byte-diff vs 0ce6ece57: root 2932 -> 2938 0 / 0
+##   / 0 (+6), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed). Residuals: the mirror allowances; container aliases and
+##   `type(x) is C` for #567; typed / store emit_ir programs fail L3 at the base.
+
 ## run #5 (2026-11-04): #561 / #562 REPAIRED (executor u26 off 46040203d = int32, 8f1f84f42 + the docs commit; inline in `_run_pipeline` after route #558's judge,
 ##   on the §7.541 kinds, at every node inside a comprehension / generator expression of a judged body's own scope, mirror twin `\trusted`, lambdas
 ##   only, no new def, no axiom, emitter untouched; annotations §7.561). #561: a comprehension iterable / `in` haystack / iterating-builtin argument

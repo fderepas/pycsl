@@ -1018,6 +1018,14 @@ AUDITED = {
         "Route #555. 'Bind the result to a name and narrow it first': witness g1327_cb1200 (`gopt(k) + 1`) with "
         "`v = gopt(k); if v is None: return 0` (getting-better/open-routes/witnesses-r555/advice/a555_narrow) VERIFIES "
         "under `no_exception \\all`; controls 8687 (early return) and 8689 (guarded ternary) VERIFY."),
+    # driver run #5 -- routes #566 / #567 (lvG): R567's advice IS control 9033 and witnesses-r567/advice/a567_record_typed_param.
+    # (R566's message names its repair -- a display carrying every key, a separate local dict: controls 9031 / 9032 and
+    # witnesses-r566/advice -- but carries none of the detector's verbs, so it is not an advice-bearing site here.)
+    ('src/pycsl/module6_whyml/expressions.py', "_R567('PYCSL-R567-EMITIR-ATTR-ON-NONIR: `' + str(_k567) + '.' + str(attr) + '` (in `' + str(getattr(self, '_current_emitting_func', None) or"): (FOLLOWABLE,
+        "Route #567. 'Annotate the value with the class it really has (a parameter or local of that record type)': witness "
+        "w567_kind_misproj with `dv: DictView` as the parameter and no isinstance (getting-better/open-routes/witnesses-r567/"
+        "advice/a567_record_typed_param) VERIFIES the honest two-sided `\\result == 1 ==> dv.kind == \"keys\"` / converse; "
+        "control 9033 (the same, corpus) VERIFIES and 9034 (its false `\\result == 0`) does not."),
 }
 
 # (#49) A MESSAGE HASH BESIDE THE KEY, BECAUSE THE KEY LOOKS AT THE WRONG END. The audit

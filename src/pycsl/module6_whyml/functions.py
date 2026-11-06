@@ -6661,9 +6661,15 @@ class FunctionEmissionMixin:
         # carries the same `ret == "unit" and trusted` disjunct for the same reason.
         # `ir_resolve` sets `return_value_type` to the literal `emit_ir` only for that
         # annotation, so this is inert everywhere else.
+        # (run #5, vm-irnode S1) ... and for a method of a `@mutable_state` class (the emitter
+        # model's node-list returns, `List["ExprIR"]`): the body's seq accumulator crosses to
+        # the declared `array emit_ir` through the existing record-element bridge
+        # `materialize_emit_ir`. Gated on the `emit_ir` element -> int lists untouched.
         if (ann == "list" and func.get("return_value_type") == "emit_ir"
                 and return_type in ("int", "unit")
-                and self._uses_pyast_parser()):
+                and (self._uses_pyast_parser()
+                     or getattr(self, "_current_self_type", None)
+                     in getattr(self, "_mutable_state_classes", set()))):
             return "array emit_ir"
         if ann in ("list", "bytes", "bytearray") and return_type == "int":
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
