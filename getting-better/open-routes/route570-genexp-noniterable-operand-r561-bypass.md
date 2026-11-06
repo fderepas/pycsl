@@ -1,0 +1,3 @@
+# OPEN ROUTE #570 — A NON-ITERABLE OPERAND OF A GENEXP / NESTED COMPREHENSION (a bound method s.upper, {}.keys, Ellipsis, __builtins__) IS NOT CHECKED (#561 bypass), LOWERED TO sum_1 (any int)
+**Status: OPEN, Severity 1 (opened in driver run #5, 2026-11-06, from red team rt54 family R54-F2 on 841d5efba = int41).** Census /home/fabrice/git/pycsl/scratchpad/rt54/census.tsv, findings FINDINGS.txt, confirmed list confirmed.txt.
+Exemplar witnesses-r570/fd1602_boundm_str_sumgen.py. Driver repro on run5-int44 8358d5d31 (2026-11-06T13:2xZ, scratchpad/run5/rt54repro/out.txt): Verification SUCCESS while CPython breaks the claim (VIOLATION TypeError 'builtin_function_or_method' object is not iterable).

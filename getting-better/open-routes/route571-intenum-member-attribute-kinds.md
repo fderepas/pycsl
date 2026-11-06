@@ -1,0 +1,3 @@
+# OPEN ROUTE #571 — IntEnum MEMBER ATTRIBUTES MIS-KINDED (IE.A.value accepted as a container; IE.A.name, a str, used in + 1 / unary - / ordering) (#560 bypass)
+**Status: OPEN, Severity 1 (opened in driver run #5, 2026-11-06, from red team rt54 family R54-F3 on 841d5efba = int41).** Census /home/fabrice/git/pycsl/scratchpad/rt54/census.tsv, findings FINDINGS.txt, confirmed list confirmed.txt.
+Exemplar witnesses-r571/fd2054_ie_class_member_attr_add_int.py. Driver repro on run5-int44 8358d5d31 (2026-11-06T13:2xZ, scratchpad/run5/rt54repro/out.txt): Verification SUCCESS while CPython breaks the claim (VIOLATION TypeError can only concatenate str (not "int") to str).
