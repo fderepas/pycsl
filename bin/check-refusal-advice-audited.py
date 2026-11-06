@@ -943,6 +943,11 @@ AUDITED = {
         "Route #562. 'Pass a value of the declared kind (`[h(x) for x in xs]` of `xs: List[int]`), or apply the operator to operands CPython accepts instead (`[-x for x in xs]`)': "
         "witness eb1241 as `[h(x) for x in xs]` (getting-better/open-routes/witnesses-r562/advice/a562_kind) and ec1230 as `[-x for x in xs]` (a562_neg) VERIFY "
         "`no_exception \\all`; controls 8891 / 8893 VERIFY."),
+    # driver run #5 -- route #571 (u31, red team 54): an Enum member's `.name` (a str) used as an int / haystack.
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"""line {_ln541}: PYCSL-R571-ENUM-MEMBER-NAME-KIND: {_rm541}. The value model reads an Enum member\'s `.name` as an int fiel'): (FOLLOWABLE,
+        "Route #571. 'Use the member itself (`IE.A + 1`, `IE.A.value`), or compare the name only with `==` / `!=`': witness fd2054 as "
+        "`IE.A + 1` (getting-better/open-routes/witnesses-r571/advice/a571_member) and as `1 if IE.A.name == \"A\" else 0` (a571_eq) VERIFY "
+        "`no_exception \\all`; control 9178 VERIFIES."),
     # driver run #5 -- route #558 (u25, red team 53): bytes(n) / bytearray(n) as a str / number element (R556 / R560 carry no advice verb).
     ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R558-BYTES-VALUE-KIND: {_rm541}. The value model lowers `bytes(n)` / `bytearray(n)` to an opaque `any"): (FOLLOWABLE,
         "Route #558. 'Store a value of the element kind (`xs.append(\"b\")`), or declare the container as holding bytes (`xs: List[bytes] = []`)': "
@@ -1399,6 +1404,8 @@ AUDITED_HASH = {
     # driver run #5 (u26) -- routes #561 / #562
     ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"line {_ln541}: PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND: {_rm541}. A generator expression consumed by `sum` / `any` /'): 'b4b17a57e44a',
     ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R562-COMPREHENSION-ELEMENT-KIND: {_rm541}. A comprehension / generator expression lowers to an opaque"): '3603c1d7d2f9',
+    # driver run #5 (u31) -- route #571
+    ('src/pycsl/pycsl.py', '_PyCSLSemErr541(f"""line {_ln541}: PYCSL-R571-ENUM-MEMBER-NAME-KIND: {_rm541}. The value model reads an Enum member\'s `.name` as an int fiel'): '6547703e5d2d',
     # driver run #5 (u25) -- route #558
     ('src/pycsl/pycsl.py', "_PyCSLSemErr541(f'line {_ln541}: PYCSL-R558-BYTES-VALUE-KIND: {_rm541}. The value model lowers `bytes(n)` / `bytearray(n)` to an opaque `any"): '859cdf7f3b3a',
     # driver run #4 (u24) -- routes #557 / #559 / #563

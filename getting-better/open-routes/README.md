@@ -1,5 +1,20 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #5 (2026-11-06): #569 / #570 / #571 / #573 REPAIRED (executor u31 off 8358d5d31 = run5-int44, branch run5-u31; annotations §7.569). Root causes:
+##   route #556's object resolver stopped at builtins / allow-listed modules (`...`, `__builtins__`, a file CLASS object, a module str searched
+##   for an int, a bound builtin method `s.upper` / `{}.keys` stayed unresolved, so `contains_check` / `iter_length` / the opaque genexp were
+##   total); route #560's member test missed `IE.A.value`, and an Enum member's `.name` lowers to an int field (`get_name`); route #249 erased
+##   the `Any` elements of a parameter / annotated local only, never of a local bound from a call (`t = g(k)` with `-> Tuple[Any, ...]`).
+##   Repair (twins `\trusted`, no new def, no axiom): R556 resolves constants, `__builtins__`, a file class object (route #561's metaclass-
+##   `type` test, everywhere) and a method of a value of one builtin kind (literal / display / plainly-annotated parameter or local), and refuses
+##   a module str searched for a non-str needle; R560 takes a member's `.value`; new `PYCSL-R571-ENUM-MEMBER-NAME-KIND` refuses a member's
+##   `.name` outside `==` / `!=` / `is`; `_reset_function_state` erases a local / unpack target / `g(k)[i]` bound from a module function whose
+##   `r526_return_none_depths` places `Any` below the top (route #252 refuses its flow into `-> int`). Witnesses 24 x default / typed / store
+##   72/72 REFUSED. Corpus 9150-9176 FAIL (27: 21 rt54 + 6 new false proofs, PROVED at base, REFUSED in all three models), controls
+##   9177-9179 PASS base + HEAD; advice a571_member / a571_eq VERIFY. Byte-diff vs 8358d5d31: root 2989 -> 2992 0 MOVED / 0 GONE /
+##   0 APPEARED (+3 controls), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0. rt43 / rt44 149 controls identical.
+##   Residuals (named, §7.569): objects / members reached through calls / fields; methods of unknown-kind values; route #573 for METHOD callees.
+
 ## run #5 (2026-11-06): #568 REPAIRED (executor u30 off 693e20184 = run5-int40; annotations §7.568). Root cause: a method call is lowered through a
 ##   caller-side stub framed from the DECLARED `#@ assigns` (`_resolve_dotted_signature`, label-filtered; the cell only when EVERY target is
 ##   dropped), while the callee's `let` frame is derived from its body (`_pyobj_state` for a non-record attribute store); an unresolved receiver

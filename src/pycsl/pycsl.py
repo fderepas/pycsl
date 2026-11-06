@@ -20767,6 +20767,14 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                          and _z.value is not None else [])
                               if isinstance(_t, _ast486.Name) and not _t.id.startswith("_")
                               and not isinstance(_z.value, _ast486.Lambda)}
+        # (u31, route #571) every file Enum class (any enum base in its lineage) -> its members
+        _en571 = {_c: {_t.id for _a in _lin552[_c] for _z in _cls541[_a].body
+                       for _t in (_z.targets if isinstance(_z, _ast486.Assign) else
+                                  [_z.target] if isinstance(_z, _ast486.AnnAssign)
+                                  and _z.value is not None else [])
+                       if isinstance(_t, _ast486.Name) and not _t.id.startswith("_")}
+                  for _c in _cls541 if {_b for _a in _lin552[_c] for _b in _bs552[_a]} & {
+                      "Enum", "IntEnum", "Flag", "IntFlag", "StrEnum", "ReprEnum"}}
         _rep541 = None
         _reps541 = []
         for _fd541, _cn541 in _fds541:
@@ -21778,9 +21786,42 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _nc556 = lambda _o: (getattr(type(_o), "__iter__", None) is None
                                      and getattr(type(_o), "__contains__", None) is None)
                 _CK556 = frozenset(["list", "tuple", "set", "dict", "iter"])
+                # (u31, route #570) a value whose single builtin kind is not an annotation's
+                # misreading (see the method resolution below)
+                _DL570 = (_ast486.Constant, _ast486.JoinedStr, _ast486.List, _ast486.Dict,
+                          _ast486.Set, _ast486.Tuple, _ast486.ListComp, _ast486.SetComp,
+                          _ast486.DictComp)
+                _bk570 = lambda _b: (
+                    isinstance(_b, _DL570)
+                    or (isinstance(_b, _ast486.Name) and (
+                        (_b.id in _prm541 and _b.id not in _loc541) or _b.id in _dcl541)
+                        and (lambda _an: _an is not None and (
+                            lambda _h: isinstance(_h, _ast486.Name) or (
+                                isinstance(_h, _ast486.Attribute)
+                                and isinstance(_h.value, _ast486.Name)
+                                and _h.value.id == "typing"))(
+                                    _an.value if isinstance(_an, _ast486.Subscript) else _an))(
+                            next((_z.annotation for _z in (
+                                list(getattr(_fd541.args, "posonlyargs", []))
+                                + list(_fd541.args.args) + list(_fd541.args.kwonlyargs)
+                                + [_y for _y in _ast486.walk(_fd541)
+                                   if isinstance(_y, _ast486.AnnAssign)
+                                   and isinstance(_y.target, _ast486.Name)])
+                                  if getattr(_z, "arg", None) == _b.id or (
+                                      isinstance(getattr(_z, "target", None), _ast486.Name)
+                                      and _z.target.id == _b.id)), None)))
+                    or (isinstance(_b, _ast486.Name) and _b.id in _loc541
+                        and _b.id not in _dcl541 and _b.id not in _prm541
+                        and (lambda _vs: bool(_vs) and all(
+                            _md == "v" and isinstance(_v, _DL570) for _md, _v in _vs))(
+                                [(_md, _v) for _m, _md, _v in _bd541 if _m == _b.id])))
                 # the objects an operand may be (None: not established)
                 _ob556 = (lambda _e, _n: None if _n <= 0 else (
-                    ([getattr(_bi556, _e.id)] if _e.id not in _bnd556 and not _star556
+                    # (u31, route #569) `__builtins__`: the builtins module in `__main__` (a
+                    # dict in an imported module; the model's opaque int is neither)
+                    ([_bi556] if _e.id == "__builtins__" and _e.id not in _bnd556
+                     and not _star556 else
+                     [getattr(_bi556, _e.id)] if _e.id not in _bnd556 and not _star556
                      and not _e.id.startswith("_") and hasattr(_bi556, _e.id) else
                      [_imo556[_e.id]] if _e.id in _imo556 and _e.id not in _loc541
                      and _e.id not in _prm541 else
@@ -21792,11 +21833,26 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                          [(_md, _v) for _m, _md, _v in _bd541 if _m == _e.id])
                      if _e.id in _loc541 and _e.id not in _dcl541 and _e.id not in _prm541
                      else None) if isinstance(_e, _ast486.Name) else
-                    (lambda _bs: None if not _bs or not all(
+                    # (u31, route #569) a literal constant (`...`, a number, None) is itself
+                    [_e.value] if isinstance(_e, _ast486.Constant) else
+                    ((lambda _bs: None if not _bs or not all(
                         (isinstance(_b, _ty556.ModuleType) or (isinstance(_b, type) and getattr(
                             _b, "__module__", "") == "builtins")) and hasattr(_b, _e.attr)
                         for _b in _bs) else [getattr(_b, _e.attr) for _b in _bs])(
-                            _ob556(_e.value, _n - 1)) if isinstance(_e, _ast486.Attribute) else
+                            _ob556(_e.value, _n - 1))
+                     # (u31, route #570) a method of a value of ONE established builtin kind
+                     # (`s.upper` of `s: str`, `{}.keys`): a bound builtin method. The value is
+                     # a literal / display, a parameter or annotated local whose annotation
+                     # head is a plain name or `typing.X` (`expr: ast.Dict` maps to the dict
+                     # kind too, but `expr.keys` is its field), or a local bound only to
+                     # literals / displays
+                     or (lambda _bt: [getattr(_bt, _e.attr)] if _bt is not None and callable(
+                         getattr(_bt, _e.attr, None)) else None)(
+                             {"str": str, "list": list, "dict": dict, "set": set,
+                              "tuple": tuple}.get(next(iter(_T541.get(id(_e.value), _UT541)[0]))
+                                                  if len(_T541.get(id(_e.value), _UT541)[0]) == 1
+                                                  and _bk570(_e.value) else None)))
+                    if isinstance(_e, _ast486.Attribute) else
                     ([type(_e.args[0].value)] if isinstance(_e.args[0], _ast486.Constant) else
                      [int] if (_T541.get(id(_e.args[0]), _UT541)[0]
                                and _T541.get(id(_e.args[0]), _UT541)[0] <= frozenset(
@@ -21844,13 +21900,19 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                     else []))
                     or (isinstance(_e, _ast486.IfExp) and _iem560(_e.body, _n - 1)
                         and _iem560(_e.orelse, _n - 1))
+                    # (u31, route #571) a member's `.value` is the int itself
+                    or (isinstance(_e, _ast486.Attribute) and _e.attr in ("value", "_value_")
+                        and _iem560(_e.value, _n - 1))
                     or (isinstance(_e, _ast486.NamedExpr) and _iem560(_e.value, _n - 1))))
                 for _n556 in _ast486.walk(_fd541):
                     _ops556 = []
+                    _nd569 = {}
                     if isinstance(_n556, _ast486.Compare):
                         _ops556 = [(_c, "the container of `in` / `not in`")
                                    for _o, _c in zip(_n556.ops, _n556.comparators)
                                    if isinstance(_o, (_ast486.In, _ast486.NotIn))]
+                        _nd569 = {id(_c): _l for _l, _c in zip(
+                            [_n556.left] + list(_n556.comparators), _n556.comparators)}
                     elif isinstance(_n556, (_ast486.For, _ast486.AsyncFor,
                                             _ast486.comprehension)):
                         _ops556 = [(_n556.iter, "the iterable of a `for` / comprehension")]
@@ -21898,6 +21960,39 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                                 f"which CPython cannot "
                                 f"{'subscript' if _sb556 else 'iterate or search'}"))
                             break
+                        # (u31, route #569) a file class OBJECT named directly (metaclass
+                        # `type`: no foreign base, no `metaclass=`, no decorator but
+                        # `@dataclass` -- route #561's rule, now outside comprehensions too)
+                        if (not _sb556 and isinstance(_y556, _ast486.Name)
+                                and _y556.id not in _loc541 and _y556.id not in _prm541
+                                and _y556.id in _cls541 and _mcnt541.get(_y556.id) == 2
+                                and not _fb552.get(_y556.id, True) and all(
+                                    not _cls541[_a].keywords and all(
+                                        _hn552(_d) == "dataclass"
+                                        for _d in _cls541[_a].decorator_list)
+                                    for _a in _lin552.get(_y556.id, []))):
+                            _reps541.append((
+                                "PYCSL-R556-BUILTIN-OBJECT-OPERAND", _y556,
+                                f"`{_y556.id}` is {_w556} and is the class object "
+                                f"`{_y556.id}`, an instance of the builtin type `type`, which "
+                                f"CPython cannot iterate or search"))
+                            break
+                        # (u31, route #569) a str object of a module (`os.sep`) searched for
+                        # a needle that may be other than a str: the opaque constant's
+                        # `contains_check` is total, CPython raises TypeError
+                        if (_os556 and id(_y556) in _nd569
+                                and not isinstance(_y556, _ast486.Constant)
+                                and all(isinstance(_o, str) for _o in _os556)
+                                and not (_T541.get(id(_nd569[id(_y556)]), _UT541)[0]
+                                         <= frozenset(["str"]))):
+                            _reps541.append((
+                                "PYCSL-R556-BUILTIN-OBJECT-OPERAND", _y556,
+                                f"`{_ast486.unparse(_y556).strip()[:60]}` is {_w556} and is the "
+                                f"str object {', '.join(sorted({repr(_o)[:40] for _o in _os556}))}"
+                                f", which CPython cannot search for the needle `"
+                                f"{_ast486.unparse(_nd569[id(_y556)]).strip()[:40]}`, of kind "
+                                f"{_KN541(_T541.get(id(_nd569[id(_y556)]), _UT541)[0]) or 'unknown'}"))
+                            break
                         if _iem560(_y556, 4):
                             _reps541.append((
                                 "PYCSL-R560-INTENUM-MEMBER-OPERAND", _y556,
@@ -21907,6 +22002,32 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                             break
                     if _reps541:
                         break
+                # (u31, route #571) PYCSL-R571-ENUM-MEMBER-NAME-KIND: an Enum member's `.name`
+                # (a str at runtime) lowers to an int field read (`get_name`), so `IE.A.name +
+                # 1`, `-(IE.A.name)`, `IE.A.name < k`, `k in IE.A.name` proved. Only an
+                # (in)equality / identity comparand is admitted.
+                for _n571 in (_ast486.walk(_fd541) if not _reps541 else []):
+                    if not (isinstance(_n571, _ast486.Attribute)
+                            and _n571.attr in ("name", "_name_")
+                            and isinstance(_n571.ctx, _ast486.Load)):
+                        continue
+                    _v571 = _n571.value
+                    if not (_iem560(_v571, 4) or (
+                            isinstance(_v571, _ast486.Attribute)
+                            and isinstance(_v571.value, _ast486.Name)
+                            and _v571.value.id in _en571 and not _shd560(_v571.value.id)
+                            and _v571.attr in _en571[_v571.value.id])):
+                        continue
+                    _p571 = _par552.get(id(_n571))
+                    if isinstance(_p571, _ast486.Compare) and all(
+                            isinstance(_o, (_ast486.Eq, _ast486.NotEq, _ast486.Is,
+                                            _ast486.IsNot)) for _o in _p571.ops):
+                        continue
+                    _reps541.append((
+                        "PYCSL-R571-ENUM-MEMBER-NAME-KIND", _n571,
+                        f"`{_ast486.unparse(_n571).strip()[:60]}` is the name of an Enum "
+                        f"member, a str, used as `{_ast486.unparse(_p571).strip()[:60] if _p571 is not None else '?'}`"))
+                    break
             if not _reps541:
                 _BW558 = ("bytes", "bytearray", "ByteString", "Buffer", "memoryview", "Any",
                           "object")
@@ -22269,6 +22390,16 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                     f"proved `no_exception \\all`). Compare the member as an int (`k == IE.B`, "
                     f"`k in (IE.A, IE.B)`), or iterate the class itself (`for m in IE`).",
                     stage="ir-semantic", code="PYCSL-R560-INTENUM-MEMBER-OPERAND")
+            if _rc541 == "PYCSL-R571-ENUM-MEMBER-NAME-KIND":
+                raise _PyCSLSemErr541(
+                    f"line {_ln541}: PYCSL-R571-ENUM-MEMBER-NAME-KIND: {_rm541}. The value "
+                    f"model reads an Enum member's `.name` as an int field of the class record "
+                    f"(`get_name`), while CPython's is a str, so an operation CPython rejects on "
+                    f"a str proved (route #571; measured: `IE.A.name + 1`, `-(IE.A.name)`, "
+                    f"`IE.A.name < k`, `k in IE.A.name` proved `no_exception \\all`). Use the "
+                    f"member itself (`IE.A + 1`, `IE.A.value`), or compare the name only with "
+                    f"`==` / `!=` (`IE.A.name == \"A\"`).",
+                    stage="ir-semantic", code="PYCSL-R571-ENUM-MEMBER-NAME-KIND")
             if _rc541 == "PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND":
                 raise _PyCSLSemErr541(
                     f"line {_ln541}: PYCSL-R561-COMPREHENSION-NON-ITERABLE-OPERAND: {_rm541}. "
