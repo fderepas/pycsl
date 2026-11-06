@@ -90,7 +90,6 @@ frontend/Module2_Parser.py	_ContractParser._parse_quantifier	cost-scale:family-b
 frontend/Module2_Parser.py	_ContractParser._parse_atom_primary	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_atom_name	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_atom_bs	unclassified	-
-frontend/Module2_Parser.py	_ContractParser._parse_expr_list	unclassified	-
 frontend/Module2_Parser.py	Module2_Parser.parse_contract	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver._subst_var	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/Module3_Weaver.py	PyCSLWeaver._desugar_acts	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL

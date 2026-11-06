@@ -1429,7 +1429,14 @@ def _resolve_same_file_node_spec_records(validated_ast: Any,
                 _sl = _na.slice
                 if isinstance(_sl, getattr(_ast, "Index", ())):
                     _sl = _sl.value
-                if (isinstance(_sl, _ast.Name)
+                # (run #5, vm-irnode S1) the forward-ref ELEMENT spelling `List["ExprIR"]` (a
+                # real Subscript whose element is the string Constant), the self-annotation
+                # mirror's spelling for a node-list return (`_parse_expr_list`): recorded as
+                # the same `list` + `emit_ir` shape the quoted `-> "List[ExprIR]"` gets.
+                if (isinstance(_sl, _ast.Constant)
+                        and _sl.value in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")):
+                    _le_ir = "emit_ir"
+                elif (isinstance(_sl, _ast.Name)
                         and _sl.id in ("ExprIR", "StmtIR", "IRNode", "ContractExprIR")):
                     _le_ir = "emit_ir"
                 # relaunch #17: the STRING-ELEMENT twin. `-> "List[str]"` in the
