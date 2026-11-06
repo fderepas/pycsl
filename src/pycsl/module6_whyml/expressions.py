@@ -18908,6 +18908,216 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                          and obj_ir.get("type") == "Var"
                          and obj_ir.get("name")
                          in getattr(self, "_emit_ir_local_vars", set())))):
+            # (run #5) ROUTE #567 -- refuse the projector on a receiver an `isinstance` test
+            # in this body narrows to a class that is not an IR-schema node class (the set
+            # is built per body in `statements.py::_typed_local_vars`): its `.kind` is that
+            # class's own field, not the emit_ir constructor tag.
+            if attr in _EMIT_IR_STR_ATTRS:
+                _cef567 = getattr(self, "_current_emitting_func", None) or ""
+                _body567: Any = []
+                for _fn567 in (self.ir.get("functions", []) or []):
+                    if (isinstance(_fn567, dict) and _cef567
+                            and (_fn567.get("name") == _cef567
+                                 or whyml_ident(str(_fn567.get("name", ""))) == _cef567)):
+                        _body567 = [_fn567.get("body") or [], _fn567.get("contracts") or {}]
+                        break
+                # The narrowing table, computed here from the IR body of the function being
+                # emitted (`_current_emitting_func`, read-only: no new emitter field). The
+                # projectors are faithful only on a value of an IR
+                # node class; an `isinstance(x, C)` test whose class C is not an IR-schema node class
+                # (`ir_schema.IRNode`'s subclasses), or is a class THIS file defines (a user
+                # `DictView`, a user `VarExpr`), or is unnamed, says x may be something else, whose
+                # own field the projector does not read (witnesses-r567 w567: `dv.kind == "keys"`
+                # became `kind_of dv`, no arm of which is "keys", so a false `ensures \result == 0`
+                # was a theorem). Keyed on the tested ACCESS PATH (`node`, `node.collection`; a
+                # subscript coarsens the path to its base), flow-insensitive over the whole body,
+                # closed under plain assignment of the path or of a prefix of it (`dv = node`,
+                # `x = node.collection`): a projector read whose receiver path is a narrowed path or
+                # extends one is refused (PYCSL-R567-EMITIR-ATTR-ON-NONIR).
+                import ir_schema as _irs567
+                _irn567 = {_n for _n, _c in vars(_irs567).items()
+                           if isinstance(_c, type) and issubclass(_c, _irs567.IRNode)}
+                _own567 = getattr(self, "own_types_r567", None)
+                if _own567 is None:
+                    _own567 = {_c.get("name") for _c in (self.ir.get("classes", []) or [])
+                               if isinstance(_c, dict)}
+                # path -> the attribute names the narrowing class may carry (None: unknown, all).
+                # A projector read is misprojected only for an attribute the tested class has: an
+                # `ast.Constant` carries `value` / `kind` (its `kind` IS such a read), not `id`.
+                _nar567: Dict[str, Optional[Set[str]]] = {}
+                _asg567: List[Tuple[str, Any]] = []
+                _stk567: List[Any] = [_body567]
+                _rt567 = getattr(self, "_record_types", {}) or {}
+                _td567 = {str(_t.get("name")): _t for _t in (self.ir.get("type_decls", []) or [])
+                          if isinstance(_t, dict)}
+                while _stk567:
+                    _x567 = _stk567.pop()
+                    if isinstance(_x567, list):
+                        _stk567.extend(_x567)
+                        continue
+                    if not isinstance(_x567, dict):
+                        continue
+                    _stk567.extend(_x567.values())
+                    if (_x567.get("type") == "Call" and _x567.get("func") == "isinstance"
+                            and len(_x567.get("args") or []) == 2):
+                        _cls567 = _x567["args"][1]
+                        _names567: List[Any] = [_cls567]
+                        if isinstance(_cls567, dict) and _cls567.get("type") in (
+                                "Tuple", "MkTuple", "ArrayLit", "SetLit"):
+                            _names567 = list(_cls567.get("elts") or [])
+                        _bad567 = not _names567
+                        _f567: Optional[Set[str]] = set()
+                        if _bad567:
+                            _f567 = None
+                        for _e567 in _names567:
+                            # An IR class: an IR-schema node class named bare and not declared by
+                            # this file, or a class the isinstance-on-emit_ir recognizers model by a
+                            # real constructor discriminant (`ast.<Node>` in `_AST_CLASS_TO_IR_KIND`,
+                            # a bare CSL class in `_CSL_CLASS_TO_IR_KIND`), whose fields the
+                            # projectors read faithfully. Anything else narrows the value away.
+                            _ok567 = False
+                            _rec567 = False
+                            _fs567: Optional[Set[str]] = None
+                            if isinstance(_e567, dict) and _e567.get("type") == "Var":
+                                _cn567 = _e567.get("name")
+                                _ok567 = isinstance(_cn567, str) and (
+                                    (_cn567 in _irn567 and _cn567 not in _own567)
+                                    or _cn567 in (getattr(self, "_CSL_CLASS_TO_IR_KIND", None) or {}))
+                                if not _ok567 and isinstance(_cn567, str):
+                                    _ri567 = _rt567.get(_cn567) or _rt567.get(_cn567.lower())
+                                    if isinstance(_ri567, dict) and isinstance(
+                                            _ri567.get("field_types"), dict):
+                                        _fs567 = set(_ri567["field_types"])
+                                        _rec567 = True
+                                    elif isinstance(_td567.get(_cn567), dict) and isinstance(
+                                            _td567[_cn567].get("fields"), list):
+                                        _fs567 = {str(_fd.get("name")) for _fd in _td567[_cn567]["fields"]
+                                                  if isinstance(_fd, dict)}
+                                        _rec567 = True
+                            elif isinstance(_e567, dict) and _e567.get("type") == "Attribute":
+                                _ok567 = (_e567.get("attr")
+                                          in (getattr(self, "_AST_CLASS_TO_IR_KIND", None) or {}))
+                                _o567 = _e567.get("object")
+                                if (not _ok567 and isinstance(_o567, dict)
+                                        and _o567.get("type") == "Var" and _o567.get("name") == "ast"):
+                                    import ast as _ast567
+                                    _ac567 = getattr(_ast567, str(_e567.get("attr")), None)
+                                    if isinstance(_ac567, type):
+                                        _fs567 = (set(getattr(_ac567, "_fields", ()) or ())
+                                                  | set(getattr(_ac567, "_attributes", ()) or ()))
+                            # The self-annotation mirror (route #566's allowance, `_run_pipeline`) models
+                            # Python-AST / unnamed classes as emit_ir loosely under its type-safety +
+                            # frame contract; there only a RECORD-modelled class (a CSL `DictView`)
+                            # narrows -- the read the review measured (`_csl_in`'s `dv.kind`).
+                            if (not _ok567 and getattr(self, "is_self_mirror_r566", False)
+                                    and not _rec567):
+                                _ok567 = True
+                            if not _ok567:
+                                _bad567 = True
+                                if _fs567 is None or _f567 is None:
+                                    _f567 = None
+                                else:
+                                    _f567 |= _fs567
+                        if _bad567:
+                            _p567: List[str] = []
+                            _r567 = _x567["args"][0]
+                            while isinstance(_r567, dict) and _r567.get("type") in (
+                                    "Attribute", "FieldGet", "Subscript", "SliceAccess"):
+                                if _r567.get("type") in ("Attribute", "FieldGet"):
+                                    _p567.append(str(_r567.get("attr") or _r567.get("field")))
+                                else:
+                                    _p567 = []
+                                _r567 = _r567.get("object") or _r567.get("value")
+                            if (isinstance(_r567, dict) and _r567.get("type") == "Var"
+                                    and isinstance(_r567.get("name"), str)):
+                                _k567 = ".".join([_r567["name"]] + _p567[::-1])
+                                if _k567 in _nar567 and (_nar567[_k567] is None or _f567 is None):
+                                    _nar567[_k567] = None
+                                elif _k567 in _nar567:
+                                    _nar567[_k567] = (_nar567[_k567] or set()) | (_f567 or set())
+                                else:
+                                    _nar567[_k567] = _f567
+                    if _x567.get("stmt") in ("Assign", "AnnAssign"):
+                        _t567 = _x567.get("target")
+                        if isinstance(_t567, dict) and _t567.get("type") == "Var":
+                            _t567 = _t567.get("name")
+                        if isinstance(_t567, str):
+                            _asg567.append((_t567, _x567.get("value")))
+                _chg567 = bool(_nar567)
+                while _chg567:
+                    _chg567 = False
+                    for _t567, _v567 in _asg567:
+                        _p567 = []
+                        _r567 = _v567
+                        while isinstance(_r567, dict) and _r567.get("type") in (
+                                "Attribute", "FieldGet", "Subscript", "SliceAccess"):
+                            if _r567.get("type") in ("Attribute", "FieldGet"):
+                                _p567.append(str(_r567.get("attr") or _r567.get("field")))
+                            else:
+                                _p567 = []
+                            _r567 = _r567.get("object") or _r567.get("value")
+                        if not (isinstance(_r567, dict) and _r567.get("type") == "Var"
+                                and isinstance(_r567.get("name"), str)):
+                            continue
+                        _vk567 = ".".join([_r567["name"]] + _p567[::-1])
+                        for _n567, _nf567 in list(_nar567.items()):
+                            _new567 = None
+                            if _vk567 == _n567:
+                                _new567 = _t567
+                            elif _vk567.startswith(_n567 + "."):
+                                # the alias holds a FIELD value of the narrowed object: its class is
+                                # unknown (all attributes) when that field is one the class may carry
+                                _seg567 = _vk567[len(_n567) + 1:].split(".")[0]
+                                if _nf567 is None or _seg567 in _nf567:
+                                    _new567 = _t567
+                                    _nf567 = None
+                            elif _n567.startswith(_vk567 + "."):
+                                _new567 = _t567 + _n567[len(_vk567):]
+                            if _new567 is not None and (
+                                    _new567 not in _nar567
+                                    or (_nar567[_new567] is not None and _nf567 is None)
+                                    or (_nar567[_new567] is not None
+                                        and not (_nf567 or set()) <= _nar567[_new567])):
+                                _old567 = _nar567.get(_new567, set())
+                                _nar567[_new567] = (None if (_nf567 is None or _old567 is None)
+                                                    else (_old567 | _nf567))
+                                _chg567 = True
+                _p567: List[str] = []
+                _r567 = obj_ir
+                while isinstance(_r567, dict) and _r567.get("type") in (
+                        "Attribute", "FieldGet", "Subscript", "SliceAccess"):
+                    if _r567.get("type") in ("Attribute", "FieldGet"):
+                        _p567.append(str(_r567.get("attr") or _r567.get("field")))
+                    else:
+                        _p567 = []
+                    _r567 = _r567.get("object") or _r567.get("value")
+                _k567 = (".".join([str(_r567.get("name"))] + _p567[::-1])
+                         if isinstance(_r567, dict) and _r567.get("type") == "Var" else None)
+                # refused when the receiver IS a narrowed path and the tested class may carry
+                # `attr`, or EXTENDS one through a field that class may carry (unknown class:
+                # every attribute)
+                _hit567 = False
+                for _n567, _nf567 in _nar567.items():
+                    if _k567 == _n567 and (_nf567 is None or attr in _nf567):
+                        _hit567 = True
+                    elif _k567 is not None and _k567.startswith(_n567 + ".") and (
+                            _nf567 is None
+                            or _k567[len(_n567) + 1:].split(".")[0] in _nf567):
+                        _hit567 = True
+                if _hit567:
+                    from errors import PyCSLSemanticError as _R567
+                    raise _R567(
+                        "PYCSL-R567-EMITIR-ATTR-ON-NONIR: `" + str(_k567)
+                        + "." + str(attr) + "` (in `"
+                        + str(getattr(self, "_current_emitting_func", None) or "?")
+                        + "`) reads a field of a value this function also "
+                        "tests with `isinstance` against a class that is not an IR node class "
+                        "(route #567). The value is typed as an IR node (`emit_ir`), whose `."
+                        + str(attr) + "` the model reads as the node's constructor tag / name, "
+                        "not the field of the tested class, so the read would be modelled "
+                        "wrongly. Annotate the value with the class it really has (a "
+                        "parameter or local of that record type), or test only IR node classes.",
+                        stage="module6-whyml", code="PYCSL-R567-EMITIR-ATTR-ON-NONIR")
             _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
             # self-tcb-reduction T1.a: `<emit_ir>.kind` is the DISCRIMINANT (`kind_of`, a string),
             # not a sub-node — so `inner.kind == "Subscript"` routes through `str_eq_op`.
