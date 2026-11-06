@@ -184,6 +184,24 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _for_items_hval_map: Optional[str] = None
     _for_iter_materialize: Optional[Tuple[str, str]] = None
     _str_slice_loop_len: Optional[str] = None
+    # run #5 lvD2 — lesson (f5): lvD C2 made `_emit_body_code` WRITE `_lvd_int_predecl` (live
+    # statements.py: a set comprehension over the pre-declared local NAMES, saved / restored
+    # around the body walk; read by `_handle_assign_stmt`) and its `\trusted` `#@ assigns`
+    # NAMES it, but undeclared the name was dropped from the emitted `writes` of the two
+    # files that emit that stub (statements.mlw + the Module6_WhyMLTranspiler aggregate):
+    # survival TRAP 2 of the 1399 -> 1402 rise (the third is lvD's `visit_MatchStar`
+    # conversion, whose `\trusted` val had no `writes` and whose `let` now has an empty
+    # one -- the population-gated rider (ii) of (f5)+(g5); `_Unparser`'s record is empty).
+    # Declared with its LIVE type so the declared frame EMITS (a write on the exceptional
+    # exit, where the save/restore does not run). `_term_local_vars` is paid with it: live
+    # `self._term_local_vars: Set[str] = set()`, written only by `_emit_body_code`, read by
+    # NO mirror body -- so both declarations move only the record, the `writes` clauses that
+    # name them, and a trivial `ensures { self.f = old self.f }` on each converted `let`.
+    # (f5)+(g5) enumeration: the clauses that transitively write `_term_local_vars`
+    # (`transpile`, `_transpile_modular`, `_emit_function`) now also name `_lvd_int_predecl`,
+    # which they reach through `_emit_body_code` -- mentionable in the aggregate record.
+    _lvd_int_predecl: Set[str] = None
+    _term_local_vars: Set[str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
