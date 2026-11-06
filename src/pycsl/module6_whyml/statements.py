@@ -2768,33 +2768,25 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # continuation lowered the write itself is unmodelled -- the emit_ir value is
         # immutable in the model while CPython mutates the dict -- so a later read of the
         # stored key sees the OLD value (witness s566_stale_lit: a dict-literal node, the key
-        # stored under an `if`, `need_empty(d.name)` after the `if` PROVED). REFUSED by
-        # default. The one exception is the self-annotation mirror (src/self-annotate/src/,
-        # the `declared_in` precedent in `_run_pipeline`): its conversion contract is
-        # type-safety + frame only (`ensures True`), which no stored VALUE can falsify, and
-        # it has exactly one verified store (`_handle_match_stmt`'s `c["pattern"] = ...`).
-        # There the store stays the unmodelled no-op but the CONTINUATION IS ALWAYS LOWERED.
+        # stored under an `if`, `need_empty(d.name)` after the `if` PROVED). REFUSED
+        # everywhere, the self-annotation mirror included (run #5 lvG2: the user rejected a
+        # file-path exemption; the mirror's one store was rewritten to build the node whole).
         if (getattr(self, "_current_self_type", None)
                 in getattr(self, "_mutable_state_classes", set())
                 and self._is_emit_ir_expr(arr)):
-            if not getattr(self, "is_self_mirror_r566", False):
-                from errors import PyCSLSemanticError as _R566
-                raise _R566(
-                    "PYCSL-R566-EMITIR-ITEM-STORE: an item store `"
-                    + str(arr.get("name") if arr.get("type") == "Var" else "<node>")
-                    + "[...] = ...` into a value the model types as an IR node (`emit_ir`: a "
-                    "`-> \"ExprIR\"` result, a dict display with a \"type\" key, an element of "
-                    "a node list) in a `@mutable_state` class is refused (route #566). The model "
-                    "holds IR nodes as IMMUTABLE values, so the write cannot be represented: "
-                    "CPython mutates the dict, every alias of it sees the new entry, and the "
-                    "model would keep reasoning about the old one. Build the node with the entry "
-                    "already present (a dict display or constructor carrying every key), or keep "
-                    "the extra data in a separate local dict.",
-                    stage="module6-whyml", code="PYCSL-R566-EMITIR-ITEM-STORE")
-            if rest:
-                return (f"{indent}();\n"
-                        + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop))
-            return f"{indent}()"
+            from errors import PyCSLSemanticError as _R566
+            raise _R566(
+                "PYCSL-R566-EMITIR-ITEM-STORE: an item store `"
+                + str(arr.get("name") if arr.get("type") == "Var" else "<node>")
+                + "[...] = ...` into a value the model types as an IR node (`emit_ir`: a "
+                "`-> \"ExprIR\"` result, a dict display with a \"type\" key, an element of "
+                "a node list) in a `@mutable_state` class is refused (route #566). The model "
+                "holds IR nodes as IMMUTABLE values, so the write cannot be represented: "
+                "CPython mutates the dict, every alias of it sees the new entry, and the "
+                "model would keep reasoning about the old one. Build the node with the entry "
+                "already present (a dict display or constructor carrying every key), or keep "
+                "the extra data in a separate local dict.",
+                stage="module6-whyml", code="PYCSL-R566-EMITIR-ITEM-STORE")
         # r2c-wall R2c-local (gen #37): a NESTED store `root[k]..[f] = v` whose root is an
         # hval-valued dict (`Dict[str, PyVal]`) is the path write-back of `_handle_expr_stmt`
         # (pseudo-call `__r2c_setitem__`), which lowers it or REFUSES it fail-closed.

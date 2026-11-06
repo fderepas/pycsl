@@ -19187,7 +19187,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             # a bare CSL class in `_CSL_CLASS_TO_IR_KIND`), whose fields the
                             # projectors read faithfully. Anything else narrows the value away.
                             _ok567 = False
-                            _rec567 = False
                             _fs567: Optional[Set[str]] = None
                             if isinstance(_e567, dict) and _e567.get("type") == "Var":
                                 _cn567 = _e567.get("name")
@@ -19199,12 +19198,10 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                     if isinstance(_ri567, dict) and isinstance(
                                             _ri567.get("field_types"), dict):
                                         _fs567 = set(_ri567["field_types"])
-                                        _rec567 = True
                                     elif isinstance(_td567.get(_cn567), dict) and isinstance(
                                             _td567[_cn567].get("fields"), list):
                                         _fs567 = {str(_fd.get("name")) for _fd in _td567[_cn567]["fields"]
                                                   if isinstance(_fd, dict)}
-                                        _rec567 = True
                             elif isinstance(_e567, dict) and _e567.get("type") == "Attribute":
                                 _ok567 = (_e567.get("attr")
                                           in (getattr(self, "_AST_CLASS_TO_IR_KIND", None) or {}))
@@ -19216,13 +19213,6 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                     if isinstance(_ac567, type):
                                         _fs567 = (set(getattr(_ac567, "_fields", ()) or ())
                                                   | set(getattr(_ac567, "_attributes", ()) or ()))
-                            # The self-annotation mirror (route #566's allowance, `_run_pipeline`) models
-                            # Python-AST / unnamed classes as emit_ir loosely under its type-safety +
-                            # frame contract; there only a RECORD-modelled class (a CSL `DictView`)
-                            # narrows -- the read the review measured (`_csl_in`'s `dv.kind`).
-                            if (not _ok567 and getattr(self, "is_self_mirror_r566", False)
-                                    and not _rec567):
-                                _ok567 = True
                             if not _ok567:
                                 _bad567 = True
                                 if _fs567 is None or _f567 is None:

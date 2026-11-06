@@ -40,6 +40,13 @@
 ##   (base + HEAD). Byte-diff vs b432460d6: root 2929 -> 2948 0 MOVED / 0 GONE / 0 APPEARED,
 ##   python-reference 2191 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (no movers, nothing owed). rt43 / rt44 149 controls: verdicts identical, 0 .mlw moved.
 
+## run #5 (2026-11-06): #566 / #567 MIRROR EXEMPTION REMOVED (executor lvG2 off ad5b44278 = run5-int45, branch run5-lvG2; USER DECISION: the
+##   file-path exemption is rejected). Both refusals now apply everywhere, the mirror included; the `is_self_mirror_r566` path flag is gone.
+##   Mirror functions the strict rules refuse were RE-TRUSTED (no equivalent rewrite keeps them verified): stmt_control_flow
+##   `_handle_match_stmt` (#566, the `c["pattern"]` store) and Module5_IREmitter `_const_int_value`, `_collect_final_registry`,
+##   `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (#567); \trusted markers 372 -> 378. New hole reported: #567's
+##   assignment closure is forward-only (`dv = node; isinstance(dv, C); node.kind` is not refused). See the route docs' lvG2 blocks.
+
 ## run #5 (2026-11-05): #566 / #567 REPAIRED (executor lvG off 0ce6ece57 = run5-int37, branch run5-lvG, the §1 commits; emitter-side, inline,
 ##   mirror twins `\trusted`, no new def, no axiom, no new ADT arm; annotations §7.566; found by the independent vm-irnode review, H2 / H1).
 ##   #566: an item store into a value the emitter types `emit_ir` in a `@mutable_state` class (`d = self.mk(an); d["act_name"] = an`) lowered
