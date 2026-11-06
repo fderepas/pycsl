@@ -9655,6 +9655,74 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 _emit_ir_predecl, _seqir_predecl, _irlist_predecl, _optstr_predecl,
                 getattr(self, "_optmap_getter_locals", set()), _hvalmap_predecl,
                 _bpl_seqstr_predecl, _seqrec_predecl, _rec_predecl, _union_predecl))}
+        # run #5 lvD3 (rt54 R54-F4, a false proof C2 introduced): the hash is an INT in the
+        # model, so ANY int-theory read of the slot decides on it -- `name = x; name = "abc";
+        # name + 1` proved `no_exception` (CPython TypeError), `name = ""; if name:` was
+        # truthy (hash("") != 0), `name == x` with `x: int` proved True. C2 is therefore kept
+        # ONLY for a local whose EVERY read is a position where the hash carries no claim:
+        #   (a) a bare part of an f-string with >= 2 parts -- rendered by the program `val`s
+        #       `int_to_string` (str joiner) / `str_concat` (int joiner), no `function`, so
+        #       each evaluation is a fresh unrelated string (the single-part int joiner is
+        #       the value-keyed `str_of_int_hash`, hence excluded, as is a `!r` / `:spec`
+        #       `FormattedValue`);
+        #   (b) the operand of `is None` / `is not None` (`py_is`) -- against the abstract
+        #       `pycsl_none` constant, never decided for a hash (a str is never None in
+        #       CPython, so no decision can be wrong, and none is made).
+        # Any other read (arithmetic, truthiness, comparison, `in`, call argument, return,
+        # subscript, alias, AugAssign's implicit read, a loop-spec mention) drops the local
+        # from the set, so `name := "abc"` stays the ill-typed emission it was before C2:
+        # refused, never approximated. Any other string mention of the name anywhere in the
+        # body IR (a field this walk does not model) also drops it -- except a string
+        # literal's text and an attribute / field NAME (`node.name` is not a read of the
+        # local `name`). Inline explicit-stack
+        # walk (no nested def: mirror-coverage ratchet).
+        if self._lvd_int_predecl:
+            _lvd3_ok: Set[int] = set()
+            _lvd3_bad: Set[str] = set()
+            _lvd3_stack: List[Any] = list(body_stmts)
+            while _lvd3_stack:
+                _lvd3_n = _lvd3_stack.pop()
+                if isinstance(_lvd3_n, list):
+                    _lvd3_stack.extend(_lvd3_n)
+                    continue
+                if not isinstance(_lvd3_n, dict):
+                    continue
+                _lvd3_ty = _lvd3_n.get("type")
+                if _lvd3_ty == "FString" and isinstance(_lvd3_n.get("parts"), list):
+                    if len(_lvd3_n["parts"]) >= 2:
+                        _lvd3_ok |= {id(_p) for _p in _lvd3_n["parts"]
+                                     if isinstance(_p, dict) and _p.get("type") == "Var"}
+                elif (_lvd3_ty == "BinOp" and _lvd3_n.get("py_is") is True
+                        and _lvd3_n.get("op") in ("==", "!=")):
+                    for _lvd3_a, _lvd3_b in (("left", "right"), ("right", "left")):
+                        if (isinstance(_lvd3_n.get(_lvd3_a), dict)
+                                and _lvd3_n[_lvd3_a].get("type") == "Var"
+                                and isinstance(_lvd3_n.get(_lvd3_b), dict)
+                                and _lvd3_n[_lvd3_b].get("type") == "None"):
+                            _lvd3_ok.add(id(_lvd3_n[_lvd3_a]))
+                if _lvd3_ty == "Var" and _lvd3_n.get("name") in self._lvd_int_predecl:
+                    if id(_lvd3_n) not in _lvd3_ok:
+                        _lvd3_bad.add(_lvd3_n["name"])
+                elif (_lvd3_n.get("stmt") in ("AugAssign", "FieldAugAssign")
+                        and _lvd3_n.get("target") in self._lvd_int_predecl):
+                    _lvd3_bad.add(_lvd3_n["target"])
+                for _lvd3_k, _lvd3_x in _lvd3_n.items():
+                    for _lvd3_s in ([_lvd3_x] if isinstance(_lvd3_x, str) else
+                                    (_lvd3_x if isinstance(_lvd3_x, (list, tuple)) else [])):
+                        if not isinstance(_lvd3_s, str):
+                            continue
+                        if (_lvd3_k in ("target", "targets", "tuple_targets", "name", "var")
+                                and _lvd3_s in self._lvd_int_predecl):
+                            continue
+                        if ((_lvd3_k == "value" and _lvd3_ty == "String")
+                                or (_lvd3_k == "attr" and _lvd3_ty == "Attribute")
+                                or (_lvd3_k == "field" and _lvd3_ty == "FieldGet")):
+                            continue
+                        _lvd3_bad |= self._lvd_int_predecl & set("".join(
+                            _c if (_c.isalnum() or _c == "_") else " "
+                            for _c in _lvd3_s).split())
+                _lvd3_stack.extend(_lvd3_n.values())
+            self._lvd_int_predecl = self._lvd_int_predecl - _lvd3_bad
 
         # Phase 2.3b of missing-bytes-struct-feature.md: do NOT hoist
         # struct-unpack array-typed targets to a function-top ref —
