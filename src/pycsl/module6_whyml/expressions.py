@@ -20378,6 +20378,47 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                          or _d.get("name") in getattr(self, "_array_elem_types", {})))
         if _ms and _is_arr_var(_bd) and _is_arr_var(_od):
             return f"(if {test} then (Array.copy {body}) else (Array.copy {orelse}))"
+        # run #5 lvJ (a) EMPTY-DICT ARM TYPED BY ITS SIBLING: `m if c else {}` (or `{} if c
+        # else m`) where the other arm is DICT-typed (a `dict` param / local, a dict field
+        # `self.f` / `getattr(self, "f", ..)`). The `{}` arm lowered to `(const (None: option
+        # int))` and then `_coerce_to_int` made it the unconstrained `(any int)`, so the
+        # ternary failed L3-tc against the map arm. `{}` IS the everywhere-None map; emitted
+        # as the UN-annotated `(const None)` its key/value types are fixed by Why3's
+        # unification with the sibling map arm -- the same value, typed by its context (the
+        # route-#111 field-store precedent). No other arm is touched; an empty SET arm or a
+        # set-typed sibling is excluded (a `{}` beside a set is a dict, not a set). If the
+        # sibling is not a map after all, the ternary is an L3-tc error (fail-closed).
+        # Corpus-inert where it does not fire; where it fires the old emission did not
+        # type-check. INLINE: this twin is `\trusted` (rule 9/13).
+        _lvj_sib = None
+        if _b_empty and not _o_empty:
+            _lvj_sib = _od
+        elif _o_empty and not _b_empty:
+            _lvj_sib = _bd
+        _lvj_dict = False
+        if isinstance(_lvj_sib, dict):
+            _lvj_t = _lvj_sib.get("type")
+            if _lvj_t == "Var":
+                _lvj_n = _lvj_sib.get("name")
+                _lvj_dict = ((getattr(self, "_current_symbol_table", {}) or {}).get(_lvj_n) == "dict"
+                             or (_lvj_n in getattr(self, "_dict_locals", set())
+                                 and _lvj_n in (getattr(self, "_dict_value_types", {}) or {})))
+            elif _lvj_t in ("Attribute", "FieldGet"):
+                _lvj_dict = self._field_type_of(_lvj_sib) == "dict"
+            elif (_lvj_t == "Call" and _lvj_sib.get("func") == "getattr"
+                  and 2 <= len(_lvj_sib.get("args") or []) <= 3):
+                _lvj_a = _lvj_sib["args"]
+                _lvj_dict = (isinstance(_lvj_a[0], dict) and _lvj_a[0].get("type") == "Var"
+                             and _lvj_a[0].get("name") == "self"
+                             and isinstance(_lvj_a[1], dict)
+                             and _lvj_a[1].get("type") == "String"
+                             and self._self_field_py_type(_lvj_a[1].get("value")) == "dict")
+        if _lvj_dict:
+            if _b_empty:
+                body = "(const None)"
+            if _o_empty:
+                orelse = "(const None)"
+            return f"(if {test} then {body} else {orelse})"
         body = self._coerce_to_int(body)
         orelse = self._coerce_to_int(orelse)
         return f"(if {test} then {body} else {orelse})"
