@@ -3359,6 +3359,68 @@ class FunctionEmissionMixin:
                     _r249_erased.add(_r255_p)
         _r249_rts = getattr(self, "_record_types", {}) or {}
         _r249_st = func.get("symbol_table") or {}
+        # (u31, run #5) ROUTE #573 -- A CALL WHOSE RETURN ANNOTATION HOLDS `Any` BELOW THE TOP.
+        #   Route #249 erased the elements of a PARAMETER / annotated local declared `List[Any]` /
+        #   `Tuple[Any, ...]` / `Dict[str, Any]` / `Tuple[Any, int]`, but a local bound from a CALL
+        #   of a module function so declared kept int laws: `t = g(k); return t[1] + 1` (`g` ->
+        #   `Tuple[Any, ...]` returning `(1, None)`, an honest return: `Any` admits None) PROVED
+        #   `no_exception \all`, CPython TypeError (likewise `-> Tuple[Any, int]` and `t[0]`, an
+        #   unpack `a, b = g(k)`, `-> Tuple[object, ...]`). Module 5's per-function
+        #   `r526_return_none_depths` already locates the `Any`: `any_from` >= 1 (an element at
+        #   some depth is arbitrary), a fixed tuple's `slots` (slot i: `[admit, any_from]`), a
+        #   container's `elt_slots`. A local bound (plain assignment / walrus) from such a call
+        #   is a route-#249 container (`kv`; a dict return: `v`) -- or, when only fixed slots
+        #   are arbitrary, its reads of those slots (a constant index naming one, any other
+        #   index) are erased; an unpack target in an arbitrary slot is erased; a direct read
+        #   `g(k)[i]` likewise. The walk, route #252's refusal and `_handle_binop` read them.
+        _r573_rec: Dict[str, Any] = {}
+        for _r573_g in ((getattr(self, "ir", {}) or {}).get("functions") or []):
+            if not (isinstance(_r573_g, dict) and isinstance(_r573_g.get("name"), str)
+                    and _r573_g.get("kind") != "method"
+                    and isinstance(_r573_g.get("r526_return_none_depths"), dict)):
+                continue
+            _r573_d = _r573_g["r526_return_none_depths"]
+            _r573_sl = [_x for _x in (_r573_d.get("slots") or []) if isinstance(_x, list)]
+            _r573_whole = ((isinstance(_r573_d.get("any_from"), int)
+                            and _r573_d["any_from"] >= 1)
+                           or any(isinstance(_x, list) and len(_x) > 1 and _x[1] is not None
+                                  for _x in (_r573_d.get("elt_slots") or [])))
+            _r573_ix = {_i for _i, _x in enumerate(_r573_sl) if len(_x) > 1 and _x[1] is not None}
+            if _r573_whole or _r573_ix:
+                _r573_rec.setdefault(_r573_g["name"], (
+                    _r573_whole, _r573_ix, len(_r573_sl),
+                    "v" if _r573_g.get("return_annotation") in ("dict", "Dict") else "kv"))
+        _r573_slots: Dict[str, Any] = {}
+        if _r573_rec:
+            _r573_ws: List[Any] = [func.get("body") or []]
+            while _r573_ws:
+                _r573_n = _r573_ws.pop()
+                if isinstance(_r573_n, list):
+                    _r573_ws.extend(_r573_n)
+                    continue
+                if not isinstance(_r573_n, dict):
+                    continue
+                _r573_ws.extend(_r573_v for _r573_v in _r573_n.values()
+                                if isinstance(_r573_v, (list, dict)))
+                _r573_v = _r573_n.get("value")
+                if not ((_r573_n.get("stmt") is not None or _r573_n.get("type") == "NamedExpr")
+                        and isinstance(_r573_v, dict) and _r573_v.get("type") == "Call"
+                        and _r573_v.get("func") in _r573_rec):
+                    continue
+                _r573_w, _r573_i, _r573_l, _r573_tg = _r573_rec[_r573_v["func"]]
+                if _r573_n.get("stmt") == "TupleUnpack":
+                    for _r573_j, _r573_t in enumerate(_r573_n.get("targets") or []):
+                        if isinstance(_r573_t, str) and (_r573_w or _r573_j in _r573_i):
+                            _r249_erased.add(_r573_t)
+                    continue
+                _r573_t = _r573_n.get("target")
+                if not isinstance(_r573_t, str) or _r573_t in _r249_cont:
+                    continue
+                if _r573_w:
+                    _r249_cont[_r573_t] = _r573_tg
+                    _r573_slots.pop(_r573_t, None)
+                else:
+                    _r573_slots.setdefault(_r573_t, (set(), _r573_l))[0].update(_r573_i)
         # (#49) ROUTE #252 — AN ERASED VALUE FLOWING INTO A SLOT THE MODEL READS AS A BUILTIN.
         #   Routes #249/#251 took the laws off `==`/`in`/arithmetic/ordering on an erased
         #   (`Any`/`object`/unannotated/TypeVar/`__eq__`-class) value, but only where the
@@ -3494,6 +3556,11 @@ class FunctionEmissionMixin:
                         _r249_erased.add(_r249_t)
                         _r249_changed = True
                     continue
+                if (_r249_it and isinstance(_r249_rhs, dict) and _r249_rhs.get("type") == "Var"
+                        and _r249_rhs.get("name") in _r573_slots):
+                    _r249_erased.add(_r249_t)
+                    _r249_changed = True
+                    continue
                 _r249_hit = False
                 _r249_es: List[Any] = [_r249_rhs]
                 while _r249_es and not _r249_hit:
@@ -3536,6 +3603,23 @@ class FunctionEmissionMixin:
                         if (isinstance(_r249_b, dict) and _r249_b.get("type") == "Var"
                                 and "v" in _r249_cont.get(_r249_b.get("name"), "")):
                             _r249_hit = True
+                        # route #573: a read of an arbitrary slot of a call-bound tuple
+                        _r573_q = None
+                        if isinstance(_r249_b, dict) and _r249_b.get("type") == "Var":
+                            _r573_q = _r573_slots.get(_r249_b.get("name"))
+                        elif (isinstance(_r249_b, dict) and _r249_b.get("type") == "Call"
+                              and _r249_b.get("func") in _r573_rec):
+                            _r573_q = ((None, None) if _r573_rec[_r249_b["func"]][0] else
+                                       _r573_rec[_r249_b["func"]][1:3])
+                        if _r573_q is not None:
+                            _r573_x = _r249_e.get("index")
+                            _r573_c = (_r573_x.get("value") if isinstance(_r573_x, dict)
+                                       and _r573_x.get("type") == "Number"
+                                       and type(_r573_x.get("value")) is int else None)
+                            if (_r573_q[0] is None or _r573_c is None
+                                    or (_r573_c + _r573_q[1] if _r573_c < 0 else _r573_c)
+                                    in _r573_q[0]):
+                                _r249_hit = True
                         _r249_es.append(_r249_b)
                     elif _r249_et == "BinOp" and _r249_e.get("op") in (
                             "+", "-", "*", "/", "div", "//", "%", "**", "<<", ">>", "&",
