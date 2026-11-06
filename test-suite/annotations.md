@@ -5728,6 +5728,47 @@ REFUSED upstream (not modelled, so not folded); a `str`-declared `for` target's 
 route #51's domain; an `Optional` carrier rebound by a tuple unpack / walrus is ill-typed (fails closed, not
 modelled).
 
+### 7.568 A method call's caller-side stub writes `_pyobj_state` whenever the callee's verified frame does; an unresolved receiver's stub writes it when a file method of that name may, wherever attribute state is observed (route #568, run #5)
+
+A method call `<recv>.<m>(..)` is lowered through a caller-side stub (`val <recv>_<m>_<k>`) whose frame is built
+from the callee's DECLARED `#@ assigns` (`_resolve_dotted_signature`), filtered to the record's field labels,
+with the coarse `_pyobj_state` cell added only when the filter drops EVERY declared target (route #109). The
+callee's own `let` frame is DERIVED from its body: a store to an attribute the record does not carry (a
+`setattr_*`) adds `_pyobj_state`. Route #213's `getattr` on an unknown receiver is the state-keyed term
+`pycsl_getattr_*(!_pyobj_state, o)`, sound only if every object-state change writes the cell, so two reads
+around a stub that omits it were one term: `c.m(0); x = getattr(o, "flag", 0); c.m(5); y = getattr(o, "flag",
+0); if x or not y: return 1; return 2` PROVED `\result == 1` (CPython, `o is c`: 2) when `m` declared `assigns
+self.a` and also stored `self.flag`, when it HONESTLY declared `assigns self.a, self.flag` (the filter drops
+`flag`, not everything), and when the receiver was not resolved to a method table at all (a parameter of a file
+class without a record, `Any`, a subclass inheriting `m`): that stub had NO frame, the call was pure, and a
+caller declaring `assigns \nothing` even took route #213's unkeyed pure form.
+
+RULE (Module 6: `_resolve_dotted_signature`, `_handle_dotted_call`, `_emit_function`; all three mirror twins
+`\trusted`; no new def, no axiom):
+- RESOLVED callee (`self.<m>`, a record-typed local / parameter / module global): the stub carries
+  `_pyobj_state` when the callee's emitted definition does (`_pyobj_state_writers`, filled as each concrete
+  method's frame gains the cell). SCC ordering emits a callee before its callers; when a stub of a method was
+  minted WITHOUT the cell and the method's definition is emitted LATER with it (a recursion cycle), the
+  definition is refused: `PYCSL-R568-STUB-FRAME-ORDER`.
+- UNRESOLVED receiver (not `self`, no method table for the receiver's class): the stub writes `_pyobj_state`
+  when ANY file method named like the call declares a non-`\nothing` `#@ assigns` (every method whose frame can
+  carry the cell has one) AND the calling function OBSERVES attribute state: it contains a `getattr` (the only
+  reader of the cell) or is reachable through calls from one (the forward closure over call / function-name /
+  attribute-name references in the IR; a `getattr` outside every function makes every function observe).
+  Elsewhere the frameless stub is kept. The cell is placed after the route #13 / #14 / #162 mutator refusals,
+  which still refuse an erased collection mutation.
+- A zero-argument receiver-less stub now carries its `writes` clause (no base emission had one there).
+
+Witnesses `9060`-`9064`, `9066`, `9067` (expected FAIL): every one PROVED at the base under the default model
+(typed / store were already NOT PROVED by an unrelated `int_mem` L3-tc error); at HEAD NOT PROVED or refused in
+all three models (`9060` / `9061` / `9063` by Why3's frame check, `9067` by `PYCSL-R568-STUB-FRAME-ORDER`).
+Control `9068` (the false claim through `self.m(..)`, whose stub always carried the cell): NOT PROVED at base and
+HEAD. Controls `9070`-`9073` (expected PASS): PROVED at base and HEAD (default model). Residual, NOT covered (a
+probe in `getting-better/open-routes/witnesses-r568/residual/`, PROVED at base and HEAD): an unresolved receiver
+whose method lives OUTSIDE the file (standard library / imported class), e.g. `f.close()` between two reads of
+`getattr(f, "closed", 0)`; framing every unresolved call moved four mirror emissions and refused the `pycsl.py`
+mirror (route #310).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

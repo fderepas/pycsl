@@ -1,5 +1,19 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #5 (2026-11-06): #568 REPAIRED (executor u30 off 693e20184 = run5-int40; annotations §7.568). Root cause: a method call is lowered through a
+##   caller-side stub framed from the DECLARED `#@ assigns` (`_resolve_dotted_signature`, label-filtered; the cell only when EVERY target is
+##   dropped), while the callee's `let` frame is derived from its body (`_pyobj_state` for a non-record attribute store); an unresolved receiver
+##   got no frame at all; route #213's state-keyed `getattr` reads around the call then collapsed. Repair (twins `\trusted`, no new def, no
+##   axiom): the stub carries the cell when the callee is in `_pyobj_state_writers`; a cell-less stub minted before its definition gains the cell
+##   is refused (`PYCSL-R568-STUB-FRAME-ORDER`, recursion cycles); an unresolved non-`self` receiver's stub writes the cell when a FILE method of
+##   that name declares an effect and the emitting function reaches a `getattr` (forward call closure). Census: option 1 moves 4 mirror files,
+##   option 2 refuses 6 mirror files + 3 corpus files, option 3 broad moved 4 mirror files and refused the `pycsl.py` mirror; the chosen rules
+##   move 0 / 0. Witnesses 9060-9064, 9066, 9067: base PROVED (default model) -> HEAD NOT PROVED / refused in default / typed / store; control
+##   9068 FAIL and controls 9070-9073 PASS unchanged. Byte-diff vs 693e20184: root 2967 -> 2978 0 MOVED / 0 GONE / 0 APPEARED (+11 new),
+##   python-reference 2191 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed). rt43 / rt44 149 controls identical. Planes 62/62.
+##   Residual (named): an unresolved receiver whose method lives outside the file (`f.close()` on a stdlib object) still proves
+##   (`witnesses-r568/residual/`).
+
 ## run #5 (2026-11-05): #565 REPAIRED (executor u28 off b432460d6 = run5-int36; annotations §7.565). Root cause: Module 6's `_erased_truthy_locals`
 ##   record (a None-bound local reads `pycsl_none`, so `t is None` folds True / truthiness `false`; NaN's `t == t` folds False) was
 ##   written / cleared and ambiguity-scanned (route #46) for the plain single-name `Assign` ONLY, so a tuple unpack, swap, single-element
