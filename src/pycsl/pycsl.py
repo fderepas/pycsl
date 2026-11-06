@@ -16585,14 +16585,6 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
         strict_hash_eq_consistency=getattr(args, "strict_hash_eq_consistency", False),
         check_behavioral_subtyping=getattr(args, "check_behavioral_subtyping", False),
     )
-    # (run #5) ROUTE #566 -- the emit_ir item store (`statements.py::_handle_array_set_stmt`)
-    # is REFUSED everywhere except in the self-annotation mirror (the `declared_in` precedent
-    # above: a mirror-only allowance, decided on the real path of the file under proof),
-    # whose type-safety + frame conversion contract no stored value can falsify.
-    _mir566 = os.path.realpath(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
-        os.path.abspath(__file__)))), "src", "self-annotate", "src"))
-    transpiler.is_self_mirror_r566 = os.path.realpath(os.path.abspath(
-        str(getattr(args, "file", "") or ""))).startswith(_mir566 + os.sep)
     # (run #5) ROUTE #567 -- the classes THIS file declares (before the import resolver
     # merged the closure's): a class of the IR schema's name declared here is a user record,
     # not an IR node, for the emit_ir projector judge (`statements.py::_typed_local_vars`).

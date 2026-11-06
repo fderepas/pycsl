@@ -1099,6 +1099,10 @@ class ControlFlowStmtMixin:
                 return ctor_name, ctor
         return None
 
+    # (run #5 lvG2) RE-TRUSTED: route #566 refuses the `c["pattern"] = new_pat` item store
+    # into an emit_ir case node (the model cannot represent it); no equivalent rewrite types:
+    # a rebuilt case / pattern dict has no "type" key, so it is not an emit_ir value.
+    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     # Inherited from `_stmts_to_whyml` (see its frame note) — the callee writes

@@ -5791,10 +5791,11 @@ as a term of the IMMUTABLE `emit_ir` sum. The independent vm-irnode review (gett
 RULES (emitter, `statements.py::_handle_array_set_stmt` / `expressions.py::_handle_attribute_expr`, both mirror twins
 `\trusted`; inline, no new def, no new emitter field, no axiom, no new ADT arm):
 - `PYCSL-R566-EMITIR-ITEM-STORE`: an item store whose receiver the emitter types `emit_ir` in a `@mutable_state`
-  class. In the self-annotation mirror (the file under proof lies in `src/self-annotate/src/`, decided in
-  `_run_pipeline` on its real path -- the `declared_in` precedent), whose conversion contract is type-safety + frame
-  only, the store stays the unmodelled no-op but the CONTINUATION IS ALWAYS LOWERED (the one verified store,
-  `_handle_match_stmt`'s `c["pattern"] = ...`, is last in its block: emission unchanged).
+  class. EVERYWHERE, the self-annotation mirror included: there is no file-path special case (a mirror exemption
+  added with the repair was rejected by the user, run #5 lvG2). The mirror's one verified store,
+  `stmt_control_flow.py::_handle_match_stmt`'s `c["pattern"] = new_pat`, is therefore refused and that mirror function
+  is `\trusted` (no rewrite types: a rebuilt case / pattern dict carries no `"type"` key, so it is not an emit_ir
+  value; the live emitter is unchanged).
 - `PYCSL-R567-EMITIR-ATTR-ON-NONIR`: a projector read whose receiver ACCESS PATH (`dv`, `node.collection`; a
   subscript coarsens to its base) is, or extends through a field of, a path some `isinstance(path, C)` in the same
   body tests against a class C that is not an IR class -- an IR class being an `ir_schema.IRNode` subclass named bare
@@ -5803,16 +5804,19 @@ RULES (emitter, `statements.py::_handle_array_set_stmt` / `expressions.py::_hand
   attribute read (its record fields, an `ast` class's `_fields` / `_attributes`; an unknown class: every attribute).
   Flow-insensitive over the IR body of the function being emitted (looked up read-only by `_current_emitting_func`;
   a first placement that cached the table in a new emitter field tripped `check-assigns-underdeclaration`), closed
-  under plain assignment of the path or of a prefix of it. In the mirror only a
-  RECORD-modelled class narrows (a CSL `DictView`: `_csl_in`'s `dv.kind`, which therefore stays `\trusted`); the
-  mirror's `ast.<Node>` tests outside the recognizer map keep their loose emit_ir reading under the type-safety
-  contract (named residual).
+  under plain assignment of the path or of a prefix of it. EVERYWHERE, the mirror included (no file-path special
+  case): the mirror functions whose `ast.<Node>` tests outside the recognizer map narrow a path they then read a
+  projector attribute on are `\trusted` -- `Module5_IREmitter.py` `_const_int_value`, `_collect_final_registry`,
+  `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (run #5 lvG2; `_csl_in` was already).
 
 MEASUREMENTS: see the route docs (route566 / route567) for the witness tables, the corpus files, the byte-diff and the
 mirror sweep.
-Residuals (named): the mirror allowance of both rules (type-safety + frame contract only; a value contract on a
-mirror function would need the store modelled / the narrowing view); an emit_ir value's alias through a container (`xs =
-[d]`) is not tracked by #567's path closure (it is refused only when its own path is tested); `type(x) is C` /
+Residuals (named): the six mirror re-trusts above (convertible once an emit_ir item store / a narrowing view is
+modelled; getting-better/driver-backlog.md "routes #566 / #567 mirror re-trusts"); an emit_ir value's alias through a
+container (`xs = [d]`) is not tracked by #567's path closure (it is refused only when its own path is tested); the
+closure runs FORWARD only (`t = path` narrows `t` when `path` is tested), so a BACKWARD alias is not refused: `dv =
+node; if isinstance(dv, DictView): ... node.kind` lowers to `kind_of node` (measured `--no-proof`, run #5 lvG2:
+no refusal; the forward twin is refused -- an open hole of the rule, reported to the driver); `type(x) is C` /
 `x.__class__` tests are not narrowings for #567; the int-erased `typed` / `store` emission of these programs fails
 L3 (`unbound type symbol 'array'`) at the base, so the refusals there replace an L3 failure, not a proof.
 
