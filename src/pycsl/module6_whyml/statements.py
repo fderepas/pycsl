@@ -3279,7 +3279,11 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         #   is FAITHFUL as a local update, because Python integers are immutable and the
         #   caller genuinely does not see it. Only a list target is passed by reference.
         #   A LOCAL list's `+=` is faithful too and keeps proving.
-        if (target in set(getattr(self, "_formal_params", []) or [])
+        # (value-position `x or d` spelled `x if x else d`: the read is a side-effect-free
+        # attribute lookup, so the two are the same value; the IfExp form is what the mirror
+        # port lowers.)
+        if (target in set(getattr(self, "_formal_params", [])
+                          if getattr(self, "_formal_params", []) else [])
                 and (target in getattr(self, "_seq_locals", set())
                      or target in getattr(self, "_array_locals", set()))
                 and target not in getattr(self, "_stmt_seq_mut_params", set())):
@@ -3401,7 +3405,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
                 stage="module6-whyml",
                 code="PYCSL-R447-AUGASSIGN-DIVISION")
         elif raw_op in bitwise_ops:
-            op_fn = bitwise_ops[raw_op]
+            op_fn: str = bitwise_ops[raw_op]
             if raw_op == "**":
                 # (#49) ROUTE #259 — the SAME declaration as the `**` expression site, so
                 # `x **= n` owes the same `n >= 0` (a negative exponent yields a float) and
@@ -3433,9 +3437,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         if (not getattr(self, "_in_spec", False)
                 and (getattr(self, "_current_no_exception", set())
                      or getattr(self, "_current_no_exception_all", False))
-                and ((getattr(self, "_r249_scope", None) or {}).get("erased")
-                     or (getattr(self, "_r249_scope", None) or {}).get("any_ret")
-                     or (getattr(self, "_r249_scope", None) or {}).get("eq_classes"))
+                and ((getattr(self, "_r249_scope", None)
+                      if getattr(self, "_r249_scope", None) else {}).get("erased")
+                     or (getattr(self, "_r249_scope", None)
+                      if getattr(self, "_r249_scope", None) else {}).get("any_ret")
+                     or (getattr(self, "_r249_scope", None)
+                      if getattr(self, "_r249_scope", None) else {}).get("eq_classes"))
                 and isinstance(_val_d, dict)
                 and self._handle_binop(_OpaqueExpr375(
                     kind="BinOp", raw={"type": "BinOp", "op": "r251_erased?",
@@ -3494,7 +3501,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _rec_lower = (self._current_self_type if obj == "self"
                       else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or "")
         safe_field = self._field_label(_rec_lower, field)
-        if field in self._all_record_fields:
+        # PYTHON-AST NODE CTOR FAMILY (pure_ast only, the `_uses_pyast_parser` gate): a location
+        # stamp (`n.lineno = ..`, the four ASDL attributes) on an object that is NOT a known
+        # record variable -- an emit_ir local, an int-erased node parameter -- keeps its non-record
+        # lowering below (the unit no-op / `setattr_3`) even when some record of the file also
+        # declares a field of that name: `field in self._all_record_fields` is a NAME test, and
+        # the record store `n.lineno <- ..` on a non-record value is ill-typed (Why3 resolves the
+        # label to that unrelated record). `self` and record-typed variables keep the record store.
+        if field in self._all_record_fields and not (
+                field in ("lineno", "col_offset", "end_lineno", "end_col_offset")
+                and obj != "self" and not _rec_lower
+                and self._uses_pyast_parser()):
             # Coerce RHS to the field's declared WhyML type. Without
             # this, `self.<list-field> <- <int-returning-call>` (e.g.
             # `self._lock_order <- get_order(...)` where get_order is

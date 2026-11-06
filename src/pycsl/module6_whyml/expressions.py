@@ -483,7 +483,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _e(self, ir: Dict, lr: Set[str]) -> str:
         """Shorthand for _expr_to_whyml within ghost handlers."""
-        return self._expr_to_whyml(ir, lr)
+        # An explicit empty `subst` (not the omitted `None` default): every `subst` consumer
+        # reads it by truthiness / `subst or {}` / forwarding, so `{}` and `None` behave
+        # identically; the typed local is what lets the mirror port type-check.
+        _sub: Dict[str, str] = {}
+        return self._expr_to_whyml(ir, lr, False, _sub)
 
     def _whyml_string_literal(self, s: str) -> str:
         """A Python string → its WhyML double-quoted string literal, backslash and
