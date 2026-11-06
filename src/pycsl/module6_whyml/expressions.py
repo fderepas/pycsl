@@ -8298,6 +8298,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `_pyobj_state` cell is the sound over-approximation, exactly as on the
             # definition side.
             _objstate_w = bool(_declared_w) and not _w
+            # (#49) ROUTE #568 — THE STUB'S FRAME MUST BE THE FRAME THE CALLEE WAS VERIFIED
+            # AGAINST. `_emit_function` derives a concrete method's `writes` from its BODY: a
+            # `setattr_*` store (an attribute the record does not carry) adds `_pyobj_state`
+            # to a NAMED clause and records the method in `_pyobj_state_writers`. The rule
+            # above reads the DECLARED clause only, and adds the cell only when the label
+            # filter drops EVERY declared target, so `assigns self.a` over a body that also
+            # stores `self.flag` (and even the honest `assigns self.a, self.flag`, whose
+            # `flag` the filter drops) minted a stub writing `self.a` alone, while the
+            # `let` wrote `{ self.a, _pyobj_state }`. Route #213's state-keyed `getattr`
+            # reads around two such calls were then ONE term, and `\result == 1` PROVED
+            # where CPython returns 2 (witnesses 9060 / 9061). The callee's own emitted
+            # frame is the fact; SCC ordering emits it before its callers, and the reverse
+            # order is refused where the definition is emitted (`_emit_function`).
+            if whyml_ident(lookup_key) in (getattr(self, "_pyobj_state_writers", None) or set()):
+                _objstate_w = True
             field_ens = _fe + _foe + _fpe + _fppe
             if (field_ens or _w or _fpfe or _rfe or _objstate_w) and cls:
                 # `self.<m>()` called from a sibling method: the enclosing
@@ -8358,6 +8373,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # consumer (which already reads slot 6 receiver-agnostically) frames
                     # `_pyobj_state`.
                     _objstate_rw = bool(_declared_rw) and not writes
+                    # (#49) ROUTE #568 — the same rule as the `self.` arm above: the callee's
+                    # EMITTED frame carries the cell, so its caller-side stub does too.
+                    if whyml_ident(lookup_key) in (
+                            getattr(self, "_pyobj_state_writers", None) or set()):
+                        _objstate_rw = True
                     if field_ens or writes or frame_ens or result_frame_ens or _objstate_rw:
                         # `b.<m>()`: the receiver record `b` becomes the abstract op's leading
                         # `(self: cls)` parameter; `writes` frames the mutated self-fields.
@@ -8580,6 +8600,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # ... : int`, mismatching downstream consumers when `<method>`
         # actually takes/returns array or map types.
         ret_type, param_types, result_ensures, field_spec = self._resolve_dotted_signature(func_name)
+        # (#49) ROUTE #568 — the resolution just made. A matched callee whose stub does NOT
+        # carry `_pyobj_state` is remembered, so that `_emit_function` can refuse the
+        # definition if it is emitted LATER with the cell in its frame (the order the
+        # `_pyobj_state_writers` test above cannot see). An UNRESOLVED receiver (`None`) is
+        # framed below, after the mutator refusals.
+        # The callee is re-derived exactly as `_resolve_dotted_signature` keys it (that
+        # method writes nothing, and stays so).
+        _k568 = None
+        _p568 = func_name.split(".")
+        if func_name.startswith("self."):
+            if self._current_self_type:
+                _k568 = f"{self._current_self_type}__{func_name[len('self.'):]}"
+                if _k568 not in self._module_method_return_types:
+                    _k568 = None
+        elif len(_p568) == 2:
+            _c568 = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_p568[0])
+                     or (getattr(self, "_module_global_classes", {}) or {}).get(_p568[0]))
+            if _c568:
+                _k568 = f"{str(_c568).lower()}__{_p568[1]}"
+                if not (_k568 in self._module_method_return_types
+                        or _k568 in (getattr(self, "_module_method_result_ensures", {}) or {})
+                        or _k568 in (getattr(self, "_module_method_param_result_ensures", {})
+                                     or {})):
+                    _k568 = None
+        _u568 = False
+        if isinstance(getattr(self, "ir", None), dict):
+            if _k568 is not None and not (field_spec is not None and len(field_spec) > 6
+                                          and field_spec[6]):
+                self.ir.setdefault("__r568_cellless__", set()).add(whyml_ident(_k568))
+            _u568 = (_k568 is None and field_spec is None and "." in func_name
+                     and not func_name.startswith("self."))
         # (#49) ROUTE #119, INSTANCE-LEVEL SHADOWING, keyed on the PATH: a call `<recv>.m(...)`
         # resolves to the METHOD `m`, but if the receiver's record also carries a FIELD named
         # `m` then some store put an attribute `m` on the instance, and Python's lookup finds
@@ -9334,6 +9385,108 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                  + ", ".join(_w316) + " }")
             else:
                 writes_clause = "\n    writes { " + ", ".join(_w316) + " }"
+        # (#49) ROUTE #568 — A METHOD CALL ON AN UNRESOLVED RECEIVER MAY RUN A FILE METHOD
+        # THAT WRITES OBJECT STATE. A receiver whose class is not resolved to a method table
+        # (a parameter of a file class with no record, `Any`, a subclass inheriting the
+        # method) reaches this point with NO frame, and Why3 reads a `val` with no `writes` as
+        # PURE: two route #213 state-keyed `getattr` reads around `c.m(0)` were one term, and
+        # `\result == 1` PROVED where CPython (`m` storing `self.flag`) returns 2 (witnesses
+        # 9062-9064, 9066). The call dispatches by NAME, so when ANY file method of that name
+        # declares an effect (a non-`\nothing` `#@ assigns` — every method whose frame can
+        # carry the cell has one: `_emit_function` rejects a cell write under `\nothing`),
+        # the stub writes the coarse `_pyobj_state` cell — the same union-over-the-name rule
+        # route #316 applies to argument writes, and the over-approximation the setattr model
+        # already uses.
+        # SCOPED TO WHERE THE CELL IS OBSERVED: `_pyobj_state` is read ONLY by `getattr`
+        # (`_lower_getattr`'s UNKNOWN arms), so the effect is observable exactly in a
+        # function that reads `getattr` or is reachable through calls from one (its effect
+        # then reaches the reader through the callee's derived frame, `_pyobj_state_writers`).
+        # That set is the forward closure, over every call / function-name / attribute-name
+        # reference in the IR, from the functions that contain a `getattr`. Computed once per
+        # IR, kept in the IR dict.
+        # NOT COVERED (stated residual): a method of a class OUTSIDE the file (standard
+        # library, an imported module) reached through an unresolved receiver, e.g.
+        # `f.close()` before `getattr(f, "closed", 0)`. Framing EVERY unresolved call (1738
+        # corpus / 14 mirror files carry one), even scoped as below, moved four mirror
+        # emissions (`dict.get` / `str.count` / `ast.walk` / `IRScanner.*` stubs) and refused
+        # the `pycsl.py` mirror (route #310 then sees an effectful `os.close` operand).
+        # Placed AFTER the mutator refusals (#162 / #13 / #14), which key on "no
+        # `writes_clause`": a coarse cell frames no collection and must not admit them.
+        if _u568:
+            _t568 = func_name.rsplit(".", 1)[-1]
+            _u568 = any(
+                isinstance(_f568, dict) and str(_f568.get("name", "")).endswith("__" + _t568)
+                and any(isinstance(_a568, dict) and _a568.get("type") != "Nothing"
+                        for _a568 in (((_f568.get("contracts") or {}).get("assigns")) or []))
+                for _f568 in (self.ir.get("functions") or []))
+        if _u568:
+            _o568 = self.ir.get("__r568_obs__")
+            if _o568 is None:
+                _fns568 = [_f for _f in (self.ir.get("functions") or []) if isinstance(_f, dict)]
+                _sfx568: Dict[str, Set[str]] = {}
+                for _f568 in _fns568:
+                    _n568 = str(_f568.get("name", ""))
+                    _sfx568.setdefault(_n568, set()).add(_n568)
+                    _i568 = _n568.find("__")
+                    while _i568 >= 0:
+                        _sfx568.setdefault(_n568[_i568 + 2:], set()).add(_n568)
+                        _i568 = _n568.find("__", _i568 + 1)
+                _edg568: Dict[str, Set[str]] = {}
+                _rd568: Set[str] = set()
+                for _f568 in _fns568:
+                    _n568 = str(_f568.get("name", ""))
+                    _out568: Set[str] = set()
+                    _st568: List[Any] = [_f568]
+                    while _st568:
+                        _x568 = _st568.pop()
+                        if isinstance(_x568, dict):
+                            if _x568.get("type") == "Call" and isinstance(_x568.get("func"), str):
+                                if _x568["func"] == "getattr":
+                                    _rd568.add(_n568)
+                                _out568 |= _sfx568.get(_x568["func"].rsplit(".", 1)[-1], set())
+                            elif _x568.get("type") == "Var" and isinstance(_x568.get("name"), str):
+                                _out568 |= _sfx568.get(_x568["name"], set())
+                            elif _x568.get("type") in ("FieldGet", "Attribute"):
+                                # a property read runs its getter: an attribute name that is
+                                # also a method name is an edge too (over-approximation).
+                                for _k568 in ("field", "attr"):
+                                    if isinstance(_x568.get(_k568), str):
+                                        _out568 |= _sfx568.get(_x568[_k568], set())
+                            _st568.extend(_x568.values())
+                        elif isinstance(_x568, list):
+                            _st568.extend(_x568)
+                    _edg568[_n568] = _out568
+                # a `getattr` OUTSIDE every function (a module-global initialiser, a class
+                # body) is a reader no call edge leads from: every function observes.
+                _gst568: List[Any] = [_v for _k, _v in self.ir.items()
+                                      if _k != "functions" and not str(_k).startswith("__r")]
+                while _gst568:
+                    _x568 = _gst568.pop()
+                    if isinstance(_x568, dict):
+                        if _x568.get("type") == "Call" and _x568.get("func") == "getattr":
+                            _rd568 |= set(_edg568)
+                            break
+                        _gst568.extend(_x568.values())
+                    elif isinstance(_x568, list):
+                        _gst568.extend(_x568)
+                _o568 = set(_rd568)
+                _wk568 = list(_rd568)
+                while _wk568:
+                    for _g568 in _edg568.get(_wk568.pop(), set()):
+                        if _g568 not in _o568:
+                            _o568.add(_g568)
+                            _wk568.append(_g568)
+                _o568 = _o568 | {whyml_ident(_g568) for _g568 in _o568}
+                self.ir["__r568_obs__"] = _o568
+            _cef568 = getattr(self, "_current_emitting_func", None)
+            if (_cef568 in _o568) if _cef568 else bool(_o568):
+                self._obj_state_written = True
+                self._add_abstract_op("val _pyobj_state : ref int")
+                if writes_clause:
+                    writes_clause = (writes_clause.rstrip()[:-1].rstrip()
+                                     + ", _pyobj_state }")
+                else:
+                    writes_clause = "\n    writes { _pyobj_state }"
         # (#49) ROUTE #166 — ONE STUB NAME, TWO CALLEES. The stub name is built from the
         # call's SPELLING (`<receiver-name>_<method>_<arity>`), so `o.get()` on a `C` in one
         # function and `o.get()` on a `D` in another both register `o_get_0`, and
@@ -9343,7 +9496,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # different declaration under an already-registered name now gets its own name
         # (suffixed with a hash of the declaration), so every call site keeps ITS callee's
         # contract; a byte-identical re-registration is unchanged.
-        _decl166 = (f"val {arity_name} () : {ret_type}{ensures_suffix}"
+        _decl166 = (f"val {arity_name} () : {ret_type}{writes_clause}{ensures_suffix}"
                     if (n == 0 and not receiver_param) else None)
         if _decl166 is None:
             _params166 = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
@@ -9623,7 +9776,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                        for _hn176 in _hs176):
                     _pre176 += f"if (any bool) then raise {_sen176(_e176)}; "
         if n == 0 and not receiver_param:
-            self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
+            self._add_abstract_op(f"val {arity_name} () : {ret_type}{writes_clause}{ensures_suffix}")
             _call = self._wrap_call_with_callee_raises_assert(
                 _r100n, f"({arity_name} ())", args)
             if _a167:

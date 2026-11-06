@@ -11646,6 +11646,23 @@ class FunctionEmissionMixin:
             else:
                 lines.insert(_objstate_eq_idx, "    writes { }")
             if _named:
+                # (#49) ROUTE #568 — a caller-side stub for THIS method was already minted
+                # WITHOUT the cell (a caller emitted before its callee: the SCC order did not
+                # put this definition first). Those call sites assumed object state
+                # unchanged across a call whose verified frame writes it; refuse rather
+                # than leave them standing.
+                if name in ((self.ir.get("__r568_cellless__") or set())
+                            if isinstance(getattr(self, "ir", None), dict) else set()):
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"the method `{func['name']}` writes object state (`_pyobj_state`: an "
+                        f"attribute its class does not carry as a record field, or a callee "
+                        f"that does), but a caller-side stub of it was minted EARLIER, before "
+                        f"its definition, with a frame that omits that write, so its caller "
+                        f"would assume every attribute unchanged across the invocation "
+                        f"(route #568: a recursion cycle through the method, or a caller the "
+                        f"SCC order emitted first).",
+                        stage="module6-whyml", code="PYCSL-R568-STUB-FRAME-ORDER")
                 if not hasattr(self, "_pyobj_state_writers"):
                     self._pyobj_state_writers = set()
                 self._pyobj_state_writers.add(name)

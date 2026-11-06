@@ -3457,3 +3457,11 @@ loads_call_proves.py	REFUSAL	function 'use_loads': an erased (`Any`/`object`/una
 8989_u28_r565_w10_single_elem_tuple.py	VERIFY-FAIL	
 8990_u28_r565_w11_nested_def_rebind.py	REFUSAL	nested function 't' is lifted to a sibling of its enclosing function, and the lift is not faithful here: another function in the file has the same name. A lifted body reads a captured name as ONE global opaque constant shared by every call, and two lifted helpers with the same name collapse to one. Pass the captured values as parameters and give the helper a unique name, or move it to module level.
 8991_u28_r565_w12_optional_join_truthy.py	VERIFY-FAIL	
+9060_u30_r568_w01_hidden_attr_store.py	VERIFY-FAIL	
+9061_u30_r568_w02_honest_partial_assigns.py	VERIFY-FAIL	
+9062_u30_r568_w03_norecord_param_receiver.py	VERIFY-FAIL	
+9063_u30_r568_w04_any_receiver_pure_caller.py	VERIFY-FAIL	
+9064_u30_r568_w05_transitive_helper.py	VERIFY-FAIL	
+9066_u30_r568_w07_inherited_method.py	VERIFY-FAIL	
+9067_u30_r568_w08_call_cycle.py	REFUSAL	[module6-whyml]: the method `c__m` writes object state (`_pyobj_state`: an attribute its class does not carry as a record field, or a callee that does), but a caller-side stub of it was minted EARLIER, before its definition, with a frame that omits that write, so its caller would assume every attribute unchanged across the invocation (route #568: a recursion cycle through the method, or a caller the SCC order emitted first).
+9068_u30_r568_c01_self_call_control.py	VERIFY-FAIL	
