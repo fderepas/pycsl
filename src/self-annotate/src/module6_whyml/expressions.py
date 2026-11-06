@@ -19,6 +19,9 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     # State fields the ported expression handlers read (declared for @dataclass / @mutable_state).
     _all_record_fields: Set[str] = None
     _array_locals: Set[str] = None
+    # run #5 lvJ [T]: the string-valued map `_emit_contract_logic_symbol` reads (live:
+    # Module6_WhyMLTranspiler `self._imported_inductive_sigs: Dict[str, str]`).
+    _imported_inductive_sigs: Dict[str, str] = None
     _class_constants: Dict[str, Dict[str, int]] = None
     _constructors: Dict[str, Any] = None
     _current_params: Set[str] = None
@@ -104,6 +107,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     #@ assigns self._abstract_ops, self._obj_state_written
     def _add_abstract_op(self, decl: str) -> None:
         return
+
+    # run #5 lvJ: the two cross-mixin str helpers `_emit_contract_logic_symbol` calls
+    # (definitions VERIFIED in functions.py / preamble.py, both `assigns \nothing`).
+    #@ declared_in module6_whyml/functions.py::FunctionEmissionMixin._symtype_to_whyml
+    #@ ensures True
+    #@ assigns \nothing
+    @staticmethod
+    def _symtype_to_whyml(symtype: Optional[str]) -> str:
+        return ""
+
+    #@ declared_in module6_whyml/preamble.py::PreambleEmissionMixin._inductive_sig_whyml
+    #@ ensures True
+    #@ assigns \nothing
+    def _inductive_sig_whyml(self, signature: str) -> str:
+        return ""
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ ensures True
@@ -652,12 +670,70 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
     def _handle_struct_call(self, expr: int, args: List[str], func_name: str) -> Optional[str]:
         return None
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._obj_state_written
-    def _emit_contract_logic_symbol(self, func_name: str, expr: int, args: List[str]) -> Optional[str]:
-        return None
+    def _emit_contract_logic_symbol(self, func_name: str, expr: "ExprIR", args: List[str]) -> Optional[str]:
+        raw_args = expr.get("args", [])
+        if len(raw_args) != len(args):
+            return None
+        # gap-9: if `func_name` is an imported `#@ inductive` predicate whose
+        # RULE we deliberately did NOT cross (it carries a heavy `\exists`
+        # trigger), recover its param types from the recorded dependency
+        # signature so the opaque `predicate` decl has the RIGHT types (e.g.
+        # `(array int) (string)` for `name_present(disk, name)`), not the
+        # symbol-table-recovered `int` default (which mistypes `self.disk`).
+        # run #5 lvJ [R]: `A or {}` as a typed local + an `if not` rebind (same value:
+        # A when truthy, else a fresh empty dict, only read below).
+        imported_sigs: Dict[str, str] = getattr(self, "_imported_inductive_sigs", {})
+        if not imported_sigs:
+            imported_sigs = {}
+        if func_name in imported_sigs:
+            # run #5 lvJ [R]: the module-level `whyml_ident` (the same function object
+            # the dropped function-local import bound).
+            sig_types = self._inductive_sig_whyml(imported_sigs[func_name])
+            name = whyml_ident(func_name)
+            if sig_types:
+                self._add_abstract_op(f"predicate {name} {sig_types}")
+            else:
+                self._add_abstract_op(f"predicate {name}")
+            # run #5 lvJ [R]: `' '.join(args)` as the equal loop (args: List[str]).
+            if args:
+                _aj = ""
+                for _ai in range(len(args)):
+                    if _ai > 0:
+                        _aj += " "
+                    _aj += args[_ai]
+                return f"({name} {_aj})"
+            return name
+        symtab = (getattr(self, "_current_symbol_table", {})
+                  if getattr(self, "_current_symbol_table", {}) else {})
+        # run #5 lvJ [R]: the per-argument type list is built straight into its
+        # `' '.join(f'({t})' ...)` rendering (one `(t)` per raw argument, in order); an
+        # index loop; `sym_t` starts at "" and a missing name reads "" (`_symtype_to_whyml`
+        # maps None and "" alike, to "int": every arm tests a non-empty tag).
+        _pj = ""
+        for i_raw in range(len(raw_args)):
+            a_ir = raw_args[i_raw]
+            sym_t = ""
+            if isinstance(a_ir, dict) and a_ir.get("type") == "Var":
+                sym_t = symtab.get(a_ir.get("name"), "")
+            if i_raw > 0:
+                _pj += " "
+            _pj += "(" + self._symtype_to_whyml(sym_t) + ")"
+        name = whyml_ident(func_name)
+        if len(raw_args) > 0:
+            self._add_abstract_op(f"predicate {name} {_pj}")
+        else:
+            self._add_abstract_op(f"predicate {name}")
+        if args:
+            _aj2 = ""
+            for _ai2 in range(len(args)):
+                if _ai2 > 0:
+                    _aj2 += " "
+                _aj2 += args[_ai2]
+            return f"({name} {_aj2})"
+        return name
 
     #@ sibling_concrete
     #@ requires True

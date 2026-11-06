@@ -8896,6 +8896,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         if not _bare_lit and not _as.lstrip("-").isdigit():
                             args[_bi] = f"(str_hash_op {args[_bi]})"
         coerced = self._coerce_dotted_args(args, param_types)
+        # run #5 lvJ (a2) A `str` ACTUAL INTO AN `Optional[str]` FORMAL. The formal lowers to
+        # its synthesized union `_union_<f>_<k> = Arm_k_0 string | Arm_k_None`; the actual
+        # (a string-source IR, `_is_string_expr`) lowered to a bare Why3 `string` and the
+        # call failed L3-tc (`string` vs the union). Python passes the str itself, which IS
+        # the union's string arm: `(Arm_k_0 <actual>)`, exact. Only for a union whose
+        # constructors are EXACTLY one `str`-payload arm and one nullary arm (the
+        # `Optional[str]` shape); any other formal / actual is untouched. Fires only where
+        # the emission was ill-typed before (fail-closed if the judgement were wrong: a
+        # non-string under `Arm_k_0` is an L3-tc error). INLINE (the twin is `\trusted`).
+        if arg_irs is not None:
+            for _ui in range(min(len(coerced), len(param_types), len(arg_irs))):
+                _upt = param_types[_ui]
+                if not (isinstance(_upt, str) and _upt.startswith("_union_")):
+                    continue
+                _ucs = ((getattr(self, "_variant_types", {}) or {}).get(_upt)
+                        or {}).get("constructors") or {}
+                _usome = [_cn for _cn, _cv in _ucs.items()
+                          if isinstance(_cv, dict) and _cv.get("arity") == 1
+                          and list(_cv.get("payload") or []) == ["str"]]
+                _unone = [_cn for _cn, _cv in _ucs.items()
+                          if isinstance(_cv, dict) and _cv.get("arity") == 0]
+                if (len(_ucs) == 2 and len(_usome) == 1 and len(_unone) == 1
+                        and isinstance(arg_irs[_ui], dict)
+                        and arg_irs[_ui].get("type") != "None"
+                        and self._is_string_expr(arg_irs[_ui])
+                        and not coerced[_ui].strip().startswith("(" + _usome[0] + " ")):
+                    coerced[_ui] = f"({_usome[0]} {coerced[_ui]})"
         # W8 capability (vi): a call to a SAME-CLASS sibling method whose declared return
         # type is a RECORD lowers to the CONCRETE sibling application
         # `(<class>__<m> self args)`, not to a receiver-less abstract `val self_<m>_0 () :
@@ -10333,30 +10360,57 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # signature so the opaque `predicate` decl has the RIGHT types (e.g.
         # `(array int) (string)` for `name_present(disk, name)`), not the
         # symbol-table-recovered `int` default (which mistypes `self.disk`).
-        imported_sigs = getattr(self, "_imported_inductive_sigs", {}) or {}
+        # run #5 lvJ [R]: `A or {}` as a typed local + an `if not` rebind (same value:
+        # A when truthy, else a fresh empty dict, only read below).
+        imported_sigs: Dict[str, str] = getattr(self, "_imported_inductive_sigs", {})
+        if not imported_sigs:
+            imported_sigs = {}
         if func_name in imported_sigs:
-            from module6_whyml.identifiers import whyml_ident as _wi
+            # run #5 lvJ [R]: the module-level `whyml_ident` (the same function object
+            # the dropped function-local import bound).
             sig_types = self._inductive_sig_whyml(imported_sigs[func_name])
-            name = _wi(func_name)
+            name = whyml_ident(func_name)
             if sig_types:
                 self._add_abstract_op(f"predicate {name} {sig_types}")
             else:
                 self._add_abstract_op(f"predicate {name}")
-            return f"({name} {' '.join(args)})" if args else name
-        symtab = getattr(self, "_current_symbol_table", {}) or {}
-        argtypes: List[str] = []
-        for a_ir in raw_args:
-            sym_t = None
+            # run #5 lvJ [R]: `' '.join(args)` as the equal loop (args: List[str]).
+            if args:
+                _aj = ""
+                for _ai in range(len(args)):
+                    if _ai > 0:
+                        _aj += " "
+                    _aj += args[_ai]
+                return f"({name} {_aj})"
+            return name
+        symtab = (getattr(self, "_current_symbol_table", {})
+                  if getattr(self, "_current_symbol_table", {}) else {})
+        # run #5 lvJ [R]: the per-argument type list is built straight into its
+        # `' '.join(f'({t})' ...)` rendering (one `(t)` per raw argument, in order); an
+        # index loop; `sym_t` starts at "" and a missing name reads "" (`_symtype_to_whyml`
+        # maps None and "" alike, to "int": every arm tests a non-empty tag).
+        _pj = ""
+        for i_raw in range(len(raw_args)):
+            a_ir = raw_args[i_raw]
+            sym_t = ""
             if isinstance(a_ir, dict) and a_ir.get("type") == "Var":
-                sym_t = symtab.get(a_ir.get("name"))
-            argtypes.append(self._symtype_to_whyml(sym_t))
+                sym_t = symtab.get(a_ir.get("name"), "")
+            if i_raw > 0:
+                _pj += " "
+            _pj += "(" + self._symtype_to_whyml(sym_t) + ")"
         name = whyml_ident(func_name)
-        if argtypes:
-            self._add_abstract_op(
-                f"predicate {name} {' '.join(f'({t})' for t in argtypes)}")
+        if len(raw_args) > 0:
+            self._add_abstract_op(f"predicate {name} {_pj}")
         else:
             self._add_abstract_op(f"predicate {name}")
-        return f"({name} {' '.join(args)})" if args else name
+        if args:
+            _aj2 = ""
+            for _ai2 in range(len(args)):
+                if _ai2 > 0:
+                    _aj2 += " "
+                _aj2 += args[_ai2]
+            return f"({name} {_aj2})"
+        return name
 
     @staticmethod
     def _is_null_byte_lit(ir: Dict[str, Any]) -> bool:
