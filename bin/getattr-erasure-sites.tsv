@@ -30,3 +30,6 @@ test-suite/corpus/pycsl-reference/5465_gen37_gd_ctl_mangled_other_name_absent.py
 test-suite/corpus/pycsl-reference/5681_gen37_r396_ctl_gd_absent_in_subclass_closure.py	1	0
 test-suite/corpus/pycsl-reference/6023_gen37_r406_ctl_call_sets_attr.py	1	0
 test-suite/corpus/pycsl-reference/6337_r428_ctl_stdlib_function_on_self.py	1	0
+test-suite/corpus/pycsl-reference/9068_u30_r568_c01_self_call_control.py	0	2
+test-suite/corpus/pycsl-reference/9070_u30_r568_k01_observing_pure_caller.py	0	1
+test-suite/corpus/pycsl-reference/9073_u30_r568_k04_true_claim_across_call.py	0	2

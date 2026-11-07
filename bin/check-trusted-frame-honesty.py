@@ -399,15 +399,20 @@ KNOWN_PARAM_FRAME_DEFICITS = {
         "`assigns \\nothing` omits (a SELF-arm blind spot: the dispatch goes through a "
         "local name, not `self.<m>()`). Reopened by converting/re-framing `traverse`."),
 }
+# run #5 (u33): `_handle_augassign_stmt` LEFT this (trusted) ledger -- converted by lvI batch D
+# (2851d058b); its two entries moved to the CONVERTED ledger below, same deficit (_R62).
 for _m in ("_handle_assign_stmt", "_handle_ghost_assign_stmt", "_handle_tuple_unpack_stmt",
-           "_handle_array_set_stmt", "_handle_augassign_stmt", "_handle_expr_stmt",
+           "_handle_array_set_stmt", "_handle_expr_stmt",
            "_stmts_to_whyml"):
     for _q in ("local_refs", "declared_refs"):
         KNOWN_PARAM_FRAME_DEFICITS[("module6_whyml/statements.py",
                                     "StatementEmissionMixin." + _m, _q)] = _R62
-for _q in ("local_refs", "declared_refs"):
-    KNOWN_PARAM_FRAME_DEFICITS[("module6_whyml/stmt_control_flow.py",
-                                "ControlFlowStmtMixin._handle_for_stmt", _q)] = _R62
+# run #5 (u33): `_handle_match_stmt` JOINED this (trusted) ledger -- re-trusted by lvG2 for
+# route #566 (012547a1e); its two entries moved here from the CONVERTED ledger, same deficit.
+for _m in ("_handle_for_stmt", "_handle_match_stmt"):
+    for _q in ("local_refs", "declared_refs"):
+        KNOWN_PARAM_FRAME_DEFICITS[("module6_whyml/stmt_control_flow.py",
+                                    "ControlFlowStmtMixin." + _m, _q)] = _R62
 # The CONVERTED residue: the same by-value set parameters, in methods whose mirror body is
 # verbatim. The emitter excludes them from route #316's refusal on purpose
 # (`_func_mutated_collection_params` / `_func_stmt_seq_mut_params`), which is the
@@ -421,11 +426,11 @@ for _f, _c, _m in (
         ("module6_whyml/statements.py", "StatementEmissionMixin", "_handle_critical_section_stmt"),
         ("module6_whyml/statements.py", "StatementEmissionMixin", "_handle_fieldassign_stmt"),
         ("module6_whyml/statements.py", "StatementEmissionMixin", "_handle_fieldaugassign_stmt"),
+        ("module6_whyml/statements.py", "StatementEmissionMixin", "_handle_augassign_stmt"),
         ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_handle_while_stmt"),
         ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_handle_try_stmt"),
         ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_try_union_is_none_match"),
-        ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_handle_if_stmt"),
-        ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_handle_match_stmt")):
+        ("module6_whyml/stmt_control_flow.py", "ControlFlowStmtMixin", "_handle_if_stmt")):
     for _q in ("local_refs", "declared_refs"):
         KNOWN_CONVERTED_PARAM_FRAME_DEFICITS[(_f, _c + "." + _m, _q)] = _R62
 KNOWN_CONVERTED_PARAM_FRAME_DEFICITS[("module6_whyml/expressions.py",
