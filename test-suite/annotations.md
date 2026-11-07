@@ -5916,6 +5916,41 @@ through a field / call; `.name` under `==` stays admitted (undecided, not false)
 functions only -- a METHOD returning an `Any`-element container (`self.m()`) and a call result stored into a
 container / field are not followed.
 
+### 7.575 §7.556's resolver follows a name bound once, a nested class, `p.__class__` / `type(p)` and a class whose metaclass is `type` (route #575, run #5)
+
+Red team 55 (on run5-int51; driver repro on main before L1 and on int51: PRE-EXISTING) measured 57 probes PROVED
+`no_exception \all` in the default model while CPython raises TypeError: §7.556 / §7.569's resolver named a builtin /
+module / class object only when SPELLED DIRECTLY. Reached through a module name bound once (`AL = KI`, `L = len`,
+`B = __builtins__`, `E = ...`, `M = os`, `MM = math`, `U = str.upper`, `T = int`, `LM = lambda: 0`, `OB = object()`,
+`SEP = os.sep` searched for an int), a function local (`c = KI`), a nested class (`KN.Inner`), a class deriving from
+`type` (`class KM(type)`), `p.__class__` / `type(p)` of a dataclass instance, the object is an opaque int and `in` /
+`for` / `sum(1 for ..)` / a nested comprehension use the total `contains_check` / `iter_length`.
+
+RULE (`_run_pipeline`, route #556's judge; twin `\trusted`, inline lambdas / tables, no new def, no axiom; message
+unchanged, `PYCSL-R556-BUILTIN-OBJECT-OPERAND`), at the same iterating / haystack / subscript positions:
+- a module name bound EXACTLY ONCE in the file (a top-level `N = <value>`, no other store, no `global` / `nonlocal`)
+  resolves to its value, resolved by the same judge, when no name in the value is a local / parameter of the
+  judged function; a str / bytes constant value is not followed (only a resolved module str such as `os.sep` takes
+  §7.569's needle rule);
+- a file class bound once whose class object is an instance of `type` itself -- no class keyword (`metaclass=`), no
+  decorator but `@dataclass`, every base a plain name of a builtin class whose metaclass is `type` (`object`, `type`,
+  `int`, ..) or of such a file class -- resolves to a stand-in class object (CPython cannot iterate or search it);
+  an `Enum` / ABC / `NamedTuple` / `Generic[..]` base is not judged (route #561's direct-name rule is unchanged);
+- `KN.Inner` of such a class `KN` resolves to the nested class when `Inner` is bound once in `KN`'s body by a
+  ClassDef meeting the same test and no attribute named `Inner` is stored anywhere in the file;
+- `p.__class__` / `type(p)` of a value whose §7.541 kinds are ONE file class whose lineage-descendants in the file
+  all meet the test resolves to that class object;
+- a lambda resolves to a function object; `object()` to an instance of `object`.
+
+Witnesses `witnesses-r575/` (57) x default / typed / store: 171/171 REFUSED R556. Corpus `9210`-`9227` FAIL (18 rt55
+witnesses covering every spelling, PROVED at base ab7f6ae37, REFUSED in all three models), controls `9228` (module
+tuple / str aliases searched, `SEP = os.sep` searched for a str) and `9229` (a dataclass constructed and tested with
+`isinstance` beside `AL = P` / `KN.Inner`; an `Enum` CLASS iterated -- its metaclass defines `__iter__`) PASS at base
+and HEAD. Byte-diff vs ab7f6ae37 (with #581): root 3004 -> 3007 0 MOVED / 0 GONE / 0 APPEARED (+3 controls), python-reference
+2185 0 / 0 / 0, mirror 53/53 byte-identical; rt43 / rt44 149 controls identical. Residuals: an object reached through a call result, a field, a container element or a parameter of
+unknown kind (as §7.556); a module name bound more than once or conditionally; a class with a metaclass keyword or
+a non-builtin foreign base; a str module constant searched for a non-str needle through an alias (not followed).
+
 ### 7.581 An operand that may be a dict or a set-like value is judged on every class pair (route #581, run #5)
 
 Red team 55 (on run5-int51; driver repro on main before L1 and on int51: PRE-EXISTING) measured 30 probes PROVED

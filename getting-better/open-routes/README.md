@@ -1,5 +1,12 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #5 backlog (2026-11-07): #575 REPAIRED (executor u34 off ab7f6ae37, branch run5-u34; annotations §7.575). Root cause: route #556's
+##   object resolver named a builtin / module / class object only when spelled directly; through a module name bound once (`AL = KI`,
+##   `L = len`, `M = os`, `E = ...`, `SEP = os.sep`, `LM = lambda: 0`, `OB = object()`), a local alias, `KN.Inner`, a `class KM(type)`,
+##   `p.__class__` / `type(p)` it stayed an opaque int with a total `contains_check` / `iter_length`. Repair (twin `\trusted`, no new def,
+##   no axiom): R556 follows those spellings (metaclass-`type` test for class objects). Witnesses 57 x 3 models 171/171 REFUSED. Corpus
+##   9210-9227 FAIL (PROVED at base, REFUSED x 3), controls 9228 / 9229 PASS base + HEAD. Byte-diff vs ab7f6ae37: root 3004 -> 3007 0 MOVED / 0 GONE / 0 APPEARED (+3 controls 9209 / 9228 / 9229), python-reference 2185 0 / 0 / 0;
+##   mirror 53/53 identical; rt43 / rt44 149 controls identical. Residuals: calls / fields / containers; multiply-bound names; metaclass keywords.
 ## run #5 backlog (2026-11-07): #581 REPAIRED (executor u34 off ab7f6ae37 = main after L1, branch run5-u34; annotations §7.581). Root cause: an
 ##   empty `{}` in an IfExp beside a SET-LIKE arm (set literal / set() / frozenset() / m.keys() / m.items()) is not typed by lvJ's dict-sibling
 ##   rule, both arms fall to `(any int)`, and `x | {..}` / `&` / `^` lower to total int ops; route #458 judged only operands of ONE derived class.
