@@ -541,6 +541,26 @@ START (standing), not as an interrupt. Rules:
 - **CARVE-OUT (driver run #4) — EXECUTORS MUST NOT END A TURN WAITING ON A MONITOR.** rt50 sat idle twice for 2 h with
   its jobs finished because the notification it waited for had already fired. Every brief says: poll your own
   outputs with bounded loops and keep going until the final report is sent.
+- **CARVE-OUT (driver run #5) — CENSUS WHOLE CHAINS, NOT FIRST BLOCKERS.** cv8's first-blocker ranking pointed at five
+  capabilities; twelve second-link probes and four levers in a row (lvA / lvB / lvC / lvE) then found a second and third
+  wall one link behind the first, and lvH's "only mutator walls" came from rows nobody had walked past link 1. Before
+  choosing a capability, walk each candidate stub to TC-OK + honesty (hand-patch in a scratch copy, QUICK only) and pick
+  by set cover over COMPLETE chains (cv9 / cv10 did this; it is what found the 4 + 2 near misses that converted).
+- **CARVE-OUT (driver run #5) — EXECUTORS RUN THE LEDGER SLOW PLANES; READ A RED PLANE IN FULL.** Three slow ledger
+  planes went red only at the driver's --slow battery (assigns-writes-survival after a new frame field; trusted-frame-
+  honesty after a re-trust + a conversion; getattr-erasure after three conversions and new fixtures) — none is in the
+  fast 62. Every conversion / re-trust / new-fixture brief now requires check-assigns-writes-survival,
+  check-trusted-frame-honesty and check-getattr-erasure run individually (heavy.sh, single-underscore emit dir). And
+  run-soundness-planes.sh prints only `tail -3` of a red plane: the population of a failure is in the plane's own output.
+- **CARVE-OUT (driver run #5) — FOUR HEAVY STREAMS OOM THE SLICE; AUDIT PROOFS RUN THROUGH THE KILLS.** Four concurrent
+  whole-file proofs + sweeps pushed the pycsl-heavy slice past 9.66 GB and ~70 why3 runs were OOM-killed in 3 h (no
+  session death). A proof that ran through such a window is accepted only on evidence: valid == total, 0 non-Valid, and
+  its 'could not be checked' vacuity set EQUAL to a clean run of the same file (one stmt_control_flow run had 4 extra and
+  was re-run). Keep at most 2 long proofs + 1 sweep in flight; use HEAVY_PRIO for driver gates.
+- **CARVE-OUT (driver run #5) — A RE-TRUST IS A LEDGER EVENT TOO.** Re-trusting a verified method (the #566 / #567 strict
+  rules) moved the trusted-termination ratchet (stub the body), the frame-honesty arms and trusted-reasons; a conversion
+  moved getattr-erasure rows. Lesson (d5) applies in both directions.
+
 
 ### A.5 WHY the heartbeat exists (read this before deciding it is ceremony)
 
