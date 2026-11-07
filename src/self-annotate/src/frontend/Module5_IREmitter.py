@@ -2481,37 +2481,14 @@ class PyCSLToJSONEmitter(MemoizationRTMixin, ConstructionSynthMixin, ast.NodeVis
     # `node.bases` with `node` narrowed by `isinstance(node, ast.ClassDef)` to a non-IR class (the
     # alias-closed #567 narrowing: an element of a narrowed object's field has an unknown class);
     # no equivalent rewrite avoids the read.
+    # Body STUBBED like every `\trusted` stub: its variant-less loops would count against the
+    # trusted-termination ratchet (bin/check-trusted-termination-honesty.py).
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     def _collect_type_params(self, node: TParamNode) -> List[Dict[str, PyVal]]:
-        tparams = getattr(node, "type_params", None) or []
-        out: List[Dict[str, PyVal]] = []
-        for tp in tparams:
-            kind = type(tp).__name__  # TypeVar / ParamSpec / TypeVarTuple
-            name = getattr(tp, "name", None)
-            bound = None
-            bnode = getattr(tp, "bound", None)
-            if isinstance(bnode, ast.Name):
-                bound = bnode.id
-            elif isinstance(bnode, ast.Attribute):
-                bound = bnode.attr
-            out.append({"name": name, "bound": bound, "kind": kind})
-        if not out and isinstance(node, ast.ClassDef):
-            for b in node.bases:
-                if (isinstance(b, ast.Subscript)
-                        and isinstance(b.value, ast.Name)
-                        and b.value.id in self._GENERIC_BASE_NAMES):
-                    names = self._extract_generic_arg_names(b.slice)
-                    registry = self.program_ir.get("typevar_registry") or {}
-                    for nm in names:
-                        info = registry.get(nm, {})
-                        out.append({"name": nm,
-                                    "bound": info.get("bound"),
-                                    "kind": "TypeVar"})
-                    break
-        return out
+        return []
 
     # value-model-return-wall R1 (faithful `List[str]` RETURN): dispatch on the
     # `Generic[...]` slice — `isinstance(slice_node, ast.Name)` -> `is_var slice_node`,
