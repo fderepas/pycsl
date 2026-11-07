@@ -13102,7 +13102,17 @@ def _run_pipeline(source_code: str, memory_model: str, args: argparse.Namespace)
                 _on444 = _ON444.get(type(_n444.op))
                 _lk444 = _kz444.get(id(_l444), {"?"}) - {"None"}
                 _rk444 = _kz444.get(id(_r444), {"?"}) - {"None"}
-                if (_on444 is None or len(_lk444) != 1 or len(_rk444) != 1
+                # (run #5 u34, route #581) an operand derived as SEVERAL builtin classes is
+                # judged on every class pair when one of its class sets mixes `dict` with a
+                # set-like class (`{} if c else {"q"}` / `set()` / `frozenset()` / `m.keys()`
+                # / `m.items()`: the IfExp is lowered to an opaque `int` and `|` / `&` / `^`
+                # / `-` to TOTAL int ops, while CPython raises TypeError for `dict | set`).
+                # Any other multi-class operand stays unjudged, as before (a `Union`
+                # parameter may be narrowed by `isinstance`).
+                _mx581 = any(len(_k) > 1 and "dict" in _k
+                             and _k & {"set", "frozenset", "keys", "items", "values"}
+                             for _k in (_lk444, _rk444))
+                if (_on444 is None or ((len(_lk444) != 1 or len(_rk444) != 1) and not _mx581)
                         or not (_lk444 | _rk444) <= _SK444):
                     continue
                 if _on444 == "mod" and _lk444 & {"str", "bytes", "bytearray"}:

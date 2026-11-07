@@ -1,5 +1,12 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #5 backlog (2026-11-07): #581 REPAIRED (executor u34 off ab7f6ae37 = main after L1, branch run5-u34; annotations §7.581). Root cause: an
+##   empty `{}` in an IfExp beside a SET-LIKE arm (set literal / set() / frozenset() / m.keys() / m.items()) is not typed by lvJ's dict-sibling
+##   rule, both arms fall to `(any int)`, and `x | {..}` / `&` / `^` lower to total int ops; route #458 judged only operands of ONE derived class.
+##   Repair (twin `\trusted`, no new def, no axiom): R458 judges every class pair of an operand whose classes mix `dict` with a set-like class.
+##   Witnesses 7 (+23 rt55 F7 probes) x default / typed / store 90/90 REFUSED. Corpus 9200-9208 FAIL (PROVED at base, REFUSED), control 9209
+##   PASS base + HEAD. Byte-diff vs ab7f6ae37: root 3004 -> 3005 0 / 0 / 0 (+1 control), pyref 2185 0 / 0 / 0, mirror 53/53 identical;
+##   rt43 / rt44 149 controls identical. Residuals: `{}` beside a list / int arm; claims not covering TypeError (route #458's scope).
 ## run #5 (2026-11-06): #574 REPAIRED (executor u32 off b105e8d87 = run5-int48, branch run5-u32; annotations §7.574). Route #567's
 ##   narrowing table (PYCSL-R567-EMITIR-ATTR-ON-NONIR) was closed under `t = path` FORWARD only, so `dv = node; if isinstance(dv,
 ##   DictView): ... node.kind` lowered `node.kind` to `kind_of node`. The table is now closed to a fixpoint, flow-insensitively, under

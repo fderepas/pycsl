@@ -5916,6 +5916,32 @@ through a field / call; `.name` under `==` stays admitted (undecided, not false)
 functions only -- a METHOD returning an `Any`-element container (`self.m()`) and a call result stored into a
 container / field are not followed.
 
+### 7.581 An operand that may be a dict or a set-like value is judged on every class pair (route #581, run #5)
+
+Red team 55 (on run5-int51; driver repro on main before L1 and on int51: PRE-EXISTING) measured 30 probes PROVED
+`no_exception \all` in the default model while CPython raises TypeError: an empty `{}` in an IfExp beside a SET-LIKE
+arm -- a set literal, `set()`, `frozenset()`, `m.keys()`, `m.items()` (`x = {} if not c else {"q"}`) -- then `x | {"z"}`,
+`x & ..`, `x ^ ..`. lvJ's empty-dict typing (`95cfd024a`) types `{}` from a DICT sibling only; beside a set-like sibling
+both arms fall to `_coerce_to_int` (`(any int)`), so `x` is an opaque int and `|` / `&` / `^` lower to the TOTAL
+`bit_or` / `bit_and` / `bit_xor`, while CPython's `dict | set` raises. Route #458 (§7.180) judges operator class
+pairs, but only for operands derived as exactly ONE builtin class: `x` derives as `{dict, set}` (or `{dict, keys}`).
+
+RULE (`_run_pipeline`, route #458's judge; twin `\trusted`, inline, no new def, no axiom): an operand of a binary /
+augmented operator whose derived classes are SEVERAL and mix `dict` with a set-like class (`set`, `frozenset`, `keys`,
+`items`, `values`) is judged on EVERY (left class, right class) pair against the real builtin operation; a pair that
+raises TypeError refuses with `PYCSL-R458-OPERAND-CLASSES` (message unchanged), under a claim covering TypeError, as
+before. Any other multi-class operand stays unjudged (a `Union` parameter may be narrowed by `isinstance`).
+
+Witnesses `witnesses-r581/` (7) and the 23 further rt55 F7 probes, x default / typed / store: 90/90 REFUSED (R458).
+Corpus `9200`-`9208` FAIL (9 rt55 probes: the 7 route witnesses + `&` / `^` forms; PROVED at base ab7f6ae37, REFUSED at
+HEAD), control `9209` PASS at base and HEAD (`set() if c else {"q"}` `|` a set, `m.keys() | {"z"}`, `{}` beside a dict
+arm searched with `in`); `dict | dict` and `set | set` on parameters are not refused (they fail Why3 typing at base
+and HEAD, unrelated). Byte-diff vs ab7f6ae37 (= run5-int51's v47 emission): root 3004 -> 3005 0 MOVED / 0 GONE /
+0 APPEARED (+1 control), python-reference 2185 0 / 0 / 0, mirror 53/53 identical; rt43 / rt44 149 controls: front-end
+verdicts identical base / HEAD. Residuals: an operand that mixes `dict` with a class OUTSIDE the set-like ones
+(`{} if c else [1]`, `{} if c else 0`) or whose classes are not derivable stays unjudged by this rule (its emission
+is the same opaque int); a claim not covering TypeError is not judged (route #458's scope).
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`
@@ -6298,7 +6324,8 @@ it covers the exception CPython raises there:
   raises no TypeError (`operator.<op>` / `operator.i<op>`): the CPython numeric tower, sequence
   concatenation and repetition, set and dict operators pass; `str / str`, `int + str`,
   `bytes + int` are refused. `str` / `bytes` `%` (formatting, value-dependent), `None` operands
-  (route #252), several or underivable classes are not judged.
+  (route #252), several or underivable classes are not judged -- except an operand whose classes
+  mix `dict` with a set-like class, judged on every class pair (route #581, §7.581).
   `PYCSL-R458-OPERAND-CLASSES`.
 
 The same reach applies to §7.141's BUILTIN FUNCTION rows: in a function that claims nothing
