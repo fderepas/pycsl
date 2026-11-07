@@ -127,6 +127,7 @@ frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._py_expr_fstring	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._py_stmts_to_ir	cost-scale:stmt-handler-dispatch	L2 `_py_stmts_to_ir`
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._match_pattern_to_ir	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._field_type_from_annotation_inst	unclassified	-
+frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_type_params	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_typevar_registry	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._emit_typeddict_record	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._synthesize_typeddict_functional	unclassified	-
