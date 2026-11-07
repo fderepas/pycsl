@@ -1,5 +1,12 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #5 (2026-11-06): #574 REPAIRED (executor u32 off b105e8d87 = run5-int48, branch run5-u32; annotations §7.574). Route #567's
+##   narrowing table (PYCSL-R567-EMITIR-ATTR-ON-NONIR) was closed under `t = path` FORWARD only, so `dv = node; if isinstance(dv,
+##   DictView): ... node.kind` lowered `node.kind` to `kind_of node`. The table is now closed to a fixpoint, flow-insensitively, under
+##   every alias edge (assignment, field store, walrus, tuple unpacking, `for` / comprehension target, item store, container mutator)
+##   in BOTH directions; display / subscript / element edges are coarse (every attribute). Corpus 9190-9197 FAIL (EMITTED at base,
+##   REFUSED at HEAD x 3 models), controls 9198 / 9199 PASS. Mirror: `Module5_IREmitter._collect_type_params` refused, re-trusted in a
+##   separate commit (\trusted 406 -> 407). Residuals: call results, computed-receiver mutators, `with ... as`, `type(x) is C`.
 ## run #5 (2026-11-06): #569 / #570 / #571 / #573 REPAIRED (executor u31 off 8358d5d31 = run5-int44, branch run5-u31; annotations §7.569). Root causes:
 ##   route #556's object resolver stopped at builtins / allow-listed modules (`...`, `__builtins__`, a file CLASS object, a module str searched
 ##   for an int, a bound builtin method `s.upper` / `{}.keys` stayed unresolved, so `contains_check` / `iter_length` / the opaque genexp were

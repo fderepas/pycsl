@@ -5812,13 +5812,43 @@ RULES (emitter, `statements.py::_handle_array_set_stmt` / `expressions.py::_hand
 MEASUREMENTS: see the route docs (route566 / route567) for the witness tables, the corpus files, the byte-diff and the
 mirror sweep.
 Residuals (named): the six mirror re-trusts above (convertible once an emit_ir item store / a narrowing view is
-modelled; getting-better/driver-backlog.md "routes #566 / #567 mirror re-trusts"); an emit_ir value's alias through a
-container (`xs = [d]`) is not tracked by #567's path closure (it is refused only when its own path is tested); the
-closure runs FORWARD only (`t = path` narrows `t` when `path` is tested), so a BACKWARD alias is not refused: `dv =
-node; if isinstance(dv, DictView): ... node.kind` lowers to `kind_of node` (measured `--no-proof`, run #5 lvG2:
-no refusal; the forward twin is refused -- an open hole of the rule, reported to the driver); `type(x) is C` /
+modelled; getting-better/driver-backlog.md "routes #566 / #567 mirror re-trusts"); the closure ran FORWARD only and
+missed an alias through a container (`xs = [d]`): both REPAIRED by route #574 (§7.574); `type(x) is C` /
 `x.__class__` tests are not narrowings for #567; the int-erased `typed` / `store` emission of these programs fails
 L3 (`unbound type symbol 'array'`) at the base, so the refusals there replace an L3 failure, not a proof.
+
+### 7.574 Route #567's narrowing is closed under aliasing in both directions (route #574, run #5)
+
+§7.566's `PYCSL-R567-EMITIR-ATTR-ON-NONIR` closed its narrowing table under `t = path` FORWARD only: `dv = node; if
+isinstance(dv, DictView): if node.kind == "keys": return 1` was not refused and `node.kind` lowered to `kind_of node`, the
+emit_ir constructor tag, so `ensures \result == 0` was again a theorem of the model (CPython returns 1 for
+`DictView("d", "keys")`; measured by executor lvG2, witnesses `getting-better/open-routes/witnesses-r574/`).
+
+RULE (emitter, `expressions.py::_handle_attribute_expr`, mirror twin `\trusted`; inline, no new def, no new emitter
+field, no axiom): the table is closed, flow-insensitively over the whole body and to a fixpoint, under the ALIAS EDGES
+of the function -- a plain / annotated assignment `t = v`, a field store `o.f = v` (target path `o.f`), a walrus `t :=
+v` (also inside the `isinstance` argument itself), a tuple unpacking (pairwise against a tuple display, otherwise every
+target against the whole value), a `for` / comprehension target against its iterable, an item store `xs[i] = v`, a
+container mutator `xs.append(v)` (`extend` / `insert` / `add` / `update` / `setdefault` / `appendleft` / `extendleft`) -- in BOTH directions: a value
+that is, extends or is a prefix of a narrowed path narrows the target (forward, as before), and a target that is, or is
+a prefix of, a narrowed path narrows the value (backward), so every local / parameter / `self` field in the tested
+name's alias class is narrowed (chains and siblings through the fixpoint; every binding of a re-bound name counts). A
+value is split into the paths it may evaluate to: both arms of `a if c else b`, both operands of `and` / `or`, a
+walrus's value and target, every element of a tuple / list / set / dict display. COARSE edges -- a display element,
+a subscript, an unpacking without a matching display, a loop / comprehension target, an item store, a container
+mutator -- relate a value to a PART of
+another, so they narrow with EVERY attribute (the element's class is unknown); an `isinstance` whose argument goes
+through a subscript likewise narrows its coarsened path with every attribute. A field store into a narrowed object
+narrows the stored value (every attribute) when the class may carry that field. A path deeper than four fields is cut
+to its first four, every attribute (finite, conservative). Not an alias edge (named residuals): a call's result
+(`dv = ident(node)`, interprocedural), a mutator on a computed receiver (`f().append(node)`), a `with ... as`,
+`type(x) is C`. MIRROR: one more VERIFIED mirror function is refused, `frontend/Module5_IREmitter.py`
+`_collect_type_params` (`b.value.id`, `b` a `for` target over `node.bases`, `node` narrowed to `ast.ClassDef`); it is
+re-`\trusted` in a separate commit (`\trusted` 406 -> 407), getting-better/driver-backlog.md "routes #566 / #567
+mirror re-trusts".
+
+MEASUREMENTS: see `getting-better/open-routes/route574-r567-backward-alias.md` (witnesses, corpus 9190-9199, byte-diff,
+mirror sweep).
 
 ### 7.569 An object outside §7.556's table is not searched or iterated; an Enum member's `.name` is a str; a call-bound `Any` element is erased (routes #569 / #570 / #571 / #573, run #5)
 

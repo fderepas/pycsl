@@ -19156,7 +19156,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 # A projector read is misprojected only for an attribute the tested class has: an
                 # `ast.Constant` carries `value` / `kind` (its `kind` IS such a read), not `id`.
                 _nar567: Dict[str, Optional[Set[str]]] = {}
-                _asg567: List[Tuple[str, Any]] = []
+                _asg567: List[Tuple[str, Any, bool]] = []
                 _stk567: List[Any] = [_body567]
                 _rt567 = getattr(self, "_record_types", {}) or {}
                 _td567 = {str(_t.get("name")): _t for _t in (self.ir.get("type_decls", []) or [])
@@ -19222,34 +19222,71 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         if _bad567:
                             _p567: List[str] = []
                             _r567 = _x567["args"][0]
+                            # (route #574) `isinstance(dv := node, C)` narrows the walrus target
+                            # (its alias with `node` is recorded below, both directions)
+                            if isinstance(_r567, dict) and _r567.get("type") == "NamedExpr":
+                                _r567 = {"type": "Var", "name": _r567.get("target")}
+                            _sub567 = False
                             while isinstance(_r567, dict) and _r567.get("type") in (
                                     "Attribute", "FieldGet", "Subscript", "SliceAccess"):
                                 if _r567.get("type") in ("Attribute", "FieldGet"):
                                     _p567.append(str(_r567.get("attr") or _r567.get("field")))
                                 else:
                                     _p567 = []
+                                    _sub567 = True
                                 _r567 = _r567.get("object") or _r567.get("value")
+                            if isinstance(_r567, str) and _r567:
+                                _r567 = {"type": "Var", "name": _r567}
                             if (isinstance(_r567, dict) and _r567.get("type") == "Var"
                                     and isinstance(_r567.get("name"), str)):
                                 _k567 = ".".join([_r567["name"]] + _p567[::-1])
+                                if _sub567:
+                                    # a subscript coarsens the path to its base: the tested value
+                                    # is SOME element, whose own fields the key no longer tells
+                                    # apart, so every attribute under the key is refused
+                                    _f567 = None
                                 if _k567 in _nar567 and (_nar567[_k567] is None or _f567 is None):
                                     _nar567[_k567] = None
                                 elif _k567 in _nar567:
                                     _nar567[_k567] = (_nar567[_k567] or set()) | (_f567 or set())
                                 else:
                                     _nar567[_k567] = _f567
-                    if _x567.get("stmt") in ("Assign", "AnnAssign"):
+                    # (route #574) the ALIAS EDGES of the body, each `(target path, value, coarse)`:
+                    # a plain / annotated assignment, a field store `o.f = v` (target `o.f`), a
+                    # walrus, a tuple unpacking (pairwise against a tuple display, else every
+                    # target against the whole value, coarse), a `for` / comprehension target
+                    # against its iterable (coarse: the target is an ELEMENT). Coarse: the
+                    # target is a part of the value, not the value itself.
+                    _st567 = _x567.get("stmt")
+                    if _st567 in ("Assign", "AnnAssign"):
                         _t567 = _x567.get("target")
                         if isinstance(_t567, dict) and _t567.get("type") == "Var":
                             _t567 = _t567.get("name")
                         if isinstance(_t567, str):
-                            _asg567.append((_t567, _x567.get("value")))
-                _chg567 = bool(_nar567)
-                while _chg567:
-                    _chg567 = False
-                    for _t567, _v567 in _asg567:
+                            _asg567.append((_t567, _x567.get("value"), False))
+                    elif _st567 == "FieldAssign":
+                        if isinstance(_x567.get("object"), str) and _x567.get("field"):
+                            _asg567.append((str(_x567["object"]) + "." + str(_x567["field"]),
+                                            _x567.get("value"), False))
+                    elif _st567 == "TupleUnpack":
+                        _ts567 = [_q for _q in (_x567.get("targets") or []) if isinstance(_q, str)]
+                        _tv567 = _x567.get("value")
+                        if (isinstance(_tv567, dict) and _tv567.get("type") in ("Tuple", "MkTuple")
+                                and len(_tv567.get("elts") or []) == len(_x567.get("targets") or [])
+                                and len(_ts567) == len(_x567.get("targets") or [])):
+                            for _q567, _e567 in zip(_ts567, _tv567.get("elts") or []):
+                                _asg567.append((_q567, _e567, False))
+                        else:
+                            for _q567 in _ts567:
+                                _asg567.append((_q567, _tv567, True))
+                    elif _st567 == "For":
+                        for _q567 in ([_x567.get("target")] + list(_x567.get("tuple_targets") or [])):
+                            if isinstance(_q567, str):
+                                _asg567.append((_q567, _x567.get("iter"), True))
+                    elif _st567 in ("ArraySet", "ArraySliceSet"):
+                        # an item store `xs[i] = v` puts v INTO xs (coarse)
                         _p567 = []
-                        _r567 = _v567
+                        _r567 = _x567.get("array")
                         while isinstance(_r567, dict) and _r567.get("type") in (
                                 "Attribute", "FieldGet", "Subscript", "SliceAccess"):
                             if _r567.get("type") in ("Attribute", "FieldGet"):
@@ -19257,33 +19294,126 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                             else:
                                 _p567 = []
                             _r567 = _r567.get("object") or _r567.get("value")
-                        if not (isinstance(_r567, dict) and _r567.get("type") == "Var"
+                        if isinstance(_r567, str) and _r567:
+                            _r567 = {"type": "Var", "name": _r567}
+                        if (isinstance(_r567, dict) and _r567.get("type") == "Var"
                                 and isinstance(_r567.get("name"), str)):
-                            continue
-                        _vk567 = ".".join([_r567["name"]] + _p567[::-1])
-                        for _n567, _nf567 in list(_nar567.items()):
-                            _new567 = None
-                            if _vk567 == _n567:
-                                _new567 = _t567
-                            elif _vk567.startswith(_n567 + "."):
-                                # the alias holds a FIELD value of the narrowed object: its class is
-                                # unknown (all attributes) when that field is one the class may carry
-                                _seg567 = _vk567[len(_n567) + 1:].split(".")[0]
-                                if _nf567 is None or _seg567 in _nf567:
-                                    _new567 = _t567
-                                    _nf567 = None
-                            elif _n567.startswith(_vk567 + "."):
-                                _new567 = _t567 + _n567[len(_vk567):]
-                            if _new567 is not None and (
-                                    _new567 not in _nar567
-                                    or (_nar567[_new567] is not None and _nf567 is None)
-                                    or (_nar567[_new567] is not None
-                                        and not (_nf567 or set()) <= _nar567[_new567])):
-                                _old567 = _nar567.get(_new567, set())
-                                _nar567[_new567] = (None if (_nf567 is None or _old567 is None)
-                                                    else (_old567 | _nf567))
-                                _chg567 = True
-                _p567: List[str] = []
+                            _asg567.append((".".join([_r567["name"]] + _p567[::-1]),
+                                            _x567.get("value"), True))
+                    if (_x567.get("type") == "Call" and isinstance(_x567.get("func"), str)
+                            and "receiver" not in _x567
+                            and _x567["func"].rsplit(".", 1)[-1] in (
+                                "append", "extend", "insert", "add", "update", "setdefault",
+                                "appendleft", "extendleft")
+                            and "." in _x567["func"]):
+                        # a container mutator `xs.append(v)` puts v INTO xs (coarse)
+                        for _e567 in (_x567.get("args") or []):
+                            _asg567.append((_x567["func"].rsplit(".", 1)[0], _e567, True))
+                    if _x567.get("type") == "NamedExpr" and isinstance(_x567.get("target"), str):
+                        _asg567.append((_x567["target"], _x567.get("value"), False))
+                    if (_st567 is None and _x567.get("type") is None
+                            and isinstance(_x567.get("target"), str) and "iter" in _x567
+                            and "ifs" in _x567):
+                        _asg567.append((_x567["target"], _x567.get("iter"), True))
+                # (route #574) CLOSE the narrowing table under the alias edges in BOTH directions,
+                # flow-insensitively, to a fixpoint. The value of an edge is split into the paths it
+                # may evaluate to (both arms of `a if c else b`, both operands of `and` / `or`, a
+                # walrus's value and target, every element of a tuple / list / set / dict display,
+                # coarse). Forward (`t = v`, v narrowed or a prefix / extension of a narrowed path)
+                # narrows t; BACKWARD (t narrowed, or a prefix of a narrowed path) narrows v the same
+                # way, so `dv = node; isinstance(dv, C)` narrows `node`. A coarse edge narrows the
+                # other side with every attribute (an element's class is unknown). A path deeper
+                # than 4 fields is cut to its first 4, every attribute (finite, conservative).
+                _chg567 = bool(_nar567)
+                while _chg567:
+                    _chg567 = False
+                    _prop567: List[Tuple[str, Optional[Set[str]]]] = []
+                    for _t567, _v567, _co567 in _asg567:
+                        _alts567: List[Tuple[str, bool]] = []
+                        _vs567: List[Tuple[Any, bool]] = [(_v567, _co567)]
+                        while _vs567:
+                            _ve567, _vc567 = _vs567.pop()
+                            if not isinstance(_ve567, dict):
+                                continue
+                            _vt567 = _ve567.get("type")
+                            if _vt567 == "IfExpr":
+                                _vs567.append((_ve567.get("body"), _vc567))
+                                _vs567.append((_ve567.get("orelse"), _vc567))
+                            elif _vt567 == "BinOp" and _ve567.get("op") in ("and", "or"):
+                                _vs567.append((_ve567.get("left"), _vc567))
+                                _vs567.append((_ve567.get("right"), _vc567))
+                            elif _vt567 == "NamedExpr":
+                                _vs567.append((_ve567.get("value"), _vc567))
+                                if isinstance(_ve567.get("target"), str):
+                                    _alts567.append((_ve567["target"], _vc567))
+                            elif _vt567 in ("Tuple", "MkTuple", "ArrayLit", "SetLit"):
+                                for _e567 in (_ve567.get("elts") or []):
+                                    _vs567.append((_e567, True))
+                            elif _vt567 == "DictLit":
+                                for _e567 in (list(_ve567.get("keys") or [])
+                                              + list(_ve567.get("values") or [])):
+                                    _vs567.append((_e567, True))
+                            elif _vt567 == "Starred":
+                                _vs567.append((_ve567.get("value"), True))
+                            else:
+                                _p567 = []
+                                _r567 = _ve567
+                                _sub567 = False
+                                while isinstance(_r567, dict) and _r567.get("type") in (
+                                        "Attribute", "FieldGet", "Subscript", "SliceAccess"):
+                                    if _r567.get("type") in ("Attribute", "FieldGet"):
+                                        _p567.append(str(_r567.get("attr") or _r567.get("field")))
+                                    else:
+                                        _p567 = []
+                                        _sub567 = True
+                                    _r567 = _r567.get("object") or _r567.get("value")
+                                if isinstance(_r567, str) and _r567:
+                                    _r567 = {"type": "Var", "name": _r567}
+                                if (isinstance(_r567, dict) and _r567.get("type") == "Var"
+                                        and isinstance(_r567.get("name"), str)):
+                                    _alts567.append((".".join([_r567["name"]] + _p567[::-1]),
+                                                     _vc567 or _sub567))
+                        for _vk567, _vc567 in _alts567:
+                            for _n567, _nf567 in list(_nar567.items()):
+                                # forward: the value is, extends, or is a prefix of a narrowed path
+                                if _vk567 == _n567:
+                                    _prop567.append((_t567, None if _vc567 else _nf567))
+                                elif _vk567.startswith(_n567 + "."):
+                                    # the alias holds a FIELD value of the narrowed object: its class
+                                    # is unknown (all attributes) when that field is one the class
+                                    # may carry
+                                    _seg567 = _vk567[len(_n567) + 1:].split(".")[0]
+                                    if _nf567 is None or _seg567 in _nf567:
+                                        _prop567.append((_t567, None))
+                                elif _n567.startswith(_vk567 + "."):
+                                    _prop567.append((_t567 if _vc567 else _t567 + _n567[len(_vk567):],
+                                                     None if _vc567 else _nf567))
+                                # backward: the target is, or is a prefix of, a narrowed path
+                                if _t567 == _n567 or _n567.startswith(_t567 + "."):
+                                    _prop567.append((_vk567 if _vc567 else _vk567 + _n567[len(_t567):],
+                                                     None if _vc567 else _nf567))
+                                elif _t567.startswith(_n567 + "."):
+                                    # a field store into the narrowed object: the stored value is a
+                                    # field value of it (unknown class when the class may carry it)
+                                    _seg567 = _t567[len(_n567) + 1:].split(".")[0]
+                                    if _nf567 is None or _seg567 in _nf567:
+                                        _prop567.append((_vk567, None))
+                    for _new567, _nf567 in _prop567:
+                        if len(_new567.split(".")) > 5:
+                            _new567 = ".".join(_new567.split(".")[:5])
+                            _nf567 = None
+                        if _new567 not in _nar567:
+                            _nar567[_new567] = None if _nf567 is None else set(_nf567)
+                            _chg567 = True
+                        elif _nar567[_new567] is None:
+                            pass
+                        elif _nf567 is None:
+                            _nar567[_new567] = None
+                            _chg567 = True
+                        elif not _nf567 <= (_nar567[_new567] or set()):
+                            _nar567[_new567] = (_nar567[_new567] or set()) | _nf567
+                            _chg567 = True
+                _p567 = []
                 _r567 = obj_ir
                 while isinstance(_r567, dict) and _r567.get("type") in (
                         "Attribute", "FieldGet", "Subscript", "SliceAccess"):
@@ -19292,6 +19422,8 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     else:
                         _p567 = []
                     _r567 = _r567.get("object") or _r567.get("value")
+                if isinstance(_r567, str) and _r567:
+                    _r567 = {"type": "Var", "name": _r567}
                 _k567 = (".".join([str(_r567.get("name"))] + _p567[::-1])
                          if isinstance(_r567, dict) and _r567.get("type") == "Var" else None)
                 # refused when the receiver IS a narrowed path and the tested class may carry

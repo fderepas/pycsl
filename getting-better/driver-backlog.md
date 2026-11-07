@@ -9137,4 +9137,8 @@ rewrite keeps them verified):
   (`c["pattern"] = new_pat` into an emit_ir case node). A rebuilt case / pattern dict carries no `"type"` key, so it
   is not an emit_ir value and no rewrite types; convertible once an emit_ir item store is modelled (a functional
   update of the node) or a case node has an emit_ir constructor.
+- (run #5 u32, route #574, the alias-closed #567 narrowing) `emit-ir-narrowing-view` gains a seventh:
+  `frontend/Module5_IREmitter.py` `_collect_type_params` (`b.value.id`, `b` a `for` target over `node.bases`, `node`
+  narrowed by `isinstance(node, ast.ClassDef)`: an element of a narrowed object's field has an unknown class).
+  `\trusted` 406 -> 407 (markers 378 -> 379). No caller in the mirror emission; same `requires/ensures True` contract.
 COST/SCALE, not correctness.
