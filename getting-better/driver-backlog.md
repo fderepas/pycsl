@@ -9119,3 +9119,26 @@ count ONCE. That is 7 collapsed pairs against my 441 attached markers.
 Four instruments, four rules, four numbers, and every one of them now has a sentence saying
 which question it answers. That is the (d6) discipline applied to the metric that started
 it: the problem was never that 460 was wrong, it was that nobody could say what it counted.
+
+
+### NAMED CAPABILITIES — routes #566 / #567 mirror re-trusts (run #5 lvG2, 2026-11-06): an emit_ir narrowing view and an emit_ir item-store model — **not yet built**
+
+The user REJECTED the self-annotation-mirror file-path exemption lvG had added to routes #566 / #567 (log 555). With
+both refusals applied everywhere, six VERIFIED mirror functions are refused and were re-`\trusted` (no equivalent
+rewrite keeps them verified):
+- `emit-ir-narrowing-view` (route #567): `frontend/Module5_IREmitter.py` `_const_int_value` (`value.op` under
+  `isinstance(value, ast.UnaryOp)`), `_collect_final_registry` (`sub.target.value.id`, `sub` narrowed to
+  `ast.AnnAssign`), `_collect_typevar_registry` (`call.func`, `call = stmt.value` with `stmt` narrowed to `ast.Assign`),
+  `_m5_get_type_name_legacy` and `_union_arm_tag` (`elt.value.id`, `elt` also tested against `ast.Constant`). The
+  mirror models these Python-AST values as `emit_ir`; the rule is flow-insensitive and a projector read on a path an
+  `isinstance` narrows to a non-IR class is refused. Convertible once a narrowed value has a faithful view of the
+  tested class (or the rule becomes flow-sensitive on the narrowing branch) -- a capability, not a correctness wall.
+- `emit-ir-item-store-model` (route #566): `module6_whyml/stmt_control_flow.py` `_handle_match_stmt`
+  (`c["pattern"] = new_pat` into an emit_ir case node). A rebuilt case / pattern dict carries no `"type"` key, so it
+  is not an emit_ir value and no rewrite types; convertible once an emit_ir item store is modelled (a functional
+  update of the node) or a case node has an emit_ir constructor.
+- (run #5 u32, route #574, the alias-closed #567 narrowing) `emit-ir-narrowing-view` gains a seventh:
+  `frontend/Module5_IREmitter.py` `_collect_type_params` (`b.value.id`, `b` a `for` target over `node.bases`, `node`
+  narrowed by `isinstance(node, ast.ClassDef)`: an element of a narrowed object's field has an unknown class).
+  `\trusted` 406 -> 407 (markers 378 -> 379). No caller in the mirror emission; same `requires/ensures True` contract.
+COST/SCALE, not correctness.

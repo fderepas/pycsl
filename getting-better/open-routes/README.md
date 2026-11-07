@@ -1,5 +1,72 @@
 # OPEN ROUTES — exploited, reproduced, NOT closed
 
+## run #5 (2026-11-06): #574 REPAIRED (executor u32 off b105e8d87 = run5-int48, branch run5-u32; annotations §7.574). Route #567's
+##   narrowing table (PYCSL-R567-EMITIR-ATTR-ON-NONIR) was closed under `t = path` FORWARD only, so `dv = node; if isinstance(dv,
+##   DictView): ... node.kind` lowered `node.kind` to `kind_of node`. The table is now closed to a fixpoint, flow-insensitively, under
+##   every alias edge (assignment, field store, walrus, tuple unpacking, `for` / comprehension target, item store, container mutator)
+##   in BOTH directions; display / subscript / element edges are coarse (every attribute). Corpus 9190-9197 FAIL (EMITTED at base,
+##   REFUSED at HEAD x 3 models), controls 9198 / 9199 PASS. Mirror: `Module5_IREmitter._collect_type_params` refused, re-trusted in a
+##   separate commit (\trusted 406 -> 407). Residuals: call results, computed-receiver mutators, `with ... as`, `type(x) is C`.
+## run #5 (2026-11-06): #569 / #570 / #571 / #573 REPAIRED (executor u31 off 8358d5d31 = run5-int44, branch run5-u31; annotations §7.569). Root causes:
+##   route #556's object resolver stopped at builtins / allow-listed modules (`...`, `__builtins__`, a file CLASS object, a module str searched
+##   for an int, a bound builtin method `s.upper` / `{}.keys` stayed unresolved, so `contains_check` / `iter_length` / the opaque genexp were
+##   total); route #560's member test missed `IE.A.value`, and an Enum member's `.name` lowers to an int field (`get_name`); route #249 erased
+##   the `Any` elements of a parameter / annotated local only, never of a local bound from a call (`t = g(k)` with `-> Tuple[Any, ...]`).
+##   Repair (twins `\trusted`, no new def, no axiom): R556 resolves constants, `__builtins__`, a file class object (route #561's metaclass-
+##   `type` test, everywhere) and a method of a value of one builtin kind (literal / display / plainly-annotated parameter or local), and refuses
+##   a module str searched for a non-str needle; R560 takes a member's `.value`; new `PYCSL-R571-ENUM-MEMBER-NAME-KIND` refuses a member's
+##   `.name` outside `==` / `!=` / `is`; `_reset_function_state` erases a local / unpack target / `g(k)[i]` bound from a module function whose
+##   `r526_return_none_depths` places `Any` below the top (route #252 refuses its flow into `-> int`). Witnesses 24 x default / typed / store
+##   72/72 REFUSED. Corpus 9150-9176 FAIL (27: 21 rt54 + 6 new false proofs, PROVED at base, REFUSED in all three models), controls
+##   9177-9179 PASS base + HEAD; advice a571_member / a571_eq VERIFY. Byte-diff vs 8358d5d31: root 2989 -> 2992 0 MOVED / 0 GONE /
+##   0 APPEARED (+3 controls), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0. rt43 / rt44 149 controls identical.
+##   Residuals (named, §7.569): objects / members reached through calls / fields; methods of unknown-kind values; route #573 for METHOD callees.
+
+## run #5 (2026-11-06): #568 REPAIRED (executor u30 off 693e20184 = run5-int40; annotations §7.568). Root cause: a method call is lowered through a
+##   caller-side stub framed from the DECLARED `#@ assigns` (`_resolve_dotted_signature`, label-filtered; the cell only when EVERY target is
+##   dropped), while the callee's `let` frame is derived from its body (`_pyobj_state` for a non-record attribute store); an unresolved receiver
+##   got no frame at all; route #213's state-keyed `getattr` reads around the call then collapsed. Repair (twins `\trusted`, no new def, no
+##   axiom): the stub carries the cell when the callee is in `_pyobj_state_writers`; a cell-less stub minted before its definition gains the cell
+##   is refused (`PYCSL-R568-STUB-FRAME-ORDER`, recursion cycles); an unresolved non-`self` receiver's stub writes the cell when a FILE method of
+##   that name declares an effect and the emitting function reaches a `getattr` (forward call closure). Census: option 1 moves 4 mirror files,
+##   option 2 refuses 6 mirror files + 3 corpus files, option 3 broad moved 4 mirror files and refused the `pycsl.py` mirror; the chosen rules
+##   move 0 / 0. Witnesses 9060-9064, 9066, 9067: base PROVED (default model) -> HEAD NOT PROVED / refused in default / typed / store; control
+##   9068 FAIL and controls 9070-9073 PASS unchanged. Byte-diff vs 693e20184: root 2967 -> 2978 0 MOVED / 0 GONE / 0 APPEARED (+11 new),
+##   python-reference 2191 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed). rt43 / rt44 149 controls identical. Planes 62/62.
+##   Residual (named): an unresolved receiver whose method lives outside the file (`f.close()` on a stdlib object) still proves
+##   (`witnesses-r568/residual/`).
+
+## run #5 (2026-11-05): #565 REPAIRED (executor u28 off b432460d6 = run5-int36; annotations §7.565). Root cause: Module 6's `_erased_truthy_locals`
+##   record (a None-bound local reads `pycsl_none`, so `t is None` folds True / truthiness `false`; NaN's `t == t` folds False) was
+##   written / cleared and ambiguity-scanned (route #46) for the plain single-name `Assign` ONLY, so a tuple unpack, swap, single-element
+##   tuple target, `for` target, walrus or `match` capture left the decided fact in place (even at top level). Repair: the route #46
+##   pre-scan (`_reset_function_state`, twin `\trusted`) records every such target as an OTHER binding -> `AMBIG` / `AMBIG#nan`;
+##   a nested `def` named like an enclosing local is a lift collision (`Module3_Weaver.process`, twin `\trusted`); a carrier's dropped
+##   `AMBIG` mark is sticky `AMBIG#opt#empty` (`_handle_assign_stmt`, twin `\trusted`; closes an Optional-join sibling). No new def /
+##   code / axiom. Witnesses 43 x default / typed / store: base 41 PROVED (15 probes) -> HEAD 0. Corpus 8980-8991 FAIL, 8992-8999 PASS
+##   (base + HEAD). Byte-diff vs b432460d6: root 2929 -> 2948 0 MOVED / 0 GONE / 0 APPEARED,
+##   python-reference 2191 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (no movers, nothing owed). rt43 / rt44 149 controls: verdicts identical, 0 .mlw moved.
+
+## run #5 (2026-11-06): #566 / #567 MIRROR EXEMPTION REMOVED (executor lvG2 off ad5b44278 = run5-int45, branch run5-lvG2; USER DECISION: the
+##   file-path exemption is rejected). Both refusals now apply everywhere, the mirror included; the `is_self_mirror_r566` path flag is gone.
+##   Mirror functions the strict rules refuse were RE-TRUSTED (no equivalent rewrite keeps them verified): stmt_control_flow
+##   `_handle_match_stmt` (#566, the `c["pattern"]` store) and Module5_IREmitter `_const_int_value`, `_collect_final_registry`,
+##   `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (#567); \trusted markers 372 -> 378. New hole reported: #567's
+##   assignment closure is forward-only (`dv = node; isinstance(dv, C); node.kind` is not refused). See the route docs' lvG2 blocks.
+
+## run #5 (2026-11-05): #566 / #567 REPAIRED (executor lvG off 0ce6ece57 = run5-int37, branch run5-lvG, the §1 commits; emitter-side, inline,
+##   mirror twins `\trusted`, no new def, no axiom, no new ADT arm; annotations §7.566; found by the independent vm-irnode review, H2 / H1).
+##   #566: an item store into a value the emitter types `emit_ir` in a `@mutable_state` class (`d = self.mk(an); d["act_name"] = an`) lowered
+##   to `()` and DROPPED the rest of the block; with the rest lowered it still left later reads on the old node. Refused
+##   PYCSL-R566-EMITIR-ITEM-STORE; the self-annotation mirror alone (path-decided, the `declared_in` precedent; type-safety + frame contract)
+##   keeps the no-op and now always lowers the continuation. #567: an `_EMIT_IR_STR_ATTRS` projector read (`dv.kind` -> `kind_of dv`) on a
+##   value an `isinstance` narrows to a non-IR class that may carry the attribute is refused PYCSL-R567-EMITIR-ATTR-ON-NONIR (mirror: only
+##   record-modelled classes narrow, so `_csl_in` stays `\trusted`). Witnesses 3 (r566) + 1 (r567) and the 6 corpus FAIL files x default / typed / store = 30/30 REFUSED; corpus 9020-9022
+##   (#566, PROVED at base: dropped precondition / dropped raise / stale read) and 9025-9027 (#567, model-level: VERIFY-FAIL at base by
+##   solver timeout) FAIL; controls 9030 / 9034 FAIL and 9031-9033 / 9035 PASS at base and HEAD. Byte-diff vs 0ce6ece57: root 2932 -> 2938 0 / 0
+##   / 0 (+6), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed). Residuals: the mirror allowances; container aliases and
+##   `type(x) is C` for #567; typed / store emit_ir programs fail L3 at the base.
+
 ## run #5 (2026-11-04): #561 / #562 REPAIRED (executor u26 off 46040203d = int32, 8f1f84f42 + the docs commit; inline in `_run_pipeline` after route #558's judge,
 ##   on the §7.541 kinds, at every node inside a comprehension / generator expression of a judged body's own scope, mirror twin `\trusted`, lambdas
 ##   only, no new def, no axiom, emitter untouched; annotations §7.561). #561: a comprehension iterable / `in` haystack / iterating-builtin argument

@@ -1094,6 +1094,15 @@ class Module6_WhyMLTranspiler(
             return self._transpile_modular(functions, type_decls)
 
         needs = self._scan_preamble_needs(functions, all_bodies)
+        # cap-trusted-val-unit-return (run #5, lvF): a `\trusted` `pass`-body stub declared
+        # `-> List[..]` / bytes now announces `array ..` (see the CALL-SITE half below), so
+        # the array theory must be in scope even when no body uses an array. Set/dict
+        # returns already pull map.Map (`needs_body_dict`), floats `needs_real`.
+        for _f in functions:
+            if (_f.get("trusted") and _f.get("return_annotation") in ("list", "bytes", "bytearray")
+                    and not any(isinstance(_s, dict) and _s.get("stmt") == "Return"
+                                for _s in (_f.get("body") or []))):
+                needs["needs_array"] = True
         out = self._emit_preamble(needs)
         out += self._emit_shared_state()
 
@@ -1386,6 +1395,45 @@ class Module6_WhyMLTranspiler(
         # against it. Empty for non-mixin modules → maps unchanged → byte-identical.
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # cap-trusted-val-unit-return (run #5, lvF), CALL-SITE half. A `\trusted` stub whose
+        # placeholder body is a bare `pass` has `find_return_type -> "unit"`, so the map above
+        # abstracted its call sites as `unit` for EVERY annotation outside the scalar GAP #2
+        # disjuncts (`str` / `int` / `bool` / ExprIR tags / PyConstVal): a caller that USES the
+        # result (`h = _match_block_hdr(ln)`, `node = self._parse_contract()`) could not
+        # type-check. The DECLARED annotation is the authority on what a trusted stub returns:
+        # announce the WhyML type the emitter models that annotation as (the `ret == "int"`
+        # branches of the map / `_compute_return_type`), as an UNCONSTRAINED value -- no
+        # ensures is added, the stub's own contract is unchanged. Not promoted: no annotation
+        # (an unannotated `pass` body returns None in Python -- retype the mirror def line
+        # instead), `-> None`, NoReturn, lemmas, and `Tuple[...]` (arity is not in the IR
+        # annotation; tuple typing is emitter-wide). `_emit_function_block` adopts this entry
+        # for the stub's own `val` (the DECLARATION half), so both producers agree (lesson (am)).
+        # Gated on `trusted` + a `unit` map entry + a non-scalar annotation: a corpus function
+        # with a return statement never has a `unit` entry.
+        for _f in funcs_for_maps:
+            _uf = _f.get("name")
+            _ua = _f.get("return_annotation")
+            if (not _f.get("trusted") or _f.get("lemma") or _f.get("is_noreturn")
+                    or self._module_method_return_types.get(_uf) != "unit"
+                    or not isinstance(_ua, str) or _ua in ("None", "tuple")):
+                continue
+            if _ua in ("list", "bytes", "bytearray"):
+                _ut = ("array string" if _f.get("return_value_type") == "string"
+                       else "array int")
+            elif _ua in ("set", "dict", "frozenset"):
+                _ut = "map int (option int)"
+            elif _ua == "float":
+                _ut = "real"
+            elif (_ua in getattr(self, "_variant_types", {})
+                    and not _ua.startswith("_union_")):
+                # a `#@ datatype` return; an `Optional[..]` / `Union[..]` (`_union_*`)
+                # stays the erased `int` its callers test against `pycsl_none`.
+                _ut = self._variant_types[_ua]["whyml_name"]
+            elif _ua in getattr(self, "_record_types", {}):
+                _ut = self._record_types[_ua]["whyml_name"]
+            else:
+                _ut = "int"
+            self._module_method_return_types[_uf] = _ut
         # WL-04b SELF-CALL SIBLING (`_fin` recognizer vein, increment 8): a
         # `-> List[<record>]` method's SELF-CALL return type is `array <record>` — the
         # same shape `_compute_return_type` already gives the DEFINITION (its WL-04b
@@ -1861,6 +1909,45 @@ class Module6_WhyMLTranspiler(
                for m in ind.get("members", [])})
         funcs_for_maps = functions + self._mixin_dep_pseudo_functions(functions)
         self._module_method_return_types = self._build_method_return_type_map(funcs_for_maps)
+        # cap-trusted-val-unit-return (run #5, lvF), CALL-SITE half. A `\trusted` stub whose
+        # placeholder body is a bare `pass` has `find_return_type -> "unit"`, so the map above
+        # abstracted its call sites as `unit` for EVERY annotation outside the scalar GAP #2
+        # disjuncts (`str` / `int` / `bool` / ExprIR tags / PyConstVal): a caller that USES the
+        # result (`h = _match_block_hdr(ln)`, `node = self._parse_contract()`) could not
+        # type-check. The DECLARED annotation is the authority on what a trusted stub returns:
+        # announce the WhyML type the emitter models that annotation as (the `ret == "int"`
+        # branches of the map / `_compute_return_type`), as an UNCONSTRAINED value -- no
+        # ensures is added, the stub's own contract is unchanged. Not promoted: no annotation
+        # (an unannotated `pass` body returns None in Python -- retype the mirror def line
+        # instead), `-> None`, NoReturn, lemmas, and `Tuple[...]` (arity is not in the IR
+        # annotation; tuple typing is emitter-wide). `_emit_function_block` adopts this entry
+        # for the stub's own `val` (the DECLARATION half), so both producers agree (lesson (am)).
+        # Gated on `trusted` + a `unit` map entry + a non-scalar annotation: a corpus function
+        # with a return statement never has a `unit` entry.
+        for _f in funcs_for_maps:
+            _uf = _f.get("name")
+            _ua = _f.get("return_annotation")
+            if (not _f.get("trusted") or _f.get("lemma") or _f.get("is_noreturn")
+                    or self._module_method_return_types.get(_uf) != "unit"
+                    or not isinstance(_ua, str) or _ua in ("None", "tuple")):
+                continue
+            if _ua in ("list", "bytes", "bytearray"):
+                _ut = ("array string" if _f.get("return_value_type") == "string"
+                       else "array int")
+            elif _ua in ("set", "dict", "frozenset"):
+                _ut = "map int (option int)"
+            elif _ua == "float":
+                _ut = "real"
+            elif (_ua in getattr(self, "_variant_types", {})
+                    and not _ua.startswith("_union_")):
+                # a `#@ datatype` return; an `Optional[..]` / `Union[..]` (`_union_*`)
+                # stays the erased `int` its callers test against `pycsl_none`.
+                _ut = self._variant_types[_ua]["whyml_name"]
+            elif _ua in getattr(self, "_record_types", {}):
+                _ut = self._record_types[_ua]["whyml_name"]
+            else:
+                _ut = "int"
+            self._module_method_return_types[_uf] = _ut
         # LITERAL-VALUE MODEL (relaunch #12): a module-level helper declared
         # `-> "PyConstVal"` returns a Python CONSTANT VALUE, and its CALL SITES must see
         # that. `_parse_number` is the only such helper: it is a `\trusted` stub, so
@@ -1964,6 +2051,15 @@ class Module6_WhyMLTranspiler(
         `axiom_ir` (a per-module function-subset IR) so a module sees only its group's
         cited axioms. Does NOT emit `let` functions or the abstract-val block."""
         needs = self._scan_preamble_needs(functions, all_bodies)
+        # cap-trusted-val-unit-return (run #5, lvF): a `\trusted` `pass`-body stub declared
+        # `-> List[..]` / bytes now announces `array ..` (see the CALL-SITE half below), so
+        # the array theory must be in scope even when no body uses an array. Set/dict
+        # returns already pull map.Map (`needs_body_dict`), floats `needs_real`.
+        for _f in functions:
+            if (_f.get("trusted") and _f.get("return_annotation") in ("list", "bytes", "bytearray")
+                    and not any(isinstance(_s, dict) and _s.get("stmt") == "Return"
+                                for _s in (_f.get("body") or []))):
+                needs["needs_array"] = True
         out = self._emit_preamble(needs, module_name)
         out += self._emit_shared_state()
         self._precompute_axiom_logic_funcs(self.ir)
@@ -2320,6 +2416,15 @@ class Module6_WhyMLTranspiler(
         needs = self._scan_preamble_needs(
             self.ir.get("functions", []),
             [f["body"] for f in self.ir.get("functions", [])])
+        # cap-trusted-val-unit-return (run #5, lvF): a `\trusted` `pass`-body stub declared
+        # `-> List[..]` / bytes now announces `array ..` (see the CALL-SITE half below), so
+        # the array theory must be in scope even when no body uses an array. Set/dict
+        # returns already pull map.Map (`needs_body_dict`), floats `needs_real`.
+        for _f in self.ir.get("functions", []):
+            if (_f.get("trusted") and _f.get("return_annotation") in ("list", "bytes", "bytearray")
+                    and not any(isinstance(_s, dict) and _s.get("stmt") == "Return"
+                                for _s in (_f.get("body") or []))):
+                needs["needs_array"] = True
         # The flat preamble `use`s, MINUS the `module PyCSL_Program` header line, plus a
         # `use Shared` so the record type + shared symbols are in scope.
         lib_uses = self._emit_preamble_uses(needs, module_name="__tmp__")[1:]

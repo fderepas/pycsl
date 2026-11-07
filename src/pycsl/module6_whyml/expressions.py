@@ -483,7 +483,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
 
     def _e(self, ir: Dict, lr: Set[str]) -> str:
         """Shorthand for _expr_to_whyml within ghost handlers."""
-        return self._expr_to_whyml(ir, lr)
+        # An explicit empty `subst` (not the omitted `None` default): every `subst` consumer
+        # reads it by truthiness / `subst or {}` / forwarding, so `{}` and `None` behave
+        # identically; the typed local is what lets the mirror port type-check.
+        _sub: Dict[str, str] = {}
+        return self._expr_to_whyml(ir, lr, False, _sub)
 
     def _whyml_string_literal(self, s: str) -> str:
         """A Python string → its WhyML double-quoted string literal, backslash and
@@ -8298,6 +8302,21 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
             # `_pyobj_state` cell is the sound over-approximation, exactly as on the
             # definition side.
             _objstate_w = bool(_declared_w) and not _w
+            # (#49) ROUTE #568 — THE STUB'S FRAME MUST BE THE FRAME THE CALLEE WAS VERIFIED
+            # AGAINST. `_emit_function` derives a concrete method's `writes` from its BODY: a
+            # `setattr_*` store (an attribute the record does not carry) adds `_pyobj_state`
+            # to a NAMED clause and records the method in `_pyobj_state_writers`. The rule
+            # above reads the DECLARED clause only, and adds the cell only when the label
+            # filter drops EVERY declared target, so `assigns self.a` over a body that also
+            # stores `self.flag` (and even the honest `assigns self.a, self.flag`, whose
+            # `flag` the filter drops) minted a stub writing `self.a` alone, while the
+            # `let` wrote `{ self.a, _pyobj_state }`. Route #213's state-keyed `getattr`
+            # reads around two such calls were then ONE term, and `\result == 1` PROVED
+            # where CPython returns 2 (witnesses 9060 / 9061). The callee's own emitted
+            # frame is the fact; SCC ordering emits it before its callers, and the reverse
+            # order is refused where the definition is emitted (`_emit_function`).
+            if whyml_ident(lookup_key) in (getattr(self, "_pyobj_state_writers", None) or set()):
+                _objstate_w = True
             field_ens = _fe + _foe + _fpe + _fppe
             if (field_ens or _w or _fpfe or _rfe or _objstate_w) and cls:
                 # `self.<m>()` called from a sibling method: the enclosing
@@ -8358,6 +8377,11 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                     # consumer (which already reads slot 6 receiver-agnostically) frames
                     # `_pyobj_state`.
                     _objstate_rw = bool(_declared_rw) and not writes
+                    # (#49) ROUTE #568 — the same rule as the `self.` arm above: the callee's
+                    # EMITTED frame carries the cell, so its caller-side stub does too.
+                    if whyml_ident(lookup_key) in (
+                            getattr(self, "_pyobj_state_writers", None) or set()):
+                        _objstate_rw = True
                     if field_ens or writes or frame_ens or result_frame_ens or _objstate_rw:
                         # `b.<m>()`: the receiver record `b` becomes the abstract op's leading
                         # `(self: cls)` parameter; `writes` frames the mutated self-fields.
@@ -8580,6 +8604,37 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # ... : int`, mismatching downstream consumers when `<method>`
         # actually takes/returns array or map types.
         ret_type, param_types, result_ensures, field_spec = self._resolve_dotted_signature(func_name)
+        # (#49) ROUTE #568 — the resolution just made. A matched callee whose stub does NOT
+        # carry `_pyobj_state` is remembered, so that `_emit_function` can refuse the
+        # definition if it is emitted LATER with the cell in its frame (the order the
+        # `_pyobj_state_writers` test above cannot see). An UNRESOLVED receiver (`None`) is
+        # framed below, after the mutator refusals.
+        # The callee is re-derived exactly as `_resolve_dotted_signature` keys it (that
+        # method writes nothing, and stays so).
+        _k568 = None
+        _p568 = func_name.split(".")
+        if func_name.startswith("self."):
+            if self._current_self_type:
+                _k568 = f"{self._current_self_type}__{func_name[len('self.'):]}"
+                if _k568 not in self._module_method_return_types:
+                    _k568 = None
+        elif len(_p568) == 2:
+            _c568 = ((getattr(self, "_current_record_var_classes", {}) or {}).get(_p568[0])
+                     or (getattr(self, "_module_global_classes", {}) or {}).get(_p568[0]))
+            if _c568:
+                _k568 = f"{str(_c568).lower()}__{_p568[1]}"
+                if not (_k568 in self._module_method_return_types
+                        or _k568 in (getattr(self, "_module_method_result_ensures", {}) or {})
+                        or _k568 in (getattr(self, "_module_method_param_result_ensures", {})
+                                     or {})):
+                    _k568 = None
+        _u568 = False
+        if isinstance(getattr(self, "ir", None), dict):
+            if _k568 is not None and not (field_spec is not None and len(field_spec) > 6
+                                          and field_spec[6]):
+                self.ir.setdefault("__r568_cellless__", set()).add(whyml_ident(_k568))
+            _u568 = (_k568 is None and field_spec is None and "." in func_name
+                     and not func_name.startswith("self."))
         # (#49) ROUTE #119, INSTANCE-LEVEL SHADOWING, keyed on the PATH: a call `<recv>.m(...)`
         # resolves to the METHOD `m`, but if the receiver's record also carries a FIELD named
         # `m` then some store put an attribute `m` on the instance, and Python's lookup finds
@@ -8845,6 +8900,33 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         if not _bare_lit and not _as.lstrip("-").isdigit():
                             args[_bi] = f"(str_hash_op {args[_bi]})"
         coerced = self._coerce_dotted_args(args, param_types)
+        # run #5 lvJ (a2) A `str` ACTUAL INTO AN `Optional[str]` FORMAL. The formal lowers to
+        # its synthesized union `_union_<f>_<k> = Arm_k_0 string | Arm_k_None`; the actual
+        # (a string-source IR, `_is_string_expr`) lowered to a bare Why3 `string` and the
+        # call failed L3-tc (`string` vs the union). Python passes the str itself, which IS
+        # the union's string arm: `(Arm_k_0 <actual>)`, exact. Only for a union whose
+        # constructors are EXACTLY one `str`-payload arm and one nullary arm (the
+        # `Optional[str]` shape); any other formal / actual is untouched. Fires only where
+        # the emission was ill-typed before (fail-closed if the judgement were wrong: a
+        # non-string under `Arm_k_0` is an L3-tc error). INLINE (the twin is `\trusted`).
+        if arg_irs is not None:
+            for _ui in range(min(len(coerced), len(param_types), len(arg_irs))):
+                _upt = param_types[_ui]
+                if not (isinstance(_upt, str) and _upt.startswith("_union_")):
+                    continue
+                _ucs = ((getattr(self, "_variant_types", {}) or {}).get(_upt)
+                        or {}).get("constructors") or {}
+                _usome = [_cn for _cn, _cv in _ucs.items()
+                          if isinstance(_cv, dict) and _cv.get("arity") == 1
+                          and list(_cv.get("payload") or []) == ["str"]]
+                _unone = [_cn for _cn, _cv in _ucs.items()
+                          if isinstance(_cv, dict) and _cv.get("arity") == 0]
+                if (len(_ucs) == 2 and len(_usome) == 1 and len(_unone) == 1
+                        and isinstance(arg_irs[_ui], dict)
+                        and arg_irs[_ui].get("type") != "None"
+                        and self._is_string_expr(arg_irs[_ui])
+                        and not coerced[_ui].strip().startswith("(" + _usome[0] + " ")):
+                    coerced[_ui] = f"({_usome[0]} {coerced[_ui]})"
         # W8 capability (vi): a call to a SAME-CLASS sibling method whose declared return
         # type is a RECORD lowers to the CONCRETE sibling application
         # `(<class>__<m> self args)`, not to a receiver-less abstract `val self_<m>_0 () :
@@ -9334,6 +9416,108 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                                  + ", ".join(_w316) + " }")
             else:
                 writes_clause = "\n    writes { " + ", ".join(_w316) + " }"
+        # (#49) ROUTE #568 — A METHOD CALL ON AN UNRESOLVED RECEIVER MAY RUN A FILE METHOD
+        # THAT WRITES OBJECT STATE. A receiver whose class is not resolved to a method table
+        # (a parameter of a file class with no record, `Any`, a subclass inheriting the
+        # method) reaches this point with NO frame, and Why3 reads a `val` with no `writes` as
+        # PURE: two route #213 state-keyed `getattr` reads around `c.m(0)` were one term, and
+        # `\result == 1` PROVED where CPython (`m` storing `self.flag`) returns 2 (witnesses
+        # 9062-9064, 9066). The call dispatches by NAME, so when ANY file method of that name
+        # declares an effect (a non-`\nothing` `#@ assigns` — every method whose frame can
+        # carry the cell has one: `_emit_function` rejects a cell write under `\nothing`),
+        # the stub writes the coarse `_pyobj_state` cell — the same union-over-the-name rule
+        # route #316 applies to argument writes, and the over-approximation the setattr model
+        # already uses.
+        # SCOPED TO WHERE THE CELL IS OBSERVED: `_pyobj_state` is read ONLY by `getattr`
+        # (`_lower_getattr`'s UNKNOWN arms), so the effect is observable exactly in a
+        # function that reads `getattr` or is reachable through calls from one (its effect
+        # then reaches the reader through the callee's derived frame, `_pyobj_state_writers`).
+        # That set is the forward closure, over every call / function-name / attribute-name
+        # reference in the IR, from the functions that contain a `getattr`. Computed once per
+        # IR, kept in the IR dict.
+        # NOT COVERED (stated residual): a method of a class OUTSIDE the file (standard
+        # library, an imported module) reached through an unresolved receiver, e.g.
+        # `f.close()` before `getattr(f, "closed", 0)`. Framing EVERY unresolved call (1738
+        # corpus / 14 mirror files carry one), even scoped as below, moved four mirror
+        # emissions (`dict.get` / `str.count` / `ast.walk` / `IRScanner.*` stubs) and refused
+        # the `pycsl.py` mirror (route #310 then sees an effectful `os.close` operand).
+        # Placed AFTER the mutator refusals (#162 / #13 / #14), which key on "no
+        # `writes_clause`": a coarse cell frames no collection and must not admit them.
+        if _u568:
+            _t568 = func_name.rsplit(".", 1)[-1]
+            _u568 = any(
+                isinstance(_f568, dict) and str(_f568.get("name", "")).endswith("__" + _t568)
+                and any(isinstance(_a568, dict) and _a568.get("type") != "Nothing"
+                        for _a568 in (((_f568.get("contracts") or {}).get("assigns")) or []))
+                for _f568 in (self.ir.get("functions") or []))
+        if _u568:
+            _o568 = self.ir.get("__r568_obs__")
+            if _o568 is None:
+                _fns568 = [_f for _f in (self.ir.get("functions") or []) if isinstance(_f, dict)]
+                _sfx568: Dict[str, Set[str]] = {}
+                for _f568 in _fns568:
+                    _n568 = str(_f568.get("name", ""))
+                    _sfx568.setdefault(_n568, set()).add(_n568)
+                    _i568 = _n568.find("__")
+                    while _i568 >= 0:
+                        _sfx568.setdefault(_n568[_i568 + 2:], set()).add(_n568)
+                        _i568 = _n568.find("__", _i568 + 1)
+                _edg568: Dict[str, Set[str]] = {}
+                _rd568: Set[str] = set()
+                for _f568 in _fns568:
+                    _n568 = str(_f568.get("name", ""))
+                    _out568: Set[str] = set()
+                    _st568: List[Any] = [_f568]
+                    while _st568:
+                        _x568 = _st568.pop()
+                        if isinstance(_x568, dict):
+                            if _x568.get("type") == "Call" and isinstance(_x568.get("func"), str):
+                                if _x568["func"] == "getattr":
+                                    _rd568.add(_n568)
+                                _out568 |= _sfx568.get(_x568["func"].rsplit(".", 1)[-1], set())
+                            elif _x568.get("type") == "Var" and isinstance(_x568.get("name"), str):
+                                _out568 |= _sfx568.get(_x568["name"], set())
+                            elif _x568.get("type") in ("FieldGet", "Attribute"):
+                                # a property read runs its getter: an attribute name that is
+                                # also a method name is an edge too (over-approximation).
+                                for _k568 in ("field", "attr"):
+                                    if isinstance(_x568.get(_k568), str):
+                                        _out568 |= _sfx568.get(_x568[_k568], set())
+                            _st568.extend(_x568.values())
+                        elif isinstance(_x568, list):
+                            _st568.extend(_x568)
+                    _edg568[_n568] = _out568
+                # a `getattr` OUTSIDE every function (a module-global initialiser, a class
+                # body) is a reader no call edge leads from: every function observes.
+                _gst568: List[Any] = [_v for _k, _v in self.ir.items()
+                                      if _k != "functions" and not str(_k).startswith("__r")]
+                while _gst568:
+                    _x568 = _gst568.pop()
+                    if isinstance(_x568, dict):
+                        if _x568.get("type") == "Call" and _x568.get("func") == "getattr":
+                            _rd568 |= set(_edg568)
+                            break
+                        _gst568.extend(_x568.values())
+                    elif isinstance(_x568, list):
+                        _gst568.extend(_x568)
+                _o568 = set(_rd568)
+                _wk568 = list(_rd568)
+                while _wk568:
+                    for _g568 in _edg568.get(_wk568.pop(), set()):
+                        if _g568 not in _o568:
+                            _o568.add(_g568)
+                            _wk568.append(_g568)
+                _o568 = _o568 | {whyml_ident(_g568) for _g568 in _o568}
+                self.ir["__r568_obs__"] = _o568
+            _cef568 = getattr(self, "_current_emitting_func", None)
+            if (_cef568 in _o568) if _cef568 else bool(_o568):
+                self._obj_state_written = True
+                self._add_abstract_op("val _pyobj_state : ref int")
+                if writes_clause:
+                    writes_clause = (writes_clause.rstrip()[:-1].rstrip()
+                                     + ", _pyobj_state }")
+                else:
+                    writes_clause = "\n    writes { _pyobj_state }"
         # (#49) ROUTE #166 — ONE STUB NAME, TWO CALLEES. The stub name is built from the
         # call's SPELLING (`<receiver-name>_<method>_<arity>`), so `o.get()` on a `C` in one
         # function and `o.get()` on a `D` in another both register `o_get_0`, and
@@ -9343,7 +9527,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # different declaration under an already-registered name now gets its own name
         # (suffixed with a hash of the declaration), so every call site keeps ITS callee's
         # contract; a byte-identical re-registration is unchanged.
-        _decl166 = (f"val {arity_name} () : {ret_type}{ensures_suffix}"
+        _decl166 = (f"val {arity_name} () : {ret_type}{writes_clause}{ensures_suffix}"
                     if (n == 0 and not receiver_param) else None)
         if _decl166 is None:
             _params166 = " ".join(f"(x{i}: {ptype})" for i, ptype in enumerate(param_types))
@@ -9623,7 +9807,7 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                        for _hn176 in _hs176):
                     _pre176 += f"if (any bool) then raise {_sen176(_e176)}; "
         if n == 0 and not receiver_param:
-            self._add_abstract_op(f"val {arity_name} () : {ret_type}{ensures_suffix}")
+            self._add_abstract_op(f"val {arity_name} () : {ret_type}{writes_clause}{ensures_suffix}")
             _call = self._wrap_call_with_callee_raises_assert(
                 _r100n, f"({arity_name} ())", args)
             if _a167:
@@ -10180,30 +10364,57 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
         # signature so the opaque `predicate` decl has the RIGHT types (e.g.
         # `(array int) (string)` for `name_present(disk, name)`), not the
         # symbol-table-recovered `int` default (which mistypes `self.disk`).
-        imported_sigs = getattr(self, "_imported_inductive_sigs", {}) or {}
+        # run #5 lvJ [R]: `A or {}` as a typed local + an `if not` rebind (same value:
+        # A when truthy, else a fresh empty dict, only read below).
+        imported_sigs: Dict[str, str] = getattr(self, "_imported_inductive_sigs", {})
+        if not imported_sigs:
+            imported_sigs = {}
         if func_name in imported_sigs:
-            from module6_whyml.identifiers import whyml_ident as _wi
+            # run #5 lvJ [R]: the module-level `whyml_ident` (the same function object
+            # the dropped function-local import bound).
             sig_types = self._inductive_sig_whyml(imported_sigs[func_name])
-            name = _wi(func_name)
+            name = whyml_ident(func_name)
             if sig_types:
                 self._add_abstract_op(f"predicate {name} {sig_types}")
             else:
                 self._add_abstract_op(f"predicate {name}")
-            return f"({name} {' '.join(args)})" if args else name
-        symtab = getattr(self, "_current_symbol_table", {}) or {}
-        argtypes: List[str] = []
-        for a_ir in raw_args:
-            sym_t = None
+            # run #5 lvJ [R]: `' '.join(args)` as the equal loop (args: List[str]).
+            if args:
+                _aj = ""
+                for _ai in range(len(args)):
+                    if _ai > 0:
+                        _aj += " "
+                    _aj += args[_ai]
+                return f"({name} {_aj})"
+            return name
+        symtab = (getattr(self, "_current_symbol_table", {})
+                  if getattr(self, "_current_symbol_table", {}) else {})
+        # run #5 lvJ [R]: the per-argument type list is built straight into its
+        # `' '.join(f'({t})' ...)` rendering (one `(t)` per raw argument, in order); an
+        # index loop; `sym_t` starts at "" and a missing name reads "" (`_symtype_to_whyml`
+        # maps None and "" alike, to "int": every arm tests a non-empty tag).
+        _pj = ""
+        for i_raw in range(len(raw_args)):
+            a_ir = raw_args[i_raw]
+            sym_t = ""
             if isinstance(a_ir, dict) and a_ir.get("type") == "Var":
-                sym_t = symtab.get(a_ir.get("name"))
-            argtypes.append(self._symtype_to_whyml(sym_t))
+                sym_t = symtab.get(a_ir.get("name"), "")
+            if i_raw > 0:
+                _pj += " "
+            _pj += "(" + self._symtype_to_whyml(sym_t) + ")"
         name = whyml_ident(func_name)
-        if argtypes:
-            self._add_abstract_op(
-                f"predicate {name} {' '.join(f'({t})' for t in argtypes)}")
+        if len(raw_args) > 0:
+            self._add_abstract_op(f"predicate {name} {_pj}")
         else:
             self._add_abstract_op(f"predicate {name}")
-        return f"({name} {' '.join(args)})" if args else name
+        if args:
+            _aj2 = ""
+            for _ai2 in range(len(args)):
+                if _ai2 > 0:
+                    _aj2 += " "
+                _aj2 += args[_ai2]
+            return f"({name} {_aj2})"
+        return name
 
     @staticmethod
     def _is_null_byte_lit(ir: Dict[str, Any]) -> bool:
@@ -18908,6 +19119,338 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                          and obj_ir.get("type") == "Var"
                          and obj_ir.get("name")
                          in getattr(self, "_emit_ir_local_vars", set())))):
+            # (run #5) ROUTE #567 -- refuse the projector on a receiver an `isinstance` test
+            # in this body narrows to a class that is not an IR-schema node class (the set
+            # is built per body in `statements.py::_typed_local_vars`): its `.kind` is that
+            # class's own field, not the emit_ir constructor tag.
+            if attr in _EMIT_IR_STR_ATTRS:
+                _cef567 = getattr(self, "_current_emitting_func", None) or ""
+                _body567: Any = []
+                for _fn567 in (self.ir.get("functions", []) or []):
+                    if (isinstance(_fn567, dict) and _cef567
+                            and (_fn567.get("name") == _cef567
+                                 or whyml_ident(str(_fn567.get("name", ""))) == _cef567)):
+                        _body567 = [_fn567.get("body") or [], _fn567.get("contracts") or {}]
+                        break
+                # The narrowing table, computed here from the IR body of the function being
+                # emitted (`_current_emitting_func`, read-only: no new emitter field). The
+                # projectors are faithful only on a value of an IR
+                # node class; an `isinstance(x, C)` test whose class C is not an IR-schema node class
+                # (`ir_schema.IRNode`'s subclasses), or is a class THIS file defines (a user
+                # `DictView`, a user `VarExpr`), or is unnamed, says x may be something else, whose
+                # own field the projector does not read (witnesses-r567 w567: `dv.kind == "keys"`
+                # became `kind_of dv`, no arm of which is "keys", so a false `ensures \result == 0`
+                # was a theorem). Keyed on the tested ACCESS PATH (`node`, `node.collection`; a
+                # subscript coarsens the path to its base), flow-insensitive over the whole body,
+                # closed under plain assignment of the path or of a prefix of it (`dv = node`,
+                # `x = node.collection`): a projector read whose receiver path is a narrowed path or
+                # extends one is refused (PYCSL-R567-EMITIR-ATTR-ON-NONIR).
+                import ir_schema as _irs567
+                _irn567 = {_n for _n, _c in vars(_irs567).items()
+                           if isinstance(_c, type) and issubclass(_c, _irs567.IRNode)}
+                _own567 = getattr(self, "own_types_r567", None)
+                if _own567 is None:
+                    _own567 = {_c.get("name") for _c in (self.ir.get("classes", []) or [])
+                               if isinstance(_c, dict)}
+                # path -> the attribute names the narrowing class may carry (None: unknown, all).
+                # A projector read is misprojected only for an attribute the tested class has: an
+                # `ast.Constant` carries `value` / `kind` (its `kind` IS such a read), not `id`.
+                _nar567: Dict[str, Optional[Set[str]]] = {}
+                _asg567: List[Tuple[str, Any, bool]] = []
+                _stk567: List[Any] = [_body567]
+                _rt567 = getattr(self, "_record_types", {}) or {}
+                _td567 = {str(_t.get("name")): _t for _t in (self.ir.get("type_decls", []) or [])
+                          if isinstance(_t, dict)}
+                while _stk567:
+                    _x567 = _stk567.pop()
+                    if isinstance(_x567, list):
+                        _stk567.extend(_x567)
+                        continue
+                    if not isinstance(_x567, dict):
+                        continue
+                    _stk567.extend(_x567.values())
+                    if (_x567.get("type") == "Call" and _x567.get("func") == "isinstance"
+                            and len(_x567.get("args") or []) == 2):
+                        _cls567 = _x567["args"][1]
+                        _names567: List[Any] = [_cls567]
+                        if isinstance(_cls567, dict) and _cls567.get("type") in (
+                                "Tuple", "MkTuple", "ArrayLit", "SetLit"):
+                            _names567 = list(_cls567.get("elts") or [])
+                        _bad567 = not _names567
+                        _f567: Optional[Set[str]] = set()
+                        if _bad567:
+                            _f567 = None
+                        for _e567 in _names567:
+                            # An IR class: an IR-schema node class named bare and not declared by
+                            # this file, or a class the isinstance-on-emit_ir recognizers model by a
+                            # real constructor discriminant (`ast.<Node>` in `_AST_CLASS_TO_IR_KIND`,
+                            # a bare CSL class in `_CSL_CLASS_TO_IR_KIND`), whose fields the
+                            # projectors read faithfully. Anything else narrows the value away.
+                            _ok567 = False
+                            _fs567: Optional[Set[str]] = None
+                            if isinstance(_e567, dict) and _e567.get("type") == "Var":
+                                _cn567 = _e567.get("name")
+                                _ok567 = isinstance(_cn567, str) and (
+                                    (_cn567 in _irn567 and _cn567 not in _own567)
+                                    or _cn567 in (getattr(self, "_CSL_CLASS_TO_IR_KIND", None) or {}))
+                                if not _ok567 and isinstance(_cn567, str):
+                                    _ri567 = _rt567.get(_cn567) or _rt567.get(_cn567.lower())
+                                    if isinstance(_ri567, dict) and isinstance(
+                                            _ri567.get("field_types"), dict):
+                                        _fs567 = set(_ri567["field_types"])
+                                    elif isinstance(_td567.get(_cn567), dict) and isinstance(
+                                            _td567[_cn567].get("fields"), list):
+                                        _fs567 = {str(_fd.get("name")) for _fd in _td567[_cn567]["fields"]
+                                                  if isinstance(_fd, dict)}
+                            elif isinstance(_e567, dict) and _e567.get("type") == "Attribute":
+                                _ok567 = (_e567.get("attr")
+                                          in (getattr(self, "_AST_CLASS_TO_IR_KIND", None) or {}))
+                                _o567 = _e567.get("object")
+                                if (not _ok567 and isinstance(_o567, dict)
+                                        and _o567.get("type") == "Var" and _o567.get("name") == "ast"):
+                                    import ast as _ast567
+                                    _ac567 = getattr(_ast567, str(_e567.get("attr")), None)
+                                    if isinstance(_ac567, type):
+                                        _fs567 = (set(getattr(_ac567, "_fields", ()) or ())
+                                                  | set(getattr(_ac567, "_attributes", ()) or ()))
+                            if not _ok567:
+                                _bad567 = True
+                                if _fs567 is None or _f567 is None:
+                                    _f567 = None
+                                else:
+                                    _f567 |= _fs567
+                        if _bad567:
+                            _p567: List[str] = []
+                            _r567 = _x567["args"][0]
+                            # (route #574) `isinstance(dv := node, C)` narrows the walrus target
+                            # (its alias with `node` is recorded below, both directions)
+                            if isinstance(_r567, dict) and _r567.get("type") == "NamedExpr":
+                                _r567 = {"type": "Var", "name": _r567.get("target")}
+                            _sub567 = False
+                            while isinstance(_r567, dict) and _r567.get("type") in (
+                                    "Attribute", "FieldGet", "Subscript", "SliceAccess"):
+                                if _r567.get("type") in ("Attribute", "FieldGet"):
+                                    _p567.append(str(_r567.get("attr") or _r567.get("field")))
+                                else:
+                                    _p567 = []
+                                    _sub567 = True
+                                _r567 = _r567.get("object") or _r567.get("value")
+                            if isinstance(_r567, str) and _r567:
+                                _r567 = {"type": "Var", "name": _r567}
+                            if (isinstance(_r567, dict) and _r567.get("type") == "Var"
+                                    and isinstance(_r567.get("name"), str)):
+                                _k567 = ".".join([_r567["name"]] + _p567[::-1])
+                                if _sub567:
+                                    # a subscript coarsens the path to its base: the tested value
+                                    # is SOME element, whose own fields the key no longer tells
+                                    # apart, so every attribute under the key is refused
+                                    _f567 = None
+                                if _k567 in _nar567 and (_nar567[_k567] is None or _f567 is None):
+                                    _nar567[_k567] = None
+                                elif _k567 in _nar567:
+                                    _nar567[_k567] = (_nar567[_k567] or set()) | (_f567 or set())
+                                else:
+                                    _nar567[_k567] = _f567
+                    # (route #574) the ALIAS EDGES of the body, each `(target path, value, coarse)`:
+                    # a plain / annotated assignment, a field store `o.f = v` (target `o.f`), a
+                    # walrus, a tuple unpacking (pairwise against a tuple display, else every
+                    # target against the whole value, coarse), a `for` / comprehension target
+                    # against its iterable (coarse: the target is an ELEMENT). Coarse: the
+                    # target is a part of the value, not the value itself.
+                    _st567 = _x567.get("stmt")
+                    if _st567 in ("Assign", "AnnAssign"):
+                        _t567 = _x567.get("target")
+                        if isinstance(_t567, dict) and _t567.get("type") == "Var":
+                            _t567 = _t567.get("name")
+                        if isinstance(_t567, str):
+                            _asg567.append((_t567, _x567.get("value"), False))
+                    elif _st567 == "FieldAssign":
+                        if isinstance(_x567.get("object"), str) and _x567.get("field"):
+                            _asg567.append((str(_x567["object"]) + "." + str(_x567["field"]),
+                                            _x567.get("value"), False))
+                    elif _st567 == "TupleUnpack":
+                        _ts567 = [_q for _q in (_x567.get("targets") or []) if isinstance(_q, str)]
+                        _tv567 = _x567.get("value")
+                        if (isinstance(_tv567, dict) and _tv567.get("type") in ("Tuple", "MkTuple")
+                                and len(_tv567.get("elts") or []) == len(_x567.get("targets") or [])
+                                and len(_ts567) == len(_x567.get("targets") or [])):
+                            for _q567, _e567 in zip(_ts567, _tv567.get("elts") or []):
+                                _asg567.append((_q567, _e567, False))
+                        else:
+                            for _q567 in _ts567:
+                                _asg567.append((_q567, _tv567, True))
+                    elif _st567 == "For":
+                        for _q567 in ([_x567.get("target")] + list(_x567.get("tuple_targets") or [])):
+                            if isinstance(_q567, str):
+                                _asg567.append((_q567, _x567.get("iter"), True))
+                    elif _st567 in ("ArraySet", "ArraySliceSet"):
+                        # an item store `xs[i] = v` puts v INTO xs (coarse)
+                        _p567 = []
+                        _r567 = _x567.get("array")
+                        while isinstance(_r567, dict) and _r567.get("type") in (
+                                "Attribute", "FieldGet", "Subscript", "SliceAccess"):
+                            if _r567.get("type") in ("Attribute", "FieldGet"):
+                                _p567.append(str(_r567.get("attr") or _r567.get("field")))
+                            else:
+                                _p567 = []
+                            _r567 = _r567.get("object") or _r567.get("value")
+                        if isinstance(_r567, str) and _r567:
+                            _r567 = {"type": "Var", "name": _r567}
+                        if (isinstance(_r567, dict) and _r567.get("type") == "Var"
+                                and isinstance(_r567.get("name"), str)):
+                            _asg567.append((".".join([_r567["name"]] + _p567[::-1]),
+                                            _x567.get("value"), True))
+                    if (_x567.get("type") == "Call" and isinstance(_x567.get("func"), str)
+                            and "receiver" not in _x567
+                            and _x567["func"].rsplit(".", 1)[-1] in (
+                                "append", "extend", "insert", "add", "update", "setdefault",
+                                "appendleft", "extendleft")
+                            and "." in _x567["func"]):
+                        # a container mutator `xs.append(v)` puts v INTO xs (coarse)
+                        for _e567 in (_x567.get("args") or []):
+                            _asg567.append((_x567["func"].rsplit(".", 1)[0], _e567, True))
+                    if _x567.get("type") == "NamedExpr" and isinstance(_x567.get("target"), str):
+                        _asg567.append((_x567["target"], _x567.get("value"), False))
+                    if (_st567 is None and _x567.get("type") is None
+                            and isinstance(_x567.get("target"), str) and "iter" in _x567
+                            and "ifs" in _x567):
+                        _asg567.append((_x567["target"], _x567.get("iter"), True))
+                # (route #574) CLOSE the narrowing table under the alias edges in BOTH directions,
+                # flow-insensitively, to a fixpoint. The value of an edge is split into the paths it
+                # may evaluate to (both arms of `a if c else b`, both operands of `and` / `or`, a
+                # walrus's value and target, every element of a tuple / list / set / dict display,
+                # coarse). Forward (`t = v`, v narrowed or a prefix / extension of a narrowed path)
+                # narrows t; BACKWARD (t narrowed, or a prefix of a narrowed path) narrows v the same
+                # way, so `dv = node; isinstance(dv, C)` narrows `node`. A coarse edge narrows the
+                # other side with every attribute (an element's class is unknown). A path deeper
+                # than 4 fields is cut to its first 4, every attribute (finite, conservative).
+                _chg567 = bool(_nar567)
+                while _chg567:
+                    _chg567 = False
+                    _prop567: List[Tuple[str, Optional[Set[str]]]] = []
+                    for _t567, _v567, _co567 in _asg567:
+                        _alts567: List[Tuple[str, bool]] = []
+                        _vs567: List[Tuple[Any, bool]] = [(_v567, _co567)]
+                        while _vs567:
+                            _ve567, _vc567 = _vs567.pop()
+                            if not isinstance(_ve567, dict):
+                                continue
+                            _vt567 = _ve567.get("type")
+                            if _vt567 == "IfExpr":
+                                _vs567.append((_ve567.get("body"), _vc567))
+                                _vs567.append((_ve567.get("orelse"), _vc567))
+                            elif _vt567 == "BinOp" and _ve567.get("op") in ("and", "or"):
+                                _vs567.append((_ve567.get("left"), _vc567))
+                                _vs567.append((_ve567.get("right"), _vc567))
+                            elif _vt567 == "NamedExpr":
+                                _vs567.append((_ve567.get("value"), _vc567))
+                                if isinstance(_ve567.get("target"), str):
+                                    _alts567.append((_ve567["target"], _vc567))
+                            elif _vt567 in ("Tuple", "MkTuple", "ArrayLit", "SetLit"):
+                                for _e567 in (_ve567.get("elts") or []):
+                                    _vs567.append((_e567, True))
+                            elif _vt567 == "DictLit":
+                                for _e567 in (list(_ve567.get("keys") or [])
+                                              + list(_ve567.get("values") or [])):
+                                    _vs567.append((_e567, True))
+                            elif _vt567 == "Starred":
+                                _vs567.append((_ve567.get("value"), True))
+                            else:
+                                _p567 = []
+                                _r567 = _ve567
+                                _sub567 = False
+                                while isinstance(_r567, dict) and _r567.get("type") in (
+                                        "Attribute", "FieldGet", "Subscript", "SliceAccess"):
+                                    if _r567.get("type") in ("Attribute", "FieldGet"):
+                                        _p567.append(str(_r567.get("attr") or _r567.get("field")))
+                                    else:
+                                        _p567 = []
+                                        _sub567 = True
+                                    _r567 = _r567.get("object") or _r567.get("value")
+                                if isinstance(_r567, str) and _r567:
+                                    _r567 = {"type": "Var", "name": _r567}
+                                if (isinstance(_r567, dict) and _r567.get("type") == "Var"
+                                        and isinstance(_r567.get("name"), str)):
+                                    _alts567.append((".".join([_r567["name"]] + _p567[::-1]),
+                                                     _vc567 or _sub567))
+                        for _vk567, _vc567 in _alts567:
+                            for _n567, _nf567 in list(_nar567.items()):
+                                # forward: the value is, extends, or is a prefix of a narrowed path
+                                if _vk567 == _n567:
+                                    _prop567.append((_t567, None if _vc567 else _nf567))
+                                elif _vk567.startswith(_n567 + "."):
+                                    # the alias holds a FIELD value of the narrowed object: its class
+                                    # is unknown (all attributes) when that field is one the class
+                                    # may carry
+                                    _seg567 = _vk567[len(_n567) + 1:].split(".")[0]
+                                    if _nf567 is None or _seg567 in _nf567:
+                                        _prop567.append((_t567, None))
+                                elif _n567.startswith(_vk567 + "."):
+                                    _prop567.append((_t567 if _vc567 else _t567 + _n567[len(_vk567):],
+                                                     None if _vc567 else _nf567))
+                                # backward: the target is, or is a prefix of, a narrowed path
+                                if _t567 == _n567 or _n567.startswith(_t567 + "."):
+                                    _prop567.append((_vk567 if _vc567 else _vk567 + _n567[len(_t567):],
+                                                     None if _vc567 else _nf567))
+                                elif _t567.startswith(_n567 + "."):
+                                    # a field store into the narrowed object: the stored value is a
+                                    # field value of it (unknown class when the class may carry it)
+                                    _seg567 = _t567[len(_n567) + 1:].split(".")[0]
+                                    if _nf567 is None or _seg567 in _nf567:
+                                        _prop567.append((_vk567, None))
+                    for _new567, _nf567 in _prop567:
+                        if len(_new567.split(".")) > 5:
+                            _new567 = ".".join(_new567.split(".")[:5])
+                            _nf567 = None
+                        if _new567 not in _nar567:
+                            _nar567[_new567] = None if _nf567 is None else set(_nf567)
+                            _chg567 = True
+                        elif _nar567[_new567] is None:
+                            pass
+                        elif _nf567 is None:
+                            _nar567[_new567] = None
+                            _chg567 = True
+                        elif not _nf567 <= (_nar567[_new567] or set()):
+                            _nar567[_new567] = (_nar567[_new567] or set()) | _nf567
+                            _chg567 = True
+                _p567 = []
+                _r567 = obj_ir
+                while isinstance(_r567, dict) and _r567.get("type") in (
+                        "Attribute", "FieldGet", "Subscript", "SliceAccess"):
+                    if _r567.get("type") in ("Attribute", "FieldGet"):
+                        _p567.append(str(_r567.get("attr") or _r567.get("field")))
+                    else:
+                        _p567 = []
+                    _r567 = _r567.get("object") or _r567.get("value")
+                if isinstance(_r567, str) and _r567:
+                    _r567 = {"type": "Var", "name": _r567}
+                _k567 = (".".join([str(_r567.get("name"))] + _p567[::-1])
+                         if isinstance(_r567, dict) and _r567.get("type") == "Var" else None)
+                # refused when the receiver IS a narrowed path and the tested class may carry
+                # `attr`, or EXTENDS one through a field that class may carry (unknown class:
+                # every attribute)
+                _hit567 = False
+                for _n567, _nf567 in _nar567.items():
+                    if _k567 == _n567 and (_nf567 is None or attr in _nf567):
+                        _hit567 = True
+                    elif _k567 is not None and _k567.startswith(_n567 + ".") and (
+                            _nf567 is None
+                            or _k567[len(_n567) + 1:].split(".")[0] in _nf567):
+                        _hit567 = True
+                if _hit567:
+                    from errors import PyCSLSemanticError as _R567
+                    raise _R567(
+                        "PYCSL-R567-EMITIR-ATTR-ON-NONIR: `" + str(_k567)
+                        + "." + str(attr) + "` (in `"
+                        + str(getattr(self, "_current_emitting_func", None) or "?")
+                        + "`) reads a field of a value this function also "
+                        "tests with `isinstance` against a class that is not an IR node class "
+                        "(route #567). The value is typed as an IR node (`emit_ir`), whose `."
+                        + str(attr) + "` the model reads as the node's constructor tag / name, "
+                        "not the field of the tested class, so the read would be modelled "
+                        "wrongly. Annotate the value with the class it really has (a "
+                        "parameter or local of that record type), or test only IR node classes.",
+                        stage="module6-whyml", code="PYCSL-R567-EMITIR-ATTR-ON-NONIR")
             _os = self._expr_to_whyml(obj_ir, local_refs, invariant_ctx, subst)
             # self-tcb-reduction T1.a: `<emit_ir>.kind` is the DISCRIMINANT (`kind_of`, a string),
             # not a sub-node — so `inner.kind == "Subscript"` routes through `str_eq_op`.
@@ -19589,12 +20132,26 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                 "    ensures { result = (concat a b) }\n"
                 "    ensures { String.length result = String.length a + String.length b }")
 
-            acc = self._fstring_str_part(parts[0], local_refs, invariant_ctx, subst)
+            # lvD (str value-model seam, C1): an interpolated TERNARY whose BOTH arms are
+            # string-typed (`f"{'PASS' if ok else 'FAIL'}"`) is a Python `str` whatever the
+            # test, so it is the segment ITSELF -- `(if t then a else b)`, a Why3 `string`
+            # -- never `int_to_string (<string>)` (ill-typed: the only emission this replaces,
+            # so every f-string that type-checked before is byte-identical). Exact, no op.
+            # (Inlined: `_fstring_str_part`'s mirror twin is VERIFIED and stays untouched.)
+            _lvd_tern = [isinstance(_pp, dict) and _pp.get("type") == "IfExpr"
+                         and isinstance(_pp.get("body"), dict)
+                         and isinstance(_pp.get("orelse"), dict)
+                         and self._is_string_expr(_pp["body"])
+                         and self._is_string_expr(_pp["orelse"])
+                         for _pp in parts]
+            acc = (self._expr_to_whyml(parts[0], local_refs, invariant_ctx, subst)
+                   if _lvd_tern[0] else
+                   self._fstring_str_part(parts[0], local_refs, invariant_ctx, subst))
             # (#49) ROUTE #281 — every int segment is rendered in decimal: its bound is
             # asserted ahead of the FIRST segment, so the term keeps its head.
             _p281 = ""
-            for pp in parts:
-                if not (isinstance(pp, dict) and self._is_string_expr(pp)):
+            for _lvd_i, pp in enumerate(parts):
+                if not (isinstance(pp, dict) and self._is_string_expr(pp)) and not _lvd_tern[_lvd_i]:
                     _w281 = self._coerce_to_int(
                         self._expr_to_whyml(pp, local_refs, invariant_ctx, subst))
                     if not self._expr_is_pyval(pp):
@@ -19603,8 +20160,13 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                         _p281 = (_p281 + " " + _q281).strip() if _q281 else _p281
             if _p281:
                 acc = f"(begin {_p281} {acc} end)"
-            for pp in parts[1:]:
-                acc = f"(str_concat_op {acc} {self._fstring_str_part(pp, local_refs, invariant_ctx, subst)})"
+            for _lvd_i, pp in enumerate(parts):
+                if _lvd_i == 0:
+                    continue
+                _lvd_w = (self._expr_to_whyml(pp, local_refs, invariant_ctx, subst)
+                          if _lvd_tern[_lvd_i] else
+                          self._fstring_str_part(pp, local_refs, invariant_ctx, subst))
+                acc = f"(str_concat_op {acc} {_lvd_w})"
             return acc
         # THE INT-MODEL F-STRING JOINER. `_coerce_str_arg` folds a string LITERAL to its
         # `stable_hash` constant and hands everything else through RAW — so a part that is
@@ -19996,6 +20558,47 @@ class ExpressionEmissionMixin(GhostCollectionOpsMixin, GhostSpecOpsMixin):
                          or _d.get("name") in getattr(self, "_array_elem_types", {})))
         if _ms and _is_arr_var(_bd) and _is_arr_var(_od):
             return f"(if {test} then (Array.copy {body}) else (Array.copy {orelse}))"
+        # run #5 lvJ (a) EMPTY-DICT ARM TYPED BY ITS SIBLING: `m if c else {}` (or `{} if c
+        # else m`) where the other arm is DICT-typed (a `dict` param / local, a dict field
+        # `self.f` / `getattr(self, "f", ..)`). The `{}` arm lowered to `(const (None: option
+        # int))` and then `_coerce_to_int` made it the unconstrained `(any int)`, so the
+        # ternary failed L3-tc against the map arm. `{}` IS the everywhere-None map; emitted
+        # as the UN-annotated `(const None)` its key/value types are fixed by Why3's
+        # unification with the sibling map arm -- the same value, typed by its context (the
+        # route-#111 field-store precedent). No other arm is touched; an empty SET arm or a
+        # set-typed sibling is excluded (a `{}` beside a set is a dict, not a set). If the
+        # sibling is not a map after all, the ternary is an L3-tc error (fail-closed).
+        # Corpus-inert where it does not fire; where it fires the old emission did not
+        # type-check. INLINE: this twin is `\trusted` (rule 9/13).
+        _lvj_sib = None
+        if _b_empty and not _o_empty:
+            _lvj_sib = _od
+        elif _o_empty and not _b_empty:
+            _lvj_sib = _bd
+        _lvj_dict = False
+        if isinstance(_lvj_sib, dict):
+            _lvj_t = _lvj_sib.get("type")
+            if _lvj_t == "Var":
+                _lvj_n = _lvj_sib.get("name")
+                _lvj_dict = ((getattr(self, "_current_symbol_table", {}) or {}).get(_lvj_n) == "dict"
+                             or (_lvj_n in getattr(self, "_dict_locals", set())
+                                 and _lvj_n in (getattr(self, "_dict_value_types", {}) or {})))
+            elif _lvj_t in ("Attribute", "FieldGet"):
+                _lvj_dict = self._field_type_of(_lvj_sib) == "dict"
+            elif (_lvj_t == "Call" and _lvj_sib.get("func") == "getattr"
+                  and 2 <= len(_lvj_sib.get("args") or []) <= 3):
+                _lvj_a = _lvj_sib["args"]
+                _lvj_dict = (isinstance(_lvj_a[0], dict) and _lvj_a[0].get("type") == "Var"
+                             and _lvj_a[0].get("name") == "self"
+                             and isinstance(_lvj_a[1], dict)
+                             and _lvj_a[1].get("type") == "String"
+                             and self._self_field_py_type(_lvj_a[1].get("value")) == "dict")
+        if _lvj_dict:
+            if _b_empty:
+                body = "(const None)"
+            if _o_empty:
+                orelse = "(const None)"
+            return f"(if {test} then {body} else {orelse})"
         body = self._coerce_to_int(body)
         orelse = self._coerce_to_int(orelse)
         return f"(if {test} then {body} else {orelse})"

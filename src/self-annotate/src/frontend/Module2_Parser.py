@@ -997,18 +997,20 @@ class _ContractParser:
     def _try(self, fn):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
     def parse(self):
-        pass
+        node = self._parse_contract()
+        if not self.at_eof():
+            self._err("unexpected trailing input")
+        return node
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.i
-    def _parse_contract(self):
+    def _parse_contract(self) -> Any:
         pass
 
     #@ requires True
@@ -1788,12 +1790,18 @@ class _ContractParser:
     def _parse_atom_bs(self):
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
-    #@ ensures True
+    #@ ensures self.i >= \old(self.i)
     #@ assigns self.i
-    def _parse_expr_list(self):
-        pass
+    def _parse_expr_list(self) -> List["ExprIR"]:
+        exprs = [self._parse_expr()]
+        #@ loop invariant self.i >= \old(self.i)
+        #@ loop invariant 0 <= self.i and self.i < \length(self.toks)
+        #@ loop invariant self.toks[\length(self.toks) - 1].py_type == "EOF"
+        #@ loop variant \length(self.toks) - self.i
+        while self.accept_op(","):
+            exprs.append(self._parse_expr())
+        return exprs
 
 
 class Module2_Parser:

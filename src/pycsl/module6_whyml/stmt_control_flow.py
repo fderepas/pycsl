@@ -94,6 +94,24 @@ class ControlFlowStmtMixin:
             inner = loop_code
             if rest_code:
                 inner += ";\n" + rest_code
+            # cap-return-exn-nonint (run #5, lvF; lvA spike): in a function whose return
+            # type is NOT int, a `return` inside the loop raises its TYPED exception
+            # (`Return_str` / `Return_void` / `Return_seq` / `Return_<arity>` ..., see
+            # `_handle_return_stmt`), which the FUNCTION-level wrap catches (`_has_early_ret`
+            # is always set by an in-loop return). This inner catch of the int-payload
+            # `Return` could never type-check there (its payload is not the function's type,
+            # and the exception is undeclared in such a file), so it is omitted: the same
+            # `not self._has_early_ret` guard the `for` arm applies. An int function keeps
+            # its inner catch (byte-identical). A `while True:` with no `break` and nothing
+            # after it never completes normally (Python: the only exits are the in-loop
+            # returns / raises), so the block ends in `absurd` -- its own VC (the loop exit
+            # condition `not true` is false), never an assumption -- giving it the function's
+            # type.
+            _wrt = self._func_return_type
+            if self._has_early_ret and not _wrt.startswith("int"):
+                if not rest_code and not has_break and test.strip() == "true":
+                    inner += ";\n" + loop_indent + "absurd"
+                return f"{indent}begin\n{inner}\n{indent}end"
             return (f"{indent}try\n{inner}\n"
                     f"{indent}with Return r -> r end")
 

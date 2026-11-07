@@ -5688,6 +5688,234 @@ judged at both); a None argument is the value fences' (routes #230 / #521); a re
 (`any(x > 0 for x in p.q)`) is refused but did not prove at the base (Why3-ill-typed), so it carries no corpus
 witness.
 
+### 7.565 Every binding form rebinds a None / NaN local; a nested `def` named like an enclosing local is a lift collision; an optional carrier's ambiguity is sticky (route #565, run #5)
+
+A local bound to `None` (or NaN) carries DECIDED facts in Module 6's `_erased_truthy_locals` record: `t is None`
+lowers to `pycsl_none = pycsl_none` (True), `if t:` to `false`, two such reads compare equal, NaN's `t == t` to
+`false`. The record was written / cleared by the plain single-name `Assign` only, and route #46's ambiguity
+pre-scan read plain `Assign`s only, so a REBINDING by any other form kept the decided fact: `t = None; if x > 0:
+t, u = 1, 2; if t is None: return 0; return 1` PROVED `\result == 0` (CPython 1), as did a top-level tuple unpack,
+a swap, a single-element tuple target, the `is not None` spelling, truthiness, `t == u` of two rebound Nones, a
+`for` target, a walrus, an unpack in an `else` / `try` body. Siblings found by the same sweep: a NESTED `def t`
+(the lift drops the binding of `t` in the enclosing function) and an `Optional[...]` carrier bound `None` on the
+last-emitted branch of a join (the carrier gate POPPED route #46's `AMBIG` mark and the recorder re-recorded
+`None#empty`: `if t:` decided `false` after `if x > 0: t = 5 else: t = None`).
+
+RULE (Module 6 pre-scan `_reset_function_state`, `Module3_Weaver.process` lift marks, `_handle_assign_stmt`'s
+recorder; all three mirror twins `\trusted`, no new def, no new code, no axiom):
+- every `TupleUnpack` target, `for` target (name or tuple components), walrus target and `match` capture name is
+  an OTHER binding at nested depth: a name also bound to `None` / NaN is `AMBIG` / `AMBIG#nan` for the whole
+  function -- its read is the ordinary `!t`, `is None` / truthiness are undecided, a NaN comparison is refused
+  (route #46's message). A comprehension target is not a binding of the enclosing scope (it does not leak).
+- a nested `def` whose name is also bound by an enclosing function (parameter, assignment / loop / walrus target,
+  import, except name) is a lifted-name collision, refused by the existing lift refusal.
+- a carrier (`Optional` union, `IrONone`, `IrSNone`, `emit_ir`) marked `AMBIG` is re-marked `AMBIG#opt#empty`
+  instead of popped; the mark survives every later binding and no consumer decides on it.
+
+Witness family `getting-better/open-routes/witnesses-r565/q*.py` (43 probes, each breached by CPython) x default /
+typed / store at base b432460d6: 41 PROVED (15 probes; `q27` nested def and `q28` call-returned tuple in default
+only), the rest refused upstream (list / starred / nested targets route #301, a tuple `for` target read after the
+loop, walrus in a comprehension #180, except-as #233, with-as, nonlocal / global, import-as, nested class) or not
+proved; at HEAD 0 PROVED (q11 / q22 NaN now refused; q27 refused). Controls `witnesses-r565/controls/` (14):
+every control proving at base proves at HEAD; `k06` (a walrus-bound local read back) newly PROVES (the base read
+the stale `pycsl_none`). Corpus `8980`-`8991` FAIL (12, every one PROVED at base in all three models except `8990`
+default only; NOT PROVED / REFUSED at HEAD in all three), controls `8992`-`8999` PASS at base and HEAD.
+Byte-diff vs a worktree at b432460d6: root 2929 -> 2948 0 MOVED / 0 GONE / 0 APPEARED (+19 new u28 files; 8990 is
+refused), python-reference 2191 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (no declared movers; nothing owed). rt43 / rt44 149 honest controls: front-end verdicts identical
+base / HEAD (22 emitted, 0 of their .mlw moved; 127 refused as at the base).
+Residuals (named): `with ... as`, `except ... as`, `nonlocal` / `global`, list / starred / nested targets stay
+REFUSED upstream (not modelled, so not folded); a `str`-declared `for` target's always-present `is None` answer is
+route #51's domain; an `Optional` carrier rebound by a tuple unpack / walrus is ill-typed (fails closed, not
+modelled).
+
+### 7.568 A method call's caller-side stub writes `_pyobj_state` whenever the callee's verified frame does; an unresolved receiver's stub writes it when a file method of that name may, wherever attribute state is observed (route #568, run #5)
+
+A method call `<recv>.<m>(..)` is lowered through a caller-side stub (`val <recv>_<m>_<k>`) whose frame is built
+from the callee's DECLARED `#@ assigns` (`_resolve_dotted_signature`), filtered to the record's field labels,
+with the coarse `_pyobj_state` cell added only when the filter drops EVERY declared target (route #109). The
+callee's own `let` frame is DERIVED from its body: a store to an attribute the record does not carry (a
+`setattr_*`) adds `_pyobj_state`. Route #213's `getattr` on an unknown receiver is the state-keyed term
+`pycsl_getattr_*(!_pyobj_state, o)`, sound only if every object-state change writes the cell, so two reads
+around a stub that omits it were one term: `c.m(0); x = getattr(o, "flag", 0); c.m(5); y = getattr(o, "flag",
+0); if x or not y: return 1; return 2` PROVED `\result == 1` (CPython, `o is c`: 2) when `m` declared `assigns
+self.a` and also stored `self.flag`, when it HONESTLY declared `assigns self.a, self.flag` (the filter drops
+`flag`, not everything), and when the receiver was not resolved to a method table at all (a parameter of a file
+class without a record, `Any`, a subclass inheriting `m`): that stub had NO frame, the call was pure, and a
+caller declaring `assigns \nothing` even took route #213's unkeyed pure form.
+
+RULE (Module 6: `_resolve_dotted_signature`, `_handle_dotted_call`, `_emit_function`; all three mirror twins
+`\trusted`; no new def, no axiom):
+- RESOLVED callee (`self.<m>`, a record-typed local / parameter / module global): the stub carries
+  `_pyobj_state` when the callee's emitted definition does (`_pyobj_state_writers`, filled as each concrete
+  method's frame gains the cell). SCC ordering emits a callee before its callers; when a stub of a method was
+  minted WITHOUT the cell and the method's definition is emitted LATER with it (a recursion cycle), the
+  definition is refused: `PYCSL-R568-STUB-FRAME-ORDER`.
+- UNRESOLVED receiver (not `self`, no method table for the receiver's class): the stub writes `_pyobj_state`
+  when ANY file method named like the call declares a non-`\nothing` `#@ assigns` (every method whose frame can
+  carry the cell has one) AND the calling function OBSERVES attribute state: it contains a `getattr` (the only
+  reader of the cell) or is reachable through calls from one (the forward closure over call / function-name /
+  attribute-name references in the IR; a `getattr` outside every function makes every function observe).
+  Elsewhere the frameless stub is kept. The cell is placed after the route #13 / #14 / #162 mutator refusals,
+  which still refuse an erased collection mutation.
+- A zero-argument receiver-less stub now carries its `writes` clause (no base emission had one there).
+
+Witnesses `9060`-`9064`, `9066`, `9067` (expected FAIL): every one PROVED at the base under the default model
+(typed / store were already NOT PROVED by an unrelated `int_mem` L3-tc error); at HEAD NOT PROVED or refused in
+all three models (`9060` / `9061` / `9063` by Why3's frame check, `9067` by `PYCSL-R568-STUB-FRAME-ORDER`).
+Control `9068` (the false claim through `self.m(..)`, whose stub always carried the cell): NOT PROVED at base and
+HEAD. Controls `9070`-`9073` (expected PASS): PROVED at base and HEAD (default model). Residual, NOT covered (a
+probe in `getting-better/open-routes/witnesses-r568/residual/`, PROVED at base and HEAD): an unresolved receiver
+whose method lives OUTSIDE the file (standard library / imported class), e.g. `f.close()` between two reads of
+`getattr(f, "closed", 0)`; framing every unresolved call moved four mirror emissions and refused the `pycsl.py`
+mirror (route #310).
+
+### 7.566 An item store into an IR node value is refused; a tag / name projector is not applied to a value narrowed to another class (routes #566 / #567, run #5)
+
+Inside a `@mutable_state` class (an identity decorator any program may declare) the emitter models a value it types
+as an IR node -- a `-> "ExprIR"` result, a dict display carrying a `"type"` key, a parameter annotated `"ExprIR"` --
+as a term of the IMMUTABLE `emit_ir` sum. The independent vm-irnode review (getting-better/vm-irnode-wall-response.md
+§3) measured two lowerings that made a false claim provable:
+- #566: `d["k"] = v` on such a value lowered to `()` and RETURNED without lowering the rest of the block, so every
+  statement after the store vanished: `d = self.mk(an); d["act_name"] = an; self.need_empty(an)` PROVED although
+  `need_empty` requires `an == ""` (the control without the store reports the R167 precondition). Lowering the
+  continuation is not enough: the write itself is unmodelled, so a later read sees the OLD node --
+  `d = {"type": "Var", "name": ""}; if an == "x": d["name"] = an` then `self.need_empty(d.name)` PROVED
+  (witness s566_stale_lit, measured here).
+- #567: `.kind` / `.name` / `.op` / `.func` / `.var` / `.label` / `.base` / `.arr` / `.ctor` / `.id` / `.attr`
+  (`_EMIT_IR_STR_ATTRS`) on such a value lowered to the emit_ir projector (`kind_of`, `name_of`, ...) even when an
+  `isinstance` test narrowed it to a class that is not an IR node: `if isinstance(node, DictView): dv = node; if
+  dv.kind == "keys": return 1` read `kind_of dv`, no arm of which is `"keys"`, so `ensures \result == 0` was a
+  theorem of the model (CPython returns 1 for `DictView("d", "keys")`; the 110-arm proof is solver-bound, the
+  review's 3-arm spike proves it in 0.00 s).
+
+RULES (emitter, `statements.py::_handle_array_set_stmt` / `expressions.py::_handle_attribute_expr`, both mirror twins
+`\trusted`; inline, no new def, no new emitter field, no axiom, no new ADT arm):
+- `PYCSL-R566-EMITIR-ITEM-STORE`: an item store whose receiver the emitter types `emit_ir` in a `@mutable_state`
+  class. EVERYWHERE, the self-annotation mirror included: there is no file-path special case (a mirror exemption
+  added with the repair was rejected by the user, run #5 lvG2). The mirror's one verified store,
+  `stmt_control_flow.py::_handle_match_stmt`'s `c["pattern"] = new_pat`, is therefore refused and that mirror function
+  is `\trusted` (no rewrite types: a rebuilt case / pattern dict carries no `"type"` key, so it is not an emit_ir
+  value; the live emitter is unchanged).
+- `PYCSL-R567-EMITIR-ATTR-ON-NONIR`: a projector read whose receiver ACCESS PATH (`dv`, `node.collection`; a
+  subscript coarsens to its base) is, or extends through a field of, a path some `isinstance(path, C)` in the same
+  body tests against a class C that is not an IR class -- an IR class being an `ir_schema.IRNode` subclass named bare
+  and not declared by this file, or a class the isinstance-on-emit_ir recognizers model by a real discriminant
+  (`ast.<Node>` in `_AST_CLASS_TO_IR_KIND`, a bare CSL class in `_CSL_CLASS_TO_IR_KIND`) -- and C may carry the
+  attribute read (its record fields, an `ast` class's `_fields` / `_attributes`; an unknown class: every attribute).
+  Flow-insensitive over the IR body of the function being emitted (looked up read-only by `_current_emitting_func`;
+  a first placement that cached the table in a new emitter field tripped `check-assigns-underdeclaration`), closed
+  under plain assignment of the path or of a prefix of it. EVERYWHERE, the mirror included (no file-path special
+  case): the mirror functions whose `ast.<Node>` tests outside the recognizer map narrow a path they then read a
+  projector attribute on are `\trusted` -- `Module5_IREmitter.py` `_const_int_value`, `_collect_final_registry`,
+  `_collect_typevar_registry`, `_m5_get_type_name_legacy`, `_union_arm_tag` (run #5 lvG2; `_csl_in` was already).
+
+MEASUREMENTS: see the route docs (route566 / route567) for the witness tables, the corpus files, the byte-diff and the
+mirror sweep.
+Residuals (named): the six mirror re-trusts above (convertible once an emit_ir item store / a narrowing view is
+modelled; getting-better/driver-backlog.md "routes #566 / #567 mirror re-trusts"); the closure ran FORWARD only and
+missed an alias through a container (`xs = [d]`): both REPAIRED by route #574 (§7.574); `type(x) is C` /
+`x.__class__` tests are not narrowings for #567; the int-erased `typed` / `store` emission of these programs fails
+L3 (`unbound type symbol 'array'`) at the base, so the refusals there replace an L3 failure, not a proof.
+
+### 7.574 Route #567's narrowing is closed under aliasing in both directions (route #574, run #5)
+
+§7.566's `PYCSL-R567-EMITIR-ATTR-ON-NONIR` closed its narrowing table under `t = path` FORWARD only: `dv = node; if
+isinstance(dv, DictView): if node.kind == "keys": return 1` was not refused and `node.kind` lowered to `kind_of node`, the
+emit_ir constructor tag, so `ensures \result == 0` was again a theorem of the model (CPython returns 1 for
+`DictView("d", "keys")`; measured by executor lvG2, witnesses `getting-better/open-routes/witnesses-r574/`).
+
+RULE (emitter, `expressions.py::_handle_attribute_expr`, mirror twin `\trusted`; inline, no new def, no new emitter
+field, no axiom): the table is closed, flow-insensitively over the whole body and to a fixpoint, under the ALIAS EDGES
+of the function -- a plain / annotated assignment `t = v`, a field store `o.f = v` (target path `o.f`), a walrus `t :=
+v` (also inside the `isinstance` argument itself), a tuple unpacking (pairwise against a tuple display, otherwise every
+target against the whole value), a `for` / comprehension target against its iterable, an item store `xs[i] = v`, a
+container mutator `xs.append(v)` (`extend` / `insert` / `add` / `update` / `setdefault` / `appendleft` / `extendleft`) -- in BOTH directions: a value
+that is, extends or is a prefix of a narrowed path narrows the target (forward, as before), and a target that is, or is
+a prefix of, a narrowed path narrows the value (backward), so every local / parameter / `self` field in the tested
+name's alias class is narrowed (chains and siblings through the fixpoint; every binding of a re-bound name counts). A
+value is split into the paths it may evaluate to: both arms of `a if c else b`, both operands of `and` / `or`, a
+walrus's value and target, every element of a tuple / list / set / dict display. COARSE edges -- a display element,
+a subscript, an unpacking without a matching display, a loop / comprehension target, an item store, a container
+mutator -- relate a value to a PART of
+another, so they narrow with EVERY attribute (the element's class is unknown); an `isinstance` whose argument goes
+through a subscript likewise narrows its coarsened path with every attribute. A field store into a narrowed object
+narrows the stored value (every attribute) when the class may carry that field. A path deeper than four fields is cut
+to its first four, every attribute (finite, conservative). Not an alias edge (named residuals): a call's result
+(`dv = ident(node)`, interprocedural), a mutator on a computed receiver (`f().append(node)`), a `with ... as`,
+`type(x) is C`. MIRROR: one more VERIFIED mirror function is refused, `frontend/Module5_IREmitter.py`
+`_collect_type_params` (`b.value.id`, `b` a `for` target over `node.bases`, `node` narrowed to `ast.ClassDef`); it is
+re-`\trusted` in a separate commit (`\trusted` 406 -> 407), getting-better/driver-backlog.md "routes #566 / #567
+mirror re-trusts".
+
+MEASUREMENTS: see `getting-better/open-routes/route574-r567-backward-alias.md` (witnesses, corpus 9190-9199, byte-diff,
+mirror sweep).
+
+### 7.569 An object outside §7.556's table is not searched or iterated; an Enum member's `.name` is a str; a call-bound `Any` element is erased (routes #569 / #570 / #571 / #573, run #5)
+
+Red team 54 (on 841d5efba = int41; driver repro on int44 8358d5d31) measured four bypasses of this run's repairs, each
+PROVED `no_exception \all` in the default model while CPython raises TypeError (typed / store: Why3-ill-typed):
+(#569, 7) an object §7.556's resolver never established used as the haystack of `in` / the iterable of `for` --
+the literal `...` (Ellipsis), a file CLASS object `KI` (route #561 judged one only inside a comprehension),
+`__builtins__` (the resolver skipped `_`-names), and `os.sep`, a module str searched for an int needle
+(`contains_check k os_sep` is total over the opaque constant); (#570, 8) the same objects and a bound builtin
+METHOD of a value of known kind (`s.upper` of `s: str`, `{}.keys`) as the iterable of a generator / nested
+comprehension (`sum(1 for x in s.upper)`, `[y for x in xs for y in {}.keys]`); (#571, 8) an IntEnum member's
+`.value` (an int) as a haystack / iterable (`k in IE.A.value`), and its `.name` (a str, lowered to the record field
+`get_name`, an int) under `+ 1`, unary `-`, `< k` and as a haystack; (#573, 1) `t = g(k); return t[1] + 1` with
+`def g(k) -> Tuple[Any, ...]: return (1, None)` -- an honest return (`Any` admits None), but route #249 erased the
+elements of a PARAMETER / annotated local declared with an `Any` element only, never of a local bound from a call.
+
+RULE (no axiom, no new def in a mirrored body; `_run_pipeline` and `_reset_function_state` twins `\trusted`):
+- (#569 / #570, `_run_pipeline`, route #556's judge extended, `PYCSL-R556-BUILTIN-OBJECT-OPERAND`) the resolver
+  of §7.556 also resolves a literal constant to itself (`...`, a number, None), `__builtins__` (never bound by the
+  file) to the builtins module, and an attribute of a value whose §7.541 kinds are ONE builtin container / str kind
+  (`str` / `list` / `dict` / `set` / `tuple`) naming a method of that type to the method (`s.upper`, `{}.keys`,
+  `d.items`); every node of the body is walked, comprehensions included, so the generator / nested-comprehension
+  positions are judged by the same rule. A file class OBJECT named directly (route #561's metaclass-`type` test:
+  no foreign base, no `metaclass=`, no decorator but `@dataclass` in its lineage) is refused at every iterating /
+  haystack position, not only inside a comprehension. A module str object (resolved, not a literal) as the
+  haystack of `in` / `not in` is refused unless the needle's kinds are exactly `str`.
+- (#571, `_run_pipeline`) route #560's member test also takes a member's `.value` / `._value_` (an int at runtime):
+  `PYCSL-R560-INTENUM-MEMBER-OPERAND` at the same positions. New `PYCSL-R571-ENUM-MEMBER-NAME-KIND`: a read of
+  `.name` / `._name_` of an Enum member -- a member of a file IntEnum as route #560 resolves it (`IE.A`, a local
+  bound only to members, an `IE` parameter, ...) or `E.A` of any file class with an `Enum` / `IntEnum` / `Flag` /
+  `IntFlag` / `StrEnum` / `ReprEnum` base -- is refused unless it is a comparand of `==` / `!=` / `is` / `is not`
+  only (an uninterpreted int compared with a str decides nothing).
+- (#573, Module 6 `_reset_function_state`, route #249's prescan) a local bound (assignment / walrus) from a call
+  of a MODULE function whose Module 5 record `r526_return_none_depths` places `Any` / `object` below the top
+  (`any_from` >= 1, or an `elt_slots` slot) is a route-#249 container (`kv`; a dict return: `v`); when only fixed
+  tuple SLOTS are arbitrary (`slots[i][1]` set), a read of such a slot (a constant index naming one, any other
+  index) and an iteration of the local are erased; an unpack target in an arbitrary slot is erased; a direct read
+  `g(k)[i]` likewise. Route #252 then refuses the erased value's flow into the `-> int` return (or an `int`
+  parameter / field), and `_handle_binop` takes the laws off its operators.
+
+Witnesses `witnesses-r569/` (7), `witnesses-r570/` (8), `witnesses-r571/` (8), `witnesses-r573/` (1) x default /
+typed / store: 72/72 REFUSED (each model: 15 R556 -- #569 and #570 --, 4 R560, 4 R571, 1 route #252). Corpus
+`9150`-`9176` FAIL (27; REFUSED in all three models: 81/81): `9150`-`9169` and `9173` are 21 rt54 witnesses, every one
+PROVED at base 8358d5d31 in the default model (driver repro), and six NEW false proofs beyond rt54's family, each
+measured PROVED at base and REFUSED: `9170` (`m = IE.A; return m.name + 1`), `9171` (`n = IE.A.name; return n + 1`),
+`9172` (`E.A.name + 1` of a plain `Enum`), `9174` (`-> Tuple[Any, int]` returning `(None, 1)`, `t[0] + 1`), `9175`
+(`a, b = g(k); return b + 1`, variadic `Any`), `9176` (`-> Tuple[object, ...]`). Also measured (not landed): an
+`IntFlag` member's name, `sum(1 for x in d.items)` and `k in E.A.name` PROVED at base, REFUSED now. Controls
+`9177` (`for` / `in` over a list / str / tuple display, `"/" in os.sep`, `s in os.sep` of `s: str`, generators over
+`s.upper()` / `d.keys()` / nested comprehensions), `9178` (IntEnum `.value` in arithmetic / compared / in a searched
+display / bound; `.name == "A"`), `9179` (`-> Tuple[Any, int]` / `-> Tuple[int, Any]` read at the int slot) PASS at
+base and HEAD. Advice probes `witnesses-r571/advice` (a571_member: `IE.A + 1`; a571_eq: `IE.A.name == "A"`)
+VERIFY `no_exception \all` at base and HEAD (R556 / R560 / route #252 messages unchanged).
+Byte-diff vs a worktree at 8358d5d31: root 2989 -> 2992 0 MOVED / 0 GONE / 0 APPEARED (+3 controls; the 27 FAIL files
+are refused), python-reference 2185 0 / 0 / 0, mirror 53/53 0 / 0 / 0 (nothing owed); rt43 / rt44 149 controls: front-end verdicts
+identical base / HEAD. A first cut that resolved a method of ANY value of one builtin kind refused the mirror
+`frontend/Module5_IREmitter.py` (`expr: ast.Dict` is read as the dict kind by §7.541's annotation map, and
+`for k in expr.keys` iterates the node's FIELD): the #570 resolution was narrowed to literals / displays, parameters
+and annotated locals whose annotation head is a plain name or `typing.X`, and locals bound only to literals /
+displays. Fidelity (mirror sync, mirror check, doc coherency) rc 0; `\trusted` 404, no proof / axiom file touched.
+Residuals (named): an object reached through a call result, a field, a container element or a parameter of
+unknown kind (as §7.556); a bound method of a value of unknown / joined kind, of a field, a subscript or a call
+result; a module str searched with a needle of unknown kind is refused (fail-closed); an Enum member reached
+through a field / call; `.name` under `==` stays admitted (undecided, not false); route #573 follows MODULE
+functions only -- a METHOD returning an `Any`-element container (`self.m()`) and a call result stored into a
+container / field are not followed.
+
 ### 7.280 An imported module of the program must IMPORT without raising, on the program's own path (routes #466 / #472, run #3)
 
 Route #461 (§7.230) runs only the claimed file's own top level. Red team 38 measured PROVED `no_exception \all`

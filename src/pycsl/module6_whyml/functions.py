@@ -2946,6 +2946,37 @@ class FunctionEmissionMixin:
                 if not _amb_kinds and not _amb_vars:
                     _amb_kinds.add("OTHER")
                 _amb_asgs.append((_amb_n.get("target"), _amb_kinds, _amb_vars, _amb_d))
+            # (#49) ROUTE #565 — EVERY OTHER BINDING FORM IS A REBINDING. The LINEAR record
+            # (`statements.py`) is written and cleared ONLY by a plain single-name `Assign`,
+            # and this pre-scan collected ONLY plain `Assign`s, so a name bound to `None`
+            # (or NaN) and then rebound by ANY other form kept its decided record across the
+            # rebinding: `t = None; if x > 0: t, u = 1, 2; if t is None: return 0` folded the
+            # test to `pycsl_none = pycsl_none` and proved `\result == 0` (CPython 1). The
+            # same held for a `for` target (name or tuple), a walrus `(t := ...)` and a
+            # `match` capture, and for every DECIDED consumer of the record (`is None` /
+            # `is not None`, truthiness `false`, two `None` reads compared equal, NaN's `==`).
+            # Each such binding is recorded here as an OTHER binding, and as NESTED whatever
+            # its depth, because the linear record never sees it even at the top level; a
+            # name that is also bound to `None`/NaN therefore becomes AMBIGUOUS, whose
+            # value read is the ordinary `!t` and whose truthiness / NaN comparison are left
+            # undecided or refused, never decided. Comprehension targets are deliberately
+            # NOT collected: they do not leak into the function scope (PEP 572 walrus inside
+            # a comprehension does, and is refused upstream, route #180). The sixth form, a
+            # NESTED `def` rebinding the name, never reaches this IR (the lift drops it) and
+            # is refused in `Module3_Weaver` as a lifted-name collision.
+            _r565_nm = []
+            if _amb_n.get("stmt") == "TupleUnpack":
+                _r565_nm.extend(_amb_n.get("targets") or [])
+            elif _amb_n.get("stmt") == "For":
+                _r565_nm.append(_amb_n.get("target"))
+                _r565_nm.extend(_amb_n.get("tuple_targets") or [])
+            elif _amb_n.get("type") == "NamedExpr":
+                _r565_nm.append(_amb_n.get("target"))
+            elif _amb_n.get("pattern") == "Capture":
+                _r565_nm.append(_amb_n.get("name"))
+            for _r565_t in _r565_nm:
+                if isinstance(_r565_t, str) and _r565_t:
+                    _amb_asgs.append((_r565_t, {"OTHER"}, set(), _amb_d + 1))
             for _amb_v in _amb_n.values():
                 if isinstance(_amb_v, (list, dict)):
                     _amb_stack.append((_amb_v, _amb_d + 1))
@@ -3328,6 +3359,68 @@ class FunctionEmissionMixin:
                     _r249_erased.add(_r255_p)
         _r249_rts = getattr(self, "_record_types", {}) or {}
         _r249_st = func.get("symbol_table") or {}
+        # (u31, run #5) ROUTE #573 -- A CALL WHOSE RETURN ANNOTATION HOLDS `Any` BELOW THE TOP.
+        #   Route #249 erased the elements of a PARAMETER / annotated local declared `List[Any]` /
+        #   `Tuple[Any, ...]` / `Dict[str, Any]` / `Tuple[Any, int]`, but a local bound from a CALL
+        #   of a module function so declared kept int laws: `t = g(k); return t[1] + 1` (`g` ->
+        #   `Tuple[Any, ...]` returning `(1, None)`, an honest return: `Any` admits None) PROVED
+        #   `no_exception \all`, CPython TypeError (likewise `-> Tuple[Any, int]` and `t[0]`, an
+        #   unpack `a, b = g(k)`, `-> Tuple[object, ...]`). Module 5's per-function
+        #   `r526_return_none_depths` already locates the `Any`: `any_from` >= 1 (an element at
+        #   some depth is arbitrary), a fixed tuple's `slots` (slot i: `[admit, any_from]`), a
+        #   container's `elt_slots`. A local bound (plain assignment / walrus) from such a call
+        #   is a route-#249 container (`kv`; a dict return: `v`) -- or, when only fixed slots
+        #   are arbitrary, its reads of those slots (a constant index naming one, any other
+        #   index) are erased; an unpack target in an arbitrary slot is erased; a direct read
+        #   `g(k)[i]` likewise. The walk, route #252's refusal and `_handle_binop` read them.
+        _r573_rec: Dict[str, Any] = {}
+        for _r573_g in ((getattr(self, "ir", {}) or {}).get("functions") or []):
+            if not (isinstance(_r573_g, dict) and isinstance(_r573_g.get("name"), str)
+                    and _r573_g.get("kind") != "method"
+                    and isinstance(_r573_g.get("r526_return_none_depths"), dict)):
+                continue
+            _r573_d = _r573_g["r526_return_none_depths"]
+            _r573_sl = [_x for _x in (_r573_d.get("slots") or []) if isinstance(_x, list)]
+            _r573_whole = ((isinstance(_r573_d.get("any_from"), int)
+                            and _r573_d["any_from"] >= 1)
+                           or any(isinstance(_x, list) and len(_x) > 1 and _x[1] is not None
+                                  for _x in (_r573_d.get("elt_slots") or [])))
+            _r573_ix = {_i for _i, _x in enumerate(_r573_sl) if len(_x) > 1 and _x[1] is not None}
+            if _r573_whole or _r573_ix:
+                _r573_rec.setdefault(_r573_g["name"], (
+                    _r573_whole, _r573_ix, len(_r573_sl),
+                    "v" if _r573_g.get("return_annotation") in ("dict", "Dict") else "kv"))
+        _r573_slots: Dict[str, Any] = {}
+        if _r573_rec:
+            _r573_ws: List[Any] = [func.get("body") or []]
+            while _r573_ws:
+                _r573_n = _r573_ws.pop()
+                if isinstance(_r573_n, list):
+                    _r573_ws.extend(_r573_n)
+                    continue
+                if not isinstance(_r573_n, dict):
+                    continue
+                _r573_ws.extend(_r573_v for _r573_v in _r573_n.values()
+                                if isinstance(_r573_v, (list, dict)))
+                _r573_v = _r573_n.get("value")
+                if not ((_r573_n.get("stmt") is not None or _r573_n.get("type") == "NamedExpr")
+                        and isinstance(_r573_v, dict) and _r573_v.get("type") == "Call"
+                        and _r573_v.get("func") in _r573_rec):
+                    continue
+                _r573_w, _r573_i, _r573_l, _r573_tg = _r573_rec[_r573_v["func"]]
+                if _r573_n.get("stmt") == "TupleUnpack":
+                    for _r573_j, _r573_t in enumerate(_r573_n.get("targets") or []):
+                        if isinstance(_r573_t, str) and (_r573_w or _r573_j in _r573_i):
+                            _r249_erased.add(_r573_t)
+                    continue
+                _r573_t = _r573_n.get("target")
+                if not isinstance(_r573_t, str) or _r573_t in _r249_cont:
+                    continue
+                if _r573_w:
+                    _r249_cont[_r573_t] = _r573_tg
+                    _r573_slots.pop(_r573_t, None)
+                else:
+                    _r573_slots.setdefault(_r573_t, (set(), _r573_l))[0].update(_r573_i)
         # (#49) ROUTE #252 — AN ERASED VALUE FLOWING INTO A SLOT THE MODEL READS AS A BUILTIN.
         #   Routes #249/#251 took the laws off `==`/`in`/arithmetic/ordering on an erased
         #   (`Any`/`object`/unannotated/TypeVar/`__eq__`-class) value, but only where the
@@ -3463,6 +3556,11 @@ class FunctionEmissionMixin:
                         _r249_erased.add(_r249_t)
                         _r249_changed = True
                     continue
+                if (_r249_it and isinstance(_r249_rhs, dict) and _r249_rhs.get("type") == "Var"
+                        and _r249_rhs.get("name") in _r573_slots):
+                    _r249_erased.add(_r249_t)
+                    _r249_changed = True
+                    continue
                 _r249_hit = False
                 _r249_es: List[Any] = [_r249_rhs]
                 while _r249_es and not _r249_hit:
@@ -3505,6 +3603,23 @@ class FunctionEmissionMixin:
                         if (isinstance(_r249_b, dict) and _r249_b.get("type") == "Var"
                                 and "v" in _r249_cont.get(_r249_b.get("name"), "")):
                             _r249_hit = True
+                        # route #573: a read of an arbitrary slot of a call-bound tuple
+                        _r573_q = None
+                        if isinstance(_r249_b, dict) and _r249_b.get("type") == "Var":
+                            _r573_q = _r573_slots.get(_r249_b.get("name"))
+                        elif (isinstance(_r249_b, dict) and _r249_b.get("type") == "Call"
+                              and _r249_b.get("func") in _r573_rec):
+                            _r573_q = ((None, None) if _r573_rec[_r249_b["func"]][0] else
+                                       _r573_rec[_r249_b["func"]][1:3])
+                        if _r573_q is not None:
+                            _r573_x = _r249_e.get("index")
+                            _r573_c = (_r573_x.get("value") if isinstance(_r573_x, dict)
+                                       and _r573_x.get("type") == "Number"
+                                       and type(_r573_x.get("value")) is int else None)
+                            if (_r573_q[0] is None or _r573_c is None
+                                    or (_r573_c + _r573_q[1] if _r573_c < 0 else _r573_c)
+                                    in _r573_q[0]):
+                                _r249_hit = True
                         _r249_es.append(_r249_b)
                     elif _r249_et == "BinOp" and _r249_e.get("op") in (
                             "+", "-", "*", "/", "div", "//", "%", "**", "<<", ">>", "&",
@@ -6630,9 +6745,15 @@ class FunctionEmissionMixin:
         # carries the same `ret == "unit" and trusted` disjunct for the same reason.
         # `ir_resolve` sets `return_value_type` to the literal `emit_ir` only for that
         # annotation, so this is inert everywhere else.
+        # (run #5, vm-irnode S1) ... and for a method of a `@mutable_state` class (the emitter
+        # model's node-list returns, `List["ExprIR"]`): the body's seq accumulator crosses to
+        # the declared `array emit_ir` through the existing record-element bridge
+        # `materialize_emit_ir`. Gated on the `emit_ir` element -> int lists untouched.
         if (ann == "list" and func.get("return_value_type") == "emit_ir"
                 and return_type in ("int", "unit")
-                and self._uses_pyast_parser()):
+                and (self._uses_pyast_parser()
+                     or getattr(self, "_current_self_type", None)
+                     in getattr(self, "_mutable_state_classes", set()))):
             return "array emit_ir"
         if ann in ("list", "bytes", "bytearray") and return_type == "int":
             # 0442.md B2 (no-more-int): bytes/bytearray are the byte-buffer array class.
@@ -10903,6 +11024,15 @@ class FunctionEmissionMixin:
                     and all(_x == _y or (_x == "array int" and _y == "array string")
                             for _x, _y in zip(_tss_a, _tss_b))):
                 return_type = _tss
+        # cap-trusted-val-unit-return (run #5, lvF), DECLARATION half: a `\trusted` stub
+        # whose `pass` body gave `unit` announces the type `transpile` recorded for its call
+        # sites from the DECLARED annotation (see the CALL-SITE half there), so its `val` and
+        # every caller agree. The value stays unconstrained (no ensures added).
+        if (func.get("trusted") and return_type == "unit"
+                and isinstance(_tss, str) and _tss != "unit"
+                and func.get("return_annotation") not in (None, "None", "tuple")
+                and not func.get("lemma") and not func.get("is_noreturn")):
+            return_type = _tss
         # self-tcb-reduction FunctionEmissionMixin WRITER class (`_build_param_list`): its
         # `Tuple[Set[str], str]` return is the `(seq string, string)` pair — the
         # `seq string` ref-params (the set modelled as a sequence, matching the body's
@@ -11606,6 +11736,23 @@ class FunctionEmissionMixin:
             else:
                 lines.insert(_objstate_eq_idx, "    writes { }")
             if _named:
+                # (#49) ROUTE #568 — a caller-side stub for THIS method was already minted
+                # WITHOUT the cell (a caller emitted before its callee: the SCC order did not
+                # put this definition first). Those call sites assumed object state
+                # unchanged across a call whose verified frame writes it; refuse rather
+                # than leave them standing.
+                if name in ((self.ir.get("__r568_cellless__") or set())
+                            if isinstance(getattr(self, "ir", None), dict) else set()):
+                    from errors import PyCSLSemanticError
+                    raise PyCSLSemanticError(
+                        f"the method `{func['name']}` writes object state (`_pyobj_state`: an "
+                        f"attribute its class does not carry as a record field, or a callee "
+                        f"that does), but a caller-side stub of it was minted EARLIER, before "
+                        f"its definition, with a frame that omits that write, so its caller "
+                        f"would assume every attribute unchanged across the invocation "
+                        f"(route #568: a recursion cycle through the method, or a caller the "
+                        f"SCC order emitted first).",
+                        stage="module6-whyml", code="PYCSL-R568-STUB-FRAME-ORDER")
                 if not hasattr(self, "_pyobj_state_writers"):
                     self._pyobj_state_writers = set()
                 self._pyobj_state_writers.add(name)

@@ -1,0 +1,45 @@
+# route #568 witnesses x memory model: base = worktree at 693e20184 (run5-int40), HEAD = run5-u30 (428dda5cf).
+# corpus file | model | base | HEAD
+9060_u30_r568_w01_hidden_attr_store	hoare	base: Verification SUCCESS	HEAD: Verification FAILED
+9060_u30_r568_w01_hidden_attr_store	store	base: Verification FAILED	HEAD: Verification FAILED
+9060_u30_r568_w01_hidden_attr_store	typed	base: Verification FAILED	HEAD: Verification FAILED
+9061_u30_r568_w02_honest_partial_assigns	hoare	base: Verification SUCCESS	HEAD: Verification FAILED
+9061_u30_r568_w02_honest_partial_assigns	store	base: Verification FAILED	HEAD: Verification FAILED
+9061_u30_r568_w02_honest_partial_assigns	typed	base: Verification FAILED	HEAD: Verification FAILED
+9062_u30_r568_w03_norecord_param_receiver	hoare	base: Verification SUCCESS	HEAD: Verification FAILED
+9062_u30_r568_w03_norecord_param_receiver	store	base: Verification FAILED	HEAD: Verification FAILED
+9062_u30_r568_w03_norecord_param_receiver	typed	base: Verification FAILED	HEAD: Verification FAILED
+9063_u30_r568_w04_any_receiver_pure_caller	hoare	base: Verification SUCCESS	HEAD: Verification FAILED
+9063_u30_r568_w04_any_receiver_pure_caller	store	base: Verification FAILED	HEAD: Verification FAILED
+9063_u30_r568_w04_any_receiver_pure_caller	typed	base: Verification FAILED	HEAD: Verification FAILED
+9064_u30_r568_w05_transitive_helper	hoare	base: Verification SUCCESS	HEAD: Verification FAILED
+9064_u30_r568_w05_transitive_helper	store	base: Verification FAILED	HEAD: Verification FAILED
+9064_u30_r568_w05_transitive_helper	typed	base: Verification FAILED	HEAD: Verification FAILED
+9066_u30_r568_w07_inherited_method	hoare	base: Verification SUCCESS	HEAD: Verification FAILED
+9066_u30_r568_w07_inherited_method	store	base: Verification FAILED	HEAD: Verification FAILED
+9066_u30_r568_w07_inherited_method	typed	base: Verification FAILED	HEAD: Verification FAILED
+9067_u30_r568_w08_call_cycle	hoare	base: Verification SUCCESS	HEAD: REFUSED PYCSL-R568-STUB-FRAME-ORDER
+9067_u30_r568_w08_call_cycle	store	base: Verification FAILED	HEAD: REFUSED PYCSL-R568-STUB-FRAME-ORDER
+9067_u30_r568_w08_call_cycle	typed	base: Verification FAILED	HEAD: REFUSED PYCSL-R568-STUB-FRAME-ORDER
+9068_u30_r568_c01_self_call_control	hoare	base: Verification FAILED	HEAD: Verification FAILED
+9068_u30_r568_c01_self_call_control	store	base: Verification FAILED	HEAD: Verification FAILED
+9068_u30_r568_c01_self_call_control	typed	base: Verification FAILED	HEAD: Verification FAILED
+9070_u30_r568_k01_observing_pure_caller	hoare	base: Verification SUCCESS	HEAD: Verification SUCCESS
+9070_u30_r568_k01_observing_pure_caller	store	base: Verification FAILED	HEAD: Verification FAILED
+9070_u30_r568_k01_observing_pure_caller	typed	base: Verification FAILED	HEAD: Verification FAILED
+9071_u30_r568_k02_honest_record_field	hoare	base: Verification SUCCESS	HEAD: Verification SUCCESS
+9071_u30_r568_k02_honest_record_field	store	base: Verification FAILED	HEAD: Verification FAILED
+9071_u30_r568_k02_honest_record_field	typed	base: Verification FAILED	HEAD: Verification FAILED
+9072_u30_r568_k03_unobserved_opaque_call	hoare	base: Verification SUCCESS	HEAD: Verification SUCCESS
+9072_u30_r568_k03_unobserved_opaque_call	store	base: Verification FAILED	HEAD: Verification FAILED
+9072_u30_r568_k03_unobserved_opaque_call	typed	base: Verification FAILED	HEAD: Verification FAILED
+9073_u30_r568_k04_true_claim_across_call	hoare	base: Verification SUCCESS	HEAD: Verification SUCCESS
+9073_u30_r568_k04_true_claim_across_call	store	base: Verification FAILED	HEAD: Verification FAILED
+9073_u30_r568_k04_true_claim_across_call	typed	base: Verification FAILED	HEAD: Verification FAILED
+# residual probe (NOT covered; getting-better/open-routes/witnesses-r568/residual/):
+base: r568_stdlib_receiver_close hoare rc=0 Verification SUCCESS
+base: r568_stdlib_receiver_close typed rc=1 Verification FAILED
+base: r568_stdlib_receiver_close store rc=1 Verification FAILED
+HEAD: r568_stdlib_receiver_close hoare rc=0 Verification SUCCESS
+HEAD: r568_stdlib_receiver_close typed rc=1 Verification FAILED
+HEAD: r568_stdlib_receiver_close store rc=1 Verification FAILED

@@ -446,7 +446,7 @@ class _Tok:
         self.end = t.end
 
     def __repr__(self):
-        return f"Tok({_tokenize.tok_name[self.type]}, {self.string!r}, {self.start})"
+        return f"Tok({_tokenize.tok_name[self.type]}, {self.string!r}, ({self.start[0]}, {self.start[1]}))"
 
 
 def _lex(source):

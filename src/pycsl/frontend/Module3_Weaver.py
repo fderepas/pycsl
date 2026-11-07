@@ -349,17 +349,18 @@ class PyCSLWeaver(ast.NodeVisitor):
         # trusted function (measured: 0 of the 4 files that use them).
         if (getattr(node, "csl_trusted", False)
                 or getattr(node, "csl_abstract", False)):
-            for _cm in getattr(node, "csl_acts", []) or []:
-                _kind = type(_cm).__name__
-                if _kind in ("Complete", "Disjoint"):
-                    raise PyCSLSemanticError(
-                        f"Function '{node.name}' (line {node.lineno}): "
-                        f"`#@ {_kind.lower()}` is discharged as a function-ENTRY assert "
-                        f"over the act guards, and this function is `#@ \\trusted` / "
-                        f"`#@ \\abstract`, so its body is never lowered and that assert "
-                        f"is never proved. The claim would hold by nothing at all. Drop "
-                        f"the `{_kind.lower()}` line, or give the function a verified "
-                        f"body.")
+            if getattr(node, "csl_acts", []):
+                for _cm in getattr(node, "csl_acts", []):
+                    _kind = type(_cm).__name__
+                    if _kind in ("Complete", "Disjoint"):
+                        raise PyCSLSemanticError(
+                            f"Function '{node.name}' (line {node.lineno}): "
+                            f"`#@ {_kind.lower()}` is discharged as a function-ENTRY assert "
+                            f"over the act guards, and this function is `#@ \\trusted` / "
+                            f"`#@ \\abstract`, so its body is never lowered and that assert "
+                            f"is never proved. The claim would hold by nothing at all. Drop "
+                            f"the `{_kind.lower()}` line, or give the function a verified "
+                            f"body.")
         if node.csl_trusted:
             for ens in node.csl_ensures:
                 if (isinstance(ens.expr, BinOp) and ens.expr.op == '=='
@@ -4277,6 +4278,15 @@ class Module3_Weaver:
             _lf_caps = sorted((_lf_loads - _lf_own) & (_lf_encl - _lf_encl_defs))
             if _lf_caps:
                 _lf_n.csl_closure_captures = _lf_caps
+            # (#49) ROUTE #565 — A NESTED `def` IS A BINDING OF ITS NAME IN THE ENCLOSING
+            # FUNCTION, and the lift DROPS that binding: the enclosing body keeps reading its
+            # own local of the same name. Measured: `t = None; def t(): ...; if t is None:
+            # return 0` kept `t`'s `None` record, folded the test to `pycsl_none =
+            # pycsl_none` and proved `\result == 0` (CPython: `t` is the function, 1). A
+            # nested def whose name is ALSO bound by an enclosing function (parameter,
+            # assignment / loop / walrus target, import, except name) is a collision.
+            if _lf_n.name in _lf_encl:
+                _lf_n.csl_lifted_collision = True
         PyCSLWeaver(contracts_map).visit(python_ast)
         python_ast.csl_happy_properties = happy_props
         self._consolidate_module_concurrency(python_ast, contracts_map)

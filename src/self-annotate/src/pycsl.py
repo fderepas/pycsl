@@ -47,7 +47,6 @@ def _proof_reference_mlw_name(source_file: str) -> str:
     return os.path.splitext(os.path.basename(source_file))[0] + ".mlw"
 
 
-#@ \trusted reviewer: pycsl-self-annotate
 #@ requires True
 #@ ensures True
 #@ assigns \nothing

@@ -1,11 +1,12 @@
 # getattr fall-through sites, per file: file	ABSENT	UNKNOWN
 # Written by bin/check-getattr-erasure.py --emit-baseline (mirror + corpus).
 # DECLARED is never recorded here: it is a hard zero, not a baseline.
+src/self-annotate/src/frontend/Module3_Weaver.py	0	5
 src/self-annotate/src/frontend/desugar.py	0	4
 src/self-annotate/src/frontend/exec_splice.py	0	4
 src/self-annotate/src/module6_whyml/expressions.py	5	0
-src/self-annotate/src/module6_whyml/functions.py	0	13
-src/self-annotate/src/module6_whyml/statements.py	1	0
+src/self-annotate/src/module6_whyml/functions.py	0	15
+src/self-annotate/src/module6_whyml/statements.py	13	0
 src/self-annotate/src/module6_whyml/stmt_control_flow.py	2	0
 test-suite/corpus/pycsl-reference/1070_route47_getattr_default_dict.py	0	1
 test-suite/corpus/pycsl-reference/1071_route47_getattr_default_list.py	0	1
@@ -30,3 +31,13 @@ test-suite/corpus/pycsl-reference/5465_gen37_gd_ctl_mangled_other_name_absent.py
 test-suite/corpus/pycsl-reference/5681_gen37_r396_ctl_gd_absent_in_subclass_closure.py	1	0
 test-suite/corpus/pycsl-reference/6023_gen37_r406_ctl_call_sets_attr.py	1	0
 test-suite/corpus/pycsl-reference/6337_r428_ctl_stdlib_function_on_self.py	1	0
+test-suite/corpus/pycsl-reference/9060_u30_r568_w01_hidden_attr_store.py	0	2
+test-suite/corpus/pycsl-reference/9061_u30_r568_w02_honest_partial_assigns.py	0	2
+test-suite/corpus/pycsl-reference/9062_u30_r568_w03_norecord_param_receiver.py	0	2
+test-suite/corpus/pycsl-reference/9063_u30_r568_w04_any_receiver_pure_caller.py	0	2
+test-suite/corpus/pycsl-reference/9064_u30_r568_w05_transitive_helper.py	0	2
+test-suite/corpus/pycsl-reference/9066_u30_r568_w07_inherited_method.py	0	2
+test-suite/corpus/pycsl-reference/9067_u30_r568_w08_call_cycle.py	0	2
+test-suite/corpus/pycsl-reference/9068_u30_r568_c01_self_call_control.py	0	2
+test-suite/corpus/pycsl-reference/9070_u30_r568_k01_observing_pure_caller.py	0	1
+test-suite/corpus/pycsl-reference/9073_u30_r568_k04_true_claim_across_call.py	0	2

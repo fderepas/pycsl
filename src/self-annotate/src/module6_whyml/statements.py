@@ -184,6 +184,24 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     _for_items_hval_map: Optional[str] = None
     _for_iter_materialize: Optional[Tuple[str, str]] = None
     _str_slice_loop_len: Optional[str] = None
+    # run #5 lvD2 — lesson (f5): lvD C2 made `_emit_body_code` WRITE `_lvd_int_predecl` (live
+    # statements.py: a set comprehension over the pre-declared local NAMES, saved / restored
+    # around the body walk; read by `_handle_assign_stmt`) and its `\trusted` `#@ assigns`
+    # NAMES it, but undeclared the name was dropped from the emitted `writes` of the two
+    # files that emit that stub (statements.mlw + the Module6_WhyMLTranspiler aggregate):
+    # survival TRAP 2 of the 1399 -> 1402 rise (the third is lvD's `visit_MatchStar`
+    # conversion, whose `\trusted` val had no `writes` and whose `let` now has an empty
+    # one -- the population-gated rider (ii) of (f5)+(g5); `_Unparser`'s record is empty).
+    # Declared with its LIVE type so the declared frame EMITS (a write on the exceptional
+    # exit, where the save/restore does not run). `_term_local_vars` is paid with it: live
+    # `self._term_local_vars: Set[str] = set()`, written only by `_emit_body_code`, read by
+    # NO mirror body -- so both declarations move only the record, the `writes` clauses that
+    # name them, and a trivial `ensures { self.f = old self.f }` on each converted `let`.
+    # (f5)+(g5) enumeration: the clauses that transitively write `_term_local_vars`
+    # (`transpile`, `_transpile_modular`, `_emit_function`) now also name `_lvd_int_predecl`,
+    # which they reach through `_emit_body_code` -- mentionable in the aggregate record.
+    _lvd_int_predecl: Set[str] = None
+    _term_local_vars: Set[str] = None
     """Statement-emission dispatch: every `_handle_*_stmt` handler plus the
     statement-stream orchestrator (`_stmts_to_whyml`), body-wrapping helpers
     (`_emit_body_code`, `_wrap_body_with_return_catch`), first-assignment
@@ -270,6 +288,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         return
 
     # resync-campaign.md R0.3: sibling stubs the re-ported handlers call.
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)), lvI: CONVERTED and PROVED, and the newly converted
+    # `_handle_augassign_stmt` calls `self._call_returns_string_collection(...)`, which went through the receiver-less abstract
+    # `val self___call_returns_string_collection_<n>` (UNCONSTRAINED) -- check-shadowed-selfcalls 14 -> 16. Same opt-in as the
+    # repairs above: a same-file VERIFIED method, callee-before-caller ordering from
+    # `scc.find_self_method_calls`; corpus byte-inert by construction.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
@@ -288,7 +312,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return False
         return ret in ("array string", "seq string")
 
-    #@ \trusted reviewer: pycsl-self-annotate
+    #@ declared_in module6_whyml/expressions.py::ExpressionEmissionMixin._resolve_dotted_signature
     #@ ensures True
     def _resolve_dotted_signature(self, func_name: str) -> Tuple[str, List[str], int, int]:
         return ("", [], 0, 0)
@@ -946,6 +970,12 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             return expr
         return self._seq_operand(val_ir, local_refs)
 
+    # SHADOWED-SELFCALL REPAIR (lesson (ay)), lvI: CONVERTED and PROVED, and the newly converted
+    # `_handle_augassign_stmt` calls `self._seq_operand(...)`, which went through the receiver-less abstract
+    # `val self___seq_operand_<n>` (UNCONSTRAINED) -- check-shadowed-selfcalls 14 -> 16. Same opt-in as the
+    # repairs above: a same-file VERIFIED method, callee-before-caller ordering from
+    # `scc.find_self_method_calls`; corpus byte-inert by construction.
+    #@ sibling_concrete
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._comp_content_counter, self._current_params, self._current_self_type, self._dict_locals, self._frame_trigger_active, self._func_return_type, self._in_spec, self._last_hval_get_raw, self._last_hval_get_str, self._needs_array_init, self._obj_state_written, self._quant_record_binders, self._quant_scalar_binders, self._string_local_vars, self._todict_arg_wants_pymap, self._uses_build_param_list_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
@@ -1231,7 +1261,6 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
             code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
         return code
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._abstract_ops, self._array_locals, self._comp_content_counter, self._current_params, self._current_self_type, self._decode_to_string, self._dict_locals, self._emit_ir_seq_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._get_return_raw_option, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._havoc_counter, self._in_loop_spec, self._in_spec, self._keyword_locals, self._known_collection_elements, self._known_collection_sizes, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._needs_array_init, self._obj_state_written, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyval_get_as_string, self._pyval_get_raw_coll, self._pyval_locals, self._quant_record_binders, self._quant_scalar_binders, self._record_array_locals, self._record_locals, self._record_seq_locals, self._slice_set_tmp_counter, self._str_slice_loop_len, self._string_local_vars, self._todict_aliases, self._todict_arg_wants_pymap, self._tparam_locals, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
@@ -1247,7 +1276,195 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         # re-trusted: _handle_augassign_stmt — `getattr(self, "_current_self_type", None) in
         # getattr(self, "_mutable_state_classes", set())` reflection leak, value-model-gapped
         # (self-scalar getattr-default collapses to int-0 vs string-keyed set) (see generic-dict-str-and.md)
-        return ""
+        target = stmt.target
+        # (#48) ROUTE #49, SECOND SHAPE — `a += [x]` ON A LIST PARAMETER, found by the
+        #   TWENTY-SIXTH PLANE the same hour it was written. `.append` was the cell the
+        #   plane's first ten found; extending its table to seventeen cells turned up a
+        #   SECOND DROPPED one, and it is the same defect through a different statement
+        #   kind, so the `.append` refusal above does not reach it. MEASURED: `def g(a):
+        #   a += [1]` then `g(a); return len(a)` proved `\result == 2` where Python
+        #   returns 3 (witness 1083).
+        #
+        #   GATED ON THE TARGET BEING A COLLECTION, not merely a parameter, and that
+        #   distinction is the whole correctness of this arm: `a += 1` on an INT parameter
+        #   is FAITHFUL as a local update, because Python integers are immutable and the
+        #   caller genuinely does not see it. Only a list target is passed by reference.
+        #   A LOCAL list's `+=` is faithful too and keeps proving.
+        # (value-position `x or d` spelled `x if x else d`: the read is a side-effect-free
+        # attribute lookup, so the two are the same value; the IfExp form is what the mirror
+        # port lowers.)
+        if (target in set(getattr(self, "_formal_params", [])
+                          if getattr(self, "_formal_params", []) else [])
+                and (target in getattr(self, "_seq_locals", set())
+                     or target in getattr(self, "_array_locals", set()))
+                and target not in getattr(self, "_stmt_seq_mut_params", set())):
+            from errors import PyCSLSemanticError as _R49B
+            raise _R49B(
+                "in-place `%s=` on list parameter '%s' is out of scope: Python `a += b` "
+                "on lists is an IN-PLACE extend, so the caller's list grows, and this "
+                "lowering grows a local snapshot with no `writes {%s}` frame — measured, "
+                "`g(a); return len(a)` proved the length UNCHANGED where Python had grown "
+                "it. Build the result in a LOCAL and return it (`c = []; c += a; c += b; "
+                "return c` proves the length-additive law), or use `a.append`/`extend` on "
+                "a local." % (stmt.op, target, target),
+                stage="module6-whyml",
+                code="PYCSL-WHYML-PARAM-LIST-AUGASSIGN")
+        safe_target = whyml_ident(target)
+        _val_d = stmt.value.to_dict()
+        val = self._expr_to_whyml(_val_d, local_refs)
+        raw_op = stmt.op
+        op = op_translate(raw_op)
+        bitwise_ops = {"&": "bit_and", "|": "bit_or", "^": "bit_xor",
+                       "<<": "bit_lshift", ">>": "bit_rshift", "**": "py_pow"}
+        # Detect array-typed targets so `+=` on a list lowers to array-concat,
+        # not integer add. Python `lines += [...]` extends the list; emitting
+        # `lines := !lines + rhs` produces a `array int` vs `int` type error
+        # at Why3.
+        array_target = (
+            target in self._array_locals
+            or target in self._array2d_params
+            or target in self._current_array1d_params
+        )
+        if raw_op == "+" and target in self._seq_locals:
+            # 07-1705-rev4 P3: faithful growable concat. `a += b` → `a := !a ++ <b as seq>`
+            # over the region-free `ref (seq int)`; length-additive and element-preserving
+            # via the standard `seq.Seq` `++` axioms (proven in the 07-1732 P0 probe).
+            rhs = self._seq_operand(_val_d, local_refs)
+            code = f"{indent}{safe_target} := (!{safe_target} ++ {rhs})"
+        elif raw_op == "+" and self._is_string_expr({"type": "Var", "name": target}) \
+                and self._is_string_expr(_val_d):
+            # 14-string-field-codec-plan Gap (str-augassign): `s += t` on a
+            # string-typed local/param lowers to the SAME string-concat bridge
+            # `s + t` uses in `_binop_to_whyml` (`str_concat_op` in body, `concat`
+            # in spec), not the int `+`. Without this the AugAssign arm would
+            # emit `s := !s + t` and Why3 type-errors (`string + string` →
+            # expected int). Fires only when BOTH the target is a str-typed
+            # symbol AND the RHS is a string expression — byte-identical for
+            # every non-string target (the prior path type-errored anyway).
+            val = self._expr_to_whyml(_val_d, local_refs)
+            if getattr(self, "_in_spec", False):
+                code = f"{indent}{safe_target} := (concat !{safe_target} {val})"
+            else:
+                self._add_abstract_op(
+                    "val str_concat_op (a: string) (b: string) : string\n"
+                    "    ensures { result = (concat a b) }\n"
+                    "    ensures { String.length result = String.length a + String.length b }")
+                code = f"{indent}{safe_target} := (str_concat_op !{safe_target} {val})"
+        elif (raw_op == "|"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and isinstance(_val_d, dict) and _val_d.get("type") == "Call"
+                and self._call_returns_string_collection(_val_d.get("func", ""))):
+            # item34.md CF5: `<seq> |= find_*(...)` / `|= self._callee_raised_in(...)`
+            # (`try_assigned`/`body_raised`) is a UNION over the `seq string` name-lists. The
+            # RHS is seq-ified via `_seq_operand` (seq passes through; a `List[str]` array
+            # source is `snapshot`-bridged) so `arr_union (a b: seq string)` type-checks.
+            self._add_abstract_op("val arr_union (a b: seq string) : seq string")
+            _rhs_seq = self._seq_operand(_val_d, local_refs)
+            code = f"{indent}{safe_target} := (arr_union !{safe_target} {_rhs_seq})"
+        elif (raw_op == "|"
+                and getattr(self, "_current_self_type", None)
+                in getattr(self, "_mutable_state_classes", set())
+                and (target in getattr(self, "_dict_locals", set())
+                     or (isinstance(_val_d, dict) and _val_d.get("type") == "Var"
+                         and _val_d.get("name") in getattr(self, "_dict_locals", set())))):
+            # item34.md CF5: `<set> |= <set>` on the map-based sets (`already_matched |=
+            # seen_local`) is a MAP union — `map int (option int)`, not int `bit_or`.
+            self._add_abstract_op(
+                "val map_union (a b: map int (option int)) : map int (option int)")
+            code = f"{indent}{safe_target} := (map_union !{safe_target} {val})"
+        elif raw_op == "|" and target in getattr(self, "_str_set_locals", set()):
+            # set-value-model-wall (self-tcb-reduction, Tier-5): `s |= t` where `s` is
+            # an emitter-local `Set[str]` (`_str_set_locals`: annotated `Set[str]` AND
+            # `= set()`-initialized) is the FAITHFUL set UNION over the executable
+            # `set.SetApp[string]` clone — `s := StrSet.union !s <t>` — matching the
+            # `StrSet.empty`/`StrSet.add`/`StrSet.mem` ops the same local already uses.
+            # Without this arm the local fell through to the integer `bit_or` and the
+            # emitted body type-errored (`StrSet.set` in an `int` slot) — the
+            # `_handle_try_stmt` regression. `union` is a plain `SetApp` val (no new
+            # axiom, ledger stays 3). Gated on `_str_set_locals`, which is empty for
+            # every corpus function -> byte-identical.
+            code = f"{indent}{safe_target} := (StrSet.union !{safe_target} {val})"
+        elif raw_op in ("<<", ">>"):
+            # (#49) ROUTE #447 (red team 36; MEASURED PROVED on 8fe7204c3 under `#@
+            #   no_exception \all`, CPython ValueError / OverflowError): `c <<= b` on a local
+            #   or parameter lowered to `c := (bit_lshift !c b)` WITHOUT the `b >= 0` row
+            #   (`("binop", "<<")`, ValueError) and #414's ssize_t bound (OverflowError) that
+            #   the expression `c << b` owes. AUDIT of every augmented operator on a NAME
+            #   target against its plain BinOp obligation row: `<<` `>>` (non_neg_shift; `<<`
+            #   also #414) are lowered HERE through the SAME expression path as `c = c op b`
+            #   (`_handle_binop`: `_wrap_with_no_exception_assert` and #414), so the two can
+            #   never drift; `//` `%` `/` (no_div_zero) are REFUSED just below (they were
+            #   ill-formed `c := !c div b`, fail-closed only by an accident of syntax, and the
+            #   floored `pycsl_div` / `pycsl_mod` they need is declared from BinOp sites only);
+            #   `**` declares #259's `requires { y >= 0 }` on `py_pow` (below), which excludes
+            #   `0 ** -n`; `+ - * & | ^` have no row. Inline: the mirror twin of this method is
+            #   `\trusted`.
+            _bin447 = {"type": "BinOp", "op": raw_op,
+                       "left": {"type": "Var", "name": target}, "right": _val_d}
+            code = f"{indent}{safe_target} := {self._expr_to_whyml(_bin447, local_refs)}"
+        elif raw_op in ("div", "//", "%", "/"):
+            from errors import PyCSLSemanticError as _R447
+            raise _R447(
+                "augmented `%s=` on '%s' is not lowered: a floor division / modulo / true "
+                "division owes `%s != 0` (ZeroDivisionError) and its floored semantics, "
+                "which only the expression form carries (route #447; the augmented form used "
+                "to lower to an ill-formed `%s := !%s div ...`). Write the plain assignment "
+                "`%s = %s %s ...`, which is lowered with its obligation."
+                % ("//" if raw_op == "div" else raw_op, target, "the divisor", target,
+                   target, target, target, "//" if raw_op == "div" else raw_op),
+                stage="module6-whyml",
+                code="PYCSL-R447-AUGASSIGN-DIVISION")
+        elif raw_op in bitwise_ops:
+            op_fn: str = bitwise_ops[raw_op]
+            if raw_op == "**":
+                # (#49) ROUTE #259 — the SAME declaration as the `**` expression site, so
+                # `x **= n` owes the same `n >= 0` (a negative exponent yields a float) and
+                # the name-dedup can never keep an unguarded `py_pow`.
+                self._add_abstract_op(
+                    "val function py_pow (x: int) (y: int) : int\n"
+                    "    requires { [@expl:int ** needs a non-negative exponent (route 259)] y >= 0 }")
+            else:
+                self._add_abstract_op(f"val {op_fn} (x: int) (y: int) : int")
+            code = f"{indent}{safe_target} := ({op_fn} !{safe_target} {val})"
+        # 07-1705-rev4 P5: the effect-opaque `array_extend` arm (07-1321 S4) is REMOVED.
+        # Every grown list var is now seq-promoted (P2) and handled by the faithful seq
+        # concat above (locals via P3, params via the P5 entry shadow), so `array += array`
+        # no longer needs the unit-return opaque fallback. A list `+=` target that somehow
+        # escaped seq-promotion would fall through to the integer `+` below and fail LOUDLY
+        # at Why3 type-check (never a silent int leak) — but no corpus driver reaches it.
+        else:
+            code = f"{indent}{safe_target} := !{safe_target} {op} {val}"
+        # (#49) ROUTE #375 — AN AUGMENTED ASSIGNMENT ON AN ERASED VALUE RUNS A USER DUNDER.
+        #   Route #337 refuses `self += 1` spelled on `self` (Module 5); through an alias
+        #   (`t = self; t += 1`, `t *= 2`) or on a field-less-class parameter the target is
+        #   in route #249's erased set and the statement still lowered to the int `+`, so
+        #   `no_exception \all` PROVED it (CPython TypeError). Under `no_exception`
+        #   (program context), when route #251's probe calls the target or the value
+        #   erased, the update is preceded by the same failing assertion as `_handle_binop`'s
+        #   route #252 operator (`__iadd__` / `__add__` / `__radd__` may raise). Inline: the
+        #   mirror twin of this method is `\trusted` (no new def, no raise).
+        from ir_schema import OpaqueExpr as _OpaqueExpr375
+        if (not getattr(self, "_in_spec", False)
+                and (getattr(self, "_current_no_exception", set())
+                     or getattr(self, "_current_no_exception_all", False))
+                and ((getattr(self, "_r249_scope", None)
+                      if getattr(self, "_r249_scope", None) else {}).get("erased")
+                     or (getattr(self, "_r249_scope", None)
+                      if getattr(self, "_r249_scope", None) else {}).get("any_ret")
+                     or (getattr(self, "_r249_scope", None)
+                      if getattr(self, "_r249_scope", None) else {}).get("eq_classes"))
+                and isinstance(_val_d, dict)
+                and self._handle_binop(_OpaqueExpr375(
+                    kind="BinOp", raw={"type": "BinOp", "op": "r251_erased?",
+                                       "left": {"type": "Var", "name": target},
+                                       "right": _val_d}), set(), False, None)):
+            code = (f"{indent}begin assert {{ [@expl:PyCSL-R375 an augmented assignment "
+                    f"`{target} {raw_op}= ...` on an erased (Any / object / field-less class) "
+                    f"value runs a user dunder that may raise] false }}; end;\n{code}")
+        if rest:
+            code += ";\n" + self._stmts_to_whyml(rest, local_refs, declared_refs, indent, in_loop)
+        return code
 
     #@ requires True
     #@ ensures True
@@ -1298,7 +1515,17 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
         _rec_lower = (self._current_self_type if obj == "self"
                       else (getattr(self, "_current_record_var_classes", {}).get(obj, "") or "").lower() or "")
         safe_field = self._field_label(_rec_lower, field)
-        if field in self._all_record_fields:
+        # PYTHON-AST NODE CTOR FAMILY (pure_ast only, the `_uses_pyast_parser` gate): a location
+        # stamp (`n.lineno = ..`, the four ASDL attributes) on an object that is NOT a known
+        # record variable -- an emit_ir local, an int-erased node parameter -- keeps its non-record
+        # lowering below (the unit no-op / `setattr_3`) even when some record of the file also
+        # declares a field of that name: `field in self._all_record_fields` is a NAME test, and
+        # the record store `n.lineno <- ..` on a non-record value is ill-typed (Why3 resolves the
+        # label to that unrelated record). `self` and record-typed variables keep the record store.
+        if field in self._all_record_fields and not (
+                field in ("lineno", "col_offset", "end_lineno", "end_col_offset")
+                and obj != "self" and not _rec_lower
+                and self._uses_pyast_parser()):
             # Coerce RHS to the field's declared WhyML type. Without
             # this, `self.<list-field> <- <int-returning-call>` (e.g.
             # `self._lock_order <- get_order(...)` where get_order is
@@ -1928,7 +2155,7 @@ class StatementEmissionMixin(ControlFlowStmtMixin):
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
-    #@ assigns self._abstract_ops, self._array_elem_types, self._array_locals, self._class_name_ternary_locals, self._comp_content_counter, self._const_pair_dict_str_locals, self._current_append_targets, self._current_params, self._current_record_var_classes, self._current_self_type, self._decode_to_string, self._dict_key_types, self._dict_locals, self._dict_value_types, self._emit_ir_local_vars, self._emit_ir_seq_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._get_return_raw_option, self._getattr_self_dict_aliases, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._has_early_ret, self._havoc_counter, self._hvalmap_local_vars, self._in_loop_spec, self._in_spec, self._inline_array_temps, self._irlist_local_vars, self._iropt_ir_local_vars, self._iropt_seq_locals, self._iropt_str_local_vars, self._keyword_locals, self._kind_local_recv, self._known_collection_elements, self._known_collection_sizes, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._literal_rebind_lens, self._literal_rebind_targets, self._needs_array_init, self._obj_state_written, self._opaque_selfmap_aliases, self._opaque_selfmap_inner_aliases, self._option_str_return_vars, self._option_tuple_unpack_targets, self._option_tuple_vars, self._optional_union_locals, self._optmap_getter_locals, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyconst_val_local_vars, self._pyval_get_as_string, self._pyval_get_raw_coll, self._pyval_local_vars, self._pyval_locals, self._quant_record_binders, self._quant_scalar_binders, self._record_array_locals, self._record_field_elem_locals, self._record_locals, self._record_seq_locals, self._refine_str_comp_locals, self._seq_ir_tuple_targets, self._seq_locals, self._seq_value_types, self._slice_set_tmp_counter, self._str_literal_seq_locals, self._str_slice_loop_len, self._string_local_vars, self._tdrl_hval_locals, self._tdrl_present_locals, self._term_local_vars, self._todict_aliases, self._todict_arg_wants_pymap, self._tparam_locals, self._tuple_array_locals, self._tuple_var_slot_types, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_dictlit_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
+    #@ assigns self._abstract_ops, self._array_elem_types, self._array_locals, self._class_name_ternary_locals, self._comp_content_counter, self._const_pair_dict_str_locals, self._current_append_targets, self._current_params, self._current_record_var_classes, self._current_self_type, self._decode_to_string, self._dict_key_types, self._dict_locals, self._dict_value_types, self._emit_ir_local_vars, self._emit_ir_seq_locals, self._for_idx_init, self._for_items_hval_map, self._for_iter_materialize, self._for_target_is_pyval, self._frame_trigger_active, self._func_return_type, self._get_return_raw_option, self._getattr_self_dict_aliases, self._ghost_array_vars, self._ghost_dict_vars, self._ghost_list_vars, self._ghost_set_vars, self._ghost_string_vars, self._ghost_tuple_vars, self._has_early_ret, self._havoc_counter, self._hvalmap_local_vars, self._in_loop_spec, self._in_spec, self._inline_array_temps, self._irlist_local_vars, self._iropt_ir_local_vars, self._iropt_seq_locals, self._iropt_str_local_vars, self._keyword_locals, self._kind_local_recv, self._known_collection_elements, self._known_collection_sizes, self._lambda_locals, self._last_hval_get_raw, self._last_hval_get_str, self._late_content_ops, self._literal_rebind_lens, self._literal_rebind_targets, self._lvd_int_predecl, self._needs_array_init, self._obj_state_written, self._opaque_selfmap_aliases, self._opaque_selfmap_inner_aliases, self._option_str_return_vars, self._option_tuple_unpack_targets, self._option_tuple_vars, self._optional_union_locals, self._optmap_getter_locals, self._pyast_loop_variant_len, self._pyast_stmt_locals, self._pyconst_val_local_vars, self._pyval_get_as_string, self._pyval_get_raw_coll, self._pyval_local_vars, self._pyval_locals, self._quant_record_binders, self._quant_scalar_binders, self._record_array_locals, self._record_field_elem_locals, self._record_locals, self._record_seq_locals, self._refine_str_comp_locals, self._seq_ir_tuple_targets, self._seq_locals, self._seq_value_types, self._slice_set_tmp_counter, self._str_literal_seq_locals, self._str_slice_loop_len, self._string_local_vars, self._tdrl_hval_locals, self._tdrl_present_locals, self._term_local_vars, self._todict_aliases, self._todict_arg_wants_pymap, self._tparam_locals, self._tuple_array_locals, self._tuple_var_slot_types, self._uses_build_param_list_cache, self._uses_call_kw_cache, self._uses_compute_return_type_cache, self._uses_const_reflect_cache, self._uses_dictlit_cache, self._uses_pyast_parser_cache, self._uses_refine_tuple_return_type_cache
     def _emit_body_code(self, func: Dict[str, Any], body_stmts: List[Dict[str, Any]],
                          local_refs: Set[str], ghost_vars: Set[str], ref_params: Set[str],
                          is_method: bool, return_type: str) -> str:

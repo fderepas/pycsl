@@ -68,6 +68,6 @@ def parse_format(fmt: str) -> Optional[StructFormat]:
 #@ requires True
 #@ ensures True
 #@ assigns \nothing
-def calcsize(fmt: str) -> int:
+def calcsize(fmt: str) -> Optional[int]:
     return None
 

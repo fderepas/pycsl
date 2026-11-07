@@ -74,7 +74,6 @@ frontend/Module2_Parser.py	_lex_contract	unclassified	-
 frontend/Module2_Parser.py	_ContractParser.__init__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/Module2_Parser.py	_ContractParser._err	cost-scale:exception-payload-model	THE EXCEPTION PAYLOAD MODEL
 frontend/Module2_Parser.py	_ContractParser._try	unclassified	-
-frontend/Module2_Parser.py	_ContractParser.parse	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_contract	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._grab_reviewer_id	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_assigns	cost-scale:family-b-list-boundary	THE VERDICTS THE STUBS' OWN COMMENTS ALREADY RECORD (22 harvested, 5 classified)
@@ -90,13 +89,11 @@ frontend/Module2_Parser.py	_ContractParser._parse_quantifier	cost-scale:family-b
 frontend/Module2_Parser.py	_ContractParser._parse_atom_primary	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_atom_name	unclassified	-
 frontend/Module2_Parser.py	_ContractParser._parse_atom_bs	unclassified	-
-frontend/Module2_Parser.py	_ContractParser._parse_expr_list	unclassified	-
 frontend/Module2_Parser.py	Module2_Parser.parse_contract	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver._subst_var	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/Module3_Weaver.py	PyCSLWeaver._desugar_acts	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/Module3_Weaver.py	PyCSLWeaver._extract_mixin_directives	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver._dispatch_function_contracts	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-frontend/Module3_Weaver.py	PyCSLWeaver._validate_function_contracts	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/Module3_Weaver.py	PyCSLWeaver.visit_FunctionDef	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver.visit_Module	unclassified	-
 frontend/Module3_Weaver.py	PyCSLWeaver.visit_With	unclassified	-
@@ -129,6 +126,8 @@ frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._py_expr_fstring	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._py_stmts_to_ir	cost-scale:stmt-handler-dispatch	L2 `_py_stmts_to_ir`
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._match_pattern_to_ir	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._field_type_from_annotation_inst	unclassified	-
+frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_type_params	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
+frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_typevar_registry	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._emit_typeddict_record	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._synthesize_typeddict_functional	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._emit_namedtuple_record	unclassified	-
@@ -136,10 +135,14 @@ frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._synthesize_namedtuple_function
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._emit_protocol_interface	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._populate_protocol_conformance	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_class_fields	unclassified	-
+frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._const_int_value	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter.visit_ClassDef	unclassified	-
+frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._union_arm_tag	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_union_arms	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._normalize_union_annotation	unclassified	-
+frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._collect_final_registry	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._normalize_literal_annotation	unclassified	-
+frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._m5_get_type_name_legacy	cost-scale:emit-ir-narrowing-view	routes #566 / #567 mirror re-trusts
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._encode_callable_annotation	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._m5_get_type_name	unclassified	-
 frontend/Module5_IREmitter.py	PyCSLToJSONEmitter._build_function_symbol_table	unclassified	-
@@ -191,9 +194,7 @@ frontend/monomorphize.py	_rewrite_annotation_str	cost-scale:int-erasure-seam	THE
 frontend/monomorphize.py	_record_classification	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 frontend/pure_ast.py	_build_nodes	cost-scale:name-rebinding-model	A NAME REBOUND AFTER ITS DEFINITION
 frontend/pure_ast.py	Ellipsis.__new__	unclassified	-
-frontend/pure_ast.py	_Tok.__repr__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_lex	cost-scale:nested-closure-lift	the nested-closure lift
-frontend/pure_ast.py	Comment.__init__	unclassified	-
 frontend/pure_ast.py	comments	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_Parser.__init__	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 frontend/pure_ast.py	_Parser._slice	unclassified	-
@@ -240,7 +241,6 @@ frontend/pure_ast.py	_Unparser.visit_Lambda	unclassified	-
 frontend/pure_ast.py	_Unparser._str_literal_helper	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_JoinedStr	unclassified	-
 frontend/pure_ast.py	_Unparser._write_fstring_inner	unclassified	-
-frontend/pure_ast.py	_Unparser.visit_MatchStar	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_MatchMapping	unclassified	-
 frontend/pure_ast.py	_Unparser.visit_MatchClass	unclassified	-
 frontend/pure_ast.py	unparse	unclassified	-
@@ -253,11 +253,9 @@ module6_whyml/abstract_ops.py	AbstractOpsMixin._insert_abstract_val_block	unclas
 module6_whyml/auto_trust.py	AutoTrustMixin._build_witness_str	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 module6_whyml/auto_trust.py	AutoTrustMixin._check_witness_vals	unclassified	-
 module6_whyml/auto_trust.py	AutoTrustMixin._should_auto_trust_tuple_return	unclassified	-
-module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._handle_mktuple_expr	cost-scale:writing-call-in-comprehension	ROUTE #488 REPAIR
 module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._handle_proj_expr	unclassified	-
 module6_whyml/expr_ghost_spec_ops.py	GhostSpecOpsMixin._handle_ctor_payload_expr	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._is_emit_ir_expr	unclassified	-
-module6_whyml/expressions.py	ExpressionEmissionMixin._e	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._to_bool	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._match_pattern_cond	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._emit_membership	unclassified	-
@@ -274,7 +272,6 @@ module6_whyml/expressions.py	ExpressionEmissionMixin._handle_dotted_call	unclass
 module6_whyml/expressions.py	ExpressionEmissionMixin._coerce_dotted_args	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._dotted_ensures_suffix	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._handle_struct_call	unclassified	-
-module6_whyml/expressions.py	ExpressionEmissionMixin._emit_contract_logic_symbol	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._linear_form	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._static_width	unclassified	-
 module6_whyml/expressions.py	ExpressionEmissionMixin._handle_call_expr	unclassified	-
@@ -321,7 +318,6 @@ module6_whyml/preamble.py	PreambleEmissionMixin._emit_type_decls	unclassified	-
 module6_whyml/preamble.py	PreambleEmissionMixin._emit_opaque_class_aliases	unclassified	-
 module6_whyml/scc.py	compute_sccs	cost-scale:nested-closure-lift	the nested-closure lift
 module6_whyml/scc.py	sort_functions_by_scc	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
-module6_whyml/statements.py	StatementEmissionMixin._resolve_dotted_signature	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._expr_to_whyml	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._track_collection_metadata	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_return_stmt	unclassified	-
@@ -331,7 +327,6 @@ module6_whyml/statements.py	StatementEmissionMixin._seq_init_expr	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_ghost_assign_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_tuple_unpack_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_array_set_stmt	unclassified	-
-module6_whyml/statements.py	StatementEmissionMixin._handle_augassign_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._handle_expr_stmt	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._stmts_to_whyml	unclassified	-
 module6_whyml/statements.py	StatementEmissionMixin._emit_frame_condition	unclassified	-
@@ -341,11 +336,11 @@ module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._classify_iterable	uncla
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_for_stmt	unclassified	-
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._callee_raised_in	unclassified	-
 module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._render_match_pattern	unclassified	-
+module6_whyml/stmt_control_flow.py	ControlFlowStmtMixin._handle_match_stmt	cost-scale:emit-ir-item-store-model	routes #566 / #567 mirror re-trusts
 module6_whyml/struct_format.py	parse_format	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 module6_whyml/struct_format.py	calcsize	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 module6_whyml/types.py	TypeInferenceMixin._track_collection_metadata	unclassified	-
 module6_whyml/types.py	TypeInferenceMixin._collect_array_var_assigns	unclassified	-
-proof2why3/crosscheck.py	CrossCheckResult.diagnostic	unclassified	-
 proof2why3/crosscheck.py	_load_axiom_registry	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof2why3/crosscheck.py	crosscheck_file	cost-scale:in-place-mutator	THE IN-PLACE COLLECTION MUTATOR
 proof2why3/crosscheck.py	main	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
@@ -377,7 +372,6 @@ proof2why3/sertop.py	run_sertop_batch	unclassified	-
 proof2why3/sertop.py	SertopSession.type_of_batch	unclassified	-
 proof2why3/sertop.py	extract_via_sertop	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 proof_axiom_allowlist.py	parse_rocq_assumptions_block	unclassified	-
-pycsl.py	_make_temp_mlw_path	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL
 pycsl.py	_generate_rocq_obligations	unclassified	-
 pycsl.py	_sha256_file	cost-scale:context-manager-model	A `with ... as` BINDING
 pycsl.py	_find_coqc	cost-scale:int-erasure-seam	THE INT-ERASURE SEAM IS THE NUMBER-ONE WALL

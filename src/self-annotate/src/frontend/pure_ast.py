@@ -153,12 +153,11 @@ class _Tok:
         self.start: Tuple[int, int] = t.start
         self.end: Tuple[int, int] = t.end
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def __repr__(self):
-        pass
+    def __repr__(self) -> str:
+        return f"Tok({_tokenize.tok_name[self.type]}, {self.string!r}, ({self.start[0]}, {self.start[1]}))"
 
 
 #@ \trusted reviewer: pycsl-self-annotate
@@ -171,12 +170,15 @@ def _lex(source):
 class Comment:
     'A source comment with position (see ``comments``).'
     __slots__ = ('lineno', 'col_offset', 'text', 'own_line', 'indent')
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self.col_offset, self.indent, self.lineno, self.own_line, self.text
-    def __init__(self, lineno, col_offset, text, own_line, indent):
-        pass
+    def __init__(self, lineno: int, col_offset: int, text: str, own_line: bool, indent: int):
+        self.lineno = lineno          # 1-based, matches node.lineno
+        self.col_offset = col_offset  # UTF-8 byte offset, matches node.col_offset
+        self.text = text              # raw, e.g. "#@ requires x > 0"
+        self.own_line = own_line      # True iff only whitespace precedes it on the line
+        self.indent = indent          # leading-whitespace width (own-line) / start col
 
     #@ requires True
     #@ ensures True
@@ -5486,12 +5488,14 @@ class _Unparser(NodeVisitor):
                 lambda: self.write(", "), self.traverse, node.patterns
             )
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns self._source
     def visit_MatchStar(self, node):
-        pass
+        name = node.name
+        if name is None:
+            name = "_"
+        self.write(f"*{name}")
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
