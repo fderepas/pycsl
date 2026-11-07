@@ -349,17 +349,18 @@ class PyCSLWeaver(ast.NodeVisitor):
         # trusted function (measured: 0 of the 4 files that use them).
         if (getattr(node, "csl_trusted", False)
                 or getattr(node, "csl_abstract", False)):
-            for _cm in getattr(node, "csl_acts", []) or []:
-                _kind = type(_cm).__name__
-                if _kind in ("Complete", "Disjoint"):
-                    raise PyCSLSemanticError(
-                        f"Function '{node.name}' (line {node.lineno}): "
-                        f"`#@ {_kind.lower()}` is discharged as a function-ENTRY assert "
-                        f"over the act guards, and this function is `#@ \\trusted` / "
-                        f"`#@ \\abstract`, so its body is never lowered and that assert "
-                        f"is never proved. The claim would hold by nothing at all. Drop "
-                        f"the `{_kind.lower()}` line, or give the function a verified "
-                        f"body.")
+            if getattr(node, "csl_acts", []):
+                for _cm in getattr(node, "csl_acts", []):
+                    _kind = type(_cm).__name__
+                    if _kind in ("Complete", "Disjoint"):
+                        raise PyCSLSemanticError(
+                            f"Function '{node.name}' (line {node.lineno}): "
+                            f"`#@ {_kind.lower()}` is discharged as a function-ENTRY assert "
+                            f"over the act guards, and this function is `#@ \\trusted` / "
+                            f"`#@ \\abstract`, so its body is never lowered and that assert "
+                            f"is never proved. The claim would hold by nothing at all. Drop "
+                            f"the `{_kind.lower()}` line, or give the function a verified "
+                            f"body.")
         if node.csl_trusted:
             for ens in node.csl_ensures:
                 if (isinstance(ens.expr, BinOp) and ens.expr.op == '=='

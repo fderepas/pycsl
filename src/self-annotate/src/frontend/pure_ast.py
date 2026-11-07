@@ -153,12 +153,11 @@ class _Tok:
         self.start: Tuple[int, int] = t.start
         self.end: Tuple[int, int] = t.end
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
-    def __repr__(self):
-        pass
+    def __repr__(self) -> str:
+        return f"Tok({_tokenize.tok_name[self.type]}, {self.string!r}, ({self.start[0]}, {self.start[1]}))"
 
 
 #@ \trusted reviewer: pycsl-self-annotate

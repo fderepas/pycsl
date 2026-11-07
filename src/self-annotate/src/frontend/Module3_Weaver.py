@@ -239,13 +239,44 @@ class PyCSLWeaver(ast.NodeVisitor):
     def _dispatch_function_contracts(node: ast.FunctionDef, contracts: List[Any]) -> None:
         pass
 
-    #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
     #@ ensures True
     #@ assigns \nothing
     @staticmethod
     def _validate_function_contracts(node: ast.FunctionDef) -> None:
-        pass
+        if (getattr(node, "csl_trusted", False)
+                or getattr(node, "csl_abstract", False)):
+            if getattr(node, "csl_acts", []):
+                for _cm in getattr(node, "csl_acts", []):
+                    _kind = type(_cm).__name__
+                    if _kind in ("Complete", "Disjoint"):
+                        raise PyCSLSemanticError(
+                            f"Function '{node.name}' (line {node.lineno}): "
+                            f"`#@ {_kind.lower()}` is discharged as a function-ENTRY assert "
+                            f"over the act guards, and this function is `#@ \\trusted` / "
+                            f"`#@ \\abstract`, so its body is never lowered and that assert "
+                            f"is never proved. The claim would hold by nothing at all. Drop "
+                            f"the `{_kind.lower()}` line, or give the function a verified "
+                            f"body.")
+        if node.csl_trusted:
+            for ens in node.csl_ensures:
+                if (isinstance(ens.expr, BinOp) and ens.expr.op == '=='
+                        and isinstance(ens.expr.left, Number)
+                        and int(ens.expr.left.value) == 1
+                        and isinstance(ens.expr.right, Number)
+                        and int(ens.expr.right.value) == 1):
+                    warnings.warn(
+                        f"Function '{node.name}' (line {node.lineno}): "
+                        f"\\trusted with vacuous 'ensures 1 == 1' — strengthen "
+                        f"the contract or document why no property is verifiable.",
+                        stacklevel=2,
+                    )
+        if node.csl_function_variants and node.csl_diverges:
+            raise ValueError(
+                f"Function '{node.name}' (line {node.lineno}): "
+                f"\\variant and \\diverges are contradictory — "
+                f"one asserts termination, the other denies it."
+            )
 
     #@ \trusted reviewer: pycsl-self-annotate
     #@ requires True
