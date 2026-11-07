@@ -8992,3 +8992,9 @@ int25 (#529 / #533 blocks appended after the same lines of the #315 judge, merge
 its own tree. Lesson: an integration battery is not the union of the executors' gates — it re-runs every executor's
 controls and the full mirror sweep on the integrated tree, and the fix is a recorded driver commit (control rewritten
 to keep its subject, a false mirror annotation corrected), never a loosened rule.
+
+## Driver run #5 (2026-11-04 .. 2026-11-08)
+- vm-irnode (cap-vm-unerase-irnode, 42 stubs): full cycle — report 1da0da1d3, independent fable review ac1d388bf (oracle artifacts; found LIVE soundness defects #566 / #567: an emit_ir item store dropped the rest of the block; `.kind` on a non-IR class read as the emit_ir tag), impl fe51f1f4c, lvG spike S1 PASS / REFINE. Verdict COST/SCALE; reopening: CSLIn retype + a non-IR narrowing view, typed TypedDict views (FunctionView), List[ExprIR] wiring. Lesson: a wall report's "fail-closed by design" framing must be tested by the reviewer — here it was false.
+- In-place mutators (40 stubs): lvB's havoc-the-receiver lowering is sound (spike) but completes 0 stubs; 13 + 5 stubs need a whole-module self-field alias analysis. Lesson (trigger-tested): "mutator walls" from first-blocker rows were not chains — lvH walked 11 such rows, 0 reached TC-OK.
+- #327 ident collision (13 stubs): refusal-over-renaming was a blast-radius choice, not soundness; every chain walls at link 2 — renaming the live locals per stub suffices once link 2 is solved.
+- Honesty rule (lvI, upheld by lvK on _parse_inductive_rules): an input-blind PIECE is acceptable only where the contract claims nothing about it; an input-blind RESULT is a facade.
